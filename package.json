@@ -1,0 +1,26 @@
+{
+  "name": "deepnote-oss",
+  "version": "0.0.0",
+  "description": "Deepnote Open Source Toolkit",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
+  "scripts": {
+    "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\"",
+    "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions"
+  },
+  "devDependencies": {
+    "cspell": "^8.0.0"
+  },
+  "keywords": [
+    ".deepnote",
+    "deepnote",
+    "jupyter",
+    "notebook",
+    "data-science"
+  ],
+  "license": "UNLICENSED until specific license is agreed upon"
+}
