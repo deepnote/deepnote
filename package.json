@@ -1,7 +1,7 @@
 {
   "name": "deepnote",
   "version": "0.0.0",
-  "description": "Deepnote Open Source Toolkit",
+  "description": "Deepnote Open Source",
   "private": true,
   "packageManager": "pnpm@10.17.1",
   "engines": {

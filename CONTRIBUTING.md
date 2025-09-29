@@ -44,12 +44,6 @@ Start by opening an issue or discussion to talk through your idea.
 pnpm install
 ```
 
-### Run local environment
-
-```bash
-pnpm start
-```
-
 This will:
 
 - Launch kernel and runtime services
