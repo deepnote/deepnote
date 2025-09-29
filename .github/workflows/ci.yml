@@ -1,4 +1,4 @@
-name: Spell Check
+name: CI
 
 on:
   push:
