@@ -1,4 +1,3 @@
-
 # 🛠️ Contributing to Deepnote OSS
 
 Thanks for your interest in contributing! 🎉  
@@ -34,7 +33,9 @@ Start by opening an issue or discussion to talk through your idea.
 ---
 
 ## 🚀 Local Development
+
 ### Prerequisites
+
 > **Note:** Ensure you have [Docker](https://www.docker.com/get-started) installed before proceeding with local development.
 
 ### Install dependencies
@@ -42,7 +43,6 @@ Start by opening an issue or discussion to talk through your idea.
 ```bash
 pnpm install
 ```
-
 
 ### Run local environment
 

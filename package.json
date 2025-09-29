@@ -1,5 +1,5 @@
 {
-  "name": "deepnote-oss",
+  "name": "deepnote",
   "version": "0.0.0",
   "description": "Deepnote Open Source Toolkit",
   "private": true,
@@ -10,10 +10,21 @@
   },
   "scripts": {
     "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\"",
-    "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions"
+    "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions",
+    "format": "prettier --write \"**/*.{html,md,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{html,md,yaml,yml}\"",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "cspell": "^8.0.0"
+    "cspell": "^8.19.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.6.2"
+  },
+  "lint-staged": {
+    "**/*.{html,md,yaml,yml}": [
+      "pnpm prettier --write"
+    ]
   },
   "keywords": [
     ".deepnote",
