@@ -9,7 +9,7 @@ Here's how you can get started.
 ## 📂 Repository Structure
 
 ```
-deepnote-oss/
+deepnote/
 ├── packages/        # Core TypeScript packages
 ├── docker/          # Local runtime config
 ├── .github/         # GitHub workflows & templates

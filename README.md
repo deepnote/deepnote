@@ -11,8 +11,8 @@ Welcome to the official open-source mono-repo for [Deepnote](https://deepnote.co
 Clone the repo, install dependencies and run the dockerised Deepnote locally:
 
 ```bash
-git clone https://github.com/deepnote/deepnote-oss.git
-cd deepnote-oss
+git clone https://github.com/deepnote/deepnote.git
+cd deepnote
 pnpm install
 pnpm start
 ```
