@@ -23,7 +23,7 @@
   },
   "lint-staged": {
     "**/*.{html,md,yaml,yml}": [
-      "pnpm prettier --write"
+      "pnpm format"
     ]
   },
   "keywords": [

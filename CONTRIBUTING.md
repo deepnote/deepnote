@@ -89,4 +89,4 @@ By contributing, you agree your work will be released under the TBC-LICENSE Lice
 
 ## 🙌 Need Help?
 
-Open an issue. We're happy to help!
+[Open an issue](https://github.com/deepnote/deepnote/issues/new). We're happy to help!
