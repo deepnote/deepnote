@@ -6,9 +6,9 @@ Welcome to the official open-source mono-repo for [Deepnote](https://deepnote.co
 
 ## 🚀 What's Inside
 
-## 📦 Local use
+## 📦 COMING SOON - Local use
 
-Clone the repo, install dependencies and run the dockerised Deepnote locally:
+Soon you'll be able to clone the repo, install dependencies and run the dockerised Deepnote locally with no other setup required:
 
 ```bash
 git clone https://github.com/deepnote/deepnote.git
