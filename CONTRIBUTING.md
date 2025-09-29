@@ -23,11 +23,10 @@ deepnote/
 
 We welcome all kinds of contributions:
 
-- 📝 Correcting and improving documentation
+- 📝 Improving documentation
 - 💬 Reporting bugs
 - 💡 Requesting features
 - 🧪 Writing tests
-- 🧱 Improving docs
 - 🛠️ Contributing code
 
 Start by opening an issue or discussion to talk through your idea.
