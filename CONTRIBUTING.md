@@ -9,7 +9,7 @@ Here's how you can get started.
 ## 📂 Repository Structure
 
 ```
-deepnote-oss/
+deepnote/
 ├── packages/        # Core TypeScript packages
 ├── docker/          # Local runtime config
 ├── .github/         # GitHub workflows & templates
@@ -23,11 +23,10 @@ deepnote-oss/
 
 We welcome all kinds of contributions:
 
-- 📝 Correcting and improving documentation
+- 📝 Improving documentation
 - 💬 Reporting bugs
 - 💡 Requesting features
 - 🧪 Writing tests
-- 🧱 Improving docs
 - 🛠️ Contributing code
 
 Start by opening an issue or discussion to talk through your idea.
