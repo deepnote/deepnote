@@ -4,4 +4,6 @@ module.exports = {
   roots: ["<rootDir>/packages"],
   testMatch: ["**/*.test.ts"],
   collectCoverageFrom: ["packages/*/src/**/*.ts", "!**/*.test.ts"],
+  bail: true,
+  errorOnDeprecated: true,
 };
