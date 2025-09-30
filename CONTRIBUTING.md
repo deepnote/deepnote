@@ -77,7 +77,7 @@ pnpm format
 
 ## 📄 License
 
-By contributing, you agree your work will be released under the TBC-LICENSE License.
+By contributing, you agree your work will be released under the Apache 2 License.
 
 ---
 
