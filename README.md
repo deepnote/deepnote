@@ -1,4 +1,4 @@
-# 🧠 Deepnote Open Source
+# 🧠 Deepnote
 
 Welcome to the official open-source mono-repo for [Deepnote](https://deepnote.com)! This repo provides the gateway and entrance everything you need to explore, extend, and contribute to the ecosystem behind Deepnote — including core packages, dev tooling, and integrations with the broader computational notebook world.
 
