@@ -24,7 +24,7 @@
   },
   "lint-staged": {
     "**/*.{html,md,yaml,yml}": ["pnpm exec biome format --write"],
-    "**/.gitignore": [
+    ".gitignore": [
       "sort -o .gitignore .gitignore"
     ]
   },
