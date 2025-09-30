@@ -1,0 +1,37 @@
+{
+  "name": "deepnote",
+  "version": "0.0.0",
+  "description": "Deepnote Open Source",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
+  "scripts": {
+    "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\"",
+    "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions",
+    "format": "prettier --write \"**/*.{html,md,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{html,md,yaml,yml}\"",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "cspell": "^8.19.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.6.2"
+  },
+  "lint-staged": {
+    "**/*.{html,md,yaml,yml}": [
+      "pnpm format"
+    ]
+  },
+  "keywords": [
+    ".deepnote",
+    "deepnote",
+    "jupyter",
+    "notebook",
+    "data-science"
+  ],
+  "license": "Apache-2.0"
+}

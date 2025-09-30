@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+.git/
+*.min.js
+*.min.css
+package-lock.json
+pnpm-lock.yaml

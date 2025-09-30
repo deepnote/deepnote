@@ -1,0 +1,50 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "useGitignore": true,
+  "words": [
+    "deepnote",
+    "jupyter",
+    "jupyterlab",
+    "ipynb",
+    "pnpm",
+    "monorepo",
+    "dockerised",
+    "vscode",
+    "windsurf",
+    "oss",
+    "eslint",
+    "prettier",
+    "typescript",
+    "github",
+    "workflows",
+    "repo"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "pnpm-lock.yaml",
+    ".git/**",
+    "dist/**",
+    "build/**",
+    "coverage/**",
+    "*.min.js",
+    "*.min.css"
+  ],
+  "overrides": [
+    {
+      "filename": "**/*.md",
+      "words": [
+        "deepnote",
+        "jupyter",
+        "jupyterlab",
+        "ipynb",
+        "pnpm",
+        "monorepo",
+        "dockerised",
+        "vscode",
+        "windsurf",
+        "oss"
+      ]
+    }
+  ]
+}
