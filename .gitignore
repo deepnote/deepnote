@@ -1,4 +1,4 @@
-node_modules
-dist
-coverage
 *.tsbuildinfo
+coverage
+dist
+node_modules

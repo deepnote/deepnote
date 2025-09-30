@@ -22,7 +22,10 @@
     "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\""
   },
   "lint-staged": {
-    "**/*.{html,md,yaml,yml}": ["pnpm exec biome format --write"]
+    "**/*.{html,md,yaml,yml}": ["pnpm exec biome format --write"],
+    "**/.gitignore": [
+      "sort -o .gitignore .gitignore"
+    ]
   },
   "keywords": [".deepnote", "data-science", "deepnote", "jupyter", "notebook"],
   "devDependencies": {
