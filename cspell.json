@@ -18,7 +18,8 @@
     "typescript",
     "github",
     "workflows",
-    "repo"
+    "repo",
+    "qlty"
   ],
   "ignorePaths": [
     "node_modules/**",

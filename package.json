@@ -13,6 +13,8 @@
     "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions",
     "format": "prettier --write \"**/*.{html,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{html,md,yaml,yml}\"",
+    "qlty:check": "qlty check",
+    "qlty:smells": "qlty smells --all",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -24,6 +26,9 @@
   "lint-staged": {
     "**/*.{html,md,yaml,yml}": [
       "pnpm format"
+    ],
+    "**/*.{js,ts,jsx,tsx,py}": [
+      "qlty check"
     ]
   },
   "keywords": [

@@ -1,1 +1,6 @@
 node_modules
+.qlty/cache
+.qlty/logs
+.qlty/out
+.qlty/plugin_cachedir
+.qlty/results

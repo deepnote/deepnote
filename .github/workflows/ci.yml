@@ -55,3 +55,21 @@ jobs:
 
       - name: Run formatter
         run: pnpm run format:check
+  qlty:
+    name: Qlty Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install qlty
+        run: |
+          curl -fsSL https://qlty.sh/install.sh | bash
+          echo "$HOME/.qlty/bin" >> $GITHUB_PATH
+
+      - name: Run qlty check
+        run: qlty check
+
+      - name: Run qlty code smells analysis
+        run: qlty smells --all
