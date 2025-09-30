@@ -1,6 +1,7 @@
 {
   "version": "0.2",
   "language": "en",
+  "useGitignore": true,
   "words": [
     "deepnote",
     "jupyter",
@@ -42,7 +43,7 @@
         "dockerised",
         "vscode",
         "windsurf",
-        "oss",
+        "oss"
       ]
     }
   ]
