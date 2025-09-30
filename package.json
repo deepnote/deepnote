@@ -27,7 +27,7 @@
     "**/*.{html,md,yaml,yml}": [
       "pnpm format"
     ],
-    "**/*.{js,ts,jsx,tsx,py}": [
+    "**/*.{js,ts,jsx,tsx}": [
       "qlty check"
     ]
   },

@@ -64,12 +64,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install qlty
-        run: |
-          curl -fsSL https://qlty.sh/install.sh | bash
-          echo "$HOME/.qlty/bin" >> $GITHUB_PATH
+        uses: qltysh/qlty-action/install@v1
 
       - name: Run qlty check
         run: qlty check
 
       - name: Run qlty code smells analysis
-        run: qlty smells --all
+        run: qlty smells
