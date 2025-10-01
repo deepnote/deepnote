@@ -1,20 +1,19 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
     globals: true,
-    include: ["packages/**/*.test.ts"],
-    reporters: ["default", "junit"],
+    include: ['packages/**/*.test.ts'],
+    reporters: ['default', 'junit'],
     outputFile: {
-      junit: "./coverage/test-results.xml",
+      junit: './coverage/test-results.xml',
     },
     coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html", "lcov"],
-      include: ["packages/*/src/**/*.ts"],
-      exclude: ["**/*.test.ts"],
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['**/*.test.ts'],
     },
     bail: 1,
   },
-});
-
+})

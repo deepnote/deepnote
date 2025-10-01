@@ -4,12 +4,7 @@
   "description": "Hello World package",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE",
-    "package.json"
-  ],
+  "files": ["dist", "README.md", "LICENSE", "package.json"],
   "scripts": {
     "build": "tsc",
     "test": "vitest"
