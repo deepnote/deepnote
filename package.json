@@ -34,7 +34,7 @@
     ".gitignore": [
       "sort -o .gitignore .gitignore"
     ],
-    "package.json": "sort-package-json"
+    "**/package.json": "sort-package-json"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
