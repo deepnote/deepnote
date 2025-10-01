@@ -23,7 +23,8 @@
     "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\""
   },
   "lint-staged": {
-    "**/*.{html,md,yaml,yml}": ["pnpm exec biome format --write"],
+    "**/*.{html,md}": ["pnpm exec biome format --write"],
+    "**/*.{yml,yaml}": ["pnpm exec prettier --write"],
     ".gitignore": ["sort -o .gitignore .gitignore"]
   },
   "keywords": [".deepnote", "data-science", "deepnote", "jupyter", "notebook"],
@@ -34,6 +35,7 @@
     "cspell": "9.2.1",
     "husky": "9.1.7",
     "lint-staged": "16.2.3",
+    "prettier": "3.6.2",
     "typescript": "5.9.3",
     "vitest": "3.2.4"
   }
