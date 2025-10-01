@@ -63,7 +63,7 @@ We use:
 
 - **TypeScript**
 - **Biome** for linting and formatting
-- **Jest** for testing
+- **Vitest** for testing
 
 Run formatters:
 
