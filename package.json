@@ -45,6 +45,7 @@
     "lint-staged": "16.2.3",
     "prettier": "3.6.2",
     "sort-package-json": "3.4.0",
+    "tsdown": "0.15.6",
     "typescript": "5.9.3",
     "vitest": "3.2.4"
   },

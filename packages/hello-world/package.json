@@ -2,13 +2,18 @@
   "name": "@deepnote/hello-world",
   "version": "0.0.0",
   "description": "Hello World package",
+  "keywords": [],
+  "license": "Apache-2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "README.md", "LICENSE", "package.json"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsdown",
     "test": "vitest"
-  },
-  "keywords": [],
-  "license": "Apache-2.0"
+  }
 }
