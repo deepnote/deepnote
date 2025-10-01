@@ -7,7 +7,7 @@ Here's how you can get started.
 
 ## 📂 Repository Structure
 
-```
+```text
 deepnote/
 ├── packages/        # Core TypeScript packages
 ├── docker/          # Local runtime config
@@ -73,6 +73,7 @@ pnpm format
 ```
 
 Biome is available as a first-party extension in your favorite editors.
+
 - [VS Code](https://biomejs.dev/guides/editors/first-party-extensions/#vs-code)
 - [IntelliJ](https://biomejs.dev/guides/editors/first-party-extensions/#intellij)
 - [Zed](https://biomejs.dev/guides/editors/first-party-extensions/#zed)
