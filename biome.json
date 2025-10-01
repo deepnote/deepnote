@@ -14,7 +14,7 @@
     "bracketSpacing": true,
     "expand": "auto",
     "useEditorconfig": true,
-    "includes": ["**", "!./coverage", "!./dist"]
+    "includes": ["**", "!./coverage", "!./dist", "!**/package.json"]
   },
   "linter": {
     "enabled": true,
