@@ -2,6 +2,7 @@
   "name": "deepnote",
   "version": "0.0.0",
   "description": "Deepnote Open Source",
+  "license": "Apache-2.0",
   "private": true,
   "packageManager": "pnpm@10.17.1",
   "engines": {
@@ -9,29 +10,22 @@
     "pnpm": ">=10.17.1"
   },
   "scripts": {
-    "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\"",
+    "format:check": "biome format .",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "prepare": "husky",
     "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions",
-    "format": "prettier --write \"**/*.{html,md,yaml,yml}\"",
-    "format:check": "prettier --check \"**/*.{html,md,yaml,yml}\"",
-    "prepare": "husky"
-  },
-  "devDependencies": {
-    "cspell": "^8.19.4",
-    "husky": "^9.1.7",
-    "lint-staged": "^15.5.2",
-    "prettier": "^3.6.2"
+    "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\""
   },
   "lint-staged": {
-    "**/*.{html,md,yaml,yml}": [
-      "pnpm format"
-    ]
+    "**/*.{html,md,yaml,yml}": ["pnpm exec biome format --write"]
   },
-  "keywords": [
-    ".deepnote",
-    "deepnote",
-    "jupyter",
-    "notebook",
-    "data-science"
-  ],
-  "license": "Apache-2.0"
+  "keywords": [".deepnote", "data-science", "deepnote", "jupyter", "notebook"],
+  "devDependencies": {
+    "@biomejs/biome": "2.2.4",
+    "cspell": "^8.19.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2"
+  }
 }
