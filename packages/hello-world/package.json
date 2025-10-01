@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "vitest"
   },
   "keywords": [],
   "license": "Apache-2.0"
