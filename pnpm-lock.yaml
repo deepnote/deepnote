@@ -22,6 +22,9 @@ importers:
       husky:
         specifier: 9.1.7
         version: 9.1.7
+      license-checker-rseidelsohn:
+        specifier: 4.4.2
+        version: 4.4.2
       lint-staged:
         specifier: 16.2.3
         version: 16.2.3
@@ -894,6 +897,13 @@ packages:
         integrity: sha512-TBr9Cf9onSAS2LQ2+QHx6XcC6h9+RIzJgbqG3++9TUZSH204AwEy5jg3BTQ0VATsyoGj4ee49tN/y6rvaOOtcg==,
       }
 
+  '@npmcli/fs@3.1.1':
+    resolution:
+      {
+        integrity: sha512-q9CRWjpHCMIh5sVyefoD1cA7PkvILqCZsnSOEUUivORLjxCO/Irmue2DprETiNgEqktDBZaM1Bi+jrarx1XdCg==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+
   '@oxc-project/types@0.93.0':
     resolution:
       {
@@ -1312,6 +1322,13 @@ packages:
         integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==,
       }
 
+  abbrev@2.0.0:
+    resolution:
+      {
+        integrity: sha512-6/mh1E2u2YgEsCHdY0Yx5oW+61gZU+1vXaoiHHrpKeuRNNgFvS+/jrwHiQhB5apAf5oB7UB7E19ol2R2LKH8hQ==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+
   ansi-escapes@7.1.1:
     resolution:
       {
@@ -1353,6 +1370,13 @@ packages:
         integrity: sha512-HqZ5rWlFjGiV0tDm3UxxgNRqsOTniqoKZu0pIAfh7TZQMGuZK+hH0drySty0si0QXj1ieop4+SkSfPZBPPkHig==,
       }
     engines: { node: '>=14' }
+
+  array-find-index@1.0.2:
+    resolution:
+      {
+        integrity: sha512-M1HQyIXcBGtVywBt8WVdim+lrNaK7VHp99Qt5pSNziXznKHViIBbXWtfRTpEFpF/c4FdfxNAsCCwPp5phBYJtw==,
+      }
+    engines: { node: '>=0.10.0' }
 
   array-timsort@1.0.3:
     resolution:
@@ -1432,6 +1456,13 @@ packages:
         integrity: sha512-2bxTP2yUH7AJj/VAXfcA+4IcWGdQ87HwBANLt5XxGTeomo8yG0y95N1um9i5StvhT/Bl0/2cARA5v1PpPXUxUA==,
       }
     engines: { node: '>=14.16' }
+
+  chalk@4.1.2:
+    resolution:
+      {
+        integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==,
+      }
+    engines: { node: '>=10' }
 
   chalk@5.6.2:
     resolution:
@@ -1784,6 +1815,12 @@ packages:
     engines: { node: ^8.16.0 || ^10.6.0 || >=11.0.0 }
     os: [darwin]
 
+  function-bind@1.1.2:
+    resolution:
+      {
+        integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==,
+      }
+
   gensequence@7.0.0:
     resolution:
       {
@@ -1824,6 +1861,12 @@ packages:
       }
     engines: { node: '>=18' }
 
+  graceful-fs@4.2.11:
+    resolution:
+      {
+        integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==,
+      }
+
   has-flag@4.0.0:
     resolution:
       {
@@ -1831,11 +1874,25 @@ packages:
       }
     engines: { node: '>=8' }
 
+  hasown@2.0.2:
+    resolution:
+      {
+        integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==,
+      }
+    engines: { node: '>= 0.4' }
+
   hookable@5.5.3:
     resolution:
       {
         integrity: sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==,
       }
+
+  hosted-git-info@6.1.3:
+    resolution:
+      {
+        integrity: sha512-HVJyzUrLIL1c0QmviVh5E8VGyUS7xCFPS6yydaVd1UegW+ibV/CohqTH9MkOLDp5o+rb82DMo77PTuc9F/8GKw==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
 
   html-escaper@2.0.2:
     resolution:
@@ -1870,6 +1927,13 @@ packages:
         integrity: sha512-QQnnxNyfvmHFIsj7gkPcYymR8Jdw/o7mp5ZFihxn6h8Ci6fh3Dx4E1gPjpQEpIuPo9XVNY/ZUwh4BPMjGyL01g==,
       }
     engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+
+  is-core-module@2.16.1:
+    resolution:
+      {
+        integrity: sha512-UfoeMA6fIJ8wTYFEUjelnaGI67v6+N7qXJEvQuIGa99l4xsCruSYOVSQ0uPANn4dAzm8lkYPaKLrrijLq7x23w==,
+      }
+    engines: { node: '>= 0.4' }
 
   is-fullwidth-code-point@3.0.0:
     resolution:
@@ -1960,6 +2024,21 @@ packages:
     engines: { node: '>=6' }
     hasBin: true
 
+  json-parse-even-better-errors@3.0.2:
+    resolution:
+      {
+        integrity: sha512-fi0NG4bPjCHunUJffmLd0gxssIgkNmArMvis4iNah6Owg1MCJjWhEcDLmsK6iGkJq3tHwbDkTlce70/tmXN4cQ==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+
+  license-checker-rseidelsohn@4.4.2:
+    resolution:
+      {
+        integrity: sha512-Sf8WaJhd2vELvCne+frS9AXqnY/vv591s2/nZcJDwTnoNgltG4mAmoenffVb8L2YPRYbxARLyrHJBC38AVfpuA==,
+      }
+    engines: { node: '>=18', npm: '>=8' }
+    hasBin: true
+
   lint-staged@16.2.3:
     resolution:
       {
@@ -1974,6 +2053,12 @@ packages:
         integrity: sha512-1wd/kpAdKRLwv7/3OKC8zZ5U8e/fajCfWMxacUvB79S5nLrYGPtUI/8chMQhn3LQjsRVErTb9i1ECAwW0ZIHnQ==,
       }
     engines: { node: '>=20.0.0' }
+
+  lodash.clonedeep@4.5.0:
+    resolution:
+      {
+        integrity: sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==,
+      }
 
   log-update@6.1.0:
     resolution:
@@ -1993,6 +2078,13 @@ packages:
       {
         integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==,
       }
+
+  lru-cache@7.18.3:
+    resolution:
+      {
+        integrity: sha512-jumlc0BIUrS3qJGgIkWZsyfAM7NCWiBcCDhnd+3NNM5KbBmLTgHVfWBcg6W+rLUsIpzpERPsvwUP7CckAQSOoA==,
+      }
+    engines: { node: '>=12' }
 
   magic-string@0.30.19:
     resolution:
@@ -2041,6 +2133,14 @@ packages:
       }
     engines: { node: '>=16 || 14 >=14.17' }
 
+  mkdirp@1.0.4:
+    resolution:
+      {
+        integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==,
+      }
+    engines: { node: '>=10' }
+    hasBin: true
+
   ms@2.1.3:
     resolution:
       {
@@ -2061,6 +2161,28 @@ packages:
       }
     engines: { node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1 }
     hasBin: true
+
+  nopt@7.2.1:
+    resolution:
+      {
+        integrity: sha512-taM24ViiimT/XntxbPyJQzCG+p4EKOpgD3mxFwW38mGjVUrfERQOeY4EDHjdnptttfHuHQXFx+lTP08Q+mLa/w==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+    hasBin: true
+
+  normalize-package-data@5.0.0:
+    resolution:
+      {
+        integrity: sha512-h9iPVIfrVZ9wVYQnxFgtw1ugSvGEMOlyPWWtm8BMJhnwyEL/FLbYbTY3V3PpjI/BUK67n9PEWDu6eHzu1fB15Q==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+
+  npm-normalize-package-bin@3.0.1:
+    resolution:
+      {
+        integrity: sha512-dMxCf+zZ+3zeQZXKxmyuCKlIDPGuv8EF940xbkC4kQVDTtqoh6rJFO+JTKSA6/Rwi0getWmtuy4Itup0AMcaDQ==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
 
   onetime@7.0.0:
     resolution:
@@ -2164,6 +2286,21 @@ packages:
       {
         integrity: sha512-AifT7QEbW9Nri4tAwR5M/uzpBuqfZf+zwaEM/QkzEjj7NBuFD2rBuy0K3dE+8wltbezDV7JMA0WfnCPYRSYbXA==,
       }
+
+  read-installed-packages@2.0.1:
+    resolution:
+      {
+        integrity: sha512-t+fJOFOYaZIjBpTVxiV8Mkt7yQyy4E6MSrrnt5FmPd4enYvpU/9DYGirDmN1XQwkfeuWIhM/iu0t2rm6iSr0CA==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+
+  read-package-json@6.0.4:
+    resolution:
+      {
+        integrity: sha512-AEtWXYfopBj2z5N5PbkAOeNHRPUg5q+Nen7QLxV8M2zJq1ym6/lCz3fYNTCXe19puu2d06jfHhrP7v/S2PtMMw==,
+      }
+    engines: { node: ^14.17.0 || ^16.13.0 || >=18.0.0 }
+    deprecated: This package is no longer supported. Please use @npmcli/package-json instead.
 
   readdirp@4.1.2:
     resolution:
@@ -2285,6 +2422,12 @@ packages:
       }
     engines: { node: '>=18' }
 
+  slide@1.1.6:
+    resolution:
+      {
+        integrity: sha512-NwrtjCg+lZoqhFU8fOwl4ay2ei8PaqCBOUV3/ektPY9trO1yQ1oXEfmHAhKArUVUr/hOHvy5f6AdP17dCM0zMw==,
+      }
+
   smol-toml@1.4.2:
     resolution:
       {
@@ -2312,6 +2455,48 @@ packages:
         integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==,
       }
     engines: { node: '>=0.10.0' }
+
+  spdx-compare@1.0.0:
+    resolution:
+      {
+        integrity: sha512-C1mDZOX0hnu0ep9dfmuoi03+eOdDoz2yvK79RxbcrVEG1NO1Ph35yW102DHWKN4pk80nwCgeMmSY5L25VE4D9A==,
+      }
+
+  spdx-correct@3.2.0:
+    resolution:
+      {
+        integrity: sha512-kN9dJbvnySHULIluDHy32WHRUu3Og7B9sbY7tsFLctQkIqnMh3hErYgdMjTYuqmcXX+lK5T1lnUt3G7zNswmZA==,
+      }
+
+  spdx-exceptions@2.5.0:
+    resolution:
+      {
+        integrity: sha512-PiU42r+xO4UbUS1buo3LPJkjlO7430Xn5SVAhdpzzsPHsjbYVflnnFdATgabnLude+Cqu25p6N+g2lw/PFsa4w==,
+      }
+
+  spdx-expression-parse@3.0.1:
+    resolution:
+      {
+        integrity: sha512-cbqHunsQWnJNE6KhVSMsMeH5H/L9EpymbzqTQ3uLwNCLZ1Q481oWaofqH7nO6V07xlXwY6PhQdQ2IedWx/ZK4Q==,
+      }
+
+  spdx-license-ids@3.0.22:
+    resolution:
+      {
+        integrity: sha512-4PRT4nh1EImPbt2jASOKHX7PB7I+e4IWNLvkKFDxNhJlfjbYlleYQh285Z/3mPTHSAK/AvdMmw5BNNuYH8ShgQ==,
+      }
+
+  spdx-ranges@2.1.1:
+    resolution:
+      {
+        integrity: sha512-mcdpQFV7UDAgLpXEE/jOMqvK4LBoO0uTQg0uvXUewmEFhpiZx5yJSZITHB8w1ZahKdhfZqP5GPEOKLyEq5p8XA==,
+      }
+
+  spdx-satisfies@5.0.1:
+    resolution:
+      {
+        integrity: sha512-Nwor6W6gzFp8XX4neaKQ7ChV4wmpSh2sSDemMFSzHxpTw460jxFYeOn+jq4ybnSSw/5sc3pjka9MQPouksQNpw==,
+      }
 
   stackback@0.0.2:
     resolution:
@@ -2454,6 +2639,13 @@ packages:
       }
     hasBin: true
 
+  treeify@1.1.0:
+    resolution:
+      {
+        integrity: sha512-1m4RA7xVAJrSGrrXGs0L3YTwyvBs2S8PbRHaLZAkFw7JR8oIFwYtysxlBZhYIa7xSyiYJKZ3iGrrk55cGA3i9A==,
+      }
+    engines: { node: '>=0.6' }
+
   tsdown@0.15.6:
     resolution:
       {
@@ -2503,6 +2695,12 @@ packages:
     resolution:
       {
         integrity: sha512-Ov2Rr9Sx+fRgagJ5AX0qvItZG/JKKoBRAVITs1zk7IqZGTJUwgUr7qoYBpWwakpWilTZFM98rG/AFRocu10iIQ==,
+      }
+
+  validate-npm-package-license@3.0.4:
+    resolution:
+      {
+        integrity: sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew==,
       }
 
   vite-node@3.2.4:
@@ -3052,6 +3250,10 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
+  '@npmcli/fs@3.1.1':
+    dependencies:
+      semver: 7.7.2
+
   '@oxc-project/types@0.93.0': {}
 
   '@pkgjs/parseargs@0.11.0':
@@ -3251,6 +3453,8 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
+  abbrev@2.0.0: {}
+
   ansi-escapes@7.1.1:
     dependencies:
       environment: 1.1.0
@@ -3266,6 +3470,8 @@ snapshots:
   ansi-styles@6.2.3: {}
 
   ansis@4.2.0: {}
+
+  array-find-index@1.0.2: {}
 
   array-timsort@1.0.3: {}
 
@@ -3309,6 +3515,11 @@ snapshots:
   chalk-template@1.1.2:
     dependencies:
       chalk: 5.6.2
+
+  chalk@4.1.2:
+    dependencies:
+      ansi-styles: 4.3.0
+      supports-color: 7.2.0
 
   chalk@5.6.2: {}
 
@@ -3538,6 +3749,8 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
+  function-bind@1.1.2: {}
+
   gensequence@7.0.0: {}
 
   get-east-asian-width@1.4.0: {}
@@ -3561,9 +3774,20 @@ snapshots:
     dependencies:
       ini: 4.1.1
 
+  graceful-fs@4.2.11:
+    optional: true
+
   has-flag@4.0.0: {}
 
+  hasown@2.0.2:
+    dependencies:
+      function-bind: 1.1.2
+
   hookable@5.5.3: {}
+
+  hosted-git-info@6.1.3:
+    dependencies:
+      lru-cache: 7.18.3
 
   html-escaper@2.0.2: {}
 
@@ -3577,6 +3801,10 @@ snapshots:
   import-meta-resolve@4.2.0: {}
 
   ini@4.1.1: {}
+
+  is-core-module@2.16.1:
+    dependencies:
+      hasown: 2.0.2
 
   is-fullwidth-code-point@3.0.0: {}
 
@@ -3623,6 +3851,24 @@ snapshots:
 
   jsesc@3.1.0: {}
 
+  json-parse-even-better-errors@3.0.2: {}
+
+  license-checker-rseidelsohn@4.4.2:
+    dependencies:
+      chalk: 4.1.2
+      debug: 4.4.3
+      lodash.clonedeep: 4.5.0
+      mkdirp: 1.0.4
+      nopt: 7.2.1
+      read-installed-packages: 2.0.1
+      semver: 7.7.2
+      spdx-correct: 3.2.0
+      spdx-expression-parse: 3.0.1
+      spdx-satisfies: 5.0.1
+      treeify: 1.1.0
+    transitivePeerDependencies:
+      - supports-color
+
   lint-staged@16.2.3:
     dependencies:
       commander: 14.0.1
@@ -3642,6 +3888,8 @@ snapshots:
       rfdc: 1.4.1
       wrap-ansi: 9.0.2
 
+  lodash.clonedeep@4.5.0: {}
+
   log-update@6.1.0:
     dependencies:
       ansi-escapes: 7.1.1
@@ -3653,6 +3901,8 @@ snapshots:
   loupe@3.2.1: {}
 
   lru-cache@10.4.3: {}
+
+  lru-cache@7.18.3: {}
 
   magic-string@0.30.19:
     dependencies:
@@ -3681,11 +3931,26 @@ snapshots:
 
   minipass@7.1.2: {}
 
+  mkdirp@1.0.4: {}
+
   ms@2.1.3: {}
 
   nano-spawn@1.0.3: {}
 
   nanoid@3.3.11: {}
+
+  nopt@7.2.1:
+    dependencies:
+      abbrev: 2.0.0
+
+  normalize-package-data@5.0.0:
+    dependencies:
+      hosted-git-info: 6.1.3
+      is-core-module: 2.16.1
+      semver: 7.7.2
+      validate-npm-package-license: 3.0.4
+
+  npm-normalize-package-bin@3.0.1: {}
 
   onetime@7.0.0:
     dependencies:
@@ -3729,6 +3994,25 @@ snapshots:
   prettier@3.6.2: {}
 
   quansync@0.2.11: {}
+
+  read-installed-packages@2.0.1:
+    dependencies:
+      '@npmcli/fs': 3.1.1
+      debug: 4.4.3
+      read-package-json: 6.0.4
+      semver: 7.7.2
+      slide: 1.1.6
+    optionalDependencies:
+      graceful-fs: 4.2.11
+    transitivePeerDependencies:
+      - supports-color
+
+  read-package-json@6.0.4:
+    dependencies:
+      glob: 10.4.5
+      json-parse-even-better-errors: 3.0.2
+      normalize-package-data: 5.0.0
+      npm-normalize-package-bin: 3.0.1
 
   readdirp@4.1.2: {}
 
@@ -3829,6 +4113,8 @@ snapshots:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 5.1.0
 
+  slide@1.1.6: {}
+
   smol-toml@1.4.2: {}
 
   sort-object-keys@1.1.3: {}
@@ -3844,6 +4130,34 @@ snapshots:
       tinyglobby: 0.2.15
 
   source-map-js@1.2.1: {}
+
+  spdx-compare@1.0.0:
+    dependencies:
+      array-find-index: 1.0.2
+      spdx-expression-parse: 3.0.1
+      spdx-ranges: 2.1.1
+
+  spdx-correct@3.2.0:
+    dependencies:
+      spdx-expression-parse: 3.0.1
+      spdx-license-ids: 3.0.22
+
+  spdx-exceptions@2.5.0: {}
+
+  spdx-expression-parse@3.0.1:
+    dependencies:
+      spdx-exceptions: 2.5.0
+      spdx-license-ids: 3.0.22
+
+  spdx-license-ids@3.0.22: {}
+
+  spdx-ranges@2.1.1: {}
+
+  spdx-satisfies@5.0.1:
+    dependencies:
+      spdx-compare: 1.0.0
+      spdx-expression-parse: 3.0.1
+      spdx-ranges: 2.1.1
 
   stackback@0.0.2: {}
 
@@ -3919,6 +4233,8 @@ snapshots:
 
   tree-kill@1.2.2: {}
 
+  treeify@1.1.0: {}
+
   tsdown@0.15.6(typescript@5.9.3):
     dependencies:
       ansis: 4.2.0
@@ -3957,6 +4273,11 @@ snapshots:
       quansync: 0.2.11
 
   undici-types@7.13.0: {}
+
+  validate-npm-package-license@3.0.4:
+    dependencies:
+      spdx-correct: 3.2.0
+      spdx-expression-parse: 3.0.1
 
   vite-node@3.2.4(@types/node@24.6.1)(jiti@2.6.1)(yaml@2.8.1):
     dependencies:
