@@ -84,7 +84,7 @@ Biome is available as a first-party extension in your favorite editors.
 
 - The `main` branch is protected: no direct commits or force pushes are allowed. All changes must be merged through pull requests.
 - Never rebase or force push branches owned by others. If you must help finish their PR and it’s behind main, merge main into their branch and resolve conflicts in the merge commit. Otherwise, prefer adding your own commits or opening a follow-up PR instead of modifying their branch.
-- Keep pull requests small and focused on a single purpose. Always link the related issue in your PR description.
+- Keep pull requests small and focused on a single purpose. Unless your PR is entirely self-explanatory, link the related issue in your PR description.
 - Respect authorship: only add `Co-authored-by:` lines with explicit consent, and never rewrite another person’s commits.
 - Maintain issue hygiene: label issues consistently (`bug`, `feat`, `chore`, etc.) and close them only with a final comment explaining the resolution, linking to the relevant PR or documentation. See [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/#summary).
 
