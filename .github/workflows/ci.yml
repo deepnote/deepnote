@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Install qlty
         uses: qltysh/qlty-action/install@06730ef41b86b073c3813c0fc07a0c734980ce5d

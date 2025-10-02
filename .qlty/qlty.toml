@@ -4,12 +4,6 @@ config_version = "0"
 
 # Plugins configuration
 [[plugin]]
-name = "markdownlint"
-
-[[plugin]]
-name = "yamllint"
-
-[[plugin]]
 name = "actionlint"  # GitHub Actions linting
 
 [[plugin]]
