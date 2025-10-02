@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r exec tsc --noEmit"
   },
   "lint-staged": {
-    "**/*.{js,ts,jsx,tsx,html}": [
+    "**/*.{js,ts,jsx,tsx,html,json,jsonc}": [
       "pnpm run biome:check:fix"
     ],
     "**/*.{md,yml,yaml}": [
