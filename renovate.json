@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "pinDigests": true,
+  "platformAutomerge": false,
+  "prCreation": "immediate",
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Pin GitHub Actions to commit SHA",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "description": "Group non-major updates",
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major"
+    },
+    {
+      "description": "Security updates with high priority",
+      "matchDatasources": ["npm", "github-actions"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "prPriority": 10,
+      "vulnerabilityAlerts": {
+        "enabled": true,
+        "labels": ["security"]
+      }
+    }
+  ],
+  "schedule": ["before 9am on Monday"],
+  "timezone": "UTC",
+  "labels": ["dependencies", "renovate"],
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}}",
+  "semanticCommits": "enabled"
+}
