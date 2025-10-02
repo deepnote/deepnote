@@ -59,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run the formatter
+      - name: Run the formatter (Biome for code + Prettier for YAML/MD)
         run: pnpm run format:check
   lint:
     name: Lint
