@@ -76,7 +76,7 @@ jobs:
         run: qlty check
 
       - name: Run qlty code smells analysis
-        run: qlty smells        
+        run: qlty smells
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
