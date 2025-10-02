@@ -29,7 +29,7 @@
   },
   "lint-staged": {
     "**/*.{js,ts,jsx,tsx,html,json,jsonc}": [
-      "pnpm run biome:check:fix"
+      "pnpm exec biome check --write"
     ],
     "**/*.{md,yml,yaml}": [
       "pnpm run prettier"
