@@ -3,13 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Deepnote Open Source",
-  "keywords": [
-    ".deepnote",
-    "data-science",
-    "deepnote",
-    "jupyter",
-    "notebook"
-  ],
+  "keywords": [".deepnote", "data-science", "deepnote", "jupyter", "notebook"],
   "license": "Apache-2.0",
   "scripts": {
     "build": "pnpm -r run build",
@@ -26,15 +20,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r exec tsc --noEmit"
   },
   "lint-staged": {
-    "**/*.{html}": [
-      "pnpm exec biome format --write"
-    ],
-    "**/*.{md,yml,yaml}": [
-      "pnpm exec prettier --write"
-    ],
-    ".gitignore": [
-      "sort -o .gitignore .gitignore"
-    ],
+    "**/*.{ts,tsx,json,html}": ["pnpm exec biome lint --write", "pnpm exec biome format --write"],
+    "**/*.{md,yml,yaml}": "pnpm exec prettier --write",
+    ".gitignore": "sort -o .gitignore .gitignore",
     "**/package.json": "sort-package-json"
   },
   "devDependencies": {
