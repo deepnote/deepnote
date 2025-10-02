@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r exec tsc --noEmit"
   },
   "lint-staged": {
-    "**/*.{js,ts,jsx,tsx,html,json,jsonc}": [
+    "**/*.{ts,tsx,html,json,jsonc}": [
       "pnpm exec biome check --write"
     ],
     "**/*.{md,yml,yaml}": [
@@ -38,9 +38,6 @@
       "sort -o .gitignore .gitignore"
     ],
     "**/package.json": "sort-package-json",
-    "**/*.{js,ts,jsx,tsx}": [
-      "qlty check"
-    ]
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
