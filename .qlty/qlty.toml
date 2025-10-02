@@ -4,9 +4,6 @@ config_version = "0"
 
 # Plugins configuration
 [[plugin]]
-name = "biome"
-
-[[plugin]]
 name = "markdownlint"
 
 [[plugin]]
