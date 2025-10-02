@@ -87,6 +87,7 @@ Biome is available as a first-party extension in your favorite editors.
 - Keep pull requests small and focused on a single purpose. Unless your PR is entirely self-explanatory, link the related issue in your PR description.
 - Respect authorship: only add `Co-authored-by:` lines with explicit consent.
 - Maintain issue hygiene: label issues consistently (`bug`, `feat`, `chore`, etc.) and close them only with a final comment explaining the resolution, linking to the relevant PR or documentation. See [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/#summary).
+- If decisions happen in Slack, meetings, or other offline channels, post a short TL;DR summary in the relevant issue or PR so the full context is preserved.
 
 ---
 
