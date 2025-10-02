@@ -1,1 +1,1 @@
-pnpm exec lint-staged & qlty check
+pnpm exec lint-staged && qlty check
