@@ -12,13 +12,15 @@
   ],
   "license": "Apache-2.0",
   "scripts": {
+    "biome:check": "biome check .",
+    "biome:check:fix": "biome check --write .",
     "build": "pnpm -r run build",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
     "license-check": "license-checker-rseidelsohn --json --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC\" --excludePackages \"deepnote\"",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
+    "lintAndFormat": "biome check . && pnpm run prettier:check",
+    "lintAndFormat:fix": "biome check --write . && pnpm run prettier",
     "prepare": "husky",
+    "prettier": "prettier --write \"**/*.{md,yml,yaml}\"",
+    "prettier:check": "prettier --check \"**/*.{md,yml,yaml}\"",
     "spell-check": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\"",
     "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions",
     "test": "vitest run",
@@ -26,8 +28,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r exec tsc --noEmit"
   },
   "lint-staged": {
-    "**/*.{html}": [
-      "pnpm exec biome format --write"
+    "**/*.{js,ts,jsx,tsx,html,json,jsonc}": [
+      "pnpm exec biome check --write"
     ],
     "**/*.{md,yml,yaml}": [
       "pnpm exec prettier --write"
