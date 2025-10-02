@@ -38,31 +38,8 @@ jobs:
 
       - name: Run the spell check
         run: pnpm run spell-check
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run the formatter
-        run: pnpm run format:check
-  lint:
-    name: Lint
+  lint-and-format:
+    name: Lint & Format
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -82,8 +59,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run the linter
-        run: pnpm run lint
+      - name: Run lint and format checks
+        run: pnpm run lintAndFormat
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
