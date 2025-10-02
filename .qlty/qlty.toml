@@ -4,6 +4,9 @@ config_version = "0"
 
 # Plugins configuration
 [[plugin]]
+name = "biome"
+
+[[plugin]]
 name = "markdownlint"
 
 [[plugin]]
@@ -72,4 +75,4 @@ threshold = 500  # Max lines in a class
 
 [smells.long_parameter_list]
 enabled = true
-threshold = 5  # When parameters should be grouped/refactored into objects
+threshold = 2  # When parameters should be grouped/refactored into objects
