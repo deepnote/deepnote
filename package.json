@@ -32,7 +32,7 @@
       "pnpm exec biome check --write"
     ],
     "**/*.{md,yml,yaml}": [
-      "pnpm run prettier"
+      "pnpm exec prettier --write"
     ],
     ".gitignore": [
       "sort -o .gitignore .gitignore"
