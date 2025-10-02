@@ -25,6 +25,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r exec tsc --noEmit"
   },
   "lint-staged": {
+    "**/*.{js,ts,jsx,tsx}": [
+      "pnpm exec biome check --write --files-ignore-unknown=true --no-errors-on-unmatched"
+    ],
     "**/*.{html}": [
       "pnpm exec biome format --write"
     ],
