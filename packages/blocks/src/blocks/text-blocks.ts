@@ -62,13 +62,7 @@ export interface ParagraphTextBlock extends DeepnoteBlock {
   type: 'text-cell-p'
 }
 
-export type HeadingTextBlockType =
-  | 'text-cell-h1'
-  | 'text-cell-h2'
-  | 'text-cell-h3'
-  | 'text-cell-h4'
-  | 'text-cell-h5'
-  | 'text-cell-h6'
+export type HeadingTextBlockType = 'text-cell-h1' | 'text-cell-h2' | 'text-cell-h3'
 
 export interface Heading1TextBlock extends DeepnoteBlock {
   content: string
@@ -120,9 +114,6 @@ export function isTextBlock(block: DeepnoteBlock): block is TextBlock {
     'text-cell-h1',
     'text-cell-h2',
     'text-cell-h3',
-    'text-cell-h4',
-    'text-cell-h5',
-    'text-cell-h6',
     'text-cell-bullet',
     'text-cell-todo',
     'text-cell-callout',
@@ -131,36 +122,40 @@ export function isTextBlock(block: DeepnoteBlock): block is TextBlock {
   return textBlockTypes.includes(block.type.toLowerCase())
 }
 
+function escapeMarkdown(text: string): string {
+  return text.replace(/([\\`*_{}[\]()#+\-.!|>])/g, '\\$1')
+}
+
 export function createMarkdownForTextBlock(block: TextBlock): string {
   if (block.type === 'text-cell-h1') {
-    return `# ${block.content}`
+    return `# ${escapeMarkdown(block.content)}`
   }
 
   if (block.type === 'text-cell-h2') {
-    return `## ${block.content}`
+    return `## ${escapeMarkdown(block.content)}`
   }
 
   if (block.type === 'text-cell-h3') {
-    return `### ${block.content}`
+    return `### ${escapeMarkdown(block.content)}`
   }
 
   if (block.type === 'text-cell-bullet') {
-    return `- ${block.content}`
+    return `- ${escapeMarkdown(block.content)}`
   }
 
   if (block.type === 'text-cell-todo') {
     const metadata = block.metadata as TodoTextBlockMetadata
     const checkbox = metadata.checked ? '[x]' : '[ ]'
 
-    return `- ${checkbox} ${block.content}`
+    return `- ${checkbox} ${escapeMarkdown(block.content)}`
   }
 
   if (block.type === 'text-cell-callout') {
-    return `> ${block.content}`
+    return `> ${escapeMarkdown(block.content)}`
   }
 
   if (block.type === 'text-cell-p') {
-    return block.content
+    return escapeMarkdown(block.content)
   }
 
   throw new Error('Unhandled block type.')
@@ -176,7 +171,8 @@ export function stripMarkdownFromTextBlock(block: TextBlock): string {
   }
 
   if (block.type === 'text-cell-h3') {
-    return block.content.replace(/^###\s+/, '').trim()
+    // Also handle h4-h6 markdown (all map to h3 in Deepnote)
+    return block.content.replace(/^#{3,6}\s+/, '').trim()
   }
 
   if (block.type === 'text-cell-bullet') {

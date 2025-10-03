@@ -5,7 +5,7 @@ export function convertToEnvironmentVariableName(str: string): string {
   const notFirstDigit = /^\d/.test(str) ? `_${str}` : str
   const upperCased = notFirstDigit.toUpperCase()
 
-  return upperCased.replace(/[^\w]/gm, '_')
+  return upperCased.replace(/[^\w]/g, '_')
 }
 
 export function getSqlEnvVarName(integrationId: string): string {

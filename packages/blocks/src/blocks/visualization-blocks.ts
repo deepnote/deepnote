@@ -1,5 +1,6 @@
 import type { DeepnoteBlock, ExecutableBlockMetadata } from '../blocks'
 import { pythonCode } from '../python-snippets'
+import { sanitizePythonVariableName } from './python-utils'
 
 export interface VisualizationBlockMetadata extends ExecutableBlockMetadata {
   deepnote_variable_name?: string
@@ -24,10 +25,11 @@ export function createPythonCodeForVisualizationBlock(block: VisualizationBlock)
     return ''
   }
 
+  const sanitizedVariableName = sanitizePythonVariableName(variableName)
   const BACKSLASH = `\\`
   const escapedVegaLiteSpec = JSON.stringify(spec).replaceAll(`${BACKSLASH}`, `${BACKSLASH}${BACKSLASH}`)
 
-  return pythonCode.executeVisualization(variableName, escapedVegaLiteSpec, JSON.stringify(filters))
+  return pythonCode.executeVisualization(sanitizedVariableName, escapedVegaLiteSpec, JSON.stringify(filters))
 }
 
 export function isVisualizationBlock(block: DeepnoteBlock): block is VisualizationBlock {

@@ -188,7 +188,22 @@ export function createPythonCodeForInputSelectBlock(block: InputSelectBlock): st
 
 export function createPythonCodeForInputSliderBlock(block: InputSliderBlock): string {
   const sanitizedPythonVariableName = sanitizePythonVariableName(block.metadata.deepnote_variable_name)
-  return `${sanitizedPythonVariableName} = ${block.metadata.deepnote_variable_value}`
+  const value = block.metadata.deepnote_variable_value
+
+  // Validate that the value is a valid numeric literal
+  // Allow integers, floats with optional sign and decimal point
+  const numericPattern = /^-?\d+\.?\d*$|^-?\d*\.\d+$/
+  if (!numericPattern.test(value)) {
+    throw new Error(`Invalid numeric value for slider input: "${value}". Expected a valid number (integer or float).`)
+  }
+
+  // Parse and convert to number to ensure it's valid, then back to string for output
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue)) {
+    throw new Error(`Invalid numeric value for slider input: "${value}". Value must be finite.`)
+  }
+
+  return `${sanitizedPythonVariableName} = ${numericValue}`
 }
 
 export function createPythonCodeForInputFileBlock(block: InputFileBlock): string {
@@ -234,19 +249,18 @@ export function createPythonCodeForInputDateRangeBlock(block: InputDateRangeBloc
   // Case 2: A custom date range. E.g. 'customDays14'
   else if (isCustomDateRange(block.metadata.deepnote_variable_value)) {
     const customDays = block.metadata.deepnote_variable_value.replace('customDays', '')
-    // just in case we somehow get a customDays value that is not a number
-    if (Number.isNaN(Number(customDays))) {
-      return dedent`
-        ${sanitizedPythonVariableName} = None
-      `
-    } else {
-      return pythonCode.dateRangeCustomDays(sanitizedPythonVariableName, Number(customDays))
-    }
+    return pythonCode.dateRangeCustomDays(sanitizedPythonVariableName, Number(customDays))
   }
   // Case 3: A relative date range. E.g. 'lastQuarter'. The actual dates are calculated in Python on runtime.
   else if (isValidRelativeDateInterval(block.metadata.deepnote_variable_value)) {
+    const range = DATE_RANGE_INPUT_RELATIVE_RANGES.find(range => range.value === block.metadata.deepnote_variable_value)
+    if (!range) {
+      throw new Error(
+        `Invalid relative date interval: "${block.metadata.deepnote_variable_value}". Expected one of: ${DATE_RANGE_INPUT_RELATIVE_RANGES.map(r => r.value).join(', ')}.`
+      )
+    }
     return dedent`
-      ${DATE_RANGE_INPUT_RELATIVE_RANGES.find(range => range.value === block.metadata.deepnote_variable_value)?.pythonCode(sanitizedPythonVariableName)}`
+      ${range.pythonCode(sanitizedPythonVariableName)}`
   } else {
     return dedent`
       ${sanitizedPythonVariableName} = [None, None]

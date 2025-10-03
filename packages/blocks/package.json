@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "keywords": [],
+  "license": "Apache-2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -15,5 +16,7 @@
     "build": "tsdown",
     "test": "vitest"
   },
-  "licence": "Apache-2.0"
+  "dependencies": {
+    "ts-dedent": "^2.2.0"
+  }
 }

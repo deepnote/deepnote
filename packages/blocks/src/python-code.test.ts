@@ -168,8 +168,8 @@ describe('createPythonCode', () => {
 
                 return result
 
-            rendered_title = render_template("Total Sales")
-            rendered_comparison_title = render_template("vs Last Month")
+            rendered_title = render_template('Total Sales')
+            rendered_comparison_title = render_template('vs Last Month')
 
             return json.dumps({
                 "comparisonTitle": rendered_comparison_title,

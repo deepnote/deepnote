@@ -239,7 +239,9 @@ describe('stripMarkdown', () => {
       type: 'text-cell-todo',
       blockGroup: 'abc',
       content: '- [x] Task to do',
-      metadata: {},
+      metadata: {
+        checked: true,
+      },
       sortingKey: 'a0',
     }
 

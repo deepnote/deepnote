@@ -6,10 +6,6 @@ settings:
 
 importers:
   .:
-    dependencies:
-      ts-dedent:
-        specifier: ^2.2.0
-        version: 2.2.0
     devDependencies:
       '@biomejs/biome':
         specifier: 2.2.4
@@ -48,7 +44,11 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@24.6.1)(jiti@2.6.1)(yaml@2.8.1)
 
-  packages/blocks: {}
+  packages/blocks:
+    dependencies:
+      ts-dedent:
+        specifier: ^2.2.0
+        version: 2.2.0
 
   packages/hello-world: {}
 

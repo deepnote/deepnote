@@ -46,8 +46,8 @@ export function createPythonCodeForSqlBlock(block: SqlBlock): string {
   }
 
   return dedent`
-    ${pythonVariableName} = ${executeSqlFunctionCall}
-    ${pythonVariableName}
+    ${sanitizedPythonVariableName} = ${executeSqlFunctionCall}
+    ${sanitizedPythonVariableName}
   `
 }
 
