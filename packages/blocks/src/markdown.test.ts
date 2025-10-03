@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { UnsupportedBlockTypeError } from './blocks'
+import type { CodeBlock } from './blocks/code-blocks'
 import type { ImageBlock } from './blocks/image-blocks'
 import type { SeparatorBlock } from './blocks/separator-blocks'
 import type {
@@ -278,5 +280,36 @@ describe('stripMarkdown', () => {
     const result = stripMarkdown(block)
 
     expect(result).toEqual('Regular paragraph')
+  })
+
+  it('throws UnsupportedBlockTypeError when stripping markdown from unsupported block type', () => {
+    const block: SeparatorBlock = {
+      id: '123',
+      type: 'separator',
+      content: '',
+      blockGroup: 'abc',
+      metadata: {},
+      sortingKey: 'a0',
+    }
+
+    expect(() => stripMarkdown(block)).toThrow(UnsupportedBlockTypeError)
+    expect(() => stripMarkdown(block)).toThrow('Stripping markdown from block type separator is not supported yet.')
+  })
+})
+
+describe('createMarkdown error handling', () => {
+  it('throws UnsupportedBlockTypeError when creating markdown from unsupported block type', () => {
+    const block: CodeBlock = {
+      id: '123',
+      type: 'code',
+      content: 'print("hello")',
+      blockGroup: 'abc',
+      metadata: {},
+      sortingKey: 'a0',
+      executionCount: 1,
+    }
+
+    expect(() => createMarkdown(block)).toThrow(UnsupportedBlockTypeError)
+    expect(() => createMarkdown(block)).toThrow('Creating markdown from block type code is not supported yet.')
   })
 })

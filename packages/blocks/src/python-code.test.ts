@@ -344,6 +344,115 @@ describe('createPythonCode', () => {
         date_range_input = [_deepnote_datetime.now().date() - _deepnote_timedelta(days=7), _deepnote_datetime.now().date()]
       `)
     })
+
+    it('creates Python code for date range input block with past14days', () => {
+      const block: InputDateRangeBlock = {
+        id: '123',
+        type: 'input-date-range',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'date_range_input',
+          deepnote_variable_value: 'past14days',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        from datetime import datetime as _deepnote_datetime, timedelta as _deepnote_timedelta
+        date_range_input = [_deepnote_datetime.now().date() - _deepnote_timedelta(days=14), _deepnote_datetime.now().date()]
+      `)
+    })
+
+    it('creates Python code for date range input block with pastMonth', () => {
+      const block: InputDateRangeBlock = {
+        id: '123',
+        type: 'input-date-range',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'date_range_input',
+          deepnote_variable_value: 'pastMonth',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        from datetime import datetime as _deepnote_datetime
+        from dateutil.relativedelta import relativedelta
+        date_range_input = [_deepnote_datetime.now().date() - relativedelta(months=1), _deepnote_datetime.now().date()]
+      `)
+    })
+
+    it('creates Python code for date range input block with past3months', () => {
+      const block: InputDateRangeBlock = {
+        id: '123',
+        type: 'input-date-range',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'date_range_input',
+          deepnote_variable_value: 'past3months',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        from datetime import datetime as _deepnote_datetime
+        from dateutil.relativedelta import relativedelta
+        date_range_input = [_deepnote_datetime.now().date() - relativedelta(months=3), _deepnote_datetime.now().date()]
+      `)
+    })
+
+    it('creates Python code for date range input block with past6months', () => {
+      const block: InputDateRangeBlock = {
+        id: '123',
+        type: 'input-date-range',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'date_range_input',
+          deepnote_variable_value: 'past6months',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        from datetime import datetime as _deepnote_datetime
+        from dateutil.relativedelta import relativedelta
+        date_range_input = [_deepnote_datetime.now().date() - relativedelta(months=6), _deepnote_datetime.now().date()]
+      `)
+    })
+
+    it('creates Python code for date range input block with pastYear', () => {
+      const block: InputDateRangeBlock = {
+        id: '123',
+        type: 'input-date-range',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'date_range_input',
+          deepnote_variable_value: 'pastYear',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        from datetime import datetime as _deepnote_datetime
+        from dateutil.relativedelta import relativedelta
+        date_range_input = [_deepnote_datetime.now().date() - relativedelta(years=1), _deepnote_datetime.now().date()]
+      `)
+    })
   })
 
   describe('SQL blocks', () => {
