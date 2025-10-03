@@ -1,0 +1,19 @@
+{
+  "name": "@deepnote/blocks",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest"
+  },
+  "licence": "Apache-2.0"
+}

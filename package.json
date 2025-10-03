@@ -39,6 +39,9 @@
     ],
     "**/package.json": "sort-package-json"
   },
+  "dependencies": {
+    "ts-dedent": "^2.2.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
     "@types/node": "24.6.1",
