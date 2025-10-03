@@ -23,7 +23,8 @@ export interface SqlBlock extends DeepnoteBlock {
 export function createPythonCodeForSqlBlock(block: SqlBlock): string {
   const query = block.content
   const pythonVariableName = block.metadata.deepnote_variable_name
-  const sanitizedPythonVariableName = pythonVariableName && sanitizePythonVariableName(pythonVariableName)
+  const sanitizedPythonVariableName =
+    pythonVariableName !== undefined ? sanitizePythonVariableName(pythonVariableName) || 'input_1' : undefined
   const returnVariableType = block.metadata.deepnote_return_variable_type ?? 'dataframe'
 
   const integrationId = block.metadata.sql_integration_id

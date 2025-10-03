@@ -207,8 +207,7 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
-        import inspect
-        _dntk.DeepnoteChart(df, """{"mark":"bar","encoding":{"x":{"field":"a","type":"ordinal"},"y":{"field":"b","type":"quantitative"}}}""", **({'attach_selection': True} if 'attach_selection' in inspect.signature(_dntk.DeepnoteChart).parameters else {}), **({'filters': '[]'} if 'filters' in inspect.signature(_dntk.DeepnoteChart).parameters else {}))
+        _dntk.DeepnoteChart(df, """{"mark":"bar","encoding":{"x":{"field":"a","type":"ordinal"},"y":{"field":"b","type":"quantitative"}}}""", attach_selection=True, filters='[]')
       `)
     })
 

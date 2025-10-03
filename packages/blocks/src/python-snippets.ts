@@ -52,13 +52,8 @@ __deepnote_big_number__()
   },
 
   executeVisualization: (variableName: string, spec: string, filters: string) => {
-    // TODO (ENT-185): runtime checks for attach_selection and filters are here for backward compitability
-    // with older toolkit. We should be able to remove this in couple of weeks after toolkit release
-    const attachSelectionKw = `({'attach_selection': True} if 'attach_selection' in inspect.signature(_dntk.DeepnoteChart).parameters else {})`
-    const attachFiltersKw = `({'filters': ${escapePythonString(filters)}} if 'filters' in inspect.signature(_dntk.DeepnoteChart).parameters else {})`
     return dedent`
-      import inspect
-      _dntk.DeepnoteChart(${variableName}, """${spec}""", **${attachSelectionKw}, **${attachFiltersKw})
+      _dntk.DeepnoteChart(${variableName}, """${spec}""", attach_selection=True, filters=${escapePythonString(filters)})
     `
   },
 
