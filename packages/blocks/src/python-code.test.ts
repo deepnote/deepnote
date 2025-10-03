@@ -19,167 +19,6 @@ import type { VisualizationBlock } from './blocks/visualization-blocks'
 import { createPythonCode } from './python-code'
 
 describe('createPythonCode', () => {
-  describe('SQL blocks', () => {
-    it('creates Python code for SQL block with dataframe output', () => {
-      const block: SqlBlock = {
-        blockGroup: 'a2498ec9b1874cca8ae88378ec166b46',
-        content: 'SELECT * FROM teams LIMIT 10',
-        executionCount: 1,
-        id: '3743ceea7a9b402992a22833ac7c5a63',
-        type: 'sql',
-        metadata: {
-          execution_start: 1759484006905,
-          execution_millis: 747,
-          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
-          execution_context_id: 'bb6a0c9a-38c0-4645-b50f-388302c0a057',
-          deepnote_variable_name: 'df_1',
-        },
-        sortingKey: 'a0',
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toEqual(dedent`
-        df_1 = _dntk.execute_sql(
-          'SELECT * FROM teams LIMIT 10',
-          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
-          audit_sql_comment='',
-          sql_cache_mode='cache_disabled',
-          return_variable_type='dataframe'
-        )
-        df_1
-      `)
-    })
-
-    it('creates Python code for SQL block without variable name', () => {
-      const block: SqlBlock = {
-        blockGroup: 'abc',
-        content: 'SELECT COUNT(*) FROM users',
-        executionCount: 1,
-        id: '123',
-        type: 'sql',
-        metadata: {
-          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
-        },
-        sortingKey: 'a0',
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toEqual(dedent`
-        _dntk.execute_sql(
-          'SELECT COUNT(*) FROM users',
-          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
-          audit_sql_comment='',
-          sql_cache_mode='cache_disabled',
-          return_variable_type='dataframe'
-        )
-      `)
-    })
-
-    it('creates Python code for SQL block with query_preview return type', () => {
-      const block: SqlBlock = {
-        blockGroup: 'abc',
-        content: 'SELECT * FROM orders',
-        executionCount: 1,
-        id: '123',
-        type: 'sql',
-        metadata: {
-          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
-          deepnote_variable_name: 'preview',
-          deepnote_return_variable_type: 'query_preview',
-        },
-        sortingKey: 'a0',
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toEqual(dedent`
-        preview = _dntk.execute_sql(
-          'SELECT * FROM orders',
-          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
-          audit_sql_comment='',
-          sql_cache_mode='cache_disabled',
-          return_variable_type='query_preview'
-        )
-        preview
-      `)
-    })
-
-    it('creates Python code for SQL block without sql_integration_id', () => {
-      const block: SqlBlock = {
-        blockGroup: 'abc',
-        content: 'SELECT * FROM products',
-        executionCount: 1,
-        id: '123',
-        type: 'sql',
-        metadata: {
-          deepnote_variable_name: 'products',
-        },
-        sortingKey: 'a0',
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toEqual(dedent`
-        products = _dntk.execute_sql(
-          'SELECT * FROM products',
-          'SQL_ALCHEMY_JSON_ENV_VAR',
-          audit_sql_comment='',
-          sql_cache_mode='cache_disabled',
-          return_variable_type='dataframe'
-        )
-        products
-      `)
-    })
-
-    it('creates Python code for SQL block with special characters', () => {
-      const block: SqlBlock = {
-        blockGroup: 'abc',
-        content: "SELECT * FROM users WHERE name = 'O\\'Reilly' AND note = \"test\\nline\"",
-        executionCount: 1,
-        id: '123',
-        type: 'sql',
-        metadata: {
-          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
-          deepnote_variable_name: 'result',
-        },
-        sortingKey: 'a0',
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toEqual(dedent`
-        result = _dntk.execute_sql(
-          'SELECT * FROM users WHERE name = \\'O\\\\\\'Reilly\\' AND note = "test\\\\nline"',
-          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
-          audit_sql_comment='',
-          sql_cache_mode='cache_disabled',
-          return_variable_type='dataframe'
-        )
-        result
-      `)
-    })
-  })
-
-  describe('Code blocks', () => {
-    it('creates Python code for code block', () => {
-      const block: CodeBlock = {
-        blockGroup: 'a2498ec9b1874cca8ae88378ec166b46',
-        content: "print('Hello, world!')",
-        executionCount: 1,
-        id: '3743ceea7a9b402992a22833ac7c5a63',
-        type: 'code',
-        metadata: {},
-        sortingKey: 'a0',
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toBe("print('Hello, world!')")
-    })
-  })
-
   describe('Button blocks', () => {
     it('creates Python code for button block with variable', () => {
       const block: ButtonBlock = {
@@ -313,46 +152,21 @@ describe('createPythonCode', () => {
     })
   })
 
-  describe('Visualization blocks', () => {
-    it('creates Python code for visualization block', () => {
-      const block: VisualizationBlock = {
-        id: '123',
-        type: 'visualization',
-        content: '',
-        blockGroup: 'abc',
-        sortingKey: 'a0',
-        metadata: {
-          deepnote_variable_name: 'df',
-          deepnote_visualization_spec: {
-            mark: 'bar',
-            encoding: {
-              x: { field: 'a', type: 'ordinal' },
-              y: { field: 'b', type: 'quantitative' },
-            },
-          },
-        },
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toEqual(dedent`
-        _dntk.DeepnoteChart(df, """{"mark":"bar","encoding":{"x":{"field":"a","type":"ordinal"},"y":{"field":"b","type":"quantitative"}}}""", attach_selection=True, filters='[]')
-      `)
-    })
-
-    it('returns empty string for visualization block without variable name', () => {
-      const block: VisualizationBlock = {
-        id: '123',
-        type: 'visualization',
-        content: '',
-        blockGroup: 'abc',
-        sortingKey: 'a0',
+  describe('Code blocks', () => {
+    it('creates Python code for code block', () => {
+      const block: CodeBlock = {
+        blockGroup: 'a2498ec9b1874cca8ae88378ec166b46',
+        content: "print('Hello, world!')",
+        executionCount: 1,
+        id: '3743ceea7a9b402992a22833ac7c5a63',
+        type: 'code',
         metadata: {},
+        sortingKey: 'a0',
       }
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('')
+      expect(result).toBe("print('Hello, world!')")
     })
   })
 
@@ -529,6 +343,192 @@ describe('createPythonCode', () => {
         from datetime import datetime as _deepnote_datetime, timedelta as _deepnote_timedelta
         date_range_input = [_deepnote_datetime.now().date() - _deepnote_timedelta(days=7), _deepnote_datetime.now().date()]
       `)
+    })
+  })
+
+  describe('SQL blocks', () => {
+    it('creates Python code for SQL block with dataframe output', () => {
+      const block: SqlBlock = {
+        blockGroup: 'a2498ec9b1874cca8ae88378ec166b46',
+        content: 'SELECT * FROM teams LIMIT 10',
+        executionCount: 1,
+        id: '3743ceea7a9b402992a22833ac7c5a63',
+        type: 'sql',
+        metadata: {
+          execution_start: 1759484006905,
+          execution_millis: 747,
+          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
+          execution_context_id: 'bb6a0c9a-38c0-4645-b50f-388302c0a057',
+          deepnote_variable_name: 'df_1',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        df_1 = _dntk.execute_sql(
+          'SELECT * FROM teams LIMIT 10',
+          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+        df_1
+      `)
+    })
+
+    it('creates Python code for SQL block without variable name', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: 'SELECT COUNT(*) FROM users',
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        _dntk.execute_sql(
+          'SELECT COUNT(*) FROM users',
+          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+      `)
+    })
+
+    it('creates Python code for SQL block with query_preview return type', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: 'SELECT * FROM orders',
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
+          deepnote_variable_name: 'preview',
+          deepnote_return_variable_type: 'query_preview',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        preview = _dntk.execute_sql(
+          'SELECT * FROM orders',
+          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='query_preview'
+        )
+        preview
+      `)
+    })
+
+    it('creates Python code for SQL block without sql_integration_id', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: 'SELECT * FROM products',
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          deepnote_variable_name: 'products',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        products = _dntk.execute_sql(
+          'SELECT * FROM products',
+          'SQL_ALCHEMY_JSON_ENV_VAR',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+        products
+      `)
+    })
+
+    it('creates Python code for SQL block with special characters', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: "SELECT * FROM users WHERE name = 'O\\'Reilly' AND note = \"test\\nline\"",
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
+          deepnote_variable_name: 'result',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        result = _dntk.execute_sql(
+          'SELECT * FROM users WHERE name = \\'O\\\\\\'Reilly\\' AND note = "test\\\\nline"',
+          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+        result
+      `)
+    })
+  })
+
+  describe('Visualization blocks', () => {
+    it('creates Python code for visualization block', () => {
+      const block: VisualizationBlock = {
+        id: '123',
+        type: 'visualization',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'df',
+          deepnote_visualization_spec: {
+            mark: 'bar',
+            encoding: {
+              x: { field: 'a', type: 'ordinal' },
+              y: { field: 'b', type: 'quantitative' },
+            },
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        _dntk.DeepnoteChart(df, """{"mark":"bar","encoding":{"x":{"field":"a","type":"ordinal"},"y":{"field":"b","type":"quantitative"}}}""", attach_selection=True, filters='[]')
+      `)
+    })
+
+    it('returns empty string for visualization block without variable name', () => {
+      const block: VisualizationBlock = {
+        id: '123',
+        type: 'visualization',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('')
     })
   })
 })
