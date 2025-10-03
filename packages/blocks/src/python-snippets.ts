@@ -14,8 +14,44 @@ export const pythonCode = {
     comparisonTitleTemplate = '',
     comparisonVariableName = ''
   ) => {
-    const valuePart = valueVariableName ? `f"{${valueVariableName}}"` : `""`
-    const comparisonValuePart = comparisonVariableName ? `f"{${comparisonVariableName}}"` : `""`
+    const sanitizedValueVariable = sanitizePythonVariableName(valueVariableName)
+    const valuePart = sanitizedValueVariable ? `f"{${sanitizedValueVariable}}"` : `""`
+    const hasComparison = comparisonTitleTemplate || comparisonVariableName
+
+    if (!hasComparison) {
+      return `
+def __deepnote_big_number__():
+    import json
+    import jinja2
+    from jinja2 import meta
+
+    def render_template(template):
+        parsed_content = jinja2.Environment().parse(template)
+
+        required_variables = meta.find_undeclared_variables(parsed_content)
+
+        context = {
+            variable_name: globals().get(variable_name)
+            for variable_name in required_variables
+        }
+
+        result = jinja2.Environment().from_string(template).render(context)
+
+        return result
+
+    rendered_title = render_template(${escapePythonString(titleTemplate)})
+
+    return json.dumps({
+        "title": rendered_title,
+        "value": ${valuePart}
+    })
+
+__deepnote_big_number__()
+`
+    }
+
+    const sanitizedComparisonVariable = sanitizePythonVariableName(comparisonVariableName)
+    const comparisonValuePart = sanitizedComparisonVariable ? `f"{${sanitizedComparisonVariable}}"` : `""`
 
     return `
 def __deepnote_big_number__():
@@ -52,8 +88,9 @@ __deepnote_big_number__()
   },
 
   executeVisualization: (variableName: string, spec: string, filters: string) => {
+    const sanitizedVariableName = sanitizePythonVariableName(variableName)
     return dedent`
-      _dntk.DeepnoteChart(${variableName}, """${spec}""", attach_selection=True, filters=${escapePythonString(filters)})
+      _dntk.DeepnoteChart(${sanitizedVariableName}, """${spec}""", attach_selection=True, filters=${escapePythonString(filters)})
     `
   },
 
@@ -112,9 +149,10 @@ __deepnote_big_number__()
 
   dateRangeCustomDays: (name: string, days: number) => {
     const sanitizedName = sanitizePythonVariableName(name)
+    const validDays = Math.floor(Number(days)) || 0
     return dedent`
       from datetime import datetime, timedelta
-      ${sanitizedName} = [datetime.now().date() - timedelta(days=${days}), datetime.now().date()]
+      ${sanitizedName} = [datetime.now().date() - timedelta(days=${validDays}), datetime.now().date()]
     `
   },
 

@@ -50,6 +50,116 @@ describe('createPythonCode', () => {
         df_1
       `)
     })
+
+    it('creates Python code for SQL block without variable name', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: 'SELECT COUNT(*) FROM users',
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        _dntk.execute_sql(
+          'SELECT COUNT(*) FROM users',
+          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+      `)
+    })
+
+    it('creates Python code for SQL block with query_preview return type', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: 'SELECT * FROM orders',
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
+          deepnote_variable_name: 'preview',
+          deepnote_return_variable_type: 'query_preview',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        preview = _dntk.execute_sql(
+          'SELECT * FROM orders',
+          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='query_preview'
+        )
+        preview
+      `)
+    })
+
+    it('creates Python code for SQL block without sql_integration_id', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: 'SELECT * FROM products',
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          deepnote_variable_name: 'products',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        products = _dntk.execute_sql(
+          'SELECT * FROM products',
+          'SQL_ALCHEMY_JSON_ENV_VAR',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+        products
+      `)
+    })
+
+    it('creates Python code for SQL block with special characters', () => {
+      const block: SqlBlock = {
+        blockGroup: 'abc',
+        content: "SELECT * FROM users WHERE name = 'O\\'Reilly' AND note = \"test\\nline\"",
+        executionCount: 1,
+        id: '123',
+        type: 'sql',
+        metadata: {
+          sql_integration_id: '3e2bed0f-ebc3-40fb-bb45-205b7d45b3ec',
+          deepnote_variable_name: 'result',
+        },
+        sortingKey: 'a0',
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        result = _dntk.execute_sql(
+          'SELECT * FROM users WHERE name = \\'O\\\\\\'Reilly\\' AND note = "test\\\\nline"',
+          'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+        result
+      `)
+    })
   })
 
   describe('Code blocks', () => {
@@ -181,6 +291,25 @@ describe('createPythonCode', () => {
         __deepnote_big_number__()
 
       `)
+    })
+
+    it('creates Python code for big number block without comparison fields', () => {
+      const block: BigNumberBlock = {
+        id: '123',
+        type: 'big-number',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_big_number_title: 'Revenue',
+          deepnote_big_number_value: 'total_revenue',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).not.toContain('comparisonTitle')
+      expect(result).not.toContain('comparisonValue')
     })
   })
 
