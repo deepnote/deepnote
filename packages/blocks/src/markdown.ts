@@ -1,7 +1,12 @@
 import { type DeepnoteBlock, UnsupportedBlockTypeError } from './blocks'
 import { createMarkdownForImageBlock, isImageBlock } from './blocks/image-blocks'
-import { createMarkdownForSeparatorBlock, isSeparatorBlock } from './blocks/separator-blocks'
-import { createMarkdownForTextBlock, isTextBlock, stripMarkdownFromTextBlock } from './blocks/text-blocks'
+import {
+  createMarkdownForSeparatorBlock,
+  createMarkdownForTextBlock,
+  isSeparatorBlock,
+  isTextBlock,
+  stripMarkdownFromTextBlock,
+} from './blocks/text-blocks'
 
 export function createMarkdown(block: DeepnoteBlock): string {
   if (isTextBlock(block)) {

@@ -1,4 +1,4 @@
-import type { BlockMetadata, DeepnoteBlock } from '../blocks'
+import type { DeepnoteBlock } from '../blocks'
 
 export interface FormatMarks {
   bold?: boolean
@@ -30,19 +30,19 @@ export interface FormattedRangeText {
   type?: 'marks'
 }
 
-export interface TextBlockMetadata extends BlockMetadata {
+export interface TextBlockMetadata {
   formattedRanges?: FormattedRange[]
   is_collapsed?: boolean
 }
-export interface MarkdownCellMetadata extends BlockMetadata {
+export interface MarkdownCellMetadata {
   deepnote_cell_height?: number
 }
 
-export interface SeparatorBlockMetadata extends BlockMetadata {}
+export type SeparatorBlockMetadata = object
 
 export interface SeparatorBlock extends DeepnoteBlock {
+  content: ''
   metadata: SeparatorBlockMetadata
-  source: ''
   type: 'separator'
 }
 
@@ -192,4 +192,12 @@ export function stripMarkdownFromTextBlock(block: TextBlock): string {
   }
 
   throw new Error('Unhandled block type.')
+}
+
+export function createMarkdownForSeparatorBlock(_block: SeparatorBlock): string {
+  return '<hr>'
+}
+
+export function isSeparatorBlock(block: DeepnoteBlock): block is SeparatorBlock {
+  return block.type === 'separator'
 }

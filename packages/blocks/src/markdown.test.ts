@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { UnsupportedBlockTypeError } from './blocks'
 import type { CodeBlock } from './blocks/code-blocks'
 import type { ImageBlock } from './blocks/image-blocks'
-import type { SeparatorBlock } from './blocks/separator-blocks'
 import type {
   BulletTextBlock,
   CalloutTextBlock,
@@ -10,6 +9,7 @@ import type {
   Heading2TextBlock,
   Heading3TextBlock,
   ParagraphTextBlock,
+  SeparatorBlock,
   TodoTextBlock,
 } from './blocks/text-blocks'
 import { createMarkdown, stripMarkdown } from './markdown'

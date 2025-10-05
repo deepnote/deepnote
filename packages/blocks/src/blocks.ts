@@ -1,3 +1,21 @@
+import type { BigNumberBlockMetadata } from './blocks/big-number-blocks'
+import type { ButtonBlockMetadata } from './blocks/button-blocks'
+import type { CodeBlockMetadata } from './blocks/code-blocks'
+import type { ImageBlockMetadata } from './blocks/image-blocks'
+import type {
+  InputBlockMetadata,
+  InputCheckboxBlockMetadata,
+  InputDateBlockMetadata,
+  InputDateRangeBlockMetadata,
+  InputFileBlockMetadata,
+  InputSelectBlockMetadata,
+  InputSliderBlockMetadata,
+  InputTextareaBlockMetadata,
+  InputTextBlockMetadata,
+} from './blocks/input-blocks'
+import type { SqlBlockMetadata } from './blocks/sql-blocks'
+import type { MarkdownCellMetadata, SeparatorBlockMetadata, TextBlockMetadata } from './blocks/text-blocks'
+
 export interface DeepnoteBlock {
   blockGroup: string
   executionCount?: number
@@ -6,9 +24,26 @@ export interface DeepnoteBlock {
   type: string
 }
 
-export type BlockMetadata = Record<string, unknown>
+export type BlockMetadata =
+  | BigNumberBlockMetadata
+  | ButtonBlockMetadata
+  | CodeBlockMetadata
+  | ImageBlockMetadata
+  | InputBlockMetadata
+  | InputTextBlockMetadata
+  | InputTextareaBlockMetadata
+  | InputCheckboxBlockMetadata
+  | InputSelectBlockMetadata
+  | InputSliderBlockMetadata
+  | InputFileBlockMetadata
+  | InputDateBlockMetadata
+  | InputDateRangeBlockMetadata
+  | SeparatorBlockMetadata
+  | SqlBlockMetadata
+  | TextBlockMetadata
+  | MarkdownCellMetadata
 
-export interface ExecutableBlockMetadata extends BlockMetadata {
+export interface ExecutableBlockMetadata {
   execution_context_id?: string
   execution_millis?: number
   // UTC timestamp in milliseconds.
