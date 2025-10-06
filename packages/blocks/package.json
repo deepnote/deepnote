@@ -4,8 +4,15 @@
   "description": "",
   "keywords": [],
   "license": "Apache-2.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist",
     "README.md",
@@ -13,8 +20,9 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown",
-    "test": "vitest"
+    "build": "tsdown --format esm --format cjs --dts",
+    "test": "vitest",
+    "watch": "tsdown --watch"
   },
   "dependencies": {
     "ts-dedent": "^2.2.0"
