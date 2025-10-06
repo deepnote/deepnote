@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsdown --format esm --format cjs --dts",
     "test": "vitest",
-    "watch": "tsdown --watch"
+    "watch": "tsdown --watch --format esm --format cjs --dts"
   },
   "dependencies": {
     "ts-dedent": "^2.2.0"
