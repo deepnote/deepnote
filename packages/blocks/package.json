@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git"
+  },
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -30,5 +34,8 @@
     "ts-dedent": "^2.2.0",
     "yaml": "^2.8.1",
     "zod": "^4.1.12"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
