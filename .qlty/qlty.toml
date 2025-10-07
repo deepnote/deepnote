@@ -1,0 +1,69 @@
+# Qlty Configuration
+# Learn more at https://docs.qlty.sh
+config_version = "0"
+
+# Plugins configuration
+[[plugin]]
+name = "actionlint"  # GitHub Actions linting
+
+[[plugin]]
+name = "trufflehog"  # Secret scanning
+
+[[plugin]]
+name = "osv-scanner"  # Vulnerability scanning
+
+# Source configuration
+[[source]]
+name = "default"
+default = true
+
+# Exclusion patterns
+exclude_patterns = [
+  "node_modules/**",
+  "dist/**",
+  "build/**",
+  "coverage/**",
+  "**/*.min.js",
+  "**/*.min.css",
+  ".git/**",
+]
+
+# Code Smells Configuration
+[smells]
+mode = "comment"
+
+[smells.boolean_logic]
+enabled = true
+threshold = 4  # Max boolean operators in an expression
+
+[smells.nested_control_flow]
+enabled = true
+threshold = 4  # Max nesting depth for control structures
+
+[smells.function_parameters]
+enabled = true
+threshold = 5  # Max number of function parameters
+
+[smells.function_length]
+enabled = true
+threshold = 50  # Max lines in a function
+
+[smells.file_length]
+enabled = true
+threshold = 500  # Max lines in a file
+
+[smells.cognitive_complexity]
+enabled = true
+threshold = 15  # Max cognitive complexity score
+
+[smells.duplicate_code]
+enabled = true
+threshold = 6  # Min lines for duplicate detection
+
+[smells.large_class]
+enabled = true
+threshold = 500  # Max lines in a class
+
+[smells.long_parameter_list]
+enabled = true
+threshold = 2  # When parameters should be grouped/refactored into objects
