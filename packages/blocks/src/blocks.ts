@@ -16,14 +16,6 @@ import type {
 import type { SqlBlockMetadata } from './blocks/sql-blocks'
 import type { MarkdownCellMetadata, SeparatorBlockMetadata, TextBlockMetadata } from './blocks/text-blocks'
 
-export interface DeepnoteBlock {
-  blockGroup: string
-  executionCount?: number
-  id: string
-  sortingKey: string
-  type: string
-}
-
 export type BlockMetadata =
   | BigNumberBlockMetadata
   | ButtonBlockMetadata

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const deepnoteFileBlockSchema = z.object({
+export const deepnoteBlockSchema = z.object({
   blockGroup: z.string().optional(),
   content: z.string().optional(),
   executionCount: z.number().optional(),
@@ -12,7 +12,7 @@ export const deepnoteFileBlockSchema = z.object({
   version: z.number().optional(),
 })
 
-export type DeepnoteFileBlock = z.infer<typeof deepnoteFileBlockSchema>
+export type DeepnoteBlock = z.infer<typeof deepnoteBlockSchema>
 
 export const deepnoteFileSchema = z.object({
   metadata: z.object({
@@ -38,7 +38,7 @@ export const deepnoteFileSchema = z.object({
     name: z.string(),
     notebooks: z.array(
       z.object({
-        blocks: z.array(deepnoteFileBlockSchema),
+        blocks: z.array(deepnoteBlockSchema),
         executionMode: z.enum(['block', 'downstream']).optional(),
         id: z.string(),
         isModule: z.boolean().optional(),

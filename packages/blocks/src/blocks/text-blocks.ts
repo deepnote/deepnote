@@ -1,4 +1,4 @@
-import type { DeepnoteBlock } from '../blocks'
+import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
 
 export interface FormatMarks {
   bold?: boolean

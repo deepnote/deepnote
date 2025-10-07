@@ -1,4 +1,5 @@
-import type { DeepnoteBlock, ExecutableBlockMetadata } from '../blocks'
+import type { ExecutableBlockMetadata } from '../blocks'
+import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
 import { pythonCode } from '../python-snippets'
 import { sanitizePythonVariableName } from './python-utils'
 
