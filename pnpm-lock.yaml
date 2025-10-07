@@ -44,6 +44,12 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@24.6.1)(jiti@2.6.1)(yaml@2.8.1)
 
+  packages/blocks:
+    dependencies:
+      ts-dedent:
+        specifier: ^2.2.0
+        version: 2.2.0
+
   packages/hello-world: {}
 
 packages:
@@ -2646,6 +2652,13 @@ packages:
       }
     engines: { node: '>=0.6' }
 
+  ts-dedent@2.2.0:
+    resolution:
+      {
+        integrity: sha512-q5W7tVM71e2xjHZTlgfTDoPF/SmqKG5hddq9SzR49CH2hayqRKJtQ4mtRlSxKaJlR/+9rEM+mnBHf7I2/BQcpQ==,
+      }
+    engines: { node: '>=6.10' }
+
   tsdown@0.15.6:
     resolution:
       {
@@ -4234,6 +4247,8 @@ snapshots:
   tree-kill@1.2.2: {}
 
   treeify@1.1.0: {}
+
+  ts-dedent@2.2.0: {}
 
   tsdown@0.15.6(typescript@5.9.3):
     dependencies:
