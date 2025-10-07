@@ -46,6 +46,13 @@
     "workflows",
     "repo",
     "qlty",
-    "rseidelsohn"
+    "rseidelsohn",
+    "dateutil",
+    "strptime",
+    "dntk",
+    "timedelta",
+    "millis",
+    "dataframe",
+    "relativedelta"
   ]
 }
