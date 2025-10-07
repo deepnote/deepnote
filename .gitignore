@@ -1,4 +1,9 @@
 *.tsbuildinfo
+.qlty/cache
+.qlty/logs
+.qlty/out
+.qlty/plugin_cachedir
+.qlty/results
 coverage
 dist
 node_modules
