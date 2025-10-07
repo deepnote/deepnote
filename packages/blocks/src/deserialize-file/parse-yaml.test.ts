@@ -80,7 +80,6 @@ describe('parseYaml', () => {
     const yamlContent = 'not:valid:yaml:::'
     try {
       parseYaml(yamlContent)
-      throw new Error('Expected parseYaml to throw')
     } catch (error) {
       expect(error).toBeInstanceOf(Error)
       expect((error as Error).message).toMatch(/Failed to parse Deepnote file/)

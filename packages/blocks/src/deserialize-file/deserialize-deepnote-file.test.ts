@@ -16,22 +16,25 @@ describe('deserializeDeepnoteFile', () => {
 
   it('successfully deserializes a valid Deepnote YAML file', () => {
     const yaml = `
-      version: 1
-      blocks:
-        - id: "123"
-          type: "text-cell-p"
-          content: "Hello"
+      metadata:
+        createdAt: '2025-01-01T00:00:00Z'
+      version: '1'
+      project:
+        id: 'project-123'
+        name: 'Test Project'
+        notebooks: []
     `
 
     const validObject = {
-      version: 1,
-      blocks: [
-        {
-          id: '123',
-          type: 'text-cell-p',
-          content: 'Hello',
-        },
-      ],
+      metadata: {
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      version: '1',
+      project: {
+        id: 'project-123',
+        name: 'Test Project',
+        notebooks: [],
+      },
     }
 
     parseYaml.mockReturnValue(validObject)
