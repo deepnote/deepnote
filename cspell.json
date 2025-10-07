@@ -45,6 +45,13 @@
     "github",
     "workflows",
     "repo",
-    "rseidelsohn"
+    "rseidelsohn",
+    "dateutil",
+    "strptime",
+    "dntk",
+    "timedelta",
+    "millis",
+    "dataframe",
+    "relativedelta"
   ]
 }
