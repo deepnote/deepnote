@@ -1,0 +1,12 @@
+import { parse } from 'yaml'
+
+export function parseYaml(yamlContent: string): unknown {
+  try {
+    const parsed = parse(yamlContent)
+
+    return parsed
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to parse Deepnote file: ${message}`)
+  }
+}
