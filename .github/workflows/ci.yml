@@ -71,7 +71,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Install qlty
-        uses: qltysh/qlty-action/install@06730ef41b86b073c3813c0fc07a0c734980ce5d
+        uses: qltysh/qlty-action/install@a19242102d17e497f437d7466aa01b528537e899
 
       - name: Run qlty check
         run: qlty check
