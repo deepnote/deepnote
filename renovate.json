@@ -14,10 +14,10 @@
     },
     {
       "description": "Group non-major updates",
-      "matchPackagePatterns": ["*"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "non-major dependencies",
-      "groupSlug": "non-major"
+      "groupSlug": "non-major",
+      "matchPackageNames": ["*"]
     },
     {
       "description": "Security updates with high priority",
