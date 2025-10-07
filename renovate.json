@@ -5,6 +5,7 @@
   "platformAutomerge": false,
   "prCreation": "immediate",
   "prConcurrentLimit": 5,
+  "minimumReleaseAge": "1440 minutes",
   "packageRules": [
     {
       "description": "Pin GitHub Actions to commit SHA",
