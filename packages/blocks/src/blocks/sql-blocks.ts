@@ -1,6 +1,7 @@
 import dedent from 'ts-dedent'
 
-import type { DeepnoteBlock, ExecutableBlockMetadata } from '../blocks'
+import type { ExecutableBlockMetadata } from '../blocks'
+import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
 import { convertToEnvironmentVariableName, getSqlEnvVarName } from './sql-utils'
 

@@ -1,4 +1,4 @@
-import { type DeepnoteBlock, UnsupportedBlockTypeError } from './blocks'
+import { UnsupportedBlockTypeError } from './blocks'
 import { createMarkdownForImageBlock, isImageBlock } from './blocks/image-blocks'
 import {
   createMarkdownForSeparatorBlock,
@@ -7,8 +7,13 @@ import {
   isTextBlock,
   stripMarkdownFromTextBlock,
 } from './blocks/text-blocks'
+import type { DeepnoteBlock } from './deserialize-file/deepnote-file-schema'
 
 export function createMarkdown(block: DeepnoteBlock): string {
+  if (block.type === 'markdown') {
+    return block.content ?? ''
+  }
+
   if (isTextBlock(block)) {
     return createMarkdownForTextBlock(block)
   }

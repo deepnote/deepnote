@@ -15,6 +15,36 @@ import type {
 import { createMarkdown, stripMarkdown } from './markdown'
 
 describe('createMarkdown', () => {
+  it('returns markdown content as-is for markdown block type', () => {
+    const block = {
+      id: '123',
+      type: 'markdown',
+      blockGroup: 'abc',
+      content: '# Already Markdown',
+      metadata: {},
+      sortingKey: 'a0',
+    }
+
+    const result = createMarkdown(block)
+
+    expect(result).toEqual('# Already Markdown')
+  })
+
+  it('returns empty string when markdown block has undefined content', () => {
+    const block = {
+      id: '456',
+      type: 'markdown',
+      blockGroup: 'abc',
+      content: undefined,
+      metadata: {},
+      sortingKey: 'a1',
+    }
+
+    const result = createMarkdown(block)
+
+    expect(result).toEqual('')
+  })
+
   it('creates markdown for heading 1 text block', () => {
     const block: Heading1TextBlock = {
       id: '123',
