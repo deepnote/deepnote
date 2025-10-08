@@ -1,4 +1,4 @@
-import dedent from 'ts-dedent'
+import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
 import {
