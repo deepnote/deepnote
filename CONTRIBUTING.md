@@ -84,9 +84,11 @@ Biome is available as a first-party extension in your favorite editors.
 
 ### Publishing a New Version
 
-To publish a new version of `@deepnote/blocks`:
+This repository supports publishing multiple packages independently. Each package release must use a **package-scoped tag** in the format `@deepnote/package-name@version` (e.g., `@deepnote/blocks@1.2.0`).
 
-1. **Update the version** in `packages/blocks/package.json`:
+To publish a new version of a package (using `@deepnote/blocks` as an example):
+
+1. **Update the version** in the package's `package.json`:
 
    ```bash
    cd packages/blocks
@@ -96,10 +98,10 @@ To publish a new version of `@deepnote/blocks`:
 2. **Create a release branch and commit the version bump**:
 
    ```bash
-   git checkout -b release/blocks-v1.2.0
+   git checkout -b release/blocks-1.2.0
    git add packages/blocks/package.json pnpm-lock.yaml
-   git commit -m "chore: bump @deepnote/blocks to v1.2.0"
-   git push origin release/blocks-v1.2.0
+   git commit -m "chore: bump @deepnote/blocks to 1.2.0"
+   git push origin release/blocks-1.2.0
    ```
 
 3. **Open a pull request**:
@@ -110,11 +112,16 @@ To publish a new version of `@deepnote/blocks`:
 
 4. **Create a GitHub Release** (after the PR is merged):
    - Go to [Releases](https://github.com/deepnote/deepnote/releases/new)
-   - Create a new tag (e.g., `v1.2.0`) in the release form
+   - Create a new tag using the **package-scoped format**: `@deepnote/blocks@1.2.0`
+   - Add a release title (e.g., `@deepnote/blocks v1.2.0`)
    - Add release notes describing the changes
    - Publish the release
 
-The package will be automatically published to GitHub Packages by the `publish.yml` workflow when the release is published
+The package will be automatically published to GitHub Packages by the `publish.yml` workflow when the release is published. The workflow:
+
+- Only triggers for tags matching `@deepnote/*@*`
+- Validates that the tag version matches the package.json version
+- Builds and publishes only the specified package
 
 ---
 
