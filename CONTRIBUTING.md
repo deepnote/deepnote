@@ -100,7 +100,7 @@ To publish a new version of a package (using `@deepnote/blocks` as an example):
 
    ```bash
    git checkout -b release/blocks-1.2.0
-   git add packages/blocks/package.json pnpm-lock.yaml
+   git add -A
    git commit -m "chore: bump @deepnote/blocks to 1.2.0"
    git push origin release/blocks-1.2.0
    ```

@@ -48,13 +48,9 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@deepnote'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate package version
         run: |
@@ -82,9 +78,12 @@ jobs:
           echo "Version validation passed: $TAG_VERSION"
 
       - name: Build package
-        run: pnpm --filter ${{ steps.package_info.outputs.package_name }} run build
+        run: pnpm --filter "${{ steps.package_info.outputs.package_name }}..." run build
+
+      - name: Configure registry for publishing
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
+          echo "@deepnote:registry=https://npm.pkg.github.com" >> ~/.npmrc
 
       - name: Publish to GitHub Packages
         run: pnpm publish --filter ${{ steps.package_info.outputs.package_name }} --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
