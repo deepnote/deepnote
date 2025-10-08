@@ -80,6 +80,44 @@ Biome is available as a first-party extension in your favorite editors.
 
 ---
 
+## 📦 Publishing Packages
+
+### Publishing a New Version
+
+To publish a new version of `@deepnote/blocks`:
+
+1. **Update the version** in `packages/blocks/package.json`:
+
+   ```bash
+   cd packages/blocks
+   pnpm version patch --no-git-tag-version  # or minor/major
+   ```
+
+2. **Create a release branch and commit the version bump**:
+
+   ```bash
+   git checkout -b release/blocks-v1.2.0
+   git add packages/blocks/package.json pnpm-lock.yaml
+   git commit -m "chore: bump @deepnote/blocks to v1.2.0"
+   git push origin release/blocks-v1.2.0
+   ```
+
+3. **Open a pull request**:
+   - Go to the repository and open a PR from your release branch to `main`
+   - Wait for CI checks to pass
+   - Get required approvals from maintainers
+   - Merge the PR via GitHub UI or CLI
+
+4. **Create a GitHub Release** (after the PR is merged):
+   - Go to [Releases](https://github.com/deepnote/deepnote/releases/new)
+   - Create a new tag (e.g., `v1.2.0`) in the release form
+   - Add release notes describing the changes
+   - Publish the release
+
+The package will be automatically published to GitHub Packages by the `publish.yml` workflow when the release is published
+
+---
+
 ## 🧑‍🔧 Maintainer Guidelines
 
 - The `main` branch is protected: no direct commits or force pushes are allowed. All changes must be merged through pull requests.
