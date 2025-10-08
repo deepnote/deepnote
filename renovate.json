@@ -5,6 +5,7 @@
   "platformAutomerge": false,
   "prCreation": "immediate",
   "prConcurrentLimit": 5,
+  "minimumReleaseAge": "1440 minutes",
   "packageRules": [
     {
       "description": "Pin GitHub Actions to commit SHA",
@@ -13,10 +14,10 @@
     },
     {
       "description": "Group non-major updates",
-      "matchPackagePatterns": ["*"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "non-major dependencies",
-      "groupSlug": "non-major"
+      "groupSlug": "non-major",
+      "matchPackageNames": ["*"]
     },
     {
       "description": "Security updates with high priority",
