@@ -5,7 +5,8 @@
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "https://github.com/deepnote/deepnote.git"
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/blocks"
   },
   "license": "Apache-2.0",
   "type": "module",
