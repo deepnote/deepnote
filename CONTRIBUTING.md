@@ -93,6 +93,7 @@ To publish a new version of a package (using `@deepnote/blocks` as an example):
    ```bash
    cd packages/blocks
    pnpm version patch --no-git-tag-version  # or minor/major
+   cd ../..
    ```
 
 2. **Create a release branch and commit the version bump**:
