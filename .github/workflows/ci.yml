@@ -179,7 +179,7 @@ jobs:
       - name: Run license checker
         run: pnpm run license-check
   audit-prod:
-    name: Audit (Production Dependencies)
+    name: Audit - Production
     runs-on: ubuntu-latest
     timeout-minutes: 3
 
@@ -200,9 +200,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run audit for production dependencies
-        run: pnpm audit --prod --audit-level high
+        run: pnpm audit --prod
   audit-all:
-    name: Audit (All Dependencies)
+    name: Audit - All
     runs-on: ubuntu-latest
     timeout-minutes: 3
 
@@ -223,4 +223,4 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run audit for all dependencies
-        run: pnpm audit --audit-level high
+        run: pnpm audit
