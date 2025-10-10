@@ -1,5 +1,8 @@
 # 🧠 Deepnote
 
+[![CI](https://github.com/deepnote/deepnote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/deepnote/deepnote/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/deepnote/deepnote/graph/badge.svg?token=7DHBMXZS28)](https://codecov.io/gh/deepnote/deepnote)
+
 Welcome to the official open-source mono-repo for [Deepnote](https://deepnote.com)! This repo provides the gateway and entrance everything you need to explore, extend, and contribute to the ecosystem behind Deepnote — including core packages, dev tooling, and integrations with the broader computational notebook world.
 
 ---
