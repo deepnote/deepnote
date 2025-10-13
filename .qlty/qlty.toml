@@ -30,7 +30,7 @@ exclude_patterns = [
 
 # Code Smells Configuration
 [smells]
-mode = "comment"
+mode = "block"
 
 [smells.boolean_logic]
 enabled = true
