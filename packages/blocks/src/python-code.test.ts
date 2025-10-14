@@ -280,6 +280,34 @@ describe('createPythonCode', () => {
 
       expect(result).toContain('"hiddenColumnIds":["secret"]')
     })
+
+    it('escapes special characters in table state JSON string', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: 'df',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_table_state: {
+            columnDisplayNames: ['It\'s a "test"'],
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      // The escapePythonString function escapes backslashes and single quotes
+      // JSON.stringify already escapes double quotes to \" and escapePythonString then escapes the \ to \\
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{"columnDisplayNames":["It\\'s a \\\\"test\\\\""]}')
+        else:
+          _deepnote_current_table_attrs = '{"columnDisplayNames":["It\\'s a \\\\"test\\\\""]}'
+
+        df
+      `)
+    })
   })
 
   describe('Input blocks', () => {
