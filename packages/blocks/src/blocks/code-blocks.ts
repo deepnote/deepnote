@@ -4,7 +4,14 @@ import type { ExecutableBlockMetadata } from '../blocks'
 import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
 import { createDataFrameConfig } from './data-frame'
 
-export interface CodeBlockMetadata extends ExecutableBlockMetadata {}
+export interface CodeBlockMetadata extends ExecutableBlockMetadata {
+  deepnote_table_state: {
+    columnOrder: string[]
+    pageIndex: number
+    pageSize: number
+    sortBy: { id: string; type: string }[]
+  }
+}
 
 export interface CodeBlock extends DeepnoteBlock {
   content: string

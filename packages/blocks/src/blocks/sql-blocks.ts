@@ -10,6 +10,12 @@ export type SqlBlockVariableType = 'dataframe' | 'query_preview'
 
 export interface SqlBlockMetadata extends ExecutableBlockMetadata {
   deepnote_return_variable_type?: SqlBlockVariableType
+  deepnote_table_state: {
+    columnOrder: string[]
+    pageIndex: number
+    pageSize: number
+    sortBy: { id: string; type: string }[]
+  }
   deepnote_variable_name?: string
   function_export_name?: string
   is_compiled_sql_query_visible?: boolean

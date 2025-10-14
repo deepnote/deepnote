@@ -36,8 +36,6 @@ export type BlockMetadata =
   | MarkdownCellMetadata
 
 export interface ExecutableBlockMetadata {
-  [key: string]: unknown
-
   execution_context_id?: string
   execution_millis?: number
   // UTC timestamp in milliseconds.

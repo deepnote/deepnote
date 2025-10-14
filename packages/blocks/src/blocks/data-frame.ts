@@ -5,9 +5,8 @@ import { escapePythonString } from './python-utils'
 import type { SqlBlock } from './sql-blocks'
 
 export function createDataFrameConfig(block: CodeBlock | SqlBlock): string {
-  const rawTableState = 'deepnote_table_state' in block.metadata ? block.metadata.deepnote_table_state : {}
-  const tableState = rawTableState ?? {}
-  const tableStateAsJson = JSON.stringify(tableState) ?? '{}'
+  const tableState = block.metadata.deepnote_table_state ?? {}
+  const tableStateAsJson = JSON.stringify(tableState)
 
   return dedent`
     if '_dntk' in globals():
