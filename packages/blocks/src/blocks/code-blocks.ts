@@ -3,14 +3,10 @@ import { dedent } from 'ts-dedent'
 import type { ExecutableBlockMetadata } from '../blocks'
 import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
 import { createDataFrameConfig } from './data-frame'
+import type { TableState } from './table-state'
 
 export interface CodeBlockMetadata extends ExecutableBlockMetadata {
-  deepnote_table_state: {
-    columnOrder: string[]
-    pageIndex: number
-    pageSize: number
-    sortBy: { id: string; type: string }[]
-  }
+  deepnote_table_state?: TableState
 }
 
 export interface CodeBlock extends DeepnoteBlock {

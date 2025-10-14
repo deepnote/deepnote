@@ -1,3 +1,4 @@
+export type { TableState } from './blocks/table-state'
 export type { DeepnoteBlock, DeepnoteFile } from './deserialize-file/deepnote-file-schema'
 export { deserializeDeepnoteFile } from './deserialize-file/deserialize-deepnote-file'
 export { createMarkdown, stripMarkdown } from './markdown'

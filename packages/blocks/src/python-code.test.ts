@@ -290,7 +290,7 @@ describe('createPythonCode', () => {
         sortingKey: 'a0',
         metadata: {
           deepnote_table_state: {
-            columnDisplayNames: ['It\'s a "test"'],
+            columnDisplayNames: [{ columnName: 'value', displayName: 'It\'s a "test' }],
           },
         },
       }
@@ -301,9 +301,9 @@ describe('createPythonCode', () => {
       // JSON.stringify already escapes double quotes to \" and escapePythonString then escapes the \ to \\
       expect(result).toEqual(dedent`
         if '_dntk' in globals():
-          _dntk.dataframe_utils.configure_dataframe_formatter('{"columnDisplayNames":["It\\'s a \\\\"test\\\\""]}')
+          _dntk.dataframe_utils.configure_dataframe_formatter('{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}')
         else:
-          _deepnote_current_table_attrs = '{"columnDisplayNames":["It\\'s a \\\\"test\\\\""]}'
+          _deepnote_current_table_attrs = '{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}'
 
         df
       `)
