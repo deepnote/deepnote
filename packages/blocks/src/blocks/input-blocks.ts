@@ -1,4 +1,4 @@
-import dedent from 'ts-dedent'
+import { dedent } from 'ts-dedent'
 
 import type { ExecutableBlockMetadata } from '../blocks'
 import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'

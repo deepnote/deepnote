@@ -1,4 +1,4 @@
-import dedent from 'ts-dedent'
+import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
 import type { BigNumberBlock } from './blocks/big-number-blocks'
@@ -166,7 +166,147 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toBe("print('Hello, world!')")
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
+        print('Hello, world!')
+      `)
+    })
+
+    it('creates Python code for code block with table state', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: 'df',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_table_state: {
+            sortBy: [],
+            filters: [],
+            pageSize: 25,
+            pageIndex: 0,
+            columnOrder: ['date', 'value', 'category'],
+            hiddenColumnIds: [],
+            columnDisplayNames: [],
+            conditionalFilters: [],
+            cellFormattingRules: [],
+            wrappedTextColumnIds: [],
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      const expectedJson = JSON.stringify({
+        sortBy: [],
+        filters: [],
+        pageSize: 25,
+        pageIndex: 0,
+        columnOrder: ['date', 'value', 'category'],
+        hiddenColumnIds: [],
+        columnDisplayNames: [],
+        conditionalFilters: [],
+        cellFormattingRules: [],
+        wrappedTextColumnIds: [],
+      })
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('${expectedJson}')
+        else:
+          _deepnote_current_table_attrs = '${expectedJson}'
+
+        df
+      `)
+    })
+
+    it('creates Python code for code block with custom page size', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: 'result',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_table_state: {
+            sortBy: [],
+            filters: [],
+            pageSize: 50,
+            pageIndex: 2,
+            columnOrder: [],
+            hiddenColumnIds: [],
+            columnDisplayNames: [],
+            conditionalFilters: [],
+            cellFormattingRules: [],
+            wrappedTextColumnIds: [],
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toContain('"pageSize":50')
+      expect(result).toContain('"pageIndex":2')
+    })
+
+    it('creates Python code for code block with hidden columns', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: 'df',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_table_state: {
+            sortBy: [],
+            filters: [],
+            pageSize: 25,
+            pageIndex: 0,
+            columnOrder: ['id', 'name', 'secret'],
+            hiddenColumnIds: ['secret'],
+            columnDisplayNames: [],
+            conditionalFilters: [],
+            cellFormattingRules: [],
+            wrappedTextColumnIds: [],
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toContain('"hiddenColumnIds":["secret"]')
+    })
+
+    it('escapes special characters in table state JSON string', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: 'df',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_table_state: {
+            columnDisplayNames: [{ columnName: 'value', displayName: 'It\'s a "test' }],
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      // The escapePythonString function escapes backslashes and single quotes
+      // JSON.stringify already escapes double quotes to \" and escapePythonString then escapes the \ to \\
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}')
+        else:
+          _deepnote_current_table_attrs = '{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}'
+
+        df
+      `)
     })
   })
 
@@ -476,6 +616,11 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
         df_1 = _dntk.execute_sql(
           'SELECT * FROM teams LIMIT 10',
           'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
@@ -503,6 +648,11 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
         _dntk.execute_sql(
           'SELECT COUNT(*) FROM users',
           'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
@@ -531,6 +681,11 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
         preview = _dntk.execute_sql(
           'SELECT * FROM orders',
           'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
@@ -558,6 +713,11 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
         products = _dntk.execute_sql(
           'SELECT * FROM products',
           'SQL_ALCHEMY_JSON_ENV_VAR',
@@ -586,6 +746,11 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
         result = _dntk.execute_sql(
           'SELECT * FROM users WHERE name = \\'O\\\\\\'Reilly\\' AND note = "test\\\\nline"',
           'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
@@ -595,6 +760,94 @@ describe('createPythonCode', () => {
         )
         result
       `)
+    })
+
+    it('creates Python code for SQL block with table state', () => {
+      const block: SqlBlock = {
+        id: '456',
+        type: 'sql',
+        content: 'SELECT * FROM analytics_views.active_plans LIMIT 100',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          sql_integration_id: 'c965a743-58bd-47ad-b24f-d8327932f9ef',
+          deepnote_variable_name: 'df_2',
+          deepnote_table_state: {
+            sortBy: [],
+            filters: [],
+            pageSize: 10,
+            pageIndex: 1,
+            columnOrder: ['id', 'team_id', 'plan_name'],
+            hiddenColumnIds: [],
+            columnDisplayNames: [],
+            conditionalFilters: [],
+            cellFormattingRules: [],
+            wrappedTextColumnIds: [],
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      const expectedJson = JSON.stringify({
+        sortBy: [],
+        filters: [],
+        pageSize: 10,
+        pageIndex: 1,
+        columnOrder: ['id', 'team_id', 'plan_name'],
+        hiddenColumnIds: [],
+        columnDisplayNames: [],
+        conditionalFilters: [],
+        cellFormattingRules: [],
+        wrappedTextColumnIds: [],
+      })
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('${expectedJson}')
+        else:
+          _deepnote_current_table_attrs = '${expectedJson}'
+
+        df_2 = _dntk.execute_sql(
+          'SELECT * FROM analytics_views.active_plans LIMIT 100',
+          'SQL_C965A743_58BD_47AD_B24F_D8327932F9EF',
+          audit_sql_comment='',
+          sql_cache_mode='cache_disabled',
+          return_variable_type='dataframe'
+        )
+        df_2
+      `)
+    })
+
+    it('creates Python code for SQL block with custom page size', () => {
+      const block: SqlBlock = {
+        id: '456',
+        type: 'sql',
+        content: 'SELECT * FROM users',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          sql_integration_id: 'integration-123',
+          deepnote_variable_name: 'users',
+          deepnote_table_state: {
+            sortBy: [],
+            filters: [],
+            pageSize: 100,
+            pageIndex: 0,
+            columnOrder: [],
+            hiddenColumnIds: [],
+            columnDisplayNames: [],
+            conditionalFilters: [],
+            cellFormattingRules: [],
+            wrappedTextColumnIds: [],
+          },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toContain('"pageSize":100')
+      expect(result).toContain('"pageIndex":0')
     })
   })
 

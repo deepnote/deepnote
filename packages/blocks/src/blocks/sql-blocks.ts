@@ -1,14 +1,17 @@
-import dedent from 'ts-dedent'
+import { dedent } from 'ts-dedent'
 
 import type { ExecutableBlockMetadata } from '../blocks'
 import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
+import { createDataFrameConfig } from './data-frame'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
 import { convertToEnvironmentVariableName, getSqlEnvVarName } from './sql-utils'
+import type { TableState } from './table-state'
 
 export type SqlBlockVariableType = 'dataframe' | 'query_preview'
 
 export interface SqlBlockMetadata extends ExecutableBlockMetadata {
   deepnote_return_variable_type?: SqlBlockVariableType
+  deepnote_table_state?: TableState
   deepnote_variable_name?: string
   function_export_name?: string
   is_compiled_sql_query_visible?: boolean
@@ -35,19 +38,29 @@ export function createPythonCodeForSqlBlock(block: SqlBlock): string {
 
   const escapedQuery = escapePythonString(query)
 
-  const executeSqlFunctionCall = dedent`_dntk.execute_sql(
-    ${escapedQuery},
-    '${connectionEnvVarName}',
-    audit_sql_comment='',
-    sql_cache_mode='cache_disabled',
-    return_variable_type='${returnVariableType}'
-  )`
+  const dataFrameConfig = createDataFrameConfig(block)
+
+  const executeSqlFunctionCall = dedent`
+    _dntk.execute_sql(
+      ${escapedQuery},
+      '${connectionEnvVarName}',
+      audit_sql_comment='',
+      sql_cache_mode='cache_disabled',
+      return_variable_type='${returnVariableType}'
+    )
+  `
 
   if (sanitizedPythonVariableName === undefined) {
-    return executeSqlFunctionCall
+    return dedent`
+      ${dataFrameConfig}
+
+      ${executeSqlFunctionCall}
+    `
   }
 
   return dedent`
+    ${dataFrameConfig}
+
     ${sanitizedPythonVariableName} = ${executeSqlFunctionCall}
     ${sanitizedPythonVariableName}
   `

@@ -1,4 +1,4 @@
-import dedent from 'ts-dedent'
+import { dedent } from 'ts-dedent'
 
 import { escapePythonString, sanitizePythonVariableName } from './blocks/python-utils'
 
