@@ -53,6 +53,7 @@
     "timedelta",
     "millis",
     "dataframe",
-    "relativedelta"
+    "relativedelta",
+    "tsgo"
   ]
 }
