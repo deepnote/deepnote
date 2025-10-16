@@ -53,6 +53,11 @@
     "timedelta",
     "millis",
     "dataframe",
-    "relativedelta"
+    "relativedelta",
+    "bijective",
+    "cleye",
+    "Kaggle",
+    "nbformat",
+    "numpy"
   ]
 }
