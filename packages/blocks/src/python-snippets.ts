@@ -89,9 +89,7 @@ __deepnote_big_number__()
 
   executeVisualization: (variableName: string, spec: string, filters: string) => {
     const sanitizedVariableName = sanitizePythonVariableName(variableName)
-    return dedent`
-      _dntk.DeepnoteChart(${sanitizedVariableName}, """${spec}""", attach_selection=True, filters=${escapePythonString(filters)})
-    `
+    return `_dntk.DeepnoteChart(${sanitizedVariableName}, """${spec}""", filters=${escapePythonString(filters)})`
   },
 
   // Date range helpers - names are sanitized to ensure valid Python identifiers
