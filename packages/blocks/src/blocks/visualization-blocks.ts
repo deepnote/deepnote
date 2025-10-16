@@ -27,10 +27,7 @@ export function createPythonCodeForVisualizationBlock(block: VisualizationBlock)
   }
 
   const sanitizedVariableName = sanitizePythonVariableName(variableName)
-  const BACKSLASH = `\\`
-  const escapedVegaLiteSpec = JSON.stringify(spec).replaceAll(`${BACKSLASH}`, `${BACKSLASH}${BACKSLASH}`)
-
-  return pythonCode.executeVisualization(sanitizedVariableName, escapedVegaLiteSpec, JSON.stringify(filters))
+  return pythonCode.executeVisualization(sanitizedVariableName, JSON.stringify(spec), JSON.stringify(filters))
 }
 
 export function isVisualizationBlock(block: DeepnoteBlock): block is VisualizationBlock {

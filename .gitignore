@@ -1,4 +1,5 @@
 *.tsbuildinfo
+.DS_Store
 .qlty/cache
 .qlty/logs
 .qlty/out
