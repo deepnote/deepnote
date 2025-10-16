@@ -4,7 +4,7 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 
-interface ConvertIpynbFilesToDeepnoteFileOptions {
+export interface ConvertIpynbFilesToDeepnoteFileOptions {
   outputPath: string
   projectName: string
 }

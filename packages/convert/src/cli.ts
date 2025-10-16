@@ -30,7 +30,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
   const resolveOutputPath = async (outputFilename: string): Promise<string> => {
     if (customOutputPath) {
-      const absoluteOutputPath = resolve(customOutputPath)
+      const absoluteOutputPath = resolve(cwd, customOutputPath)
       const stat = await fs.stat(absoluteOutputPath).catch(() => null)
 
       if (stat?.isDirectory()) {
@@ -43,7 +43,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
     return resolve(cwd, outputFilename)
   }
 
-  const absolutePath = resolve(inputPath)
+  const absolutePath = resolve(cwd, inputPath)
 
   const stat = await fs.stat(absolutePath)
 
@@ -121,7 +121,6 @@ async function main() {
   })
 }
 
-// Only run main if not in test mode
 if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
   main().catch(error => {
     console.error(error)

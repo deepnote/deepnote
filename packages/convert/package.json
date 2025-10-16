@@ -1,24 +1,22 @@
 {
   "name": "@deepnote/convert",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "",
   "keywords": [],
   "repository": {
     "type": "git",
     "url": "https://github.com/deepnote/deepnote.git",
-    "directory": "packages/blocks"
+    "directory": "packages/convert"
   },
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     }
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
+  "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "deepnote-convert": "./dist/cli.js"
@@ -30,9 +28,9 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown --format esm --format cjs --dts",
+    "build": "tsdown --format esm --dts",
     "test": "vitest",
-    "watch": "tsdown --watch --format esm --format cjs --dts"
+    "watch": "tsdown --watch --format esm --dts"
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
@@ -46,6 +44,9 @@
     "@types/node": "^20.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

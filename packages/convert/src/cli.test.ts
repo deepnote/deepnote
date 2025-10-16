@@ -237,4 +237,134 @@ describe('CLI convert function', () => {
       })
     ).rejects.toThrow()
   })
+
+  it('resolves relative inputPath against cwd for file', async () => {
+    // Create a test notebook
+    const notebookPath = path.join(tempDir, 'test.ipynb')
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    // Use relative path and set cwd
+    const outputPath = await convert({
+      inputPath: 'test.ipynb',
+      cwd: tempDir,
+    })
+
+    // Verify the output file was created
+    const exists = await fs
+      .access(outputPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+
+    // Verify content
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.name).toBe('test')
+  })
+
+  it('resolves relative inputPath against cwd for directory', async () => {
+    // Create test notebooks in a subdirectory
+    const notebooksDir = path.join(tempDir, 'notebooks')
+    await fs.mkdir(notebooksDir)
+
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(path.join(notebooksDir, 'test.ipynb'), JSON.stringify(notebook), 'utf-8')
+
+    // Use relative path and set cwd
+    const outputPath = await convert({
+      inputPath: 'notebooks',
+      cwd: tempDir,
+    })
+
+    // Verify the output file was created
+    const exists = await fs
+      .access(outputPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+
+    // Verify content
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.name).toBe('notebooks')
+  })
+
+  it('resolves relative outputPath against cwd', async () => {
+    // Create a test notebook
+    const notebookPath = path.join(tempDir, 'test.ipynb')
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    // Create output directory
+    const outputDir = path.join(tempDir, 'output')
+    await fs.mkdir(outputDir)
+
+    // Use relative outputPath and set cwd
+    const outputPath = await convert({
+      inputPath: notebookPath,
+      outputPath: 'output',
+      cwd: tempDir,
+    })
+
+    // Verify the output path is resolved correctly
+    const expectedPath = path.join(outputDir, 'test.deepnote')
+    expect(outputPath).toBe(expectedPath)
+
+    // Verify file exists
+    const exists = await fs
+      .access(expectedPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+  })
+
+  it('resolves relative outputPath as file against cwd', async () => {
+    // Create a test notebook
+    const notebookPath = path.join(tempDir, 'test.ipynb')
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    // Use relative outputPath (file) and set cwd
+    const outputPath = await convert({
+      inputPath: notebookPath,
+      outputPath: 'custom.deepnote',
+      cwd: tempDir,
+    })
+
+    // Verify the output path is resolved correctly
+    const expectedPath = path.join(tempDir, 'custom.deepnote')
+    expect(outputPath).toBe(expectedPath)
+
+    // Verify file exists
+    const exists = await fs
+      .access(expectedPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+  })
 })
