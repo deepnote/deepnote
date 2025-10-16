@@ -1,4 +1,3 @@
-import console from 'node:console'
 import fs from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
 import chalk from 'chalk'
@@ -49,7 +48,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
   if (stat.isDirectory()) {
     const files = await fs.readdir(absolutePath)
-    const ipynbFiles = files.filter(file => file.toLowerCase().endsWith('.ipynb'))
+    const ipynbFiles = files.filter(file => file.toLowerCase().endsWith('.ipynb')).sort()
 
     if (ipynbFiles.length === 0) {
       throw new Error('No .ipynb files found in the specified directory.')
@@ -57,19 +56,24 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
     const spinner = ora('Converting Jupyter Notebooks to a Deepnote project...').start()
 
-    const filenameWithoutExtension = basename(absolutePath)
-    const projectName = resolveProjectName(filenameWithoutExtension)
+    try {
+      const filenameWithoutExtension = basename(absolutePath)
+      const projectName = resolveProjectName(filenameWithoutExtension)
 
-    const outputFilename = `${filenameWithoutExtension}.deepnote`
-    const outputPath = await resolveOutputPath(outputFilename)
+      const outputFilename = `${filenameWithoutExtension}.deepnote`
+      const outputPath = await resolveOutputPath(outputFilename)
 
-    const inputFilePaths = ipynbFiles.map(file => resolve(absolutePath, file))
+      const inputFilePaths = ipynbFiles.map(file => resolve(absolutePath, file))
 
-    await convertIpynbFilesToDeepnoteFile(inputFilePaths, { projectName, outputPath })
+      await convertIpynbFilesToDeepnoteFile(inputFilePaths, { projectName, outputPath })
 
-    spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
+      spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
 
-    return outputPath
+      return outputPath
+    } catch (error) {
+      spinner.fail('Conversion failed')
+      throw error
+    }
   }
 
   const extension = absolutePath.split('.').pop()?.toLowerCase().trim()
@@ -77,17 +81,22 @@ export async function convert(options: ConvertOptions): Promise<string> {
   if (extension === 'ipynb') {
     const spinner = ora('Converting the Jupyter Notebook to a Deepnote project...').start()
 
-    const filenameWithoutExtension = basename(absolutePath, '.ipynb')
-    const projectName = resolveProjectName(filenameWithoutExtension)
+    try {
+      const filenameWithoutExtension = basename(absolutePath, '.ipynb')
+      const projectName = resolveProjectName(filenameWithoutExtension)
 
-    const outputFilename = `${filenameWithoutExtension}.deepnote`
-    const outputPath = await resolveOutputPath(outputFilename)
+      const outputFilename = `${filenameWithoutExtension}.deepnote`
+      const outputPath = await resolveOutputPath(outputFilename)
 
-    await convertIpynbFilesToDeepnoteFile([absolutePath], { projectName, outputPath })
+      await convertIpynbFilesToDeepnoteFile([absolutePath], { projectName, outputPath })
 
-    spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
+      spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
 
-    return outputPath
+      return outputPath
+    } catch (error) {
+      spinner.fail('Conversion failed')
+      throw error
+    }
   }
 
   if (extension === 'deepnote') {
@@ -111,6 +120,10 @@ async function main() {
         description: 'The path where the .deepnote file will be saved.',
         type: String,
       },
+      cwd: {
+        description: 'The working directory to resolve paths relative to.',
+        type: String,
+      },
     },
   })
 
@@ -118,11 +131,13 @@ async function main() {
     inputPath: argv._.path,
     projectName: argv.flags.projectName,
     outputPath: argv.flags.outputPath,
+    cwd: argv.flags.cwd ?? process.cwd(),
   })
 }
 
 if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
   main().catch(error => {
+    // biome-ignore lint/suspicious/noConsole: CLI error reporting to stderr is appropriate
     console.error(error)
     process.exit(1)
   })

@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { basename } from 'node:path'
+import { basename, extname } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
@@ -43,12 +43,10 @@ export async function convertIpynbFilesToDeepnoteFile(
   }
 
   for (const filePath of inputFilePaths) {
-    const filename = filePath.split('/').pop()
-    const extension = filename?.split('.').pop()?.toLowerCase().trim()
-    const name = filename ? basename(filename, `.${extension}`) : 'Untitled notebook'
+    const extension = extname(filePath)
+    const name = basename(filePath, extension) || 'Untitled notebook'
 
-    const ipynbJson = await fs.readFile(filePath, 'utf-8')
-    const ipynb = JSON.parse(ipynbJson) as IpynbFile
+    const ipynb = await parseIpynbFile(filePath)
 
     const blocks = ipynb.cells.map((cell, index) => {
       const source = Array.isArray(cell.source) ? cell.source.join('') : cell.source
@@ -81,6 +79,26 @@ export async function convertIpynbFilesToDeepnoteFile(
   const yamlContent = stringify(deepnoteFile)
 
   await fs.writeFile(options.outputPath, yamlContent, 'utf-8')
+}
+
+async function parseIpynbFile(filePath: string): Promise<IpynbFile> {
+  let ipynbJson: string
+
+  try {
+    ipynbJson = await fs.readFile(filePath, 'utf-8')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+
+    throw new Error(`Failed to read ${filePath}: ${message}`)
+  }
+
+  try {
+    return JSON.parse(ipynbJson) as IpynbFile
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+
+    throw new Error(`Failed to parse ${filePath}: invalid JSON - ${message}`)
+  }
 }
 
 function createSortingKey(index: number): string {
