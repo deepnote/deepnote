@@ -10,14 +10,24 @@ import { convertIpynbFilesToDeepnoteFile } from './jupyter-to-deepnote'
 vi.mock('uuid', async () => {
   const actual = await vi.importActual<typeof import('uuid')>('uuid')
   let counter = 0
+  const mockV4 = vi.fn(() => {
+    counter++
+    return `test-uuid-${counter.toString().padStart(3, '0')}`
+  })
+  // Attach reset function to the mock
+  ;(mockV4 as typeof mockV4 & { __resetCounter: () => void }).__resetCounter = () => {
+    counter = 0
+  }
   return {
     ...actual,
-    v4: vi.fn(() => {
-      counter++
-      return `test-uuid-${counter.toString().padStart(3, '0')}`
-    }),
+    v4: mockV4,
   }
 })
+
+// Helper to get the mocked uuid.v4 with reset function
+function getMockedUuidV4() {
+  return vi.mocked(uuid.v4) as ReturnType<typeof vi.mocked<typeof uuid.v4>> & { __resetCounter: () => void }
+}
 
 describe('createSortingKey', () => {
   // We need to test the internal function via its behavior in the output
@@ -28,7 +38,9 @@ describe('createSortingKey', () => {
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     try {
-      vi.mocked(uuid.v4).mockClear()
+      const mockedV4 = getMockedUuidV4()
+      mockedV4.mockClear()
+      mockedV4.__resetCounter()
 
       await convertIpynbFilesToDeepnoteFile([path.join(__dirname, '__fixtures__', 'simple.ipynb')], {
         outputPath,
@@ -68,7 +80,9 @@ describe('createSortingKey', () => {
 
     try {
       await fs.writeFile(inputPath, JSON.stringify(notebookWithManyCells), 'utf-8')
-      vi.mocked(uuid.v4).mockClear()
+      const mockedV4 = getMockedUuidV4()
+      mockedV4.mockClear()
+      mockedV4.__resetCounter()
 
       await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
 
@@ -100,7 +114,9 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
     // Reset the UUID counter before each test
-    vi.mocked(uuid.v4).mockClear()
+    const mockedV4 = getMockedUuidV4()
+    mockedV4.mockClear()
+    mockedV4.__resetCounter()
     // Set a fixed date for deterministic timestamps
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
@@ -432,7 +448,9 @@ describe('snapshot tests - exact YAML output format', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
     // Reset the UUID counter before each test
-    vi.mocked(uuid.v4).mockClear()
+    const mockedV4 = getMockedUuidV4()
+    mockedV4.mockClear()
+    mockedV4.__resetCounter()
     // Set a fixed date for deterministic timestamps
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
@@ -457,43 +475,43 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-186
+        id: test-uuid-001
         integrations: []
         name: Simple Test
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-187
+              - blockGroup: test-uuid-002
                 content: |-
                   # Hello World
 
                   This is a test notebook.
-                id: test-uuid-188
+                id: test-uuid-003
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-189
+              - blockGroup: test-uuid-004
                 content: print('Hello World')
                 executionCount: 1
-                id: test-uuid-190
+                id: test-uuid-005
                 metadata: {}
                 outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
-              - blockGroup: test-uuid-191
+              - blockGroup: test-uuid-006
                 content: |-
                   import numpy as np
                   import pandas as pd
                 executionCount: 2
-                id: test-uuid-192
+                id: test-uuid-007
                 metadata: {}
                 outputs: []
                 sortingKey: "2"
                 type: code
                 version: 1
             executionMode: block
-            id: test-uuid-193
+            id: test-uuid-008
             isModule: false
             name: simple
         settings: {}
@@ -516,29 +534,29 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-194
+        id: test-uuid-001
         integrations: []
         name: Notebook 1
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-195
+              - blockGroup: test-uuid-002
                 content: "# Notebook 1"
-                id: test-uuid-196
+                id: test-uuid-003
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-197
+              - blockGroup: test-uuid-004
                 content: x = 1
                 executionCount: 1
-                id: test-uuid-198
+                id: test-uuid-005
                 metadata: {}
                 outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
             executionMode: block
-            id: test-uuid-199
+            id: test-uuid-006
             isModule: false
             name: notebook1
         settings: {}
@@ -561,29 +579,29 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-200
+        id: test-uuid-001
         integrations: []
         name: Notebook 2
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-201
+              - blockGroup: test-uuid-002
                 content: "# Notebook 2"
-                id: test-uuid-202
+                id: test-uuid-003
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-203
+              - blockGroup: test-uuid-004
                 content: y = 2
                 executionCount: 1
-                id: test-uuid-204
+                id: test-uuid-005
                 metadata: {}
                 outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
             executionMode: block
-            id: test-uuid-205
+            id: test-uuid-006
             isModule: false
             name: notebook2
         settings: {}
@@ -606,12 +624,12 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-206
+        id: test-uuid-001
         integrations: []
         name: Titanic Tutorial
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-207
+              - blockGroup: test-uuid-002
                 content: >-
                   Logging into Kaggle for the first time can be daunting. Our
                   competitions often have large cash prizes, public leaderboards, and
@@ -750,12 +768,12 @@ describe('snapshot tests - exact YAML output format', () => {
                   - a **"Survived"** column (that you will create!) with a "1" for the
                   rows where you think the passenger survived, and a "0" where you
                   predict that the passenger died.
-                id: test-uuid-208
+                id: test-uuid-003
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-209
+              - blockGroup: test-uuid-004
                 content: >-
                   # Part 2: Your coding environment
 
@@ -820,12 +838,12 @@ describe('snapshot tests - exact YAML output format', () => {
                   If the code runs successfully, three lines of output are
                   returned.  Below, you can see the same code that you just ran, along
                   with the output that you should see in your notebook.
-                id: test-uuid-210
+                id: test-uuid-005
                 metadata: {}
                 sortingKey: "1"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-211
+              - blockGroup: test-uuid-006
                 content: >-
                   # This Python 3 environment comes with many helpful analytics
                   libraries installed
@@ -856,13 +874,13 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   # Any results you write to the current directory are saved as
                   output.
-                id: test-uuid-212
+                id: test-uuid-007
                 metadata: {}
                 outputs: []
                 sortingKey: "2"
                 type: code
                 version: 1
-              - blockGroup: test-uuid-213
+              - blockGroup: test-uuid-008
                 content: >-
                   This shows us where the competition data is stored, so that we can
                   load the files into the notebook.  We'll do that next.
@@ -881,22 +899,22 @@ describe('snapshot tests - exact YAML output format', () => {
                   Type the two lines of code below into your second code cell.  Then,
                   once you're done, either click on the blue play button, or hit
                   **[Shift] + [Enter]**.  
-                id: test-uuid-214
+                id: test-uuid-009
                 metadata: {}
                 sortingKey: "3"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-215
+              - blockGroup: test-uuid-010
                 content: |
                   train_data = pd.read_csv("/kaggle/input/titanic/train.csv")
                   train_data.head()
-                id: test-uuid-216
+                id: test-uuid-011
                 metadata: {}
                 outputs: []
                 sortingKey: "4"
                 type: code
                 version: 1
-              - blockGroup: test-uuid-217
+              - blockGroup: test-uuid-012
                 content: >-
                   Your code should return the output above, which corresponds to the
                   first five rows of the table in **train.csv**.  It's very important
@@ -930,22 +948,22 @@ describe('snapshot tests - exact YAML output format', () => {
                   Copy the code below into the third code cell of your notebook to
                   load the contents of the **test.csv** file.  Don't forget to click
                   on the play button (or hit **[Shift] + [Enter]**)!
-                id: test-uuid-218
+                id: test-uuid-013
                 metadata: {}
                 sortingKey: "5"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-219
+              - blockGroup: test-uuid-014
                 content: |-
                   test_data = pd.read_csv("/kaggle/input/titanic/test.csv")
                   test_data.head()
-                id: test-uuid-220
+                id: test-uuid-015
                 metadata: {}
                 outputs: []
                 sortingKey: "6"
                 type: code
                 version: 1
-              - blockGroup: test-uuid-221
+              - blockGroup: test-uuid-016
                 content: >-
                   As before, make sure that you see the output above in your notebook
                   before continuing.  
@@ -982,24 +1000,24 @@ describe('snapshot tests - exact YAML output format', () => {
 
 
                   Copy the code below into a new code cell.  Then, run the cell.
-                id: test-uuid-222
+                id: test-uuid-017
                 metadata: {}
                 sortingKey: "7"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-223
+              - blockGroup: test-uuid-018
                 content: |-
                   women = train_data.loc[train_data.Sex == 'female']["Survived"]
                   rate_women = sum(women)/len(women)
 
                   print("% of women who survived:", rate_women)
-                id: test-uuid-224
+                id: test-uuid-019
                 metadata: {}
                 outputs: []
                 sortingKey: "8"
                 type: code
                 version: 1
-              - blockGroup: test-uuid-225
+              - blockGroup: test-uuid-020
                 content: >-
                   Before moving on, make sure that your code returns the output
                   above.  The code above calculates the percentage of female
@@ -1007,24 +1025,24 @@ describe('snapshot tests - exact YAML output format', () => {
 
 
                   Then, run the code below in another code cell:
-                id: test-uuid-226
+                id: test-uuid-021
                 metadata: {}
                 sortingKey: "9"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-227
+              - blockGroup: test-uuid-022
                 content: |-
                   men = train_data.loc[train_data.Sex == 'male']["Survived"]
                   rate_men = sum(men)/len(men)
 
                   print("% of men who survived:", rate_men)
-                id: test-uuid-228
+                id: test-uuid-023
                 metadata: {}
                 outputs: []
                 sortingKey: a
                 type: code
                 version: 1
-              - blockGroup: test-uuid-229
+              - blockGroup: test-uuid-024
                 content: >-
                   The code above calculates the percentage of male passengers (in
                   **train.csv**) who survived.
@@ -1070,12 +1088,12 @@ describe('snapshot tests - exact YAML output format', () => {
 
 
                   Copy this code into your notebook, and run it in a new code cell.
-                id: test-uuid-230
+                id: test-uuid-025
                 metadata: {}
                 sortingKey: b
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-231
+              - blockGroup: test-uuid-026
                 content: >-
                   from sklearn.ensemble import RandomForestClassifier
 
@@ -1104,13 +1122,13 @@ describe('snapshot tests - exact YAML output format', () => {
                   output.to_csv('submission.csv', index=False)
 
                   print("Your submission was successfully saved!")
-                id: test-uuid-232
+                id: test-uuid-027
                 metadata: {}
                 outputs: []
                 sortingKey: c
                 type: code
                 version: 1
-              - blockGroup: test-uuid-233
+              - blockGroup: test-uuid-028
                 content: >-
                   Make sure that your notebook outputs the same message above (\`Your
                   submission was successfully saved!\`) before moving on.
@@ -1143,12 +1161,12 @@ describe('snapshot tests - exact YAML output format', () => {
                   Congratulations for making your first submission to a Kaggle
                   competition!  Within ten minutes, you should receive a message
                   providing your spot on the leaderboard.  Great work!
-                id: test-uuid-234
+                id: test-uuid-029
                 metadata: {}
                 sortingKey: d
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-235
+              - blockGroup: test-uuid-030
                 content: >-
                   # Part 4: Learn more!
 
@@ -1159,13 +1177,13 @@ describe('snapshot tests - exact YAML output format', () => {
                   course, which will help you fully understand all of the code that
                   we've presented here.  You'll also know enough to generate even
                   better predictions!
-                id: test-uuid-236
+                id: test-uuid-031
                 metadata: {}
                 sortingKey: e
                 type: markdown
                 version: 1
             executionMode: block
-            id: test-uuid-237
+            id: test-uuid-032
             isModule: false
             name: titanic-tutorial
         settings: {}
@@ -1191,50 +1209,50 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-238
+        id: test-uuid-001
         integrations: []
         name: Multi Notebook
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-239
+              - blockGroup: test-uuid-002
                 content: "# Notebook 1"
-                id: test-uuid-240
+                id: test-uuid-003
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-241
+              - blockGroup: test-uuid-004
                 content: x = 1
                 executionCount: 1
-                id: test-uuid-242
+                id: test-uuid-005
                 metadata: {}
                 outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
             executionMode: block
-            id: test-uuid-243
+            id: test-uuid-006
             isModule: false
             name: notebook1
           - blocks:
-              - blockGroup: test-uuid-244
+              - blockGroup: test-uuid-007
                 content: "# Notebook 2"
-                id: test-uuid-245
+                id: test-uuid-008
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
-              - blockGroup: test-uuid-246
+              - blockGroup: test-uuid-009
                 content: y = 2
                 executionCount: 1
-                id: test-uuid-247
+                id: test-uuid-010
                 metadata: {}
                 outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
             executionMode: block
-            id: test-uuid-248
+            id: test-uuid-011
             isModule: false
             name: notebook2
         settings: {}
