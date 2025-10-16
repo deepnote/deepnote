@@ -874,7 +874,7 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
-        _dntk.DeepnoteChart(df, """{"mark":"bar","encoding":{"x":{"field":"a","type":"ordinal"},"y":{"field":"b","type":"quantitative"}}}""", attach_selection=True, filters='[]')
+        _dntk.DeepnoteChart(df, """{"mark":"bar","encoding":{"x":{"field":"a","type":"ordinal"},"y":{"field":"b","type":"quantitative"}}}""", filters='[]')
       `)
     })
 
