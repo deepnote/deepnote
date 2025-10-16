@@ -45,7 +45,6 @@ describe('CLI convert function', () => {
     const outputPath = await convert({
       inputPath: notebookPath,
       cwd: tempDir,
-      silent: true,
     })
 
     // Check that the output file was created
@@ -88,7 +87,6 @@ describe('CLI convert function', () => {
     const outputPath = await convert({
       inputPath: notebooksDir,
       cwd: tempDir,
-      silent: true,
     })
 
     // Check output file
@@ -120,7 +118,6 @@ describe('CLI convert function', () => {
       inputPath: notebookPath,
       projectName: 'Custom Project',
       cwd: tempDir,
-      silent: true,
     })
 
     const content = await fs.readFile(outputPath, 'utf-8')
@@ -146,7 +143,6 @@ describe('CLI convert function', () => {
       inputPath: notebookPath,
       outputPath: customOutputPath,
       cwd: tempDir,
-      silent: true,
     })
 
     expect(outputPath).toBe(customOutputPath)
@@ -178,7 +174,6 @@ describe('CLI convert function', () => {
       inputPath: notebookPath,
       outputPath: outputDir,
       cwd: tempDir,
-      silent: true,
     })
 
     // Check that file was created in the directory
@@ -201,7 +196,6 @@ describe('CLI convert function', () => {
       convert({
         inputPath: emptyDir,
         cwd: tempDir,
-        silent: true,
       })
     ).rejects.toThrow('No .ipynb files found')
   })
@@ -215,7 +209,6 @@ describe('CLI convert function', () => {
       convert({
         inputPath: txtPath,
         cwd: tempDir,
-        silent: true,
       })
     ).rejects.toThrow('Unsupported file type')
   })
@@ -229,7 +222,6 @@ describe('CLI convert function', () => {
       convert({
         inputPath: deepnotePath,
         cwd: tempDir,
-        silent: true,
       })
     ).rejects.toThrow('.deepnote format is not supported')
   })
@@ -242,7 +234,6 @@ describe('CLI convert function', () => {
       convert({
         inputPath: nonExistentPath,
         cwd: tempDir,
-        silent: true,
       })
     ).rejects.toThrow()
   })

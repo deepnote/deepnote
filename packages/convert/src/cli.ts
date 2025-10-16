@@ -11,17 +11,10 @@ interface ConvertOptions {
   projectName?: string
   outputPath?: string
   cwd?: string
-  silent?: boolean
 }
 
 export async function convert(options: ConvertOptions): Promise<string> {
-  const {
-    inputPath,
-    projectName: customProjectName,
-    outputPath: customOutputPath,
-    cwd = process.cwd(),
-    silent = false,
-  } = options
+  const { inputPath, projectName: customProjectName, outputPath: customOutputPath, cwd = process.cwd() } = options
 
   const resolveProjectName = (possibleName?: string): string => {
     if (customProjectName) {
@@ -62,7 +55,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
       throw new Error('No .ipynb files found in the specified directory.')
     }
 
-    const spinner = silent ? null : ora('Converting Jupyter Notebooks to a Deepnote project...').start()
+    const spinner = ora('Converting Jupyter Notebooks to a Deepnote project...').start()
 
     const filenameWithoutExtension = basename(absolutePath)
     const projectName = resolveProjectName(filenameWithoutExtension)
@@ -74,9 +67,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
     await convertIpynbFilesToDeepnoteFile(inputFilePaths, { projectName, outputPath })
 
-    if (spinner) {
-      spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
-    }
+    spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
 
     return outputPath
   }
@@ -84,7 +75,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
   const extension = absolutePath.split('.').pop()?.toLowerCase().trim()
 
   if (extension === 'ipynb') {
-    const spinner = silent ? null : ora('Converting the Jupyter Notebook to a Deepnote project...').start()
+    const spinner = ora('Converting the Jupyter Notebook to a Deepnote project...').start()
 
     const filenameWithoutExtension = basename(absolutePath, '.ipynb')
     const projectName = resolveProjectName(filenameWithoutExtension)
@@ -94,9 +85,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
     await convertIpynbFilesToDeepnoteFile([absolutePath], { projectName, outputPath })
 
-    if (spinner) {
-      spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
-    }
+    spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
 
     return outputPath
   }
