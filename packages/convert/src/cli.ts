@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises'
 import { basename, extname, resolve } from 'node:path'
 import chalk from 'chalk'
-import { cli } from 'cleye'
 import ora from 'ora'
 import { convertIpynbFilesToDeepnoteFile } from '.'
 
@@ -107,41 +106,4 @@ export async function convert(options: ConvertOptions): Promise<string> {
   }
 
   throw new Error('Unsupported file type. Please provide a .ipynb or .deepnote file.')
-}
-
-async function main() {
-  const argv = cli({
-    name: 'deepnote-convert',
-    parameters: ['<path>'],
-    flags: {
-      projectName: {
-        description: 'The name of the Deepnote project.',
-        type: String,
-      },
-      outputPath: {
-        alias: 'o',
-        description: 'The path where the .deepnote file will be saved.',
-        type: String,
-      },
-      cwd: {
-        description: 'The working directory to resolve paths relative to.',
-        type: String,
-      },
-    },
-  })
-
-  await convert({
-    inputPath: argv._.path,
-    projectName: argv.flags.projectName,
-    outputPath: argv.flags.outputPath,
-    cwd: argv.flags.cwd ?? process.cwd(),
-  })
-}
-
-if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
-  main().catch(error => {
-    // biome-ignore lint/suspicious/noConsole: CLI error reporting to stderr is appropriate
-    console.error(error)
-    process.exit(1)
-  })
 }
