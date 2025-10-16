@@ -101,10 +101,14 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
     // Reset the UUID counter before each test
     vi.mocked(uuid.v4).mockClear()
+    // Set a fixed date for deterministic timestamps
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
   })
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true })
+    vi.useRealTimers()
   })
 
   it('converts a single Jupyter notebook with markdown and code cells', async () => {
@@ -419,5 +423,91 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const block = result.project.notebooks[0].blocks[0]
     expect(block.type).toBe('markdown')
     expect(block.outputs).toBeUndefined()
+  })
+})
+
+describe('snapshot tests - exact YAML output format', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
+    // Reset the UUID counter before each test
+    vi.mocked(uuid.v4).mockClear()
+    // Set a fixed date for deterministic timestamps
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
+  })
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true })
+    vi.useRealTimers()
+  })
+
+  it('matches snapshot for simple.ipynb', async () => {
+    const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
+    const outputPath = path.join(tempDir, 'simple.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], {
+      outputPath,
+      projectName: 'Simple Test',
+    })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    expect(content).toMatchSnapshot()
+  })
+
+  it('matches snapshot for notebook1.ipynb', async () => {
+    const inputPath = path.join(__dirname, '__fixtures__', 'notebook1.ipynb')
+    const outputPath = path.join(tempDir, 'notebook1.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], {
+      outputPath,
+      projectName: 'Notebook 1',
+    })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    expect(content).toMatchSnapshot()
+  })
+
+  it('matches snapshot for notebook2.ipynb', async () => {
+    const inputPath = path.join(__dirname, '__fixtures__', 'notebook2.ipynb')
+    const outputPath = path.join(tempDir, 'notebook2.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], {
+      outputPath,
+      projectName: 'Notebook 2',
+    })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    expect(content).toMatchSnapshot()
+  })
+
+  it('matches snapshot for titanic-tutorial.ipynb', async () => {
+    const inputPath = path.join(__dirname, '__fixtures__', 'titanic-tutorial.ipynb')
+    const outputPath = path.join(tempDir, 'titanic.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], {
+      outputPath,
+      projectName: 'Titanic Tutorial',
+    })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    expect(content).toMatchSnapshot()
+  })
+
+  it('matches snapshot for multiple notebooks', async () => {
+    const inputPaths = [
+      path.join(__dirname, '__fixtures__', 'notebook1.ipynb'),
+      path.join(__dirname, '__fixtures__', 'notebook2.ipynb'),
+    ]
+    const outputPath = path.join(tempDir, 'multi.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile(inputPaths, {
+      outputPath,
+      projectName: 'Multi Notebook',
+    })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    expect(content).toMatchSnapshot()
   })
 })
