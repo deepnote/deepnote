@@ -1,0 +1,9 @@
+src/
+
+*.test.js
+*.spec.js
+.env
+.eslintrc
+.prettierrc
+
+

@@ -1,10 +1,10 @@
-*.tsbuildinfo
 .DS_Store
 .qlty/cache
 .qlty/logs
 .qlty/out
 .qlty/plugin_cachedir
 .qlty/results
+*.tsbuildinfo
 coverage
 dist
 node_modules
