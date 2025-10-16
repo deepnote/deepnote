@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { basename, extname } from 'node:path'
+import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
@@ -16,13 +16,16 @@ interface IpynbFile {
     metadata: Record<string, unknown>
     // biome-ignore lint/suspicious/noExplicitAny: Jupyter notebook outputs can have various types
     outputs: any[]
-    source: string
+    source: string | string[]
   }[]
   metadata: Record<string, unknown>
   nbformat: number
   nbformat_minor: number
 }
 
+/**
+ * Converts multiple Jupyter Notebook (.ipynb) files into a single Deepnote project file.
+ */
 export async function convertIpynbFilesToDeepnoteFile(
   inputFilePaths: string[],
   options: ConvertIpynbFilesToDeepnoteFileOptions
@@ -77,6 +80,10 @@ export async function convertIpynbFilesToDeepnoteFile(
   }
 
   const yamlContent = stringify(deepnoteFile)
+
+  const parentDir = dirname(options.outputPath)
+
+  await fs.mkdir(parentDir, { recursive: true })
 
   await fs.writeFile(options.outputPath, yamlContent, 'utf-8')
 }

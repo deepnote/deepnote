@@ -367,4 +367,146 @@ describe('CLI convert function', () => {
       .catch(() => false)
     expect(exists).toBe(true)
   })
+
+  it('correctly handles filenames with multiple dots', async () => {
+    // Create a notebook with multiple dots in the filename
+    const notebookPath = path.join(tempDir, 'my.test.notebook.ipynb')
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'markdown',
+          metadata: {},
+          source: '# Test Notebook with Dots',
+        },
+      ],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    // Run convert
+    const outputPath = await convert({
+      inputPath: notebookPath,
+      cwd: tempDir,
+    })
+
+    // The output should be correctly named without the .ipynb extension
+    const expectedPath = path.join(tempDir, 'my.test.notebook.deepnote')
+    expect(outputPath).toBe(expectedPath)
+
+    // Check that the output file was created
+    const exists = await fs
+      .access(outputPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+
+    // Verify the project name is correct (should be 'my.test.notebook', not just 'ipynb')
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.name).toBe('my.test.notebook')
+  })
+
+  it('correctly handles .deepnote extension with multiple dots in filename', async () => {
+    const deepnotePath = path.join(tempDir, 'my.test.file.deepnote')
+    await fs.writeFile(deepnotePath, 'some content', 'utf-8')
+
+    // Should still throw error for .deepnote files even with multiple dots
+    await expect(
+      convert({
+        inputPath: deepnotePath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('.deepnote format is not supported')
+  })
+
+  it('correctly rejects unsupported files with multiple dots', async () => {
+    const txtPath = path.join(tempDir, 'my.test.file.txt')
+    await fs.writeFile(txtPath, 'not a notebook', 'utf-8')
+
+    // Should throw error for unsupported file types even with multiple dots
+    await expect(
+      convert({
+        inputPath: txtPath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Unsupported file type')
+  })
+
+  it('ignores directories that end with .ipynb when converting a directory', async () => {
+    // Create a directory with notebooks
+    const notebooksDir = path.join(tempDir, 'notebooks')
+    await fs.mkdir(notebooksDir)
+
+    // Create a valid notebook file
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Valid Notebook' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+    await fs.writeFile(path.join(notebooksDir, 'valid.ipynb'), JSON.stringify(notebook), 'utf-8')
+
+    // Create a directory that ends with .ipynb (should be ignored)
+    const ipynbDir = path.join(notebooksDir, 'folder.ipynb')
+    await fs.mkdir(ipynbDir)
+
+    // Run convert - should succeed and only process the valid file
+    const outputPath = await convert({
+      inputPath: notebooksDir,
+      cwd: tempDir,
+    })
+
+    // Verify the conversion succeeded
+    const exists = await fs
+      .access(outputPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+
+    // Verify only one notebook was processed (not the directory)
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.notebooks).toHaveLength(1)
+    expect(parsed.project.notebooks[0].name).toBe('valid')
+  })
+
+  it('creates parent directories when outputPath has non-existent parent dirs', async () => {
+    // Create a test notebook
+    const notebookPath = path.join(tempDir, 'test.ipynb')
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    // Specify an output path with nested non-existent directories
+    const outputPath = path.join(tempDir, 'deeply', 'nested', 'output', 'result.deepnote')
+
+    // Run convert - should create the parent directories and succeed
+    const resultPath = await convert({
+      inputPath: notebookPath,
+      outputPath,
+      cwd: tempDir,
+    })
+
+    expect(resultPath).toBe(outputPath)
+
+    // Verify the file was created
+    const exists = await fs
+      .access(outputPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+
+    // Verify the content is correct
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.name).toBe('test')
+  })
 })

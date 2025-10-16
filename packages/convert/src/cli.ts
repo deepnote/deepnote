@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { basename, resolve } from 'node:path'
+import { basename, extname, resolve } from 'node:path'
 import chalk from 'chalk'
 import { cli } from 'cleye'
 import ora from 'ora'
@@ -47,8 +47,11 @@ export async function convert(options: ConvertOptions): Promise<string> {
   const stat = await fs.stat(absolutePath)
 
   if (stat.isDirectory()) {
-    const files = await fs.readdir(absolutePath)
-    const ipynbFiles = files.filter(file => file.toLowerCase().endsWith('.ipynb')).sort()
+    const entries = await fs.readdir(absolutePath, { withFileTypes: true })
+    const ipynbFiles = entries
+      .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.ipynb'))
+      .map(entry => entry.name)
+      .sort((a, b) => a.localeCompare(b))
 
     if (ipynbFiles.length === 0) {
       throw new Error('No .ipynb files found in the specified directory.')
@@ -76,13 +79,13 @@ export async function convert(options: ConvertOptions): Promise<string> {
     }
   }
 
-  const extension = absolutePath.split('.').pop()?.toLowerCase().trim()
+  const ext = extname(absolutePath).toLowerCase()
 
-  if (extension === 'ipynb') {
+  if (ext === '.ipynb') {
     const spinner = ora('Converting the Jupyter Notebook to a Deepnote project...').start()
 
     try {
-      const filenameWithoutExtension = basename(absolutePath, '.ipynb')
+      const filenameWithoutExtension = basename(absolutePath, ext)
       const projectName = resolveProjectName(filenameWithoutExtension)
 
       const outputFilename = `${filenameWithoutExtension}.deepnote`
@@ -99,7 +102,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
     }
   }
 
-  if (extension === 'deepnote') {
+  if (ext === '.deepnote') {
     throw new Error('The .deepnote format is not supported for conversion yet.')
   }
 
