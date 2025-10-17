@@ -64,6 +64,7 @@
     "noreferrer",
     "numpy",
     "Pclass",
-    "sklearn"
+    "sklearn",
+    "Instantiator"
   ]
 }
