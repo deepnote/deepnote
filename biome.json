@@ -26,14 +26,28 @@
       "complexity": {
         "recommended": true,
         "noBannedTypes": "error",
-        "noUselessTypeConstraint": "error"
+        "noUselessTypeConstraint": "error",
+        "noCommaOperator": "error",
+        "noStaticOnlyClass": "error",
+        "noUselessConstructor": "error",
+        "noUselessEmptyExport": "error",
+        "noUselessThisAlias": "error",
+        "useOptionalChain": "error"
       },
       "correctness": {
         "recommended": true,
         "noUnusedImports": "error",
         "noUnusedFunctionParameters": "error",
         "noUnusedPrivateClassMembers": "error",
-        "useHookAtTopLevel": "error"
+        "useHookAtTopLevel": "error",
+        "noConstAssign": "error",
+        "noGlobalObjectCalls": "error",
+        "noInnerDeclarations": "error",
+        "noInvalidUseBeforeDeclaration": "error",
+        "noInvalidBuiltinInstantiation": "error",
+        "noUnreachableSuper": "error",
+        "noUnsafeOptionalChaining": "error",
+        "noUnusedLabels": "error"
       },
       "performance": {
         "recommended": true
@@ -49,14 +63,46 @@
         "useForOf": "error",
         "useImportType": "error",
         "useNodejsImportProtocol": "error",
-        "useNumberNamespace": "error"
+        "useNumberNamespace": "error",
+        "noNamespace": "error",
+        "noParameterAssign": "error",
+        "useAsConstAssertion": "error",
+        "useConsistentMemberAccessibility": {
+          "level": "error",
+          "options": {
+            "accessibility": "noPublic"
+          }
+        },
+        "useShorthandFunctionType": "error",
+        "useExportType": "error",
+        "useLiteralEnumMembers": "error",
+        "useUnifiedTypeSignatures": "error"
       },
       "suspicious": {
         "recommended": true,
         "noEmptyInterface": "error",
         "noExplicitAny": "error",
         "noConsole": "warn",
-        "noDebugger": "error"
+        "noDebugger": "error",
+        "noConfusingVoidType": "error",
+        "noDuplicateClassMembers": "error",
+        "noDuplicateObjectKeys": "error",
+        "noDuplicateParameters": "error",
+        "noExtraNonNullAssertion": "error",
+        "noFunctionAssign": "error",
+        "noLabelVar": "error",
+        "noMisleadingInstantiator": "error",
+        "noRedeclare": "error",
+        "noUnsafeDeclarationMerging": "error",
+        "noUnsafeNegation": "error",
+        "useAdjacentOverloadSignatures": "error",
+        "useNamespaceKeyword": "error"
+      },
+      "nursery": {
+        "noFloatingPromises": "error",
+        "noMisusedPromises": "error",
+        "noNonNullAssertedOptionalChain": "error",
+        "useConsistentTypeDefinitions": "error"
       }
     }
   },
