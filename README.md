@@ -1,4 +1,5 @@
 # 🧠 Deepnote
+![Deepnote Dragon Logo](deepnote_dragon_logo.png)
 
 [![CI](https://github.com/deepnote/deepnote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/deepnote/deepnote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/deepnote/deepnote/graph/badge.svg?token=7DHBMXZS28)](https://codecov.io/gh/deepnote/deepnote)
