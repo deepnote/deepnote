@@ -168,7 +168,7 @@ FROM users
 WHERE name LIKE {{ '%' + first_name + '%' }}
 ```
 
-- You can also use more advanced templating features like `{% if condition } %{ endif }` , conditional blocks, or anything else that's supported by jinjasql. For example, the following block loops through a Python list (`column_names`) to contruct the desired SQL fields.
+- You can also use more advanced templating features like `{% if condition } %{ endif }` , conditional blocks, or anything else that's supported by jinjasql. For example, the following block loops through a Python list (`column_names`) to construct the desired SQL fields.
 
 ```sql
 SELECT date, name,

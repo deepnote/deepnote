@@ -27,7 +27,7 @@ Deepnote natively supports interactive libraries like **Plotly**, **Altair**, **
 
 ### **Deepnote's built-in blocks**
 
-Deepnote has its **blocks**(chart blocks, big numbers, input bloks and more) for interactivity, such as sliders, input boxes, and dropdowns, that can be added to notebooks. These blocks allow you to dynamically control parameters and variables without writing complex code, making them simpler alternatives to IPywidgets.
+Deepnote has its **blocks**(chart blocks, big numbers, input blocks and more) for interactivity, such as sliders, input boxes, and dropdowns, that can be added to notebooks. These blocks allow you to dynamically control parameters and variables without writing complex code, making them simpler alternatives to IPywidgets.
 
 **Example: Adding a slider to control variables**
 

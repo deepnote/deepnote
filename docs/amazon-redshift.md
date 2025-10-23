@@ -49,7 +49,7 @@ Enter the Amazon Resource Name (ARN) of the AWS role you wish to use for this in
 
 To allow Deepnote to access your Redshift cluster, you will need to update the role's trust policy. Copy the generated trust policy and update your role's trust relationship in the AWS IAM console.
 
-The Deepntote integration will create a database user called `IAMA:deepnote` that will be used to perform your queries. If you are using serverless Redshift, the user will have the same role as the IAM you used to authenticate. For example, if your IAM role is named `Deepnote-Redshift`, the user will be named `IAMA:Deepnote-Redshift`.
+The Deepnote integration will create a database user called `IAMA:deepnote` that will be used to perform your queries. If you are using serverless Redshift, the user will have the same role as the IAM you used to authenticate. For example, if your IAM role is named `Deepnote-Redshift`, the user will be named `IAMA:Deepnote-Redshift`.
 
 ### Authenticating using Individual credentials
 

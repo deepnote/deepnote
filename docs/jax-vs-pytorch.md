@@ -25,7 +25,7 @@ The library focuses on performance by using GPU-accelerated performance and a wi
 ### Example:
 
 This example shows how to build a simple neural network in PyTorch, using a fully connected layer to transform input data of size 10 to an output of size 1. A forward pass on random data calculates the mean squared error loss against target data.
-![jax_exemple_code.png](https://media.graphassets.com/DMXCsccYQCq4tijj1yl0)
+![jax_example_code.png](https://media.graphassets.com/DMXCsccYQCq4tijj1yl0)
 
 ## JAX
 
