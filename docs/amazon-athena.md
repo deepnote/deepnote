@@ -113,7 +113,10 @@ The built-in policies don't provide write access to your results bucket, so let'
         "s3:AbortMultipartUpload",
         "s3:PutObject"
       ],
-      "Resource": ["arn:aws:s3:::athena-demo-results", "arn:aws:s3:::athena-demo-results/*"]
+      "Resource": [
+        "arn:aws:s3:::athena-demo-results",
+        "arn:aws:s3:::athena-demo-results/*"
+      ]
     }
   ]
 }
@@ -136,13 +139,11 @@ Now we'll set up Athena to query our data:
 
 1. Navigate to the Athena service in the AWS Console
 2. If this is your first time using Athena, you'll need to set up a query result location:
-
    - Click **Settings**
    - Enter the S3 path to your results bucket: `s3://athena-demo-results/`
    - Click **Save**
 
 3. Create a database:
-
    - In the query editor, run:
 
    ```sql
@@ -150,7 +151,6 @@ Now we'll set up Athena to query our data:
    ```
 
 4. Create a table for the NYC Airbnb data:
-
    - Run the following query:
 
    ```sql

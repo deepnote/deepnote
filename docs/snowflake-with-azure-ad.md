@@ -58,7 +58,6 @@ There are a number of steps to follow which will be described in the following s
 8. Click on Redirect URIs and add a new Web Redirect URI for Deepnote `https://deepnote.com/auth/snowflake/azuread-callback`
 9. Click on API Permissions & Add Permission.
 10. **Optional:** Follow these steps if you chose to only allow specific Snowflake roles to log in via Azure AD (as noted in the section above).
-
     - Select **My APIs**.
     - Click on the Snowflake OAuth Resource that you created earlier.
     - Click on the **Delegated Permissions** box.
