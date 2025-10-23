@@ -73,7 +73,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install qlty
-        uses: qltysh/qlty-action/install@a19242102d17e497f437d7466aa01b528537e899
+        uses: qltysh/qlty-action/install@92420f3093ba65970fed22ce5f162ecb8a5c1700
 
       - name: Run qlty check
         run: qlty check
