@@ -32,6 +32,7 @@ torchvision
 Modelbit
 Seldon
 Atlan
+deepseek
 
 # SQL & Database Terms
 duckdb
