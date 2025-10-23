@@ -12,7 +12,7 @@ coverImage: w2F4ok5iRlyQ4maT5G3m
 
 Notion is an all-in-one workspace that allows for everything from simple note-taking to building knowledge libraries for entire organizations. Since Notion stores data in databases, you can actually query the data stored in Notion and analyze it using Deepnote. After visualizing your data, you can then go full-circle by bringing the plots back into Notion by embedding your Deepnote blocks into Notion pages.
 
-![Noition and Deepnote workflow](https://media.graphassets.com/LuOWv7d4Qku2NVuInmU6)
+![Notion and Deepnote workflow](https://media.graphassets.com/LuOWv7d4Qku2NVuInmU6)
 
 ### How to set it up
 

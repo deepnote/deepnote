@@ -73,7 +73,7 @@ You probably expected Python blocks, but there's more to it than that. Use the p
 
 Visualize any Pandas DataFrame with [chart blocks](https://deepnote.com/docs/chart-blocks).
 
-![Leverage_Vizualizations.jpg](https://media.graphassets.com/fh48Ob32QOSM05NbMkD7)
+![Leverage_Visualizations.jpg](https://media.graphassets.com/fh48Ob32QOSM05NbMkD7)
 
 Parameterize your notebook with [input blocks](https://deepnote.com/docs/input-blocks).
 

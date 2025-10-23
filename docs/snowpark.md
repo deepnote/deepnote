@@ -29,7 +29,7 @@ Then, instantiate Snowpark's session object. Its methods allow you to manipulate
 from snowflake.snowpark.session import Session
 
 # create the session
-session = Session.builder.configs(credientials).create()
+session = Session.builder.configs(credentials).create()
 ```
 
 <Callout status="info">

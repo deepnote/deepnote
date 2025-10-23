@@ -31,7 +31,7 @@ In order to see output from your code, you need to execute the corresponding blo
 - Click the **Run** button on the block's sidebar menu.
 - Press **Cmd/Ctrl** + **Enter** on your keyboard while focused on a block.
 
-![Run_notebookk.jpg](https://media.graphassets.com/Q4TOnFQrSyyaR96tKU0Z)
+![Run_notebook.jpg](https://media.graphassets.com/Q4TOnFQrSyyaR96tKU0Z)
 
 ### Exploring helpful block operations
 

@@ -51,7 +51,7 @@ The accepted chart will have all the configurations filled out for you. You can 
 
 ## Adjusting how data is interpreted
 
-Depending on chart type and data type, there are couple of additional settings that change how data is interpeted and charted. You'll find available settings next to the column dropdown.
+Depending on chart type and data type, there are couple of additional settings that change how data is interpreted and charted. You'll find available settings next to the column dropdown.
 
 ### Data type
 
@@ -125,7 +125,7 @@ Sometimes, one series is simply not enough. Like peanut butter with jelly, some 
 
 To add new series, click **+ Add series**. Some chart types (like donut or histogram) don't support multiple series, so if you don't see the button try changing the chart type in the top left corner.
 
-In addition to all the usual series settings, you can switch series type. Click on the icon right to the column dropdown and select one of compatible chart types. Additional series can be switched to use seconday measure axis by changing **Axis** settings. This is very handy to show correlation between series with values of different magnitudes.
+In addition to all the usual series settings, you can switch series type. Click on the icon right to the column dropdown and select one of compatible chart types. Additional series can be switched to use secondary measure axis by changing **Axis** settings. This is very handy to show correlation between series with values of different magnitudes.
 
 <VideoLoop src="https://media.graphassets.com/giLHonoFTyiZEhE8liU8" />
 
