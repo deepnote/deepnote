@@ -159,8 +159,6 @@ NYXXP
 VLSNT
 TYPEFORM
 downvote
-Vizualizations
-notebookk
 unresolve
 disallowlist
 subproblems
