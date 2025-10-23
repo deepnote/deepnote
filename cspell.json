@@ -10,6 +10,13 @@
     "*.min.css"
   ],
   "language": "en",
+  "dictionaries": ["docs"],
+  "dictionaryDefinitions": [
+    {
+      "name": "docs",
+      "path": "./docs-dictionary.txt"
+    }
+  ],
   "overrides": [
     {
       "filename": "**/*.md",
