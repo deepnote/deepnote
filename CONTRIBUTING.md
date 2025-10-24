@@ -10,8 +10,12 @@ Here's how you can get started.
 ```text
 deepnote/
 ├── packages/        # Core TypeScript packages
-├── docker/          # Local runtime config
+│   ├── blocks/      # @deepnote/blocks - Core block types and schemas
+│   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
+│   └── hello-world/ # Example package
+├── docs/            # Documentation files
 ├── .github/         # GitHub workflows & templates
+│   └── workflows/   # CI/CD pipelines
 ├── CONTRIBUTING.md
 └── README.md
 ```
@@ -44,16 +48,30 @@ Start by opening an issue or discussion to talk through your idea.
 pnpm install
 ```
 
-This will:
-
-- Launch kernel and runtime services
-- Simulate core Deepnote runtime behavior
+This will install all dependencies for the monorepo and its packages.
 
 ---
 
 ## 🧪 Testing
 
-TBD – coming soon.
+Run tests across all packages:
+
+```bash
+pnpm test
+```
+
+Run tests with coverage:
+
+```bash
+pnpm test:coverage
+```
+
+Run tests in watch mode (in a specific package):
+
+```bash
+cd packages/blocks
+pnpm test
+```
 
 ---
 
@@ -61,15 +79,29 @@ TBD – coming soon.
 
 We use:
 
-- **TypeScript**
-- **Biome** for linting and formatting
+- **TypeScript** for type safety
+- **Biome** for linting and formatting TypeScript/JavaScript files
+- **Prettier** for formatting Markdown and YAML files
 - **Vitest** for testing
+- **cspell** for spell checking
 
-Run formatters:
+Run linting and formatting:
 
 ```bash
-pnpm lint
-pnpm format
+pnpm lintAndFormat        # Check for issues
+pnpm lintAndFormat:fix    # Auto-fix issues
+```
+
+Run type checking:
+
+```bash
+pnpm typecheck
+```
+
+Run spell checking:
+
+```bash
+pnpm spell-check
 ```
 
 Biome is available as a first-party extension in your favorite editors.
@@ -118,11 +150,12 @@ To publish a new version of a package (using `@deepnote/blocks` as an example):
    - Add release notes describing the changes
    - Publish the release
 
-The package will be automatically published to GitHub Packages by the `publish.yml` workflow when the release is published. The workflow:
+The package will be automatically published to GitHub Packages by the `cd.yml` workflow when the release is published. The workflow:
 
 - Only triggers for tags matching `@deepnote/*@*`
 - Validates that the tag version matches the package.json version
 - Builds and publishes only the specified package
+- Publishes to GitHub Packages registry at `https://npm.pkg.github.com`
 
 ---
 
