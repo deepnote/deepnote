@@ -65,6 +65,8 @@ describe('createDataFrameConfig', () => {
       cellFormattingRules: [],
       wrappedTextColumnIds: [],
     })
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
 
     expect(result).toEqual(dedent`
       if '_dntk' in globals():
@@ -112,6 +114,8 @@ describe('createDataFrameConfig', () => {
       cellFormattingRules: [],
       wrappedTextColumnIds: [],
     })
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
 
     expect(result).toEqual(dedent`
       if '_dntk' in globals():
@@ -157,13 +161,13 @@ describe('createDataFrameConfig', () => {
 
     const result = createDataFrameConfig(block)
 
-    // The escapePythonString function escapes backslashes and single quotes
-    // JSON.stringify already escapes double quotes to \" and escapePythonString then escapes the \ to \\
+    // The escapePythonString function escapes backslashes, single quotes, and double quotes
+    // JSON.stringify produces {"key":"value"} and escapePythonString escapes all double quotes to \"
     expect(result).toEqual(dedent`
       if '_dntk' in globals():
-        _dntk.dataframe_utils.configure_dataframe_formatter('{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}')
+        _dntk.dataframe_utils.configure_dataframe_formatter('{\\"columnDisplayNames\\":[{\\"columnName\\":\\"value\\",\\"displayName\\":\\"It\\'s a \\\\\\\"test\\"}]}')
       else:
-        _deepnote_current_table_attrs = '{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}'
+        _deepnote_current_table_attrs = '{\\"columnDisplayNames\\":[{\\"columnName\\":\\"value\\",\\"displayName\\":\\"It\\'s a \\\\\\\"test\\"}]}'
     `)
   })
 
@@ -204,6 +208,8 @@ describe('createDataFrameConfig', () => {
       cellFormattingRules: [{ column: 'value', rule: 'color' }],
       wrappedTextColumnIds: ['category'],
     })
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
 
     expect(result).toEqual(dedent`
       if '_dntk' in globals():

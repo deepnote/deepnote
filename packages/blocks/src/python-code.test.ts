@@ -150,6 +150,59 @@ describe('createPythonCode', () => {
       expect(result).not.toContain('comparisonTitle')
       expect(result).not.toContain('comparisonValue')
     })
+
+    it('creates Python code for big number block with double quotes in title', () => {
+      const block: BigNumberBlock = {
+        id: '123',
+        type: 'big-number',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_big_number_title: 'Total "Sales"',
+          deepnote_big_number_value: 'sales',
+          deepnote_big_number_comparison_title: 'vs "a"',
+          deepnote_big_number_comparison_value: 'last_month',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+
+        def __deepnote_big_number__():
+            import json
+            import jinja2
+            from jinja2 import meta
+
+            def render_template(template):
+                parsed_content = jinja2.Environment().parse(template)
+
+                required_variables = meta.find_undeclared_variables(parsed_content)
+
+                context = {
+                    variable_name: globals().get(variable_name)
+                    for variable_name in required_variables
+                }
+
+                result = jinja2.Environment().from_string(template).render(context)
+
+                return result
+
+            rendered_title = render_template('Total \\"Sales\\"')
+            rendered_comparison_title = render_template('vs \\"a\\"')
+
+            return json.dumps({
+                "comparisonTitle": rendered_comparison_title,
+                "comparisonValue": f"{last_month}",
+                "title": rendered_title,
+                "value": f"{sales}"
+            })
+
+        __deepnote_big_number__()
+
+      `)
+    })
   })
 
   describe('Code blocks', () => {
@@ -213,6 +266,8 @@ describe('createPythonCode', () => {
         cellFormattingRules: [],
         wrappedTextColumnIds: [],
       })
+        .replaceAll('\\', '\\\\')
+        .replaceAll('"', '\\"')
 
       expect(result).toEqual(dedent`
         if '_dntk' in globals():
@@ -249,8 +304,8 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toContain('"pageSize":50')
-      expect(result).toContain('"pageIndex":2')
+      expect(result).toContain('\\"pageSize\\":50')
+      expect(result).toContain('\\"pageIndex\\":2')
     })
 
     it('creates Python code for code block with hidden columns', () => {
@@ -278,7 +333,7 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toContain('"hiddenColumnIds":["secret"]')
+      expect(result).toContain('\\"hiddenColumnIds\\":[\\"secret\\"]')
     })
 
     it('escapes special characters in table state JSON string', () => {
@@ -297,13 +352,13 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      // The escapePythonString function escapes backslashes and single quotes
-      // JSON.stringify already escapes double quotes to \" and escapePythonString then escapes the \ to \\
+      // The escapePythonString function escapes backslashes, single quotes, and double quotes
+      // JSON.stringify produces {"key":"value"} and escapePythonString escapes all double quotes to \"
       expect(result).toEqual(dedent`
         if '_dntk' in globals():
-          _dntk.dataframe_utils.configure_dataframe_formatter('{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}')
+          _dntk.dataframe_utils.configure_dataframe_formatter('{\\"columnDisplayNames\\":[{\\"columnName\\":\\"value\\",\\"displayName\\":\\"It\\'s a \\\\\\\"test\\"}]}')
         else:
-          _deepnote_current_table_attrs = '{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}'
+          _deepnote_current_table_attrs = '{\\"columnDisplayNames\\":[{\\"columnName\\":\\"value\\",\\"displayName\\":\\"It\\'s a \\\\\\\"test\\"}]}'
 
         df
       `)
@@ -752,7 +807,7 @@ describe('createPythonCode', () => {
           _deepnote_current_table_attrs = '{}'
 
         result = _dntk.execute_sql(
-          'SELECT * FROM users WHERE name = \\'O\\\\\\'Reilly\\' AND note = "test\\\\nline"',
+          'SELECT * FROM users WHERE name = \\'O\\\\\\'Reilly\\' AND note = \\"test\\\\nline\\"',
           'SQL_3E2BED0F_EBC3_40FB_BB45_205B7D45B3EC',
           audit_sql_comment='',
           sql_cache_mode='cache_disabled',
@@ -801,6 +856,8 @@ describe('createPythonCode', () => {
         cellFormattingRules: [],
         wrappedTextColumnIds: [],
       })
+        .replaceAll('\\', '\\\\')
+        .replaceAll('"', '\\"')
 
       expect(result).toEqual(dedent`
         if '_dntk' in globals():
@@ -846,8 +903,8 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toContain('"pageSize":100')
-      expect(result).toContain('"pageIndex":0')
+      expect(result).toContain('\\"pageSize\\":100')
+      expect(result).toContain('\\"pageIndex\\":0')
     })
   })
 
@@ -874,7 +931,7 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual(dedent`
-        _dntk.DeepnoteChart(df, '{"mark":"bar","encoding":{"x":{"field":"a","type":"ordinal"},"y":{"field":"b","type":"quantitative"}}}', filters='[]')
+        _dntk.DeepnoteChart(df, '{\\"mark\\":\\"bar\\",\\"encoding\\":{\\"x\\":{\\"field\\":\\"a\\",\\"type\\":\\"ordinal\\"},\\"y\\":{\\"field\\":\\"b\\",\\"type\\":\\"quantitative\\"}}}', filters='[]')
       `)
     })
 
