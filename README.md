@@ -20,17 +20,17 @@ pnpm install
 pnpm start
 ```
 
-### 📦 TypeScript Packages
+### 📦 COMING SOON - TypeScript Packages
 
 Reusable packages and libraries powering Deepnote’s notebook, runtime, and collaboration features.
 
-- `@deepnote/deepnote-jupyter-cli` - A CLI to convert Jupyter (.ipynb files) to and from Deepnote (.deepnote) files
+- `@deepnote/convert` - A CLI to convert Jupyter (.ipynb files) to and from Deepnote (.deepnote) files
 
-### Python Packages
+### COMING SOON - Python Packages
 
 - `@deepnote/deepnote-toolkit` Our kernel and integrations Open Source monorepo
 
-### 🌐 Ecosystem Integrations
+### 🌐 COMING SOON - Ecosystem Integrations
 
 - AI-native editing and notebook exploration
   - 🖥️ **[VS Code](https://github.com/deepnote/vscode-deepnote)**
