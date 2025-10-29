@@ -57,7 +57,7 @@ Edit and run Deepnote notebooks directly in your favorite AI-native code editors
 
 ### 🧪 **Use Deepnote in JupyterLab**
 
-- 🧪 **[JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote)** - Read and edit `.deepnote` files in JupyterLab with full backwards compatibility
+- 🧪 **[JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote)** - Read `.deepnote` files in JupyterLab with backwards compatibility
 
 ### 🔄 **Convert Jupyter notebooks to Deepnote format**
 
