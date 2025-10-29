@@ -5,7 +5,7 @@
 [![CI](https://github.com/deepnote/deepnote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/deepnote/deepnote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/deepnote/deepnote/graph/badge.svg?token=7DHBMXZS28)](https://codecov.io/gh/deepnote/deepnote)
 
-[Website](https://deepnote.com) • [Docs](https://deepnote.com/docs) • [Blog](https://deepnote.com/blog) • [X](https://x.com/DeepnoteHQ) • [Examples](https://deepnote.com/explore) • [Community]()
+[Website](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Docs](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Blog](https://deepnote.com/blog?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [X](https://x.com/DeepnoteHQ) • [Examples](https://deepnote.com/explore?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Community]()
 
 </div>
 
@@ -56,9 +56,9 @@ This open-source repository lets you:
 
 Edit and run Deepnote notebooks directly in your favorite AI-native code editors:
 
-- 🖥️ **[VS Code extension](https://github.com/deepnote/vscode-deepnote)** - Full Deepnote support in Visual Studio Code
-- ✏️ **[Cursor extension](https://github.com/deepnote/vscode-deepnote)** - AI-powered notebook editing in Cursor
-- 🌊 **[Windsurf extension](https://github.com/deepnote/vscode-deepnote)** - Collaborative development in Windsurf
+- 🖥️ **[VS Code extension](https://marketplace.visualstudio.com/items?itemName=deepnote.deepnote)** - Full Deepnote support in Visual Studio Code
+- ✏️ **[Cursor extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - AI-powered notebook editing in Cursor
+- 🌊 **[Windsurf extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - Collaborative development in Windsurf
 
 ### 🧪 **Use Deepnote in JupyterLab**
 
@@ -86,7 +86,7 @@ import { createPythonCode, createMarkdown } from "@deepnote/blocks";
 
 <details>
 <summary>Deepnote keeps the same Jupyter core so you can seamlessly move between both, but adds an AI-first design, sleek UI, new blocks, data integrations—so you never have to maintain or rebuild these pieces yourself.</summary>
-
+<br>
 | Feature             | Deepnote                          | Jupyter                     |
 | ------------------- | --------------------------------- | --------------------------- |
 | **Setup**           | Zero setup, cloud-based           | Local installation required |
@@ -102,7 +102,7 @@ import { createPythonCode, createMarkdown } from "@deepnote/blocks";
 
 <details>
 <summary>Deepnote offers a rich integration ecosystem, works wherever you do and in any language (Python, R, SQL), and scales effortlessly to production grade workflows with Deepnote cloud used by 500,000+ data professionals, while Marimo remains a lightweight, single-user local notebook with limited community adoption.</summary>
-
+<br>
 | Feature                  | Deepnote                              | Marimo         |
 | ------------------------ | ------------------------------------- | -------------- |
 | **AI Integration**       | Built-in AI Copilot                   | No AI features |
@@ -165,7 +165,7 @@ pnpm start
 
 Deepnote is **free for students and educators**! Get unlimited access to all core features, cloud compute, and real-time collaboration for your research and teaching.
 
-**Learn more:** [deepnote.com/education](https://deepnote.com/education)
+**Learn more:** [deepnote.com/education](https://deepnote.com/education?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
 
 ---
 
@@ -173,8 +173,8 @@ Deepnote is **free for students and educators**! Get unlimited access to all cor
 
 - 👥 Join our [Community]()!
 - 💬 [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
-- 📖 Check out our [documentation](https://deepnote.com/docs)
-- 🌐 Visit [deepnote.com](https://deepnote.com) to try Deepnote
+- 📖 Check out our [documentation](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
+- 🌐 Want a low-code expirience visit [Deepnote Cloud](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) together with Deepnote agent
 
 ---
 
