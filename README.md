@@ -5,13 +5,13 @@
 [![CI](https://github.com/deepnote/deepnote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/deepnote/deepnote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/deepnote/deepnote/graph/badge.svg?token=7DHBMXZS28)](https://codecov.io/gh/deepnote/deepnote)
 
-[Website](https://deepnote.com) • [Documentation](https://deepnote.com/docs) • [Blog](https://deepnote.com/blog) • [Twitter](https://twitter.com/deepnoteapp) • [Explore](https://deepnote.com/explore)
+[Website](https://deepnote.com) • [Documentation](https://deepnote.com/docs) • [Blog](https://deepnote.com/blog) • [Twitter](https://twitter.com/deepnoteapp) • [Explore](https://deepnote.com/explore) • [Community]()
 
 </div>
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
 Get started with Deepnote in seconds:
 
@@ -95,7 +95,7 @@ import { createPythonCode, createMarkdown } from '@deepnote/blocks';
 | **Collaboration** | Real-time multiplayer | Manual sharing |
 | **Setup** | Zero setup, cloud-based | Local installation required |
 | **AI Features** | Native AI Copilot | Third-party extensions |
-| **Version Control** | Built-in Git integration | Manual Git workflow |
+| **Version control** | Built-in Git integration | Manual Git workflow |
 | **Sharing** | Share with a link | Export files manually |
 | **Compute** | Managed cloud compute | Local resources only |
 | **Integrations** | Native database & API connections | Manual configuration |
@@ -112,10 +112,10 @@ Reusable packages and libraries powering Deepnote's notebook, runtime, and colla
 
 TypeScript types and utilities for working with Deepnote notebook blocks.
 
-- **Block Type Definitions**: Code, SQL, Text, Markdown, Input, Visualization, Button, Big Number, Image, Separator
-- **Python Code Generation**: Convert blocks to executable Python code
-- **Markdown Conversion**: Convert text blocks to/from markdown format
-- **Input Block Support**: Text, textarea, checkbox, select, slider, file, date, and date-range inputs
+- **Block type definitions**: Code, SQL, Text, Markdown, Input, Visualization, Button, Big Number, Image, Separator
+- **Python code generation**: Convert blocks to executable Python code
+- **Markdown conversion**: Convert text blocks to/from markdown format
+- **Input block support**: Text, textarea, checkbox, select, slider, file, date, and date-range inputs
 
 ```typescript
 import { createPythonCode, createMarkdown } from '@deepnote/blocks';
@@ -125,10 +125,10 @@ import { createPythonCode, createMarkdown } from '@deepnote/blocks';
 
 CLI tool and library to convert Jupyter notebooks (`.ipynb`) to Deepnote format (`.deepnote`).
 
-- **CLI Tool**: `deepnote-convert` command for batch conversions
+- **CLI tool**: `deepnote-convert` command for batch conversions
 - **Programmatic API**: Use in Node.js/TypeScript applications
-- **Directory Support**: Convert entire folders of notebooks
-- **Custom Project Names**: Set metadata during conversion
+- **Directory support**: Convert entire folders of notebooks
+- **Custom projects**: Set metadata during conversion
 
 ```bash
 npm install -g @deepnote/convert
@@ -168,7 +168,7 @@ pnpm start
 
 ---
 
-## 🎓 For Students and Academics
+## 🎓 For students and academics
 
 Deepnote is **free for students and educators**! Get unlimited access to all core features, cloud compute, and real-time collaboration for your research and teaching.
 
@@ -176,8 +176,9 @@ Deepnote is **free for students and educators**! Get unlimited access to all cor
 
 ---
 
-## 🙌 Need Help?
+## 🙌 Need help?
 
+- [Community]()
 - 💬 [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
 - 📖 Check out our [documentation](https://deepnote.com/docs)
 - 🌐 Visit [deepnote.com](https://deepnote.com) to try Deepnote
