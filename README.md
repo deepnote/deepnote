@@ -166,19 +166,18 @@ pnpm install
 pnpm start
 ```
 
----
 
 ## 🎓 For students and academics
 
 Deepnote is **free for students and educators**! Get unlimited access to all core features, cloud compute, and real-time collaboration for your research and teaching.
 
-**Learn more and apply:** [deepnote.com/education](https://deepnote.com/education)
+**Learn more:** [deepnote.com/education](https://deepnote.com/education)
 
 ---
 
-## 🙌 Need help?
+## 🙌 Need help?:
 
-- [Community]()
+- 👥 Join our[Community]()!
 - 💬 [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
 - 📖 Check out our [documentation](https://deepnote.com/docs)
 - 🌐 Visit [deepnote.com](https://deepnote.com) to try Deepnote
