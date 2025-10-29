@@ -69,7 +69,7 @@ deepnote-convert notebook.ipynb
 ### 📦 **Build with Deepnote's TypeScript SDK**
 
 ```typescript
-import { createPythonCode, createMarkdown } from '@deepnote/blocks';
+import { createPythonCode, createMarkdown } from "@deepnote/blocks";
 // Work with Deepnote blocks programmatically
 ```
 
@@ -79,26 +79,26 @@ import { createPythonCode, createMarkdown } from '@deepnote/blocks';
 
 ### Deepnote vs. Marimo
 
-| Feature | Deepnote | Marimo |
-|---------|----------|--------|
-| **Collaboration** | Real-time multiplayer | Single user |
-| **AI Integration** | Built-in AI Copilot | No AI features |
-| **Database Connections** | 20+ native integrations | Manual setup |
-| **Deployment** | One-click sharing & scheduling | Local only |
-| **Language Support** | Python, SQL, R | Python only |
-| **Editor Support** | VS Code, Cursor, Windsurf, JupyterLab | Terminal-based |
+| Feature                  | Deepnote                              | Marimo         |
+| ------------------------ | ------------------------------------- | -------------- |
+| **Collaboration**        | Real-time multiplayer                 | Single user    |
+| **AI Integration**       | Built-in AI Copilot                   | No AI features |
+| **Database Connections** | 20+ native integrations               | Manual setup   |
+| **Deployment**           | One-click sharing & scheduling        | Local only     |
+| **Language Support**     | Python, SQL, R                        | Python only    |
+| **Editor Support**       | VS Code, Cursor, Windsurf, JupyterLab | Terminal-based |
 
 ### Deepnote vs. Jupyter
 
-| Feature | Deepnote | Jupyter |
-|---------|----------|---------|
-| **Collaboration** | Real-time multiplayer | Manual sharing |
-| **Setup** | Zero setup, cloud-based | Local installation required |
-| **AI Features** | Native AI Copilot | Third-party extensions |
-| **Version control** | Built-in Git integration | Manual Git workflow |
-| **Sharing** | Share with a link | Export files manually |
-| **Compute** | Managed cloud compute | Local resources only |
-| **Integrations** | Native database & API connections | Manual configuration |
+| Feature             | Deepnote                          | Jupyter                     |
+| ------------------- | --------------------------------- | --------------------------- |
+| **Collaboration**   | Real-time multiplayer             | Manual sharing              |
+| **Setup**           | Zero setup, cloud-based           | Local installation required |
+| **AI Features**     | Native AI Copilot                 | Third-party extensions      |
+| **Version control** | Built-in Git integration          | Manual Git workflow         |
+| **Sharing**         | Share with a link                 | Export files manually       |
+| **Compute**         | Managed cloud compute             | Local resources only        |
+| **Integrations**    | Native database & API connections | Manual configuration        |
 
 ---
 
@@ -118,7 +118,7 @@ TypeScript types and utilities for working with Deepnote notebook blocks.
 - **Input block support**: Text, textarea, checkbox, select, slider, file, date, and date-range inputs
 
 ```typescript
-import { createPythonCode, createMarkdown } from '@deepnote/blocks';
+import { createPythonCode, createMarkdown } from "@deepnote/blocks";
 ```
 
 #### **[@deepnote/convert](./packages/convert)**
@@ -166,7 +166,6 @@ pnpm install
 pnpm start
 ```
 
-
 ## 🎓 For students and academics
 
 Deepnote is **free for students and educators**! Get unlimited access to all core features, cloud compute, and real-time collaboration for your research and teaching.
@@ -177,7 +176,7 @@ Deepnote is **free for students and educators**! Get unlimited access to all cor
 
 ## 🙌 Need help?:
 
-- 👥 Join our[Community]()!
+- 👥 Join our [Community]()!
 - 💬 [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
 - 📖 Check out our [documentation](https://deepnote.com/docs)
 - 🌐 Visit [deepnote.com](https://deepnote.com) to try Deepnote
@@ -189,6 +188,7 @@ Deepnote is **free for students and educators**! Get unlimited access to all cor
 We love external contributors! Whether you're fixing bugs, adding features, or improving documentation, your contributions are welcome.
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+
 - Development setup instructions
 - Code style guidelines
 - Testing requirements
