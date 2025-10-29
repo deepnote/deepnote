@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../deepnote-internal"
+		},
+		{
+			"path": "../../../deepnote-toolkit"
+		},
+		{
+			"path": "../../../vscode-deepnote"
+		},
+		{
+			"path": "../../../jupyterlab-deepnote"
+		}
+	],
+	"settings": {}
+}
