@@ -5,7 +5,7 @@ export const deepnoteBlockSchema = z.object({
   content: z.string().optional(),
   executionCount: z.number().optional(),
   id: z.string(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.any()).optional(),
   outputs: z.array(z.any()).optional(),
   sortingKey: z.string(),
   type: z.string(),
@@ -38,19 +38,7 @@ export const deepnoteFileSchema = z.object({
     name: z.string(),
     notebooks: z.array(
       z.object({
-        blocks: z.array(
-          z.object({
-            blockGroup: z.string().optional(),
-            content: z.string().optional(),
-            executionCount: z.number().optional(),
-            id: z.string(),
-            metadata: z.record(z.any()).optional(),
-            outputs: z.array(z.any()).optional(),
-            sortingKey: z.string(),
-            type: z.string(),
-            version: z.number().optional(),
-          })
-        ),
+        blocks: z.array(deepnoteBlockSchema),
         executionMode: z.enum(['block', 'downstream']).optional(),
         id: z.string(),
         isModule: z.boolean().optional(),
