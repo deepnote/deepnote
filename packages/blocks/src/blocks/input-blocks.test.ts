@@ -54,7 +54,7 @@ describe('createPythonCodeForInputTextBlock', () => {
 
     const result = createPythonCodeForInputTextBlock(block)
 
-    expect(result).toEqual("my_input = 'It\\'s a \"test\"'")
+    expect(result).toEqual("my_input = 'It\\'s a \\\"test\\\"'")
   })
 })
 
