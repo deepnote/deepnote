@@ -1,4 +1,4 @@
-![Deepnote dragon](deepnote-dragon.png)
+![Deepnote cover image](deepnote-cover-image.png)
 
 <div align="center">
 
