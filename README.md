@@ -36,17 +36,17 @@ Deepnote Open Source is an AI notebook, built with collaboration and the next de
 
 ### Why Deepnote Open Source?
 
-🗂️ **_Human-readable format_** – The .deepnote YAML format replaces ipynb's messy JSON with clean, version-control and human-friendly structure for projects and notebooks. You can organize multiple notebooks, integrations, and settings into a single .deepnote project for better structure and collaboration.
+🗂️ **Human-readable format** – The .deepnote YAML format replaces ipynb's messy JSON with clean, version-control and human-friendly structure for projects and notebooks. You can organize multiple notebooks, integrations, and settings into a single .deepnote project for better structure and collaboration.
 
-🧩 **_Block-based architecture_** – Extend notebooks beyond code cells with blocks for SQL, inputs, charts, and much more — all defined and validated through the open @deepnote/blocks package.
+🧩 **Block-based architecture** – Extend notebooks beyond code cells with blocks for SQL, inputs, charts, and much more — all defined and validated through the open @deepnote/blocks package.
 
-🔁 **_Effortless conversion_** – Convert .ipynb notebooks into .deepnote projects and back again using the open @deepnote/convert CLI and API.
+🔁 **Effortless conversion** – Convert .ipynb notebooks into .deepnote projects and back again using the open @deepnote/convert CLI and API.
 
-💻 **_Work wherever_** – Run notebooks locally in VS Code, JupyterLab, or anywhere else with the open-source Deepnote Toolkit. Once you want to work in a team on the same notebook with beefier compute - drag and drop your project into Deepnote Cloud.
+💻 **Work wherever** – Run notebooks locally in VS Code, JupyterLab, or anywhere else with the open-source Deepnote Toolkit. Once you want to work in a team on the same notebook with beefier compute - drag and drop your project into Deepnote Cloud.
 
-⚡ **_Reactive notebook execution_** – Automatically re-runs dependent blocks when inputs or data change, ensuring notebooks stay consistent and reproducible without manual execution.
+⚡ **Reactive notebook execution** – Automatically re-runs dependent blocks when inputs or data change, ensuring notebooks stay consistent and reproducible without manual execution.
 
-🌐 **_Open and extendable_** – Built on the Jupyter kernel for full compatibility with your existing notebooks, while offering a shared, upgraded open standard that contributors, IDE developers, and integrators can build upon.
+🌐 **Open and extendable** – Built on the Jupyter kernel for full compatibility with your existing notebooks, while offering a shared, upgraded open standard that contributors, IDE developers, and integrators can build upon.
 
 ## 🎯 What can you do right now?
 
@@ -174,7 +174,7 @@ Deepnote is **free for students and educators**! Get unlimited access to all cor
 - 👥 Join our [Community]()!
 - 💬 [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
 - 📖 Check out our [documentation](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
-- 🌐 Want a low-code expirience visit [Deepnote Cloud](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) together with Deepnote agent
+- 🌐 Want a low-code experience? Visit [Deepnote Cloud](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) together with Deepnote agent
 
 ---
 
