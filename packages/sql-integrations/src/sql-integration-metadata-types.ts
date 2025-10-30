@@ -1,126 +1,29 @@
 import type z from 'zod'
-import type { AwsAuthMethods, DatabaseAuthMethods } from './sql-integration-auth-methods'
 import type { sqlMetadataValidationSchemasByType } from './sql-integration-metadata-schemas'
 import type { SqlIntegrationType } from './sql-integration-types'
 
-type SnowflakeIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['snowflake']>>
+type PandasDataframeIntegrationMetadata = z.infer<
+  NonNullable<(typeof sqlMetadataValidationSchemasByType)['pandas-dataframe']>
+>
 
-interface MongodbIntegrationMetadata {
-  connection_string: string
-  rawConnectionString?: string
-  prefix?: string
-  host?: string
-  port?: string
-  user?: string
-  password?: string
-  database?: string
-  options?: string
+type DatabaseIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['pgsql']>>
 
-  sshEnabled?: boolean
-  sshHost?: string
-  sshPort?: string
-  sshUser?: string
-
-  sslEnabled?: boolean
-  caCertificateName?: string
-  caCertificateText?: string
-}
-
-interface DatabaseIntegrationMetadata {
-  accountName?: string
-  host: string
-  // NOTE: We have BOTH user and username here.
-  user: string
-  password: string
-  database: string
-  port?: string
-  // NOTE: We have BOTH user and username here.
-  username?: string
-
-  sshEnabled?: boolean
-  sshHost?: string
-  sshPort?: string
-  sshUser?: string
-
-  sslEnabled?: boolean
-  caCertificateName?: string
-  caCertificateText?: string
-}
-
-interface RedshiftIntegrationMetadata {
-  authMethod?:
-    | typeof DatabaseAuthMethods.UsernameAndPassword
-    | typeof AwsAuthMethods.IamRole
-    | typeof DatabaseAuthMethods.IndividualCredentials
-  database: string
-  host: string
-
-  password?: string
-  port?: string
-
-  roleArn?: string
-  roleExternalId?: string
-  roleNonce?: string
-
-  // NOTE: We have BOTH user and username here.
-  user?: string
-  username?: string
-
-  sshEnabled?: boolean
-  sshHost?: string
-  sshPort?: string
-  sshUser?: string
-
-  sslEnabled?: boolean
-  caCertificateName?: string
-  caCertificateText?: string
-}
-
-interface MaterializeDatabaseIntegrationMetadata extends DatabaseIntegrationMetadata {
-  cluster: string
-}
-
-type DatabricksIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['databricks']>>
-
-type DremioIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['dremio']>>
-
-interface AthenaIntegrationMetadata {
-  access_key_id: string
-  region: string
-  s3_output_path: string
-  secret_access_key: string
-  workgroup?: string
-}
-
+type AthenaIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['athena']>>
 type BigQueryIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['big-query']>>
-
-interface SpannerIntegrationMetadata {
-  dataBoostEnabled: boolean
-  instance: string
-  database: string
-}
-
-interface ClickHouseIntegrationMetadata {
-  accountName?: string
-  host: string
-  user: string
-  password?: string
-  database: string
-  port?: string
-  username?: string
-
-  sshEnabled?: boolean
-  sshHost?: string
-  sshPort?: string
-  sshUser?: string
-
-  sslEnabled?: boolean
-  caCertificateText?: string
-}
+type ClickHouseIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['clickhouse']>>
+type DatabricksIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['databricks']>>
+type DremioIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['dremio']>>
+type MaterializeDatabaseIntegrationMetadata = z.infer<
+  NonNullable<(typeof sqlMetadataValidationSchemasByType)['materialize']>
+>
+type MongodbIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['mongodb']>>
+type RedshiftIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['redshift']>>
+type SnowflakeIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['snowflake']>>
+type SpannerIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['spanner']>>
 
 export interface IntegrationMetadataByType {
   // DataFrame SQL
-  'pandas-dataframe': Record<never, unknown>
+  'pandas-dataframe': PandasDataframeIntegrationMetadata
 
   // Common database setup
   'alloydb': DatabaseIntegrationMetadata
