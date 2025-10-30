@@ -20,8 +20,6 @@ export const SQL_CELL_INTEGRATIONS = [
 ] as const
 
 export type SqlIntegrationType = (typeof SQL_CELL_INTEGRATIONS)[number]
-
-export const INTEGRATIONS_WITH_SCHEMA = [
   'pgsql',
   'mysql',
   'big-query',
@@ -36,7 +34,6 @@ export const INTEGRATIONS_WITH_SCHEMA = [
   'databricks',
 ] as const
 
-export const INTEGRATIONS_WITH_TABLE_METADATA = ['pgsql', 'redshift', 'big-query', 'snowflake'] as const
 
 export const integrationsWithConfigurableSSL: ReadonlyArray<SqlIntegrationType> = [
   'clickhouse',
@@ -54,11 +51,3 @@ export const integrationsWithSSLSupport: ReadonlyArray<SqlIntegrationType> = [
   ...integrationsWithConfigurableSSL,
   'redshift',
 ]
-
-export type SqlCellIntegrationType = (typeof SQL_CELL_INTEGRATIONS)[number]
-export type IntegrationTypeWithSchema = (typeof INTEGRATIONS_WITH_SCHEMA)[number]
-export type NarrowedIntegrationTypeWithSchema<T> = T extends (typeof INTEGRATIONS_WITH_SCHEMA)[number] ? T : never
-export type IntegrationTypeWithTableMetadata = (typeof INTEGRATIONS_WITH_TABLE_METADATA)[number]
-export type NarrowedIntegrationTypeWithTableMetadata<T> = T extends (typeof INTEGRATIONS_WITH_TABLE_METADATA)[number]
-  ? T
-  : never
