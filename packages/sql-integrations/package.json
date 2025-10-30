@@ -1,7 +1,7 @@
 {
   "name": "@deepnote/sql-integrations",
   "version": "1.0.0",
-  "description": "",
+  "description": "Deepnote SQL Integration Definitions",
   "keywords": [],
   "repository": {
     "type": "git",
