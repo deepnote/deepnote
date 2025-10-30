@@ -1,53 +1,8 @@
-import type { AwsAuthMethods, BigQueryAuthMethods, DatabaseAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
+import type z from 'zod'
+import type { AwsAuthMethods, BigQueryAuthMethods, DatabaseAuthMethods } from './sql-auth-methods'
+import type { sqlMetadataValidationSchemasByType } from './sql-validation-schemas'
 
-export type IntegrationMetadataSnowflake = {
-  accountName: string
-  warehouse?: string
-  database?: string
-  role?: string
-} & (
-  | {
-      authMethod: null
-      username: string
-      password: string
-    }
-  | {
-      authMethod: typeof SnowflakeAuthMethods.Password
-      username: string
-      password: string
-    }
-  | {
-      authMethod: typeof SnowflakeAuthMethods.Okta
-      clientId: string
-      clientSecret: string
-      oktaSubdomain: string
-      identityProvider: string
-      authorizationServer: string
-      /** If set, value of the user's custom attribute will be used  a role name */
-      roleUserCustomAttribute?: string
-    }
-  | {
-      authMethod: typeof SnowflakeAuthMethods.NativeSnowflake
-      clientId: string
-      clientSecret: string
-    }
-  | {
-      authMethod: typeof SnowflakeAuthMethods.AzureAd
-      clientId: string
-      clientSecret: string
-      resource: string
-      tenant: string
-    }
-  | {
-      authMethod: typeof SnowflakeAuthMethods.KeyPair
-    }
-  | {
-      authMethod: typeof SnowflakeAuthMethods.ServiceAccountKeyPair
-      username: string
-      privateKey: string
-      privateKeyPassphrase?: string
-    }
-)
+type IntegrationMetadataSnowflake = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['snowflake']>>
 
 export interface IntegrationMetadataMongodb {
   connection_string: string
