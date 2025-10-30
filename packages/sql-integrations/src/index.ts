@@ -34,9 +34,4 @@ export type {
 } from './sql-metadata-types'
 
 // Validation schemas
-export {
-  bigqueryMetadataValidationSchema,
-  databricksMetadataValidationSchema,
-  dremioMetadataValidationSchema,
-  snowflakeMetadataValidationSchema,
-} from './sql-validation-schemas'
+export { sqlMetadataValidationSchemasByType } from './sql-validation-schemas'

@@ -1,8 +1,9 @@
 import z from 'zod'
 
 import { BigQueryAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
+import type { SqlIntegrationType } from './sql-constants'
 
-export const bigqueryMetadataValidationSchema = z.union([
+const bigqueryMetadataValidationSchema = z.union([
   z.object({
     authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
     service_account: z.string(),
@@ -15,20 +16,20 @@ export const bigqueryMetadataValidationSchema = z.union([
   }),
 ])
 
-export const databricksMetadataValidationSchema = z.object({
+const databricksMetadataValidationSchema = z.object({
   host: z.string(),
   httpPath: z.string(),
   token: z.string(),
   port: z.string(),
 })
 
-export const dremioMetadataValidationSchema = z.object({
+const dremioMetadataValidationSchema = z.object({
   host: z.string(),
   port: z.string(),
   token: z.string(),
 })
 
-export const snowflakeMetadataValidationSchema = z.union([
+const snowflakeMetadataValidationSchema = z.union([
   z.object({
     authMethod: z.literal(SnowflakeAuthMethods.Password),
     accountName: z.string(),
@@ -70,3 +71,10 @@ export const snowflakeMetadataValidationSchema = z.union([
     privateKeyPassphrase: z.string().optional(),
   }),
 ])
+
+export const sqlMetadataValidationSchemasByType = {
+  'snowflake': snowflakeMetadataValidationSchema,
+  'big-query': bigqueryMetadataValidationSchema,
+  'databricks': databricksMetadataValidationSchema,
+  'dremio': dremioMetadataValidationSchema,
+} as const satisfies { [integrationType in SqlIntegrationType]?: z.ZodSchema }
