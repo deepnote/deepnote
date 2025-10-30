@@ -56,7 +56,7 @@ This open-source repository lets you:
 
 Edit and run Deepnote notebooks directly in your favorite AI-native code editors:
 
-- 🖥️ **[VS Code extension](https://marketplace.visualstudio.com/items?itemName=deepnote.deepnote)** - Full Deepnote support in Visual Studio Code
+- 🖥️ **[VS Code extension](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)** - Full Deepnote support in Visual Studio Code
 - ✏️ **[Cursor extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - AI-powered notebook editing in Cursor
 - 🌊 **[Windsurf extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - Collaborative development in Windsurf
 
@@ -108,7 +108,7 @@ import { createPythonCode, createMarkdown } from "@deepnote/blocks";
 | **AI Integration**       | Built-in AI Copilot                   | No AI features |
 | **Database Connections** | 60+ native integrations               | Manual setup   |
 | **Deployment**           | One-click sharing & scheduling        | Local only     |
-| **Language Support**     | Python, SQL, R                        | Python only    |
+| **Language Support**     | Python, SQL, R                        | Python SQL     |
 | **Editor Support**       | VS Code, Cursor, Windsurf, JupyterLab | Terminal-based |
 
 </details>
