@@ -7,6 +7,7 @@ The sql-integrations package defines the Deepnote SQL Integrations.
 This package provides TypeScript types and utilities for working with Deepnote SQL block integrations, including:
 
 - **Integration types**
+- **Authentication method types**
 - **Integration metadata schemas**
 
 ## Supported Integrations
