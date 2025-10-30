@@ -1,4 +1,4 @@
-import z from 'zod'
+import * as z from 'zod'
 
 import {
   AwsAuthMethods,
@@ -308,4 +308,10 @@ export const sqlMetadataValidationSchemasByType = {
   'spanner': spannerMetadataValidationSchema,
   'sql-server': sqlServerMetadataValidationSchema,
   'trino': trinoMetadataValidationSchema,
-} as const satisfies { [integrationType in SqlIntegrationType]?: z.ZodSchema }
+} as const satisfies Record<SqlIntegrationType, z.ZodSchema>
+
+export type SqlIntegrationMetadataByType = {
+  [integrationType in SqlIntegrationType]: z.infer<
+    NonNullable<(typeof sqlMetadataValidationSchemasByType)[integrationType]>
+  >
+}

@@ -35,7 +35,7 @@ This package provides TypeScript types and utilities for working with Deepnote S
 ```ts
 import {
   type BigQueryAuthMethods,
-  type IntegrationMetadataByType,
+  type SqlIntegrationMetadataByType,
   type SqlIntegrationType,
   sqlMetadataValidationSchemasByType,
   sqlIntegrationTypes,

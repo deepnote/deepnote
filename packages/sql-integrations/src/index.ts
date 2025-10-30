@@ -10,11 +10,11 @@ export {
   SnowflakeAuthMethods,
 } from './sql-integration-auth-methods'
 
-// Validation schemas
-export { sqlMetadataValidationSchemasByType } from './sql-integration-metadata-schemas'
-
-// Metadata types
-export type { IntegrationMetadataByType } from './sql-integration-metadata-types'
+// Metadata schemas
+export {
+  type SqlIntegrationMetadataByType,
+  sqlMetadataValidationSchemasByType,
+} from './sql-integration-metadata-schemas'
 
 // Constants
 export {
