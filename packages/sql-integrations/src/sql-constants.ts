@@ -1,5 +1,3 @@
-import type { IntegrationType } from '../integration-types'
-
 export const SQL_CELL_INTEGRATIONS = [
   'pgsql',
   'clickhouse',
@@ -21,6 +19,8 @@ export const SQL_CELL_INTEGRATIONS = [
   'databricks',
 ] as const
 
+export type SqlIntegrationType = (typeof SQL_CELL_INTEGRATIONS)[number]
+
 export const INTEGRATIONS_WITH_SCHEMA = [
   'pgsql',
   'mysql',
@@ -38,7 +38,7 @@ export const INTEGRATIONS_WITH_SCHEMA = [
 
 export const INTEGRATIONS_WITH_TABLE_METADATA = ['pgsql', 'redshift', 'big-query', 'snowflake'] as const
 
-export const integrationsWithConfigurableSSL: ReadonlyArray<IntegrationType> = [
+export const integrationsWithConfigurableSSL: ReadonlyArray<SqlIntegrationType> = [
   'clickhouse',
   'dremio',
   'mariadb',
@@ -50,7 +50,7 @@ export const integrationsWithConfigurableSSL: ReadonlyArray<IntegrationType> = [
   'trino',
 ]
 
-export const integrationsWithSSLSupport: ReadonlyArray<IntegrationType> = [
+export const integrationsWithSSLSupport: ReadonlyArray<SqlIntegrationType> = [
   ...integrationsWithConfigurableSSL,
   'redshift',
 ]
