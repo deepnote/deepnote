@@ -1,4 +1,4 @@
-export const SQL_CELL_INTEGRATIONS = [
+export const sqlIntegrationTypes = [
   'alloydb',
   'athena',
   'big-query',
@@ -11,9 +11,6 @@ export const SQL_CELL_INTEGRATIONS = [
   'mongodb',
   'mysql',
   'pandas-dataframe',
-] as const
-
-export type SqlIntegrationType = (typeof SQL_CELL_INTEGRATIONS)[number]
   'pgsql',
   'redshift',
   'snowflake',
@@ -22,8 +19,9 @@ export type SqlIntegrationType = (typeof SQL_CELL_INTEGRATIONS)[number]
   'trino',
 ] as const
 
+export type SqlIntegrationType = (typeof sqlIntegrationTypes)[number]
 
-export const integrationsWithConfigurableSSL: ReadonlyArray<SqlIntegrationType> = [
+export const sqlIntegrationTypesWithConfigurableSsl = [
   'clickhouse',
   'dremio',
   'mariadb',
@@ -33,9 +31,9 @@ export const integrationsWithConfigurableSSL: ReadonlyArray<SqlIntegrationType> 
   'pgsql',
   'redshift',
   'trino',
-]
+] as const satisfies ReadonlyArray<SqlIntegrationType>
 
-export const integrationsWithSSLSupport: ReadonlyArray<SqlIntegrationType> = [
-  ...integrationsWithConfigurableSSL,
+export const sqlIntegrationTypesWithSslSupport = [
+  ...sqlIntegrationTypesWithConfigurableSsl,
   'redshift',
-]
+] as const satisfies ReadonlyArray<SqlIntegrationType>

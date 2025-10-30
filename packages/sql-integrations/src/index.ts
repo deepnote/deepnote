@@ -12,9 +12,10 @@ export {
 
 // Constants
 export {
-  integrationsWithConfigurableSSL,
-  integrationsWithSSLSupport,
-  SQL_CELL_INTEGRATIONS,
+  type SqlIntegrationType,
+  sqlIntegrationTypes,
+  sqlIntegrationTypesWithConfigurableSsl,
+  sqlIntegrationTypesWithSslSupport,
 } from './sql-constants'
 
 // Metadata types
