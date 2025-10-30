@@ -3,7 +3,7 @@ import z from 'zod'
 import { BigQueryAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
 import type { SqlIntegrationType } from './sql-constants'
 
-const bigqueryMetadataValidationSchema = z.union([
+const bigqueryMetadataValidationSchema = z.discriminatedUnion('authMethod', [
   z.object({
     authMethod: z.literal(BigQueryAuthMethods.ServiceAccount).nullable(),
     service_account: z.string(),
@@ -42,7 +42,7 @@ const dremioMetadataValidationSchema = z.object({
   sshUser: z.string().optional(),
 })
 
-const snowflakeMetadataValidationSchema = z.union([
+const snowflakeMetadataValidationSchema = z.discriminatedUnion('authMethod', [
   z.object({
     authMethod: z.literal(SnowflakeAuthMethods.Password),
     accountName: z.string(),
