@@ -35,7 +35,7 @@ const athenaMetadataValidationSchema = z.object({
 
 const bigqueryMetadataValidationSchema = z.discriminatedUnion('authMethod', [
   z.object({
-    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount).nullable(),
+    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
     service_account: z.string(),
   }),
   z.object({
