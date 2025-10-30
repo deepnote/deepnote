@@ -10,7 +10,7 @@ Here's how you can get started.
 ```text
 deepnote/
 ├── packages/        # Core TypeScript packages
-│   ├── blocks/      # @deepnote/blocks - Core block types and schemas
+│   ├── blocks/      # @deepnote/blocks - Block types and schemas
 │   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
 ├── docs/            # Documentation files
 ├── .github/         # GitHub workflows & templates
