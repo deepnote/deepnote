@@ -1,7 +1,7 @@
 import z from 'zod'
 
-import { BigQueryAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
-import type { SqlIntegrationType } from './sql-constants'
+import { BigQueryAuthMethods, SnowflakeAuthMethods } from './sql-integration-auth-methods'
+import type { SqlIntegrationType } from './sql-integration-types'
 
 const bigqueryMetadataValidationSchema = z.discriminatedUnion('authMethod', [
   z.object({

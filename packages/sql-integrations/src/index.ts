@@ -8,7 +8,13 @@ export {
   DatabaseAuthMethods,
   type SnowflakeAuthMethod,
   SnowflakeAuthMethods,
-} from './sql-auth-methods'
+} from './sql-integration-auth-methods'
+
+// Validation schemas
+export { sqlMetadataValidationSchemasByType } from './sql-integration-metadata-schemas'
+
+// Metadata types
+export type { IntegrationMetadataByType } from './sql-integration-metadata-types'
 
 // Constants
 export {
@@ -16,10 +22,4 @@ export {
   sqlIntegrationTypes,
   sqlIntegrationTypesWithConfigurableSsl,
   sqlIntegrationTypesWithSslSupport,
-} from './sql-constants'
-
-// Metadata types
-export type { IntegrationMetadataByType } from './sql-metadata-types'
-
-// Validation schemas
-export { sqlMetadataValidationSchemasByType } from './sql-validation-schemas'
+} from './sql-integration-types'

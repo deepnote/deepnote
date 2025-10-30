@@ -1,7 +1,7 @@
 import type z from 'zod'
-import type { AwsAuthMethods, DatabaseAuthMethods } from './sql-auth-methods'
-import type { SqlIntegrationType } from './sql-constants'
-import type { sqlMetadataValidationSchemasByType } from './sql-validation-schemas'
+import type { AwsAuthMethods, DatabaseAuthMethods } from './sql-integration-auth-methods'
+import type { sqlMetadataValidationSchemasByType } from './sql-integration-metadata-schemas'
+import type { SqlIntegrationType } from './sql-integration-types'
 
 type SnowflakeIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['snowflake']>>
 
