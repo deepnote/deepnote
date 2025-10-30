@@ -26,7 +26,7 @@ deepnote-convert notebook.ipynb --projectName "My Analysis"
 npx @deepnote/convert notebook.ipynb
 ```
 
-Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnotee), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), [Windsurf](https://marketplace.windsurf.com/vscode/item?itemName=Deepnote.vscode-deepnote), or [JupyterLab](https://github.com/deepnote/jupyterlab-deepnote)!
+Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), [Windsurf](https://marketplace.windsurf.com/vscode/item?itemName=Deepnote.vscode-deepnote), or [JupyterLab](https://github.com/deepnote/jupyterlab-deepnote)!
 
 ---
 
