@@ -5,24 +5,23 @@ Here's how you can get started.
 
 ---
 
-## 📂 Repository Structure
+## 📂 Repository structure
 
 ```text
 deepnote/
 ├── packages/        # Core TypeScript packages
-│   ├── blocks/      # @deepnote/blocks - Core block types and schemas
-│   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
-│   └── hello-world/ # Example package
+│   ├── [blocks](https://github.com/deepnote/deepnote/tree/main/packages/blocks/README.md)/      # @deepnote/blocks - Core block types and schemas
+│   ├── [convert](https://github.com/deepnote/deepnote/tree/main/packages/convert/README.md)/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
 ├── docs/            # Documentation files
 ├── .github/         # GitHub workflows & templates
 │   └── workflows/   # CI/CD pipelines
-├── CONTRIBUTING.md
-└── README.md
+├── [CONTRIBUTING.md](https://github.com/deepnote/deepnote/blob/main/CONTRIBUTING.md)
+└── [README.md](https://github.com/deepnote/deepnote/blob/main/README.md)
 ```
 
 ---
 
-## 🧑‍💻 How to Contribute
+## 🧑‍💻 How to contribute
 
 We welcome all kinds of contributions:
 
@@ -36,7 +35,7 @@ Start by opening an issue or discussion to talk through your idea.
 
 ---
 
-## 🚀 Local Development
+## 🚀 Local development
 
 ### Prerequisites
 
@@ -75,7 +74,7 @@ pnpm test
 
 ---
 
-## 🧼 Code Style
+## 🧼 Code style
 
 We use:
 
@@ -112,9 +111,9 @@ Biome is available as a first-party extension in your favorite editors.
 
 ---
 
-## 📦 Publishing Packages
+## 📦 Publishing packages
 
-### Publishing a New Version
+### Publishing a new version
 
 This repository supports publishing multiple packages independently. Each package release must use a **package-scoped tag** in the format `@deepnote/package-name@version` (e.g., `@deepnote/blocks@1.2.0`).
 
@@ -159,7 +158,7 @@ The package will be automatically published to GitHub Packages by the `cd.yml` w
 
 ---
 
-## 🧑‍🔧 Maintainer Guidelines
+## 🧑‍🔧 Maintainer guidelines
 
 - The `main` branch is protected: no direct commits or force pushes are allowed. All changes must be merged through pull requests.
 - Never rebase or force push branches owned by others. If you must help finish their PR and it’s behind main, merge main into their branch and resolve conflicts in the merge commit. Otherwise, prefer adding your own commits or opening a follow-up PR instead of modifying their branch.
@@ -176,6 +175,6 @@ By contributing, you agree your work will be released under the Apache 2 License
 
 ---
 
-## 🙌 Need Help?
+## 🙌 Need help?
 
 [Open an issue](https://github.com/deepnote/deepnote/issues/new). We're happy to help!
