@@ -5,7 +5,7 @@
 [![CI](https://github.com/deepnote/deepnote/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/deepnote/deepnote/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/deepnote/deepnote/graph/badge.svg?token=7DHBMXZS28)](https://codecov.io/gh/deepnote/deepnote)
 
-[Website](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Docs](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Blog](https://deepnote.com/blog?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [X](https://x.com/DeepnoteHQ) • [Examples](https://deepnote.com/explore?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Community]()
+[Website](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Docs](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Blog](https://deepnote.com/blog?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [X](https://x.com/DeepnoteHQ) • [Examples](https://deepnote.com/explore?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) • [Community](https://github.com/deepnote/deepnote/discussions)
 
 </div>
 
@@ -26,7 +26,7 @@ deepnote-convert notebook.ipynb --projectName "My Analysis"
 npx @deepnote/convert notebook.ipynb
 ```
 
-Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), [Windsurf](https://marketplace.windsurf.com/vscode/item?itemName=Deepnote.vscode-deepnote), or [JupyterLab](https://github.com/deepnote/jupyterlab-deepnote)!
+Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), [Windsurf](https://marketplace.windsurf.com/vscode/item?itemName=Deepnote.vscode-deepnote), or [JupyterLab](https://pypi.org/project/jupyterlab-deepnote/)!
 
 ---
 
@@ -62,7 +62,7 @@ Edit and run Deepnote notebooks directly in your favorite AI-native code editors
 
 ### 🧪 **Use Deepnote in JupyterLab**
 
-- 🧪 **[JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote)** - Read `.deepnote` files in JupyterLab with backwards compatibility
+- 🧪 **[JupyterLab extension](https://pypi.org/project/jupyterlab-deepnote/)** - Read `.deepnote` files in JupyterLab with backwards compatibility
 
 ### 🔄 **Convert Jupyter notebooks to Deepnote format**
 
@@ -148,7 +148,7 @@ deepnote-convert notebook.ipynb --projectName "My Analysis"
 
 ### 🐍 Python packages
 
-- **[deepnote-toolkit](https://github.com/deepnote/deepnote-toolkit)** - Python kernel extensions and integrations for Deepnote (separate repository)
+- **[deepnote-toolkit](https://pypi.org/project/deepnote-toolkit/)** - Python kernel extensions and integrations for Deepnote (separate repository)
 
 ## 🔜 Coming soon - local use
 
@@ -171,8 +171,9 @@ Deepnote is **free for students and educators**! Get unlimited access to all cor
 
 ## 🙌 Need help?
 
-- 👥 Join our [Community]()!
+- 👥 Join our [Community](https://github.com/deepnote/deepnote/discussions)!
 - 💬 [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
+- ⚙️ Check out source code of related repositories: [Deepnote Vs Code extension](https://github.com/deepnote/vscode-deepnote), [Deepnote JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote) and [Deepnote Toolkit](https://github.com/deepnote/deepnote-toolkit), 
 - 📖 Check out our [documentation](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
 - 🌐 Want a low-code experience? Visit [Deepnote Cloud](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) together with Deepnote agent
 
