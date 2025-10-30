@@ -45,7 +45,7 @@ import {
 console.log(sqlIntegrationTypes); // ['athena', 'redshift', …]
 
 // set integration metadata
-const newMetadata: IntegrationMetadataByType["big-query"] = {
+const newMetadata: SqlIntegrationMetadataByType["big-query"] = {
   authMethod: BigQueryAuthMethods.ServiceAccount,
   service_account: "my-account",
 };
