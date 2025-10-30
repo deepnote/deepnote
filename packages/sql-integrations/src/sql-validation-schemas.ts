@@ -2,6 +2,32 @@ import z from 'zod'
 
 import { BigQueryAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
 
+export const bigqueryMetadataValidationSchema = z.union([
+  z.object({
+    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
+    service_account: z.string(),
+  }),
+  z.object({
+    authMethod: z.literal(BigQueryAuthMethods.GoogleOauth),
+    project: z.string(),
+    clientId: z.string(),
+    clientSecret: z.string(),
+  }),
+])
+
+export const databricksMetadataValidationSchema = z.object({
+  host: z.string(),
+  httpPath: z.string(),
+  token: z.string(),
+  port: z.string(),
+})
+
+export const dremioMetadataValidationSchema = z.object({
+  host: z.string(),
+  port: z.string(),
+  token: z.string(),
+})
+
 export const snowflakeMetadataValidationSchema = z.union([
   z.object({
     authMethod: z.literal(SnowflakeAuthMethods.Password),
@@ -44,29 +70,3 @@ export const snowflakeMetadataValidationSchema = z.union([
     privateKeyPassphrase: z.string().optional(),
   }),
 ])
-
-export const bigqueryMetadataValidationSchema = z.union([
-  z.object({
-    service_account: z.string(),
-    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
-  }),
-  z.object({
-    project: z.string(),
-    clientId: z.string(),
-    clientSecret: z.string(),
-    authMethod: z.literal(BigQueryAuthMethods.GoogleOauth),
-  }),
-])
-
-export const dremioMetadataValidationSchema = z.object({
-  host: z.string(),
-  port: z.string(),
-  token: z.string(),
-})
-
-export const databricksMetadataValidationSchema = z.object({
-  host: z.string(),
-  httpPath: z.string(),
-  token: z.string(),
-  port: z.string(),
-})
