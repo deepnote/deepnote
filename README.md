@@ -173,7 +173,7 @@ Deepnote is **free for students and educators**! Get unlimited access to all cor
 
 - 👥 Join our [Community](https://github.com/deepnote/deepnote/discussions)!
 - 💬 [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
-- ⚙️ Check out source code of related repositories: [Deepnote Vs Code extension](https://github.com/deepnote/vscode-deepnote), [Deepnote JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote) and [Deepnote Toolkit](https://github.com/deepnote/deepnote-toolkit), 
+- ⚙️ Check out source code of related repositories: [Deepnote Vs Code extension](https://github.com/deepnote/vscode-deepnote), [Deepnote JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote) and [Deepnote Toolkit](https://github.com/deepnote/deepnote-toolkit).
 - 📖 Check out our [documentation](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
 - 🌐 Want a low-code experience? Visit [Deepnote Cloud](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) together with Deepnote agent
 
