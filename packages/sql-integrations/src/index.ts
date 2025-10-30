@@ -19,19 +19,7 @@ export {
 } from './sql-constants'
 
 // Metadata types
-export type {
-  IntegrationMetadataAthena,
-  IntegrationMetadataClickHouse,
-  IntegrationMetadataDatabase,
-  IntegrationMetadataDatabricks,
-  IntegrationMetadataDremio,
-  IntegrationMetadataGCP,
-  IntegrationMetadataMaterializeDatabase,
-  IntegrationMetadataMongodb,
-  IntegrationMetadataRedshift,
-  IntegrationMetadataSnowflake,
-  IntegrationMetadataSpanner,
-} from './sql-metadata-types'
+export type { IntegrationMetadataByType } from './sql-metadata-types'
 
 // Validation schemas
 export { sqlMetadataValidationSchemasByType } from './sql-validation-schemas'

@@ -1,10 +1,11 @@
 import type z from 'zod'
 import type { AwsAuthMethods, BigQueryAuthMethods, DatabaseAuthMethods } from './sql-auth-methods'
+import type { SqlIntegrationType } from './sql-constants'
 import type { sqlMetadataValidationSchemasByType } from './sql-validation-schemas'
 
-type IntegrationMetadataSnowflake = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['snowflake']>>
+type SnowflakeIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['snowflake']>>
 
-export interface IntegrationMetadataMongodb {
+interface MongodbIntegrationMetadata {
   connection_string: string
   rawConnectionString?: string
   prefix?: string
@@ -25,7 +26,7 @@ export interface IntegrationMetadataMongodb {
   caCertificateText?: string
 }
 
-export interface IntegrationMetadataDatabase {
+interface DatabaseIntegrationMetadata {
   accountName?: string
   host: string
   // NOTE: We have BOTH user and username here.
@@ -46,7 +47,7 @@ export interface IntegrationMetadataDatabase {
   caCertificateText?: string
 }
 
-export interface IntegrationMetadataRedshift {
+interface RedshiftIntegrationMetadata {
   authMethod?:
     | typeof DatabaseAuthMethods.UsernameAndPassword
     | typeof AwsAuthMethods.IamRole
@@ -75,11 +76,11 @@ export interface IntegrationMetadataRedshift {
   caCertificateText?: string
 }
 
-export interface IntegrationMetadataMaterializeDatabase extends IntegrationMetadataDatabase {
+interface MaterializeDatabaseIntegrationMetadata extends DatabaseIntegrationMetadata {
   cluster: string
 }
 
-export interface IntegrationMetadataDatabricks {
+interface DatabricksIntegrationMetadata {
   token: string
   httpPath: string
   host: string
@@ -93,7 +94,7 @@ export interface IntegrationMetadataDatabricks {
   sshUser?: string
 }
 
-export interface IntegrationMetadataDremio {
+interface DremioIntegrationMetadata {
   schema: string
   token: string
   port: string
@@ -105,7 +106,7 @@ export interface IntegrationMetadataDremio {
   sshUser?: string
 }
 
-export interface IntegrationMetadataAthena {
+interface AthenaIntegrationMetadata {
   access_key_id: string
   region: string
   s3_output_path: string
@@ -113,7 +114,7 @@ export interface IntegrationMetadataAthena {
   workgroup?: string
 }
 
-export type IntegrationMetadataGCP =
+type GcpIntegrationMetadata =
   | {
       authMethod: null
       service_account: string
@@ -129,13 +130,13 @@ export type IntegrationMetadataGCP =
       clientSecret: string
     }
 
-export interface IntegrationMetadataSpanner {
+interface SpannerIntegrationMetadata {
   dataBoostEnabled: boolean
   instance: string
   database: string
 }
 
-export interface IntegrationMetadataClickHouse {
+interface ClickHouseIntegrationMetadata {
   accountName?: string
   host: string
   user: string
@@ -152,3 +153,30 @@ export interface IntegrationMetadataClickHouse {
   sslEnabled?: boolean
   caCertificateText?: string
 }
+
+export interface IntegrationMetadataByType {
+  // Common database setup
+  'alloydb': DatabaseIntegrationMetadata
+  'mariadb': DatabaseIntegrationMetadata
+  'mindsdb': DatabaseIntegrationMetadata
+  'mysql': DatabaseIntegrationMetadata
+  'pgsql': DatabaseIntegrationMetadata
+  'sql-server': DatabaseIntegrationMetadata
+  'trino': DatabaseIntegrationMetadata
+
+  // Specific setup
+  'athena': AthenaIntegrationMetadata
+  'big-query': GcpIntegrationMetadata
+  'clickhouse': ClickHouseIntegrationMetadata
+  'databricks': DatabricksIntegrationMetadata
+  'dremio': DremioIntegrationMetadata
+  'materialize': MaterializeDatabaseIntegrationMetadata
+  'mongodb': MongodbIntegrationMetadata
+  'redshift': RedshiftIntegrationMetadata
+  'snowflake': SnowflakeIntegrationMetadata
+  'spanner': SpannerIntegrationMetadata
+}
+
+// We need to make sure all the integration types are covered in the type above and no extra keys are present.
+function test(_a: { [type in keyof IntegrationMetadataByType]: unknown }) {}
+test({} as Record<SqlIntegrationType, unknown>)
