@@ -1,6 +1,6 @@
 import type { AwsAuthMethod } from '../integration-schemata'
 
-import { BigQueryAuthMethods, DatabaseAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
+import type { BigQueryAuthMethods, DatabaseAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
 
 export type IntegrationMetadataSnowflake = {
   accountName: string
@@ -199,4 +199,3 @@ export interface IntegrationMetadataClickHouse {
   sslEnabled?: boolean
   caCertificateText?: string
 }
-

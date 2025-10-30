@@ -7,6 +7,7 @@ export {
   type SnowflakeAuthMethod,
   SnowflakeAuthMethods,
 } from './sql-auth-methods'
+
 // Constants
 export {
   INTEGRATIONS_WITH_SCHEMA,
@@ -35,6 +36,7 @@ export type {
   IntegrationMetadataSnowflake,
   IntegrationMetadataSpanner,
 } from './sql-metadata-types'
+
 // Validation schemas
 export {
   bigqueryMetadataValidationSchema,

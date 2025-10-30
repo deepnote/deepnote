@@ -70,4 +70,3 @@ export const databricksMetadataValidationSchema = z.object({
   token: z.string(),
   port: z.string(),
 })
-
