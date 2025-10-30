@@ -20,6 +20,5 @@ export type { IntegrationMetadataByType } from './sql-integration-metadata-types
 export {
   type SqlIntegrationType,
   sqlIntegrationTypes,
-  sqlIntegrationTypesWithConfigurableSsl,
   sqlIntegrationTypesWithSslSupport,
 } from './sql-integration-types'

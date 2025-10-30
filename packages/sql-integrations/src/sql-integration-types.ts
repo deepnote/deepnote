@@ -21,7 +21,7 @@ export const sqlIntegrationTypes = [
 
 export type SqlIntegrationType = (typeof sqlIntegrationTypes)[number]
 
-export const sqlIntegrationTypesWithConfigurableSsl = [
+export const sqlIntegrationTypesWithSslSupport = [
   'clickhouse',
   'dremio',
   'mariadb',
@@ -31,9 +31,4 @@ export const sqlIntegrationTypesWithConfigurableSsl = [
   'pgsql',
   'redshift',
   'trino',
-] as const satisfies ReadonlyArray<SqlIntegrationType>
-
-export const sqlIntegrationTypesWithSslSupport = [
-  ...sqlIntegrationTypesWithConfigurableSsl,
-  'redshift',
 ] as const satisfies ReadonlyArray<SqlIntegrationType>
