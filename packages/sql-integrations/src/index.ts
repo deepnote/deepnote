@@ -1,5 +1,7 @@
 // Auth methods
 export {
+  type AwsAuthMethod,
+  AwsAuthMethods,
   type BigQueryAuthMethod,
   BigQueryAuthMethods,
   type DatabaseAuthMethod,

@@ -1,6 +1,5 @@
-import type { AwsAuthMethod } from '../integration-schemata'
+import type { AwsAuthMethods, BigQueryAuthMethods, DatabaseAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
 
-import type { BigQueryAuthMethods, DatabaseAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
 
 export type IntegrationMetadataSnowflake = {
   accountName: string

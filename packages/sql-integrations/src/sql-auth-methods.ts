@@ -1,5 +1,12 @@
 type ValueOf<T> = T[keyof T]
 
+export const AwsAuthMethods = {
+  AccessKeys: 'access-keys',
+  IamRole: 'iam-role',
+} as const
+
+export type AwsAuthMethod = ValueOf<typeof AwsAuthMethods>
+
 export const SnowflakeAuthMethods = {
   AZURE_AD: 'azure',
   KEY_PAIR: 'key-pair',
