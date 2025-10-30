@@ -1,11 +1,9 @@
-type ValueOf<T> = T[keyof T]
-
 export const AwsAuthMethods = {
   AccessKeys: 'access-keys',
   IamRole: 'iam-role',
 } as const
 
-export type AwsAuthMethod = ValueOf<typeof AwsAuthMethods>
+export type AwsAuthMethod = (typeof AwsAuthMethods)[keyof typeof AwsAuthMethods]
 
 export const SnowflakeAuthMethods = {
   AzureAd: 'azure',
@@ -16,18 +14,18 @@ export const SnowflakeAuthMethods = {
   Password: 'password',
 } as const
 
-export type SnowflakeAuthMethod = ValueOf<typeof SnowflakeAuthMethods>
+export type SnowflakeAuthMethod = (typeof SnowflakeAuthMethods)[keyof typeof SnowflakeAuthMethods]
 
 export const BigQueryAuthMethods = {
   ServiceAccount: 'service-account',
   GoogleOauth: 'google-oauth',
 } as const
 
-export type BigQueryAuthMethod = ValueOf<typeof BigQueryAuthMethods>
+export type BigQueryAuthMethod = (typeof BigQueryAuthMethods)[keyof typeof BigQueryAuthMethods]
 
 export const DatabaseAuthMethods = {
   UsernameAndPassword: 'username-and-password',
   IndividualCredentials: 'individual-credentials',
 } as const
 
-export type DatabaseAuthMethod = ValueOf<typeof DatabaseAuthMethods>
+export type DatabaseAuthMethod = (typeof DatabaseAuthMethods)[keyof typeof DatabaseAuthMethods]
