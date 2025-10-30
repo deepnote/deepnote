@@ -11,6 +11,7 @@ export const SQL_CELL_INTEGRATIONS = [
   'mysql',
   'mariadb',
   'mindsdb',
+  'mongodb',
   'pandas-dataframe',
   'trino',
   'dremio',
