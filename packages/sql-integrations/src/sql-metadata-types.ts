@@ -1,5 +1,5 @@
 import type z from 'zod'
-import type { AwsAuthMethods, BigQueryAuthMethods, DatabaseAuthMethods } from './sql-auth-methods'
+import type { AwsAuthMethods, DatabaseAuthMethods } from './sql-auth-methods'
 import type { SqlIntegrationType } from './sql-constants'
 import type { sqlMetadataValidationSchemasByType } from './sql-validation-schemas'
 
@@ -80,31 +80,9 @@ interface MaterializeDatabaseIntegrationMetadata extends DatabaseIntegrationMeta
   cluster: string
 }
 
-interface DatabricksIntegrationMetadata {
-  token: string
-  httpPath: string
-  host: string
-  port: string
-  schema?: string
-  catalog?: string
+type DatabricksIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['databricks']>>
 
-  sshEnabled?: boolean
-  sshHost?: string
-  sshPort?: string
-  sshUser?: string
-}
-
-interface DremioIntegrationMetadata {
-  schema: string
-  token: string
-  port: string
-  host: string
-
-  sshEnabled?: boolean
-  sshHost?: string
-  sshPort?: string
-  sshUser?: string
-}
+type DremioIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['dremio']>>
 
 interface AthenaIntegrationMetadata {
   access_key_id: string
@@ -114,21 +92,7 @@ interface AthenaIntegrationMetadata {
   workgroup?: string
 }
 
-type GcpIntegrationMetadata =
-  | {
-      authMethod: null
-      service_account: string
-    }
-  | {
-      authMethod: typeof BigQueryAuthMethods.ServiceAccount
-      service_account: string
-    }
-  | {
-      authMethod: typeof BigQueryAuthMethods.GoogleOauth
-      project: string
-      clientId: string
-      clientSecret: string
-    }
+type BigQueryIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['big-query']>>
 
 interface SpannerIntegrationMetadata {
   dataBoostEnabled: boolean
@@ -166,7 +130,7 @@ export interface IntegrationMetadataByType {
 
   // Specific setup
   'athena': AthenaIntegrationMetadata
-  'big-query': GcpIntegrationMetadata
+  'big-query': BigQueryIntegrationMetadata
   'clickhouse': ClickHouseIntegrationMetadata
   'databricks': DatabricksIntegrationMetadata
   'dremio': DremioIntegrationMetadata

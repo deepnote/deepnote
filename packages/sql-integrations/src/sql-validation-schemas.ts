@@ -5,7 +5,7 @@ import type { SqlIntegrationType } from './sql-constants'
 
 const bigqueryMetadataValidationSchema = z.union([
   z.object({
-    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
+    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount).nullable(),
     service_account: z.string(),
   }),
   z.object({
@@ -21,12 +21,25 @@ const databricksMetadataValidationSchema = z.object({
   httpPath: z.string(),
   token: z.string(),
   port: z.string(),
+  schema: z.string().optional(),
+  catalog: z.string().optional(),
+
+  sshEnabled: z.boolean().optional(),
+  sshHost: z.string().optional(),
+  sshPort: z.string().optional(),
+  sshUser: z.string().optional(),
 })
 
 const dremioMetadataValidationSchema = z.object({
+  schema: z.string(),
   host: z.string(),
   port: z.string(),
   token: z.string(),
+
+  sshEnabled: z.boolean().optional(),
+  sshHost: z.string().optional(),
+  sshPort: z.string().optional(),
+  sshUser: z.string().optional(),
 })
 
 const snowflakeMetadataValidationSchema = z.union([
