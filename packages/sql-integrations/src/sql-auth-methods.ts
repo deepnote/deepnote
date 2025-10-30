@@ -8,19 +8,19 @@ export const AwsAuthMethods = {
 export type AwsAuthMethod = ValueOf<typeof AwsAuthMethods>
 
 export const SnowflakeAuthMethods = {
-  AZURE_AD: 'azure',
-  KEY_PAIR: 'key-pair',
-  SERVICE_ACCOUNT_KEY_PAIR: 'service-account-key-pair',
-  NATIVE_SNOWFLAKE: 'snowflake',
-  OKTA: 'okta',
-  PASSWORD: 'password',
+  AzureAd: 'azure',
+  KeyPair: 'key-pair',
+  ServiceAccountKeyPair: 'service-account-key-pair',
+  NativeSnowflake: 'snowflake',
+  Okta: 'okta',
+  Password: 'password',
 } as const
 
 export type SnowflakeAuthMethod = ValueOf<typeof SnowflakeAuthMethods>
 
 export const BigQueryAuthMethods = {
-  SERVICE_ACCOUNT: 'service-account',
-  GOOGLE_OAUTH: 'google-oauth',
+  ServiceAccount: 'service-account',
+  GoogleOauth: 'google-oauth',
 } as const
 
 export type BigQueryAuthMethod = ValueOf<typeof BigQueryAuthMethods>

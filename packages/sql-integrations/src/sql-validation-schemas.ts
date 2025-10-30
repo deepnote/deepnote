@@ -4,14 +4,14 @@ import { BigQueryAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
 
 export const snowflakeMetadataValidationSchema = z.union([
   z.object({
+    authMethod: z.literal(SnowflakeAuthMethods.Password),
     accountName: z.string(),
-    authMethod: z.literal(SnowflakeAuthMethods.PASSWORD),
     username: z.string(),
     password: z.string(),
   }),
   z.object({
+    authMethod: z.literal(SnowflakeAuthMethods.Okta),
     accountName: z.string(),
-    authMethod: z.literal(SnowflakeAuthMethods.OKTA),
     clientId: z.string(),
     clientSecret: z.string(),
     oktaSubdomain: z.string(),
@@ -19,26 +19,26 @@ export const snowflakeMetadataValidationSchema = z.union([
     authorizationServer: z.string(),
   }),
   z.object({
+    authMethod: z.literal(SnowflakeAuthMethods.NativeSnowflake),
     accountName: z.string(),
-    authMethod: z.literal(SnowflakeAuthMethods.NATIVE_SNOWFLAKE),
     clientId: z.string(),
     clientSecret: z.string(),
   }),
   z.object({
+    authMethod: z.literal(SnowflakeAuthMethods.AzureAd),
     accountName: z.string(),
-    authMethod: z.literal(SnowflakeAuthMethods.AZURE_AD),
     clientId: z.string(),
     clientSecret: z.string(),
     resource: z.string(),
     tenant: z.string(),
   }),
   z.object({
+    authMethod: z.literal(SnowflakeAuthMethods.KeyPair),
     accountName: z.string(),
-    authMethod: z.literal(SnowflakeAuthMethods.KEY_PAIR),
   }),
   z.object({
+    authMethod: z.literal(SnowflakeAuthMethods.ServiceAccountKeyPair),
     accountName: z.string(),
-    authMethod: z.literal(SnowflakeAuthMethods.SERVICE_ACCOUNT_KEY_PAIR),
     username: z.string(),
     privateKey: z.string(),
     privateKeyPassphrase: z.string().optional(),
@@ -48,13 +48,13 @@ export const snowflakeMetadataValidationSchema = z.union([
 export const bigqueryMetadataValidationSchema = z.union([
   z.object({
     service_account: z.string(),
-    authMethod: z.literal(BigQueryAuthMethods.SERVICE_ACCOUNT),
+    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
   }),
   z.object({
     project: z.string(),
     clientId: z.string(),
     clientSecret: z.string(),
-    authMethod: z.literal(BigQueryAuthMethods.GOOGLE_OAUTH),
+    authMethod: z.literal(BigQueryAuthMethods.GoogleOauth),
   }),
 ])
 

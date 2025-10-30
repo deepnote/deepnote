@@ -1,6 +1,5 @@
 import type { AwsAuthMethods, BigQueryAuthMethods, DatabaseAuthMethods, SnowflakeAuthMethods } from './sql-auth-methods'
 
-
 export type IntegrationMetadataSnowflake = {
   accountName: string
   warehouse?: string
@@ -13,12 +12,12 @@ export type IntegrationMetadataSnowflake = {
       password: string
     }
   | {
-      authMethod: typeof SnowflakeAuthMethods.PASSWORD
+      authMethod: typeof SnowflakeAuthMethods.Password
       username: string
       password: string
     }
   | {
-      authMethod: typeof SnowflakeAuthMethods.OKTA
+      authMethod: typeof SnowflakeAuthMethods.Okta
       clientId: string
       clientSecret: string
       oktaSubdomain: string
@@ -28,22 +27,22 @@ export type IntegrationMetadataSnowflake = {
       roleUserCustomAttribute?: string
     }
   | {
-      authMethod: typeof SnowflakeAuthMethods.NATIVE_SNOWFLAKE
+      authMethod: typeof SnowflakeAuthMethods.NativeSnowflake
       clientId: string
       clientSecret: string
     }
   | {
-      authMethod: typeof SnowflakeAuthMethods.AZURE_AD
+      authMethod: typeof SnowflakeAuthMethods.AzureAd
       clientId: string
       clientSecret: string
       resource: string
       tenant: string
     }
   | {
-      authMethod: typeof SnowflakeAuthMethods.KEY_PAIR
+      authMethod: typeof SnowflakeAuthMethods.KeyPair
     }
   | {
-      authMethod: typeof SnowflakeAuthMethods.SERVICE_ACCOUNT_KEY_PAIR
+      authMethod: typeof SnowflakeAuthMethods.ServiceAccountKeyPair
       username: string
       privateKey: string
       privateKeyPassphrase?: string
@@ -165,11 +164,11 @@ export type IntegrationMetadataGCP =
       service_account: string
     }
   | {
-      authMethod: typeof BigQueryAuthMethods.SERVICE_ACCOUNT
+      authMethod: typeof BigQueryAuthMethods.ServiceAccount
       service_account: string
     }
   | {
-      authMethod: typeof BigQueryAuthMethods.GOOGLE_OAUTH
+      authMethod: typeof BigQueryAuthMethods.GoogleOauth
       project: string
       clientId: string
       clientSecret: string
