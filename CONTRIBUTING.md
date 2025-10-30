@@ -10,13 +10,13 @@ Here's how you can get started.
 ```text
 deepnote/
 ├── packages/        # Core TypeScript packages
-│   ├── [blocks](https://github.com/deepnote/deepnote/tree/main/packages/blocks/README.md)/      # @deepnote/blocks - Core block types and schemas
-│   ├── [convert](https://github.com/deepnote/deepnote/tree/main/packages/convert/README.md)/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
+│   ├── blocks/      # @deepnote/blocks - Core block types and schemas
+│   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
 ├── docs/            # Documentation files
 ├── .github/         # GitHub workflows & templates
 │   └── workflows/   # CI/CD pipelines
-├── [CONTRIBUTING.md](https://github.com/deepnote/deepnote/blob/main/CONTRIBUTING.md)
-└── [README.md](https://github.com/deepnote/deepnote/blob/main/README.md)
+├── CONTRIBUTING.md
+└── README.md
 ```
 
 ---
@@ -142,7 +142,7 @@ To publish a new version of a package (using `@deepnote/blocks` as an example):
    - Get required approvals from maintainers
    - Merge the PR via GitHub UI or CLI
 
-4. **Create a GitHub Release** (after the PR is merged):
+4. **Create a GitHub release** (after the PR is merged):
    - Go to [Releases](https://github.com/deepnote/deepnote/releases/new)
    - Create a new tag using the **package-scoped format**: `@deepnote/blocks@1.2.0`
    - Add a release title (e.g., `@deepnote/blocks v1.2.0`)
