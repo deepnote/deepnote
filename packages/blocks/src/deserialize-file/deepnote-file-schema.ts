@@ -38,7 +38,19 @@ export const deepnoteFileSchema = z.object({
     name: z.string(),
     notebooks: z.array(
       z.object({
-        blocks: z.array(deepnoteBlockSchema),
+        blocks: z.array(
+          z.object({
+            blockGroup: z.string().optional(),
+            content: z.string().optional(),
+            executionCount: z.number().optional(),
+            id: z.string(),
+            metadata: z.record(z.any()).optional(),
+            outputs: z.array(z.any()).optional(),
+            sortingKey: z.string(),
+            type: z.string(),
+            version: z.number().optional(),
+          })
+        ),
         executionMode: z.enum(['block', 'downstream']).optional(),
         id: z.string(),
         isModule: z.boolean().optional(),
