@@ -8,23 +8,6 @@ import {
 } from './sql-integration-auth-methods'
 import type { SqlIntegrationType } from './sql-integration-types'
 
-const alloydbMetadataValidationSchema = z.object({
-  host: z.string(),
-  user: z.string(),
-  password: z.string(),
-  database: z.string(),
-  port: z.string().optional(),
-
-  sshEnabled: z.boolean().optional(),
-  sshHost: z.string().optional(),
-  sshPort: z.string().optional(),
-  sshUser: z.string().optional(),
-
-  sslEnabled: z.boolean().optional(),
-  caCertificateName: z.string().optional(),
-  caCertificateText: z.string().optional(),
-})
-
 const athenaMetadataValidationSchema = z.object({
   access_key_id: z.string(),
   region: z.string(),
@@ -90,37 +73,6 @@ const dremioMetadataValidationSchema = z.object({
   sshUser: z.string().optional(),
 })
 
-const mariadbMetadataValidationSchema = z.object({
-  host: z.string(),
-  user: z.string(),
-  password: z.string(),
-  database: z.string(),
-  port: z.string().optional(),
-
-  sshEnabled: z.boolean().optional(),
-  sshHost: z.string().optional(),
-  sshPort: z.string().optional(),
-  sshUser: z.string().optional(),
-
-  // Note: SSL is always attempted, only certificate can be specified
-  caCertificateName: z.string().optional(),
-})
-
-const mindsdbMetadataValidationSchema = z.object({
-  host: z.string(),
-  user: z.string(),
-  password: z.string(),
-  database: z.string(),
-  port: z.string().optional(),
-
-  sshEnabled: z.boolean().optional(),
-  sshHost: z.string().optional(),
-  sshPort: z.string().optional(),
-  sshUser: z.string().optional(),
-
-  caCertificateName: z.string().optional(),
-})
-
 const mongodbMetadataValidationSchema = z.object({
   connection_string: z.string(),
   rawConnectionString: z.string().optional(),
@@ -142,43 +94,7 @@ const mongodbMetadataValidationSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
-const mysqlMetadataValidationSchema = z.object({
-  host: z.string(),
-  user: z.string(),
-  password: z.string(),
-  database: z.string(),
-  port: z.string().optional(),
-
-  sshEnabled: z.boolean().optional(),
-  sshHost: z.string().optional(),
-  sshPort: z.string().optional(),
-  sshUser: z.string().optional(),
-
-  caCertificateName: z.string().optional(),
-})
-
 const pandasDataframeMetadataValidationSchema = z.object({})
-
-const pgsqlMetadataValidationSchema = z.object({
-  host: z.string(),
-  user: z.string(),
-  password: z.string(),
-  database: z.string(),
-  port: z.string().optional(),
-
-  sshEnabled: z.boolean().optional(),
-  sshHost: z.string().optional(),
-  sshPort: z.string().optional(),
-  sshUser: z.string().optional(),
-
-  sslEnabled: z.boolean().optional(),
-  caCertificateName: z.string().optional(),
-  caCertificateText: z.string().optional(),
-})
-
-const materializeMetadataValidationSchema = pgsqlMetadataValidationSchema.extend({
-  cluster: z.string(),
-})
 
 const redshiftMetadataValidationSchema = z.object({
   authMethod: z
@@ -260,19 +176,6 @@ const spannerMetadataValidationSchema = z.object({
   database: z.string(),
 })
 
-const sqlServerMetadataValidationSchema = z.object({
-  host: z.string(),
-  user: z.string(),
-  password: z.string(),
-  database: z.string(),
-  port: z.string(),
-
-  sshEnabled: z.boolean().optional(),
-  sshHost: z.string().optional(),
-  sshPort: z.string().optional(),
-  sshUser: z.string().optional(),
-})
-
 const trinoMetadataValidationSchema = z.object({
   host: z.string(),
   user: z.string(),
@@ -287,6 +190,56 @@ const trinoMetadataValidationSchema = z.object({
 
   sslEnabled: z.boolean().optional(),
   caCertificateText: z.string().optional(),
+})
+
+const commonDatabaseValidationSchema = z.object({
+  host: z.string(),
+  user: z.string(),
+  password: z.string(),
+  database: z.string(),
+
+  sshEnabled: z.boolean().optional(),
+  sshHost: z.string().optional(),
+  sshPort: z.string().optional(),
+  sshUser: z.string().optional(),
+})
+
+const alloydbMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+  port: z.string().optional(),
+  sslEnabled: z.boolean().optional(),
+  caCertificateName: z.string().optional(),
+  caCertificateText: z.string().optional(),
+})
+
+const mariadbMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+  port: z.string().optional(),
+  // Note: SSL is always attempted, only certificate can be specified
+  caCertificateName: z.string().optional(),
+})
+
+const mindsdbMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+  port: z.string().optional(),
+  caCertificateName: z.string().optional(),
+})
+
+const mysqlMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+  port: z.string().optional(),
+  caCertificateName: z.string().optional(),
+})
+
+const pgsqlMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+  port: z.string().optional(),
+  sslEnabled: z.boolean().optional(),
+  caCertificateName: z.string().optional(),
+  caCertificateText: z.string().optional(),
+})
+
+const materializeMetadataValidationSchema = pgsqlMetadataValidationSchema.extend({
+  cluster: z.string(),
+})
+
+const sqlServerMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+  port: z.string(),
 })
 
 export const sqlMetadataValidationSchemasByType = {
