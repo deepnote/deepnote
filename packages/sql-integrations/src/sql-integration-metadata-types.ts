@@ -119,6 +119,9 @@ interface ClickHouseIntegrationMetadata {
 }
 
 export interface IntegrationMetadataByType {
+  // DataFrame SQL
+  'pandas-dataframe': Record<never, unknown>
+
   // Common database setup
   'alloydb': DatabaseIntegrationMetadata
   'mariadb': DatabaseIntegrationMetadata
@@ -142,5 +145,5 @@ export interface IntegrationMetadataByType {
 }
 
 // We need to make sure all the integration types are covered in the type above and no extra keys are present.
-function test(_a: { [type in keyof IntegrationMetadataByType]: unknown }) {}
-test({} as Record<SqlIntegrationType, unknown>)
+function test(_a: { [type in keyof IntegrationMetadataByType]: unknown }, _b: Record<SqlIntegrationType, unknown>) {}
+test({} as Record<SqlIntegrationType, unknown>, {} as { [type in keyof IntegrationMetadataByType]: unknown })
