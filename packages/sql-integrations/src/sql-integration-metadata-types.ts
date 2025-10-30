@@ -2,49 +2,48 @@ import type z from 'zod'
 import type { sqlMetadataValidationSchemasByType } from './sql-integration-metadata-schemas'
 import type { SqlIntegrationType } from './sql-integration-types'
 
-type PandasDataframeIntegrationMetadata = z.infer<
-  NonNullable<(typeof sqlMetadataValidationSchemasByType)['pandas-dataframe']>
->
+type InferMetadata<T extends SqlIntegrationType> = T extends keyof typeof sqlMetadataValidationSchemasByType
+  ? z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)[T]>>
+  : never
 
-type DatabaseIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['pgsql']>>
-
-type AthenaIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['athena']>>
-type BigQueryIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['big-query']>>
-type ClickHouseIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['clickhouse']>>
-type DatabricksIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['databricks']>>
-type DremioIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['dremio']>>
-type MaterializeDatabaseIntegrationMetadata = z.infer<
-  NonNullable<(typeof sqlMetadataValidationSchemasByType)['materialize']>
->
-type MongodbIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['mongodb']>>
-type RedshiftIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['redshift']>>
-type SnowflakeIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['snowflake']>>
-type SpannerIntegrationMetadata = z.infer<NonNullable<(typeof sqlMetadataValidationSchemasByType)['spanner']>>
+type AlloydbIntegrationMetadata = InferMetadata<'alloydb'>
+type AthenaIntegrationMetadata = InferMetadata<'athena'>
+type BigQueryIntegrationMetadata = InferMetadata<'big-query'>
+type ClickHouseIntegrationMetadata = InferMetadata<'clickhouse'>
+type DatabricksIntegrationMetadata = InferMetadata<'databricks'>
+type DremioIntegrationMetadata = InferMetadata<'dremio'>
+type MariadbIntegrationMetadata = InferMetadata<'mariadb'>
+type MaterializeIntegrationMetadata = InferMetadata<'materialize'>
+type MindsdbIntegrationMetadata = InferMetadata<'mindsdb'>
+type MongodbIntegrationMetadata = InferMetadata<'mongodb'>
+type MysqlIntegrationMetadata = InferMetadata<'mysql'>
+type PandasDataframeIntegrationMetadata = InferMetadata<'pandas-dataframe'>
+type PgsqlIntegrationMetadata = InferMetadata<'pgsql'>
+type RedshiftIntegrationMetadata = InferMetadata<'redshift'>
+type SnowflakeIntegrationMetadata = InferMetadata<'snowflake'>
+type SpannerIntegrationMetadata = InferMetadata<'spanner'>
+type SqlServerIntegrationMetadata = InferMetadata<'sql-server'>
+type TrinoIntegrationMetadata = InferMetadata<'trino'>
 
 export interface IntegrationMetadataByType {
-  // DataFrame SQL
-  'pandas-dataframe': PandasDataframeIntegrationMetadata
-
-  // Common database setup
-  'alloydb': DatabaseIntegrationMetadata
-  'mariadb': DatabaseIntegrationMetadata
-  'mindsdb': DatabaseIntegrationMetadata
-  'mysql': DatabaseIntegrationMetadata
-  'pgsql': DatabaseIntegrationMetadata
-  'sql-server': DatabaseIntegrationMetadata
-  'trino': DatabaseIntegrationMetadata
-
-  // Specific setup
+  'alloydb': AlloydbIntegrationMetadata
   'athena': AthenaIntegrationMetadata
   'big-query': BigQueryIntegrationMetadata
   'clickhouse': ClickHouseIntegrationMetadata
   'databricks': DatabricksIntegrationMetadata
   'dremio': DremioIntegrationMetadata
-  'materialize': MaterializeDatabaseIntegrationMetadata
+  'mariadb': MariadbIntegrationMetadata
+  'materialize': MaterializeIntegrationMetadata
+  'mindsdb': MindsdbIntegrationMetadata
   'mongodb': MongodbIntegrationMetadata
+  'mysql': MysqlIntegrationMetadata
+  'pandas-dataframe': PandasDataframeIntegrationMetadata
+  'pgsql': PgsqlIntegrationMetadata
   'redshift': RedshiftIntegrationMetadata
   'snowflake': SnowflakeIntegrationMetadata
   'spanner': SpannerIntegrationMetadata
+  'sql-server': SqlServerIntegrationMetadata
+  'trino': TrinoIntegrationMetadata
 }
 
 // We need to make sure all the integration types are covered in the type above and no extra keys are present.
