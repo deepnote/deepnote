@@ -230,7 +230,7 @@ const getDatabricksSqlAlchemyInput = ({
     },
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(sshEnabled),
+      enabled: sshEnabled == null ? undefined : String(sshEnabled),
       host: sshHost,
       port: sshPort,
       user: sshUser,
@@ -258,7 +258,7 @@ const getDremioSqlAlchemyInput = ({
     params: {},
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(sshEnabled),
+      enabled: sshEnabled == null ? undefined : String(sshEnabled),
       host: sshHost,
       port: sshPort,
       user: sshUser,
@@ -283,7 +283,7 @@ const getSQLServerVar = ({
     params: {},
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(sshEnabled),
+      enabled: sshEnabled == null ? undefined : String(sshEnabled),
       host: sshHost,
       port: sshPort,
       user: sshUser,
@@ -333,7 +333,7 @@ const getPostgresSqlAlchemyInput = (
     },
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(sshEnabled),
+      enabled: sshEnabled == null ? undefined : String(sshEnabled),
       host: sshHost,
       port: sshPort,
       user: sshUser,
@@ -381,7 +381,7 @@ export const getRedshiftSqlAlchemyInput = (
     },
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(metadata.sshEnabled),
+      enabled: metadata.sshEnabled == null ? undefined : String(metadata.sshEnabled),
       host: metadata.sshHost,
       port: metadata.sshPort,
       user: metadata.sshUser,
@@ -447,7 +447,7 @@ const getMaterializePostgresSqlAlchemyInput = (
     },
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(sshEnabled),
+      enabled: sshEnabled == null ? undefined : String(sshEnabled),
       host: sshHost,
       port: sshPort,
       user: sshUser,
@@ -564,7 +564,7 @@ const getClickHouseSqlAlchemyInput = (
     params: {},
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(sshEnabled),
+      enabled: sshEnabled == null ? undefined : String(sshEnabled),
       host: sshHost,
       port: sshPort,
       user: sshUser,
@@ -703,7 +703,7 @@ const getMySqlSqlAlchemyInput = (
     },
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(sshEnabled),
+      enabled: sshEnabled == null ? undefined : String(sshEnabled),
       host: sshHost,
       port: sshPort,
       user: sshUser,
