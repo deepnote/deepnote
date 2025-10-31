@@ -29,3 +29,24 @@ export const DatabaseAuthMethods = {
 } as const
 
 export type DatabaseAuthMethod = (typeof DatabaseAuthMethods)[keyof typeof DatabaseAuthMethods]
+
+export const federatedAuthMethods = [
+  SnowflakeAuthMethods.Okta,
+  SnowflakeAuthMethods.NativeSnowflake,
+  SnowflakeAuthMethods.AzureAd,
+  SnowflakeAuthMethods.KeyPair,
+  BigQueryAuthMethods.GoogleOauth,
+  DatabaseAuthMethods.IndividualCredentials,
+] as const
+
+export type FederatedAuthMethod = (typeof federatedAuthMethods)[number]
+
+export function isFederatedAuthMethod(authMethod: string): authMethod is FederatedAuthMethod {
+  return federatedAuthMethods.includes(authMethod as FederatedAuthMethod)
+}
+
+export function isFederatedAuthMetadata<M extends { authMethod: string }>(
+  metadata: M
+): metadata is Extract<M, { authMethod: FederatedAuthMethod }> {
+  return isFederatedAuthMethod(metadata.authMethod)
+}
