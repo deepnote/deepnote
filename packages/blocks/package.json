@@ -37,6 +37,6 @@
     "zod": "3.25.76"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org"
   }
 }
