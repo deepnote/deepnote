@@ -306,7 +306,7 @@ const getPostgresSqlAlchemyInput = (
     sshUser,
     sslEnabled,
     caCertificateName,
-  }: DatabaseIntegrationMetadataByType['pgsql']
+  }: DatabaseIntegrationMetadataByType['alloydb'] | DatabaseIntegrationMetadataByType['pgsql']
 ): SqlAlchemyInput => {
   const portSuffix = port ? `:${port}` : ''
   const mode = getPostgresStyleMode(caCertificateName, sslEnabled)
@@ -670,7 +670,10 @@ const getMySqlSqlAlchemyInput = (
     sshPort,
     sshUser,
     caCertificateName,
-  }: DatabaseIntegrationMetadataByType['mysql']
+  }:
+    | DatabaseIntegrationMetadataByType['mariadb']
+    | DatabaseIntegrationMetadataByType['mindsdb']
+    | DatabaseIntegrationMetadataByType['mysql']
 ): SqlAlchemyInput => {
   const portSuffix = port ? `:${port}` : ''
   let ssl: { ca?: string; check_hostname: boolean } | { enable: boolean } | undefined
