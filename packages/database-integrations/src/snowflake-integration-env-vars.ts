@@ -1,4 +1,3 @@
-import { escape as escapeUrlPart } from 'node:querystring'
 import buildUrl from 'build-url-ts'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
@@ -37,7 +36,7 @@ export function getSnowflakeSqlAlchemyInput(
     })
   }
 
-  const url = buildUrl(`snowflake://${username}:${escapeUrlPart(metadata.password)}@${accountName}`, {
+  const url = buildUrl(`snowflake://${username}:${encodeURIComponent(metadata.password)}@${accountName}`, {
     path: database,
     queryParams: {
       ...createBaseQueryParams(metadata, params.snowflakePartnerIdentifier),
