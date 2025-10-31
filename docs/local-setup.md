@@ -34,7 +34,7 @@ The **Deepnote for Visual Studio Code** extension provides the most complete loc
 
 ### Installation
 
-1. **Install VS Code** (version 1.103.0 or higher)
+1. **Install VS Code** (version 1.95.0 or higher)
 2. **Install the extension**:
    - Open VS Code
    - Press `Cmd+P` / `Ctrl+P` to open Quick Open
