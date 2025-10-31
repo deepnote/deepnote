@@ -165,7 +165,7 @@ await convertIpynbFilesToDeepnoteFile(
 );
 ```
 
-### With Error Handling
+### With error handling
 
 ```typescript
 import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
@@ -181,7 +181,7 @@ try {
 }
 ```
 
-### API Reference
+### API reference
 
 #### `convertIpynbFilesToDeepnoteFile(inputFilePaths, options)`
 
@@ -198,9 +198,9 @@ Converts Jupyter Notebook files to a Deepnote project file.
 
 **Throws:** Error if file reading or parsing fails
 
-## Conversion Details
+## Conversion details
 
-### What Gets Converted
+### What gets converted
 
 The conversion process preserves:
 
@@ -210,7 +210,7 @@ The conversion process preserves:
 - ✅ **Execution counts**: Cell execution order
 - ✅ **Cell metadata**: Custom metadata attached to cells
 
-### Project Structure
+### Project structure
 
 The resulting `.deepnote` file contains:
 
@@ -301,7 +301,7 @@ jobs:
           path: dist/*.deepnote
 ```
 
-## Next Steps
+## Next steps
 
 After converting your notebooks:
 
@@ -309,7 +309,7 @@ After converting your notebooks:
 2. **Configure environment**: Set up Python packages and environment variables
 3. **Run notebooks**: Execute cells to ensure everything works
 
-## Related Documentation
+## Related documentation
 
 - [Deepnote Format Specification](./deepnote-format.md) - Details on the `.deepnote` file format
 - [Local Setup Guide](./local-setup.md) - Running Deepnote locally
