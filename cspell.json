@@ -75,5 +75,9 @@
     "Instantiator",
     "venv",
     "reexecuted"
+    "kernelspec",
+    "nbconvert",
+    "Papermill",
+    "Jupytext"
   ]
 }
