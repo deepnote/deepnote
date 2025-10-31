@@ -248,7 +248,7 @@ const getDremioSqlAlchemyInput = ({
   sshPort,
   sshUser,
 }: DatabaseIntegrationMetadataByType['dremio']): SqlAlchemyInput => {
-  const url = new URL(`dremio+flight://${host}:${port}${schema ? '/' + schema : ''}`)
+  const url = new URL(`dremio+flight://${host}:${port}${schema ? `/${schema}` : ''}`)
   // Always true.
   url.searchParams.set('UseEncryption', 'true')
   url.searchParams.set('Token', token)
