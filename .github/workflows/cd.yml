@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish to GitHub Packages
+    name: Publish to npm
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: release
