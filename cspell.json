@@ -98,11 +98,11 @@
     "typescript",
     "vscode",
     "windsurf",
-    "workflows"
+    "workflows",
     "Instantiator",
     "isnull",
     "dropna",
-    "pyplot"
+    "pyplot",
     "kernelspec",
     "nbconvert",
     "Papermill",
