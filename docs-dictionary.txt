@@ -33,6 +33,7 @@ Modelbit
 Seldon
 Atlan
 deepseek
+Marimo
 
 # SQL & Database Terms
 duckdb
