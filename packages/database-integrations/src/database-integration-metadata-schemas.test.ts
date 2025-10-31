@@ -365,7 +365,7 @@ describe('SQL integration metadata schemas', () => {
       })
     })
 
-    it('should validate valid metadata with IAM role', () => {
+    it('should validate valid metadata with iam role', () => {
       const result = databaseMetadataSchemasByType['redshift'].safeParse({
         authMethod: 'iam-role',
         database: 'my-database',
@@ -391,8 +391,6 @@ describe('SQL integration metadata schemas', () => {
         authMethod: 'individual-credentials',
         database: 'my-database',
         host: 'my-host',
-        user: 'my-user',
-        password: 'my-password',
       })
 
       expect(result.success).toBe(true)
@@ -400,9 +398,41 @@ describe('SQL integration metadata schemas', () => {
         authMethod: 'individual-credentials',
         database: 'my-database',
         host: 'my-host',
+      })
+    })
+
+    it('should fail on metadata with missing fields', () => {
+      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+        authMethod: 'username-and-password',
+        database: 'my-database',
+        host: 'my-host',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on metadata with null auth method', () => {
+      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+        authMethod: null,
+        database: 'my-database',
+        host: 'my-host',
         user: 'my-user',
         password: 'my-password',
       })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on metadata with invalid auth method', () => {
+      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+        authMethod: 'invalid-auth-method',
+        database: 'my-database',
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(false)
     })
 
     it('should validate valid metadata with optional fields', () => {
@@ -438,16 +468,6 @@ describe('SQL integration metadata schemas', () => {
         caCertificateName: 'my-ca-certificate-name',
         caCertificateText: 'my-ca-certificate-text',
       })
-    })
-
-    it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
-        authMethod: 'username-and-password',
-        host: 'my-host',
-        user: 'my-user',
-      })
-
-      expect(result.success).toBe(false)
     })
   })
 
