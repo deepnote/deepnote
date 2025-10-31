@@ -18,7 +18,7 @@ While Deepnote's format offers enhanced features like input blocks, visualizatio
 
 ## Available export methods
 
-### Manual export from Deepnote application
+### Manual export from Deepnote.com
 
 The primary way to convert Deepnote projects to Jupyter format is through the Deepnote cloud application:
 
@@ -33,7 +33,7 @@ This method handles the conversion automatically and ensures compatibility with 
 
 ### Note about @deepnote/convert package
 
-The `@deepnote/convert` package converts **from** `.ipynb` **to** `.deepnote` format only (see [Converting to Deepnote format](https://deepnote.com/docs/converting-notebooks)). It does not currently support the reverse direction (`.deepnote` to `.ipynb`).
+The `@deepnote/convert` package converts **from** `.ipynb` **to** `.deepnote` format only (see [Converting to Deepnote format](https://deepnote.com/docs/converting-notebooks)). It does not currently support the reverse conversion (`.deepnote` to `.ipynb`).
 
 ### Programmatic conversion with @deepnote/blocks
 
@@ -122,11 +122,3 @@ When exporting from Deepnote to Jupyter format, here's what to expect:
 - ❌ **Big number blocks**: KPI displays (may become markdown or code)
 - ❌ **Project-level settings**: Environment variables, integrations
 - ❌ **Deepnote-specific features**: Scheduled runs, app deployments
-
-## Alternative approaches
-
-For other export formats or workflows, consider using Jupyter's built-in tools after exporting to `.ipynb`:
-
-- **nbconvert**: Convert notebooks to HTML, PDF, Markdown, and other formats
-- **Papermill**: Execute notebooks programmatically with parameters
-- **Jupytext**: Maintain notebooks as Python scripts alongside `.ipynb` files

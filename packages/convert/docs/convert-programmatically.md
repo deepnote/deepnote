@@ -1,4 +1,4 @@
-## Programmatic usage
+# Converting Jupyter notebooks programmatically
 
 You can use the conversion function programmatically in Node.js or TypeScript applications.
 
@@ -13,7 +13,7 @@ await convertIpynbFilesToDeepnoteFile(["path/to/notebook.ipynb"], {
 });
 ```
 
-### Convert multiple notebooks
+## Convert multiple notebooks
 
 ```typescript
 import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
