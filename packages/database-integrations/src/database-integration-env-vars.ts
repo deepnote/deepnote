@@ -5,6 +5,7 @@ import { getSnowflakeSqlAlchemyInput } from './snowflake-integration-env-vars'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
 import {
   AwsAuthMethods,
+  DatabaseAuthMethods,
   type FederatedAuthMethod,
   isFederatedAuthMetadata,
   isFederatedAuthMethod,
@@ -344,32 +345,23 @@ const getPostgresSqlAlchemyInput = (
 export const getRedshiftSqlAlchemyInput = (
   integrationId: string,
   projectRootDirectory: string,
-  {
-    user,
-    password,
-    host,
-    port,
-    database,
-    sshEnabled,
-    sshHost,
-    sshPort,
-    sshUser,
-    sslEnabled,
-    caCertificateName,
-    authMethod,
-    roleArn,
-    roleExternalId,
-  }: DatabaseIntegrationMetadataByType['redshift']
+  metadata: DatabaseIntegrationMetadataByType['redshift']
 ): SqlAlchemyInput | null => {
-  if (authMethod && isFederatedAuthMethod(authMethod)) {
+  if (isFederatedAuthMethod(metadata.authMethod)) {
     return null
   }
 
-  const portSuffix = port ? `:${port}` : ''
-  const mode = getPostgresStyleMode(caCertificateName, sslEnabled)
+  const portSuffix = metadata.port ? `:${metadata.port}` : ''
+  const mode = getPostgresStyleMode(metadata.caCertificateName, metadata.sslEnabled)
+
+  // NOTE: For IAM role and individual credentials, these will be injected by the caller
+  const credentials =
+    metadata.authMethod === DatabaseAuthMethods.UsernameAndPassword
+      ? `${encodeURIComponent(metadata.user)}:${encodeURIComponent(metadata.password)}`
+      : ''
 
   const vars: SqlAlchemyInput = {
-    url: `redshift+psycopg2://${user}:${encodeURIComponent(password ?? '')}@${host}${portSuffix}/${database}`,
+    url: `redshift+psycopg2://${credentials ? `${credentials}@` : ''}${metadata.host}${portSuffix}/${metadata.database}`,
     params: {
       connect_args: {
         // these should ensure the redshift connection is kept alive https://stackoverflow.com/a/56325038/2761695
@@ -379,25 +371,25 @@ export const getRedshiftSqlAlchemyInput = (
         keepalives_count: 5,
 
         sslmode: mode,
-        sslrootcert: caCertificateName
+        sslrootcert: metadata.caCertificateName
           ? getCACertificatePath({
               projectRoot: projectRootDirectory,
               integrationId,
-              caCertificateName,
+              caCertificateName: metadata.caCertificateName,
             })
           : undefined,
       },
     },
     param_style: 'pyformat',
     ssh_options: {
-      enabled: String(Boolean(sshEnabled)),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
+      enabled: String(metadata.sshEnabled),
+      host: metadata.sshHost,
+      port: metadata.sshPort,
+      user: metadata.sshUser,
     },
   }
 
-  if (authMethod === AwsAuthMethods.IamRole && roleArn && roleExternalId) {
+  if (metadata.authMethod === AwsAuthMethods.IamRole && metadata.roleArn && metadata.roleExternalId) {
     vars.iamParams = {
       integrationId,
       type: 'redshift',

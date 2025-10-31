@@ -94,26 +94,10 @@ const mongodbMetadataSchema = z.object({
 
 const pandasDataframeMetadataSchema = z.object({})
 
-const redshiftMetadataSchema = z.object({
-  authMethod: z
-    .union([
-      z.literal(DatabaseAuthMethods.UsernameAndPassword),
-      z.literal(AwsAuthMethods.IamRole),
-      z.literal(DatabaseAuthMethods.IndividualCredentials),
-    ])
-    .optional(),
+const commonRedshiftMetadataSchema = z.object({
   database: z.string(),
   host: z.string(),
-
-  password: z.string().optional(),
   port: z.string().optional(),
-
-  roleArn: z.string().optional(),
-  roleExternalId: z.string().optional(),
-  roleNonce: z.string().optional(),
-
-  user: z.string().optional(),
-  username: z.string().optional(),
 
   sshEnabled: z.boolean().optional(),
   sshHost: z.string().optional(),
@@ -124,6 +108,23 @@ const redshiftMetadataSchema = z.object({
   caCertificateName: z.string().optional(),
   caCertificateText: z.string().optional(),
 })
+
+const redshiftMetadataSchema = z.discriminatedUnion('authMethod', [
+  commonRedshiftMetadataSchema.extend({
+    authMethod: z.literal(DatabaseAuthMethods.UsernameAndPassword),
+    user: z.string(),
+    password: z.string(),
+  }),
+  commonRedshiftMetadataSchema.extend({
+    authMethod: z.literal(AwsAuthMethods.IamRole),
+    roleArn: z.string(),
+    roleExternalId: z.string(),
+    roleNonce: z.string(),
+  }),
+  commonRedshiftMetadataSchema.extend({
+    authMethod: z.literal(DatabaseAuthMethods.IndividualCredentials),
+  }),
+])
 
 const commonSnowflakeMetadataSchema = z.object({
   accountName: z.string(),
