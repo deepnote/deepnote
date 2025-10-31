@@ -255,49 +255,7 @@ project:
 
 ## Converting between formats
 
-### Jupyter to Deepnote
-
-Use the `@deepnote/convert` package to convert Jupyter notebooks:
-
-```bash
-# Convert a single notebook
-deepnote-convert notebook.ipynb
-
-# Convert multiple notebooks into one project
-deepnote-convert ./notebooks/ --projectName "My Project"
-
-# Specify output location
-deepnote-convert notebook.ipynb -o output.deepnote
-```
-
-**What gets converted:**
-
-- ✅ Code cells → Code blocks
-- ✅ Markdown cells → Markdown blocks
-- ✅ Cell outputs → Block outputs
-- ✅ Execution counts → Execution counts
-- ✅ Cell metadata → Block metadata
-
-**What doesn't convert:**
-
-- ⚠️ Jupyter widgets (may need manual adjustment)
-- ⚠️ Custom cell magics (may need adaptation)
-- ⚠️ Kernel-specific features
-
-### Deepnote to Jupyter
-
-Export from Deepnote to `.ipynb` format:
-
-```bash
-# Using Deepnote UI: Notebook menu → Download as .ipynb
-```
-
-**Conversion notes:**
-
-- SQL blocks → Converted to code cells with string representation
-- Chart blocks → Converted to markdown with chart description
-- Input blocks → Converted to code cells with default values
-- Rich text blocks → Converted to standard markdown
+For detailed instructions on converting between Jupyter notebooks and Deepnote format, see the [Converting Notebooks guide](converting-notebooks.md).
 
 ## Example of a complete Deepnote file
 
