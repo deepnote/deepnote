@@ -25,10 +25,6 @@ export function getSnowflakeSqlAlchemyInput(
       },
     })
 
-    if (!url) {
-      throw new Error('getSnowflakeEnvVar URL must be defined')
-    }
-
     return createSqlAlchemyInputFromUrl(url, {
       privateKey: metadata.privateKey,
       password: metadata.privateKeyPassphrase,
@@ -45,10 +41,6 @@ export function getSnowflakeSqlAlchemyInput(
       },
     }
   )
-
-  if (!url) {
-    throw new Error('getSnowflakeEnvVar URL must be defined')
-  }
 
   return createSqlAlchemyInputFromUrl(url)
 }
@@ -93,10 +85,6 @@ function buildSnowflakeUrlForFederatedAuth(
     path: metadata.database,
     queryParams,
   })
-
-  if (!url) {
-    throw new Error('buildSnowflakeUrlForFederatedAuth URL must be defined')
-  }
 
   return url
 }
