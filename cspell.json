@@ -75,6 +75,8 @@
     "Instantiator",
     "groupby",
     "tolist",
+    "venv",
+    "reexecuted",
     "Singleplayer",
     "labextension",
     "mydb",
