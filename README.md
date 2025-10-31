@@ -108,7 +108,7 @@ import { createPythonCode, createMarkdown } from "@deepnote/blocks";
 | **AI Integration**       | Built-in AI Copilot                   | No AI features |
 | **Database Connections** | 60+ native integrations               | Manual setup   |
 | **Deployment**           | One-click sharing & scheduling        | Local only     |
-| **Language Support**     | Python, SQL, R                        | Python SQL     |
+| **Language Support**     | Python, SQL, R                        | Python, SQL     |
 | **Editor Support**       | VS Code, Cursor, Windsurf, JupyterLab | Terminal-based |
 
 </details>
@@ -163,7 +163,7 @@ pnpm start
 
 ## 🎓 For students and academics
 
-Deepnote is **free for students and educators**! Get unlimited access to all core features, cloud compute, and real-time collaboration for your research and teaching.
+Deepnote Cloud is **free for students and educators**! Get unlimited access to all core features, cloud compute, and real-time collaboration for your research and teaching.
 
 **Learn more:** [deepnote.com/education](https://deepnote.com/education?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
 
