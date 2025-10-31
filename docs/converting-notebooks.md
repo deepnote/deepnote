@@ -27,13 +27,21 @@ Install the tool globally to use the `deepnote-convert` command from anywhere:
 npm install -g @deepnote/convert
 ```
 
-After converting your notebooks:
+After converting your notebooks, you can open them either in Deepnote or directly in your IDE ([VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote)).
 
-1. **Open in Deepnote**: Load the `.deepnote` file in the Deepnote application
-2. **Configure environment**: Set up Python packages and environment variables
-3. **Run notebooks**: Execute blocks to ensure everything works
-4. **Open it using VS Code**: You can open it using [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote) or [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote) extension.
-5. **Open in [Deepnote](https://deepnote.com)**: If you want to collaborate and upgrade you workflow in cloud, as well as create data apps, in VS Code extension you can use Cmd+Shift+P(macOS) or Ctrl+Shift+P(Windows/Linux) and type `Deepnote: Open in Deepnote`(this creates a new project in Deepnote that is ready to use).
+Option 1: Open directly in [Deepnote](https://deepnote.com)
+
+1. Load the .deepnote file in the Deepnote application.
+2. Configure the environment — install required Python packages and set environment variables.
+3. Run the notebook in Deepnote Cloud to collaborate in real time, build data apps, and enhance your workflow with AI tools.
+
+Option 2: Open in your IDE
+
+1. Open the .deepnote file in VS Code, Cursor, or Windsurf.
+2. To move your project to the cloud for collaboration or app creation:
+   - Press Cmd+Shift+P (macOS) or Ctrl+Shift+P (Windows/Linux)
+   - Type “Deepnote: Open in Deepnote”
+   - This creates a new Deepnote project ready to use
 
 ### Requirements
 
