@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/blocks",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "",
   "keywords": [],
   "repository": {
@@ -34,9 +34,10 @@
   "dependencies": {
     "ts-dedent": "^2.2.0",
     "yaml": "^2.8.1",
-    "zod": "^4.1.12"
+    "zod": "3.25.76"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }
