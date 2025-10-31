@@ -265,43 +265,7 @@ DataTable(result)
 
 ### Development setup
 
-For developers who want to contribute or customize the toolkit:
-
-```bash
-# Clone the repository
-git clone https://github.com/deepnote/deepnote-toolkit.git
-cd deepnote-toolkit
-
-# Install dependencies
-poetry install
-
-# Run tests
-poetry run nox -s unit
-
-# Start development server
-poetry run deepnote-toolkit server
-```
-
-### Docker development
-
-The toolkit provides Docker images for reproducible development:
-
-```bash
-# Build local development image
-docker build \
-  --build-arg "FROM_PYTHON_TAG=3.11" \
-  -t deepnote/deepnote-toolkit-local \
-  -f ./dockerfiles/jupyter-for-local-hotreload/Dockerfile .
-
-# Run container
-docker run \
-  -v "$(pwd)":/deepnote-toolkit \
-  -p 8888:8888 \
-  -p 2087:2087 \
-  -p 8051:8051 \
-  --rm \
-  deepnote/deepnote-toolkit-local
-```
+For developers who want to contribute or customize the toolkit, see the [Contributing Guide](https://github.com/deepnote/deepnote-toolkit/blob/main/CONTRIBUTING.md) for detailed setup instructions including Docker development.
 
 ### Advanced features
 
