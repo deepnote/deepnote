@@ -313,7 +313,7 @@ SQL blocks work seamlessly with code blocks:
 
 SQL integrations are accessed via environment variables. The pattern is:
 
-```
+```text
 SQL_{INTEGRATION_TYPE}_{INTEGRATION_ID}
 ```
 
