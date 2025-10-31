@@ -59,6 +59,7 @@
     "dntk",
     "timedelta",
     "millis",
+    "ipywidgets",
     "dataframe",
     "relativedelta",
     "bijective",
