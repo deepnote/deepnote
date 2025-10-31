@@ -266,7 +266,5 @@ export const databaseMetadataSchemasByType = {
 } as const satisfies Record<DatabaseIntegrationType, z.ZodSchema>
 
 export type DatabaseIntegrationMetadataByType = {
-  [integrationType in DatabaseIntegrationType]: z.infer<
-    NonNullable<(typeof databaseMetadataSchemasByType)[integrationType]>
-  >
+  [integrationType in DatabaseIntegrationType]: z.infer<(typeof databaseMetadataSchemasByType)[integrationType]>
 }
