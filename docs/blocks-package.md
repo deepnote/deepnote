@@ -819,12 +819,6 @@ interface TableState {
 
 See the [Supported Code Blocks](https://deepnote.com/docs/supported-code-blocks) documentation for detailed type definitions for each block type.
 
-## Related Documentation
-
-- [Supported Code Blocks](./supported-code-blocks.md) - Complete reference for all block types
-- [Deepnote Format](./deepnote-format.md) - File format specification
-- [Converting Notebooks](./converting-notebooks.md) - Jupyter ↔ Deepnote conversion
-
 ## Resources
 
 - [GitHub Repository](https://github.com/deepnote/deepnote)
