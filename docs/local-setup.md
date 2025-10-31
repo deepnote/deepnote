@@ -34,16 +34,7 @@ The **Deepnote extension** is available for **VS Code**, **Cursor**, and **Winds
 
 ### Installation
 
-<<<<<<< HEAD
-
-1. **Install VS Code** (version 1.95.0 or higher)
-2. **Install the extension**:
-   - Open VS Code
-   - Press `Cmd+P` / `Ctrl+P` to open Quick Open
-   - Type `ext install Deepnote.vscode-deepnote`
-   - # Press Enter
-     Choose your preferred editor and install the extension:
-     > > > > > > > f382aecc94 (docs: we do way more than initially claimed here)
+Choose your preferred editor and install the extension:
 
 #### VS Code
 
