@@ -17,7 +17,7 @@ The `@deepnote/convert` package provides a command-line tool and programmatic AP
 - Create multi-notebook Deepnote projects
 - Convert Deepnote projects back to Jupyter notebooks via [deepnote.com](https://deepnote.com)
 
-## How to install @deepnote/convert
+## How to install [@deepnote/convert](https://www.npmjs.com/package/@deepnote/convert)
 
 ### Global installation (recommended for CLI)
 
