@@ -1,13 +1,13 @@
 ---
-title: Keyboard Shortcuts in VS Code
-description: List of keyboard shortcuts for the Deepnote VS Code extension.
+title: Keyboard shortcuts for Deepnote extension for VS Code, Cursor, and Windsurf
+description: List of keyboard shortcuts for the Deepnote extension in VS Code, Cursor, and Windsurf.
 noIndex: false
 noContent: false
 ---
 
 # Keyboard shortcuts
 
-Keyboard shortcuts are available for the Deepnote VS Code extension.
+Keyboard shortcuts for the Deepnote extension in VS Code, Cursor, and Windsurf.
 
 ## Execution shortcuts
 

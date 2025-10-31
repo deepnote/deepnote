@@ -1,13 +1,13 @@
 ---
-title: Deepnote VS code extension
-description: Complete guide to the official Deepnote VS code extension for working with Deepnote notebooks locally in Visual Studio Code.
+title: Deepnote extension for VS Code, Cursor, and Windsurf
+description: Complete guide to the official Deepnote extension for working with Deepnote notebooks locally in VS Code, Cursor, and Windsurf.
 noIndex: false
 noContent: false
 ---
 
-# Deepnote VS code extension
+# Deepnote extension for VS Code, Cursor, and Windsurf
 
-A powerful extension for [VS Code](https://code.visualstudio.com/), [Cursor](https://cursor.sh/), and [Windsurf](https://windsurf.ai/) that brings Deepnote notebook capabilities directly into your favorite editor. Work with slick AI notebooks featuring SQL blocks, database integrations, and reactive blocks.
+A powerful extension for [VS Code](https://code.visualstudio.com/), [Cursor](https://cursor.sh/), and [Windsurf](https://windsurf.ai/) that brings Deepnote notebook capabilities directly into your favorite AI-native code editor. Work with slick AI notebooks featuring SQL blocks, database integrations, and reactive blocks.
 
 **Available on:**
 
@@ -15,7 +15,7 @@ A powerful extension for [VS Code](https://code.visualstudio.com/), [Cursor](htt
 - [Open VSX Registry](https://open-vsx.org/extension/deepnote/deepnote) (for Cursor, Windsurf, and other VS Code compatible editors)
 - [GitHub Repository](https://github.com/deepnote/deepnote-vscode)
 
-Deepnote extension in VS Code provides:
+The Deepnote extension provides:
 
 - **Native `.deepnote` file support** - Open and edit Deepnote notebooks
 - **Block execution** - Run code, SQL, and other executable blocks
@@ -94,7 +94,7 @@ Learn more about code blocks in the [Deepnote documentation](https://deepnote.co
 
 ### Extension settings
 
-You can access the extension settings in VS Code, Cursor, or Windsurf by navigating to File → Preferences → Settings (or pressing Ctrl/Cmd + ,) and searching for "Deepnote".
+Access the extension settings by navigating to File → Preferences → Settings (or pressing Ctrl/Cmd + ,) and searching for "Deepnote".
 
 **Available settings:**
 
