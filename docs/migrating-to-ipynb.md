@@ -33,7 +33,7 @@ This method handles the conversion automatically and ensures compatibility with 
 
 ### Note about @deepnote/convert package
 
-The `@deepnote/convert` package converts **from** `.ipynb` **to** `.deepnote` format only (see [Converting to Deepnote format](./converting-notebooks.md)). It does not support the reverse direction (`.deepnote` to `.ipynb`).
+The `@deepnote/convert` package converts **from** `.ipynb` **to** `.deepnote` format only (see [Converting to Deepnote format](https://deepnote.com/docs/converting-notebooks)). It does not support the reverse direction (`.deepnote` to `.ipynb`).
 
 ### Programmatic conversion with @deepnote/blocks
 
