@@ -75,5 +75,9 @@
     "Instantiator",
     "groupby",
     "tolist"
+    "kernelspec",
+    "nbconvert",
+    "Papermill",
+    "Jupytext"
   ]
 }
