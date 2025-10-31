@@ -200,10 +200,9 @@ from pymongo import MongoClient
 
 # Connect to MongoDB using the connection string from environment variables
 client = MongoClient(os.environ["INTEGRATION_NAME_CONNECTION_STRING"])
-db = client[os.environ["INTEGRATION_NAME_DATABASE"]]`,
+db = client[os.environ["INTEGRATION_NAME_DATABASE"]]
 # Get the users collection
 users_collection = db["users"]
-
 # Find all documents in the users collection
 users = list(users_collection.find())
 ```
@@ -215,7 +214,7 @@ Note: The `INTEGRATION_NAME_` prefix of the env variables is constructed using t
 ```python
 import re
 
-def convert_to_environment_variable_name(integration_name: string) -> str:
+def convert_to_environment_variable_name(integration_name: str) -> str:
   without_first_digit = f"_{integration_name}" if re.match(r'^\d', integration_name) else integration_name
   upper_cased = without_first_digit.upper()
   return re.sub(r'[^\w]', '_', upper_cased)
