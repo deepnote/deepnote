@@ -37,7 +37,7 @@ Option 1: Open directly in [Deepnote](https://deepnote.com)
 
 Option 2: Open in your IDE
 
-1. Open the .deepnote file in VS Code, Cursor, or Windsurf.
+1. Open the .deepnote file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote).
 2. To move your project to the cloud for collaboration or app creation:
    - Press Cmd+Shift+P (macOS) or Ctrl+Shift+P (Windows/Linux)
    - Type “Deepnote: Open in Deepnote”
