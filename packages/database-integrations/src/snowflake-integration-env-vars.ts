@@ -74,7 +74,9 @@ function buildSnowflakeUrlForFederatedAuth(
 ): string {
   const queryParams: Record<string, string | undefined> = {
     ...createBaseQueryParams(metadata, options.snowflakePartnerIdentifier),
-    role: options.role,
+  }
+  if (options.role) {
+    queryParams.role = options.role
   }
 
   if (options.accessToken) {
