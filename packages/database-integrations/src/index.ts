@@ -1,10 +1,10 @@
 export {
-  type BigQueryServiceAccountParseError,
+  BigQueryServiceAccountParseError,
   type DatabaseIntegrationConfig,
   type EnvVar,
   getIntegrationListEnv,
   getSqlAlchemyInput,
-  type SpannerServiceAccountParseError,
+  SpannerServiceAccountParseError,
   type SqlIntegrationConfig,
 } from './database-integration-env-vars'
 export {
