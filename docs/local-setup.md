@@ -16,13 +16,11 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 | **VS Code extension**                    | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
 | **JupyterLab extension**                 | Quick viewing             | ❌ No     | ❌ No   | Easy       |
 | **Deepnote Toolkit**                     | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
-| **Local Singleplayer <br>(coming soon)** | add something here        | ✅ Yes    | ✅ Yes  | Easy       |
+| **Local Singleplayer <br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
 ## 🚀 VS Code extension (recommended)
 
 The **Deepnote for Visual Studio Code** extension provides the most complete local experience, with full support for editing, execution, and Deepnote-specific features.
-
-<!-- Pic here -->
 
 ### Features
 
@@ -351,6 +349,8 @@ If you encounter issues with any local setup option:
 2. **Search existing issues** on the relevant GitHub repository
 3. **Ask in GitHub Discussions** for community support
 4. **Open an issue** with detailed information about your environment
+
+---
 
 ### Useful links
 
