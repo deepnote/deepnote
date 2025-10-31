@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
@@ -14,6 +15,7 @@ export default defineConfig({
       include: ['packages/*/src/**/*.ts'],
       exclude: ['**/*.test.ts'],
     },
+    setupFiles: [path.resolve(__dirname, 'test-helpers/expect-url-with-query-params.ts')],
     bail: 1,
   },
 })
