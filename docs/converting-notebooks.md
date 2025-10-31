@@ -7,7 +7,7 @@ noContent: false
 
 # How to convert Jupyter notebooks to Deepnote format
 
-This guide explains how to convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`) and how to convert Deepnote projects to Jupyter notebooks using the `@deepnote/convert` tool.
+This guide explains how to convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`) using the `@deepnote/convert` tool and how to convert Deepnote projects back to Jupyter notebooks via [deepnote.com](https://deepnote.com).
 
 The `@deepnote/convert` package provides a command-line tool and programmatic API for converting between Jupyter notebooks and Deepnote's open-source format. This allows you to:
 
