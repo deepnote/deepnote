@@ -77,7 +77,7 @@
     "labextension",
     "mydb",
     "dockerfiles",
-    "hotreload"
+    "hotreload",
     "kernelspec",
     "nbconvert",
     "Papermill",
