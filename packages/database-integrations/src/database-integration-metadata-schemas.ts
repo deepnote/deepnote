@@ -1,12 +1,11 @@
 import { z } from 'zod'
-
+import type { DatabaseIntegrationType } from './database-integration-types'
 import {
   AwsAuthMethods,
   BigQueryAuthMethods,
   DatabaseAuthMethods,
   SnowflakeAuthMethods,
 } from './sql-integration-auth-methods'
-import type { SqlIntegrationType } from './sql-integration-types'
 
 const athenaMetadataValidationSchema = z.object({
   access_key_id: z.string(),
@@ -127,43 +126,44 @@ const redshiftMetadataValidationSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
+const commonSnowflakeMetadataValidationSchema = z.object({
+  accountName: z.string(),
+  warehouse: z.string().optional(),
+  database: z.string().optional(),
+  role: z.string().optional(),
+})
+
 const snowflakeMetadataValidationSchema = z.discriminatedUnion('authMethod', [
-  z.object({
+  commonSnowflakeMetadataValidationSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.Password),
-    accountName: z.string(),
     username: z.string(),
     password: z.string(),
   }),
-  z.object({
+  commonSnowflakeMetadataValidationSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.Okta),
-    accountName: z.string(),
     clientId: z.string(),
     clientSecret: z.string(),
     oktaSubdomain: z.string(),
     identityProvider: z.string(),
     authorizationServer: z.string(),
   }),
-  z.object({
+  commonSnowflakeMetadataValidationSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.NativeSnowflake),
-    accountName: z.string(),
     clientId: z.string(),
     clientSecret: z.string(),
   }),
-  z.object({
+  commonSnowflakeMetadataValidationSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.AzureAd),
-    accountName: z.string(),
     clientId: z.string(),
     clientSecret: z.string(),
     resource: z.string(),
     tenant: z.string(),
   }),
-  z.object({
+  commonSnowflakeMetadataValidationSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.KeyPair),
-    accountName: z.string(),
   }),
-  z.object({
+  commonSnowflakeMetadataValidationSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.ServiceAccountKeyPair),
-    accountName: z.string(),
     username: z.string(),
     privateKey: z.string(),
     privateKeyPassphrase: z.string().optional(),
@@ -242,7 +242,7 @@ const sqlServerMetadataValidationSchema = commonDatabaseValidationSchema.extend(
   port: z.string(),
 })
 
-export const sqlMetadataValidationSchemasByType = {
+export const databaseMetadataValidationSchemasByType = {
   'alloydb': alloydbMetadataValidationSchema,
   'athena': athenaMetadataValidationSchema,
   'big-query': bigqueryMetadataValidationSchema,
@@ -261,10 +261,10 @@ export const sqlMetadataValidationSchemasByType = {
   'spanner': spannerMetadataValidationSchema,
   'sql-server': sqlServerMetadataValidationSchema,
   'trino': trinoMetadataValidationSchema,
-} as const satisfies Record<SqlIntegrationType, z.ZodSchema>
+} as const satisfies Record<DatabaseIntegrationType, z.ZodSchema>
 
-export type SqlIntegrationMetadataByType = {
-  [integrationType in SqlIntegrationType]: z.infer<
-    NonNullable<(typeof sqlMetadataValidationSchemasByType)[integrationType]>
+export type DatabaseIntegrationMetadataByType = {
+  [integrationType in DatabaseIntegrationType]: z.infer<
+    NonNullable<(typeof databaseMetadataValidationSchemasByType)[integrationType]>
   >
 }

@@ -1,12 +1,12 @@
 {
-  "name": "@deepnote/sql-integrations",
+  "name": "@deepnote/database-integrations",
   "version": "1.0.0",
-  "description": "Deepnote SQL Integration Definitions",
+  "description": "Deepnote database integration definitions",
   "keywords": [],
   "repository": {
     "type": "git",
     "url": "https://github.com/deepnote/deepnote.git",
-    "directory": "packages/sql-integrations"
+    "directory": "packages/database-integrations"
   },
   "license": "Apache-2.0",
   "type": "module",
@@ -32,6 +32,7 @@
     "watch": "tsdown --watch --format esm --format cjs --dts"
   },
   "dependencies": {
+    "build-url-ts": "^6.1.7",
     "zod": "^4.1.12"
   },
   "publishConfig": {

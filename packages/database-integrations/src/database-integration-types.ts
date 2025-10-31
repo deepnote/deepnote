@@ -8,7 +8,6 @@ export const sqlIntegrationTypes = [
   'mariadb',
   'materialize',
   'mindsdb',
-  'mongodb',
   'mysql',
   'pandas-dataframe',
   'pgsql',
@@ -21,7 +20,11 @@ export const sqlIntegrationTypes = [
 
 export type SqlIntegrationType = (typeof sqlIntegrationTypes)[number]
 
-export const sqlIntegrationTypesWithSslSupport = [
+export const databaseIntegrationTypes = [...sqlIntegrationTypes, 'mongodb'] as const
+
+export type DatabaseIntegrationType = (typeof databaseIntegrationTypes)[number]
+
+export const databaseIntegrationTypesWithSslSupport = [
   'clickhouse',
   'dremio',
   'mariadb',
@@ -31,4 +34,6 @@ export const sqlIntegrationTypesWithSslSupport = [
   'pgsql',
   'redshift',
   'trino',
-] as const satisfies ReadonlyArray<SqlIntegrationType>
+] as const satisfies ReadonlyArray<DatabaseIntegrationType>
+
+export type DatabaseIntegrationTypeWithSslSupport = (typeof databaseIntegrationTypesWithSslSupport)[number]
