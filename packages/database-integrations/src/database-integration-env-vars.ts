@@ -697,16 +697,16 @@ const getMySqlSqlAlchemyInput = (
   }
 }
 
-export function getCACertificatePath({
+function getCACertificatePath({
   projectRoot,
   integrationId,
   caCertificateName,
 }: {
-  projectRoot?: string
+  projectRoot: string
   integrationId: string
   caCertificateName: string
 }) {
-  return `${projectRoot ?? ''}/.deepnote/${integrationId}/${caCertificateName}`
+  return `${projectRoot}/.deepnote/${integrationId}/${caCertificateName}`
 }
 
 function convertToEnvironmentVariableName(str: string) {
