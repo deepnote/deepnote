@@ -73,6 +73,8 @@
     "Pclass",
     "sklearn",
     "Instantiator",
+    "groupby",
+    "tolist",
     "venv",
     "reexecuted",
     "Singleplayer",
