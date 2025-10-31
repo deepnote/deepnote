@@ -72,6 +72,10 @@
     "numpy",
     "Pclass",
     "sklearn",
-    "Instantiator"
+    "Instantiator",
+    "kernelspec",
+    "nbconvert",
+    "Papermill",
+    "Jupytext"
   ]
 }
