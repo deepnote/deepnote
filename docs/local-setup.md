@@ -1,6 +1,6 @@
 ---
 title: How to set up Deepnote locally
-description: Learn how to work with Deepnote notebooks on your local machine using VS Code, JupyterLab, or custom implementations.
+description: Learn how to work with Deepnote notebooks on your local machine using VSCode, Cursor, JupyterLab, or custom implementations.
 noIndex: false
 noContent: false
 ---
@@ -13,14 +13,14 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 
 | Method                                   | Best For                  | Execution | Editing | Difficulty |
 | ---------------------------------------- | ------------------------- | --------- | ------- | ---------- |
-| **VS Code extension**                    | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
+| **VS Code/Cursor/Windsurf extensions**   | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
 | **JupyterLab extension**                 | Quick viewing             | ❌ No     | ❌ No   | Easy       |
 | **Deepnote Toolkit**                     | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
 | **Local Singleplayer <br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
-## 🚀 VS Code extension (recommended)
+## 🚀 VS Code, Cursor, and Windsurf extensions (recommended)
 
-The **Deepnote for Visual Studio Code** extension provides the most complete local experience, with full support for editing, execution, and Deepnote-specific features.
+The **Deepnote extension** is available for **VS Code**, **Cursor**, and **Windsurf**, providing the most complete local experience with full support for editing, execution, and Deepnote-specific features across all three AI-native code editors.
 
 ### Features
 
@@ -34,16 +34,34 @@ The **Deepnote for Visual Studio Code** extension provides the most complete loc
 
 ### Installation
 
+<<<<<<< HEAD
+
 1. **Install VS Code** (version 1.95.0 or higher)
 2. **Install the extension**:
    - Open VS Code
    - Press `Cmd+P` / `Ctrl+P` to open Quick Open
    - Type `ext install Deepnote.vscode-deepnote`
-   - Press Enter
+   - # Press Enter
+     Choose your preferred editor and install the extension:
+     > > > > > > > f382aecc94 (docs: we do way more than initially claimed here)
 
-   Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)
+#### VS Code
 
-3. **Install Python** (3.8 or higher)
+- **[Install from VS Code Marketplace →](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)**
+- Or use Quick Open: `Cmd+P` / `Ctrl+P` → `ext install Deepnote.vscode-deepnote`
+- Requires VS Code 1.103.0 or higher
+
+#### Cursor
+
+- **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
+- Or search for "Deepnote" in Cursor's extension marketplace
+
+#### Windsurf
+
+- **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
+- Or search for "Deepnote" in Windsurf's extension marketplace
+
+**Additional requirement**: Python 3.10 or higher
 
 ### Getting started
 
@@ -62,7 +80,7 @@ Configure database connections for SQL blocks:
 3. Add your database credentials (PostgreSQL, BigQuery, etc.)
 4. Use SQL blocks in your notebooks with the configured integrations
 
-**Security Note**: Credentials are securely stored using VS Code's encrypted storage and never leave your machine.
+**Security Note**: Credentials are securely stored using your editor's encrypted storage and never leave your machine.
 
 ### Example SQL block
 
@@ -120,7 +138,7 @@ This extension is ideal for:
 
 **Requirements:**
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - JupyterLab 4.0.0 or higher
 
 **Install via pip:**
@@ -203,7 +221,7 @@ Consider using the Deepnote Toolkit if you:
 
 **Requirements:**
 
-- Python 3.9-3.12
+- Python 3.10+
 - Poetry (for dependency management)
 - Java 11 (for PySpark features)
 
@@ -326,18 +344,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code Extension | JupyterLab Extension | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | ----------------- | -------------------- | ---------------- | -------------------- |
-| **View notebooks**          | ✅                | ✅                   | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                | ❌                   | ✅               | ✅                   |
-| **Execute code**            | ✅                | ❌                   | ✅               | ✅                   |
-| **SQL blocks**              | ✅                | ❌                   | ✅               | ✅                   |
-| **Database integrations**   | ✅                | ❌                   | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                | ❌                   | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                | ❌                   | ❌               | ✅                   |
-| **Offline mode**            | ✅                | ✅                   | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited        | ❌                   | ✅               | ✅                   |
-| **AI features**             | ❌                | ❌                   | ❌               | ✅                   |
+| Feature                     | VS Code/Cursor/Windsurf Extensions | JupyterLab Extension | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ---------------------------------- | -------------------- | ---------------- | -------------------- |
+| **View notebooks**          | ✅                                 | ✅                   | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                                 | ❌                   | ✅               | ✅                   |
+| **Execute code**            | ✅                                 | ❌                   | ✅               | ✅                   |
+| **SQL blocks**              | ✅                                 | ❌                   | ✅               | ✅                   |
+| **Database integrations**   | ✅                                 | ❌                   | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                                 | ❌                   | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                                 | ❌                   | ❌               | ✅                   |
+| **Offline mode**            | ✅                                 | ✅                   | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                         | ❌                   | ✅               | ✅                   |
+| **AI features**             | ❌                                 | ❌                   | ❌               | ✅                   |
 
 \*Coming soon
 
