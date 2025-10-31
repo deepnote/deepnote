@@ -429,14 +429,7 @@ const getMaterializePostgresSqlAlchemyInput = (
   }: DatabaseIntegrationMetadataByType['materialize']
 ): SqlAlchemyInput => {
   const portSuffix = port ? `:${port}` : ''
-  let mode: string
-  if (caCertificateName) {
-    mode = 'verify-ca'
-  } else if (sslEnabled) {
-    mode = 'require'
-  } else {
-    mode = 'prefer'
-  }
+  const mode = getPostgresStyleMode(caCertificateName, sslEnabled)
 
   return {
     url: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}?options=--cluster%3D${cluster}`,
