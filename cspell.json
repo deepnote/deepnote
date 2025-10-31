@@ -76,5 +76,9 @@
     "isnull",
     "dropna",
     "pyplot"
+    "kernelspec",
+    "nbconvert",
+    "Papermill",
+    "Jupytext"
   ]
 }
