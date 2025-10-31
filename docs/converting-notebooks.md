@@ -16,7 +16,7 @@ The `@deepnote/convert` package provides a command-line tool and programmatic AP
 - Preserve code, markdown, outputs, and execution counts
 - Create multi-notebook Deepnote projects
 
-## Installation how to install @deepnote/convert
+## How to install @deepnote/convert
 
 ### Global installation (recommended for CLI)
 
@@ -315,4 +315,4 @@ After converting your notebooks:
 - [Local Setup Guide](./local-setup.md) - Running Deepnote locally
 - [@deepnote/blocks Package](../../packages/blocks/README.md) - Working with Deepnote blocks programmatically
 
-Want to have more, visit, than local setup visit [deepnote.com](https://deepnote.com)
+Want to have more, visit [deepnote.com](https://deepnote.com)
