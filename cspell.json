@@ -72,6 +72,9 @@
     "numpy",
     "Pclass",
     "sklearn",
-    "Instantiator"
+    "Instantiator",
+    "isnull",
+    "dropna",
+    "pyplot"
   ]
 }
