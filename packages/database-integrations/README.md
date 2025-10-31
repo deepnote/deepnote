@@ -54,7 +54,7 @@ This package provides TypeScript types and utilities for working with Deepnote S
 - types
   - `type DatabaseIntegrationMetadataByType` – Integration metadata types by integration type
     ```ts
-    const metadata: databaseMetadataSchemasByType['big-query'] = { ... }
+    const metadata: DatabaseIntegrationMetadataByType['big-query'] = { ... }
     ```
 
 ### Environment variables and configuration
