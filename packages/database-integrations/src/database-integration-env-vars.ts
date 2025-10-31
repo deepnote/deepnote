@@ -128,7 +128,7 @@ function getEnvVarForSqlCells(
   }
 
   return {
-    name: convertToEnvironmentVariableName(getSqlEnvVarName(integration.id)),
+    name: getSqlEnvVarName(integration.id),
     value: JSON.stringify({ integration_id: integration.id, ...sqlAlchemyInput }),
   }
 }
@@ -719,7 +719,7 @@ function convertToEnvironmentVariableName(str: string) {
 }
 
 export function getSqlEnvVarName(integrationId: string): string {
-  return `SQL_${integrationId}`
+  return convertToEnvironmentVariableName(`SQL_${integrationId}`)
 }
 
 function assertNever(value: never): never {
