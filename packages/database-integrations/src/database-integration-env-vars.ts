@@ -1,4 +1,3 @@
-import { assertNever } from 'zod/v4/core/util.cjs'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
 import type { DatabaseIntegrationType, SqlIntegrationType } from './database-integration-types'
 import { getSnowflakeSqlAlchemyInput } from './snowflake-integration-env-vars'
@@ -739,4 +738,8 @@ function convertToEnvironmentVariableName(str: string) {
 
 export function getSqlEnvVarName(integrationId: string): string {
   return `SQL_${integrationId}`
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${value}`)
 }
