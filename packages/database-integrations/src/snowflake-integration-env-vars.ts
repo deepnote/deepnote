@@ -119,7 +119,7 @@ function createSqlAlchemyInputFromUrl(
   const params = keyPair
     ? {
         snowflake_private_key: Buffer.from(keyPair.privateKey).toString('base64'),
-        snowflake_private_key_passphrase: keyPair.password || undefined,
+        ...(keyPair.password ? { snowflake_private_key_passphrase: keyPair.password } : {}),
       }
     : {}
 
