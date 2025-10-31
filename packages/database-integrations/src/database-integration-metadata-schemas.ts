@@ -29,13 +29,11 @@ const bigqueryMetadataValidationSchema = z.discriminatedUnion('authMethod', [
 ])
 
 const clickhouseMetadataValidationSchema = z.object({
-  accountName: z.string().optional(),
   host: z.string(),
   user: z.string(),
   password: z.string().optional(),
   database: z.string(),
   port: z.string().optional(),
-  username: z.string().optional(),
 
   sshEnabled: z.boolean().optional(),
   sshHost: z.string().optional(),
