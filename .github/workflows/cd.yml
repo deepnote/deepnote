@@ -13,6 +13,7 @@ jobs:
     name: Publish to GitHub Packages
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment: release
     # Only run if the release tag follows the package-scoped pattern: @deepnote/package-name@version
     if: startsWith(github.event.release.tag_name, '@deepnote/')
 
