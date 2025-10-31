@@ -353,13 +353,11 @@ If you encounter issues with any local setup option:
 4. **Open an issue** with detailed information about your environment
 
 ### Useful links
-
 - [Deepnote community](https://github.com/deepnote/deepnote/discussions)
 - [Deepnote Documentation](https://deepnote.com/docs)
 - [VS Code Extension Issues](https://github.com/deepnote/vscode-deepnote/issues)
 - [JupyterLab Extension Issues](https://github.com/deepnote/jupyterlab-deepnote/issues)
 - [Deepnote Toolkit Issues](https://github.com/deepnote/deepnote-toolkit/issues)
-- [Deepnote Community](https://github.com/deepnote/deepnote/discussions)
 
 ---
 
