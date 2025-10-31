@@ -74,7 +74,7 @@
     "sklearn",
     "Instantiator",
     "groupby",
-    "tolist"
+    "tolist",
     "kernelspec",
     "nbconvert",
     "Papermill",
