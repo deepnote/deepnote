@@ -17,7 +17,7 @@ export function getSnowflakeSqlAlchemyInput(
   const { username, accountName, database, authMethod } = metadata
 
   if (authMethod === SnowflakeAuthMethods.ServiceAccountKeyPair) {
-    const url = buildUrl(`snowflake://${username}@${accountName}`, {
+    const url = buildUrl(`snowflake://${encodeURIComponent(username)}@${encodeURIComponent(accountName)}`, {
       path: database,
       queryParams: {
         ...createBaseQueryParams(metadata, params.snowflakePartnerIdentifier),
@@ -36,12 +36,15 @@ export function getSnowflakeSqlAlchemyInput(
     })
   }
 
-  const url = buildUrl(`snowflake://${username}:${encodeURIComponent(metadata.password)}@${accountName}`, {
-    path: database,
-    queryParams: {
-      ...createBaseQueryParams(metadata, params.snowflakePartnerIdentifier),
-    },
-  })
+  const url = buildUrl(
+    `snowflake://${encodeURIComponent(username)}:${encodeURIComponent(metadata.password)}@${encodeURIComponent(accountName)}`,
+    {
+      path: database,
+      queryParams: {
+        ...createBaseQueryParams(metadata, params.snowflakePartnerIdentifier),
+      },
+    }
+  )
 
   if (!url) {
     throw new Error('getSnowflakeEnvVar URL must be defined')
@@ -81,8 +84,8 @@ function buildSnowflakeUrlForFederatedAuth(
 
   const accountIdentifier = metadata.accountName.replace('.privatelink', '')
   const baseUrl = options.keyPair?.username
-    ? `snowflake://${options.keyPair.username}@${accountIdentifier}`
-    : `snowflake://:@${accountIdentifier}`
+    ? `snowflake://${encodeURIComponent(options.keyPair.username)}@${encodeURIComponent(accountIdentifier)}`
+    : `snowflake://:@${encodeURIComponent(accountIdentifier)}`
 
   const url = buildUrl(baseUrl, {
     path: metadata.database,

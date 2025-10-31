@@ -221,7 +221,7 @@ const getDatabricksSqlAlchemyInput = ({
   sshUser,
 }: DatabaseIntegrationMetadataByType['databricks']): SqlAlchemyInput => {
   return {
-    url: `databricks+connector://token:${token}@${host}:${port}`,
+    url: `databricks+connector://token:${encodeURIComponent(token)}@${host}:${port}`,
     params: {
       connect_args: {
         http_path: httpPath,
@@ -280,7 +280,7 @@ const getSQLServerVar = ({
 }: DatabaseIntegrationMetadataByType['sql-server']): SqlAlchemyInput => {
   const portSuffix = port ? `:${port}` : ''
   return {
-    url: `mssql+pymssql://${user}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}`,
+    url: `mssql+pymssql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}`,
     params: {},
     param_style: 'pyformat',
     ssh_options: {
@@ -313,7 +313,7 @@ const getPostgresSqlAlchemyInput = (
   const mode = getPostgresStyleMode(caCertificateName, sslEnabled)
 
   return {
-    url: `postgresql://${user}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}`,
+    url: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}`,
     params: {
       connect_args: {
         // these should ensure the postgres connection is kept alive https://stackoverflow.com/a/56325038/2761695
@@ -440,7 +440,7 @@ const getMaterializePostgresSqlAlchemyInput = (
   }
 
   return {
-    url: `postgresql://${user}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}?options=--cluster%3D${cluster}`,
+    url: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}?options=--cluster%3D${cluster}`,
     params: {
       connect_args: {
         sslmode: mode,
@@ -502,7 +502,7 @@ const getAthenaSqlAlchemyInput = ({
   // add schema_name to IntegrationMetadataAthena later if needed
   const schema_name = ''
 
-  const baseUrl = `awsathena+rest://${access_key_id}:${encodeURIComponent(
+  const baseUrl = `awsathena+rest://${encodeURIComponent(access_key_id)}:${encodeURIComponent(
     secret_access_key
   )}@athena.${region}.amazonaws.com:443/${schema_name}`
 
@@ -562,7 +562,9 @@ const getClickHouseSqlAlchemyInput = (
     params.set('verify', certificatePath)
   }
 
-  const credentials = password ? `${user}:${encodeURIComponent(password)}` : user
+  const credentials = password
+    ? `${encodeURIComponent(user)}:${encodeURIComponent(password)}`
+    : encodeURIComponent(user)
   const url = `clickhouse://${credentials}@${host}${portSuffix}/${database}?${params.toString()}`
 
   const env: SqlAlchemyInput = {
@@ -698,7 +700,7 @@ const getMySqlSqlAlchemyInput = (
     }
   }
   return {
-    url: `mysql+pymysql://${user}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}`,
+    url: `mysql+pymysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}`,
     params: {
       connect_args: {
         ssl,
