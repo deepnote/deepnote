@@ -29,7 +29,7 @@ Convert from Jupyter to Deepnote format:
 deepnote-convert notebook.ipynb -o notebook.deepnote
 ```
 
-For the reverse direction (Deepnote to Jupyter), you can parse the YAML structure and rebuild the JSON format, or use Deepnote Cloud's export functionality.
+For the reverse direction (Deepnote to Jupyter), you can parse the YAML structure and rebuild the JSON format, or use Deepnote Cloud's export functionality, more about this in [Deepnote documentation about format](https://deepnote.com/docs/migrating-to-ipynb).
 
 ## Viewing in JupyterLab
 
