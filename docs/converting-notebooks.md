@@ -9,12 +9,13 @@ noContent: false
 
 This guide explains how to convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`) and how to convert Deepnote projects to Jupyter notebooks using the `@deepnote/convert` tool.
 
-The `@deepnote/convert` package provides a command-line tool and programmatic API for converting standard Jupyter notebooks into Deepnote's open-source format. This allows you to:
+The `@deepnote/convert` package provides a command-line tool and programmatic API for converting between Jupyter notebooks and Deepnote's open-source format. This allows you to:
 
 - Migrate existing Jupyter notebooks to Deepnote format
 - Convert single notebooks or entire directories
 - Preserve code, markdown, outputs, and execution counts
 - Create multi-notebook Deepnote projects
+- Convert Deepnote projects back to Jupyter notebooks via [deepnote.com](https://deepnote.com)
 
 ## How to install @deepnote/convert
 
@@ -75,6 +76,10 @@ This creates a multi-notebook project where each `.ipynb` file becomes a separat
 deepnote-convert ./ml-experiments
 # Creates: ml-experiments.deepnote (containing all notebooks from the directory)
 ```
+
+### Convert .deepnote to .ipynb
+
+Upload `.deepnote` file to [deepnote.com](https://deepnote.com) and download as `.ipynb` file.
 
 ### CLI options
 
@@ -153,6 +158,17 @@ version: "1.0.0"
 - **Widgets**: Interactive widgets may not be fully preserved
 - **Extensions**: Jupyter extensions and custom cell types are not supported
 - **Kernel metadata**: Kernel-specific metadata is not preserved
+
+## Converting Deepnote projects back to Jupyter notebooks
+
+While the CLI tool currently only supports converting Jupyter notebooks to Deepnote format, you can convert Deepnote projects back to Jupyter notebooks using the Deepnote web application:
+
+1. **Upload to Deepnote**: Go to [deepnote.com](https://deepnote.com) and upload your `.deepnote` file to create a new project
+2. **Open the project**: Once uploaded, open the project in Deepnote
+3. **Download as Jupyter notebook**: For each notebook in your project, click the notebook menu (three dots) and select **"Download as .ipynb"**
+4. **Export the notebook**: The notebook will be downloaded as a standard Jupyter notebook file that you can use in any Jupyter-compatible environment
+
+This workflow allows you to work with Deepnote's enhanced features and collaboration tools, then export your work back to the standard Jupyter format when needed.
 
 ## Use cases
 
