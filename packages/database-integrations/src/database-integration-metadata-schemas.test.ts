@@ -139,6 +139,7 @@ describe('SQL integration metadata schemas', () => {
         sshPort: 'my-ssh-port',
         sshUser: 'my-ssh-user',
         sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
         caCertificateText: 'my-ca-certificate-text',
       })
 
@@ -156,6 +157,7 @@ describe('SQL integration metadata schemas', () => {
         sshPort: 'my-ssh-port',
         sshUser: 'my-ssh-user',
         sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
         caCertificateText: 'my-ca-certificate-text',
       })
     })
@@ -556,6 +558,7 @@ describe('SQL integration metadata schemas', () => {
   describe('Spanner', () => {
     it('should validate valid metadata', () => {
       const result = databaseMetadataValidationSchemasByType['spanner'].safeParse({
+        service_account: 'my-service-account',
         dataBoostEnabled: true,
         instance: 'my-instance',
         database: 'my-database',
@@ -563,6 +566,7 @@ describe('SQL integration metadata schemas', () => {
 
       expect(result.success).toBe(true)
       expect(result.data).toStrictEqual({
+        service_account: 'my-service-account',
         dataBoostEnabled: true,
         instance: 'my-instance',
         database: 'my-database',
@@ -610,6 +614,7 @@ describe('SQL integration metadata schemas', () => {
         sshPort: 'my-ssh-port',
         sshUser: 'my-ssh-user',
         sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
         caCertificateText: 'my-ca-certificate-text',
       })
 
@@ -625,6 +630,7 @@ describe('SQL integration metadata schemas', () => {
         sshPort: 'my-ssh-port',
         sshUser: 'my-ssh-user',
         sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
         caCertificateText: 'my-ca-certificate-text',
       })
     })

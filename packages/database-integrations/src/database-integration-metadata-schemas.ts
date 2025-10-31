@@ -43,6 +43,7 @@ const clickhouseMetadataValidationSchema = z.object({
   sshUser: z.string().optional(),
 
   sslEnabled: z.boolean().optional(),
+  caCertificateName: z.string().optional(),
   caCertificateText: z.string().optional(),
 })
 
@@ -171,6 +172,7 @@ const snowflakeMetadataValidationSchema = z.discriminatedUnion('authMethod', [
 ])
 
 const spannerMetadataValidationSchema = z.object({
+  service_account: z.string(),
   dataBoostEnabled: z.boolean(),
   instance: z.string(),
   database: z.string(),
@@ -189,6 +191,7 @@ const trinoMetadataValidationSchema = z.object({
   sshUser: z.string().optional(),
 
   sslEnabled: z.boolean().optional(),
+  caCertificateName: z.string().optional(),
   caCertificateText: z.string().optional(),
 })
 
