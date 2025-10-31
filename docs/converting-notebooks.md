@@ -215,4 +215,3 @@ async function convertAllNotebooks(inputDir: string, outputDir: string) {
 }
 ```
 
-Want more features? Visit [deepnote.com](https://deepnote.com)
