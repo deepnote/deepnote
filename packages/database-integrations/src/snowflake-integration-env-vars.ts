@@ -53,7 +53,7 @@ interface SnowflakeConnectionParamsForFederatedAuthOptions {
   snowflakePartnerIdentifier?: string
 }
 
-export function snowflakeConnectionParamsForFederatedAuth(
+export function getSnowflakeFederatedAuthSqlAlchemyInput(
   metadata: Extract<DatabaseIntegrationMetadataByType['snowflake'], { authMethod: FederatedAuthMethod }>,
   options: SnowflakeConnectionParamsForFederatedAuthOptions = {}
 ): SqlAlchemyInput {
