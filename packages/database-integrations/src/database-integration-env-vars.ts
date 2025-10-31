@@ -642,20 +642,6 @@ const getSpannerSqlAlchemyInput = (metadata: DatabaseIntegrationMetadataByType['
   }
 }
 
-export const bigQueryConnectionParamsForFederatedAuth = (
-  metadata: Extract<DatabaseIntegrationMetadataByType['big-query'], { authMethod: FederatedAuthMethod }>,
-  accessToken: string
-): SqlAlchemyInput => {
-  return {
-    url: 'bigquery://?user_supplied_client=true',
-    params: {
-      access_token: accessToken,
-      project: metadata.project,
-    },
-    param_style: 'pyformat',
-  }
-}
-
 const getMySqlSqlAlchemyInput = (
   integrationId: string,
   projectRootDirectory: string,
