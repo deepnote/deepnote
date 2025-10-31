@@ -99,5 +99,10 @@
     "vscode",
     "windsurf",
     "workflows"
+    "Instantiator",
+    "kernelspec",
+    "nbconvert",
+    "Papermill",
+    "Jupytext"
   ]
 }
