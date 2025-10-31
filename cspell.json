@@ -72,6 +72,8 @@
     "numpy",
     "Pclass",
     "sklearn",
-    "Instantiator"
+    "Instantiator",
+    "venv",
+    "reexecuted"
   ]
 }
