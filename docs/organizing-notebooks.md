@@ -94,25 +94,25 @@ A Deepnote project contains:
 
 ### Project organization tips
 
-**Keep it focused**
+#### Keep it focused
 
 - One project = one cohesive goal or topic
 - Split large projects into multiple smaller ones
 - Archive old experiments and prototypes
 
-**Leverage shared resources**
+#### Leverage shared resources
 
 - Define dependencies once in project settings
 - Configure database integrations at the project level
 - Share utility notebooks across analyses
 
-**Document your structure**
+#### Document your structure
 
 - Create a `README` notebook explaining the project
 - Add markdown blocks describing each notebook's purpose
 - Include setup instructions and dependencies
 
-**Version control friendly**
+#### Version control friendly
 
 - Commit `.deepnote` files to git
 - Use meaningful commit messages
