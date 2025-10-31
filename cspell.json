@@ -72,6 +72,11 @@
     "numpy",
     "Pclass",
     "sklearn",
-    "Instantiator"
+    "Instantiator",
+    "Singleplayer",
+    "labextension",
+    "mydb",
+    "dockerfiles",
+    "hotreload"
   ]
 }
