@@ -477,7 +477,7 @@ const getTrinoEnvVars = (
   projectRootDirectory: string
 ): SqlAlchemyInput => {
   const input: SqlAlchemyInput = {
-    url: `trino://${encodeURIComponent(metadata.user)}:${metadata.password}@${metadata.host}:${metadata.port}/${encodeURIComponent(
+    url: `trino://${encodeURIComponent(metadata.user)}:${encodeURIComponent(metadata.password)}@${metadata.host}:${metadata.port}/${encodeURIComponent(
       metadata.database
     )}`,
     params: {
