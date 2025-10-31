@@ -82,8 +82,7 @@ jobs:
 
       - name: Configure registry for publishing
         run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
-          echo "@deepnote:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish to GitHub Packages
         run: pnpm publish --filter ${{ steps.package_info.outputs.package_name }} --no-git-checks

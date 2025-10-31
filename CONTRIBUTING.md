@@ -118,7 +118,7 @@ To publish a new version of a package (using `@deepnote/blocks` as an example):
    - Add release notes describing the changes
    - Publish the release
 
-The package will be automatically published to GitHub Packages by the `publish.yml` workflow when the release is published. The workflow:
+The package will be automatically published to GitHub Packages by the `cd.yml` workflow when the release is published. The workflow:
 
 - Only triggers for tags matching `@deepnote/*@*`
 - Validates that the tag version matches the package.json version
