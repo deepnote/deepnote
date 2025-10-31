@@ -78,5 +78,9 @@
     "mydb",
     "dockerfiles",
     "hotreload"
+    "kernelspec",
+    "nbconvert",
+    "Papermill",
+    "Jupytext"
   ]
 }
