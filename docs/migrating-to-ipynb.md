@@ -1,6 +1,6 @@
 ---
-title: How to Migrate from Deepnote format to Jupyter notebooks
-description: Learn how to convert Deepnote project files (`.deepnote`) back to standard Jupyter Notebook files (`.ipynb`) for use with other tools and platforms.
+title: How to convert Deepnote files to .ipynb format
+description: Learn how to export notebooks from the Deepnote platform or convert `.deepnote` files to standard Jupyter Notebook (`.ipynb`) format for use with other tools and platforms.
 noIndex: false
 noContent: false
 ---
@@ -33,7 +33,7 @@ This method handles the conversion automatically and ensures compatibility with 
 
 ### Note about @deepnote/convert package
 
-The `@deepnote/convert` package converts **from** `.ipynb` **to** `.deepnote` format only (see [Converting to Deepnote format](https://deepnote.com/docs/converting-notebooks)). It does not support the reverse direction (`.deepnote` to `.ipynb`).
+The `@deepnote/convert` package converts **from** `.ipynb` **to** `.deepnote` format only (see [Converting to Deepnote format](https://deepnote.com/docs/converting-notebooks)). It does not currently support the reverse direction (`.deepnote` to `.ipynb`).
 
 ### Programmatic conversion with @deepnote/blocks
 
