@@ -18,7 +18,7 @@ While Deepnote's format offers enhanced features like input blocks, visualizatio
 
 ## Available export methods
 
-### Manual export from Deepnote application
+### Manual export from Deepnote.com
 
 The primary way to convert Deepnote projects to Jupyter format is through the Deepnote cloud application:
 
