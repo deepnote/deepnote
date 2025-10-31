@@ -89,5 +89,5 @@ jobs:
         run: |
           PACKAGE="${{ steps.package_info.outputs.package_name }}"
           PKG_DIR="packages/${PACKAGE#@deepnote/}"
-          cd $PKG_DIR
+          cd "$PKG_DIR" || exit 1
           pnpm publish --no-git-checks
