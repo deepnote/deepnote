@@ -38,7 +38,7 @@ Option 1: Open directly in [Deepnote](https://deepnote.com)
 Option 2: Open in your IDE
 
 1. Open the `.deepnote` file in VS Code, Cursor, or Windsurf.
-2. Install the official Deepnote extension.
+2. Install the official Deepnote extension:
    - For VS Code: [Deepnote](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)
    - For Cursor and Windsurf: [Deepnote](https://open-vsx.org/extension/Deepnote/vscode-deepnote)
 3. To move your project to the cloud for collaboration or app creation:
