@@ -5,7 +5,7 @@ export const deepnoteBlockSchema = z.object({
   content: z.string().optional(),
   executionCount: z.number().optional(),
   id: z.string(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.any()).optional(),
   outputs: z.array(z.any()).optional(),
   sortingKey: z.string(),
   type: z.string(),

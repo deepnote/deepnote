@@ -5,20 +5,23 @@ Here's how you can get started.
 
 ---
 
-## 📂 Repository Structure
+## 📂 Repository structure
 
 ```text
 deepnote/
 ├── packages/        # Core TypeScript packages
-├── docker/          # Local runtime config
+│   ├── blocks/      # @deepnote/blocks - Block types and schemas
+│   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
+├── docs/            # Documentation files
 ├── .github/         # GitHub workflows & templates
+│   └── workflows/   # CI/CD pipelines
 ├── CONTRIBUTING.md
 └── README.md
 ```
 
 ---
 
-## 🧑‍💻 How to Contribute
+## 🧑‍💻 How to contribute
 
 We welcome all kinds of contributions:
 
@@ -32,7 +35,7 @@ Start by opening an issue or discussion to talk through your idea.
 
 ---
 
-## 🚀 Local Development
+## 🚀 Local development
 
 ### Prerequisites
 
@@ -44,32 +47,60 @@ Start by opening an issue or discussion to talk through your idea.
 pnpm install
 ```
 
-This will:
-
-- Launch kernel and runtime services
-- Simulate core Deepnote runtime behavior
+This will install all dependencies for the monorepo and its packages.
 
 ---
 
 ## 🧪 Testing
 
-TBD – coming soon.
+Run tests across all packages:
+
+```bash
+pnpm test
+```
+
+Run tests with coverage:
+
+```bash
+pnpm test:coverage
+```
+
+Run tests in watch mode (in a specific package):
+
+```bash
+cd packages/blocks
+pnpm test
+```
 
 ---
 
-## 🧼 Code Style
+## 🧼 Code style
 
 We use:
 
-- **TypeScript**
-- **Biome** for linting and formatting
+- **TypeScript** for type safety
+- **Biome** for linting and formatting TypeScript/JavaScript files
+- **Prettier** for formatting Markdown and YAML files
 - **Vitest** for testing
+- **cspell** for spell checking
 
-Run formatters:
+Run linting and formatting:
 
 ```bash
-pnpm lint
-pnpm format
+pnpm lintAndFormat        # Check for issues
+pnpm lintAndFormat:fix    # Auto-fix issues
+```
+
+Run type checking:
+
+```bash
+pnpm typecheck
+```
+
+Run spell checking:
+
+```bash
+pnpm spell-check
 ```
 
 Biome is available as a first-party extension in your favorite editors.
@@ -80,9 +111,9 @@ Biome is available as a first-party extension in your favorite editors.
 
 ---
 
-## 📦 Publishing Packages
+## 📦 Publishing packages
 
-### Publishing a New Version
+### Publishing a new version
 
 This repository supports publishing multiple packages independently. Each package release must use a **package-scoped tag** in the format `@deepnote/package-name@version` (e.g., `@deepnote/blocks@1.2.0`).
 
@@ -111,22 +142,23 @@ To publish a new version of a package (using `@deepnote/blocks` as an example):
    - Get required approvals from maintainers
    - Merge the PR via GitHub UI or CLI
 
-4. **Create a GitHub Release** (after the PR is merged):
+4. **Create a GitHub release** (after the PR is merged):
    - Go to [Releases](https://github.com/deepnote/deepnote/releases/new)
    - Create a new tag using the **package-scoped format**: `@deepnote/blocks@1.2.0`
    - Add a release title (e.g., `@deepnote/blocks v1.2.0`)
    - Add release notes describing the changes
    - Publish the release
 
-The package will be automatically published to GitHub Packages by the `publish.yml` workflow when the release is published. The workflow:
+The package will be automatically published to **npm** by the `cd.yml` workflow when the release is published. The workflow:
 
 - Only triggers for tags matching `@deepnote/*@*`
 - Validates that the tag version matches the package.json version
 - Builds and publishes only the specified package
+- Requires the `NPM_TOKEN` secret to be configured in the `release` environment
 
 ---
 
-## 🧑‍🔧 Maintainer Guidelines
+## 🧑‍🔧 Maintainer guidelines
 
 - The `main` branch is protected: no direct commits or force pushes are allowed. All changes must be merged through pull requests.
 - Never rebase or force push branches owned by others. If you must help finish their PR and it’s behind main, merge main into their branch and resolve conflicts in the merge commit. Otherwise, prefer adding your own commits or opening a follow-up PR instead of modifying their branch.
@@ -143,6 +175,6 @@ By contributing, you agree your work will be released under the Apache 2 License
 
 ---
 
-## 🙌 Need Help?
+## 🙌 Need help?
 
 [Open an issue](https://github.com/deepnote/deepnote/issues/new). We're happy to help!

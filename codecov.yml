@@ -11,3 +11,4 @@ coverage:
 
   ignore:
     - 'packages/convert/src/bin.ts'
+    - 'packages/blocks/index.ts'
