@@ -726,7 +726,7 @@ function convertToEnvironmentVariableName(str: string) {
   // Portable Character Set and do not begin with a digit.
   const notFirstDigit = /^\d/.test(str) ? `_${str}` : str
   const upperCased = notFirstDigit.toUpperCase()
-  return upperCased.replace(/[^\w]/gm, '_')
+  return upperCased.replace(/[^\w]/g, '_')
 }
 
 export function getSqlEnvVarName(integrationId: string): string {
