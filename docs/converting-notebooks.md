@@ -7,7 +7,7 @@ noContent: false
 
 # How to convert Jupyter notebooks to Deepnote format
 
-This guide explains how to convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`) using the `@deepnote/convert` tool.
+This guide explains how to convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`) and how to convert Deepnote projects to Jupyter notebooks using the `@deepnote/convert` tool.
 
 The `@deepnote/convert` package provides a command-line tool and programmatic API for converting standard Jupyter notebooks into Deepnote's open-source format. This allows you to:
 
@@ -26,27 +26,17 @@ Install the tool globally to use the `deepnote-convert` command from anywhere:
 npm install -g @deepnote/convert
 ```
 
-### Local installation (for programmatic use)
+After converting your notebooks:
 
-Install as a project dependency:
-
-```bash
-npm install @deepnote/convert
-```
-
-Or using other package managers:
-
-```bash
-# Using pnpm
-pnpm add @deepnote/convert
-
-# Using yarn
-yarn add @deepnote/convert
-```
+1. **Open in Deepnote**: Load the `.deepnote` file in the Deepnote application
+2. **Configure environment**: Set up Python packages and environment variables
+3. **Run notebooks**: Execute blocks to ensure everything works
+4. **Open it using VS Code**: You can open it using [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote) or [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote) extension.
+5. **Open in [Deepnote](https://deepnote.com)**: If you want to collaborate and upgrade you workflow in cloud, as well as create data apps, in VS Code extension you can use Cmd+Shift+P(macOS) or Ctrl+Shift+P(Windows/Linux) and type `Deepnote: Open in Deepnote`(this creates a new project in Deepnote that is ready to use).
 
 ### Requirements
 
-- **Node.js**: Version 18 or higher
+- **Node.js**: Version 20 or higher
 
 ## CLI usage
 
@@ -133,82 +123,7 @@ deepnote-convert data.ipynb --projectName "Data Exploration" -o projects/explora
 
 ## Programmatic usage
 
-You can use the conversion function programmatically in Node.js or TypeScript applications.
-
-### Basic example
-
-```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
-
-await convertIpynbFilesToDeepnoteFile(["path/to/notebook.ipynb"], {
-  outputPath: "output.deepnote",
-  projectName: "My Project",
-});
-```
-
-### Convert multiple notebooks
-
-```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
-
-// Convert multiple notebooks into a single project
-await convertIpynbFilesToDeepnoteFile(
-  [
-    "notebooks/data-cleaning.ipynb",
-    "notebooks/analysis.ipynb",
-    "notebooks/visualization.ipynb",
-  ],
-  {
-    outputPath: "projects/data-pipeline.deepnote",
-    projectName: "Data Pipeline",
-  },
-);
-```
-
-### With error handling
-
-```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
-
-try {
-  await convertIpynbFilesToDeepnoteFile(["notebook.ipynb"], {
-    outputPath: "output.deepnote",
-    projectName: "My Analysis",
-  });
-  console.log("Conversion successful!");
-} catch (error) {
-  console.error("Conversion failed:", error.message);
-}
-```
-
-### API reference
-
-#### `convertIpynbFilesToDeepnoteFile(inputFilePaths, options)`
-
-Converts Jupyter Notebook files to a Deepnote project file.
-
-**Parameters:**
-
-- `inputFilePaths` (string[]): Array of paths to `.ipynb` files to convert
-- `options` (ConvertIpynbFilesToDeepnoteFileOptions):
-  - `outputPath` (string): Path where the `.deepnote` file will be saved
-  - `projectName` (string): Name for the Deepnote project
-
-**Returns:** Promise<void>
-
-**Throws:** Error if file reading or parsing fails
-
-## Conversion details
-
-### What gets converted
-
-The conversion process preserves:
-
-- ✅ **Code cells**: Python/R/SQL code with syntax
-- ✅ **Markdown cells**: Text, headers, lists, images, LaTeX
-- ✅ **Cell outputs**: Execution results, plots, tables
-- ✅ **Execution counts**: Cell execution order
-- ✅ **Cell metadata**: Custom metadata attached to cells
+You can use the conversion function programmatically in Node.js or TypeScript applications. Learn more in [In our converter examples repository](https://github.com/deepnote/deepnote/tree/main/packages/convert/examples/convert-pogramaticaly.md).
 
 ### Project structure
 
@@ -275,44 +190,5 @@ async function convertAllNotebooks(inputDir: string, outputDir: string) {
   }
 }
 ```
-
-### CI/CD integration
-
-Integrate conversion into your build pipeline:
-
-```yaml
-# .github/workflows/convert-notebooks.yml
-name: Convert Notebooks
-on: [push]
-
-jobs:
-  convert:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-      - run: npm install -g @deepnote/convert
-      - run: deepnote-convert notebooks/ -o dist/
-      - uses: actions/upload-artifact@v3
-        with:
-          name: deepnote-projects
-          path: dist/*.deepnote
-```
-
-## Next steps
-
-After converting your notebooks:
-
-1. **Open in Deepnote**: Load the `.deepnote` file in the Deepnote application
-2. **Configure environment**: Set up Python packages and environment variables
-3. **Run notebooks**: Execute cells to ensure everything works
-
-## Related documentation
-
-- [Deepnote Format Specification](./deepnote-format.md) - Details on the `.deepnote` file format
-- [Local Setup Guide](./local-setup.md) - Running Deepnote locally
-- [@deepnote/blocks Package](../../packages/blocks/README.md) - Working with Deepnote blocks programmatically
 
 Want to have more, visit [deepnote.com](https://deepnote.com)
