@@ -37,6 +37,7 @@
     "zod": "3.25.76"
   },
   "publishConfig": {
+    "access": "public",
     "registry": "https://registry.npmjs.org"
   }
 }
