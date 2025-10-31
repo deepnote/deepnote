@@ -9,7 +9,7 @@ export {
 } from './database-integration-env-vars'
 export {
   type DatabaseIntegrationMetadataByType,
-  databaseMetadataValidationSchemasByType,
+  databaseMetadataSchemasByType,
 } from './database-integration-metadata-schemas'
 export {
   type DatabaseIntegrationType,

@@ -7,7 +7,7 @@ import {
   SnowflakeAuthMethods,
 } from './sql-integration-auth-methods'
 
-const athenaMetadataValidationSchema = z.object({
+const athenaMetadataSchema = z.object({
   access_key_id: z.string(),
   region: z.string(),
   s3_output_path: z.string(),
@@ -15,7 +15,7 @@ const athenaMetadataValidationSchema = z.object({
   workgroup: z.string().optional(),
 })
 
-const bigqueryMetadataValidationSchema = z.discriminatedUnion('authMethod', [
+const bigqueryMetadataSchema = z.discriminatedUnion('authMethod', [
   z.object({
     authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
     service_account: z.string(),
@@ -28,7 +28,7 @@ const bigqueryMetadataValidationSchema = z.discriminatedUnion('authMethod', [
   }),
 ])
 
-const clickhouseMetadataValidationSchema = z.object({
+const clickhouseMetadataSchema = z.object({
   host: z.string(),
   user: z.string(),
   password: z.string().optional(),
@@ -45,7 +45,7 @@ const clickhouseMetadataValidationSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
-const databricksMetadataValidationSchema = z.object({
+const databricksMetadataSchema = z.object({
   host: z.string(),
   httpPath: z.string(),
   token: z.string(),
@@ -59,7 +59,7 @@ const databricksMetadataValidationSchema = z.object({
   sshUser: z.string().optional(),
 })
 
-const dremioMetadataValidationSchema = z.object({
+const dremioMetadataSchema = z.object({
   schema: z.string(),
   host: z.string(),
   port: z.string(),
@@ -71,7 +71,7 @@ const dremioMetadataValidationSchema = z.object({
   sshUser: z.string().optional(),
 })
 
-const mongodbMetadataValidationSchema = z.object({
+const mongodbMetadataSchema = z.object({
   connection_string: z.string(),
   rawConnectionString: z.string().optional(),
   prefix: z.string().optional(),
@@ -92,9 +92,9 @@ const mongodbMetadataValidationSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
-const pandasDataframeMetadataValidationSchema = z.object({})
+const pandasDataframeMetadataSchema = z.object({})
 
-const redshiftMetadataValidationSchema = z.object({
+const redshiftMetadataSchema = z.object({
   authMethod: z
     .union([
       z.literal(DatabaseAuthMethods.UsernameAndPassword),
@@ -125,20 +125,20 @@ const redshiftMetadataValidationSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
-const commonSnowflakeMetadataValidationSchema = z.object({
+const commonSnowflakeMetadataSchema = z.object({
   accountName: z.string(),
   warehouse: z.string().optional(),
   database: z.string().optional(),
   role: z.string().optional(),
 })
 
-const snowflakeMetadataValidationSchema = z.discriminatedUnion('authMethod', [
-  commonSnowflakeMetadataValidationSchema.extend({
+const snowflakeMetadataSchema = z.discriminatedUnion('authMethod', [
+  commonSnowflakeMetadataSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.Password),
     username: z.string(),
     password: z.string(),
   }),
-  commonSnowflakeMetadataValidationSchema.extend({
+  commonSnowflakeMetadataSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.Okta),
     clientId: z.string(),
     clientSecret: z.string(),
@@ -146,22 +146,22 @@ const snowflakeMetadataValidationSchema = z.discriminatedUnion('authMethod', [
     identityProvider: z.string(),
     authorizationServer: z.string(),
   }),
-  commonSnowflakeMetadataValidationSchema.extend({
+  commonSnowflakeMetadataSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.NativeSnowflake),
     clientId: z.string(),
     clientSecret: z.string(),
   }),
-  commonSnowflakeMetadataValidationSchema.extend({
+  commonSnowflakeMetadataSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.AzureAd),
     clientId: z.string(),
     clientSecret: z.string(),
     resource: z.string(),
     tenant: z.string(),
   }),
-  commonSnowflakeMetadataValidationSchema.extend({
+  commonSnowflakeMetadataSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.KeyPair),
   }),
-  commonSnowflakeMetadataValidationSchema.extend({
+  commonSnowflakeMetadataSchema.extend({
     authMethod: z.literal(SnowflakeAuthMethods.ServiceAccountKeyPair),
     username: z.string(),
     privateKey: z.string(),
@@ -169,14 +169,14 @@ const snowflakeMetadataValidationSchema = z.discriminatedUnion('authMethod', [
   }),
 ])
 
-const spannerMetadataValidationSchema = z.object({
+const spannerMetadataSchema = z.object({
   service_account: z.string(),
   dataBoostEnabled: z.boolean(),
   instance: z.string(),
   database: z.string(),
 })
 
-const trinoMetadataValidationSchema = z.object({
+const trinoMetadataSchema = z.object({
   host: z.string(),
   user: z.string(),
   password: z.string(),
@@ -193,7 +193,7 @@ const trinoMetadataValidationSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
-const commonDatabaseValidationSchema = z.object({
+const commonDatabaseSchema = z.object({
   host: z.string(),
   user: z.string(),
   password: z.string(),
@@ -205,67 +205,67 @@ const commonDatabaseValidationSchema = z.object({
   sshUser: z.string().optional(),
 })
 
-const alloydbMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+const alloydbMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
   sslEnabled: z.boolean().optional(),
   caCertificateName: z.string().optional(),
   caCertificateText: z.string().optional(),
 })
 
-const mariadbMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+const mariadbMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
   // Note: SSL is always attempted, only certificate can be specified
   caCertificateName: z.string().optional(),
 })
 
-const mindsdbMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+const mindsdbMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
   caCertificateName: z.string().optional(),
 })
 
-const mysqlMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+const mysqlMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
   caCertificateName: z.string().optional(),
 })
 
-const pgsqlMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+const pgsqlMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
   sslEnabled: z.boolean().optional(),
   caCertificateName: z.string().optional(),
   caCertificateText: z.string().optional(),
 })
 
-const materializeMetadataValidationSchema = pgsqlMetadataValidationSchema.extend({
+const materializeMetadataSchema = pgsqlMetadataSchema.extend({
   cluster: z.string(),
 })
 
-const sqlServerMetadataValidationSchema = commonDatabaseValidationSchema.extend({
+const sqlServerMetadataSchema = commonDatabaseSchema.extend({
   port: z.string(),
 })
 
-export const databaseMetadataValidationSchemasByType = {
-  'alloydb': alloydbMetadataValidationSchema,
-  'athena': athenaMetadataValidationSchema,
-  'big-query': bigqueryMetadataValidationSchema,
-  'clickhouse': clickhouseMetadataValidationSchema,
-  'databricks': databricksMetadataValidationSchema,
-  'dremio': dremioMetadataValidationSchema,
-  'mariadb': mariadbMetadataValidationSchema,
-  'materialize': materializeMetadataValidationSchema,
-  'mindsdb': mindsdbMetadataValidationSchema,
-  'mongodb': mongodbMetadataValidationSchema,
-  'mysql': mysqlMetadataValidationSchema,
-  'pandas-dataframe': pandasDataframeMetadataValidationSchema,
-  'pgsql': pgsqlMetadataValidationSchema,
-  'redshift': redshiftMetadataValidationSchema,
-  'snowflake': snowflakeMetadataValidationSchema,
-  'spanner': spannerMetadataValidationSchema,
-  'sql-server': sqlServerMetadataValidationSchema,
-  'trino': trinoMetadataValidationSchema,
+export const databaseMetadataSchemasByType = {
+  'alloydb': alloydbMetadataSchema,
+  'athena': athenaMetadataSchema,
+  'big-query': bigqueryMetadataSchema,
+  'clickhouse': clickhouseMetadataSchema,
+  'databricks': databricksMetadataSchema,
+  'dremio': dremioMetadataSchema,
+  'mariadb': mariadbMetadataSchema,
+  'materialize': materializeMetadataSchema,
+  'mindsdb': mindsdbMetadataSchema,
+  'mongodb': mongodbMetadataSchema,
+  'mysql': mysqlMetadataSchema,
+  'pandas-dataframe': pandasDataframeMetadataSchema,
+  'pgsql': pgsqlMetadataSchema,
+  'redshift': redshiftMetadataSchema,
+  'snowflake': snowflakeMetadataSchema,
+  'spanner': spannerMetadataSchema,
+  'sql-server': sqlServerMetadataSchema,
+  'trino': trinoMetadataSchema,
 } as const satisfies Record<DatabaseIntegrationType, z.ZodSchema>
 
 export type DatabaseIntegrationMetadataByType = {
   [integrationType in DatabaseIntegrationType]: z.infer<
-    NonNullable<(typeof databaseMetadataValidationSchemasByType)[integrationType]>
+    NonNullable<(typeof databaseMetadataSchemasByType)[integrationType]>
   >
 }

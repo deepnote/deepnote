@@ -47,14 +47,14 @@ This package provides TypeScript types and utilities for working with Deepnote S
 ### Integration metadata
 
 - zod schemas
-  - `databaseMetadataValidationSchemasByType` – Zod schemas for validating integration metadata by integration type
+  - `databaseMetadataSchemasByType` – Zod schemas for validating integration metadata by integration type
     ```ts
-    databaseMetadataValidationSchemasByType['big-query'].safeParse({ ... })
+    databaseMetadataSchemasByType['big-query'].safeParse({ ... })
     ```
 - types
   - `type DatabaseIntegrationMetadataByType` – Integration metadata types by integration type
     ```ts
-    const metadata: DatabaseMetadataValidationSchemasByType['big-query'] = { ... }
+    const metadata: databaseMetadataSchemasByType['big-query'] = { ... }
     ```
 
 ### Environment variables and configuration
@@ -126,11 +126,9 @@ console.log(databaseIntegrationTypes); // ['athena', 'redshift', …]
 ### Example: Validate integration metadata
 
 ```ts
-import { databaseMetadataValidationSchemasByType } from "@deepnote/database-integrations";
+import { databaseMetadataSchemasByType } from "@deepnote/database-integrations";
 
-const validationResult = databaseMetadataValidationSchemasByType[
-  "big-query"
-].safeParse({
+const validationResult = databaseMetadataSchemasByType["big-query"].safeParse({
   authMethod: BigQueryAuthMethods.ServiceAccount,
   service_account: "my-account",
 });
