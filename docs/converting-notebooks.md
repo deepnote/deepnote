@@ -128,7 +128,7 @@ deepnote-convert data.ipynb --projectName "Data Exploration" -o projects/explora
 
 ## Programmatic usage
 
-You can use the conversion function programmatically in Node.js or TypeScript applications. Learn more in [In our converter examples repository](https://github.com/deepnote/deepnote/tree/main/packages/convert/examples/convert-pogramaticaly.md).
+You can use the conversion function programmatically in Node.js or TypeScript applications. Learn more in [In our converter examples repository](https://github.com/deepnote/deepnote/tree/main/packages/convert/examples/convert-programmatically.md).
 
 ### Project structure
 
