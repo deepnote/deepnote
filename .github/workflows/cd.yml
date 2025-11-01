@@ -15,6 +15,9 @@ jobs:
     environment: release
     # Only run if the release tag follows the package-scoped pattern: @deepnote/package-name@version
     if: startsWith(github.event.release.tag_name, '@deepnote/')
+    env:
+      # actions/setup-node automatically creates .npmrc with //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -80,10 +83,6 @@ jobs:
 
       - name: Build package
         run: pnpm --filter "${{ steps.package_info.outputs.package_name }}..." run build
-
-      - name: Configure registry for publishing
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish to npm
         run: pnpm publish --filter "${{ steps.package_info.outputs.package_name }}" --no-git-checks
