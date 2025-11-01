@@ -100,4 +100,55 @@ describe('urlWithQueryParams', () => {
   it('should pass with empty hash fragment', () => {
     expect('http://example.com/path?a=1#').toEqual(expect.urlWithQueryParams('http://example.com/path?a=1#'))
   })
+
+  it('should pass with repeated param keys in different order', () => {
+    expect('http://example.com/path?a=1&a=2&b=3').toEqual(
+      expect.urlWithQueryParams('http://example.com/path?b=3&a=1&a=2')
+    )
+  })
+
+  it('should fail when repeated param keys have different values', () => {
+    expect(() => {
+      expect('http://example.com/path?a=1&a=2').toEqual(expect.urlWithQueryParams('http://example.com/path?a=1&a=3'))
+    }).toThrowError()
+  })
+
+  it('should fail when repeated param keys have different counts', () => {
+    expect(() => {
+      expect('http://example.com/path?a=1&a=2&a=3').toEqual(
+        expect.urlWithQueryParams('http://example.com/path?a=1&a=2')
+      )
+    }).toThrowError()
+  })
+
+  it('should pass with empty values', () => {
+    expect('http://example.com/path?a=&b=2').toEqual(expect.urlWithQueryParams('http://example.com/path?b=2&a='))
+  })
+
+  it('should fail when empty value differs from non-empty value', () => {
+    expect(() => {
+      expect('http://example.com/path?a=&b=2').toEqual(expect.urlWithQueryParams('http://example.com/path?a=1&b=2'))
+    }).toThrowError()
+  })
+
+  it('should pass with keys without values', () => {
+    expect('http://example.com/path?flag&b=2').toEqual(expect.urlWithQueryParams('http://example.com/path?b=2&flag'))
+  })
+
+  it('should pass with multiple keys without values', () => {
+    expect('http://example.com/path?flag1&flag2&a=1').toEqual(
+      expect.urlWithQueryParams('http://example.com/path?a=1&flag2&flag1')
+    )
+  })
+
+  it('should pass when key without value is compared to key with empty value', () => {
+    // URL API treats ?flag and ?flag= as equivalent
+    expect('http://example.com/path?flag').toEqual(expect.urlWithQueryParams('http://example.com/path?flag='))
+  })
+
+  it('should pass with mix of repeated keys, empty values, and keys without values', () => {
+    expect('http://example.com/path?a=1&a=2&b=&flag&c=3').toEqual(
+      expect.urlWithQueryParams('http://example.com/path?c=3&flag&b=&a=1&a=2')
+    )
+  })
 })
