@@ -60,7 +60,7 @@ This package provides TypeScript types and utilities for working with Deepnote S
 ### Environment variables and configuration
 
 - utilities
-  - `getIntegrationListEnv(integrations: Array<DatabaseIntegrationConfig>, params: { projectRootDirectory: string, snowflakePartnerIdentifier?: string })` – Creates a list of environment variables to be set when executing a notebook that uses the integrations, the variables are in a format consumed by the Deepnote Toolkit
+  - `getEnvironmentVariablesForIntegrations(integrations: Array<DatabaseIntegrationConfig>, params: { projectRootDirectory: string, snowflakePartnerIdentifier?: string })` – Creates a list of environment variables to be set when executing a notebook that uses the integrations, the variables are in a format consumed by the Deepnote Toolkit
     - arguments:
       - `integrations` – list of active integrations
       - `params.projectRootDirectory` – project root directory, used to construct paths to CA certificates
@@ -71,7 +71,7 @@ This package provides TypeScript types and utilities for working with Deepnote S
           - `*INTEGRATION_NAME*_*METADATA_KEY*` - for each metadata field of the integration
           - `SQL_*INTEGRATION_ID*` - SQL Alchemy config for each SQL integration
       - `errors: Array<Error>` – List of errors that occurred when generating the environment variables. These are not thrown to allow partial functionality, even when some integrations are misconfigured.
-  - `getSqlAlchemyInput(sqlIntegration: SqlIntegrationConfig, params: { projectRootDirectory: string, snowflakePartnerIdentifier?: string })` – Creates a SQL Alchemy config for a SQL integration, used to connect to the database from SQL blocks. This is used internally within `getIntegrationListEnv()`.
+  - `getSqlAlchemyInput(sqlIntegration: SqlIntegrationConfig, params: { projectRootDirectory: string, snowflakePartnerIdentifier?: string })` – Creates a SQL Alchemy config for a SQL integration, used to connect to the database from SQL blocks. This is used internally within `getEnvironmentVariablesForIntegrations()`.
     - arguments:
       - `sqlIntegration` – SQL integration configuration
       - `params.projectRootDirectory` – project root directory, used to construct paths to CA certificates
@@ -140,7 +140,7 @@ if (validationResult.error) {
 ### Example: Getting environment variables for configured integrations
 
 ```ts
-import { getIntegrationListEnv } from "@deepnote/database-integrations";
+import { getEnvironmentVariablesForIntegrations } from "@deepnote/database-integrations";
 
 const integrations = [
   {
@@ -156,7 +156,7 @@ const integrations = [
   },
 ];
 
-const { envVars } = getIntegrationListEnv(integrations, {
+const { envVars } = getEnvironmentVariablesForIntegrations(integrations, {
   projectRootDirectory: "/path/to/project",
 });
 

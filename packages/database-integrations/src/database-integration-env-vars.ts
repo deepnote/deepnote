@@ -27,8 +27,8 @@ export type DatabaseIntegrationConfig = {
 
 export type SqlIntegrationConfig = Extract<DatabaseIntegrationConfig, { type: SqlIntegrationType }>
 
-export function getIntegrationListEnv(
-  sqlIntegrations: Array<DatabaseIntegrationConfig>,
+export function getEnvironmentVariablesForIntegrations(
+  integrations: Array<DatabaseIntegrationConfig>,
   params: {
     projectRootDirectory: string
     snowflakePartnerIdentifier?: string
@@ -40,7 +40,7 @@ export function getIntegrationListEnv(
   const envVars: Array<EnvVar> = []
   const errors: Array<Error> = []
 
-  sqlIntegrations.forEach(integration => {
+  integrations.forEach(integration => {
     const namePrefix = convertToEnvironmentVariableName(integration.name)
 
     const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata).map(([key, rawValue]) => {

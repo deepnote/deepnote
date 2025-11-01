@@ -2,7 +2,7 @@ export {
   BigQueryServiceAccountParseError,
   type DatabaseIntegrationConfig,
   type EnvVar,
-  getIntegrationListEnv,
+  getEnvironmentVariablesForIntegrations,
   getSqlAlchemyInput,
   SpannerServiceAccountParseError,
   type SqlIntegrationConfig,
