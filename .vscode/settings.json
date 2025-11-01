@@ -44,5 +44,6 @@
     "editor.formatOnSave": true
   },
   "editor.formatOnSave": true,
-  "biome.enabled": true
+  "biome.enabled": true,
+  "typescript.tsdk": "node_modules/typescript/lib"
 }
