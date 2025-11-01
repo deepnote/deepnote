@@ -1158,7 +1158,7 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('MindsDB', () => {
+    describe('MySQL', () => {
       it('should generate a SQL Alchemy env var with mysql+pymysql URL', () => {
         const { envVars, errors } = getIntegrationListEnv(
           [
