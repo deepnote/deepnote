@@ -1,0 +1,42 @@
+{
+  "name": "@deepnote/database-integrations",
+  "version": "1.0.0",
+  "description": "Deepnote database integration definitions",
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/database-integrations"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown --format esm --format cjs --dts",
+    "test": "vitest",
+    "watch": "tsdown --watch --format esm --format cjs --dts"
+  },
+  "dependencies": {
+    "build-url-ts": "^6.1.7",
+    "zod": "3.25.76"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}
