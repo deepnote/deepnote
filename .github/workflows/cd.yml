@@ -86,4 +86,4 @@ jobs:
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish to npm
-        run: pnpm publish --filter ${{ steps.package_info.outputs.package_name }} --no-git-checks
+        run: pnpm publish --filter "${{ steps.package_info.outputs.package_name }}" --no-git-checks
