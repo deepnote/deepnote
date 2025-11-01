@@ -86,8 +86,4 @@ jobs:
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish to npm
-        run: |
-          PACKAGE="${{ steps.package_info.outputs.package_name }}"
-          PKG_DIR="packages/${PACKAGE#@deepnote/}"
-          cd "$PKG_DIR" || exit 1
-          pnpm publish --no-git-checks
+        run: pnpm publish --filter ${{ steps.package_info.outputs.package_name }} --no-git-checks
