@@ -354,6 +354,15 @@ describe('SQL integration metadata schemas', () => {
     })
   })
 
+  describe('Pandas DataFrame SQL', () => {
+    it('should validate valid metadata', () => {
+      const result = databaseMetadataSchemasByType['pandas-dataframe'].safeParse({})
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({})
+    })
+  })
+
   describe('Redshift', () => {
     it('should validate valid metadata with username and password', () => {
       const result = databaseMetadataSchemasByType['redshift'].safeParse({
@@ -921,6 +930,122 @@ describe('SQL integration metadata schemas', () => {
 
     it('should fail on metadata with missing fields', () => {
       const result = databaseMetadataSchemasByType['pgsql'].safeParse({
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(false)
+    })
+  })
+
+  describe('Materialize', () => {
+    it('should validate valid metadata', () => {
+      const result = databaseMetadataSchemasByType['materialize'].safeParse({
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        cluster: 'my-cluster',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        cluster: 'my-cluster',
+      })
+    })
+
+    it('should validate valid metadata with optional fields', () => {
+      const result = databaseMetadataSchemasByType['materialize'].safeParse({
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        cluster: 'my-cluster',
+        port: 'my-port',
+        sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        cluster: 'my-cluster',
+        port: 'my-port',
+        sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
+      })
+    })
+
+    it('should fail on metadata with missing fields', () => {
+      const result = databaseMetadataSchemasByType['materialize'].safeParse({
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(false)
+    })
+  })
+
+  describe('SQL Server', () => {
+    it('should validate valid metadata', () => {
+      const result = databaseMetadataSchemasByType['sql-server'].safeParse({
+        host: 'my-host',
+        port: '1433',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        host: 'my-host',
+        port: '1433',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+      })
+    })
+
+    it('should validate valid metadata with optional fields', () => {
+      const result = databaseMetadataSchemasByType['sql-server'].safeParse({
+        host: 'my-host',
+        port: '1433',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        sshEnabled: true,
+        sshHost: 'my-ssh-host',
+        sshPort: 'my-ssh-port',
+        sshUser: 'my-ssh-user',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        host: 'my-host',
+        port: '1433',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        sshEnabled: true,
+        sshHost: 'my-ssh-host',
+        sshPort: 'my-ssh-port',
+        sshUser: 'my-ssh-user',
+      })
+    })
+
+    it('should fail on metadata with missing fields', () => {
+      const result = databaseMetadataSchemasByType['sql-server'].safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
