@@ -1304,7 +1304,7 @@ describe('Database integration env variables', () => {
             {
               type: 'mysql',
               id: 'my-mysql',
-              name: 'My Mysql Connection',
+              name: 'My MySQL Connection',
               metadata: {
                 host: 'my-host',
                 user: 'my-user',
