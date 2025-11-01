@@ -84,12 +84,6 @@ export function getEnvironmentVariablesForIntegrations(
   return { envVars, errors }
 }
 
-const duckDbEnvVar: SqlAlchemyInput = {
-  url: `deepnote+duckdb:///:memory:`,
-  params: {},
-  param_style: 'qmark',
-}
-
 function addSslOptionsToMongoConnectionString(
   projectRoot: string,
   connectionString: string,
@@ -183,7 +177,11 @@ export function getSqlAlchemyInput(
       return getMaterializePostgresSqlAlchemyInput(integration.id, params.projectRootDirectory, integration.metadata)
 
     case 'pandas-dataframe':
-      return { ...duckDbEnvVar }
+      return {
+        url: `deepnote+duckdb:///:memory:`,
+        params: {},
+        param_style: 'qmark',
+      }
 
     case 'redshift':
       return getRedshiftSqlAlchemyInput(integration.id, params.projectRootDirectory, integration.metadata)
