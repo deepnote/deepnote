@@ -98,6 +98,15 @@ describe('SQL integration metadata schemas', () => {
       expect(result.success).toBe(false)
     })
 
+    it('should fail on metadata with invalid auth method', () => {
+      const result = databaseMetadataSchemasByType['big-query'].safeParse({
+        authMethod: 'invalid-auth-method',
+        service_account: 'my-service-account',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
     it('should fail on metadata with missing fields', () => {
       const result = databaseMetadataSchemasByType['big-query'].safeParse({
         authMethod: 'service-account',
