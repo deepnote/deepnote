@@ -9,9 +9,9 @@
 
 </div>
 
-# Deepnote is a data notebook for AI era
+# Deepnote is a data notebook for the AI era
 
-Deepnote is used by 500,000 data professionals and companies like Estée Lauder, SoundCloud, Statsig, Gusto, and beyond.
+Deepnote is used by 500,000+ data professionals at companies like Estée Lauder, SoundCloud, Statsig, Gusto, and beyond.
 
 Get started with Deepnote in seconds:
 
@@ -23,7 +23,7 @@ Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.co
 
 ## What is Deepnote?
 
-**Deepnote Open Source** is an AI notebook, built with collaboration and the next decade in mind. It's pretty, AI-first, has countless data and ecosystem integrations, and offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
+**Deepnote Open Source** is an AI notebook built with collaboration and the next decade in mind. It's pretty, AI-first, has countless data and ecosystem integrations, and offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
 
 Why Deepnote Open Source?
 
@@ -45,25 +45,25 @@ This open-source repository lets you, edit and run Deepnote notebooks directly i
 
 ## Roadmap
 
-In couple of weeks/months you'll be able to:
+You'll soon be able to:
 
-- Run single-player Deepnote locally
-- Edit notebooks with local AI agent
+- Take the UI you're used to from **Deepnote Cloud** and run it locally
+- Edit notebooks with a local AI agent
 - Bring your own keys for AI services
 - Run your own compute
 
 ## Deepnote vs. Jupyter
 
-Deepnote keeps the same Jupyter core so you can seamlessly move between both, but adds an AI-first design, sleek UI, new blocks, and data integrations —so you never have to maintain or rebuild these pieces yourself.
+Deepnote is a successor of Jupyter. It uses the same Jupyter core so you can seamlessly move between both, but adds an AI agent, sleek UI, new block types, and native data integrations.
 
-| Feature             | Deepnote                               | Jupyter                     |
-| ------------------- | -------------------------------------- | --------------------------- |
-| **Setup**           | Zero setup, cloud-based                | Local installation required |
-| **AI features**     | Native AI agent and AI code completion | Third-party extensions      |
-| **Version control** | Built-in Git integration               | Manual Git workflow         |
-| **Sharing**         | Share with a link                      | Export files manually       |
-| **Compute**         | Managed cloud compute                  | Local resources only        |
-| **Integrations**    | Native database & API connections      | Manual configuration        |
+| Feature             | Deepnote                                   | Jupyter                     |
+| ------------------- | ------------------------------------------ | --------------------------- |
+| **Setup**           | Zero setup via cloud or local installation | Local installation required |
+| **AI features**     | Native AI agent and AI code completion     | Third-party extensions      |
+| **Version control** | Built-in Git integration                   | Manual Git workflow         |
+| **Sharing**         | Share with a link                          | Export files manually       |
+| **Compute**         | Managed cloud compute                      | Local resources only        |
+| **Integrations**    | Native database & API connections          | Manual configuration        |
 
 ## What's inside this repository
 
