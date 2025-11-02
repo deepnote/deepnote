@@ -11,7 +11,7 @@
 
 # Deepnote data notebook for new era
 
-Deepnote is a drop-in replacement for Jupyter with AI-first design, sleek UI, new blocks, and native data integrations. Use Deepnote Open Source to work locally in your favorite IDE, then scale to Deepnote Cloud for real-time collaboration, governance, and deployable data apps. Deepnote is used by 500,000 data professionals and companies like Estée Lauder, Soundcloud, Statsig, Gusto, and beyond.
+Deepnote is used by 500,000 data professionals and companies like Estée Lauder, SoundCloud, Statsig, Gusto, and beyond.
 
 Get started with Deepnote in seconds:
 
