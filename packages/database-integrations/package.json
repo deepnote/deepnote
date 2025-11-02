@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/database-integrations",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Deepnote database integration definitions",
   "keywords": [],
   "repository": {
@@ -32,7 +32,6 @@
     "watch": "tsdown --watch --format esm --format cjs --dts"
   },
   "dependencies": {
-    "build-url-ts": "^6.1.7",
     "zod": "3.25.76"
   },
   "publishConfig": {

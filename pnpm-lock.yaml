@@ -90,9 +90,6 @@ importers:
 
   packages/database-integrations:
     dependencies:
-      build-url-ts:
-        specifier: ^6.1.7
-        version: 6.2.0
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -1061,9 +1058,6 @@ packages:
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
     engines: {node: '>=8'}
-
-  build-url-ts@6.2.0:
-    resolution: {integrity: sha512-bwF2Cytry4/QWshF9ukPtinIGgBUuqbjVVVv7mpk6gmUCi0tkTorE98/fmu76t+VF10kKDIL9S+bQt1/7z8KUA==}
 
   cac@6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
@@ -2666,8 +2660,6 @@ snapshots:
   braces@3.0.3:
     dependencies:
       fill-range: 7.1.1
-
-  build-url-ts@6.2.0: {}
 
   cac@6.7.14: {}
 
