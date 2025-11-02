@@ -1,7 +1,35 @@
-import buildUrl from 'build-url-ts'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
 import { type FederatedAuthMethod, isFederatedAuthMetadata, SnowflakeAuthMethods } from './sql-integration-auth-methods'
+
+/**
+ * Build a URL with path and query parameters using native URL API
+ */
+function buildUrl(
+  baseUrl: string,
+  options: { path?: string; queryParams?: Record<string, string | undefined> }
+): string {
+  // For non-standard protocols like 'snowflake://', we need to handle them specially
+  // since URL API requires a valid protocol
+  const url = new URL(baseUrl.replace(/^(\w+):\/\//, 'http://'))
+
+  // Add path if provided
+  if (options.path) {
+    url.pathname = options.path
+  }
+
+  // Add query parameters if provided
+  if (options.queryParams) {
+    for (const [key, value] of Object.entries(options.queryParams)) {
+      if (value !== undefined) {
+        url.searchParams.set(key, value)
+      }
+    }
+  }
+
+  // Restore the original protocol
+  return url.href.replace(/^http:\/\//, baseUrl.match(/^(\w+):\/\//)?.[0] || 'http://')
+}
 
 export function getSnowflakeSqlAlchemyInput(
   metadata: DatabaseIntegrationMetadataByType['snowflake'],
