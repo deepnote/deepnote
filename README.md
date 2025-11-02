@@ -9,30 +9,30 @@
 
 </div>
 
-# Deepnote data notebook for new era
+# Deepnote is a data notebook for AI era
 
 Deepnote is used by 500,000 data professionals and companies like Estée Lauder, SoundCloud, Statsig, Gusto, and beyond.
 
 Get started with Deepnote in seconds:
 
 ```bash
-npx @deepnote/convert notebook.ipynb #this gets converted into notebook.deepnote
+npx @deepnote/convert notebook.ipynb # this gets converted into notebook.deepnote
 ```
 
 Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [JupyterLab](https://pypi.org/project/jupyterlab-deepnote/)!
 
 ## What is Deepnote?
 
-Deepnote Open Source is an AI notebook, built with collaboration and the next decade in mind. It's pretty, AI-first, has countless data and ecosystem integrations, and offers you everything you'd need to work locally before you scale your workflows in a team with Deepnote Cloud.
+**Deepnote Open Source** is an AI notebook, built with collaboration and the next decade in mind. It's pretty, AI-first, has countless data and ecosystem integrations, and offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
 
-### Why Deepnote Open Source?
+Why Deepnote Open Source?
 
-- **Human-readable format** – The .deepnote YAML format replaces ipynb's messy JSON with clean, version-control and human-friendly structure for projects and notebooks. You can organize multiple notebooks, integrations, and settings into a single .deepnote project for better structure and collaboration.
-- **Block-based architecture** – Extend notebooks beyond code cells with blocks for SQL, inputs, charts, and much more — all defined and validated through the open `@deepnote/blocks` package.
-- **Work wherever** – Run notebooks locally in VS Code, JupyterLab, or anywhere else with the open-source Deepnote Toolkit. Once you want to work in a team on the same notebook with beefier compute - drag and drop your project into Deepnote Cloud.
-- **Reactive notebook execution** – Automatically re-runs dependent blocks when inputs or data change, ensuring notebooks stay consistent and reproducible without manual execution.
-- **Open and extendable** – Built on the Jupyter kernel for full compatibility with your existing notebooks.
-- **Effortless conversion** – Convert .ipynb notebooks into .deepnote projects and back again using the open `@deepnote/convert` CLI and API.
+- **Human-readable format:** The `.deepnote` YAML format replaces `.ipynb`'s messy JSON with clean, version-control and human-friendly structure for projects and notebooks. You can organize multiple notebooks, integrations, and settings into a single `.deepnote` project for better structure and collaboration.
+- **Block-based architecture:** Extend notebooks beyond code cells with blocks for SQL, inputs, charts, and much more — all defined and validated through the open `@deepnote/blocks` package.
+- **Work wherever:** Run notebooks locally in VS Code, JupyterLab, or anywhere else with the open-source Deepnote Toolkit. Once you want to work in a team on the same notebook with beefier compute - drag and drop your project into Deepnote Cloud.
+- **Reactive notebook execution:** Automatically re-runs dependent blocks when inputs or data change, ensuring notebooks stay consistent and reproducible without manual execution.
+- **Open and extendable:** Built on the Jupyter kernel for full compatibility with your existing notebooks.
+- **Effortless conversion:** Convert .ipynb notebooks into .deepnote projects and back again using the open `@deepnote/convert` CLI and API.
 
 ## What can you do right now?
 
@@ -43,18 +43,27 @@ This open-source repository lets you, edit and run Deepnote notebooks directly i
 - **[Windsurf extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - Collaborative development in Windsurf
 - **[JupyterLab extension](https://pypi.org/project/jupyterlab-deepnote/)** - Read `.deepnote` files in JupyterLab with backwards compatibility
 
+## Roadmap
+
+In couple of weeks/months you'll be able to:
+
+- Run single-player Deepnote locally
+- Edit notebooks with local AI agent
+- Bring your own keys for AI services
+- Run your own compute
+
 ## Deepnote vs. Jupyter
 
-Deepnote keeps the same Jupyter core so you can seamlessly move between both, but adds an AI-first design, sleek UI, new blocks, data integrations—so you never have to maintain or rebuild these pieces yourself.
+Deepnote keeps the same Jupyter core so you can seamlessly move between both, but adds an AI-first design, sleek UI, new blocks, and data integrations —so you never have to maintain or rebuild these pieces yourself.
 
-| Feature             | Deepnote                          | Jupyter                     |
-| ------------------- | --------------------------------- | --------------------------- |
-| **Setup**           | Zero setup, cloud-based           | Local installation required |
-| **AI Features**     | Native AI Copilot                 | Third-party extensions      |
-| **Version control** | Built-in Git integration          | Manual Git workflow         |
-| **Sharing**         | Share with a link                 | Export files manually       |
-| **Compute**         | Managed cloud compute             | Local resources only        |
-| **Integrations**    | Native database & API connections | Manual configuration        |
+| Feature             | Deepnote                               | Jupyter                     |
+| ------------------- | -------------------------------------- | --------------------------- |
+| **Setup**           | Zero setup, cloud-based                | Local installation required |
+| **AI features**     | Native AI agent and AI code completion | Third-party extensions      |
+| **Version control** | Built-in Git integration               | Manual Git workflow         |
+| **Sharing**         | Share with a link                      | Export files manually       |
+| **Compute**         | Managed cloud compute                  | Local resources only        |
+| **Integrations**    | Native database & API connections      | Manual configuration        |
 
 ## What's inside this repository
 
@@ -73,15 +82,6 @@ Reusable packages and libraries powering Deepnote's notebook, runtime, and colla
 - **Programmatic API**: Use in Node.js/TypeScript applications
 - **Directory support**: Convert entire folders of notebooks
 - **Custom projects**: Set metadata during conversion
-
-## Coming soon - local use
-
-In couple of weeks/months you'll be able to:
-
-- Run single-player Deepnote locally
-- Edit notebooks with local AI agent
-- Bring your own keys for AI services
-- Run your own compute
 
 ## Deepnote for academia
 
@@ -120,6 +120,6 @@ We owe a huge thank-you to the Jupyter community and everyone who has contribute
 
 <div align="center">
 
-Built with 💙 by the data-driven team.
+Built with 💙
 
 </div>
