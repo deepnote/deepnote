@@ -1,27 +1,21 @@
-# Getting Started with Deepnote in Cursor
+# Getting started with Deepnote in Cursor
 
 This example demonstrates how to open and run Deepnote notebooks in Cursor using the Deepnote extension. The sample notebook `Housing Prices Prediction.deepnote` creates synthetic housing data and demonstrates data analysis workflows.
-
-## What You'll Learn
-
-- How to install the Deepnote extension in Cursor
-- How to open and run `.deepnote` notebook files
-- How to execute Python code blocks
-- How to view rich outputs like DataFrames and visualizations
 
 ## Prerequisites
 
 - **Cursor editor** installed ([download here](https://cursor.sh/))
+- **Deepnote extension** installed in Cursor ([download here](https://open-vsx.org/extension/Deepnote/vscode-deepnote))
 - **Python environment** (Python 3.8 or higher recommended)
 - **Required Python packages**: `numpy`, `pandas`
 
 ## Installation
 
-### Step 1: Install the Deepnote Extension
+### Step 1: Install the Deepnote extension
 
 Cursor supports VS Code extensions, making it easy to install Deepnote:
 
-**Option A: From Extensions Marketplace**
+**Option A: From extensions marketplace**
 
 1. Open Cursor
 2. Click the Extensions icon in the sidebar (or press `Cmd/Ctrl + Shift + X`)
@@ -29,25 +23,13 @@ Cursor supports VS Code extensions, making it easy to install Deepnote:
 4. Click **Install** on the Deepnote extension
 5. Wait for installation to complete
 
-**Option B: From Command Line**
-
-```bash
-cursor --install-extension deepnote.vscode-deepnote
-```
-
-**Option C: From VSIX File** (if provided)
-
-1. Open Command Palette (`Cmd/Ctrl + Shift + P`)
-2. Type "Extensions: Install from VSIX..."
-3. Select the `.vsix` file
-
-### Step 2: Verify Installation
+### Step 2: Verify installation
 
 1. Open Command Palette (`Cmd/Ctrl + Shift + P`)
 2. Type "Deepnote"
 3. You should see Deepnote-related commands like "Deepnote: Open Notebook"
 
-## Opening the Example Notebook
+## Opening the example notebook
 
 ### Method 1: Using Cursor UI
 
@@ -67,7 +49,7 @@ cursor .
 
 Then click on `Housing Prices Prediction.deepnote` in the File Explorer.
 
-### If the Notebook Opens as Plain Text
+### If the notebook opens as plain text
 
 If the `.deepnote` file opens as raw YAML instead of the notebook interface:
 
@@ -77,7 +59,7 @@ If the `.deepnote` file opens as raw YAML instead of the notebook interface:
 
 ## Running the Notebook
 
-### Understanding the Sample Notebook
+### Understanding the sample notebook
 
 The `Housing Prices Prediction.deepnote` notebook contains:
 

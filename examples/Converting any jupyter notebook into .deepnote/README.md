@@ -45,21 +45,3 @@ Once you have the `.deepnote` file, import it into Deepnote (e.g., via the "Impo
   npm i -g @deepnote/convert
   deepnote-convert EDA.ipynb -o EDA.deepnote
   ```
-
-## Open in VS Code with the Deepnote extension
-
-1. Install the extension
-   - From Marketplace: search for "Deepnote" and install
-   - Or via CLI:
-     ```bash
-     code --install-extension deepnote.vscode-deepnote       # VS Code
-     # cursor --install-extension deepnote.vscode-deepnote   # Cursor (optional)
-     # windsurf --install-extension deepnote.vscode-deepnote # Windsurf (optional)
-     ```
-
-2. Open the folder that contains `EDA.deepnote` in VS Code (File → Open Folder)
-
-3. In Explorer, click `EDA.deepnote`
-   - If prompted, choose "Open With..." → "Deepnote Notebook"
-
-4. Run cells with Shift+Enter and use the toolbar to execute/clear outputs

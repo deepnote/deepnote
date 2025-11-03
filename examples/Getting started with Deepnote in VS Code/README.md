@@ -32,12 +32,6 @@ Deepnote is a better version of Jupyter for the next decade. Built on the Jupyte
 4. Click **Install** on the Deepnote extension
 5. Wait for installation to complete
 
-**Option B: From command line**
-
-```bash
-code --install-extension deepnote.vscode-deepnote
-```
-
 ### Step 2: Verify installation
 
 1. Open Command Palette (`Cmd/Ctrl + Shift + P`)
