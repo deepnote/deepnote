@@ -41,7 +41,7 @@ done
 
 You can add this to a git pre-commit hook to automate the conversion. When starting work, convert `.deepnote` files back to `.ipynb` for editing in JupyterLab.
 
-To convert from Deepnote to Jupyter format, you can parse the YAML structure to rebuild the JSON format, or use Deepnote Cloud's export functionality. Learn more in the [migration documentation](https://deepnote.com/docs/migrating-to-ipynb).
+To convert from Deepnote to Jupyter format, you can parse the YAML structure to rebuild the JSON format, or use Deepnote Cloud's export functionality. Learn more in the [migration documentation](/docs/migrating-to-ipynb).
 
 ## Deepnote-specific features
 
