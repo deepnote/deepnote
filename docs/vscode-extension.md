@@ -79,7 +79,13 @@ This opens the file in VS Code's standard text editor with YAML syntax highlight
 
 ### Block execution
 
-The extension supports executing Python code blocks, SQL blocks with database connections, all types of input blocks, and rendered Markdown blocks. You can run a single block by clicking the play button or pressing Shift + Enter, run all blocks with Ctrl/Cmd + Shift + Enter, or selectively execute all blocks above or below the current one. The extension also provides controls to clear outputs and remove all execution results.
+The extension supports executing Python code blocks, SQL blocks with database connections, all types of input blocks, and rendered Markdown blocks. You can run a single block by clicking the play button or pressing Shift + Enter. The extension also provides controls to clear outputs and remove all execution results.
+
+**Keyboard shortcuts:**
+
+| Action   | Windows/Linux | macOS          |
+| -------- | ------------- | -------------- |
+| Run cell | Shift + Enter | Shift + Return |
 
 ### Rich output display
 
