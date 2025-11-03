@@ -16,7 +16,7 @@ Deepnote is used by 500,000+ data professionals at companies like Estée Lauder,
 Get started with Deepnote in seconds:
 
 ```bash
-npx @deepnote/convert notebook.ipynb # this gets converted into notebook.deepnote
+npx @deepnote/convert notebook.ipynb # This will convert the notebook and create notebook.deepnote
 ```
 
 Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [JupyterLab](https://pypi.org/project/jupyterlab-deepnote/)!
