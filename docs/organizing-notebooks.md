@@ -148,4 +148,4 @@ To create a well-organized project:
 4. **Configure project settings** - Set up dependencies and integrations
 5. **Add documentation** - Create a README notebook with project overview
 
-For more details on the `.deepnote` file format, see the [Deepnote format documentation](deepnote-format.md).
+For more details on the `.deepnote` file format, see the [Deepnote format documentation](/docs/deepnote-format).
