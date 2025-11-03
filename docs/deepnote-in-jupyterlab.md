@@ -13,7 +13,7 @@ The Deepnote JupyterLab extension (`deepnote-jupyterlab`) allows you to view `.d
 
 Jupyter notebooks use a JSON format (`.ipynb`), which tends to produce noisy Git diffs and embeds outputs directly in the file. Deepnote uses a YAML-based format (`.deepnote`), which is human-readable, produces cleaner diffs, and can contain multiple notebooks within a single project file. Each project can also store integrations, settings, and metadata in one place, enabling organized local workflows and collaboration in Deepnote Cloud.
 
-For more information about the `.deepnote` format, check out the [Deepnote format documentation](https://deepnote.com/docs/deepnote-format.md).
+For more information about the `.deepnote` format, check out the [Deepnote format documentation](/docs/deepnote-format).
 
 ## Viewing in JupyterLab
 
