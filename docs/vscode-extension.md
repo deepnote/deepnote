@@ -24,6 +24,7 @@ The Deepnote extension provides:
 - **Debugging** - Set breakpoints and debug code blocks
 - **Git integration** - Version control for notebooks
 - **Local execution** - Use your own Python environment
+- **One-click deploy** - Push notebooks to Deepnote.com to build and share data apps with cloud CPU/GPU machines
 
 ## Installation
 
@@ -49,9 +50,9 @@ The Deepnote extension provides:
 
 ```bash
 # Install using CLI
-code --install-extension deepnote.deepnote  # VS Code
-cursor --install-extension deepnote.deepnote  # Cursor
-windsurf --install-extension deepnote.deepnote  # Windsurf
+code --install-extension deepnote.vscode-deepnote  # VS Code
+cursor --install-extension deepnote.vscode-deepnote  # Cursor
+windsurf --install-extension deepnote.vscode-deepnote  # Windsurf
 ```
 
 ### Verify installation
@@ -65,6 +66,16 @@ windsurf --install-extension deepnote.deepnote  # Windsurf
 ### Native .deepnote file support
 
 The extension automatically associates `.deepnote` files with the notebook interface, providing YAML syntax highlighting when viewing the raw file and a structured notebook view for editing. You can work in three different view modes: Notebook View for interactive editing and execution, Source View for raw YAML editing, or Split View to see both views side-by-side.
+
+**Viewing raw YAML:**
+
+To view the raw `.deepnote` file structure:
+
+1. Right-click the `.deepnote` file in the File Explorer
+2. Select "Open With..."
+3. Choose "Text Editor"
+
+This opens the file in VS Code's standard text editor with YAML syntax highlighting, allowing you to inspect or edit the underlying file structure directly.
 
 ### Block execution
 
@@ -95,42 +106,6 @@ Learn more about code blocks in the [Deepnote documentation](https://deepnote.co
 ### Extension settings
 
 Access the extension settings by navigating to File → Preferences → Settings (or pressing Ctrl/Cmd + ,) and searching for "Deepnote".
-
-**Available settings:**
-
-```json
-{
-  // Python interpreter path
-  "deepnote.pythonPath": "/usr/local/bin/python3",
-
-  // Auto-save notebooks
-  "deepnote.autoSave": true,
-
-  // Auto-save delay (ms)
-  "deepnote.autoSaveDelay": 1000,
-
-  // Show line numbers
-  "deepnote.showLineNumbers": true,
-
-  // Enable IntelliSense
-  "deepnote.intelliSense": true,
-
-  // Max output lines
-  "deepnote.maxOutputLines": 1000,
-
-  // Enable SQL syntax highlighting
-  "deepnote.sqlSyntaxHighlighting": true,
-
-  // Default execution mode
-  "deepnote.executionMode": "block",
-
-  // Show execution time
-  "deepnote.showExecutionTime": true,
-
-  // Enable debugging
-  "deepnote.enableDebugging": true
-}
-```
 
 ### Python environment
 
