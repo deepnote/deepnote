@@ -11,12 +11,12 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 
 ## Overview of local options
 
-| Method                                   | Best For                  | Execution | Editing | Difficulty |
-| ---------------------------------------- | ------------------------- | --------- | ------- | ---------- |
-| **VS Code/Cursor/Windsurf extensions**   | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
-| **JupyterLab extension**                 | Quick viewing             | ❌ No     | ❌ No   | Easy       |
-| **Deepnote Toolkit**                     | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
-| **Local Singleplayer <br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
+| Method                                        | Best For                  | Execution | Editing | Difficulty |
+| --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
+| **VS Code/Cursor/Windsurf extensions**        | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
+| **JupyterLab extension**                      | Quick viewing             | ❌ No     | ❌ No   | Easy       |
+| **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
+| **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
 ## 🚀 VS Code, Cursor, and Windsurf extensions (recommended)
 
