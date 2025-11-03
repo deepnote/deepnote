@@ -28,9 +28,9 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown --format esm --dts",
+    "build": "tsdown",
     "test": "vitest",
-    "watch": "tsdown --watch --format esm --dts"
+    "watch": "tsdown --watch"
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",

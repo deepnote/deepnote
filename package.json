@@ -26,7 +26,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r exec tsc --noEmit",
-    "validate:deepnote-files": "tsx validate-deepnote-files.ts"
+    "validate:deepnote-files": "node packages/convert/dist/bin.js validate ."
   },
   "lint-staged": {
     "**/*.{ts,tsx,html,json,jsonc}": [
@@ -51,11 +51,8 @@
     "prettier": "3.6.2",
     "sort-package-json": "3.4.0",
     "tsdown": "0.15.9",
-    "tsx": "4.19.3",
     "typescript": "5.9.3",
-    "vitest": "4.0.5",
-    "yaml": "^2.8.1",
-    "zod": "3.25.76"
+    "vitest": "4.0.5"
   },
   "packageManager": "pnpm@10.19.0",
   "engines": {
