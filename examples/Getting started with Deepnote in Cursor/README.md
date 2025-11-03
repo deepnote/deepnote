@@ -40,33 +40,11 @@ Cursor supports VS Code extensions, making it easy to install Deepnote:
 2. Type "Deepnote"
 3. You should see Deepnote-related commands like "Deepnote: Open Notebook"
 
-## Opening the example notebook
+## Opening the example project
 
-### Method 1: Using Cursor UI
-
-1. In Cursor, go to **File → Open Folder...**
+1. In Cursor, go to **Project → Open Notebook...**
 2. Navigate to and select `examples/Getting started with Deepnote in Cursor`
 3. In the File Explorer, click on `Housing Prices Prediction.deepnote`
-
-### Method 2: Using Terminal
-
-```bash
-# Navigate to the example folder
-cd examples/Getting\ started\ with\ Deepnote\ in\ Cursor
-
-# Open in Cursor
-cursor .
-```
-
-Then click on `Housing Prices Prediction.deepnote` in the File Explorer.
-
-### If the notebook opens as plain text
-
-If the `.deepnote` file opens as raw YAML instead of the notebook interface:
-
-1. Open Command Palette (`Cmd/Ctrl + Shift + P`)
-2. Type and select **"Deepnote: Open Notebook"**
-3. The file will reload in notebook view
 
 ## Running the Notebook
 
@@ -166,44 +144,6 @@ To select your Python interpreter:
 1. Open Command Palette (`Cmd/Ctrl + Shift + P`)
 2. Type "Python: Select Interpreter"
 3. Choose your preferred Python environment
-
-## Troubleshooting
-
-### Notebook Opens as Plain Text
-
-**Solution**: Use Command Palette → "Deepnote: Open Notebook"
-
-### Extension Not Recognized
-
-**Solution**: Reload the window after installing the extension
-
-- Command Palette → "Developer: Reload Window"
-
-### Missing Python Packages
-
-**Solution**: Install required packages
-
-```bash
-pip install numpy pandas
-```
-
-### Code Block Won't Execute
-
-**Solutions**:
-
-- Ensure Python interpreter is selected
-- Check that previous cells have been executed (for dependent code)
-- Verify Python environment has required packages
-
-## View Raw YAML Structure
-
-To inspect the underlying `.deepnote` file format:
-
-1. Right-click `Housing Prices Prediction.deepnote` in File Explorer
-2. Select **"Open With..."**
-3. Choose **"Text Editor"**
-
-This shows the YAML structure with syntax highlighting.
 
 ## Next Steps
 
