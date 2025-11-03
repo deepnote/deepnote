@@ -1,5 +1,14 @@
 # Getting started with Deepnote in Cursor
 
+Deepnote notebooks can be opened and run locally in your favorite code editor. Whether you use **VS Code**, **Cursor**, or **Windsurf**, the Deepnote extension brings the power of modern notebooks to your local development environment.
+
+**This guide covers using Deepnote in Cursor.** For other editors, see:
+
+- [Getting started with Deepnote in VS Code](../Getting%20started%20with%20Deepnote%20in%20VS%20Code/README.md)
+- [Deepnote VS Code Extension Documentation](../../docs/vscode-extension.md)
+
+---
+
 This example demonstrates how to open and run Deepnote notebooks in Cursor using the Deepnote extension. The sample notebook `Housing Prices Prediction.deepnote` creates synthetic housing data and demonstrates data analysis workflows.
 
 ## Prerequisites
@@ -22,6 +31,8 @@ Cursor supports VS Code extensions, making it easy to install Deepnote:
 3. Search for "Deepnote"
 4. Click **Install** on the Deepnote extension
 5. Wait for installation to complete
+
+![Deepnote extension](../../assets/deepnote-extension-screenshot.png)
 
 ### Step 2: Verify installation
 

@@ -1,5 +1,14 @@
 # Getting started with Deepnote in VS Code
 
+Deepnote notebooks can be opened and run locally in your favorite code editor. Whether you use **VS Code**, **Cursor**, or **Windsurf**, the Deepnote extension brings the power of modern notebooks to your local development environment.
+
+**This guide covers using Deepnote in VS Code.** For other editors, see:
+
+- [Getting started with Deepnote in Cursor](../Getting%20started%20with%20Deepnote%20in%20Cursor/README.md)
+- [Deepnote VS Code Extension Documentation](../../docs/vscode-extension.md)
+
+---
+
 This example demonstrates how to build a player churn prediction model using Deepnote in VS Code. The `Model Training.deepnote` notebook showcases SQL blocks, database integrations, feature engineering, and machine learning workflows—all running locally with the power of a modern Jupyter kernel.
 
 ## What makes Deepnote different
