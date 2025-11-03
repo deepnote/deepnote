@@ -265,15 +265,6 @@ WHERE
 
 This adds interactivity—change the variable and re-run to get different results.
 
-### Keyboard shortcuts
-
-| Action            | Windows/Linux | macOS          |
-| ----------------- | ------------- | -------------- |
-| Run cell          | Shift + Enter | Shift + Return |
-| Insert cell above | A             | A              |
-| Insert cell below | B             | B              |
-| Delete cell       | DD            | DD             |
-
 ### Debugging support
 
 - Set breakpoints by clicking in the left margin
@@ -286,52 +277,6 @@ This adds interactivity—change the variable and re-run to get different result
 - View all variables in current scope
 - Inspect DataFrame shapes and types
 - Access via notebook toolbar or Command Palette → "Deepnote: Show Variables"
-
-## Troubleshooting
-
-### Notebook opens as plain text
-
-**Solution**: Use Command Palette → "Deepnote: Open Notebook"
-
-### Extension not recognized
-
-**Solution**: Reload the window after installing the extension
-
-- Command Palette → "Developer: Reload Window"
-
-### SQL blocks not working
-
-**Solutions**:
-
-- Ensure database integration is configured in the project
-- Check connection credentials
-- Verify the database tables exist
-
-### Missing Python packages
-
-**Solution**: Install required packages
-
-```bash
-pip install pandas numpy scikit-learn
-```
-
-### Code block won't execute
-
-**Solutions**:
-
-- Ensure Python interpreter is selected
-- Check that previous cells have been executed (for dependent code)
-- Verify Python environment has required packages
-
-## View raw YAML structure
-
-To inspect the underlying `.deepnote` file format:
-
-1. Right-click `Model Training.deepnote` in File Explorer
-2. Select **"Open With..."**
-3. Choose **"Text Editor"**
-
-This shows the YAML structure with syntax highlighting, including project metadata, integrations, and block definitions.
 
 ## Next steps
 
@@ -346,29 +291,12 @@ This shows the YAML structure with syntax highlighting, including project metada
 
 Once your analysis is complete, you can:
 
-1. Push the project to deepnote.com
+1. Drag-and-drop the project to deepnote.com
 2. Select blocks to include in your app
 3. Publish for stakeholders to interact with
 4. Users can adjust parameters (like `start_date`) and see live results
 
-### Explore more Deepnote features
-
-- **Chart blocks**: Create visualizations without code
-- **Input blocks**: Add interactive widgets (sliders, dropdowns)
-- **Markdown blocks**: Document your analysis
 - **Reactive execution**: Cells automatically re-run when dependencies change
-
-## Why Deepnote over Jupyter?
-
-| Feature               | Jupyter | Deepnote   |
-| --------------------- | ------- | ---------- |
-| SQL blocks            | ❌      | ✅         |
-| Database integrations | Manual  | Built-in   |
-| Reactive execution    | ❌      | ✅         |
-| Project encapsulation | ❌      | ✅         |
-| Collaboration         | Limited | Real-time  |
-| Version control       | Manual  | Git-native |
-| Deployment            | Complex | One-click  |
 
 ## Additional resources
 
