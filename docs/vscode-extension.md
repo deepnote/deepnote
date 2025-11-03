@@ -117,20 +117,6 @@ Access the extension settings by navigating to File → Preferences → Settings
 
 To select your Python interpreter, open the Command Palette with Ctrl/Cmd + Shift + P, type "Python: Select Interpreter", and choose your preferred Python environment from the list.
 
-For the best experience, we recommend setting up a virtual environment:
-
-```bash
-# Create virtual environment
-python -m venv .venv
-
-# Activate it
-source .venv/bin/activate  # macOS/Linux
-.venv\Scripts\activate     # Windows
-
-# Install dependencies
-pip install deepnote-toolkit pandas numpy
-```
-
 ---
 
 The Deepnote extension brings powerful notebook capabilities to your local development environment, combining the flexibility of Deepnote notebooks with the robust editing features of VS Code, Cursor, and Windsurf. Whether you're executing code, debugging complex logic, or viewing rich outputs, the extension provides a seamless experience that enhances your data science workflow.
