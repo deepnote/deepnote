@@ -255,7 +255,7 @@ project:
 
 ## Converting between formats
 
-For detailed instructions on converting between Jupyter notebooks and Deepnote format, see the [Converting Notebooks guide](converting-notebooks.md).
+For detailed instructions on converting between Jupyter notebooks and Deepnote format, see the [Converting Notebooks guide](/docs/converting-notebooks).
 
 ## Example of a complete Deepnote file
 
