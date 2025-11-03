@@ -88,6 +88,12 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  packages/database-integrations:
+    dependencies:
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
 packages:
 
   '@babel/generator@7.28.3':

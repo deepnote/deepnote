@@ -1,4 +1,5 @@
 .DS_Store
+.npmrc
 .qlty/cache
 .qlty/logs
 .qlty/out
