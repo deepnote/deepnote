@@ -47,6 +47,55 @@ To run this example, follow these steps:
 2. If it is your first time running the block, you will be prompted to select a kernel so select `Python 3.10` or higher.
 3. The code should run and you should see `Hello world!` in the output panel.
 
+## What is possible in Deepnote?
+
+The following examples demonstrate different block types and integrations:
+
+### Markdown and Code Blocks
+
+**Markdown blocks** are added via + Markdown in the top bar. See the `1. Text + code` notebook in [2_blocks.deepnote](./2_blocks.deepnote) for examples.
+![markdown](../assets/examples/getting_started_with_deepnote_in_vscode/markdown.png)
+
+### Input Blocks
+
+**Input blocks** are added via the three dots on the left of the top bar, or by pressing `Cmd+Shift+P` on Mac or `Ctrl+Shift+P` on Windows and typing `Deepnote: Add "block type"`.
+![selecting block types](../assets/examples/getting_started_with_deepnote_in_vscode/selecting_block_types.png)
+
+All examples are in the `2. Input blocks` notebook in [2_blocks.deepnote](./2_blocks.deepnote):
+
+- **Input Text** - short text inputs for text fields
+- **Input Textarea** - long text inputs for multiline text
+- **Input Select** - select dropdowns (use the settings icon to add/change options)
+- **Input Slider** - slider inputs (configure min, max, step values)
+- **Input Checkbox** - checkbox inputs (click checked/unchecked to toggle)
+- **Input Date** - date picker inputs
+- **Input Date Range** - date range inputs with start and end dates
+
+### Integrations
+
+**Integrations** are added via the top bar by clicking on `Manage Integrations`.
+![integrations manage](../assets/examples/getting_started_with_deepnote_in_vscode/manage_integration.png)
+
+Or by pressing `Cmd+Shift+P` on Mac or `Ctrl+Shift+P` on Windows and typing `Deepnote: Manage Integrations`.
+![integrations](../assets/examples/getting_started_with_deepnote_in_vscode/integrations.png)
+
+This opens the Deepnote Integrations page where you can add integrations or manage existing integrations.
+![integrations rendered](../assets/examples/getting_started_with_deepnote_in_vscode/integrations_rendered.png)
+
+For example, see [3_integrations.deepnote](./3_integrations.deepnote) which includes a [ClickHouse playground](https://clickhouse.com/docs/getting-started/playground) integration that is free to use. To set it up, use these credentials:
+
+- Host: `play.clickhouse.com`
+- Port: `443`
+- Database: `default`
+- Username: `play`
+- Password: `******`
+
 ## What's next?
 
-You can have a look at [/examples](./) folder to see more sample projects and try running them out.
+You can have a look at the other examples in this folder:
+
+- `1_hello_world.deepnote` - Simple hello world example
+- `2_blocks.deepnote` - Examples of different block types
+- `3_integrations.deepnote` - Example with database integrations
+
+For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.
