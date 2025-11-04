@@ -33,8 +33,8 @@ For this example, we will use VS Code, but the steps are same for Cursor and Win
 
 1. First install VS Code if you haven't already.
 2. Open the folder where you cloned the repository. Or simply run `code .` in the terminal.
-3. Than install the [Deepnote extension for VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote) by navigate to Extensions in the left sidebar and search for `Deepnote` or press `Cmd+Shift+X` on Mac or `Ctrl+Shift+X` on Windows and search for `Deepnote`, and click on `Install`.
-4. Than click on the Deepnote icon in the left sidebar, you will see a list of projects on the left sidebar.
+3. Then install the [Deepnote extension for VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote) by navigate to Extensions in the left sidebar and search for `Deepnote` or press `Cmd+Shift+X` on Mac or `Ctrl+Shift+X` on Windows and search for `Deepnote`, and click on `Install`.
+4. Then click on the Deepnote icon in the left sidebar, you will see a list of projects on the left sidebar.
 5. And open by clicking on the project, and opening `1. Hello World - example`.
 
 ## Running a Deepnote Project
