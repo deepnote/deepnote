@@ -49,4 +49,4 @@ For this example click:
 
 ## What's next?
 
-You can now try to run other blocks in the project, or try to convert other Jupyter Notebooks to Deepnote projects.
+You can have a look at [/examples](./examples) folder to see more sample projects and try running them out.
