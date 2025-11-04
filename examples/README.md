@@ -7,11 +7,11 @@ git clone https://github.com/deepnote/deepnote.git
 cd deepnote
 ```
 
+As prerequisites, you will need to have [Node.js](https://nodejs.org/) and [Python3.10+](https://www.python.org/downloads/) installed on your system.
+
 ## Converting a Jupyter Notebook to Deepnote
 
 Let's start with the simple example, by converting a Jupyter Notebook to a .deepnote file, which is a Deepnote project.
-
-As prerequisites, you will need to have [Node.js](https://nodejs.org/) and [Python3.10+](https://www.python.org/downloads/) installed on your system.
 
 First you will need to install Deepnote converter, by opening a terminal and running this command:
 
@@ -33,7 +33,7 @@ For this example, we will use VS Code, but the steps are same for Cursor and Win
 
 1. First install VS Code if you haven't already.
 2. Open the folder where you cloned the repository. Or simply run `code .` in the terminal.
-3. Then install the [Deepnote extension for VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote) by navigating to Extensions in the left sidebar and searching for `Deepnote` or press `Cmd+Shift+X` on Mac or `Ctrl+Shift+X` on Windows and search for `Deepnote`, and click on `Install`.
+3. Then install the [Deepnote extension for VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote) (or [Deepnote extension for Cursor/Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote)) by navigating to Extensions in the left sidebar and searching for `Deepnote` or press `Cmd+Shift+X` on Mac or `Ctrl+Shift+X` on Windows and search for `Deepnote`, and click on `Install`.
 4. Then click on the Deepnote icon in the left sidebar, you will see a list of projects on the left sidebar.
 5. Open by clicking on the project, and opening `1. Hello World - example`.
 
