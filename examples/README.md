@@ -49,4 +49,4 @@ To run this example, follow these steps:
 
 ## What's next?
 
-You can have a look at [/examples](./examples) folder to see more sample projects and try running them out.
+You can have a look at [/examples](./) folder to see more sample projects and try running them out.
