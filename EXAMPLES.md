@@ -39,7 +39,7 @@ For this example, we will use VS Code, but the steps are same for Cursor and Win
 
 ## Running a Deepnote Project
 
-To run Deepnote project, you can use ways mentioned above(except JupyterLab, which is currently read-only).
+To run a Deepnote project, you can use any of the ways mentioned above (except JupyterLab, which is currently read-only).
 
 For this example click:
 
