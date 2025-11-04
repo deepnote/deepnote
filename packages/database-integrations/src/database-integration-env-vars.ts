@@ -1,11 +1,10 @@
+import type { DatabaseIntegrationConfig, SqlIntegrationConfig } from './database-integration-config'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
-import type { DatabaseIntegrationType, SqlIntegrationType } from './database-integration-types'
 import { getSnowflakeSqlAlchemyInput } from './snowflake-integration-env-vars'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
 import {
   AwsAuthMethods,
   DatabaseAuthMethods,
-  type FederatedAuthMethod,
   isFederatedAuthMetadata,
   isFederatedAuthMethod,
 } from './sql-integration-auth-methods'
@@ -14,18 +13,6 @@ export interface EnvVar {
   name: string
   value: string
 }
-
-export type DatabaseIntegrationConfig = {
-  [integrationType in DatabaseIntegrationType]: {
-    type: integrationType
-    id: string
-    name: string
-    metadata: DatabaseIntegrationMetadataByType[integrationType]
-    federated_auth_method?: FederatedAuthMethod
-  }
-}[DatabaseIntegrationType]
-
-export type SqlIntegrationConfig = Extract<DatabaseIntegrationConfig, { type: SqlIntegrationType }>
 
 export function getEnvironmentVariablesForIntegrations(
   integrations: Array<DatabaseIntegrationConfig>,

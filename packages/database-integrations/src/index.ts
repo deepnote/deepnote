@@ -1,11 +1,14 @@
 export {
-  BigQueryServiceAccountParseError,
   type DatabaseIntegrationConfig,
+  databaseIntegrationConfigSchema,
+  type SqlIntegrationConfig,
+} from './database-integration-config'
+export {
+  BigQueryServiceAccountParseError,
   type EnvVar,
   getEnvironmentVariablesForIntegrations,
   getSqlAlchemyInput,
   SpannerServiceAccountParseError,
-  type SqlIntegrationConfig,
 } from './database-integration-env-vars'
 export {
   type DatabaseIntegrationMetadataByType,
@@ -28,6 +31,7 @@ export {
   type DatabaseAuthMethod,
   DatabaseAuthMethods,
   type FederatedAuthMethod,
+  federatedAuthMethods,
   isFederatedAuthMetadata,
   isFederatedAuthMethod,
   type SnowflakeAuthMethod,
