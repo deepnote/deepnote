@@ -19,6 +19,9 @@ export {
   type DatabaseIntegrationTypeWithSslSupport,
   databaseIntegrationTypes,
   databaseIntegrationTypesWithSslSupport,
+  isDatabaseIntegrationType,
+  isDatabaseIntegrationTypeWithSslSupport,
+  isSqlIntegrationType,
   type SqlIntegrationType,
   sqlIntegrationTypes,
 } from './database-integration-types'
