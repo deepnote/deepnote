@@ -23,7 +23,7 @@ Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.co
 
 ## What is Deepnote?
 
-Deepnote is a successor of Jupyter. It uses the same Jupyter core so you can seamlessly move between both, but adds an AI agent, sleek UI, new block types, and native data integrations. **Deepnote Open Source** offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
+Deepnote is a successor of Jupyter. It uses the Deepnote kernel which is more powerful but still backwards compatible so you can seamlessly move between both, but adds an AI agent, sleek UI, new block types, and native data integrations. **Deepnote Open Source** offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
 
 Why Deepnote Open Source?
 
