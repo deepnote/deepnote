@@ -1,0 +1,29 @@
+metadata:
+  createdAt: 2025-11-04T00:31:57.544Z
+  modifiedAt: 2025-11-04T00:33:32.073Z
+project:
+  id: 18aaab73-3599-4bb5-b2ab-c05ac09f597d
+  name: Hello World
+  notebooks:
+    - blocks:
+        - blockGroup: 15bc86a3d6684d3aa0eaad3b0c42a1eb
+          content: print("Hello world!")
+          executionCount: 1
+          id: 15bc86a3d6684d3aa0eaad3b0c42a1eb
+          metadata:
+            execution_start: 1762216339555
+            execution_millis: 7
+            execution_context_id: 64071681-0ac3-4ec4-bf54-9f24799bda87
+          outputs:
+            - name: stdout
+              text: |
+                Hello world!
+              output_type: stream
+          sortingKey: a0
+          type: code
+      executionMode: block
+      id: 7061f86dec6e4e11893288f295a82017
+      isModule: false
+      name: 1. Hello World - example
+  settings: {}
+version: 1.0.0
