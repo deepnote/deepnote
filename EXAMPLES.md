@@ -1,6 +1,6 @@
 # Examples
 
-This is a guide to get you started with **Deepnote Open Source**, it is a just glimpse of what is possible. To get started just clone this repository.
+This is a guide to get you started with **Deepnote Open Source**, it is just a glimpse of what is possible. To get started just clone this repository.
 
 ```bash
 git clone https://github.com/deepnote/deepnote.git
