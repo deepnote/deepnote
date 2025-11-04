@@ -43,28 +43,33 @@ export function getEnvironmentVariablesForIntegrations(
   integrations.forEach(integration => {
     const namePrefix = convertToEnvironmentVariableName(integration.name)
 
-    const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata).map(([key, rawValue]) => {
-      const name = `${namePrefix}_${key.toUpperCase()}`
-      const value = String(rawValue) // converts booleans to "true" or "false"
+    const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata)
+      .filter(([key]) => {
+        // Filter out caCertificateText - we only provide the path, not the cert text
+        return key !== 'caCertificateText'
+      })
+      .map(([key, rawValue]) => {
+        const name = `${namePrefix}_${key.toUpperCase()}`
+        const value = String(rawValue) // converts booleans to "true" or "false"
 
-      // For MongoDB, we need to inject the SSL options into the connection string.
-      if (integration.type === 'mongodb' && integration.metadata.sslEnabled && key === 'connection_string') {
+        // For MongoDB, we need to inject the SSL options into the connection string.
+        if (integration.type === 'mongodb' && integration.metadata.sslEnabled && key === 'connection_string') {
+          return {
+            name,
+            value: addSslOptionsToMongoConnectionString(
+              params.projectRootDirectory,
+              value,
+              integration.id,
+              integration.metadata
+            ),
+          }
+        }
+
         return {
           name,
-          value: addSslOptionsToMongoConnectionString(
-            params.projectRootDirectory,
-            value,
-            integration.id,
-            integration.metadata
-          ),
+          value: value,
         }
-      }
-
-      return {
-        name,
-        value: value,
-      }
-    })
+      })
 
     // NOTE: MongoDB is not a SQL integration, we only set the normal integration env variables without the SQL alchemy config.
     if (integration.type !== 'mongodb') {
