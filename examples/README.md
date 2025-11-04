@@ -82,7 +82,13 @@ Or by pressing `Cmd+Shift+P` on Mac or `Ctrl+Shift+P` on Windows and typing `Dee
 This opens the Deepnote Integrations page where you can add integrations or manage existing integrations.
 ![integrations rendered](../assets/examples/getting_started_with_deepnote_in_vscode/integrations_rendered.png)
 
-For example, see [3_integrations.deepnote](./3_integrations.deepnote) which includes a [ClickHouse playground](https://clickhouse.com/docs/getting-started/playground) integration that is free to use.
+For example, see [3_integrations.deepnote](./3_integrations.deepnote) which includes a [ClickHouse playground](https://clickhouse.com/docs/getting-started/playground) integration that is free to use. To set it up, use these credentials:
+
+- Host: `play.clickhouse.com`
+- Port: `443`
+- Database: `default`
+- Username: `play`
+- Password: `******`
 
 ## What's next?
 
