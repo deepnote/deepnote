@@ -1,31 +1,21 @@
 version: 1.0.0
 metadata:
   createdAt: '2025-11-04T03:58:18.554Z'
-  modifiedAt: '2025-11-04T12:29:38.802Z'
+  modifiedAt: '2025-11-04T12:47:01.011Z'
 project:
   id: d025b1dd-0ea7-49e8-8229-b571dd98d430
   name: blocks.deepnote
   notebooks:
     - blocks:
-        - blockGroup: 1132890b-45d1-4aab-a71b-914b58077ac1
+        - blockGroup: 00cb9c25-8938-454b-ab4c-fd5af04fa0ad
           content: |-
-            # This is a Markdown heading
+            # This is a markdown heading
 
-            This is a markdown paragraph. 
-          id: 2b8a6a40d7e84cbc493529cb773f6f44
+            This is a paragraph
+          id: 845fe223395c18ff5dcbb9b45a8cdb52
           metadata: {}
           sortingKey: a0
           type: code
-          outputs:
-            - ename: SyntaxError
-              evalue: invalid syntax (2823670256.py, line 8)
-              output_type: error
-              traceback:
-                - "\e[0;36m  Cell \e[0;32mIn[16], line 8\e[0;36m\e[0m"
-                - "\e[0;31m    This is a markdown paragraph.\e[0m"
-                - "\e[0m              ^\e[0m"
-                - "\e[0;31mSyntaxError\e[0m\e[0;31m:\e[0m invalid syntax"
-                - ''
         - blockGroup: 51ce0ff4-65dc-42ca-b2c1-1bf0d37fab2a
           content: print("Hello World!")
           id: 2665e1a332df6436b0ce30d662bfe1f1
@@ -38,15 +28,6 @@ project:
               output_type: stream
               text: |
                 Hello World!
-        - blockGroup: 621c9ad7-63aa-4683-89fa-5e7c0c27393d
-          content: |-
-            # This is a Markdown block!
-
-            And this is a paragraph.
-          id: 2760c8ea489b7cbb2890e06d3449c76d
-          metadata: {}
-          sortingKey: a2
-          type: code
       executionMode: block
       id: 921d82a6-7cb1-4fc6-a061-810ce23f803d
       name: 1. Text blocks
