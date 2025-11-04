@@ -1,7 +1,7 @@
 version: 1.0.0
 metadata:
   createdAt: '2025-11-04T03:58:18.554Z'
-  modifiedAt: '2025-11-04T06:17:31.518Z'
+  modifiedAt: '2025-11-04T11:34:55.404Z'
 project:
   id: d025b1dd-0ea7-49e8-8229-b571dd98d430
   name: blocks.deepnote
@@ -10,14 +10,25 @@ project:
         - blockGroup: 1132890b-45d1-4aab-a71b-914b58077ac1
           content: |-
             # This is a Markdown heading
-            This is a markdown paragraph
-          id: a408e6b7ab673fd9057d93d22d2e71be
+
+            This is a markdown paragraph. 
+          id: 4904a95133d90040d4370eeebf02d7de
           metadata: {}
           sortingKey: a0
           type: code
+          outputs:
+            - ename: SyntaxError
+              evalue: invalid syntax (2823670256.py, line 8)
+              output_type: error
+              traceback:
+                - "\e[0;36m  Cell \e[0;32mIn[16], line 8\e[0;36m\e[0m"
+                - "\e[0;31m    This is a markdown paragraph.\e[0m"
+                - "\e[0m              ^\e[0m"
+                - "\e[0;31mSyntaxError\e[0m\e[0;31m:\e[0m invalid syntax"
+                - ''
         - blockGroup: 51ce0ff4-65dc-42ca-b2c1-1bf0d37fab2a
           content: print("Hello World!")
-          id: 13367b97afd40bf311db1ee4cf13d0b3
+          id: e8ca913a3089f0bc56de781e0ef820c2
           metadata: {}
           sortingKey: a1
           type: code
