@@ -110,7 +110,7 @@ If you use Deepnote in your research, please cite Deepnote using:
 
 ## Contributing
 
-We love external contributors! Whether you're fixing bugs, adding features, or improving documentation, your contributions are welcome, please see [CONTRIBUTING.md](CONTRIBUTING.md), or join [our team](https://deepnote.com/careers)
+We love external contributors! Whether you're fixing bugs, adding features, or improving documentation, your contributions are welcome, please see [CONTRIBUTING.md](CONTRIBUTING.md), or join [our team](https://deepnote.com/join-us)
 
 ## Acknowledgements
 
