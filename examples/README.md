@@ -44,7 +44,7 @@ To run a Deepnote project, you can use any of the ways mentioned above (except J
 To run this example, follow these steps:
 
 1. To run the block, click the `Run` button or press `Cmd+Enter` on Mac or `Ctrl+Enter` on Windows.
-2. If it is your first time running the block, you will be prompted to select a kernel so select `Python 3.10`.
+2. If it is your first time running the block, you will be prompted to select a kernel so select `Python 3.10` or higher.
 3. The code should run and you should see `Hello world!` in the output panel.
 
 ## What's next?
