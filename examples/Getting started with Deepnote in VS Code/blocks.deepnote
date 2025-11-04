@@ -38,7 +38,7 @@ project:
           metadata:
             deepnote_variable_name: input_text
             deepnote_input_label: ''
-            deepnote_variable_value: I am a input
+            deepnote_variable_value: I am an input
             deepnote_variable_default_value: null
           sortingKey: a1
           type: input-text
@@ -52,14 +52,14 @@ project:
             - name: stdout
               output_type: stream
               text: |
-                I am a input
+                I am an input
         - blockGroup: e4a83296-20fe-4271-858b-c2a9b18071bf
           content: ''
           id: 29442060bb84d58a6487159aeb37e884
           metadata:
             deepnote_variable_name: input_textarea
             deepnote_input_label: ''
-            deepnote_variable_value: I am biger and loger text that can be used for paragraphs.
+            deepnote_variable_value: I am bigger and longer text that can be used for paragraphs.
             deepnote_variable_default_value: ''
           sortingKey: a2
           type: input-textarea
