@@ -15,7 +15,7 @@ project:
           id: 845fe223395c18ff5dcbb9b45a8cdb52
           metadata: {}
           sortingKey: a0
-          type: code
+          type: markdown
         - blockGroup: 51ce0ff4-65dc-42ca-b2c1-1bf0d37fab2a
           content: print("Hello World!")
           id: 2665e1a332df6436b0ce30d662bfe1f1
@@ -110,7 +110,7 @@ project:
           metadata:
             deepnote_variable_name: input_slider
             deepnote_input_label: ''
-            deepnote_variable_value: '0'
+            deepnote_variable_value: '5'
             deepnote_slider_min_value: 0
             deepnote_slider_max_value: 10
             deepnote_slider_step: 1
