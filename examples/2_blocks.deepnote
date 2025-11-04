@@ -1,7 +1,7 @@
 version: 1.0.0
 metadata:
   createdAt: '2025-11-04T03:58:18.554Z'
-  modifiedAt: '2025-11-04T17:47:36.992Z'
+  modifiedAt: '2025-11-04T18:35:56.418Z'
 project:
   id: d025b1dd-0ea7-49e8-8229-b571dd98d430
   name: blocks.deepnote
@@ -73,7 +73,7 @@ project:
             - name: stdout
               output_type: stream
               text: |
-                input_textarea
+                I am bigger and longer text that can be used for paragraphs.
         - blockGroup: b2bac41d-2531-47b9-b0e3-d19d7a04bb6f
           content: ''
           id: 5bce645711428cddc48c17fdfc89e256
@@ -127,7 +127,7 @@ project:
             - name: stdout
               output_type: stream
               text: |
-                input_slider
+                5
         - blockGroup: a5627d28-083d-42d8-8760-403d609559f7
           content: ''
           id: 0d0a0d7eee34ec96a913a66cc09c36e0
@@ -170,7 +170,7 @@ project:
             - name: stdout
               output_type: stream
               text: |
-                input_date
+                2025-11-03
         - blockGroup: ac828fc8-6631-458e-9c34-028664b5a6a9
           content: ''
           id: a0d6952ac8318e6a1a2ccd8feedbb1cd
