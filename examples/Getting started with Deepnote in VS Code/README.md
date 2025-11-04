@@ -11,16 +11,6 @@ Deepnote notebooks can be opened and run locally in your favorite code editor. W
 
 This example demonstrates how to build a player churn prediction model using Deepnote in VS Code. The `Model Training.deepnote` notebook showcases SQL blocks, database integrations, feature engineering, and machine learning workflows—all running locally with the power of a modern Jupyter kernel.
 
-## What makes Deepnote different
-
-Deepnote is a better version of Jupyter for the next decade. Built on the Jupyter kernel with modern improvements and open-source contributions, it offers:
-
-- **SQL blocks**: Query databases directly in your notebook
-- **Database integrations**: Connect to Snowflake, PostgreSQL, BigQuery, and more
-- **Reactive notebooks**: Unlike Jupyter's "stale" nature, Deepnote keeps your data fresh
-- **Project encapsulation**: Multiple notebooks with shared connections and dependencies
-- **Rich outputs**: Interactive DataFrames, plots, and visualizations
-- **Local execution**: Use your own Python environment and hardware
 
 ## Prerequisites
 
