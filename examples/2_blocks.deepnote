@@ -1,7 +1,7 @@
 version: 1.0.0
 metadata:
   createdAt: '2025-11-04T03:58:18.554Z'
-  modifiedAt: '2025-11-04T12:47:01.011Z'
+  modifiedAt: '2025-11-04T17:47:36.992Z'
 project:
   id: d025b1dd-0ea7-49e8-8229-b571dd98d430
   name: blocks.deepnote
@@ -64,7 +64,7 @@ project:
           sortingKey: a2
           type: input-textarea
         - blockGroup: 182114da-ee2a-4623-a5dd-232f70f90d1a
-          content: print("input_textarea")
+          content: print(input_textarea)
           id: bf4cf42d11535deef20be90678d8f05c
           metadata: {}
           sortingKey: a3
@@ -110,7 +110,7 @@ project:
           metadata:
             deepnote_variable_name: input_slider
             deepnote_input_label: ''
-            deepnote_variable_value: '9'
+            deepnote_variable_value: '0'
             deepnote_slider_min_value: 0
             deepnote_slider_max_value: 10
             deepnote_slider_step: 1
@@ -118,7 +118,7 @@ project:
           sortingKey: a4
           type: input-slider
         - blockGroup: 769271e7-9ed6-4c15-93e3-a1bbc308e3eb
-          content: print("input_slider")
+          content: print(input_slider)
           id: 9142738dd482a14e7266750461926b49
           metadata: {}
           sortingKey: a7
@@ -161,7 +161,7 @@ project:
           sortingKey: a6
           type: input-date
         - blockGroup: a333fba9-757d-412a-bed7-e341a09f226c
-          content: print("input_date")
+          content: print(input_date)
           id: 438b04a008725b83329fe066065e4539
           metadata: {}
           sortingKey: a11
