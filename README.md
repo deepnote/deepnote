@@ -54,7 +54,7 @@ You'll soon be able to:
 
 ## Deepnote vs. Jupyter
 
-Deepnote is a successor of Jupyter. It uses the same Jupyter core so you can seamlessly move between both, but adds an AI agent, sleek UI, new block types, and native data integrations.
+Deepnote extends Jupyter in a number of ways. Here are the key differences:
 
 | Feature             | Deepnote                                   | Jupyter                     |
 | ------------------- | ------------------------------------------ | --------------------------- |
