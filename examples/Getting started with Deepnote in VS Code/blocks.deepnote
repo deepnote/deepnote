@@ -1,7 +1,7 @@
 version: 1.0.0
 metadata:
   createdAt: '2025-11-04T03:58:18.554Z'
-  modifiedAt: '2025-11-04T11:34:55.404Z'
+  modifiedAt: '2025-11-04T12:29:38.802Z'
 project:
   id: d025b1dd-0ea7-49e8-8229-b571dd98d430
   name: blocks.deepnote
@@ -12,7 +12,7 @@ project:
             # This is a Markdown heading
 
             This is a markdown paragraph. 
-          id: 4904a95133d90040d4370eeebf02d7de
+          id: 2b8a6a40d7e84cbc493529cb773f6f44
           metadata: {}
           sortingKey: a0
           type: code
@@ -28,7 +28,7 @@ project:
                 - ''
         - blockGroup: 51ce0ff4-65dc-42ca-b2c1-1bf0d37fab2a
           content: print("Hello World!")
-          id: e8ca913a3089f0bc56de781e0ef820c2
+          id: 2665e1a332df6436b0ce30d662bfe1f1
           metadata: {}
           sortingKey: a1
           type: code
@@ -38,6 +38,15 @@ project:
               output_type: stream
               text: |
                 Hello World!
+        - blockGroup: 621c9ad7-63aa-4683-89fa-5e7c0c27393d
+          content: |-
+            # This is a Markdown block!
+
+            And this is a paragraph.
+          id: 2760c8ea489b7cbb2890e06d3449c76d
+          metadata: {}
+          sortingKey: a2
+          type: code
       executionMode: block
       id: 921d82a6-7cb1-4fc6-a061-810ce23f803d
       name: 1. Text blocks
