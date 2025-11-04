@@ -1,10 +1,54 @@
 metadata:
-  createdAt: '2025-11-03T10:06:25.909Z'
-  modifiedAt: '2025-11-04T11:28:28.354Z'
+  createdAt: "2025-11-03T10:06:25.909Z"
+  modifiedAt: "2025-11-04T11:28:28.354Z"
 project:
   id: 524a81cf-7a4c-492c-be20-408cca8fd75b
   name: 2_housing_prices_prediction
+  initNotebookId: a5356b1e77b34793a815faa71e75aad5
   notebooks:
+    - blocks:
+        - blockGroup: b4d73fbb4ab44563a34f2d1251cfd5e2
+          content: |-
+            ## Initialization Notebook
+            This is your initialization notebook.
+
+            **What's this for?**
+
+            You can put custom code you want us to run every time we setup your environment in here. 
+
+            **Awesome! Anything I should not put in here?**
+
+            Please don't install `jupyter` or `jedi` packages, they would break your Deepnote environment. Also, no need to put `!pip install`s here, we already save those automatically!
+
+            **I want to learn more!**
+
+            Great! Just [head over to our docs](https://deepnote.com/docs/project-initialization).
+          id: a4d73fbb4ab44563a34f2d1251cfd5e2
+          metadata: {}
+          sortingKey: a0
+          type: markdown
+        - blockGroup: c8c0deee42454742961d5d623385af0c
+          content: |-
+            %%bash
+            # If your project has a 'requirements.txt' file, we'll install it here.
+            if test -f requirements.txt
+              then
+                pip install -r ./requirements.txt
+              else echo "There's no requirements.txt, so nothing to install."
+            fi
+          id: a8c0deee42454742961d5d623385af0c
+          metadata:
+            execution_start: 1759911417964
+            execution_millis: 3008
+            execution_context_id: 2cd84c6a-d7a9-46cf-a8a3-9bdee70d6c26
+          sortingKey: m
+          type: code
+          executionCount: 4
+          outputs: []
+      executionMode: block
+      id: a5356b1e77b34793a815faa71e75aad5
+      isModule: false
+      name: Init
     - blocks:
         - blockGroup: 1be438185453495caece9aad31ac2086
           content: Housing Price Prediction Demo
@@ -294,8 +338,8 @@ project:
                       stats:
                         unique_count: 300
                         nan_count: 0
-                        min: '357.94132804858185'
-                        max: '3492.955594907376'
+                        min: "357.94132804858185"
+                        max: "3492.955594907376"
                         histogram:
                           - bin_start: 357.94132804858185
                             bin_end: 671.4427547344612
@@ -333,8 +377,8 @@ project:
                       stats:
                         unique_count: 300
                         nan_count: 0
-                        min: '0.004781471901207368'
-                        max: '79.7737914678425'
+                        min: "0.004781471901207368"
+                        max: "79.7737914678425"
                         histogram:
                           - bin_start: 0.004781471901207368
                             bin_end: 7.981682471495336
@@ -372,8 +416,8 @@ project:
                       stats:
                         unique_count: 5
                         nan_count: 0
-                        min: '1'
-                        max: '5'
+                        min: "1"
+                        max: "5"
                         histogram:
                           - bin_start: 1
                             bin_end: 1.4
@@ -411,8 +455,8 @@ project:
                       stats:
                         unique_count: 12
                         nan_count: 0
-                        min: '1.0'
-                        max: '6.5'
+                        min: "1.0"
+                        max: "6.5"
                         histogram:
                           - bin_start: 1
                             bin_end: 1.55
@@ -450,8 +494,8 @@ project:
                       stats:
                         unique_count: 300
                         nan_count: 0
-                        min: '0.06412746781064231'
-                        max: '42.67999372663673'
+                        min: "0.06412746781064231"
+                        max: "42.67999372663673"
                         histogram:
                           - bin_start: 0.06412746781064231
                             bin_end: 4.325714093693252
@@ -489,8 +533,8 @@ project:
                       stats:
                         unique_count: 2
                         nan_count: 0
-                        min: '0'
-                        max: '1'
+                        min: "0"
+                        max: "1"
                         histogram:
                           - bin_start: 0
                             bin_end: 0.1
@@ -528,8 +572,8 @@ project:
                       stats:
                         unique_count: 12
                         nan_count: 0
-                        min: '0'
-                        max: '11'
+                        min: "0"
+                        max: "11"
                         histogram:
                           - bin_start: 0
                             bin_end: 1.1
@@ -567,8 +611,8 @@ project:
                       stats:
                         unique_count: 300
                         nan_count: 0
-                        min: '40000.0'
-                        max: '830895.5465501397'
+                        min: "40000.0"
+                        max: "830895.5465501397"
                         histogram:
                           - bin_start: 40000
                             bin_end: 119089.55465501397
@@ -741,9 +785,9 @@ project:
                   executionCount: 22
                   sortingKey: m
                   type: code
-                table_state_spec: '{}'
+                table_state_spec: "{}"
                 metadata:
-                  table_state_spec: '{}'
+                  table_state_spec: "{}"
         - blockGroup: 03b3c90fb0e547b3bef51fe996a00d29
           content: |-
             # Optional: round for nicer CSV
@@ -938,8 +982,8 @@ project:
                       stats:
                         unique_count: 298
                         nan_count: 0
-                        min: '357.9'
-                        max: '3493.0'
+                        min: "357.9"
+                        max: "3493.0"
                         histogram:
                           - bin_start: 357.9
                             bin_end: 671.41
@@ -977,8 +1021,8 @@ project:
                       stats:
                         unique_count: 244
                         nan_count: 0
-                        min: '0.0'
-                        max: '79.8'
+                        min: "0.0"
+                        max: "79.8"
                         histogram:
                           - bin_start: 0
                             bin_end: 7.9799999999999995
@@ -1016,8 +1060,8 @@ project:
                       stats:
                         unique_count: 5
                         nan_count: 0
-                        min: '1'
-                        max: '5'
+                        min: "1"
+                        max: "5"
                         histogram:
                           - bin_start: 1
                             bin_end: 1.4
@@ -1055,8 +1099,8 @@ project:
                       stats:
                         unique_count: 12
                         nan_count: 0
-                        min: '1.0'
-                        max: '6.5'
+                        min: "1.0"
+                        max: "6.5"
                         histogram:
                           - bin_start: 1
                             bin_end: 1.55
@@ -1094,8 +1138,8 @@ project:
                       stats:
                         unique_count: 276
                         nan_count: 0
-                        min: '0.06'
-                        max: '42.68'
+                        min: "0.06"
+                        max: "42.68"
                         histogram:
                           - bin_start: 0.06
                             bin_end: 4.321999999999999
@@ -1133,8 +1177,8 @@ project:
                       stats:
                         unique_count: 2
                         nan_count: 0
-                        min: '0'
-                        max: '1'
+                        min: "0"
+                        max: "1"
                         histogram:
                           - bin_start: 0
                             bin_end: 0.1
@@ -1172,8 +1216,8 @@ project:
                       stats:
                         unique_count: 12
                         nan_count: 0
-                        min: '0'
-                        max: '11'
+                        min: "0"
+                        max: "11"
                         histogram:
                           - bin_start: 0
                             bin_end: 1.1
@@ -1211,8 +1255,8 @@ project:
                       stats:
                         unique_count: 300
                         nan_count: 0
-                        min: '40000.0'
-                        max: '830896.0'
+                        min: "40000.0"
+                        max: "830896.0"
                         histogram:
                           - bin_start: 40000
                             bin_end: 119089.6
@@ -1385,9 +1429,9 @@ project:
                   executionCount: 28
                   sortingKey: t
                   type: code
-                table_state_spec: '{}'
+                table_state_spec: "{}"
                 metadata:
-                  table_state_spec: '{}'
+                  table_state_spec: "{}"
         - blockGroup: e21066166f514e698e0d5fce3cf82a0f
           content: |-
             # Save the data to a CSV file
@@ -1518,8 +1562,8 @@ project:
                       stats:
                         unique_count: 5
                         nan_count: 0
-                        min: '21'
-                        max: '108'
+                        min: "21"
+                        max: "108"
                         histogram:
                           - bin_start: 21
                             bin_end: 29.7
@@ -1557,8 +1601,8 @@ project:
                       stats:
                         unique_count: 5
                         nan_count: 0
-                        min: '371924.74074074073'
-                        max: '485297.14285714284'
+                        min: "371924.74074074073"
+                        max: "485297.14285714284"
                         histogram:
                           - bin_start: 371924.74074074073
                             bin_end: 383261.9809523809
@@ -1596,8 +1640,8 @@ project:
                       stats:
                         unique_count: 5
                         nan_count: 0
-                        min: '159264.9997615724'
-                        max: '186732.5985914996'
+                        min: "159264.9997615724"
+                        max: "186732.5985914996"
                         histogram:
                           - bin_start: 159264.9997615724
                             bin_end: 162011.7596445651
@@ -1775,5 +1819,9 @@ project:
       id: 239dfad31ad94a36ad61c35967aec832
       isModule: false
       name: 2. Model training and visualization
-  settings: {}
+  settings:
+    requirements:
+      - sklearn
+      - matplotlib
+      - seaborn
 version: 1.0.0
