@@ -5,7 +5,7 @@ Convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`
 ## Installation
 
 ```bash
-npm install @deepnote/convert
+npm install -g @deepnote/convert
 ```
 
 ## CLI Usage
@@ -78,17 +78,14 @@ You can also use the conversion function programmatically in your Node.js or Typ
 ### Basic Usage
 
 ```typescript
-import { convertIpynbFilesToDeepnoteFile } from '@deepnote/convert'
+import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
 
-await convertIpynbFilesToDeepnoteFile(
-  ['path/to/notebook.ipynb'],
-  {
-    outputPath: 'output.deepnote',
-    projectName: 'My Project'
-  }
-)
+await convertIpynbFilesToDeepnoteFile(["path/to/notebook.ipynb"], {
+  outputPath: "output.deepnote",
+  projectName: "My Project",
+});
+```
 
 ## License
 
 Apache-2.0
-```

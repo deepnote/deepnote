@@ -23,7 +23,7 @@ Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.co
 
 ## What is Deepnote?
 
-**Deepnote Open Source** is an AI notebook built with collaboration and the next decade in mind. It's pretty, AI-first, has countless data and ecosystem integrations, and offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
+Deepnote is a successor of Jupyter. It uses the Deepnote kernel which is more powerful but still backwards compatible so you can seamlessly move between both, but adds an AI agent, sleek UI, new block types, and native data integrations. **Deepnote Open Source** offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
 
 Why Deepnote Open Source?
 
@@ -54,7 +54,7 @@ You'll soon be able to:
 
 ## Deepnote vs. Jupyter
 
-Deepnote is a successor of Jupyter. It uses the same Jupyter core so you can seamlessly move between both, but adds an AI agent, sleek UI, new block types, and native data integrations.
+Deepnote extends Jupyter in a number of ways. Here are the key differences:
 
 | Feature             | Deepnote                                   | Jupyter                     |
 | ------------------- | ------------------------------------------ | --------------------------- |
@@ -110,7 +110,7 @@ If you use Deepnote in your research, please cite Deepnote using:
 
 ## Contributing
 
-We love external contributors! Whether you're fixing bugs, adding features, or improving documentation, your contributions are welcome, please see [CONTRIBUTING.md](CONTRIBUTING.md), or join [our team](https://deepnote.com/careers)
+We love external contributors! Whether you're fixing bugs, adding features, or improving documentation, your contributions are welcome, please see [CONTRIBUTING.md](CONTRIBUTING.md), or join [our team](https://deepnote.com/join-us)
 
 ## Acknowledgements
 
