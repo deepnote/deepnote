@@ -49,4 +49,16 @@ To run this example, follow these steps:
 
 ## What's next?
 
-You can have a look at [/examples](./examples) folder to see more sample projects and try running them out.
+You can have a look at [/examples](./examples) folder where you can find:
+
+- [Getting started with Deepnote in VS Code](./examples/Getting%20started%20with%20Deepnote%20in%20VS%20Code/Readme.md) which is more in-depth guide on how to use Deepnote in VS Code.
+- [2_housing_prices_prediction](./examples/2_housing_prices_prediction.deepnote) where you try out some machine learning and data science.
+- And [our demo](./examples/demo.deepnote), which is demo project showcasing all features of Deepnote.
+
+## Need help?
+
+- Join our [Community](https://github.com/deepnote/deepnote/discussions)!
+- [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
+- Check out source code of related repositories: [Deepnote VS Code extension](https://github.com/deepnote/vscode-deepnote), [Deepnote JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote) and [Deepnote Toolkit](https://github.com/deepnote/deepnote-toolkit).
+- Check out our [documentation](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
+- Want a low-code experience? Visit [Deepnote Cloud](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) together with Deepnote AI agent
