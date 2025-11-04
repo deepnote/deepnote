@@ -50,5 +50,3 @@ To run this example, follow these steps:
 ## What's next?
 
 You can have a look at [/examples](./) folder to see more sample projects and try running them out.
-
-For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.
