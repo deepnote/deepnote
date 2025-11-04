@@ -1503,6 +1503,14 @@ project:
             y_pred = model.predict(X)
             r2 = r2_score(y, y_pred)
             mae = mean_absolute_error(y, y_pred)
+
+            # Create results dataframe for visualization
+            res = df.copy()
+            res["price_pred_usd"] = y_pred
+            res["residual_usd"] = res["price_usd"] - res["price_pred_usd"]
+            res["age_bucket"] = res["age_years"].apply(
+                lambda x: '≤5' if x <= 5 else '6–15' if x <= 15 else '16–30' if x <= 30 else '31–50' if x <= 50 else '51–100'
+            )
           executionCount: 106
           id: 784efe0811c0458f88d5f82d9ac9d27b
           metadata:
@@ -1821,7 +1829,7 @@ project:
       name: 2. Model training and visualization
   settings:
     requirements:
-      - sklearn
+      - scikit-learn
       - matplotlib
       - seaborn
 version: 1.0.0
