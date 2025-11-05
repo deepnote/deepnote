@@ -25,6 +25,7 @@ export const databaseIntegrationTypes = [...sqlIntegrationTypes, 'mongodb'] as c
 export type DatabaseIntegrationType = (typeof databaseIntegrationTypes)[number]
 
 export const databaseIntegrationTypesWithSslSupport = [
+  'alloydb',
   'clickhouse',
   'dremio',
   'mariadb',

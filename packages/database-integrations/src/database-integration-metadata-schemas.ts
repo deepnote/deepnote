@@ -215,18 +215,23 @@ const alloydbMetadataSchema = commonDatabaseSchema.extend({
 
 const mariadbMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
-  // Note: SSL is always attempted, only certificate can be specified
+  sslEnabled: z.boolean().optional(),
   caCertificateName: z.string().optional(),
+  caCertificateText: z.string().optional(),
 })
 
 const mindsdbMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
+  sslEnabled: z.boolean().optional(),
   caCertificateName: z.string().optional(),
+  caCertificateText: z.string().optional(),
 })
 
 const mysqlMetadataSchema = commonDatabaseSchema.extend({
   port: z.string().optional(),
+  sslEnabled: z.boolean().optional(),
   caCertificateName: z.string().optional(),
+  caCertificateText: z.string().optional(),
 })
 
 const pgsqlMetadataSchema = commonDatabaseSchema.extend({

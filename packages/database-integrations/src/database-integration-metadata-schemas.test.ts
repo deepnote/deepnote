@@ -760,7 +760,9 @@ describe('SQL integration metadata schemas', () => {
         password: 'my-password',
         database: 'my-database',
         port: 'my-port',
+        sslEnabled: true,
         caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
       })
 
       expect(result.success).toBe(true)
@@ -770,7 +772,9 @@ describe('SQL integration metadata schemas', () => {
         password: 'my-password',
         database: 'my-database',
         port: 'my-port',
+        sslEnabled: true,
         caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
       })
     })
 
@@ -810,7 +814,9 @@ describe('SQL integration metadata schemas', () => {
         password: 'my-password',
         database: 'my-database',
         port: 'my-port',
+        sslEnabled: true,
         caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
       })
 
       expect(result.success).toBe(true)
@@ -820,7 +826,9 @@ describe('SQL integration metadata schemas', () => {
         password: 'my-password',
         database: 'my-database',
         port: 'my-port',
+        sslEnabled: true,
         caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
       })
     })
 
@@ -860,7 +868,9 @@ describe('SQL integration metadata schemas', () => {
         password: 'my-password',
         database: 'my-database',
         port: 'my-port',
+        sslEnabled: true,
         caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
       })
 
       expect(result.success).toBe(true)
@@ -870,7 +880,9 @@ describe('SQL integration metadata schemas', () => {
         password: 'my-password',
         database: 'my-database',
         port: 'my-port',
+        sslEnabled: true,
         caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
       })
     })
 
