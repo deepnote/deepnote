@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  type DatabaseIntegrationTypeWithSslSupport,
   databaseIntegrationTypes,
   databaseIntegrationTypesWithSslSupport,
+  isDatabaseIntegrationType,
+  isDatabaseIntegrationTypeWithSslSupport,
+  isSqlIntegrationType,
+  type SqlIntegrationType,
   sqlIntegrationTypes,
 } from './database-integration-types'
 
@@ -29,6 +34,24 @@ describe('Integration types', () => {
     it('should not contain mongodb', () => {
       expect(sqlIntegrationTypes).not.toContain('mongodb')
     })
+
+    it('should claim all SQL integration types', () => {
+      sqlIntegrationTypes.forEach(type => {
+        expect(isSqlIntegrationType(type)).toBe(true)
+      })
+    })
+
+    it('should not claim non-SQL integration types', () => {
+      databaseIntegrationTypes.forEach(type => {
+        if (!sqlIntegrationTypes.includes(type as SqlIntegrationType)) {
+          expect(isSqlIntegrationType(type)).toBe(false)
+        }
+      })
+    })
+
+    it('should not claim unknown types', () => {
+      expect(isSqlIntegrationType('unknown')).toBe(false)
+    })
   })
 
   describe('Database integration types', () => {
@@ -40,6 +63,16 @@ describe('Integration types', () => {
 
     it('should contain mongodb', () => {
       expect(databaseIntegrationTypes).toContain('mongodb')
+    })
+
+    it('should claim all database integration types', () => {
+      databaseIntegrationTypes.forEach(type => {
+        expect(isDatabaseIntegrationType(type)).toBe(true)
+      })
+    })
+
+    it('should not claim unknown types', () => {
+      expect(isDatabaseIntegrationType('unknown')).toBe(false)
     })
   })
 
@@ -54,6 +87,20 @@ describe('Integration types', () => {
       expect(databaseIntegrationTypesWithSslSupport).toContain('pgsql')
       expect(databaseIntegrationTypesWithSslSupport).toContain('redshift')
       expect(databaseIntegrationTypesWithSslSupport).toContain('trino')
+    })
+
+    it('should claim all types that support SSL', () => {
+      databaseIntegrationTypesWithSslSupport.forEach(type => {
+        expect(isDatabaseIntegrationTypeWithSslSupport(type)).toBe(true)
+      })
+    })
+
+    it('should not claim types that do not support SSL', () => {
+      databaseIntegrationTypes.forEach(type => {
+        if (!databaseIntegrationTypesWithSslSupport.includes(type as DatabaseIntegrationTypeWithSslSupport)) {
+          expect(isDatabaseIntegrationTypeWithSslSupport(type)).toBe(false)
+        }
+      })
     })
   })
 })

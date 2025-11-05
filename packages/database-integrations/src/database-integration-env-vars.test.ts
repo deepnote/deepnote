@@ -158,6 +158,43 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('postgresql://my-user:my-password@my-host/my-database')
       })
 
+      it('should exclude caCertificateText from env vars', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'alloydb',
+              id: 'my-alloydb',
+              name: 'My AlloyDB Connection',
+              metadata: {
+                host: 'my-host',
+                user: 'my-user',
+                password: 'my-password',
+                database: 'my-database',
+                caCertificateName: 'my-ca-certificate-name',
+                caCertificateText: 'my-ca-certificate-text',
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        // Verify that caCertificateText is not in the env vars
+        const caCertTextEnvVar = envVars.find(envVar => envVar.name === 'MY_ALLOYDB_CONNECTION_CACERTIFICATETEXT')
+        expect(caCertTextEnvVar).toBeUndefined()
+
+        // Verify that caCertificateName is still included
+        const caCertNameEnvVar = envVars.find(envVar => envVar.name === 'MY_ALLOYDB_CONNECTION_CACERTIFICATENAME')
+        expect(caCertNameEnvVar).toBeDefined()
+        expect(caCertNameEnvVar?.value).toBe('my-ca-certificate-name')
+
+        // Verify that the SQL Alchemy input uses the path, not the text
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-alloydb')
+        expect(sqlAlchemyInput.params.connect_args.sslrootcert).toBe(
+          '/path/to/project/.deepnote/my-alloydb/my-ca-certificate-name'
+        )
+      })
+
       it('should generate env vars for metadata', () => {
         const { envVars, errors } = getEnvironmentVariablesForIntegrations(
           [
@@ -1321,6 +1358,43 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('mysql+pymysql://my-user:my-password@my-host/my-database')
       })
 
+      it('should exclude caCertificateText from env vars', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'mysql',
+              id: 'my-mysql',
+              name: 'My MySQL Connection',
+              metadata: {
+                host: 'my-host',
+                user: 'my-user',
+                password: 'my-password',
+                database: 'my-database',
+                caCertificateName: 'my-ca-certificate-name',
+                caCertificateText: 'my-ca-certificate-text',
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        // Verify that caCertificateText is not in the env vars
+        const caCertTextEnvVar = envVars.find(envVar => envVar.name === 'MY_MYSQL_CONNECTION_CACERTIFICATETEXT')
+        expect(caCertTextEnvVar).toBeUndefined()
+
+        // Verify that caCertificateName is still included
+        const caCertNameEnvVar = envVars.find(envVar => envVar.name === 'MY_MYSQL_CONNECTION_CACERTIFICATENAME')
+        expect(caCertNameEnvVar).toBeDefined()
+        expect(caCertNameEnvVar?.value).toBe('my-ca-certificate-name')
+
+        // Verify that the SQL Alchemy input uses the path, not the text
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-mysql')
+        expect(sqlAlchemyInput.params.connect_args.ssl.ca).toBe(
+          '/path/to/project/.deepnote/my-mysql/my-ca-certificate-name'
+        )
+      })
+
       it('should generate env vars for metadata', () => {
         const { envVars, errors } = getEnvironmentVariablesForIntegrations(
           [
@@ -1664,6 +1738,43 @@ describe('Database integration env variables', () => {
 
         const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-postgres')
         expect(sqlAlchemyInput.url).toBe('postgresql://my-user:my-password@my-host/my-database')
+      })
+
+      it('should exclude caCertificateText from env vars', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'pgsql',
+              id: 'my-postgres',
+              name: 'My PostgreSQL Connection',
+              metadata: {
+                host: 'my-host',
+                user: 'my-user',
+                password: 'my-password',
+                database: 'my-database',
+                caCertificateName: 'my-ca-certificate-name',
+                caCertificateText: 'my-ca-certificate-text',
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        // Verify that caCertificateText is not in the env vars
+        const caCertTextEnvVar = envVars.find(envVar => envVar.name === 'MY_POSTGRESQL_CONNECTION_CACERTIFICATETEXT')
+        expect(caCertTextEnvVar).toBeUndefined()
+
+        // Verify that caCertificateName is still included
+        const caCertNameEnvVar = envVars.find(envVar => envVar.name === 'MY_POSTGRESQL_CONNECTION_CACERTIFICATENAME')
+        expect(caCertNameEnvVar).toBeDefined()
+        expect(caCertNameEnvVar?.value).toBe('my-ca-certificate-name')
+
+        // Verify that the SQL Alchemy input uses the path, not the text
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-postgres')
+        expect(sqlAlchemyInput.params.connect_args.sslrootcert).toBe(
+          '/path/to/project/.deepnote/my-postgres/my-ca-certificate-name'
+        )
       })
 
       it('should generate env vars for metadata', () => {

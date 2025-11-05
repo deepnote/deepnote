@@ -1,11 +1,10 @@
+import type { DatabaseIntegrationConfig, SqlIntegrationConfig } from './database-integration-config'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
-import type { DatabaseIntegrationType, SqlIntegrationType } from './database-integration-types'
 import { getSnowflakeSqlAlchemyInput } from './snowflake-integration-env-vars'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
 import {
   AwsAuthMethods,
   DatabaseAuthMethods,
-  type FederatedAuthMethod,
   isFederatedAuthMetadata,
   isFederatedAuthMethod,
 } from './sql-integration-auth-methods'
@@ -14,18 +13,6 @@ export interface EnvVar {
   name: string
   value: string
 }
-
-export type DatabaseIntegrationConfig = {
-  [integrationType in DatabaseIntegrationType]: {
-    type: integrationType
-    id: string
-    name: string
-    metadata: DatabaseIntegrationMetadataByType[integrationType]
-    federated_auth_method?: FederatedAuthMethod
-  }
-}[DatabaseIntegrationType]
-
-export type SqlIntegrationConfig = Extract<DatabaseIntegrationConfig, { type: SqlIntegrationType }>
 
 export function getEnvironmentVariablesForIntegrations(
   integrations: Array<DatabaseIntegrationConfig>,
@@ -43,28 +30,33 @@ export function getEnvironmentVariablesForIntegrations(
   integrations.forEach(integration => {
     const namePrefix = convertToEnvironmentVariableName(integration.name)
 
-    const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata).map(([key, rawValue]) => {
-      const name = `${namePrefix}_${key.toUpperCase()}`
-      const value = String(rawValue) // converts booleans to "true" or "false"
+    const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata)
+      .filter(([key]) => {
+        // Filter out caCertificateText - we only provide the path, not the cert text
+        return key !== 'caCertificateText'
+      })
+      .map(([key, rawValue]) => {
+        const name = `${namePrefix}_${key.toUpperCase()}`
+        const value = String(rawValue) // converts booleans to "true" or "false"
 
-      // For MongoDB, we need to inject the SSL options into the connection string.
-      if (integration.type === 'mongodb' && integration.metadata.sslEnabled && key === 'connection_string') {
+        // For MongoDB, we need to inject the SSL options into the connection string.
+        if (integration.type === 'mongodb' && integration.metadata.sslEnabled && key === 'connection_string') {
+          return {
+            name,
+            value: addSslOptionsToMongoConnectionString(
+              params.projectRootDirectory,
+              value,
+              integration.id,
+              integration.metadata
+            ),
+          }
+        }
+
         return {
           name,
-          value: addSslOptionsToMongoConnectionString(
-            params.projectRootDirectory,
-            value,
-            integration.id,
-            integration.metadata
-          ),
+          value: value,
         }
-      }
-
-      return {
-        name,
-        value: value,
-      }
-    })
+      })
 
     // NOTE: MongoDB is not a SQL integration, we only set the normal integration env variables without the SQL alchemy config.
     if (integration.type !== 'mongodb') {
