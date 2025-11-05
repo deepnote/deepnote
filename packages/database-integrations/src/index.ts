@@ -25,6 +25,7 @@ export {
   type SqlIntegrationType,
   sqlIntegrationTypes,
 } from './database-integration-types'
+export { getSnowflakeFederatedAuthSqlAlchemyInput } from './snowflake-integration-env-vars'
 export type { SqlAlchemyInput } from './sql-alchemy-types'
 export {
   type AwsAuthMethod,
