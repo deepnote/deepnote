@@ -38,3 +38,15 @@ export const databaseIntegrationTypesWithSslSupport = [
 ] as const satisfies ReadonlyArray<DatabaseIntegrationType>
 
 export type DatabaseIntegrationTypeWithSslSupport = (typeof databaseIntegrationTypesWithSslSupport)[number]
+
+export function isDatabaseIntegrationType(type: string): type is DatabaseIntegrationType {
+  return databaseIntegrationTypes.includes(type as DatabaseIntegrationType)
+}
+
+export function isSqlIntegrationType(type: string): type is SqlIntegrationType {
+  return sqlIntegrationTypes.includes(type as SqlIntegrationType)
+}
+
+export function isDatabaseIntegrationTypeWithSslSupport(type: string): type is DatabaseIntegrationTypeWithSslSupport {
+  return databaseIntegrationTypesWithSslSupport.includes(type as DatabaseIntegrationTypeWithSslSupport)
+}
