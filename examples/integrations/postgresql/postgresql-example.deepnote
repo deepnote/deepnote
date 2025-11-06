@@ -1,0 +1,541 @@
+version: 1.0.0
+metadata:
+  createdAt: '2025-11-06T10:17:54.349Z'
+  modifiedAt: '2025-11-06T10:35:33.214Z'
+project:
+  id: e1819931-0902-48af-9f7c-0832966bb701
+  name: postgresql_example.deepnote
+  notebooks:
+    - blocks:
+        - blockGroup: 4faf3b37-10bf-40f6-823d-f36d3cbc98d5
+          content: |-
+            # PostgreSQL E-Commerce Database Example
+
+            This example demonstrates PostgreSQL integration in Deepnote using a realistic e-commerce database with customers, products, orders, and analytics.
+
+            ## Quick Setup
+
+            **Step 1:** Start PostgreSQL with Docker
+            ```bash
+            docker run --name deepnote-postgres \
+              -e POSTGRES_PASSWORD=postgres \
+              -p 5432:5432 \
+              -d postgres:15
+            ```
+
+            **Step 2:** Load sample data
+            ```bash
+            docker exec -i deepnote-postgres psql -U postgres < sample_data.sql
+            ```
+
+            **Step 3:** Install Python packages
+            ```bash
+            pip install psycopg2-binary pandas matplotlib
+            ```
+
+            Then run the cells below to explore the data!
+          id: 56d7a20a79b2a12e1453f48cbd206ade
+          metadata: {}
+          sortingKey: a0
+          type: markdown
+        - blockGroup: ba3fa196-f256-4fb0-a939-6ca0226cf02c
+          content: |-
+            import psycopg2
+            import pandas as pd
+            from datetime import datetime
+
+            # Connection parameters - Match Docker defaults
+            conn_params = {
+                'host': 'localhost',
+                'port': 5432,
+                'database': 'postgres',
+                'user': 'postgres',
+                'password': 'postgres'
+            }
+
+            print("✓ Connection parameters configured")
+            print(f"  Host: {conn_params['host']}")
+            print(f"  Database: {conn_params['database']}")
+          id: 32ca0570e1b12a8f8ea3e69dc8387f4a
+          metadata: {}
+          sortingKey: a1
+          type: code
+        - blockGroup: 94eda5c1-1ab9-4ecc-931c-a51bb456a339
+          content: |-
+            ## Test Connection & Verify Database
+
+            Let's connect and check if the sample data is loaded.
+          id: fa14ffb0dd439216ad81abc03fdfc4a4
+          metadata: {}
+          sortingKey: a2
+          type: markdown
+        - blockGroup: 43e6a479-b6ba-4a35-bdb4-c25e391a244b
+          content: |-
+            # Test connection and verify tables
+            try:
+                conn = psycopg2.connect(**conn_params)
+                cursor = conn.cursor()
+                
+                # Get PostgreSQL version
+                cursor.execute('SELECT version();')
+                version = cursor.fetchone()[0]
+                print("✓ Successfully connected to PostgreSQL!")
+                print(f"Version: {version[:60]}...\n")
+                
+                # Check if tables exist
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_type = 'BASE TABLE'
+                    ORDER BY table_name;
+                """)
+                tables = cursor.fetchall()
+                
+                if tables:
+                    print("✓ Available tables:")
+                    for table in tables:
+                        print(f"  - {table[0]}")
+                else:
+                    print("⚠️  No tables found. Please load sample_data.sql first!")
+                    print("   Run: docker exec -i deepnote-postgres psql -U postgres < sample_data.sql")
+                
+                cursor.close()
+                conn.close()
+                
+            except Exception as e:
+                print(f"✗ Connection failed: {e}")
+                print("\nPlease check:")
+                print("  1. PostgreSQL is running: docker ps")
+                print("  2. Sample data is loaded")
+                print("  3. psycopg2-binary is installed")
+          id: c1ddd9bf43506774d2006840c9b1e19d
+          metadata: {}
+          sortingKey: a3
+          type: code
+        - blockGroup: 4cdc29c5-66c5-4ba5-b679-69dcde7c83b1
+          content: |-
+            ## Explore Customers
+
+            Let's look at our customer data from around the world.
+          id: cc78db2547ece0821c6cbfa6bf2908e4
+          metadata: {}
+          sortingKey: a4
+          type: markdown
+        - blockGroup: c75c0bfe-5a0f-4aee-8f8f-d1f502a7a210
+          content: |-
+            # Query customers
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    customer_id,
+                    first_name,
+                    last_name,
+                    email,
+                    city,
+                    country,
+                    created_at
+                FROM customers
+                ORDER BY created_at;
+            """
+
+            df_customers = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print(f"Total customers: {len(df_customers)}\n")
+            df_customers
+          id: deb7375de084328c55b3c97e17d6e8fe
+          metadata: {}
+          sortingKey: a5
+          type: code
+        - blockGroup: bb17f8f3-ae4a-4fb0-8c3d-5fc00a9d66fa
+          content: |-
+            ## View Product Catalog
+
+            Check out our available products across different categories.
+          id: d30aef3b92198d0d0740106077c23707
+          metadata: {}
+          sortingKey: a6
+          type: markdown
+        - blockGroup: 3860a68f-5ff0-48e6-b712-14eb941f9ae4
+          content: |-
+            # Query products grouped by category
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    category,
+                    product_name,
+                    price,
+                    stock_quantity,
+                    CASE 
+                        WHEN stock_quantity > 100 THEN 'High'
+                        WHEN stock_quantity > 50 THEN 'Medium'
+                        ELSE 'Low'
+                    END as stock_level
+                FROM products
+                ORDER BY category, product_name;
+            """
+
+            df_products = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print(f"Total products: {len(df_products)}")
+            print(f"Categories: {df_products['category'].nunique()}\n")
+            df_products
+          id: efe428a47a1896e112b52a4be46c1c0c
+          metadata: {}
+          sortingKey: a7
+          type: code
+        - blockGroup: 0df5ec43-3282-4b45-8062-be10e6855341
+          content: |-
+            ## Analyze Orders
+
+            Let's examine the orders using the pre-built `order_summary` view.
+          id: 9df5d8180faa434acb4cdb17333b9d91
+          metadata: {}
+          sortingKey: a8
+          type: markdown
+        - blockGroup: 4804ae07-5a92-4388-9768-e1979151231a
+          content: |-
+            # Query order summary view
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    order_id,
+                    customer_name,
+                    country,
+                    order_date,
+                    status,
+                    total_items,
+                    total_amount
+                FROM order_summary
+                ORDER BY order_date DESC;
+            """
+
+            df_orders = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print(f"Total orders: {len(df_orders)}\n")
+            print("Order status breakdown:")
+            print(df_orders['status'].value_counts())
+            print(f"\nTotal revenue: ${df_orders['total_amount'].sum():,.2f}\n")
+            df_orders
+          id: d4f569b5f2224a40d423352a051ec3a0
+          metadata: {}
+          sortingKey: a9
+          type: code
+        - blockGroup: f6b0ffef-e7f6-44ad-a168-e3fe432092cf
+          content: |-
+            # Product sales performance
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    product_name,
+                    category,
+                    price,
+                    total_sold,
+                    total_revenue,
+                    stock_quantity
+                FROM product_sales
+                WHERE total_sold > 0
+                ORDER BY total_revenue DESC
+                LIMIT 10;
+            """
+
+            df_sales = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print("Top 10 Products by Revenue:\n")
+            df_sales
+          id: 1c2c69441191be393211b7ea061fae15
+          metadata: {}
+          sortingKey: a10
+          type: code
+        - blockGroup: 046bb42d-a9a4-4320-a20a-55e2cf9e81bf
+          content: |-
+            ## Join Query: Order Details
+
+            Let's see detailed order information by joining multiple tables.
+          id: 74bab71debfc758367755766c2b55bb3
+          metadata: {}
+          sortingKey: a11
+          type: markdown
+        - blockGroup: 26b3d40a-743d-4950-b08a-f6342945122b
+          content: |-
+            # Detailed order information with JOIN
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    o.order_id,
+                    c.first_name || ' ' || c.last_name AS customer_name,
+                    p.product_name,
+                    p.category,
+                    oi.quantity,
+                    oi.unit_price,
+                    oi.subtotal,
+                    o.status,
+                    o.order_date
+                FROM orders o
+                JOIN customers c ON o.customer_id = c.customer_id
+                JOIN order_items oi ON o.order_id = oi.order_id
+                JOIN products p ON oi.product_id = p.product_id
+                WHERE o.status = 'completed'
+                ORDER BY o.order_date DESC, o.order_id
+                LIMIT 20;
+            """
+
+            df_details = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print(f"Showing {len(df_details)} completed order items:\n")
+            df_details
+          id: 390d6f345ad71e34fcb474f19c971c90
+          metadata: {}
+          sortingKey: a12
+          type: code
+        - blockGroup: e8d75ce1-7246-4abf-b293-4fa54d6b563b
+          content: |-
+            ## Aggregation: Sales by Category
+
+            Analyze revenue by product category.
+          id: 282d216132f36d08f487f8b750dc45b1
+          metadata: {}
+          sortingKey: a13
+          type: markdown
+        - blockGroup: 2f0689cb-850a-4681-9c1d-453c6bbed5aa
+          content: |-
+            # Sales by category
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    p.category,
+                    COUNT(DISTINCT oi.order_id) AS total_orders,
+                    SUM(oi.quantity) AS items_sold,
+                    SUM(oi.subtotal) AS revenue,
+                    ROUND(AVG(oi.unit_price), 2) AS avg_price
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.product_id
+                GROUP BY p.category
+                ORDER BY revenue DESC;
+            """
+
+            df_category = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print("Revenue by Category:\n")
+            df_category
+          id: e24ff83c2f9983e1bee458de986a8001
+          metadata: {}
+          sortingKey: a14
+          type: code
+        - blockGroup: fb87774f-d816-4c22-b93f-82e2629cab87
+          content: |-
+            ## Geographic Analysis
+
+            Find out which countries are generating the most revenue.
+          id: dde874538fba4516cb4f341ee03cf4bf
+          metadata: {}
+          sortingKey: a15
+          type: markdown
+        - blockGroup: b6516705-dc2b-425b-afe3-2313a42b84c1
+          content: |-
+            # Revenue by country
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    c.country,
+                    COUNT(DISTINCT c.customer_id) AS total_customers,
+                    COUNT(DISTINCT o.order_id) AS total_orders,
+                    SUM(o.total_amount) AS total_revenue,
+                    ROUND(AVG(o.total_amount), 2) AS avg_order_value
+                FROM customers c
+                JOIN orders o ON c.customer_id = o.customer_id
+                GROUP BY c.country
+                ORDER BY total_revenue DESC;
+            """
+
+            df_country = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print("Revenue by Country:\n")
+            df_country
+          id: d10f0d60da07445d90aaebb824134be4
+          metadata: {}
+          sortingKey: a16
+          type: code
+        - blockGroup: 659ac688-197b-47f8-8215-1bb9189c33c1
+          content: |-
+            ## Time Series: Daily Orders
+
+            Analyze order trends over time.
+          id: cf44c7a89c2c9c97ec5401cabe01733f
+          metadata: {}
+          sortingKey: a17
+          type: markdown
+        - blockGroup: 97356d44-dd47-473f-be07-3ae78a784a48
+          content: |-
+            # Daily order trends
+            conn = psycopg2.connect(**conn_params)
+
+            query = """
+                SELECT 
+                    DATE(order_date) AS order_day,
+                    COUNT(*) AS num_orders,
+                    SUM(total_amount) AS daily_revenue,
+                    ROUND(AVG(total_amount), 2) AS avg_order_value
+                FROM orders
+                GROUP BY DATE(order_date)
+                ORDER BY order_day;
+            """
+
+            df_daily = pd.read_sql_query(query, conn)
+            conn.close()
+
+            print("Daily Order Trends:\n")
+            df_daily
+          id: cf67270db8bc1c9087f6b86fe03b9333
+          metadata: {}
+          sortingKey: a18
+          type: code
+        - blockGroup: efdcffb4-6e0d-4ad0-b99c-f354fcbd57ff
+          content: |-
+            ## Insert New Order
+
+            Let's create a new order for a customer.
+          id: 303eebb50247949ff0df6d7c995b36b1
+          metadata: {}
+          sortingKey: a19
+          type: markdown
+        - blockGroup: 54099576-cfef-489c-9685-e32457d39585
+          content: |-
+            # Insert a new order
+            conn = psycopg2.connect(**conn_params)
+            cursor = conn.cursor()
+
+            try:
+                # Start transaction
+                # Insert new order
+                cursor.execute("""
+                    INSERT INTO orders (customer_id, status, total_amount, order_date)
+                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                    RETURNING order_id;
+                """, (1, 'pending', 179.98))
+                
+                order_id = cursor.fetchone()[0]
+                
+                # Insert order items
+                cursor.execute("""
+                    INSERT INTO order_items (order_id, product_id, quantity, unit_price)
+                    VALUES 
+                        (%s, 9, 1, 149.99),  -- Mechanical Keyboard
+                        (%s, 2, 1, 29.99);    -- Wireless Mouse
+                """, (order_id, order_id))
+                
+                conn.commit()
+                
+                print(f"✓ Successfully created order #{order_id}")
+                print(f"  Customer ID: 1 (John Doe)")
+                print(f"  Total Amount: $179.98")
+                print(f"  Items: 2")
+                
+            except Exception as e:
+                conn.rollback()
+                print(f"✗ Error creating order: {e}")
+            finally:
+                cursor.close()
+                conn.close()
+          id: 457060789f78adc370a8b347d629a3a8
+          metadata: {}
+          sortingKey: a20
+          type: code
+        - blockGroup: 027c183b-93f6-4fd3-b282-c85718e6f889
+          content: |-
+            ## Update Order Status
+
+            Update the status of an existing order.
+          id: f846042e72d804d13a6b0afc4e285989
+          metadata: {}
+          sortingKey: a21
+          type: markdown
+        - blockGroup: 841a2658-8ef9-4f00-a12e-437dce026cfe
+          content: |-
+            # Update order status
+            conn = psycopg2.connect(**conn_params)
+            cursor = conn.cursor()
+
+            try:
+                cursor.execute("""
+                    UPDATE orders 
+                    SET status = %s 
+                    WHERE order_id = %s 
+                    AND status = 'pending'
+                    RETURNING order_id, status;
+                """, ('shipped', 7))
+                
+                result = cursor.fetchone()
+                conn.commit()
+                
+                if result:
+                    print(f"✓ Order #{result[0]} status updated to '{result[1]}'")
+                else:
+                    print("⚠️  No pending orders found with that ID")
+                
+            except Exception as e:
+                conn.rollback()
+                print(f"✗ Error updating order: {e}")
+            finally:
+                cursor.close()
+                conn.close()
+          id: 279dcd3930d738aba2e1b277f0179c92
+          metadata: {}
+          sortingKey: a22
+          type: code
+        - blockGroup: 232f83bf-357e-4086-b293-b82eabc39e30
+          content: |-
+            ## Cleanup (Optional)
+
+            Run this cell only if you want to remove ALL sample data.
+          id: 1c9a9af8ed88efb710ce97b5ad5cde3a
+          metadata: {}
+          sortingKey: a15
+          type: markdown
+        - blockGroup: bd81a9f0-1ad8-4c94-9c22-0ef849d8b5f7
+          content: |-
+            # WARNING: This will delete all sample data!
+            # Uncomment the code below to run cleanup
+
+            # conn = psycopg2.connect(**conn_params)
+            # cursor = conn.cursor()
+
+            # try:
+            #     cursor.execute('DROP TABLE IF EXISTS order_items CASCADE;')
+            #     cursor.execute('DROP TABLE IF EXISTS orders CASCADE;')
+            #     cursor.execute('DROP TABLE IF EXISTS products CASCADE;')
+            #     cursor.execute('DROP TABLE IF EXISTS customers CASCADE;')
+            #     cursor.execute('DROP VIEW IF EXISTS order_summary CASCADE;')
+            #     cursor.execute('DROP VIEW IF EXISTS product_sales CASCADE;')
+            #     conn.commit()
+            #     print("✓ All sample tables and views removed")
+            # except Exception as e:
+            #     conn.rollback()
+            #     print(f"✗ Error during cleanup: {e}")
+            # finally:
+            #     cursor.close()
+            #     conn.close()
+
+            print("⚠️  Cleanup code is commented out for safety.")
+            print("Uncomment the code above to delete all sample data.")
+          id: 76559c7769c4efee07fd1d6c14dd5584
+          metadata: {}
+          sortingKey: a16
+          type: code
+      executionMode: block
+      id: 4d967b88-c149-486a-8798-124342878e48
+      name: Notebook 1
