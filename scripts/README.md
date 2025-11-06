@@ -78,12 +78,19 @@ Found 1 code blocks to execute
 - `input-date` - Date pickers
 - `input-date-range` - Date range pickers
 
-⚠️ **SQL blocks** - Not yet supported (requires database integration)  
+✅ **SQL blocks** - Supported for:
+
+- **Pandas DataFrames** (DuckDB) - Query in-memory DataFrames with SQL!
+- ClickHouse (e.g., ClickHouse playground)
+- PostgreSQL
+- MySQL/MariaDB
+- More databases coming soon!
+
 ⚠️ **Chart blocks** - Not yet supported
 
 ### Limitations
 
 - Requires an active Deepnote kernel (a wrapper around Jupyter kernel; cannot create new kernels automatically)
-- Cannot execute SQL blocks yet (needs database connections)
+- SQL blocks require database credentials (use ClickHouse playground for free testing)
 - Outputs are text-only in terminal (no rich HTML/images displayed)
 - Input widget values are taken from the file (not interactive)

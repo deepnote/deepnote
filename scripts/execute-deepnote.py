@@ -26,6 +26,7 @@ import os
 import re
 from pathlib import Path
 from jupyter_client import BlockingKernelClient
+from urllib.parse import quote_plus
 
 # Mapping of import names to package names
 IMPORT_TO_PACKAGE = {
@@ -33,6 +34,9 @@ IMPORT_TO_PACKAGE = {
     'cv2': 'opencv-python',
     'PIL': 'Pillow',
     'yaml': 'pyyaml',
+    'sqlalchemy': 'sqlalchemy',
+    'clickhouse_sqlalchemy': 'clickhouse-sqlalchemy',
+    'duckdb': 'duckdb',
 }
 
 def find_active_kernel():
@@ -48,6 +52,79 @@ def find_active_kernel():
     kernel_id = latest_kernel.stem.replace('kernel-', '')
     
     return kernel_id
+
+def build_sqlalchemy_url(integration):
+    """Build SQLAlchemy connection URL for a database integration.
+    
+    Based on the Deepnote database integration config:
+    https://github.com/deepnote/deepnote/blob/main/packages/database-integrations/src/database-integration-env-vars.ts
+    """
+    integration_type = integration.get('type')
+    metadata = integration.get('metadata', {})
+    integration_name = integration.get('name', '').lower()
+    
+    if integration_type == 'clickhouse':
+        # ClickHouse playground credentials or user-provided metadata
+        # If no metadata, use ClickHouse playground defaults for "playground" integrations
+        is_playground = 'playground' in integration_name
+        
+        host = metadata.get('host', 'play.clickhouse.com' if is_playground else None)
+        port = metadata.get('port', '443' if is_playground else None)
+        user = metadata.get('user', 'play' if is_playground else None)
+        password = metadata.get('password', '')
+        database = metadata.get('database', 'default' if is_playground else None)
+        ssl_enabled = metadata.get('sslEnabled', True)
+        
+        # Validate required fields
+        if not all([host, user, database]):
+            return None
+        
+        # URL encode credentials
+        user_encoded = quote_plus(user)
+        password_encoded = quote_plus(password) if password else ''
+        credentials = f"{user_encoded}:{password_encoded}" if password else user_encoded
+        port_suffix = f":{port}" if port else ''
+        
+        # Build connection URL with SSL params
+        protocol = 'https' if ssl_enabled else 'http'
+        secure = 'true' if ssl_enabled else 'false'
+        url = f"clickhouse://{credentials}@{host}{port_suffix}/{database}?protocol={protocol}&secure={secure}"
+        
+        return url
+    
+    elif integration_type == 'pgsql':
+        # PostgreSQL
+        host = metadata.get('host')
+        port = metadata.get('port', '5432')
+        user = metadata.get('user')
+        password = metadata.get('password', '')
+        database = metadata.get('database')
+        
+        user_encoded = quote_plus(user)
+        password_encoded = quote_plus(password)
+        port_suffix = f":{port}" if port else ''
+        
+        url = f"postgresql://{user_encoded}:{password_encoded}@{host}{port_suffix}/{database}"
+        return url
+    
+    elif integration_type == 'mysql' or integration_type == 'mariadb':
+        # MySQL/MariaDB
+        host = metadata.get('host')
+        port = metadata.get('port', '3306')
+        user = metadata.get('user')
+        password = metadata.get('password', '')
+        database = metadata.get('database')
+        
+        user_encoded = quote_plus(user)
+        password_encoded = quote_plus(password)
+        port_suffix = f":{port}" if port else ''
+        
+        url = f"mysql+pymysql://{user_encoded}:{password_encoded}@{host}{port_suffix}/{database}"
+        return url
+    
+    else:
+        # Unsupported integration type
+        return None
 
 def extract_imports_from_code(code_blocks):
     """Extract all import statements from code blocks."""
@@ -145,6 +222,10 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
     project = data.get('project', {})
     init_notebook_id = project.get('initNotebookId')
     notebooks = project.get('notebooks', [])
+    integrations = project.get('integrations', [])
+    
+    # Build integration lookup map
+    integration_map = {integration['id']: integration for integration in integrations}
     
     # Separate init notebook from other notebooks
     init_notebook = None
@@ -164,9 +245,10 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         notebook_name = notebook.get('name', 'Unnamed')
         notebooks_to_process.append((notebook_name, notebook))
     
-    # Extract input widgets and code blocks from all notebooks
+    # Extract input widgets, code blocks, and SQL blocks from all notebooks
     input_widgets = []
     code_blocks = []
+    sql_blocks = []
     
     for notebook_name, notebook in notebooks_to_process:
         for block in notebook.get('blocks', []):
@@ -196,14 +278,76 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
                     'sortingKey': block.get('sortingKey', ''),
                     'notebook': notebook_name,
                 })
+            
+            # Collect SQL blocks
+            elif block_type == 'sql':
+                content = block.get('content', '').strip()
+                if not content:
+                    # Skip SQL blocks without content (malformed or placeholder blocks)
+                    continue
+                    
+                metadata = block.get('metadata', {})
+                integration_id = metadata.get('sql_integration_id')
+                var_name = metadata.get('deepnote_variable_name', 'df')
+                
+                if integration_id:
+                    sql_blocks.append({
+                        'id': block.get('id'),
+                        'content': content,
+                        'integration_id': integration_id,
+                        'var_name': var_name,
+                        'sortingKey': block.get('sortingKey', ''),
+                        'notebook': notebook_name,
+                    })
     
-    if not code_blocks:
-        print(f"No code blocks found in {filepath}")
+    if not code_blocks and not sql_blocks:
+        print(f"No code or SQL blocks found in {filepath}")
         sys.exit(0)
     
     # Auto-generate requirements.txt if needed (in the same dir as the .deepnote file)
     deepnote_dir = Path(filepath).parent.resolve()
     requirements_generated = generate_requirements_txt(code_blocks, target_dir=deepnote_dir)
+    
+    # Add SQL dependencies if we have SQL blocks
+    if sql_blocks:
+        requirements_file = Path(deepnote_dir) / 'requirements.txt'
+        existing_content = ""
+        if requirements_file.exists():
+            with open(requirements_file, 'r') as f:
+                existing_content = f.read()
+        
+        # Add sqlalchemy and pandas if not present
+        sql_deps = []
+        if 'sqlalchemy' not in existing_content.lower():
+            sql_deps.append('sqlalchemy>=2.0.0')
+        if 'pandas' not in existing_content.lower():
+            sql_deps.append('pandas>=2.0.0')
+        
+        # Check which SQL connectors we need
+        for sql_block in sql_blocks:
+            # Handle special Deepnote dataframe SQL integration
+            if sql_block['integration_id'] == 'deepnote-dataframe-sql':
+                if 'duckdb' not in existing_content.lower():
+                    sql_deps.append('duckdb>=0.9.0')
+                continue
+            
+            integration = integration_map.get(sql_block['integration_id'])
+            if integration:
+                integration_type = integration.get('type')
+                if integration_type == 'clickhouse' and 'clickhouse-sqlalchemy' not in existing_content.lower():
+                    sql_deps.append('clickhouse-sqlalchemy>=0.2.0')
+                elif integration_type in ['mysql', 'mariadb'] and 'pymysql' not in existing_content.lower():
+                    sql_deps.append('pymysql>=1.0.0')
+                elif integration_type == 'pgsql' and 'psycopg2' not in existing_content.lower():
+                    sql_deps.append('psycopg2-binary>=2.9.0')
+        
+        if sql_deps:
+            with open(requirements_file, 'a') as f:
+                if existing_content and not existing_content.endswith('\n'):
+                    f.write('\n')
+                for dep in sql_deps:
+                    f.write(f"{dep}\n")
+            requirements_generated = True
     
     print(f"\nFound {len(notebooks_to_process)} notebook(s):")
     for notebook_name, _ in notebooks_to_process:
@@ -215,7 +359,15 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
     if requirements_generated:
         print(f"\n✓ Auto-generated requirements.txt from imports")
     
-    print(f"\nTotal: {len(input_widgets)} input widget(s) and {len(code_blocks)} code block(s)")
+    block_summary = []
+    if input_widgets:
+        block_summary.append(f"{len(input_widgets)} input widget(s)")
+    if code_blocks:
+        block_summary.append(f"{len(code_blocks)} code block(s)")
+    if sql_blocks:
+        block_summary.append(f"{len(sql_blocks)} SQL block(s)")
+    
+    print(f"\nTotal: {', '.join(block_summary)}")
     print(f"{'='*70}\n")
     
     # Connect to the running kernel
@@ -469,14 +621,149 @@ else:
             
             print()  # Empty line between blocks
         
+        # Execute SQL blocks
+        if sql_blocks:
+            print(f"{'─'*70}")
+            print(f"🗄️  Executing SQL blocks")
+            print(f"{'─'*70}\n")
+            
+            for i, sql_block in enumerate(sql_blocks, 1):
+                # Handle special Deepnote dataframe SQL integration
+                if sql_block['integration_id'] == 'deepnote-dataframe-sql':
+                    integration_name = 'Pandas DataFrame (DuckDB)'
+                    integration_type = 'pandas-dataframe'
+                    integration = {
+                        'type': 'pandas-dataframe',
+                        'name': integration_name
+                    }
+                else:
+                    # Get integration details
+                    integration = integration_map.get(sql_block['integration_id'])
+                    if not integration:
+                        print(f"[{i}/{len(sql_blocks)}] SQL Block {sql_block['sortingKey']}: ✗ Integration not found")
+                        execution_errors.append({
+                            'block': f"SQL {i}",
+                            'error': f"Integration {sql_block['integration_id']} not found"
+                        })
+                        continue
+                    
+                    integration_name = integration.get('name', 'Unnamed')
+                    integration_type = integration.get('type', 'unknown')
+                
+                print(f"[{i}/{len(sql_blocks)}] SQL Block {sql_block['sortingKey']} → {sql_block['var_name']}")
+                print(f"    Integration: {integration_name} ({integration_type})")
+                
+                # Show SQL preview
+                sql_lines = sql_block['content'].strip().split('\n')
+                if len(sql_lines) == 1:
+                    print(f"    SQL: {sql_lines[0][:60]}...")
+                else:
+                    print(f"    SQL: {sql_lines[0][:60]}...")
+                    if len(sql_lines) > 1:
+                        print(f"         ... ({len(sql_lines)} lines total)")
+                
+                # Handle pandas-dataframe queries (DuckDB)
+                if integration_type == 'pandas-dataframe':
+                    sql_code = f"""
+import duckdb
+
+try:
+    # DuckDB can query pandas DataFrames directly
+    {sql_block['var_name']} = duckdb.query({repr(sql_block['content'])}).df()
+    print(f"✓ Retrieved {{len({sql_block['var_name']})}} rows")
+    print(f"  Columns: {{', '.join({sql_block['var_name']}.columns.tolist()[:5])}}")
+    if len({sql_block['var_name']}.columns) > 5:
+        print(f"  ... and {{len({sql_block['var_name']}.columns) - 5}} more")
+except Exception as e:
+    print(f"✗ SQL execution failed: {{type(e).__name__}}: {{e}}")
+    raise
+"""
+                else:
+                    # Build connection URL for external databases
+                    connection_url = build_sqlalchemy_url(integration)
+                    if not connection_url:
+                        print(f"    ✗ Unsupported integration type: {integration_type}")
+                        execution_errors.append({
+                            'block': f"SQL {i}",
+                            'error': f"Unsupported integration type: {integration_type}"
+                        })
+                        print()
+                        continue
+                    
+                    # Execute SQL query using pandas + SQLAlchemy
+                    sql_code = f"""
+import pandas as pd
+from sqlalchemy import create_engine
+
+try:
+    _engine = create_engine({repr(connection_url)})
+    {sql_block['var_name']} = pd.read_sql({repr(sql_block['content'])}, _engine)
+    print(f"✓ Retrieved {{len({sql_block['var_name']})}} rows")
+    print(f"  Columns: {{', '.join({sql_block['var_name']}.columns.tolist()[:5])}}")
+    if len({sql_block['var_name']}.columns) > 5:
+        print(f"  ... and {{len({sql_block['var_name']}.columns) - 5}} more")
+except Exception as e:
+    print(f"✗ SQL execution failed: {{type(e).__name__}}: {{e}}")
+    raise
+"""
+                
+                # Execute the SQL code
+                msg_id = client.execute(sql_code, silent=False)
+                
+                # Wait for execution and capture output
+                had_output = False
+                had_error = False
+                while True:
+                    try:
+                        msg = client.get_iopub_msg(timeout=60)  # Longer timeout for SQL queries
+                        msg_type = msg['header']['msg_type']
+                        content = msg['content']
+                        
+                        if msg_type == 'stream':
+                            if not had_output:
+                                print("    Output:")
+                            had_output = True
+                            for line in content['text'].rstrip().split('\n'):
+                                print(f"      {line}")
+                        
+                        elif msg_type == 'error':
+                            had_error = True
+                            print(f"    ✗ Error: {content['ename']}: {content['evalue']}")
+                            execution_errors.append({
+                                'block': f"SQL {i}",
+                                'error': f"{content['ename']}: {content['evalue']}"
+                            })
+                        
+                        elif msg_type == 'status' and content['execution_state'] == 'idle':
+                            break
+                    
+                    except KeyboardInterrupt:
+                        print("\n⚠ Execution interrupted by user")
+                        client.stop_channels()
+                        sys.exit(1)
+                    except Exception as e:
+                        print(f"    ⚠ Communication error: {e}")
+                        break
+                
+                if not had_output and not had_error:
+                    print("    (no output)")
+                
+                print()  # Empty line between blocks
+        
         # Summary
         print(f"{'='*70}")
+        total_blocks = len(code_blocks) + len(sql_blocks)
         if execution_errors:
             print(f"⚠ Completed with {len(execution_errors)} error(s):")
             for err in execution_errors:
                 print(f"  Block {err['block']}: {err['error']}")
         else:
-            print(f"✅ Successfully executed all {len(code_blocks)} code blocks!")
+            block_types = []
+            if code_blocks:
+                block_types.append(f"{len(code_blocks)} code")
+            if sql_blocks:
+                block_types.append(f"{len(sql_blocks)} SQL")
+            print(f"✅ Successfully executed all {' + '.join(block_types)} blocks!")
         
     except KeyboardInterrupt:
         print("\n⚠ Execution interrupted")

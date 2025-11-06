@@ -100,12 +100,11 @@ python scripts/execute-deepnote.py examples/1_hello_world.deepnote <kernel-id>
 **Supported in programmatic execution:**
 - ✅ Code blocks - Full support
 - ✅ Input widgets - All types (text, textarea, select, slider, checkbox, date, date-range)
-- ⚠️ SQL blocks - Not yet supported (requires database integration)
+- ✅ SQL blocks - Pandas DataFrames (DuckDB), ClickHouse, PostgreSQL, MySQL/MariaDB
 - ⚠️ Chart blocks - Not yet supported
 
 **Cannot do:**
 - Execute blocks through VS Code/Cursor extension UI directly
-- Run SQL queries or connect to databases (yet)
 - Preview rendered outputs visually (text-only in terminal)
 - Test integrations without running kernel
 
