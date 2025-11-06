@@ -92,6 +92,24 @@ The **Deepnote Kernel** is a Jupyter-compatible kernel (wrapper around Jupyter) 
 
 The kernel powers both Deepnote Cloud and Deepnote Open Source, providing enhanced notebook execution.
 
+### Two Separate Environments - IMPORTANT
+
+**Script Environment (Local Python):**
+- Where `scripts/execute-deepnote.py` runs
+- Requires: `pyyaml`, `jupyter-client` (for the script itself)
+- These are NOT notebook dependencies
+
+**Kernel Environment (Deepnote Kernel):**
+- Where `.deepnote` notebook code executes
+- Requires: `pandas`, `numpy`, `sklearn`, etc. (notebook dependencies)
+- **Auto-managed by init notebooks** - DON'T install these manually!
+- The init notebook generates `requirements.txt` and installs packages IN THE KERNEL
+
+**DON'T CONFUSE THEM:**
+- ❌ Don't manually install notebook dependencies (pandas, sklearn, etc.)
+- ✅ Let the init notebook auto-install them in the kernel
+- ✅ Script dependencies (pyyaml, jupyter-client) are separate and needed locally
+
 ### AI Assistant Capabilities
 **Can do:**
 - Read, parse, and edit `.deepnote` files

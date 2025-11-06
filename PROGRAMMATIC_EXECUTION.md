@@ -271,6 +271,24 @@ python scripts/execute-deepnote.py examples/2_blocks.deepnote || exit 1
 
 ---
 
+## 🛠️ Real-World Development Workflow
+
+Want to see how **Cursor (AI)** built and debugged a complex notebook using programmatic execution?
+
+Check out the complete workflow showing how the AI created a **627-line Sales Analytics Dashboard** and debugged it in under 5 minutes using just 2 simple user prompts:
+
+**[📖 Read the AI Development Workflow Guide →](./examples/demos/DEVELOPMENT_WORKFLOW.md)**
+
+Includes:
+
+- AI creating 627 lines from 1 prompt
+- AI running programmatic execution
+- AI identifying and fixing 3 errors automatically
+- Before/after code examples
+- Time breakdown (~5 minutes total, 2 user prompts)
+
+---
+
 ## 🚧 Current Limitations
 
 - **Requires active Deepnote Kernel** - Cannot create new kernels automatically (must have a `.deepnote` file open in VS Code/Cursor)

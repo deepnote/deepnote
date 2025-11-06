@@ -45,13 +45,15 @@ This open-source repository lets you, edit and run Deepnote notebooks directly i
 
 ### 🚀 NEW: Programmatic Execution
 
-Execute any Deepnote notebook programmatically via Python! Perfect for AI agents, batch processing, and CI/CD:
+Execute any Deepnote notebook programmatically via Python! Perfect for AI agents, batch processing, debugging, and CI/CD:
 
 ```bash
-python scripts/execute-deepnote.py examples/housing_price_prediction.deepnote
+python scripts/execute-deepnote.py examples/demos/sales_analytics_dashboard.deepnote
 ```
 
-**Supports ALL block types:** Code, Input widgets, SQL queries (DuckDB/ClickHouse/PostgreSQL/MySQL), and Charts. [Read more →](./PROGRAMMATIC_EXECUTION.md)
+**Supports ALL block types:** Code, Input widgets, SQL queries (DuckDB/ClickHouse/PostgreSQL/MySQL), and Charts.
+
+**Real-world example:** Cursor (AI) created and debugged a 627-line Sales Analytics Dashboard in under 5 minutes using 2 simple user prompts + programmatic execution. [Read the full workflow →](./examples/demos/DEVELOPMENT_WORKFLOW.md)
 
 ## Roadmap
 
