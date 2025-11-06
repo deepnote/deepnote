@@ -56,9 +56,25 @@ Found 1 code blocks to execute
 - **Debugging**: Run specific notebooks without opening the UI
 - **Testing**: Verify notebook execution succeeds
 
+### Supported Block Types
+
+✅ **Code blocks** - Fully supported  
+✅ **Input widgets** - All types supported:
+
+- `input-text` - Text inputs
+- `input-textarea` - Multi-line text
+- `input-select` - Dropdown selections
+- `input-slider` - Numeric sliders
+- `input-checkbox` - Boolean checkboxes
+- `input-date` - Date pickers
+- `input-date-range` - Date range pickers
+
+⚠️ **SQL blocks** - Not yet supported (requires database integration)  
+⚠️ **Chart blocks** - Not yet supported
+
 ### Limitations
 
-- Only executes code blocks (not SQL, input widgets, etc. yet)
-- Requires an active Jupyter kernel
-- Cannot create new kernels automatically
-- Outputs are text-only (no rich HTML/images displayed)
+- Requires an active Deepnote kernel (a wrapper around Jupyter kernel; cannot create new kernels automatically)
+- Cannot execute SQL blocks yet (needs database connections)
+- Outputs are text-only in terminal (no rich HTML/images displayed)
+- Input widget values are taken from the file (not interactive)

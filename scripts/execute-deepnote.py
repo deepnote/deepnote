@@ -63,11 +63,31 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         print(f"Error: Invalid YAML in {filepath}: {e}")
         sys.exit(1)
     
-    # Extract code blocks
+    # Extract input widgets and code blocks
+    input_widgets = []
     code_blocks = []
+    
     for notebook in data.get('project', {}).get('notebooks', []):
         for block in notebook.get('blocks', []):
-            if block.get('type') == 'code' and block.get('content'):
+            block_type = block.get('type', '')
+            
+            # Collect input widgets
+            if block_type.startswith('input-'):
+                metadata = block.get('metadata', {})
+                var_name = metadata.get('deepnote_variable_name')
+                var_value = metadata.get('deepnote_variable_value')
+                
+                if var_name and var_value is not None:
+                    input_widgets.append({
+                        'type': block_type,
+                        'name': var_name,
+                        'value': var_value,
+                        'metadata': metadata,
+                        'sortingKey': block.get('sortingKey', ''),
+                    })
+            
+            # Collect code blocks
+            elif block_type == 'code' and block.get('content'):
                 code_blocks.append({
                     'id': block.get('id'),
                     'content': block.get('content'),
@@ -78,7 +98,7 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         print(f"No code blocks found in {filepath}")
         sys.exit(0)
     
-    print(f"\nFound {len(code_blocks)} code blocks to execute")
+    print(f"\nFound {len(input_widgets)} input widget(s) and {len(code_blocks)} code block(s)")
     print(f"{'='*70}\n")
     
     # Connect to the running kernel
@@ -97,6 +117,94 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         # Wait for kernel to be ready
         client.wait_for_ready(timeout=10)
         print(f"✓ Connected to kernel {kernel_id}\n")
+        
+        # Initialize input widget variables
+        if input_widgets:
+            print("Initializing input widgets:")
+            for widget in input_widgets:
+                var_name = widget['name']
+                var_value = widget['value']
+                widget_type = widget['type']
+                
+                # Generate Python code to set the variable based on widget type
+                if widget_type == 'input-checkbox':
+                    # Boolean value
+                    code = f"{var_name} = {str(var_value)}"
+                    display_value = str(var_value)
+                    
+                elif widget_type == 'input-slider':
+                    # Numeric value (convert string to number)
+                    try:
+                        # Check if it's a float or int
+                        if '.' in str(var_value):
+                            code = f"{var_name} = {float(var_value)}"
+                        else:
+                            code = f"{var_name} = {int(var_value)}"
+                        display_value = str(var_value)
+                    except ValueError:
+                        code = f"{var_name} = '{var_value}'"
+                        display_value = f"'{var_value}'"
+                        
+                elif widget_type == 'input-date':
+                    # Date value - import datetime and create date object
+                    code = f"import datetime; {var_name} = '{var_value}'"
+                    display_value = f"'{var_value}'"
+                    
+                elif widget_type == 'input-date-range':
+                    # Date range - list of dates
+                    if isinstance(var_value, list) and len(var_value) > 0:
+                        # Convert to datetime.date objects (convert strings to ints to avoid leading zero issues)
+                        try:
+                            dates_code = ', '.join([
+                                f"datetime.date({int(year)}, {int(month)}, {int(day)})" 
+                                for date_str in var_value 
+                                for year, month, day in [date_str.split('-')]
+                            ])
+                            code = f"import datetime; {var_name} = [{dates_code}]"
+                            display_value = str(var_value)
+                        except (ValueError, AttributeError):
+                            # Fallback if date parsing fails
+                            code = f"{var_name} = {repr(var_value)}"
+                            display_value = repr(var_value)
+                    else:
+                        code = f"{var_name} = {repr(var_value)}"
+                        display_value = repr(var_value)
+                        
+                else:
+                    # Text input (input-text, input-textarea, input-select)
+                    # Use repr() to properly escape strings
+                    code = f"{var_name} = {repr(var_value)}"
+                    display_value = repr(var_value) if len(repr(var_value)) < 50 else repr(var_value)[:47] + "..."
+                
+                print(f"  {var_name} = {display_value}")
+                # DEBUG: Uncomment to see generated code
+                # print(f"    Code: {code}")
+                
+                # Execute the initialization code
+                msg_id = client.execute(code, silent=True)
+                
+                # Wait for completion and check for errors
+                had_error = False
+                while True:
+                    try:
+                        msg = client.get_iopub_msg(timeout=5)
+                        msg_type = msg['header']['msg_type']
+                        
+                        if msg_type == 'error':
+                            content = msg['content']
+                            print(f"    ⚠ Error initializing: {content['ename']}: {content['evalue']}")
+                            had_error = True
+                        elif msg_type == 'status' and msg['content']['execution_state'] == 'idle':
+                            break
+                    except Exception as e:
+                        break
+                
+                if had_error:
+                    print(f"    Falling back to: {var_name} = {repr(var_value)}")
+                    # Try simple assignment as fallback
+                    client.execute(f"{var_name} = {repr(var_value)}", silent=True)
+            
+            print()  # Empty line after initialization
         
         # Execute each code block
         execution_errors = []
