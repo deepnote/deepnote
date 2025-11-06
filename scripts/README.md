@@ -48,6 +48,15 @@ Found 1 code blocks to execute
 ✅ Successfully executed all 1 code blocks!
 ```
 
+### Features
+
+- ✅ **Auto-detects active kernel** - No need to specify kernel ID
+- ✅ **Supports init notebooks** - Executes initialization notebooks first
+- ✅ **Auto-generates requirements.txt** - Analyzes imports and creates dependency file
+- ✅ **Input widgets** - Initializes all input widget variables before execution
+- ✅ **Real-time output** - Displays results as code executes
+- ✅ **Error reporting** - Shows which blocks failed and why
+
 ### Use Cases
 
 - **CI/CD pipelines**: Run notebooks as part of automated testing

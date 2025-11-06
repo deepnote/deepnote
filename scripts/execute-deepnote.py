@@ -23,8 +23,17 @@ import yaml
 import json
 import glob
 import os
+import re
 from pathlib import Path
 from jupyter_client import BlockingKernelClient
+
+# Mapping of import names to package names
+IMPORT_TO_PACKAGE = {
+    'sklearn': 'scikit-learn',
+    'cv2': 'opencv-python',
+    'PIL': 'Pillow',
+    'yaml': 'pyyaml',
+}
 
 def find_active_kernel():
     """Find the most recently active Jupyter kernel."""
@@ -39,6 +48,75 @@ def find_active_kernel():
     kernel_id = latest_kernel.stem.replace('kernel-', '')
     
     return kernel_id
+
+def extract_imports_from_code(code_blocks):
+    """Extract all import statements from code blocks."""
+    imports = set()
+    
+    for block in code_blocks:
+        content = block['content']
+        
+        # Find 'import X' statements
+        for match in re.finditer(r'^\s*import\s+([a-zA-Z_][a-zA-Z0-9_]*)', content, re.MULTILINE):
+            package = match.group(1)
+            imports.add(package)
+        
+        # Find 'from X import Y' statements
+        for match in re.finditer(r'^\s*from\s+([a-zA-Z_][a-zA-Z0-9_]*)', content, re.MULTILINE):
+            package = match.group(1)
+            imports.add(package)
+    
+    return imports
+
+def generate_requirements_txt(code_blocks, target_dir='.'):
+    """Auto-generate requirements.txt from imports in code blocks."""
+    imports = extract_imports_from_code(code_blocks)
+    
+    # Map to package names and filter out stdlib
+    stdlib_modules = {
+        'os', 'sys', 'json', 'datetime', 'pathlib', 'collections', 
+        'itertools', 'functools', 're', 'math', 'random', 'time',
+        'io', 'csv', 'typing', 'abc', 'dataclasses', 'enum',
+    }
+    
+    packages = set()
+    for imp in imports:
+        # Skip stdlib modules
+        if imp in stdlib_modules:
+            continue
+        
+        # Map to actual package name
+        package_name = IMPORT_TO_PACKAGE.get(imp, imp)
+        packages.add(package_name)
+    
+    if not packages:
+        return False
+    
+    # Generate requirements.txt
+    requirements_file = Path(target_dir) / 'requirements.txt'
+    
+    # Don't overwrite if it exists
+    if requirements_file.exists():
+        return False
+    
+    with open(requirements_file, 'w') as f:
+        f.write("# Auto-generated from .deepnote file imports\n")
+        for package in sorted(packages):
+            # Add version constraints for common packages
+            if package == 'numpy':
+                f.write("numpy>=1.24.0\n")
+            elif package == 'pandas':
+                f.write("pandas>=2.0.0\n")
+            elif package == 'scikit-learn':
+                f.write("scikit-learn>=1.3.0\n")
+            elif package == 'matplotlib':
+                f.write("matplotlib>=3.7.0\n")
+            elif package == 'seaborn':
+                f.write("seaborn>=0.12.0\n")
+            else:
+                f.write(f"{package}\n")
+    
+    return True
 
 def execute_deepnote_file(filepath: str, kernel_id: str = None):
     """Execute all code blocks from a .deepnote file in the specified kernel."""
@@ -63,11 +141,34 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         print(f"Error: Invalid YAML in {filepath}: {e}")
         sys.exit(1)
     
-    # Extract input widgets and code blocks
+    # Check if there's an init notebook
+    project = data.get('project', {})
+    init_notebook_id = project.get('initNotebookId')
+    notebooks = project.get('notebooks', [])
+    
+    # Separate init notebook from other notebooks
+    init_notebook = None
+    other_notebooks = []
+    
+    for notebook in notebooks:
+        if notebook.get('id') == init_notebook_id:
+            init_notebook = notebook
+        else:
+            other_notebooks.append(notebook)
+    
+    # Process notebooks in order: init first, then others
+    notebooks_to_process = []
+    if init_notebook:
+        notebooks_to_process.append(('Init', init_notebook))
+    for notebook in other_notebooks:
+        notebook_name = notebook.get('name', 'Unnamed')
+        notebooks_to_process.append((notebook_name, notebook))
+    
+    # Extract input widgets and code blocks from all notebooks
     input_widgets = []
     code_blocks = []
     
-    for notebook in data.get('project', {}).get('notebooks', []):
+    for notebook_name, notebook in notebooks_to_process:
         for block in notebook.get('blocks', []):
             block_type = block.get('type', '')
             
@@ -84,6 +185,7 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
                         'value': var_value,
                         'metadata': metadata,
                         'sortingKey': block.get('sortingKey', ''),
+                        'notebook': notebook_name,
                     })
             
             # Collect code blocks
@@ -92,13 +194,28 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
                     'id': block.get('id'),
                     'content': block.get('content'),
                     'sortingKey': block.get('sortingKey', ''),
+                    'notebook': notebook_name,
                 })
     
     if not code_blocks:
         print(f"No code blocks found in {filepath}")
         sys.exit(0)
     
-    print(f"\nFound {len(input_widgets)} input widget(s) and {len(code_blocks)} code block(s)")
+    # Auto-generate requirements.txt if needed (in the same dir as the .deepnote file)
+    deepnote_dir = Path(filepath).parent
+    requirements_generated = generate_requirements_txt(code_blocks, target_dir=deepnote_dir)
+    
+    print(f"\nFound {len(notebooks_to_process)} notebook(s):")
+    for notebook_name, _ in notebooks_to_process:
+        if notebook_name == 'Init':
+            print(f"  - {notebook_name} (will run first)")
+        else:
+            print(f"  - {notebook_name}")
+    
+    if requirements_generated:
+        print(f"\n✓ Auto-generated requirements.txt from imports")
+    
+    print(f"\nTotal: {len(input_widgets)} input widget(s) and {len(code_blocks)} code block(s)")
     print(f"{'='*70}\n")
     
     # Connect to the running kernel
@@ -117,6 +234,18 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         # Wait for kernel to be ready
         client.wait_for_ready(timeout=10)
         print(f"✓ Connected to kernel {kernel_id}\n")
+        
+        # Change working directory to where the .deepnote file is located
+        # This ensures bash blocks and file operations work relative to the notebook
+        client.execute(f"import os; os.chdir({repr(str(deepnote_dir))})", silent=True)
+        # Wait for completion
+        while True:
+            try:
+                msg = client.get_iopub_msg(timeout=2)
+                if msg['header']['msg_type'] == 'status' and msg['content']['execution_state'] == 'idle':
+                    break
+            except:
+                break
         
         # Initialize input widget variables
         if input_widgets:
@@ -208,7 +337,16 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         
         # Execute each code block
         execution_errors = []
+        current_notebook = None
+        
         for i, block in enumerate(code_blocks, 1):
+            # Print notebook header when switching notebooks
+            if block['notebook'] != current_notebook:
+                current_notebook = block['notebook']
+                print(f"{'─'*70}")
+                print(f"📓 Notebook: {current_notebook}")
+                print(f"{'─'*70}\n")
+            
             block_id = block['id'][:8]
             print(f"[{i}/{len(code_blocks)}] Block {block['sortingKey']} ({block_id}):")
             
