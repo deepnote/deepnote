@@ -202,7 +202,7 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         sys.exit(0)
     
     # Auto-generate requirements.txt if needed (in the same dir as the .deepnote file)
-    deepnote_dir = Path(filepath).parent
+    deepnote_dir = Path(filepath).parent.resolve()
     requirements_generated = generate_requirements_txt(code_blocks, target_dir=deepnote_dir)
     
     print(f"\nFound {len(notebooks_to_process)} notebook(s):")
@@ -236,7 +236,7 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         print(f"✓ Connected to kernel {kernel_id}\n")
         
         # Change working directory to where the .deepnote file is located
-        # This ensures bash blocks and file operations work relative to the notebook
+        # This ensures file operations work relative to the notebook
         client.execute(f"import os; os.chdir({repr(str(deepnote_dir))})", silent=True)
         # Wait for completion
         while True:
@@ -246,6 +246,51 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
                     break
             except:
                 break
+        
+        # If we generated requirements.txt, install packages before running blocks
+        if requirements_generated:
+            print("Installing dependencies from auto-generated requirements.txt...")
+            requirements_path = deepnote_dir / 'requirements.txt'
+            
+            # Install packages using pip
+            install_code = f"""
+import subprocess
+import sys
+result = subprocess.run(
+    [sys.executable, '-m', 'pip', 'install', '-q', '-r', {repr(str(requirements_path))}],
+    capture_output=True,
+    text=True
+)
+if result.returncode == 0:
+    print("✓ Dependencies installed successfully!")
+else:
+    print(f"⚠ Warning: Some dependencies failed to install")
+    if result.stderr:
+        print(result.stderr)
+"""
+            client.execute(install_code, silent=False)
+            
+            # Wait for installation to complete
+            while True:
+                try:
+                    msg = client.get_iopub_msg(timeout=60)  # Longer timeout for installation
+                    msg_type = msg['header']['msg_type']
+                    content = msg['content']
+                    
+                    if msg_type == 'stream':
+                        # Show installation output
+                        for line in content['text'].strip().split('\n'):
+                            if line.strip():
+                                print(f"  {line}")
+                    elif msg_type == 'error':
+                        print(f"  ⚠ Installation error: {content['ename']}: {content['evalue']}")
+                    elif msg_type == 'status' and content['execution_state'] == 'idle':
+                        break
+                except Exception as e:
+                    print(f"  ⚠ Installation timeout or error: {e}")
+                    break
+            
+            print()  # Empty line after installation
         
         # Initialize input widget variables
         if input_widgets:
