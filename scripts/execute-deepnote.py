@@ -245,10 +245,11 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         notebook_name = notebook.get('name', 'Unnamed')
         notebooks_to_process.append((notebook_name, notebook))
     
-    # Extract input widgets, code blocks, and SQL blocks from all notebooks
+    # Extract input widgets, code blocks, SQL blocks, and chart blocks from all notebooks
     input_widgets = []
     code_blocks = []
     sql_blocks = []
+    chart_blocks = []
     
     for notebook_name, notebook in notebooks_to_process:
         for block in notebook.get('blocks', []):
@@ -299,9 +300,26 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
                         'sortingKey': block.get('sortingKey', ''),
                         'notebook': notebook_name,
                     })
+            
+            # Collect chart/visualization blocks
+            elif block_type == 'visualization':
+                metadata = block.get('metadata', {})
+                var_name = metadata.get('deepnote_variable_name')
+                spec = metadata.get('deepnote_visualization_spec')
+                filters = metadata.get('deepnote_chart_filter', {}).get('advancedFilters', [])
+                
+                if var_name and spec:
+                    chart_blocks.append({
+                        'id': block.get('id'),
+                        'var_name': var_name,
+                        'spec': spec,
+                        'filters': filters,
+                        'sortingKey': block.get('sortingKey', ''),
+                        'notebook': notebook_name,
+                    })
     
-    if not code_blocks and not sql_blocks:
-        print(f"No code or SQL blocks found in {filepath}")
+    if not code_blocks and not sql_blocks and not chart_blocks:
+        print(f"No code, SQL, or chart blocks found in {filepath}")
         sys.exit(0)
     
     # Auto-generate requirements.txt if needed (in the same dir as the .deepnote file)
@@ -366,6 +384,8 @@ def execute_deepnote_file(filepath: str, kernel_id: str = None):
         block_summary.append(f"{len(code_blocks)} code block(s)")
     if sql_blocks:
         block_summary.append(f"{len(sql_blocks)} SQL block(s)")
+    if chart_blocks:
+        block_summary.append(f"{len(chart_blocks)} chart block(s)")
     
     print(f"\nTotal: {', '.join(block_summary)}")
     print(f"{'='*70}\n")
@@ -750,9 +770,92 @@ except Exception as e:
                 
                 print()  # Empty line between blocks
         
+        # Execute chart/visualization blocks
+        if chart_blocks:
+            print(f"{'─'*70}")
+            print(f"📊 Executing chart blocks")
+            print(f"{'─'*70}\n")
+            
+            for i, chart_block in enumerate(chart_blocks, 1):
+                print(f"[{i}/{len(chart_blocks)}] Chart Block {chart_block['sortingKey']}")
+                print(f"    Source: {chart_block['var_name']}")
+                
+                # Get chart type from spec if available
+                chart_type = chart_block['spec'].get('mark', 'unknown') if isinstance(chart_block['spec'], dict) else 'unknown'
+                print(f"    Type: {chart_type}")
+                
+                # Execute chart using Deepnote toolkit
+                chart_code = f"""
+import deepnote_toolkit
+import json
+
+try:
+    _chart = deepnote_toolkit.DeepnoteChart(
+        {chart_block['var_name']}, 
+        {repr(json.dumps(chart_block['spec']))}, 
+        filters={repr(json.dumps(chart_block['filters']))}
+    )
+    # Display the chart
+    display(_chart)
+    print(f"✓ Chart created from {{len({chart_block['var_name']})}} rows")
+except Exception as e:
+    print(f"✗ Chart execution failed: {{type(e).__name__}}: {{e}}")
+    raise
+"""
+                
+                # Execute the chart code
+                msg_id = client.execute(chart_code, silent=False)
+                
+                # Wait for execution and capture output
+                had_output = False
+                had_error = False
+                while True:
+                    try:
+                        msg = client.get_iopub_msg(timeout=30)
+                        msg_type = msg['header']['msg_type']
+                        content = msg['content']
+                        
+                        if msg_type == 'stream':
+                            if not had_output:
+                                print("    Output:")
+                            had_output = True
+                            for line in content['text'].rstrip().split('\n'):
+                                print(f"      {line}")
+                        
+                        elif msg_type == 'display_data' or msg_type == 'execute_result':
+                            if not had_output:
+                                print("    Output:")
+                            had_output = True
+                            # Chart was displayed
+                            print(f"      Chart rendered (interactive visualization)")
+                        
+                        elif msg_type == 'error':
+                            had_error = True
+                            print(f"    ✗ Error: {content['ename']}: {content['evalue']}")
+                            execution_errors.append({
+                                'block': f"Chart {i}",
+                                'error': f"{content['ename']}: {content['evalue']}"
+                            })
+                        
+                        elif msg_type == 'status' and content['execution_state'] == 'idle':
+                            break
+                    
+                    except KeyboardInterrupt:
+                        print("\n⚠ Execution interrupted by user")
+                        client.stop_channels()
+                        sys.exit(1)
+                    except Exception as e:
+                        print(f"    ⚠ Communication error: {e}")
+                        break
+                
+                if not had_output and not had_error:
+                    print("    (no output)")
+                
+                print()  # Empty line between blocks
+        
         # Summary
         print(f"{'='*70}")
-        total_blocks = len(code_blocks) + len(sql_blocks)
+        total_blocks = len(code_blocks) + len(sql_blocks) + len(chart_blocks)
         if execution_errors:
             print(f"⚠ Completed with {len(execution_errors)} error(s):")
             for err in execution_errors:
@@ -763,6 +866,8 @@ except Exception as e:
                 block_types.append(f"{len(code_blocks)} code")
             if sql_blocks:
                 block_types.append(f"{len(sql_blocks)} SQL")
+            if chart_blocks:
+                block_types.append(f"{len(chart_blocks)} chart")
             print(f"✅ Successfully executed all {' + '.join(block_types)} blocks!")
         
     except KeyboardInterrupt:

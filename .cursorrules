@@ -78,6 +78,20 @@ When adding new blocks:
 4. Leave `outputs` empty for unexecuted blocks
 5. Set `content` appropriately (empty string for input widgets)
 
+### Deepnote Kernel
+
+The **Deepnote Kernel** is a Jupyter-compatible kernel (wrapper around Jupyter) with enhanced capabilities:
+- **Repository**: https://github.com/deepnote/deepnote-toolkit
+- **PyPI**: https://pypi.org/project/deepnote-toolkit/
+- **Features**:
+  - First-class SQL execution without manual connector setup
+  - Native chart rendering via `deepnote_toolkit.DeepnoteChart()`
+  - Beautiful DataFrame rendering and interactive components
+  - Pre-installed curated data science libraries
+  - Full Jupyter protocol compatibility
+
+The kernel powers both Deepnote Cloud and Deepnote Open Source, providing enhanced notebook execution.
+
 ### AI Assistant Capabilities
 **Can do:**
 - Read, parse, and edit `.deepnote` files
@@ -90,7 +104,7 @@ When adding new blocks:
 
 **Programmatic Execution:**
 ```bash
-# Auto-detect kernel and run all blocks
+# Auto-detect Deepnote Kernel and run all blocks
 python scripts/execute-deepnote.py examples/1_hello_world.deepnote
 
 # Specify kernel explicitly
@@ -98,15 +112,15 @@ python scripts/execute-deepnote.py examples/1_hello_world.deepnote <kernel-id>
 ```
 
 **Supported in programmatic execution:**
-- ✅ Code blocks - Full support
+- ✅ Code blocks - Full support (including matplotlib, seaborn, plotly charts)
 - ✅ Input widgets - All types (text, textarea, select, slider, checkbox, date, date-range)
 - ✅ SQL blocks - Pandas DataFrames (DuckDB), ClickHouse, PostgreSQL, MySQL/MariaDB
-- ⚠️ Chart blocks - Not yet supported
+- ✅ Chart blocks - Full support (no-code visual builder using `deepnote_toolkit` + code-based visualizations)
 
 **Cannot do:**
 - Execute blocks through VS Code/Cursor extension UI directly
 - Preview rendered outputs visually (text-only in terminal)
-- Test integrations without running kernel
+- Create new kernels programmatically (requires `.deepnote` file open in editor)
 
 **For manual execution**: User can run blocks via:
 - Shift + Enter (run and move to next)

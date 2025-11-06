@@ -4,7 +4,7 @@ Utility scripts for working with Deepnote files.
 
 ## execute-deepnote.py
 
-Execute all code blocks in a `.deepnote` file programmatically by connecting to a running Jupyter kernel.
+Execute all code blocks in a `.deepnote` file programmatically by connecting to a running Deepnote Kernel (Jupyter-compatible kernel with enhanced features).
 
 ### Usage
 
@@ -18,16 +18,19 @@ python scripts/execute-deepnote.py examples/1_hello_world.deepnote fdab3b56-52c0
 
 ### How it works
 
-1. Connects to the running Jupyter kernel (auto-detected or specified)
-2. Parses the `.deepnote` file to extract all code blocks
-3. Executes each code block in sequence
-4. Displays outputs and results in real-time
-5. Reports any errors that occur
+1. Connects to the running Deepnote Kernel (auto-detected or specified)
+2. Parses the `.deepnote` file to extract all blocks (code, SQL, charts, input widgets)
+3. Initializes input widget variables in the kernel
+4. Auto-generates and installs dependencies from imports
+5. Executes blocks in order: init → code → SQL → charts
+6. Displays outputs and results in real-time
+7. Reports any errors that occur
 
 ### Requirements
 
-- A `.deepnote` file must be open in VS Code/Cursor with an active kernel
-- The `jupyter-client` and `pyyaml` packages must be installed
+- A `.deepnote` file must be open in VS Code/Cursor with an active Deepnote Kernel
+- The kernel is provided by [deepnote-toolkit](https://github.com/deepnote/deepnote-toolkit) ([PyPI](https://pypi.org/project/deepnote-toolkit/))
+- Python packages: `jupyter-client`, `pyyaml` (installed with VS Code/Cursor extension)
 
 ### Example Output
 
@@ -86,11 +89,15 @@ Found 1 code blocks to execute
 - MySQL/MariaDB
 - More databases coming soon!
 
-⚠️ **Chart blocks** - Not yet supported
+✅ **Chart blocks** - Full support!
+
+- Code-based charts (matplotlib, seaborn, plotly) ✅ Fully working
+- No-code chart blocks (Deepnote visual builder) ✅ Fully working
+- All chart types supported (bar, line, scatter, pie, donut, area, etc.)
 
 ### Limitations
 
-- Requires an active Deepnote kernel (a wrapper around Jupyter kernel; cannot create new kernels automatically)
-- SQL blocks require database credentials (use ClickHouse playground for free testing)
-- Outputs are text-only in terminal (no rich HTML/images displayed)
-- Input widget values are taken from the file (not interactive)
+- **Requires active Deepnote Kernel** - Must have a `.deepnote` file open in VS Code/Cursor (cannot create new kernels automatically)
+- **SQL blocks** - External databases need credentials (ClickHouse playground is free!)
+- **Terminal output** - Text-only display (no rich HTML/images in terminal)
+- **Input widgets** - Values taken from file (not interactive during execution)
