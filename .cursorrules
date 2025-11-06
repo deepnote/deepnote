@@ -1,0 +1,150 @@
+# Deepnote Repository Cursor Rules
+
+## Working with .deepnote Files
+
+### File Format
+- `.deepnote` files are YAML-formatted project files containing notebooks with interactive blocks
+- Structure: `version` → `metadata` → `project` (id, name, notebooks, integrations, settings)
+- Each notebook contains an array of `blocks` with executionMode, id, and name
+
+### Block Types
+1. **code** - Python code blocks with execution outputs
+2. **markdown** - Markdown text blocks  
+3. **sql** - SQL query blocks (require database integration)
+4. **input-text** - Text input widgets
+5. **input-textarea** - Multi-line text input
+6. **input-select** - Dropdown/select widgets
+7. **input-slider** - Numeric slider widgets
+8. **input-checkbox** - Boolean checkbox widgets
+9. **input-date** - Date picker widgets
+10. **input-date-range** - Date range picker widgets
+
+### Block Structure (Common Fields)
+```yaml
+- id: 32-char-hex-string          # Unique identifier
+  blockGroup: 32-char-hex-string  # Group identifier (often same as id)
+  content: "code or text here"    # Block content (empty for input widgets)
+  type: code|markdown|sql|input-* # Block type
+  sortingKey: a0                  # Lexicographic ordering (a0, a1, a2, etc.)
+  metadata: {}                    # Block-specific metadata
+  executionCount: 0               # Number of executions (code/sql only)
+  outputs: []                     # Execution results (code/sql only)
+```
+
+### Input Block Metadata
+Input widgets expose variables to code blocks via metadata:
+- `deepnote_variable_name` - Variable name accessible in Python/SQL
+- `deepnote_variable_value` - Current value
+- `deepnote_variable_default_value` - Default value
+- `deepnote_input_label` - Label text
+- **Select-specific**: `deepnote_variable_options`, `deepnote_variable_select_type`
+- **Slider-specific**: `deepnote_slider_min_value`, `deepnote_slider_max_value`, `deepnote_slider_step`
+
+### SQL Block Metadata
+- `sql_integration_id` - References UUID from `project.integrations`
+- `deepnote_variable_name` - Result dataframe variable name (e.g., `df_1`)
+
+### Database Integrations
+Stored in `project.integrations`:
+```yaml
+integrations:
+  - id: uuid-string
+    name: "Connection Display Name"
+    type: clickhouse|postgres|bigquery|snowflake|...
+```
+
+### Editing Guidelines
+
+#### ✅ DO
+- Preserve all existing IDs (block ids, blockGroups, integration ids)
+- Maintain proper YAML indentation (2 spaces)
+- Keep sortingKeys in lexicographic order (a0, a1, a2, ...)
+- Update `project.metadata.modifiedAt` timestamp when editing
+- Match `blockGroup` to `id` for new blocks (common pattern)
+- Preserve execution `outputs` unless specifically regenerating
+
+#### ❌ DON'T
+- Change existing block/integration IDs
+- Break YAML formatting
+- Remove required metadata fields
+- Mix up sortingKey ordering
+- Assume you can execute blocks (requires user + extension UI)
+
+### Creating New Blocks
+When adding new blocks:
+1. Generate unique 32-char hex ID: `import secrets; secrets.token_hex(16)`
+2. Set appropriate `sortingKey` (next in sequence)
+3. Include required metadata for block type
+4. Leave `outputs` empty for unexecuted blocks
+5. Set `content` appropriately (empty string for input widgets)
+
+### AI Assistant Capabilities
+**Can do:**
+- Read, parse, and edit `.deepnote` files
+- Create new blocks with proper structure
+- Understand block dependencies and relationships
+- Validate YAML structure
+- Modify metadata and content
+- Help with block organization
+- **Execute all code blocks programmatically** using `scripts/execute-deepnote.py`
+
+**Programmatic Execution:**
+```bash
+# Auto-detect kernel and run all blocks
+python scripts/execute-deepnote.py examples/1_hello_world.deepnote
+
+# Specify kernel explicitly
+python scripts/execute-deepnote.py examples/1_hello_world.deepnote <kernel-id>
+```
+
+**Cannot do:**
+- Execute blocks through VS Code/Cursor extension UI directly
+- Run SQL queries or connect to databases (yet)
+- Preview rendered outputs visually
+- Test integrations without running kernel
+
+**For manual execution**: User can run blocks via:
+- Shift + Enter (run and move to next)
+- Ctrl/Cmd + Enter (run current block)
+- Ctrl/Cmd + Alt + Shift + Enter (run all - if extension supports it)
+- "Run notebook" button (execute all blocks in UI)
+
+### Example: Adding a New Code Block
+```yaml
+- blockGroup: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+  content: |
+    import pandas as pd
+    print("Hello from new block!")
+  id: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+  metadata: {}
+  sortingKey: a5
+  type: code
+```
+
+### Example: Adding an Input Widget
+```yaml
+- blockGroup: f6e5d4c3b2a1098765432109876543ab
+  content: ''
+  id: f6e5d4c3b2a1098765432109876543ab
+  metadata:
+    deepnote_variable_name: my_input
+    deepnote_input_label: 'Enter a value'
+    deepnote_variable_value: 'default value'
+    deepnote_variable_default_value: null
+  sortingKey: a6
+  type: input-text
+```
+
+## VS Code Extension Commands
+
+When user needs to execute notebooks, reference these commands:
+- `Deepnote: Refresh Explorer` - Refresh project explorer
+- `Deepnote: Open Notebook` - Open specific notebook
+- `Deepnote: Manage Integrations` - Configure database connections
+- `Notebook: Select Notebook Kernel` - Choose Python kernel
+
+## Related Documentation
+- See `docs/deepnote-format.md` for format specification
+- See `docs/vscode-extension.md` for extension features
+- See `examples/*.deepnote` for real-world examples
+
