@@ -2,6 +2,27 @@
 
 Utility scripts for working with Deepnote files.
 
+## run-deepnote.sh ✨ NEW - Fully Automated
+
+**Recommended:** Wrapper script that auto-starts Deepnote Toolkit server if needed, then executes the notebook.
+
+### Usage
+
+```bash
+# Fully automated - no manual kernel selection needed!
+./scripts/run-deepnote.sh examples/1_hello_world.deepnote
+
+# The script will:
+# 1. Check if deepnote-toolkit is installed
+# 2. Start server if no kernel is running
+# 3. Wait for kernel to be ready
+# 4. Execute the notebook
+```
+
+**Perfect for AI agents** - Zero manual intervention required! 🤖
+
+---
+
 ## execute-deepnote.py
 
 Execute all code blocks in a `.deepnote` file programmatically by connecting to a running Deepnote Kernel (Jupyter-compatible kernel with enhanced features).
@@ -15,6 +36,8 @@ python scripts/execute-deepnote.py examples/1_hello_world.deepnote
 # Specify kernel explicitly
 python scripts/execute-deepnote.py examples/1_hello_world.deepnote fdab3b56-52c0-4070-9936-e459aff26be9
 ```
+
+**Note:** Requires an active kernel. Use `run-deepnote.sh` for auto-start capability.
 
 ### How it works
 

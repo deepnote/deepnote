@@ -1,0 +1,137 @@
+metadata:
+  createdAt: '2025-11-06T18:30:00.000Z'
+  modifiedAt: '2025-11-06T18:30:00.000Z'
+project:
+  id: test-deepnote-features-001
+  name: Test Deepnote-Specific Features
+  notebooks:
+    - blocks:
+        - blockGroup: markdown-intro
+          content: |
+            # Testing Deepnote Toolkit Features
+            
+            This notebook tests deepnote-toolkit specific functionality:
+            - Input widgets
+            - SQL blocks with DuckDB
+            - Chart blocks with DeepnoteChart
+          id: markdown-intro
+          metadata: {}
+          sortingKey: a0
+          type: markdown
+
+        - blockGroup: input-text-test
+          content: ''
+          id: input-text-test
+          metadata:
+            deepnote_variable_name: test_name
+            deepnote_input_label: 'Enter your name'
+            deepnote_variable_value: 'Deepnote User'
+            deepnote_variable_default_value: 'Anonymous'
+          sortingKey: a1
+          type: input-text
+
+        - blockGroup: input-slider-test
+          content: ''
+          id: input-slider-test
+          metadata:
+            deepnote_variable_name: test_value
+            deepnote_input_label: 'Select a value'
+            deepnote_variable_value: 50
+            deepnote_variable_default_value: 50
+            deepnote_slider_min_value: 0
+            deepnote_slider_max_value: 100
+            deepnote_slider_step: 10
+          sortingKey: a2
+          type: input-slider
+
+        - blockGroup: test-inputs
+          content: |
+            # Test input widgets
+            print(f"✓ Input text: {test_name}")
+            print(f"✓ Input slider: {test_value}")
+            print(f"\n🎉 Input widgets working!")
+          id: test-inputs
+          metadata: {}
+          sortingKey: a3
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: create-dataframe
+          content: |
+            import pandas as pd
+            import numpy as np
+            
+            # Create sample data
+            np.random.seed(42)
+            df_sales = pd.DataFrame({
+                'product': ['Laptop', 'Phone', 'Tablet', 'Monitor', 'Keyboard'] * 20,
+                'region': np.random.choice(['North', 'South', 'East', 'West'], 100),
+                'revenue': np.random.uniform(100, 1000, 100),
+                'quantity': np.random.randint(1, 10, 100)
+            })
+            
+            print(f"✓ Created DataFrame with {len(df_sales)} rows")
+            print(f"✓ Columns: {list(df_sales.columns)}")
+            print(f"\n{df_sales.head()}")
+          id: create-dataframe
+          metadata: {}
+          sortingKey: a4
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: sql-query-test
+          content: |
+            SELECT 
+                product,
+                COUNT(*) as transaction_count,
+                ROUND(SUM(revenue), 2) as total_revenue,
+                ROUND(AVG(revenue), 2) as avg_revenue
+            FROM df_sales
+            GROUP BY product
+            ORDER BY total_revenue DESC
+          id: sql-query-test
+          metadata:
+            sql_integration_id: deepnote-dataframe-sql
+            deepnote_variable_name: df_product_stats
+          sortingKey: a5
+          type: sql
+          outputs: []
+
+        - blockGroup: test-deepnote-toolkit
+          content: |
+            # Test deepnote_toolkit availability
+            try:
+                import deepnote_toolkit
+                
+                print("✓ deepnote_toolkit imported successfully")
+                print(f"✓ Version: {deepnote_toolkit.__version__ if hasattr(deepnote_toolkit, '__version__') else 'unknown'}")
+                
+                # Check for key components
+                print(f"✓ DeepnoteChart available: {hasattr(deepnote_toolkit, 'DeepnoteChart')}")
+                
+                # List some available functionality
+                toolkit_attrs = [attr for attr in dir(deepnote_toolkit) if not attr.startswith('_')]
+                print(f"\n📦 Available toolkit features: {len(toolkit_attrs)}")
+                print(f"   Examples: {', '.join(toolkit_attrs[:5])}")
+                
+                print("\n🎉 Deepnote toolkit fully functional!")
+                
+            except ImportError as e:
+                print(f"⚠️  deepnote_toolkit not available: {e}")
+          id: test-deepnote-toolkit
+          metadata: {}
+          sortingKey: a6
+          type: code
+          executionCount: 0
+          outputs: []
+
+      executionMode: block
+      id: notebook-deepnote-test-001
+      isModule: false
+      name: Deepnote Features Test
+
+  settings: {}
+version: 1.0.0
+
