@@ -74,7 +74,7 @@ describe('Database integration env variables', () => {
           params: expect.anything(),
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -597,7 +597,7 @@ describe('Database integration env variables', () => {
           params: {},
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -674,7 +674,7 @@ describe('Database integration env variables', () => {
           },
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -743,7 +743,7 @@ describe('Database integration env variables', () => {
           params: {},
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -851,7 +851,7 @@ describe('Database integration env variables', () => {
           params: expect.anything(),
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -1054,7 +1054,7 @@ describe('Database integration env variables', () => {
           params: expect.anything(),
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -1255,7 +1255,7 @@ describe('Database integration env variables', () => {
           params: expect.anything(),
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -1497,7 +1497,7 @@ describe('Database integration env variables', () => {
           params: expect.anything(),
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -1656,7 +1656,7 @@ describe('Database integration env variables', () => {
           params: expect.anything(),
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -1884,7 +1884,7 @@ describe('Database integration env variables', () => {
           params: expect.anything(),
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',
@@ -2369,7 +2369,7 @@ describe('Database integration env variables', () => {
           params: {},
           param_style: 'pyformat',
           ssh_options: {
-            enabled: 'true',
+            enabled: true,
             host: 'my-ssh-host',
             port: '255',
             user: 'my-ssh-user',

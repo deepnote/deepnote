@@ -219,12 +219,14 @@ const getDatabricksSqlAlchemyInput = ({
       },
     },
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: sshEnabled == null ? undefined : String(sshEnabled),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
-    },
+    ssh_options: sshEnabled
+      ? {
+          enabled: true,
+          host: sshHost,
+          port: sshPort,
+          user: sshUser,
+        }
+      : {},
   }
 }
 
@@ -247,12 +249,14 @@ const getDremioSqlAlchemyInput = ({
     url: url.href,
     params: {},
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: sshEnabled == null ? undefined : String(sshEnabled),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
-    },
+    ssh_options: sshEnabled
+      ? {
+          enabled: true,
+          host: sshHost,
+          port: sshPort,
+          user: sshUser,
+        }
+      : {},
   }
 }
 
@@ -272,12 +276,14 @@ const getSQLServerVar = ({
     url: `mssql+pymssql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}${portSuffix}/${database}`,
     params: {},
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: sshEnabled == null ? undefined : String(sshEnabled),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
-    },
+    ssh_options: sshEnabled
+      ? {
+          enabled: true,
+          host: sshHost,
+          port: sshPort,
+          user: sshUser,
+        }
+      : {},
   }
 }
 
@@ -322,12 +328,14 @@ const getPostgresSqlAlchemyInput = (
       },
     },
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: sshEnabled == null ? undefined : String(sshEnabled),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
-    },
+    ssh_options: sshEnabled
+      ? {
+          enabled: true,
+          host: sshHost,
+          port: sshPort,
+          user: sshUser,
+        }
+      : {},
   }
 }
 
@@ -370,12 +378,14 @@ export const getRedshiftSqlAlchemyInput = (
       },
     },
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: metadata.sshEnabled == null ? undefined : String(metadata.sshEnabled),
-      host: metadata.sshHost,
-      port: metadata.sshPort,
-      user: metadata.sshUser,
-    },
+    ssh_options: metadata.sshEnabled
+      ? {
+          enabled: true,
+          host: metadata.sshHost,
+          port: metadata.sshPort,
+          user: metadata.sshUser,
+        }
+      : {},
   }
 
   if (metadata.authMethod === AwsAuthMethods.IamRole && metadata.roleArn && metadata.roleExternalId) {
@@ -436,12 +446,14 @@ const getMaterializePostgresSqlAlchemyInput = (
       },
     },
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: sshEnabled == null ? undefined : String(sshEnabled),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
-    },
+    ssh_options: sshEnabled
+      ? {
+          enabled: true,
+          host: sshHost,
+          port: sshPort,
+          user: sshUser,
+        }
+      : {},
   }
 }
 
@@ -553,12 +565,14 @@ const getClickHouseSqlAlchemyInput = (
     url,
     params: {},
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: sshEnabled == null ? undefined : String(sshEnabled),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
-    },
+    ssh_options: sshEnabled
+      ? {
+          enabled: true,
+          host: sshHost,
+          port: sshPort,
+          user: sshUser,
+        }
+      : {},
   }
 
   return env
@@ -678,12 +692,14 @@ const getMySqlSqlAlchemyInput = (
       },
     },
     param_style: 'pyformat',
-    ssh_options: {
-      enabled: sshEnabled == null ? undefined : String(sshEnabled),
-      host: sshHost,
-      port: sshPort,
-      user: sshUser,
-    },
+    ssh_options: sshEnabled
+      ? {
+          enabled: true,
+          host: sshHost,
+          port: sshPort,
+          user: sshUser,
+        }
+      : {},
   }
 }
 
