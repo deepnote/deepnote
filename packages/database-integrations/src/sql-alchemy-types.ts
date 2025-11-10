@@ -6,7 +6,7 @@ export interface SqlAlchemyInput {
   params: Record<string, unknown>
   param_style: ParamStyle
   ssh_options?: {
-    enabled?: string | undefined
+    enabled?: boolean | undefined
     host?: string | undefined
     port?: string | undefined
     user?: string | undefined
