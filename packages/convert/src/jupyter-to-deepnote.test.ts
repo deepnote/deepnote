@@ -875,7 +875,15 @@ describe('snapshot tests - exact YAML output format', () => {
                   # Any results you write to the current directory are saved as
                   output.
                 id: test-uuid-007
-                metadata: {}
+                metadata:
+                  _kg_hide-input: false
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.140357Z
+                    iopub.status.busy: 2025-09-01T09:06:57.139933Z
+                    iopub.status.idle: 2025-09-01T09:06:57.371877Z
+                    shell.execute_reply: 2025-09-01T09:06:57.371054Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.140287Z
+                  trusted: true
                 outputs: []
                 sortingKey: "2"
                 type: code
@@ -909,7 +917,14 @@ describe('snapshot tests - exact YAML output format', () => {
                   train_data = pd.read_csv("/kaggle/input/titanic/train.csv")
                   train_data.head()
                 id: test-uuid-011
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.374629Z
+                    iopub.status.busy: 2025-09-01T09:06:57.374278Z
+                    iopub.status.idle: 2025-09-01T09:06:57.427646Z
+                    shell.execute_reply: 2025-09-01T09:06:57.426732Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.374555Z
+                  trusted: true
                 outputs: []
                 sortingKey: "4"
                 type: code
@@ -958,7 +973,14 @@ describe('snapshot tests - exact YAML output format', () => {
                   test_data = pd.read_csv("/kaggle/input/titanic/test.csv")
                   test_data.head()
                 id: test-uuid-015
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.431176Z
+                    iopub.status.busy: 2025-09-01T09:06:57.430967Z
+                    iopub.status.idle: 2025-09-01T09:06:57.470048Z
+                    shell.execute_reply: 2025-09-01T09:06:57.468935Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.431137Z
+                  trusted: true
                 outputs: []
                 sortingKey: "6"
                 type: code
@@ -1012,7 +1034,15 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("% of women who survived:", rate_women)
                 id: test-uuid-019
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.473657Z
+                    iopub.status.busy: 2025-09-01T09:06:57.473144Z
+                    iopub.status.idle: 2025-09-01T09:06:57.484251Z
+                    shell.execute_reply: 2025-09-01T09:06:57.483288Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.473544Z
+                  scrolled: true
+                  trusted: true
                 outputs: []
                 sortingKey: "8"
                 type: code
@@ -1037,7 +1067,14 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("% of men who survived:", rate_men)
                 id: test-uuid-023
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.486507Z
+                    iopub.status.busy: 2025-09-01T09:06:57.486162Z
+                    iopub.status.idle: 2025-09-01T09:06:57.506208Z
+                    shell.execute_reply: 2025-09-01T09:06:57.505447Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.486442Z
+                  trusted: true
                 outputs: []
                 sortingKey: a
                 type: code
@@ -1123,7 +1160,15 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("Your submission was successfully saved!")
                 id: test-uuid-027
-                metadata: {}
+                metadata:
+                  _kg_hide-output: false
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.507870Z
+                    iopub.status.busy: 2025-09-01T09:06:57.507569Z
+                    iopub.status.idle: 2025-09-01T09:07:00.901413Z
+                    shell.execute_reply: 2025-09-01T09:07:00.900466Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.507805Z
+                  trusted: true
                 outputs: []
                 sortingKey: c
                 type: code

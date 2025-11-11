@@ -17,6 +17,10 @@ interface JupyterNotebook {
   metadata: {
     deepnote_notebook_id?: string
     deepnote_execution_queue?: unknown[]
+    deepnote?: {
+      original_project_id?: string
+      original_notebook_id?: string
+    }
     [key: string]: unknown
   }
   nbformat: number
@@ -37,6 +41,11 @@ function convertBlockToJupyterCell(block: DeepnoteBlock): JupyterCell {
     ...block.metadata,
     cell_id: block.id,
     deepnote_cell_type: block.type,
+    deepnote_to_be_reused: {
+      block_id: block.id,
+      block_group: block.blockGroup,
+      sorting_key: block.sortingKey,
+    },
   }
 
   // Determine if this should be a code cell or markdown cell
@@ -145,6 +154,10 @@ export async function convertDeepnoteFileToIpynb(
       metadata: {
         deepnote_notebook_id: notebook.id,
         deepnote_execution_queue: [],
+        deepnote: {
+          original_project_id: deepnoteFile.project.id,
+          original_notebook_id: notebook.id,
+        },
       },
       nbformat: 4,
       nbformat_minor: 0,

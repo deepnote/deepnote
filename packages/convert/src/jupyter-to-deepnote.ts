@@ -18,7 +18,13 @@ interface IpynbFile {
     outputs: any[]
     source: string | string[]
   }[]
-  metadata: Record<string, unknown>
+  metadata: {
+    deepnote?: {
+      original_project_id?: string
+      original_notebook_id?: string
+    }
+    [key: string]: unknown
+  }
   nbformat: number
   nbformat_minor: number
 }
@@ -30,12 +36,23 @@ export async function convertIpynbFilesToDeepnoteFile(
   inputFilePaths: string[],
   options: ConvertIpynbFilesToDeepnoteFileOptions
 ): Promise<void> {
+  // Try to get original project ID from first notebook if it exists
+  let originalProjectId: string | undefined
+  if (inputFilePaths.length > 0) {
+    try {
+      const firstIpynb = await parseIpynbFile(inputFilePaths[0])
+      originalProjectId = firstIpynb.metadata?.deepnote?.original_project_id as string | undefined
+    } catch {
+      // Ignore errors, we'll just use a new ID
+    }
+  }
+
   const deepnoteFile: DeepnoteFile = {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: v4(),
+      id: originalProjectId ?? v4(),
       initNotebookId: undefined,
       integrations: [],
       name: options.projectName,
@@ -54,14 +71,26 @@ export async function convertIpynbFilesToDeepnoteFile(
     const blocks = ipynb.cells.map((cell, index) => {
       const source = Array.isArray(cell.source) ? cell.source.join('') : cell.source
 
+      // Check if cell has preserved Deepnote metadata
+      const deepnoteMetadata = cell.metadata?.deepnote_to_be_reused as
+        | {
+            block_id?: string
+            block_group?: string
+            sorting_key?: string
+          }
+        | undefined
+
+      // Filter out deepnote_to_be_reused from metadata when copying
+      const { deepnote_to_be_reused: _, deepnote_cell_type: __, cell_id: ___, ...restMetadata } = cell.metadata || {}
+
       const block = {
-        blockGroup: v4(),
+        blockGroup: deepnoteMetadata?.block_group ?? v4(),
         content: source,
         executionCount: cell.execution_count ?? undefined,
-        id: v4(),
-        metadata: {},
+        id: deepnoteMetadata?.block_id ?? v4(),
+        metadata: restMetadata,
         outputs: cell.cell_type === 'code' ? cell.outputs : undefined,
-        sortingKey: createSortingKey(index),
+        sortingKey: deepnoteMetadata?.sorting_key ?? createSortingKey(index),
         type: cell.cell_type === 'code' ? 'code' : 'markdown',
         version: 1,
       }
@@ -69,10 +98,13 @@ export async function convertIpynbFilesToDeepnoteFile(
       return block
     })
 
+    // Check if notebook has preserved ID
+    const originalNotebookId = ipynb.metadata?.deepnote?.original_notebook_id as string | undefined
+
     deepnoteFile.project.notebooks.push({
       blocks,
       executionMode: 'block',
-      id: v4(),
+      id: originalNotebookId ?? v4(),
       isModule: false,
       name,
       workingDirectory: undefined,

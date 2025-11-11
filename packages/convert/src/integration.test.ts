@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { parse } from 'yaml'
 import { convertDeepnoteFileToIpynb } from './deepnote-to-jupyter'
 import { convertIpynbFilesToDeepnoteFile } from './jupyter-to-deepnote'
 
@@ -247,6 +248,92 @@ describe('Integration tests: bidirectional conversion', () => {
         expect(roundtripContent).toContain('This is a markdown heading')
       }
     } finally {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves IDs through roundtrip conversion', async () => {
+    const originalDeepnotePath = path.join(examplesDir, '1_hello_world.deepnote')
+    const tempDir = path.join(__dirname, '../../../tmp/integration-test-id-preservation')
+
+    // Clean up temp directory
+    await fs.rm(tempDir, { recursive: true, force: true })
+    await fs.mkdir(tempDir, { recursive: true })
+
+    try {
+      // 1. Parse original .deepnote file to extract IDs
+      const originalDeepnoteContent = await fs.readFile(originalDeepnotePath, 'utf-8')
+      // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+      const originalDeepnote = parse(originalDeepnoteContent) as any
+
+      const originalProjectId = originalDeepnote.project.id
+      const originalNotebookId = originalDeepnote.project.notebooks[0].id
+      // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+      const originalBlockIds = originalDeepnote.project.notebooks[0].blocks.map((b: any) => b.id)
+      // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+      const originalBlockGroups = originalDeepnote.project.notebooks[0].blocks.map((b: any) => b.blockGroup)
+      // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+      const originalSortingKeys = originalDeepnote.project.notebooks[0].blocks.map((b: any) => b.sortingKey)
+
+      // 2. Convert to Jupyter
+      const ipynbDir = path.join(tempDir, 'ipynb-output')
+      await convertDeepnoteFileToIpynb(originalDeepnotePath, {
+        outputDir: ipynbDir,
+        addCreatedInDeepnoteCell: false,
+      })
+
+      // 3. Read Jupyter notebook and verify metadata is stored
+      const ipynbFiles = await fs.readdir(ipynbDir)
+      const ipynbPath = path.join(ipynbDir, ipynbFiles[0])
+      const ipynbContent = await fs.readFile(ipynbPath, 'utf-8')
+      const ipynb = JSON.parse(ipynbContent)
+
+      // Verify metadata is stored in Jupyter notebook
+      expect(ipynb.metadata.deepnote.original_project_id).toBe(originalProjectId)
+      expect(ipynb.metadata.deepnote.original_notebook_id).toBe(originalNotebookId)
+      expect(ipynb.cells[0].metadata.deepnote_to_be_reused.block_id).toBe(originalBlockIds[0])
+      expect(ipynb.cells[0].metadata.deepnote_to_be_reused.block_group).toBe(originalBlockGroups[0])
+      expect(ipynb.cells[0].metadata.deepnote_to_be_reused.sorting_key).toBe(originalSortingKeys[0])
+
+      // 4. Convert back to .deepnote
+      const roundtripDeepnotePath = path.join(tempDir, 'roundtrip.deepnote')
+      await convertIpynbFilesToDeepnoteFile([ipynbPath], {
+        projectName: 'Hello World',
+        outputPath: roundtripDeepnotePath,
+      })
+
+      // 5. Parse roundtrip file and verify IDs are preserved
+      const roundtripDeepnoteContent = await fs.readFile(roundtripDeepnotePath, 'utf-8')
+      // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+      const roundtripDeepnote = parse(roundtripDeepnoteContent) as any
+
+      // Verify all IDs are preserved
+      expect(roundtripDeepnote.project.id).toBe(originalProjectId)
+      expect(roundtripDeepnote.project.notebooks[0].id).toBe(originalNotebookId)
+      expect(roundtripDeepnote.project.notebooks[0].blocks[0].id).toBe(originalBlockIds[0])
+      expect(roundtripDeepnote.project.notebooks[0].blocks[0].blockGroup).toBe(originalBlockGroups[0])
+      expect(roundtripDeepnote.project.notebooks[0].blocks[0].sortingKey).toBe(originalSortingKeys[0])
+
+      // Verify all original blocks' IDs are preserved (excluding any new cells like "Created in Deepnote")
+      const roundtripBlockIds = roundtripDeepnote.project.notebooks[0].blocks
+        .slice(0, originalBlockIds.length)
+        // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+        .map((b: any) => b.id)
+      expect(roundtripBlockIds).toEqual(originalBlockIds)
+
+      const roundtripBlockGroups = roundtripDeepnote.project.notebooks[0].blocks
+        .slice(0, originalBlockGroups.length)
+        // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+        .map((b: any) => b.blockGroup)
+      expect(roundtripBlockGroups).toEqual(originalBlockGroups)
+
+      const roundtripSortingKeys = roundtripDeepnote.project.notebooks[0].blocks
+        .slice(0, originalSortingKeys.length)
+        // biome-ignore lint/suspicious/noExplicitAny: Deepnote file structure is flexible
+        .map((b: any) => b.sortingKey)
+      expect(roundtripSortingKeys).toEqual(originalSortingKeys)
+    } finally {
+      // Clean up temp directory
       await fs.rm(tempDir, { recursive: true, force: true })
     }
   })
