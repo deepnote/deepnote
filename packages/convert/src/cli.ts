@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises'
-import { basename, extname, resolve } from 'node:path'
+import { basename, dirname, extname, resolve } from 'node:path'
 import chalk from 'chalk'
 import ora from 'ora'
-import { convertIpynbFilesToDeepnoteFile } from '.'
+import { convertDeepnoteFileToIpynb, convertIpynbFilesToDeepnoteFile } from '.'
 
 interface ConvertOptions {
   inputPath: string
@@ -102,8 +102,39 @@ export async function convert(options: ConvertOptions): Promise<string> {
   }
 
   if (ext === '.deepnote') {
-    throw new Error('The .deepnote format is not supported for conversion yet.')
+    const spinner = ora('Converting the Deepnote project to Jupyter Notebooks...').start()
+
+    try {
+      const filenameWithoutExtension = basename(absolutePath, ext)
+
+      let outputDir: string
+      if (customOutputPath) {
+        const absoluteOutputPath = resolve(cwd, customOutputPath)
+        const stat = await fs.stat(absoluteOutputPath).catch(() => null)
+
+        if (stat?.isDirectory()) {
+          outputDir = absoluteOutputPath
+        } else {
+          // If output path is a file or doesn't exist, use its parent directory
+          outputDir = dirname(absoluteOutputPath)
+        }
+      } else {
+        // Create a directory with the project name in the current working directory
+        outputDir = resolve(cwd, filenameWithoutExtension)
+      }
+
+      await convertDeepnoteFileToIpynb(absolutePath, { outputDir })
+
+      spinner.succeed(`The Jupyter Notebooks have been saved to ${chalk.bold(outputDir)}`)
+
+      return outputDir
+    } catch (error) {
+      spinner.fail('Conversion failed')
+      throw error
+    }
   }
 
-  throw new Error('Unsupported file type. Please provide a .ipynb or .deepnote file.')
+  throw new Error(
+    'Unsupported file type. Please provide a .ipynb file, directory of .ipynb files, or a .deepnote file.'
+  )
 }

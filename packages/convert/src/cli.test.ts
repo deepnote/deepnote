@@ -213,17 +213,51 @@ describe('CLI convert function', () => {
     ).rejects.toThrow('Unsupported file type')
   })
 
-  it('throws error for .deepnote files', async () => {
+  it('converts .deepnote files to Jupyter notebooks', async () => {
     const deepnotePath = path.join(tempDir, 'test.deepnote')
-    await fs.writeFile(deepnotePath, 'some content', 'utf-8')
+    const deepnoteContent = `
+version: 1.0.0
+metadata:
+  createdAt: '2025-01-01T00:00:00Z'
+project:
+  id: test-project
+  name: Test Project
+  notebooks:
+    - id: notebook-1
+      name: Test Notebook
+      blocks:
+        - id: block-1
+          type: code
+          content: 'print("hello")'
+          sortingKey: a0
+          metadata: {}
+  settings: {}
+`
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
 
-    // Should throw error
-    await expect(
-      convert({
-        inputPath: deepnotePath,
-        cwd: tempDir,
-      })
-    ).rejects.toThrow('.deepnote format is not supported')
+    const result = await convert({
+      inputPath: deepnotePath,
+      cwd: tempDir,
+    })
+
+    // Should create output directory
+    expect(result).toContain('test')
+
+    // Verify Jupyter notebook was created
+    const outputDir = result
+    const notebookPath = path.join(outputDir, 'Test Notebook.ipynb')
+    const notebookExists = await fs
+      .access(notebookPath)
+      .then(() => true)
+      .catch(() => false)
+
+    expect(notebookExists).toBe(true)
+
+    const notebookContent = await fs.readFile(notebookPath, 'utf-8')
+    const notebook = JSON.parse(notebookContent)
+
+    expect(notebook.cells).toHaveLength(2) // code cell + "Created in Deepnote" cell
+    expect(notebook.cells[0].source).toBe('print("hello")')
   })
 
   it('throws error for non-existent paths', async () => {
@@ -411,15 +445,34 @@ describe('CLI convert function', () => {
 
   it('correctly handles .deepnote extension with multiple dots in filename', async () => {
     const deepnotePath = path.join(tempDir, 'my.test.file.deepnote')
-    await fs.writeFile(deepnotePath, 'some content', 'utf-8')
+    const deepnoteContent = `
+version: 1.0.0
+metadata:
+  createdAt: '2025-01-01T00:00:00Z'
+project:
+  id: test-project
+  name: My Test File
+  notebooks:
+    - id: notebook-1
+      name: Test Notebook
+      blocks:
+        - id: block-1
+          type: code
+          content: 'print("test")'
+          sortingKey: a0
+          metadata: {}
+  settings: {}
+`
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
 
-    // Should still throw error for .deepnote files even with multiple dots
-    await expect(
-      convert({
-        inputPath: deepnotePath,
-        cwd: tempDir,
-      })
-    ).rejects.toThrow('.deepnote format is not supported')
+    // Should convert successfully even with multiple dots
+    const result = await convert({
+      inputPath: deepnotePath,
+      cwd: tempDir,
+    })
+
+    // Should create output directory with correct name (without extension)
+    expect(result).toContain('my.test.file')
   })
 
   it('correctly rejects unsupported files with multiple dots', async () => {
