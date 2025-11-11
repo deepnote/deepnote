@@ -480,7 +480,7 @@ const getTrinoEnvVars = (
           : {}),
       },
     },
-    param_style: 'pyformat',
+    param_style: 'qmark',
   }
 
   return input

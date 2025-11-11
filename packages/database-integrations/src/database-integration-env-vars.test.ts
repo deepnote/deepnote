@@ -2430,7 +2430,7 @@ describe('Database integration env variables', () => {
           params: {
             connect_args: {},
           },
-          param_style: 'pyformat',
+          param_style: 'qmark',
         })
       })
 
