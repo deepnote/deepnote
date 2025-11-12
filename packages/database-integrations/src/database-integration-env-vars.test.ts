@@ -385,6 +385,57 @@ describe('Database integration env variables', () => {
         })
       })
 
+      it('should generate a SQL Alchemy env var with bigquery URL for service account even when federated_auth_method is set to service-account', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'big-query',
+              id: 'my-big-query',
+              name: 'My BigQuery Connection',
+              federated_auth_method: 'service-account',
+              metadata: {
+                authMethod: 'service-account',
+                service_account: JSON.stringify({
+                  type: 'service_account',
+                  project_id: 'my-project-id',
+                  private_key_id: 'my-private-key-id',
+                  private_key: 'my-private-key',
+                  client_email: 'my-client-email',
+                  client_id: 'my-client-id',
+                  auth_uri: 'my-auth-uri',
+                  token_uri: 'my-token-uri',
+                  auth_provider_x509_cert_url: 'my-auth-provider-x509-cert-url',
+                  client_x509_cert_url: 'my-client-x509-cert-url',
+                }),
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-big-query')
+        expect(sqlAlchemyInput).toStrictEqual({
+          integration_id: 'my-big-query',
+          url: 'bigquery://',
+          params: {
+            credentials_info: {
+              type: 'service_account',
+              project_id: 'my-project-id',
+              private_key_id: 'my-private-key-id',
+              private_key: 'my-private-key',
+              client_email: 'my-client-email',
+              client_id: 'my-client-id',
+              auth_uri: 'my-auth-uri',
+              token_uri: 'my-token-uri',
+              auth_provider_x509_cert_url: 'my-auth-provider-x509-cert-url',
+              client_x509_cert_url: 'my-client-x509-cert-url',
+            },
+          },
+          param_style: 'pyformat',
+        })
+      })
+
       it('should return an error if service account is not valid JSON', () => {
         const { errors } = getEnvironmentVariablesForIntegrations(
           [
@@ -1852,6 +1903,38 @@ describe('Database integration env variables', () => {
         })
       })
 
+      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL for username and password even when federated_auth_method is set to username-and-password', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'redshift',
+              id: 'my-redshift',
+              name: 'My Redshift Connection',
+              federated_auth_method: 'username-and-password',
+              metadata: {
+                authMethod: 'username-and-password',
+                host: 'my-host',
+                port: '5439',
+                database: 'my-database',
+                user: 'my-user',
+                password: 'my-password',
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-redshift')
+        expect(sqlAlchemyInput).toStrictEqual({
+          integration_id: 'my-redshift',
+          url: 'redshift+psycopg2://my-user:my-password@my-host:5439/my-database',
+          params: expect.anything(),
+          param_style: 'pyformat',
+          ssh_options: {},
+        })
+      })
+
       it('should generate a SQL Alchemy env var with redshift+psycopg2 URL and SSH enabled', () => {
         const { envVars, errors } = getEnvironmentVariablesForIntegrations(
           [
@@ -2166,6 +2249,36 @@ describe('Database integration env variables', () => {
               type: 'snowflake',
               id: 'my-snowflake',
               name: 'My Snowflake Connection',
+              metadata: {
+                authMethod: 'password',
+                accountName: 'my-account-name',
+                username: 'my-username',
+                password: 'my-password',
+                database: 'my-database',
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-snowflake')
+        expect(sqlAlchemyInput).toStrictEqual({
+          integration_id: 'my-snowflake',
+          url: 'snowflake://my-username:my-password@my-account-name/my-database',
+          params: {},
+          param_style: 'pyformat',
+        })
+      })
+
+      it('should generate a SQL Alchemy env var with snowflake URL for password auth even when federated_auth_method is set to password', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'snowflake',
+              id: 'my-snowflake',
+              name: 'My Snowflake Connection',
+              federated_auth_method: 'password',
               metadata: {
                 authMethod: 'password',
                 accountName: 'my-account-name',
