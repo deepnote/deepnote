@@ -91,7 +91,7 @@ If you use Deepnote in your research, please cite Deepnote using:
 ```latex
 @misc{deepnote,
     title = {Deepnote: the data notebook for the AI era},
-    author = {Johnny Carrot},
+    author = {Deepnote Team},
     year = {2025},
     url = {https://github.com/deepnote/deepnote},
     note = {Open-source collaborative data science notebook platform}
