@@ -2,9 +2,9 @@ import z from 'zod'
 import { databaseMetadataSchemasByType } from './database-integration-metadata-schemas'
 import type { SqlIntegrationType } from './database-integration-types'
 import type {
+  AwsAuthMethod,
   BigQueryAuthMethod,
   DatabaseAuthMethod,
-  FederatedAuthMethod,
   SnowflakeAuthMethod,
 } from './sql-integration-auth-methods'
 
@@ -27,8 +27,10 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   commonIntegrationConfig.extend({
     type: z.literal('big-query'),
     metadata: databaseMetadataSchemasByType['big-query'],
+    // Note: federated_auth_method historically stores ALL auth methods (not just federated ones)
+    // for backwards compatibility. Accept all BigQueryAuthMethod values.
     federated_auth_method: z
-      .enum(['google-oauth'] as const satisfies ReadonlyArray<Extract<BigQueryAuthMethod, FederatedAuthMethod>>)
+      .enum(['service-account', 'google-oauth'] as const satisfies ReadonlyArray<BigQueryAuthMethod>)
       .optional()
       .nullable(),
   }),
@@ -85,9 +87,11 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   commonIntegrationConfig.extend({
     type: z.literal('redshift'),
     metadata: databaseMetadataSchemasByType['redshift'],
+    // Note: federated_auth_method historically stores ALL auth methods (not just federated ones)
+    // for backwards compatibility. Accept all Redshift auth method values.
     federated_auth_method: z
-      .enum(['individual-credentials'] as const satisfies ReadonlyArray<
-        Extract<DatabaseAuthMethod, FederatedAuthMethod>
+      .enum(['username-and-password', 'iam-role', 'individual-credentials'] as const satisfies ReadonlyArray<
+        DatabaseAuthMethod | AwsAuthMethod
       >)
       .optional()
       .nullable(),
@@ -95,10 +99,17 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   commonIntegrationConfig.extend({
     type: z.literal('snowflake'),
     metadata: databaseMetadataSchemasByType['snowflake'],
+    // Note: federated_auth_method historically stores ALL auth methods (not just federated ones)
+    // for backwards compatibility. Accept all SnowflakeAuthMethod values.
     federated_auth_method: z
-      .enum(['okta', 'snowflake', 'azure', 'key-pair'] as const satisfies ReadonlyArray<
-        Extract<SnowflakeAuthMethod, FederatedAuthMethod>
-      >)
+      .enum([
+        'okta',
+        'snowflake',
+        'azure',
+        'key-pair',
+        'password',
+        'service-account-key-pair',
+      ] as const satisfies ReadonlyArray<SnowflakeAuthMethod>)
       .optional()
       .nullable(),
   }),
