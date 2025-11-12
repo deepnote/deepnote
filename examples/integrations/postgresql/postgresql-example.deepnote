@@ -75,23 +75,23 @@ project:
             try:
                 conn = psycopg2.connect(**conn_params)
                 cursor = conn.cursor()
-                
+
                 # Get PostgreSQL version
                 cursor.execute('SELECT version();')
                 version = cursor.fetchone()[0]
                 print("✓ Successfully connected to PostgreSQL!")
                 print(f"Version: {version[:60]}...\n")
-                
+
                 # Check if tables exist
                 cursor.execute("""
-                    SELECT table_name 
-                    FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
                     AND table_type = 'BASE TABLE'
                     ORDER BY table_name;
                 """)
                 tables = cursor.fetchall()
-                
+
                 if tables:
                     print("✓ Available tables:")
                     for table in tables:
@@ -99,10 +99,10 @@ project:
                 else:
                     print("⚠️  No tables found. Please load sample_data.sql first!")
                     print("   Run: docker exec -i deepnote-postgres psql -U postgres < sample_data.sql")
-                
+
                 cursor.close()
                 conn.close()
-                
+
             except Exception as e:
                 print(f"✗ Connection failed: {e}")
                 print("\nPlease check:")
@@ -128,7 +128,7 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     customer_id,
                     first_name,
                     last_name,
@@ -164,12 +164,12 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     category,
                     product_name,
                     price,
                     stock_quantity,
-                    CASE 
+                    CASE
                         WHEN stock_quantity > 100 THEN 'High'
                         WHEN stock_quantity > 50 THEN 'Medium'
                         ELSE 'Low'
@@ -203,7 +203,7 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     order_id,
                     customer_name,
                     country,
@@ -233,7 +233,7 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     product_name,
                     category,
                     price,
@@ -270,7 +270,7 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     o.order_id,
                     c.first_name || ' ' || c.last_name AS customer_name,
                     p.product_name,
@@ -313,7 +313,7 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     p.category,
                     COUNT(DISTINCT oi.order_id) AS total_orders,
                     SUM(oi.quantity) AS items_sold,
@@ -349,7 +349,7 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     c.country,
                     COUNT(DISTINCT c.customer_id) AS total_customers,
                     COUNT(DISTINCT o.order_id) AS total_orders,
@@ -385,7 +385,7 @@ project:
             conn = psycopg2.connect(**conn_params)
 
             query = """
-                SELECT 
+                SELECT
                     DATE(order_date) AS order_day,
                     COUNT(*) AS num_orders,
                     SUM(total_amount) AS daily_revenue,
@@ -427,24 +427,24 @@ project:
                     VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
                     RETURNING order_id;
                 """, (1, 'pending', 179.98))
-                
+
                 order_id = cursor.fetchone()[0]
-                
+
                 # Insert order items
                 cursor.execute("""
                     INSERT INTO order_items (order_id, product_id, quantity, unit_price)
-                    VALUES 
+                    VALUES
                         (%s, 9, 1, 149.99),  -- Mechanical Keyboard
                         (%s, 2, 1, 29.99);    -- Wireless Mouse
                 """, (order_id, order_id))
-                
+
                 conn.commit()
-                
+
                 print(f"✓ Successfully created order #{order_id}")
                 print(f"  Customer ID: 1 (John Doe)")
                 print(f"  Total Amount: $179.98")
                 print(f"  Items: 2")
-                
+
             except Exception as e:
                 conn.rollback()
                 print(f"✗ Error creating order: {e}")
@@ -472,21 +472,21 @@ project:
 
             try:
                 cursor.execute("""
-                    UPDATE orders 
-                    SET status = %s 
-                    WHERE order_id = %s 
+                    UPDATE orders
+                    SET status = %s
+                    WHERE order_id = %s
                     AND status = 'pending'
                     RETURNING order_id, status;
                 """, ('shipped', 7))
-                
+
                 result = cursor.fetchone()
                 conn.commit()
-                
+
                 if result:
                     print(f"✓ Order #{result[0]} status updated to '{result[1]}'")
                 else:
                     print("⚠️  No pending orders found with that ID")
-                
+
             except Exception as e:
                 conn.rollback()
                 print(f"✗ Error updating order: {e}")
@@ -504,7 +504,7 @@ project:
             Run this cell only if you want to remove ALL sample data.
           id: 1c9a9af8ed88efb710ce97b5ad5cde3a
           metadata: {}
-          sortingKey: a15
+          sortingKey: a23
           type: markdown
         - blockGroup: bd81a9f0-1ad8-4c94-9c22-0ef849d8b5f7
           content: |-
@@ -534,7 +534,7 @@ project:
             print("Uncomment the code above to delete all sample data.")
           id: 76559c7769c4efee07fd1d6c14dd5584
           metadata: {}
-          sortingKey: a16
+          sortingKey: a24
           type: code
       executionMode: block
       id: 4d967b88-c149-486a-8798-124342878e48
