@@ -42,12 +42,13 @@ You can connect to any existing PostgreSQL instance (local, cloud, or remote) by
 1. **Start PostgreSQL** (see options above)
 
 2. **Install Python dependencies:**
+
    ```bash
    pip install psycopg2-binary pandas
    ```
 
 3. **Open the notebook:**
-   - Open `postgresql_example.deepnote` in VS Code with the Deepnote extension
+   - Open `postgresql-example.deepnote` in VS Code with the Deepnote extension
    - Or open it in Cursor, Windsurf, or JupyterLab
 
 4. **Update connection details:**
@@ -80,6 +81,7 @@ For a more complex scenario with multiple tables and relationships, see `sample_
 - Views for complex queries
 
 Load it into your database:
+
 ```bash
 # Docker
 docker exec -i deepnote-postgres psql -U postgres < sample_data.sql

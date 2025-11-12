@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS products CASCADE;
 DROP TABLE IF EXISTS customers CASCADE;
 DROP VIEW IF EXISTS order_summary CASCADE;
+DROP VIEW IF EXISTS product_sales CASCADE;
 
 -- Create customers table
 CREATE TABLE customers (
