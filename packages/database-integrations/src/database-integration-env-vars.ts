@@ -136,7 +136,7 @@ export function getSqlAlchemyInput(
     snowflakePartnerIdentifier?: string
   }
 ): SqlAlchemyInput | null {
-  if (integration.federated_auth_method) {
+  if (integration.federated_auth_method != null && isFederatedAuthMethod(integration.federated_auth_method)) {
     return null
   }
 
