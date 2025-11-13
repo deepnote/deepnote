@@ -109,22 +109,35 @@ const commonRedshiftMetadataSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
-const redshiftMetadataSchema = z.discriminatedUnion('authMethod', [
-  commonRedshiftMetadataSchema.extend({
-    authMethod: z.literal(DatabaseAuthMethods.UsernameAndPassword),
-    user: z.string(),
-    password: z.string(),
-  }),
-  commonRedshiftMetadataSchema.extend({
-    authMethod: z.literal(AwsAuthMethods.IamRole),
-    roleArn: z.string(),
-    roleExternalId: z.string(),
-    roleNonce: z.string(),
-  }),
-  commonRedshiftMetadataSchema.extend({
-    authMethod: z.literal(DatabaseAuthMethods.IndividualCredentials),
-  }),
-])
+const redshiftMetadataSchema = z.preprocess(
+  data => {
+    if (typeof data === 'object' && data !== null && (!('authMethod' in data) || !data.authMethod)) {
+      return {
+        ...data,
+        authMethod: DatabaseAuthMethods.UsernameAndPassword,
+      }
+    }
+    return data
+  },
+  z.union([
+    commonRedshiftMetadataSchema.extend({
+      // Legacy integrations may not have an authMethod, so we make it optional.
+      // It is added in the preprocess step. We still need to mark it as optional here to avoid type errors.
+      authMethod: z.literal(DatabaseAuthMethods.UsernameAndPassword).optional(),
+      user: z.string(),
+      password: z.string(),
+    }),
+    commonRedshiftMetadataSchema.extend({
+      authMethod: z.literal(AwsAuthMethods.IamRole),
+      roleArn: z.string(),
+      roleExternalId: z.string(),
+      roleNonce: z.string(),
+    }),
+    commonRedshiftMetadataSchema.extend({
+      authMethod: z.literal(DatabaseAuthMethods.IndividualCredentials),
+    }),
+  ])
+)
 
 const commonSnowflakeMetadataSchema = z.object({
   accountName: z.string(),

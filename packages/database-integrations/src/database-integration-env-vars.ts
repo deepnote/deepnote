@@ -344,6 +344,11 @@ export const getRedshiftSqlAlchemyInput = (
   projectRootDirectory: string,
   metadata: DatabaseIntegrationMetadataByType['redshift']
 ): SqlAlchemyInput | null => {
+  if (!metadata.authMethod) {
+    // Legacy integrations may not have an authMethod, so we default to username-and-password.
+    metadata.authMethod = DatabaseAuthMethods.UsernameAndPassword
+  }
+
   if (isFederatedAuthMethod(metadata.authMethod)) {
     return null
   }

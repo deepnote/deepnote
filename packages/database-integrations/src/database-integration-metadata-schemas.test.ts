@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { databaseMetadataSchemasByType } from './database-integration-metadata-schemas'
+import { DatabaseAuthMethods } from './sql-integration-auth-methods'
 
 describe('SQL integration metadata schemas', () => {
   describe('Athena', () => {
@@ -429,7 +430,7 @@ describe('SQL integration metadata schemas', () => {
       expect(result.success).toBe(false)
     })
 
-    it('should fail on metadata with null auth method', () => {
+    it('should parse metadata with null auth method and default to username-and-password', () => {
       const result = databaseMetadataSchemasByType['redshift'].safeParse({
         authMethod: null,
         database: 'my-database',
@@ -438,7 +439,44 @@ describe('SQL integration metadata schemas', () => {
         password: 'my-password',
       })
 
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual(
+        expect.objectContaining({
+          authMethod: DatabaseAuthMethods.UsernameAndPassword,
+        })
+      )
+    })
+    it('should parse metadata with undefined auth method and default to username-and-password', () => {
+      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+        authMethod: undefined,
+        database: 'my-database',
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual(
+        expect.objectContaining({
+          authMethod: DatabaseAuthMethods.UsernameAndPassword,
+        })
+      )
+    })
+
+    it('should parse metadata with not defined auth method and default to username-and-password', () => {
+      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+        database: 'my-database',
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual(
+        expect.objectContaining({
+          authMethod: DatabaseAuthMethods.UsernameAndPassword,
+        })
+      )
     })
 
     it('should fail on metadata with invalid auth method', () => {

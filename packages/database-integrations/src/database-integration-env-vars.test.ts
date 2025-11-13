@@ -2165,6 +2165,38 @@ describe('Database integration env variables', () => {
         const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-redshift')
         expect(sqlAlchemyInput.url).toBe('redshift+psycopg2://my-user:my-password@my-host/my-database')
       })
+
+      it('should support legacy integrations without authMethod', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              'id': 'my-redshift',
+              'name': 'Amazon Redshift',
+              'type': 'redshift',
+              'metadata': {
+                'database': 'my-database',
+                'host': 'my-host',
+                'port': 'my-port',
+                'sshEnabled': false,
+                'user': 'my-user',
+                'password': 'my-password',
+              },
+              'federated_auth_method': null,
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-redshift')
+        expect(sqlAlchemyInput).toStrictEqual({
+          integration_id: 'my-redshift',
+          url: 'redshift+psycopg2://my-user:my-password@my-host:my-port/my-database',
+          params: expect.any(Object),
+          param_style: 'pyformat',
+          ssh_options: {},
+        })
+      })
     })
 
     describe('Spanner', () => {
