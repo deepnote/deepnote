@@ -120,7 +120,6 @@ const redshiftMetadataSchema = z.preprocess(
     return data
   },
   z.union([
-    // Variant with username-and-password authMethod
     commonRedshiftMetadataSchema.extend({
       // Legacy integrations may not have an authMethod, so we make it optional.
       // It is added in the preprocess step. We still need to mark it as optional here to avoid type errors.
@@ -128,14 +127,12 @@ const redshiftMetadataSchema = z.preprocess(
       user: z.string(),
       password: z.string(),
     }),
-    // Variant with IAM role authMethod
     commonRedshiftMetadataSchema.extend({
       authMethod: z.literal(AwsAuthMethods.IamRole),
       roleArn: z.string(),
       roleExternalId: z.string(),
       roleNonce: z.string(),
     }),
-    // Variant with individual credentials authMethod
     commonRedshiftMetadataSchema.extend({
       authMethod: z.literal(DatabaseAuthMethods.IndividualCredentials),
     }),
