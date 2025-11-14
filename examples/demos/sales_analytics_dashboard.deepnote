@@ -1,0 +1,626 @@
+metadata:
+  createdAt: '2025-11-06T12:00:00.000Z'
+  modifiedAt: '2025-11-06T12:00:00.000Z'
+project:
+  id: demo-sales-analytics-001
+  name: Sales Analytics Dashboard
+  initNotebookId: init-notebook-001
+  notebooks:
+    - blocks:
+        - blockGroup: init-deps-install
+          content: |
+            %%bash
+            # Install required packages for sales analytics
+            if test -f requirements.txt
+              then
+                pip install -r ./requirements.txt
+              else
+                echo "No requirements.txt found, skipping..."
+            fi
+          id: init-deps-install
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a0
+          type: code
+          executionCount: 0
+          outputs: []
+      executionMode: block
+      id: init-notebook-001
+      isModule: false
+      name: Init
+
+    - blocks:
+        - blockGroup: markdown-intro
+          content: |
+            # 🎯 Sales Analytics Dashboard
+            
+            This demo showcases **all capabilities** of Deepnote programmatic execution:
+            - 📊 Code blocks with ML and visualizations
+            - 🎚️ Input widgets for interactive filtering
+            - 🗄️ SQL analytics with DuckDB
+            - 📈 Chart blocks with visual query builder
+            
+            ## Dataset
+            Synthetic sales data across multiple regions, products, and time periods.
+          id: markdown-intro
+          metadata: {}
+          sortingKey: a0
+          type: markdown
+
+        - blockGroup: imports-block
+          content: |
+            # Core libraries
+            import pandas as pd
+            import numpy as np
+            from datetime import datetime, timedelta
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+            
+            # ML libraries
+            from sklearn.ensemble import RandomForestRegressor
+            from sklearn.model_selection import train_test_split
+            from sklearn.metrics import mean_absolute_error, r2_score
+            
+            # Set style
+            sns.set_style("whitegrid")
+            plt.rcParams['figure.figsize'] = (12, 6)
+            
+            print("✓ Libraries imported successfully")
+          id: imports-block
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a1
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: generate-sales-data
+          content: |
+            # Generate synthetic sales data
+            np.random.seed(42)
+            
+            # Date range: last 2 years
+            dates = pd.date_range(end=datetime.now(), periods=730, freq='D')
+            
+            # Products and regions
+            products = ['Laptop', 'Phone', 'Tablet', 'Monitor', 'Keyboard', 'Mouse', 'Headphones']
+            regions = ['North America', 'Europe', 'Asia Pacific', 'Latin America']
+            
+            # Generate data
+            n_records = 5000
+            data = {
+                'date': np.random.choice(dates, n_records),
+                'product': np.random.choice(products, n_records),
+                'region': np.random.choice(regions, n_records),
+                'quantity': np.random.randint(1, 50, n_records),
+                'unit_price': np.random.uniform(50, 2000, n_records),
+            }
+            
+            df_sales = pd.DataFrame(data)
+            
+            # Calculate revenue
+            df_sales['revenue'] = df_sales['quantity'] * df_sales['unit_price']
+            
+            # Add seasonality and trends
+            df_sales['day_of_year'] = df_sales['date'].dt.dayofyear
+            df_sales['revenue'] *= (1 + 0.3 * np.sin(2 * np.pi * df_sales['day_of_year'] / 365))
+            
+            # Add growth trend
+            df_sales['days_from_start'] = (df_sales['date'] - df_sales['date'].min()).dt.days
+            df_sales['revenue'] *= (1 + df_sales['days_from_start'] / 730 * 0.5)
+            
+            # Round revenue
+            df_sales['revenue'] = df_sales['revenue'].round(2)
+            
+            # Clean up helper columns
+            df_sales = df_sales.drop(['day_of_year', 'days_from_start'], axis=1)
+            
+            # Sort by date
+            df_sales = df_sales.sort_values('date').reset_index(drop=True)
+            
+            print(f"✓ Generated {len(df_sales):,} sales records")
+            print(f"  Date range: {df_sales['date'].min().date()} to {df_sales['date'].max().date()}")
+            print(f"  Total revenue: ${df_sales['revenue'].sum():,.2f}")
+            
+            df_sales.head()
+          id: generate-sales-data
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a2
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: markdown-filters
+          content: |
+            ## 🎚️ Interactive Filters
+            
+            Use these widgets to filter the data:
+          id: markdown-filters
+          metadata: {}
+          sortingKey: a3
+          type: markdown
+
+        - blockGroup: filter-region
+          content: ''
+          id: filter-region
+          metadata:
+            deepnote_variable_name: selected_region
+            deepnote_input_label: 'Region'
+            deepnote_variable_value: 'All Regions'
+            deepnote_variable_default_value: 'All Regions'
+            deepnote_variable_options:
+              - 'All Regions'
+              - 'North America'
+              - 'Europe'
+              - 'Asia Pacific'
+              - 'Latin America'
+            deepnote_variable_select_type: single
+          sortingKey: a4
+          type: input-select
+
+        - blockGroup: filter-product
+          content: ''
+          id: filter-product
+          metadata:
+            deepnote_variable_name: selected_product
+            deepnote_input_label: 'Product Category'
+            deepnote_variable_value: 'All Products'
+            deepnote_variable_default_value: 'All Products'
+            deepnote_variable_options:
+              - 'All Products'
+              - 'Laptop'
+              - 'Phone'
+              - 'Tablet'
+              - 'Monitor'
+              - 'Keyboard'
+              - 'Mouse'
+              - 'Headphones'
+            deepnote_variable_select_type: single
+          sortingKey: a5
+          type: input-select
+
+        - blockGroup: filter-min-revenue
+          content: ''
+          id: filter-min-revenue
+          metadata:
+            deepnote_variable_name: min_revenue_threshold
+            deepnote_input_label: 'Minimum Revenue Threshold ($)'
+            deepnote_variable_value: 1000
+            deepnote_variable_default_value: 1000
+            deepnote_slider_min_value: 0
+            deepnote_slider_max_value: 50000
+            deepnote_slider_step: 1000
+          sortingKey: a6
+          type: input-slider
+
+        - blockGroup: apply-filters
+          content: |
+            # Apply filters
+            df_filtered = df_sales.copy()
+            
+            if selected_region != 'All Regions':
+                df_filtered = df_filtered[df_filtered['region'] == selected_region]
+            
+            if selected_product != 'All Products':
+                df_filtered = df_filtered[df_filtered['product'] == selected_product]
+            
+            df_filtered = df_filtered[df_filtered['revenue'] >= min_revenue_threshold]
+            
+            print(f"✓ Filters applied")
+            print(f"  Region: {selected_region}")
+            print(f"  Product: {selected_product}")
+            print(f"  Min Revenue: ${min_revenue_threshold:,.2f}")
+            print(f"  Records: {len(df_filtered):,} ({len(df_filtered)/len(df_sales)*100:.1f}% of total)")
+          id: apply-filters
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a7
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: markdown-sql
+          content: |
+            ## 🗄️ SQL Analytics with DuckDB
+            
+            Let's run SQL queries directly on our pandas DataFrames:
+          id: markdown-sql
+          metadata: {}
+          sortingKey: a8
+          type: markdown
+
+        - blockGroup: sql-top-products
+          content: |
+            SELECT 
+                product,
+                COUNT(*) as transaction_count,
+                SUM(quantity) as total_units_sold,
+                ROUND(SUM(revenue), 2) as total_revenue,
+                ROUND(AVG(revenue), 2) as avg_revenue_per_transaction
+            FROM df_filtered
+            GROUP BY product
+            ORDER BY total_revenue DESC
+          id: sql-top-products
+          metadata:
+            sql_integration_id: deepnote-dataframe-sql
+            deepnote_variable_name: df_product_performance
+          sortingKey: a9
+          type: sql
+          outputs: []
+
+        - blockGroup: sql-regional-trends
+          content: |
+            SELECT 
+                region,
+                COUNT(DISTINCT product) as products_sold,
+                ROUND(SUM(revenue), 2) as total_revenue,
+                ROUND(AVG(unit_price), 2) as avg_unit_price
+            FROM df_filtered
+            GROUP BY region
+            ORDER BY total_revenue DESC
+          id: sql-regional-trends
+          metadata:
+            sql_integration_id: deepnote-dataframe-sql
+            deepnote_variable_name: df_regional_performance
+          sortingKey: b0
+          type: sql
+          outputs: []
+
+      executionMode: block
+      id: notebook-data-001
+      isModule: false
+      name: 1. Data Generation & Filtering
+
+    - blocks:
+        - blockGroup: markdown-ml-intro
+          content: |
+            # 🤖 Sales Forecasting with Machine Learning
+            
+            Train a Random Forest model to predict future sales.
+          id: markdown-ml-intro
+          metadata: {}
+          sortingKey: a0
+          type: markdown
+
+        - blockGroup: prepare-ml-data
+          content: |
+            # Prepare data for ML
+            df_ml = df_filtered.copy()
+            
+            # Create time-based features
+            df_ml['year'] = df_ml['date'].dt.year
+            df_ml['month'] = df_ml['date'].dt.month
+            df_ml['day_of_week'] = df_ml['date'].dt.dayofweek
+            df_ml['day_of_month'] = df_ml['date'].dt.day
+            df_ml['quarter'] = df_ml['date'].dt.quarter
+            
+            # Encode categorical variables
+            df_ml['product_encoded'] = pd.Categorical(df_ml['product']).codes
+            df_ml['region_encoded'] = pd.Categorical(df_ml['region']).codes
+            
+            # Select features
+            feature_cols = ['year', 'month', 'day_of_week', 'day_of_month', 'quarter',
+                           'product_encoded', 'region_encoded', 'quantity', 'unit_price']
+            
+            X = df_ml[feature_cols]
+            y = df_ml['revenue']
+            
+            # Split data
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+            
+            print(f"✓ ML data prepared")
+            print(f"  Training samples: {len(X_train):,}")
+            print(f"  Test samples: {len(X_test):,}")
+            print(f"  Features: {len(feature_cols)}")
+          id: prepare-ml-data
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a1
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: train-model
+          content: |
+            # Train Random Forest model
+            print("Training Random Forest model...")
+            
+            model = RandomForestRegressor(
+                n_estimators=100,
+                max_depth=15,
+                min_samples_split=10,
+                random_state=42,
+                n_jobs=-1
+            )
+            
+            model.fit(X_train, y_train)
+            
+            # Make predictions
+            y_pred = model.predict(X_test)
+            
+            # Evaluate
+            mae = mean_absolute_error(y_test, y_pred)
+            r2 = r2_score(y_test, y_pred)
+            
+            print(f"✓ Model trained successfully!")
+            print(f"  Mean Absolute Error: ${mae:,.2f}")
+            print(f"  R² Score: {r2:.3f}")
+            
+            # Feature importance
+            feature_importance = pd.DataFrame({
+                'feature': feature_cols,
+                'importance': model.feature_importances_
+            }).sort_values('importance', ascending=False)
+            
+            print(f"\n📊 Top 5 Most Important Features:")
+            for idx, row in feature_importance.head().iterrows():
+                print(f"  {row['feature']}: {row['importance']:.3f}")
+          id: train-model
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a2
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: visualize-predictions
+          content: |
+            # Visualize predictions
+            fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+            
+            # Actual vs Predicted
+            axes[0].scatter(y_test, y_pred, alpha=0.5, s=10)
+            min_val = min(y_test.min(), y_pred.min())
+            max_val = max(y_test.max(), y_pred.max())
+            axes[0].plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Perfect Prediction')
+            axes[0].set_xlabel('Actual Revenue ($)', fontsize=12)
+            axes[0].set_ylabel('Predicted Revenue ($)', fontsize=12)
+            axes[0].set_title('Actual vs Predicted Sales', fontsize=14, fontweight='bold')
+            axes[0].legend()
+            axes[0].grid(True, alpha=0.3)
+            
+            # Feature Importance
+            top_features = feature_importance.head(8)
+            axes[1].barh(range(len(top_features)), top_features['importance'], color='steelblue')
+            axes[1].set_yticks(range(len(top_features)))
+            axes[1].set_yticklabels(top_features['feature'])
+            axes[1].set_xlabel('Importance', fontsize=12)
+            axes[1].set_title('Feature Importance', fontsize=14, fontweight='bold')
+            axes[1].grid(True, alpha=0.3, axis='x')
+            
+            plt.tight_layout()
+            plt.show()
+            
+            print(f"✓ Visualizations created")
+          id: visualize-predictions
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a3
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: time-series-analysis
+          content: |
+            # Time series analysis
+            df_daily = df_filtered.groupby('date').agg({
+                'revenue': 'sum',
+                'quantity': 'sum'
+            }).reset_index()
+            
+            # Calculate 7-day moving average
+            df_daily['revenue_ma7'] = df_daily['revenue'].rolling(window=7).mean()
+            df_daily['revenue_ma30'] = df_daily['revenue'].rolling(window=30).mean()
+            
+            # Plot time series
+            fig, ax = plt.subplots(figsize=(14, 6))
+            
+            ax.plot(df_daily['date'], df_daily['revenue'], alpha=0.3, label='Daily Revenue', color='lightblue')
+            ax.plot(df_daily['date'], df_daily['revenue_ma7'], label='7-Day MA', color='orange', linewidth=2)
+            ax.plot(df_daily['date'], df_daily['revenue_ma30'], label='30-Day MA', color='red', linewidth=2)
+            
+            ax.set_xlabel('Date', fontsize=12)
+            ax.set_ylabel('Revenue ($)', fontsize=12)
+            ax.set_title('Daily Revenue Trends with Moving Averages', fontsize=14, fontweight='bold')
+            ax.legend(fontsize=10)
+            ax.grid(True, alpha=0.3)
+            
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            plt.show()
+            
+            print(f"✓ Time series analysis complete")
+          id: time-series-analysis
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a4
+          type: code
+          executionCount: 0
+          outputs: []
+
+      executionMode: block
+      id: notebook-ml-001
+      isModule: false
+      name: 2. Machine Learning & Forecasting
+
+    - blocks:
+        - blockGroup: markdown-dashboard
+          content: |
+            # 📈 Executive Dashboard
+            
+            Final visualizations and key metrics.
+          id: markdown-dashboard
+          metadata: {}
+          sortingKey: a0
+          type: markdown
+
+        - blockGroup: calculate-kpis
+          content: |
+            # Calculate KPIs
+            total_revenue = df_filtered['revenue'].sum()
+            total_transactions = len(df_filtered)
+            avg_transaction_value = df_filtered['revenue'].mean()
+            total_units = df_filtered['quantity'].sum()
+            
+            # Growth metrics (use year-month string instead of Period for DuckDB compatibility)
+            df_filtered_temp = df_filtered.copy()
+            df_filtered_temp['month_str'] = df_filtered_temp['date'].dt.strftime('%Y-%m')
+            monthly_revenue = df_filtered_temp.groupby('month_str')['revenue'].sum()
+            
+            if len(monthly_revenue) >= 2:
+                mom_growth = ((monthly_revenue.iloc[-1] - monthly_revenue.iloc[-2]) / monthly_revenue.iloc[-2] * 100)
+            else:
+                mom_growth = 0
+            
+            print("=" * 80)
+            print("🎯 KEY PERFORMANCE INDICATORS")
+            print("=" * 80)
+            print(f"  💰 Total Revenue:           ${total_revenue:,.2f}")
+            print(f"  🛒 Total Transactions:      {total_transactions:,}")
+            print(f"  📊 Avg Transaction Value:   ${avg_transaction_value:,.2f}")
+            print(f"  📦 Total Units Sold:        {total_units:,}")
+            print(f"  📈 Month-over-Month Growth: {mom_growth:+.1f}%")
+            print("=" * 80)
+          id: calculate-kpis
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a1
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: comprehensive-dashboard
+          content: |
+            # Create comprehensive dashboard
+            fig = plt.figure(figsize=(16, 10))
+            gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
+            
+            # 1. Revenue by Product (Bar Chart)
+            ax1 = fig.add_subplot(gs[0, :2])
+            product_revenue = df_filtered.groupby('product')['revenue'].sum().sort_values(ascending=False)
+            colors = plt.cm.viridis(np.linspace(0, 1, len(product_revenue)))
+            ax1.bar(product_revenue.index, product_revenue.values, color=colors)
+            ax1.set_title('Revenue by Product', fontsize=14, fontweight='bold')
+            ax1.set_ylabel('Revenue ($)', fontsize=11)
+            ax1.tick_params(axis='x', rotation=45)
+            ax1.grid(True, alpha=0.3, axis='y')
+            
+            # 2. Regional Distribution (Pie Chart)
+            ax2 = fig.add_subplot(gs[0, 2])
+            region_revenue = df_filtered.groupby('region')['revenue'].sum()
+            ax2.pie(region_revenue.values, labels=region_revenue.index, autopct='%1.1f%%', startangle=90)
+            ax2.set_title('Revenue by Region', fontsize=14, fontweight='bold')
+            
+            # 3. Monthly Trend (Line Chart)
+            ax3 = fig.add_subplot(gs[1, :])
+            df_monthly_temp = df_filtered.copy()
+            df_monthly_temp['month'] = df_monthly_temp['date'].dt.to_period('M').dt.to_timestamp()
+            monthly_data = df_monthly_temp.groupby('month').agg({
+                'revenue': 'sum',
+                'quantity': 'sum'
+            })
+            ax3_twin = ax3.twinx()
+            ax3.plot(monthly_data.index, monthly_data['revenue'], marker='o', linewidth=2, color='steelblue', label='Revenue')
+            ax3_twin.plot(monthly_data.index, monthly_data['quantity'], marker='s', linewidth=2, color='coral', label='Units Sold')
+            ax3.set_title('Monthly Revenue & Units Sold Trend', fontsize=14, fontweight='bold')
+            ax3.set_xlabel('Month', fontsize=11)
+            ax3.set_ylabel('Revenue ($)', fontsize=11, color='steelblue')
+            ax3_twin.set_ylabel('Units Sold', fontsize=11, color='coral')
+            ax3.tick_params(axis='y', labelcolor='steelblue')
+            ax3_twin.tick_params(axis='y', labelcolor='coral')
+            ax3.grid(True, alpha=0.3)
+            ax3.legend(loc='upper left')
+            ax3_twin.legend(loc='upper right')
+            plt.setp(ax3.xaxis.get_majorticklabels(), rotation=45)
+            
+            # 4. Top Products by Units (Horizontal Bar)
+            ax4 = fig.add_subplot(gs[2, :2])
+            product_units = df_filtered.groupby('product')['quantity'].sum().sort_values(ascending=True).tail(7)
+            ax4.barh(product_units.index, product_units.values, color='mediumseagreen')
+            ax4.set_title('Top Products by Units Sold', fontsize=14, fontweight='bold')
+            ax4.set_xlabel('Units Sold', fontsize=11)
+            ax4.grid(True, alpha=0.3, axis='x')
+            
+            # 5. Revenue Distribution (Box Plot)
+            ax5 = fig.add_subplot(gs[2, 2])
+            revenue_by_region = [df_filtered[df_filtered['region'] == region]['revenue'].values 
+                                 for region in df_filtered['region'].unique()]
+            bp = ax5.boxplot(revenue_by_region, tick_labels=df_filtered['region'].unique(), patch_artist=True)
+            for patch, color in zip(bp['boxes'], ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A']):
+                patch.set_facecolor(color)
+            ax5.set_title('Revenue Distribution', fontsize=14, fontweight='bold')
+            ax5.set_ylabel('Revenue ($)', fontsize=11)
+            ax5.tick_params(axis='x', rotation=45)
+            ax5.grid(True, alpha=0.3, axis='y')
+            
+            plt.suptitle('📊 Sales Analytics Dashboard', fontsize=18, fontweight='bold', y=0.995)
+            plt.show()
+            
+            print("✓ Executive dashboard created successfully!")
+          id: comprehensive-dashboard
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a2
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: summary-stats
+          content: |
+            # Generate summary statistics
+            print("\n" + "="*80)
+            print("📋 SUMMARY STATISTICS")
+            print("="*80)
+            
+            summary = df_filtered.describe()[['revenue', 'quantity', 'unit_price']].round(2)
+            print(summary)
+            
+            print("\n🏆 TOP PERFORMERS:")
+            print("-" * 80)
+            
+            # Top product
+            top_product = df_filtered.groupby('product')['revenue'].sum().idxmax()
+            top_product_revenue = df_filtered.groupby('product')['revenue'].sum().max()
+            print(f"  Best Product: {top_product} (${top_product_revenue:,.2f})")
+            
+            # Top region
+            top_region = df_filtered.groupby('region')['revenue'].sum().idxmax()
+            top_region_revenue = df_filtered.groupby('region')['revenue'].sum().max()
+            print(f"  Best Region:  {top_region} (${top_region_revenue:,.2f})")
+            
+            # Best day
+            best_day = df_filtered.groupby('date')['revenue'].sum().idxmax()
+            best_day_revenue = df_filtered.groupby('date')['revenue'].sum().max()
+            print(f"  Best Day:     {best_day.date()} (${best_day_revenue:,.2f})")
+            
+            print("="*80)
+          id: summary-stats
+          metadata:
+            execution_start: 0
+            execution_millis: 0
+          sortingKey: a3
+          type: code
+          executionCount: 0
+          outputs: []
+
+      executionMode: block
+      id: notebook-dashboard-001
+      isModule: false
+      name: 3. Executive Dashboard
+
+  settings: {}
+version: 1.0.0
+

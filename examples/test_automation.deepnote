@@ -1,0 +1,73 @@
+metadata:
+  createdAt: '2025-11-06T18:00:00.000Z'
+  modifiedAt: '2025-11-06T18:00:00.000Z'
+project:
+  id: test-automation-001
+  name: Test Automated Execution
+  notebooks:
+    - blocks:
+        - blockGroup: test-imports
+          content: |
+            import sys
+            import pandas as pd
+            import numpy as np
+            
+            print(f"✓ Python: {sys.version}")
+            print(f"✓ Pandas: {pd.__version__}")
+            print(f"✓ NumPy: {np.__version__}")
+            print(f"\n🎉 All imports successful!")
+          id: test-imports
+          metadata: {}
+          sortingKey: a0
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: test-data
+          content: |
+            # Generate test data
+            data = {
+                'name': ['Alice', 'Bob', 'Charlie', 'Diana'],
+                'age': [25, 30, 35, 28],
+                'score': [95, 87, 92, 88]
+            }
+            
+            df = pd.DataFrame(data)
+            
+            print("📊 Test DataFrame:")
+            print(df)
+            print(f"\n✓ Shape: {df.shape}")
+            print(f"✓ Mean score: {df['score'].mean():.1f}")
+          id: test-data
+          metadata: {}
+          sortingKey: a1
+          type: code
+          executionCount: 0
+          outputs: []
+
+        - blockGroup: test-math
+          content: |
+            # Test NumPy operations
+            arr = np.array([1, 2, 3, 4, 5])
+            
+            print(f"Array: {arr}")
+            print(f"Sum: {arr.sum()}")
+            print(f"Mean: {arr.mean()}")
+            print(f"Std: {arr.std():.2f}")
+            
+            print("\n✅ All tests passed!")
+          id: test-math
+          metadata: {}
+          sortingKey: a2
+          type: code
+          executionCount: 0
+          outputs: []
+
+      executionMode: block
+      id: notebook-test-001
+      isModule: false
+      name: Automation Test
+
+  settings: {}
+version: 1.0.0
+

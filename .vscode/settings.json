@@ -45,5 +45,7 @@
   },
   "editor.formatOnSave": true,
   "biome.enabled": true,
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "python.defaultInterpreterPath": "python3",
+  "notebook.defaultFormatter": "Deepnote.vscode-deepnote"
 }

@@ -43,6 +43,21 @@ This open-source repository lets you, edit and run Deepnote notebooks directly i
 - **[Windsurf extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - Collaborative development in Windsurf
 - **[JupyterLab extension](https://pypi.org/project/jupyterlab-deepnote/)** - Read `.deepnote` files in JupyterLab with backwards compatibility
 
+### 🚀 NEW: Fully Automated Programmatic Execution
+
+Execute any Deepnote notebook programmatically with **ZERO manual setup**! Perfect for AI agents, batch processing, debugging, and CI/CD:
+
+```bash
+# Fully automated - auto-starts server if needed!
+./scripts/run-deepnote.sh examples/demos/sales_analytics_dashboard.deepnote
+```
+
+**Key insight:** Since Deepnote Kernel is built on Jupyter, we can start it programmatically using `deepnote-toolkit server` - no manual kernel selection required!
+
+**Supports ALL block types:** Code, Input widgets, SQL queries (DuckDB/ClickHouse/PostgreSQL/MySQL), and Charts.
+
+**Real-world example:** Cursor (AI) created and debugged a 627-line Sales Analytics Dashboard in under 5 minutes using 2 simple user prompts + programmatic execution. [Read the full workflow →](./examples/demos/DEVELOPMENT_WORKFLOW.md)
+
 ## Roadmap
 
 You'll soon be able to:
