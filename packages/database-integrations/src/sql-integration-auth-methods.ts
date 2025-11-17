@@ -23,6 +23,11 @@ export const BigQueryAuthMethods = {
 
 export type BigQueryAuthMethod = (typeof BigQueryAuthMethods)[keyof typeof BigQueryAuthMethods]
 
+export const TrinoAuthMethods = {
+  Password: 'password',
+  Oauth: 'oauth',
+} as const
+
 export const DatabaseAuthMethods = {
   UsernameAndPassword: 'username-and-password',
   IndividualCredentials: 'individual-credentials',
@@ -37,6 +42,7 @@ export const federatedAuthMethods = [
   SnowflakeAuthMethods.KeyPair,
   BigQueryAuthMethods.GoogleOauth,
   DatabaseAuthMethods.IndividualCredentials,
+  TrinoAuthMethods.Oauth,
 ] as const
 
 export type FederatedAuthMethod = (typeof federatedAuthMethods)[number]
