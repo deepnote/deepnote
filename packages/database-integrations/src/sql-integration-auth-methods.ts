@@ -28,6 +28,8 @@ export const TrinoAuthMethods = {
   Oauth: 'oauth',
 } as const
 
+export type TrinoAuthMethod = (typeof TrinoAuthMethods)[keyof typeof TrinoAuthMethods]
+
 export const DatabaseAuthMethods = {
   UsernameAndPassword: 'username-and-password',
   IndividualCredentials: 'individual-credentials',
