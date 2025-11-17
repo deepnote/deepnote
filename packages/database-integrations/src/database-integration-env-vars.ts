@@ -469,7 +469,7 @@ const getTrinoEnvVars = (
   projectRootDirectory: string
 ): SqlAlchemyInput | null => {
   // OAuth is a federated auth method, handled separately
-  if ('authMethod' in metadata && metadata.authMethod === TrinoAuthMethods.Oauth) {
+  if (metadata.authMethod === TrinoAuthMethods.Oauth) {
     return null
   }
 
