@@ -206,7 +206,6 @@ const trinoBaseMetadataSchema = z.object({
 })
 
 const trinoUsernamePasswordMetadataSchema = trinoBaseMetadataSchema.extend({
-  authMethod: z.union([z.literal(TrinoAuthMethods.Password), z.literal(null)]),
   user: z.string(),
   password: z.string(),
 })
@@ -221,7 +220,8 @@ export const trinoOAuthMetadataSchema = trinoBaseMetadataSchema.extend({
 
 export const trinoMetadataSchema = z.discriminatedUnion('authMethod', [
   // NOTE: We allow `null` for backward compatibility
-  trinoUsernamePasswordMetadataSchema,
+  trinoUsernamePasswordMetadataSchema.extend({ authMethod: z.literal(null) }),
+  trinoUsernamePasswordMetadataSchema.extend({ authMethod: z.literal(TrinoAuthMethods.Password) }),
   trinoOAuthMetadataSchema,
 ])
 
