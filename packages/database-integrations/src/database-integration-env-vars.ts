@@ -7,6 +7,7 @@ import {
   DatabaseAuthMethods,
   isFederatedAuthMetadata,
   isFederatedAuthMethod,
+  TrinoAuthMethods,
 } from './sql-integration-auth-methods'
 
 export interface EnvVar {
@@ -466,7 +467,13 @@ const getTrinoEnvVars = (
   integrationId: string,
   metadata: DatabaseIntegrationMetadataByType['trino'],
   projectRootDirectory: string
-): SqlAlchemyInput => {
+): SqlAlchemyInput | null => {
+  // OAuth is a federated auth method, handled separately
+  if ('authMethod' in metadata && metadata.authMethod === TrinoAuthMethods.Oauth) {
+    return null
+  }
+
+  // At this point, metadata must be password auth (either with authMethod: 'password' or authMethod: null)
   const input: SqlAlchemyInput = {
     url: `trino://${encodeURIComponent(metadata.user)}:${encodeURIComponent(metadata.password)}@${metadata.host}:${metadata.port}/${encodeURIComponent(
       metadata.database

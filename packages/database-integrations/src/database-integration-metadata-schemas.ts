@@ -5,6 +5,7 @@ import {
   BigQueryAuthMethods,
   DatabaseAuthMethods,
   SnowflakeAuthMethods,
+  TrinoAuthMethods,
 } from './sql-integration-auth-methods'
 
 const athenaMetadataSchema = z.object({
@@ -190,13 +191,10 @@ const spannerMetadataSchema = z.object({
   database: z.string(),
 })
 
-const trinoMetadataSchema = z.object({
+const trinoBaseMetadataSchema = z.object({
   host: z.string(),
-  user: z.string(),
-  password: z.string(),
-  database: z.string(), // Used as catalog
-  port: z.string(),
-
+  port: z.string().optional(),
+  database: z.string(),
   sshEnabled: z.boolean().optional(),
   sshHost: z.string().optional(),
   sshPort: z.string().optional(),
@@ -206,6 +204,27 @@ const trinoMetadataSchema = z.object({
   caCertificateName: z.string().optional(),
   caCertificateText: z.string().optional(),
 })
+
+const trinoUsernamePasswordMetadataSchema = trinoBaseMetadataSchema.extend({
+  user: z.string(),
+  password: z.string(),
+})
+
+export const trinoOAuthMetadataSchema = trinoBaseMetadataSchema.extend({
+  authMethod: z.literal(TrinoAuthMethods.Oauth),
+  clientId: z.string(),
+  clientSecret: z.string(),
+  authUrl: z.string().url(),
+  tokenUrl: z.string().url(),
+})
+
+export const trinoMetadataSchema = z.union([
+  // NOTE: We allow `null` for backward compatibility
+  trinoUsernamePasswordMetadataSchema.extend({
+    authMethod: z.union([z.literal(TrinoAuthMethods.Password), z.literal(null)]),
+  }),
+  trinoOAuthMetadataSchema,
+])
 
 const commonDatabaseSchema = z.object({
   host: z.string(),
