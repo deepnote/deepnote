@@ -456,6 +456,46 @@ describe('Database integration env variables', () => {
         expect(errors[0]).toBeInstanceOf(BigQueryServiceAccountParseError)
       })
 
+      it('should generate a SQL Alchemy env var for legacy service account', () => {
+        const metadata = {
+          service_account: JSON.stringify({
+            type: 'service_account',
+            project_id: 'test-project-id',
+            private_key_id: 'private-key-id',
+            private_key: '-----BEGIN PRIVATE KEY-----\n\n-----END PRIVATE KEY-----\n',
+            client_email: 'test-email@example.com',
+            client_id: 'client-id',
+            auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+            token_uri: 'https://oauth2.googleapis.com/token',
+            auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+            client_x509_cert_url: 'https://www.googleapis.com/robot/v1/metadata/x509/test-email%40example.com',
+          }),
+        }
+
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'big-query',
+              id: 'my-big-query',
+              name: 'My BigQuery Connection',
+              metadata,
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-big-query')
+        expect(sqlAlchemyInput).toStrictEqual({
+          integration_id: 'my-big-query',
+          url: 'bigquery://',
+          params: {
+            credentials_info: JSON.parse(metadata.service_account),
+          },
+          param_style: 'pyformat',
+        })
+      })
+
       it('should not generate a SQL Alchemy env var for google oauth', () => {
         const { envVars, errors } = getEnvironmentVariablesForIntegrations(
           [
