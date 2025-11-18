@@ -657,7 +657,7 @@ describe('SQL integration metadata schemas', () => {
   describe('Trino', () => {
     it('should validate valid metadata with password auth', () => {
       const result = databaseMetadataSchemasByType['trino'].safeParse({
-        authMethod: 'trino-password',
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -667,7 +667,7 @@ describe('SQL integration metadata schemas', () => {
 
       expect(result.success).toBe(true)
       expect(result.data).toStrictEqual({
-        authMethod: 'trino-password',
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -764,7 +764,7 @@ describe('SQL integration metadata schemas', () => {
 
     it('should validate valid metadata with password auth and optional fields', () => {
       const result = databaseMetadataSchemasByType['trino'].safeParse({
-        authMethod: 'trino-password',
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -781,7 +781,7 @@ describe('SQL integration metadata schemas', () => {
 
       expect(result.success).toBe(true)
       expect(result.data).toStrictEqual({
-        authMethod: 'trino-password',
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -863,7 +863,7 @@ describe('SQL integration metadata schemas', () => {
 
     it('should fail on password auth metadata with missing user field', () => {
       const result = databaseMetadataSchemasByType['trino'].safeParse({
-        authMethod: 'trino-password',
+        authMethod: 'password',
         host: 'my-host',
         password: 'my-password',
         database: 'my-database',
@@ -875,7 +875,7 @@ describe('SQL integration metadata schemas', () => {
 
     it('should fail on password auth metadata with missing password field', () => {
       const result = databaseMetadataSchemasByType['trino'].safeParse({
-        authMethod: 'trino-password',
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         database: 'my-database',

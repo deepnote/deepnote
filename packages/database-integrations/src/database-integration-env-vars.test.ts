@@ -5,6 +5,7 @@ import {
   getSqlEnvVarName,
   SpannerServiceAccountParseError,
 } from './database-integration-env-vars'
+import type { TrinoAuthMethod } from './sql-integration-auth-methods'
 
 describe('Database integration env variables', () => {
   const getSqlAlchemyInputVar = (envVars: Array<{ name: string; value: string }>, integrationId: string) => {
@@ -2588,37 +2589,40 @@ describe('Database integration env variables', () => {
     })
 
     describe('Trino', () => {
-      it('should generate a SQL Alchemy env var with trino URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
-          [
-            {
-              type: 'trino',
-              id: 'my-trino',
-              name: 'My Trino Connection',
-              metadata: {
-                authMethod: 'trino-password',
-                host: 'my-host',
-                port: '8080',
-                user: 'my-user',
-                password: 'my-password',
-                database: 'my-database',
+      it.each([null, undefined, 'password'] satisfies (TrinoAuthMethod | null | undefined)[])(
+        'should generate a SQL Alchemy env var with trino URL for %s authMethod (backward compatibility)',
+        authMethod => {
+          const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+            [
+              {
+                type: 'trino',
+                id: 'my-trino',
+                name: 'My Trino Connection',
+                metadata: {
+                  ...(authMethod !== undefined ? { authMethod } : {}),
+                  host: 'my-host',
+                  port: '8080',
+                  user: 'my-user',
+                  password: 'my-password',
+                  database: 'my-database',
+                },
               },
-            },
-          ],
-          { projectRootDirectory: '/path/to/project' }
-        )
-        expect(errors).toHaveLength(0)
+            ],
+            { projectRootDirectory: '/path/to/project' }
+          )
+          expect(errors).toHaveLength(0)
 
-        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-trino')
-        expect(sqlAlchemyInput).toStrictEqual({
-          integration_id: 'my-trino',
-          url: 'trino://my-user:my-password@my-host:8080/my-database',
-          params: {
-            connect_args: {},
-          },
-          param_style: 'qmark',
-        })
-      })
+          const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-trino')
+          expect(sqlAlchemyInput).toStrictEqual({
+            integration_id: 'my-trino',
+            url: 'trino://my-user:my-password@my-host:8080/my-database',
+            params: {
+              connect_args: {},
+            },
+            param_style: 'qmark',
+          })
+        }
+      )
 
       it('should set http_scheme to https if SSL is enabled', () => {
         const { envVars, errors } = getEnvironmentVariablesForIntegrations(
@@ -2628,7 +2632,7 @@ describe('Database integration env variables', () => {
               id: 'my-trino',
               name: 'My Trino Connection',
               metadata: {
-                authMethod: 'trino-password',
+                authMethod: 'password',
                 host: 'my-host',
                 port: '8080',
                 user: 'my-user',
@@ -2654,7 +2658,7 @@ describe('Database integration env variables', () => {
               id: 'my-trino',
               name: 'My Trino Connection',
               metadata: {
-                authMethod: 'trino-password',
+                authMethod: 'password',
                 host: 'my-host',
                 port: '8080',
                 user: 'my-user',
