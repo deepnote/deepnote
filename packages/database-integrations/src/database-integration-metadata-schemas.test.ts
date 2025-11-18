@@ -655,8 +655,9 @@ describe('SQL integration metadata schemas', () => {
   })
 
   describe('Trino', () => {
-    it('should validate valid metadata', () => {
+    it('should validate valid metadata with password auth', () => {
       const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -666,6 +667,7 @@ describe('SQL integration metadata schemas', () => {
 
       expect(result.success).toBe(true)
       expect(result.data).toStrictEqual({
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -674,8 +676,31 @@ describe('SQL integration metadata schemas', () => {
       })
     })
 
-    it('should validate valid metadata with optional fields', () => {
+    it('should validate valid metadata with null authMethod (backward compatibility)', () => {
       const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: null,
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        port: 'my-port',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        authMethod: null,
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        port: 'my-port',
+      })
+    })
+
+    it('should validate null authMethod as password fallback with all optional fields', () => {
+      // Validates that authMethod: null behaves exactly like password auth
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: null,
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -692,6 +717,7 @@ describe('SQL integration metadata schemas', () => {
 
       expect(result.success).toBe(true)
       expect(result.data).toStrictEqual({
+        authMethod: null,
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -707,12 +733,231 @@ describe('SQL integration metadata schemas', () => {
       })
     })
 
-    it('should fail on metadata with missing fields', () => {
+    it('should fail null authMethod if password-specific fields are missing', () => {
+      // Validates that authMethod: null requires user/password like password auth
+      const resultMissingUser = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: null,
+        host: 'my-host',
+        password: 'my-password',
+        database: 'my-database',
+        port: 'my-port',
+      })
+      expect(resultMissingUser.success).toBe(false)
+
+      const resultMissingPassword = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: null,
+        host: 'my-host',
+        user: 'my-user',
+        database: 'my-database',
+        port: 'my-port',
+      })
+      expect(resultMissingPassword.success).toBe(false)
+    })
+
+    it('should validate valid metadata with password auth and optional fields', () => {
       const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
         database: 'my-database',
+        port: 'my-port',
+        sshEnabled: true,
+        sshHost: 'my-ssh-host',
+        sshPort: 'my-ssh-port',
+        sshUser: 'my-ssh-user',
+        sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        authMethod: 'password',
+        host: 'my-host',
+        user: 'my-user',
+        password: 'my-password',
+        database: 'my-database',
+        port: 'my-port',
+        sshEnabled: true,
+        sshHost: 'my-ssh-host',
+        sshPort: 'my-ssh-port',
+        sshUser: 'my-ssh-user',
+        sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
+      })
+    })
+
+    it('should validate valid metadata with OAuth auth', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+      })
+    })
+
+    it('should validate valid metadata with OAuth auth and optional fields', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+        sshEnabled: true,
+        sshHost: 'my-ssh-host',
+        sshPort: 'my-ssh-port',
+        sshUser: 'my-ssh-user',
+        sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+        sshEnabled: true,
+        sshHost: 'my-ssh-host',
+        sshPort: 'my-ssh-port',
+        sshUser: 'my-ssh-user',
+        sslEnabled: true,
+        caCertificateName: 'my-ca-certificate-name',
+        caCertificateText: 'my-ca-certificate-text',
+      })
+    })
+
+    it('should fail on password auth metadata with missing user field', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'password',
+        host: 'my-host',
+        password: 'my-password',
+        database: 'my-database',
+        port: 'my-port',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on password auth metadata with missing password field', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'password',
+        host: 'my-host',
+        user: 'my-user',
+        database: 'my-database',
+        port: 'my-port',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on OAuth metadata with missing clientId', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientSecret: 'my-client-secret',
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on OAuth metadata with missing clientSecret', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on OAuth metadata with missing authUrl', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        tokenUrl: 'https://auth.example.com/token',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on OAuth metadata with missing tokenUrl', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authUrl: 'https://auth.example.com/authorize',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on OAuth metadata with invalid authUrl', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authUrl: 'not-a-valid-url',
+        tokenUrl: 'https://auth.example.com/token',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should fail on OAuth metadata with invalid tokenUrl', () => {
+      const result = databaseMetadataSchemasByType['trino'].safeParse({
+        authMethod: 'oauth',
+        host: 'my-host',
+        database: 'my-database',
+        port: 'my-port',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'not-a-valid-url',
       })
 
       expect(result.success).toBe(false)

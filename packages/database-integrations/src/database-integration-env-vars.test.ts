@@ -2556,6 +2556,7 @@ describe('Database integration env variables', () => {
               id: 'my-trino',
               name: 'My Trino Connection',
               metadata: {
+                authMethod: 'password',
                 host: 'my-host',
                 port: '8080',
                 user: 'my-user',
@@ -2587,6 +2588,7 @@ describe('Database integration env variables', () => {
               id: 'my-trino',
               name: 'My Trino Connection',
               metadata: {
+                authMethod: 'password',
                 host: 'my-host',
                 port: '8080',
                 user: 'my-user',
@@ -2612,6 +2614,7 @@ describe('Database integration env variables', () => {
               id: 'my-trino',
               name: 'My Trino Connection',
               metadata: {
+                authMethod: 'password',
                 host: 'my-host',
                 port: '8080',
                 user: 'my-user',

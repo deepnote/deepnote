@@ -40,4 +40,6 @@ export {
   isFederatedAuthMethod,
   type SnowflakeAuthMethod,
   SnowflakeAuthMethods,
+  type TrinoAuthMethod,
+  TrinoAuthMethods,
 } from './sql-integration-auth-methods'

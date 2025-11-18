@@ -6,6 +6,7 @@ import {
   isFederatedAuthMetadata,
   isFederatedAuthMethod,
   SnowflakeAuthMethods,
+  TrinoAuthMethods,
 } from './sql-integration-auth-methods'
 
 describe('Auth methods', () => {
@@ -37,6 +38,14 @@ describe('Auth methods', () => {
     it('should not list generic database non-federated auth methods between federated auth methods', () => {
       expect(federatedAuthMethods).not.toContain(DatabaseAuthMethods.UsernameAndPassword)
     })
+
+    it('should list Trino federated auth methods between federated auth methods', () => {
+      expect(federatedAuthMethods).toContain(TrinoAuthMethods.Oauth)
+    })
+
+    it('should not list Trino non-federated auth methods between federated auth methods', () => {
+      expect(federatedAuthMethods).not.toContain(TrinoAuthMethods.Password)
+    })
   })
 
   describe('Federated auth method check', () => {
@@ -67,6 +76,14 @@ describe('Auth methods', () => {
     it('should not claim any generic database non-federated auth methods is federated', () => {
       expect(isFederatedAuthMethod(DatabaseAuthMethods.UsernameAndPassword)).toBe(false)
     })
+
+    it('should claim all Trino federated auth methods is federated', () => {
+      expect(isFederatedAuthMethod(TrinoAuthMethods.Oauth)).toBe(true)
+    })
+
+    it('should not claim any Trino non-federated auth methods is federated', () => {
+      expect(isFederatedAuthMethod(TrinoAuthMethods.Password)).toBe(false)
+    })
   })
 
   describe('Federated auth metadata check', () => {
@@ -96,6 +113,14 @@ describe('Auth methods', () => {
 
     it('should not claim metadata with any generic database non-federated auth methods is federated', () => {
       expect(isFederatedAuthMetadata({ authMethod: DatabaseAuthMethods.UsernameAndPassword })).toBe(false)
+    })
+
+    it('should claim metadata with any Trino federated auth methods is federated', () => {
+      expect(isFederatedAuthMetadata({ authMethod: TrinoAuthMethods.Oauth })).toBe(true)
+    })
+
+    it('should not claim metadata with any Trino non-federated auth methods is federated', () => {
+      expect(isFederatedAuthMetadata({ authMethod: TrinoAuthMethods.Password })).toBe(false)
     })
   })
 })
