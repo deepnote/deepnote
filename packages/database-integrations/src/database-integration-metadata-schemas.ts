@@ -18,7 +18,8 @@ const athenaMetadataSchema = z.object({
 
 const bigqueryMetadataSchema = z.discriminatedUnion('authMethod', [
   z.object({
-    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount),
+    // Legacy integrations may not have an authMethod, so we make it optional.
+    authMethod: z.literal(BigQueryAuthMethods.ServiceAccount).optional(),
     service_account: z.string(),
   }),
   z.object({

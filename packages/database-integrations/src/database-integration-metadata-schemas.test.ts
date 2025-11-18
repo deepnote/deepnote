@@ -82,12 +82,12 @@ describe('SQL integration metadata schemas', () => {
       })
     })
 
-    it('should fail on metadata with auth method field missing', () => {
+    it('should not fail on metadata with auth method field missing', () => {
       const result = databaseMetadataSchemasByType['big-query'].safeParse({
         service_account: 'my-service-account',
       })
 
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
     })
 
     it('should fail on metadata with null auth method', () => {
