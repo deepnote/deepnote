@@ -207,7 +207,7 @@ const trinoBaseMetadataSchema = z.object({
 })
 
 const trinoUsernamePasswordMetadataSchema = trinoBaseMetadataSchema.extend({
-  // NOTE: We allow `null` for backward compatibility
+  // NOTE: We allow `null` or `undefined` for backward compatibility
   authMethod: z.literal(TrinoAuthMethods.Password).nullish(),
   user: z.string(),
   password: z.string(),
