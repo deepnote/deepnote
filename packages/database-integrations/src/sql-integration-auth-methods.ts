@@ -53,8 +53,8 @@ export function isFederatedAuthMethod(authMethod: string): authMethod is Federat
   return federatedAuthMethods.includes(authMethod as FederatedAuthMethod)
 }
 
-export function isFederatedAuthMetadata<M extends { authMethod: string }>(
+export function isFederatedAuthMetadata<M extends { authMethod?: string }>(
   metadata: M
 ): metadata is Extract<M, { authMethod: FederatedAuthMethod }> {
-  return isFederatedAuthMethod(metadata.authMethod)
+  return metadata.authMethod !== undefined && isFederatedAuthMethod(metadata.authMethod)
 }

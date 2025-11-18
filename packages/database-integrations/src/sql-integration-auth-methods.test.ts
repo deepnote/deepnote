@@ -122,5 +122,9 @@ describe('Auth methods', () => {
     it('should not claim metadata with any Trino non-federated auth methods is federated', () => {
       expect(isFederatedAuthMetadata({ authMethod: TrinoAuthMethods.Password })).toBe(false)
     })
+
+    it('should return false when authMethod is undefined', () => {
+      expect(isFederatedAuthMetadata({ authMethod: undefined })).toBe(false)
+    })
   })
 })
