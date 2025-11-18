@@ -24,8 +24,8 @@ export const BigQueryAuthMethods = {
 export type BigQueryAuthMethod = (typeof BigQueryAuthMethods)[keyof typeof BigQueryAuthMethods]
 
 export const TrinoAuthMethods = {
-  Password: 'password',
-  Oauth: 'oauth',
+  Password: 'trino-password',
+  Oauth: 'trino-oauth',
 } as const
 
 export type TrinoAuthMethod = (typeof TrinoAuthMethods)[keyof typeof TrinoAuthMethods]
