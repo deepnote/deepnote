@@ -36,6 +36,10 @@
     "yaml": "^2.8.1",
     "zod": "3.25.76"
   },
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
