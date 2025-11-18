@@ -222,7 +222,6 @@ export const trinoOAuthMetadataSchema = trinoBaseMetadataSchema.extend({
 })
 
 export const trinoMetadataSchema = z.discriminatedUnion('authMethod', [
-  // trinoUsernamePasswordMetadataSchema.extend({ authMethod: z.literal(TrinoAuthMethods.Password) }),
   trinoUsernamePasswordMetadataSchema,
   trinoOAuthMetadataSchema,
 ])
