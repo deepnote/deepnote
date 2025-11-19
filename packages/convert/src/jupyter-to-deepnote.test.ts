@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, deserializeDeepnoteRunFile } from '@deepnote/blocks'
 import * as uuid from 'uuid'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { convertIpynbFilesToDeepnoteFile } from './jupyter-to-deepnote'
@@ -27,6 +27,41 @@ vi.mock('uuid', async () => {
 // Helper to get the mocked uuid.v4 with reset function
 function getMockedUuidV4() {
   return vi.mocked(uuid.v4) as ReturnType<typeof vi.mocked<typeof uuid.v4>> & { __resetCounter: () => void }
+}
+
+function formatRunTimestamp(date: Date): string {
+  const pad = (value: number, length = 2) => value.toString().padStart(length, '0')
+
+  const year = date.getUTCFullYear()
+  const month = pad(date.getUTCMonth() + 1)
+  const day = pad(date.getUTCDate())
+  const hours = pad(date.getUTCHours())
+  const minutes = pad(date.getUTCMinutes())
+  const seconds = pad(date.getUTCSeconds())
+
+  return `${year}${month}${day}${hours}${minutes}${seconds}Z`
+}
+
+async function readRunFiles(outputPath: string) {
+  const parentDir = path.dirname(outputPath)
+  const runDir = path.join(parentDir, '.deepnote')
+  const baseName = path.basename(outputPath, path.extname(outputPath))
+  const timestamp = formatRunTimestamp(new Date())
+  const timestampedPath = path.join(runDir, `${baseName}.${timestamp}.deepnoterun`)
+  const latestPath = path.join(runDir, `${baseName}.latestRun.deepnoterun`)
+
+  const [timestampedContent, latestContent] = await Promise.all([
+    fs.readFile(timestampedPath, 'utf-8'),
+    fs.readFile(latestPath, 'utf-8'),
+  ])
+
+  return {
+    timestampedPath,
+    latestPath,
+    timestampedContent,
+    latestContent,
+    runFile: deserializeDeepnoteRunFile(timestampedContent),
+  }
 }
 
 describe('createSortingKey', () => {
@@ -146,6 +181,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     // Read and parse the output
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile, latestPath, timestampedPath, latestContent, timestampedContent } = await readRunFiles(outputPath)
 
     // Verify basic structure
     expect(result.version).toBe('1.0.0')
@@ -163,19 +199,51 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     expect(markdownBlock.type).toBe('markdown')
     expect(markdownBlock.content).toBe('# Hello World\n\nThis is a test notebook.')
     expect(markdownBlock.outputs).toBeUndefined()
+    expect(markdownBlock.executionCount).toBeUndefined()
 
     // Verify second block (code with string source)
     const codeBlock1 = notebook.blocks[1]
     expect(codeBlock1.type).toBe('code')
     expect(codeBlock1.content).toBe("print('Hello World')")
-    expect(codeBlock1.executionCount).toBe(1)
-    expect(codeBlock1.outputs).toEqual([])
+    expect(codeBlock1.executionCount).toBeUndefined()
+    expect(codeBlock1.outputs).toBeUndefined()
 
     // Verify third block (code with array source)
     const codeBlock2 = notebook.blocks[2]
     expect(codeBlock2.type).toBe('code')
     expect(codeBlock2.content).toBe('import numpy as np\nimport pandas as pd')
-    expect(codeBlock2.executionCount).toBe(2)
+    expect(codeBlock2.executionCount).toBeUndefined()
+    expect(codeBlock2.outputs).toBeUndefined()
+
+    // Verify runtime file mirrors the notebook structure
+    expect(runFile.project.id).toBe(result.project.id)
+    expect(runFile.project.notebooks).toHaveLength(1)
+    const runtimeNotebook = runFile.project.notebooks[0]
+    expect(runtimeNotebook.id).toBe(notebook.id)
+    expect(runtimeNotebook.blocks).toHaveLength(3)
+
+    const runtimeMarkdownBlock = runtimeNotebook.blocks[0]
+    expect(runtimeMarkdownBlock.id).toBe(markdownBlock.id)
+    expect(runtimeMarkdownBlock.executionCount).toBeUndefined()
+    expect(runtimeMarkdownBlock.outputs).toBeUndefined()
+
+    const runtimeCodeBlock1 = runtimeNotebook.blocks[1]
+    expect(runtimeCodeBlock1.id).toBe(codeBlock1.id)
+    expect(runtimeCodeBlock1.executionCount).toBe(1)
+    expect(runtimeCodeBlock1.outputs).toEqual([])
+
+    const runtimeCodeBlock2 = runtimeNotebook.blocks[2]
+    expect(runtimeCodeBlock2.id).toBe(codeBlock2.id)
+    expect(runtimeCodeBlock2.executionCount).toBe(2)
+    expect(runtimeCodeBlock2.outputs).toEqual([])
+
+    // Verify latest run file mirrors timestamped run file
+    expect(timestampedPath.endsWith('.deepnoterun')).toBe(true)
+    expect(latestPath.endsWith('.latestRun.deepnoterun')).toBe(true)
+    expect(latestContent).toEqual(timestampedContent)
+    const expectedTimestamp = formatRunTimestamp(new Date())
+    expect(path.basename(timestampedPath)).toBe(`simple.${expectedTimestamp}.deepnoterun`)
+    expect(path.basename(latestPath)).toBe('simple.latestRun.deepnoterun')
   })
 
   it('handles cells with source as string array', async () => {
@@ -223,9 +291,13 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile } = await readRunFiles(outputPath)
 
     const block = result.project.notebooks[0].blocks[0]
     expect(block.executionCount).toBeUndefined()
+
+    const runtimeBlock = runFile.project.notebooks[0].blocks[0]
+    expect(runtimeBlock.executionCount).toBeUndefined()
   })
 
   it('converts multiple Jupyter notebooks into one Deepnote file', async () => {
@@ -242,6 +314,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile } = await readRunFiles(outputPath)
 
     // Verify we have two notebooks
     expect(result.project.notebooks).toHaveLength(2)
@@ -259,6 +332,11 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     expect(notebook2.blocks).toHaveLength(2)
     expect(notebook2.blocks[0].content).toBe('# Notebook 2')
     expect(notebook2.blocks[1].content).toBe('y = 2')
+
+    // Ensure runtime notebooks mirror structure
+    expect(runFile.project.notebooks).toHaveLength(2)
+    expect(runFile.project.notebooks[0].id).toBe(notebook1.id)
+    expect(runFile.project.notebooks[1].id).toBe(notebook2.id)
   })
 
   it('converts the real titanic tutorial notebook', async () => {
@@ -272,6 +350,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile } = await readRunFiles(outputPath)
 
     // Verify basic structure
     expect(result.project.name).toBe('Titanic Tutorial')
@@ -282,6 +361,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     // The titanic notebook should have 15 cells (mix of markdown and code)
     expect(notebook.blocks).toHaveLength(15)
+    expect(runFile.project.notebooks[0].blocks).toHaveLength(15)
 
     // Check some specific cells
     const firstCell = notebook.blocks[0]
@@ -309,18 +389,26 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile } = await readRunFiles(outputPath)
 
     // Project should have an ID
     expect(result.project.id).toBeTruthy()
+    expect(runFile.project.id).toBe(result.project.id)
 
     // Each notebook should have an ID
     for (const notebook of result.project.notebooks) {
       expect(notebook.id).toBeTruthy()
 
+      const runtimeNotebook = runFile.project.notebooks.find(rb => rb.id === notebook.id)
+      expect(runtimeNotebook).toBeDefined()
+
       // Each block should have an ID and blockGroup
       for (const block of notebook.blocks) {
         expect(block.id).toBeTruthy()
         expect(block.blockGroup).toBeTruthy()
+
+        const runtimeBlock = runtimeNotebook?.blocks.find(rb => rb.id === block.id)
+        expect(runtimeBlock).toBeDefined()
       }
     }
   })
@@ -336,11 +424,13 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile } = await readRunFiles(outputPath)
 
     // Verify createdAt is a valid ISO timestamp
     expect(result.metadata.createdAt).toBeTruthy()
     const date = new Date(result.metadata.createdAt)
     expect(date.toISOString()).toBe(result.metadata.createdAt)
+    expect(runFile.metadata.capturedAt).toBe(result.metadata.createdAt)
   })
 
   it('writes output as valid YAML', async () => {
@@ -362,6 +452,9 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     // Verify it can be parsed by deserializeDeepnoteFile
     expect(() => deserializeDeepnoteFile(content)).not.toThrow()
+
+    const { runFile } = await readRunFiles(outputPath)
+    expect(runFile.project.notebooks).toHaveLength(1)
   })
 
   it('preserves notebook outputs for code cells', async () => {
@@ -398,11 +491,15 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile } = await readRunFiles(outputPath)
 
     const block = result.project.notebooks[0].blocks[0]
-    expect(block.outputs).toBeDefined()
-    expect(block.outputs).toHaveLength(1)
-    expect(block.outputs?.[0]).toEqual({
+    expect(block.outputs).toBeUndefined()
+
+    const runtimeBlock = runFile.project.notebooks[0].blocks[0]
+    expect(runtimeBlock.outputs).toBeDefined()
+    expect(runtimeBlock.outputs).toHaveLength(1)
+    expect(runtimeBlock.outputs?.[0]).toEqual({
       output_type: 'stream',
       name: 'stdout',
       text: ['Hello World\n'],
@@ -435,10 +532,14 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
+    const { runFile } = await readRunFiles(outputPath)
 
     const block = result.project.notebooks[0].blocks[0]
     expect(block.type).toBe('markdown')
     expect(block.outputs).toBeUndefined()
+
+    const runtimeBlock = runFile.project.notebooks[0].blocks[0]
+    expect(runtimeBlock.outputs).toBeUndefined()
   })
 })
 
@@ -486,16 +587,12 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   This is a test notebook.
                 id: test-uuid-003
-                metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
               - blockGroup: test-uuid-004
                 content: print('Hello World')
-                executionCount: 1
                 id: test-uuid-005
-                metadata: {}
-                outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
@@ -503,10 +600,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 content: |-
                   import numpy as np
                   import pandas as pd
-                executionCount: 2
                 id: test-uuid-007
-                metadata: {}
-                outputs: []
                 sortingKey: "2"
                 type: code
                 version: 1
@@ -542,16 +636,12 @@ describe('snapshot tests - exact YAML output format', () => {
               - blockGroup: test-uuid-002
                 content: "# Notebook 1"
                 id: test-uuid-003
-                metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
               - blockGroup: test-uuid-004
                 content: x = 1
-                executionCount: 1
                 id: test-uuid-005
-                metadata: {}
-                outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
@@ -587,16 +677,12 @@ describe('snapshot tests - exact YAML output format', () => {
               - blockGroup: test-uuid-002
                 content: "# Notebook 2"
                 id: test-uuid-003
-                metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
               - blockGroup: test-uuid-004
                 content: y = 2
-                executionCount: 1
                 id: test-uuid-005
-                metadata: {}
-                outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
@@ -769,7 +855,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   rows where you think the passenger survived, and a "0" where you
                   predict that the passenger died.
                 id: test-uuid-003
-                metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
@@ -839,7 +924,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   returned.  Below, you can see the same code that you just ran, along
                   with the output that you should see in your notebook.
                 id: test-uuid-005
-                metadata: {}
                 sortingKey: "1"
                 type: markdown
                 version: 1
@@ -875,8 +959,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   # Any results you write to the current directory are saved as
                   output.
                 id: test-uuid-007
-                metadata: {}
-                outputs: []
                 sortingKey: "2"
                 type: code
                 version: 1
@@ -900,7 +982,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   once you're done, either click on the blue play button, or hit
                   **[Shift] + [Enter]**.  
                 id: test-uuid-009
-                metadata: {}
                 sortingKey: "3"
                 type: markdown
                 version: 1
@@ -909,8 +990,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   train_data = pd.read_csv("/kaggle/input/titanic/train.csv")
                   train_data.head()
                 id: test-uuid-011
-                metadata: {}
-                outputs: []
                 sortingKey: "4"
                 type: code
                 version: 1
@@ -949,7 +1028,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   load the contents of the **test.csv** file.  Don't forget to click
                   on the play button (or hit **[Shift] + [Enter]**)!
                 id: test-uuid-013
-                metadata: {}
                 sortingKey: "5"
                 type: markdown
                 version: 1
@@ -958,8 +1036,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   test_data = pd.read_csv("/kaggle/input/titanic/test.csv")
                   test_data.head()
                 id: test-uuid-015
-                metadata: {}
-                outputs: []
                 sortingKey: "6"
                 type: code
                 version: 1
@@ -1001,7 +1077,6 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   Copy the code below into a new code cell.  Then, run the cell.
                 id: test-uuid-017
-                metadata: {}
                 sortingKey: "7"
                 type: markdown
                 version: 1
@@ -1012,8 +1087,6 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("% of women who survived:", rate_women)
                 id: test-uuid-019
-                metadata: {}
-                outputs: []
                 sortingKey: "8"
                 type: code
                 version: 1
@@ -1026,7 +1099,6 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   Then, run the code below in another code cell:
                 id: test-uuid-021
-                metadata: {}
                 sortingKey: "9"
                 type: markdown
                 version: 1
@@ -1037,8 +1109,6 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("% of men who survived:", rate_men)
                 id: test-uuid-023
-                metadata: {}
-                outputs: []
                 sortingKey: a
                 type: code
                 version: 1
@@ -1089,7 +1159,6 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   Copy this code into your notebook, and run it in a new code cell.
                 id: test-uuid-025
-                metadata: {}
                 sortingKey: b
                 type: markdown
                 version: 1
@@ -1123,8 +1192,6 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("Your submission was successfully saved!")
                 id: test-uuid-027
-                metadata: {}
-                outputs: []
                 sortingKey: c
                 type: code
                 version: 1
@@ -1162,7 +1229,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   competition!  Within ten minutes, you should receive a message
                   providing your spot on the leaderboard.  Great work!
                 id: test-uuid-029
-                metadata: {}
                 sortingKey: d
                 type: markdown
                 version: 1
@@ -1178,7 +1244,6 @@ describe('snapshot tests - exact YAML output format', () => {
                   we've presented here.  You'll also know enough to generate even
                   better predictions!
                 id: test-uuid-031
-                metadata: {}
                 sortingKey: e
                 type: markdown
                 version: 1
@@ -1217,16 +1282,12 @@ describe('snapshot tests - exact YAML output format', () => {
               - blockGroup: test-uuid-002
                 content: "# Notebook 1"
                 id: test-uuid-003
-                metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
               - blockGroup: test-uuid-004
                 content: x = 1
-                executionCount: 1
                 id: test-uuid-005
-                metadata: {}
-                outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
@@ -1238,16 +1299,12 @@ describe('snapshot tests - exact YAML output format', () => {
               - blockGroup: test-uuid-007
                 content: "# Notebook 2"
                 id: test-uuid-008
-                metadata: {}
                 sortingKey: "0"
                 type: markdown
                 version: 1
               - blockGroup: test-uuid-009
                 content: y = 2
-                executionCount: 1
                 id: test-uuid-010
-                metadata: {}
-                outputs: []
                 sortingKey: "1"
                 type: code
                 version: 1
