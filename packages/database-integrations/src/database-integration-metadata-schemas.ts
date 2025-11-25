@@ -146,44 +146,59 @@ const commonSnowflakeMetadataSchema = z.object({
   warehouse: z.string().optional(),
   database: z.string().optional(),
   role: z.string().optional(),
+  dbt: z.boolean().optional(),
+  dbtServiceToken: z.string().optional(),
+  dbtPrimaryJobId: z.string().optional(),
+  dbtProxyServerUrl: z.string().optional(),
 })
 
-const snowflakeMetadataSchema = z.discriminatedUnion('authMethod', [
-  commonSnowflakeMetadataSchema.extend({
-    authMethod: z.literal(SnowflakeAuthMethods.Password),
-    username: z.string(),
-    password: z.string(),
-  }),
-  commonSnowflakeMetadataSchema.extend({
-    authMethod: z.literal(SnowflakeAuthMethods.Okta),
-    clientId: z.string(),
-    clientSecret: z.string(),
-    oktaSubdomain: z.string(),
-    identityProvider: z.string(),
-    authorizationServer: z.string(),
-  }),
-  commonSnowflakeMetadataSchema.extend({
-    authMethod: z.literal(SnowflakeAuthMethods.NativeSnowflake),
-    clientId: z.string(),
-    clientSecret: z.string(),
-  }),
-  commonSnowflakeMetadataSchema.extend({
-    authMethod: z.literal(SnowflakeAuthMethods.AzureAd),
-    clientId: z.string(),
-    clientSecret: z.string(),
-    resource: z.string(),
-    tenant: z.string(),
-  }),
-  commonSnowflakeMetadataSchema.extend({
-    authMethod: z.literal(SnowflakeAuthMethods.KeyPair),
-  }),
-  commonSnowflakeMetadataSchema.extend({
-    authMethod: z.literal(SnowflakeAuthMethods.ServiceAccountKeyPair),
-    username: z.string(),
-    privateKey: z.string(),
-    privateKeyPassphrase: z.string().optional(),
-  }),
-])
+const snowflakeMetadataSchema = z.preprocess(
+  data => {
+    if (typeof data === 'object' && data !== null && (!('authMethod' in data) || !data.authMethod)) {
+      return {
+        ...data,
+        authMethod: SnowflakeAuthMethods.Password,
+      }
+    }
+    return data
+  },
+  z.discriminatedUnion('authMethod', [
+    commonSnowflakeMetadataSchema.extend({
+      authMethod: z.literal(SnowflakeAuthMethods.Password).optional(),
+      username: z.string(),
+      password: z.string(),
+    }),
+    commonSnowflakeMetadataSchema.extend({
+      authMethod: z.literal(SnowflakeAuthMethods.Okta),
+      clientId: z.string(),
+      clientSecret: z.string(),
+      oktaSubdomain: z.string(),
+      identityProvider: z.string(),
+      authorizationServer: z.string(),
+    }),
+    commonSnowflakeMetadataSchema.extend({
+      authMethod: z.literal(SnowflakeAuthMethods.NativeSnowflake),
+      clientId: z.string(),
+      clientSecret: z.string(),
+    }),
+    commonSnowflakeMetadataSchema.extend({
+      authMethod: z.literal(SnowflakeAuthMethods.AzureAd),
+      clientId: z.string(),
+      clientSecret: z.string(),
+      resource: z.string(),
+      tenant: z.string(),
+    }),
+    commonSnowflakeMetadataSchema.extend({
+      authMethod: z.literal(SnowflakeAuthMethods.KeyPair),
+    }),
+    commonSnowflakeMetadataSchema.extend({
+      authMethod: z.literal(SnowflakeAuthMethods.ServiceAccountKeyPair),
+      username: z.string(),
+      privateKey: z.string(),
+      privateKeyPassphrase: z.string().optional(),
+    }),
+  ])
+)
 
 const spannerMetadataSchema = z.object({
   service_account: z.string(),

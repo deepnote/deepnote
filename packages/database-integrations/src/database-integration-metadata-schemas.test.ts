@@ -617,6 +617,56 @@ describe('SQL integration metadata schemas', () => {
       })
     })
 
+    it('should parse metadata with null auth method and default to password', () => {
+      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+        authMethod: null,
+        accountName: 'my-account-name',
+        username: 'my-username',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        authMethod: 'password',
+        accountName: 'my-account-name',
+        username: 'my-username',
+        password: 'my-password',
+      })
+    })
+
+    it('should parse metadata with undefined auth method and default to password', () => {
+      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+        authMethod: undefined,
+        accountName: 'my-account-name',
+        username: 'my-username',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        authMethod: 'password',
+        accountName: 'my-account-name',
+        username: 'my-username',
+        password: 'my-password',
+      })
+    })
+
+    it('should parse metadata with missing auth method and default to password', () => {
+      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+        accountName: 'my-account-name',
+        username: 'my-username',
+        password: 'my-password',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        authMethod: 'password',
+        accountName: 'my-account-name',
+        username: 'my-username',
+        password: 'my-password',
+      })
+    })
+
     it('should fail on metadata with missing fields', () => {
       const result = databaseMetadataSchemasByType['snowflake'].safeParse({
         authMethod: 'password',

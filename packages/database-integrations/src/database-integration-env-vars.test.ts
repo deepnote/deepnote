@@ -2491,6 +2491,40 @@ describe('Database integration env variables', () => {
           param_style: 'pyformat',
         })
       })
+
+      it('should generate a SQL Alchemy env var with snowflake URL for legacy integration', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'snowflake',
+              id: 'my-snowflake',
+              name: 'My Snowflake Connection',
+              metadata: {
+                accountName: 'test-account-name',
+                username: 'test-username',
+                password: 'test-password',
+                database: 'test-database',
+                role: '',
+                warehouse: '',
+                dbt: false,
+                dbtServiceToken: '',
+                dbtPrimaryJobId: '',
+                dbtProxyServerUrl: '',
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+        expect(errors).toHaveLength(0)
+
+        const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-snowflake')
+        expect(sqlAlchemyInput).toStrictEqual({
+          integration_id: 'my-snowflake',
+          url: 'snowflake://test-username:test-password@test-account-name/test-database?warehouse=&role=',
+          params: {},
+          param_style: 'pyformat',
+        })
+      })
     })
 
     describe('SQL Server', () => {
