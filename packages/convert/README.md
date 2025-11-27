@@ -110,7 +110,7 @@ The converter supports lossless roundtrip conversions:
 - **Deepnote → Jupyter → Deepnote**: Preserves all Deepnote-specific metadata in Jupyter cell metadata, enabling byte-for-byte identical reconstruction
 - **Jupyter → Deepnote → Jupyter**: Preserves original Jupyter content while adding Deepnote metadata
 
-This is achieved by storing metadata in the `.metadata.deepnote` field of Jupyter cells and notebooks.
+This is achieved by storing Deepnote-specific metadata as flat `deepnote_*` keys directly on Jupyter notebook metadata (e.g., `deepnote_notebook_id`, `deepnote_execution_mode`) and cell metadata (e.g., `deepnote_cell_type`, `deepnote_sorting_key`, `deepnote_source`).
 
 ## Programmatic Usage
 
