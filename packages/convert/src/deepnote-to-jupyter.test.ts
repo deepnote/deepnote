@@ -8,6 +8,7 @@ import {
   convertDeepnoteFileToJupyterFiles,
   convertDeepnoteToJupyterNotebooks,
 } from './deepnote-to-jupyter'
+import type { JupyterCell } from './types/jupyter'
 
 describe('convertDeepnoteFileToJupyter', () => {
   const testFixturesDir = join(__dirname, '../test-fixtures')
@@ -100,7 +101,7 @@ describe('convertDeepnoteFileToJupyter', () => {
     const notebookContent = await fs.readFile(notebookPath, 'utf-8')
     const notebook = JSON.parse(notebookContent)
 
-    const codeCells = notebook.cells.filter((cell: { cell_type: string }) => cell.cell_type === 'code')
+    const codeCells = notebook.cells.filter((cell: JupyterCell) => cell.cell_type === 'code')
     expect(codeCells.length).toBeGreaterThan(0)
 
     // Check that code cells have the expected structure
@@ -123,7 +124,7 @@ describe('convertDeepnoteFileToJupyter', () => {
     const notebookContent = await fs.readFile(notebookPath, 'utf-8')
     const notebook = JSON.parse(notebookContent)
 
-    const markdownCells = notebook.cells.filter((cell: { cell_type: string }) => cell.cell_type === 'markdown')
+    const markdownCells = notebook.cells.filter((cell: JupyterCell) => cell.cell_type === 'markdown')
     expect(markdownCells.length).toBeGreaterThan(0)
 
     // Check that markdown cells have the expected structure

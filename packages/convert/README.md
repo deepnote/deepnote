@@ -82,7 +82,7 @@ deepnote-convert project.deepnote -o output/jupyter-notebooks/
 If not specified:
 
 - For Jupyter → Deepnote: Output file will be saved in the current directory
-- For Deepnote → Jupyter: A directory will be created with the project name
+- For Deepnote → Jupyter: A directory will be created using the `.deepnote` filename (e.g., `project.deepnote` → `project/`)
 
 ### Examples
 
@@ -107,7 +107,7 @@ deepnote-convert my-project.deepnote -o ./jupyter-notebooks/
 
 The converter supports lossless roundtrip conversions:
 
-- **Deepnote → Jupyter → Deepnote**: Preserves all Deepnote-specific metadata in Jupyter cell metadata, enabling byte-for-byte identical reconstruction
+- **Deepnote → Jupyter → Deepnote**: Preserves all Deepnote-specific metadata in Jupyter cell metadata, enabling faithful reconstruction of the original notebook's structure and metadata (note: serialization formatting or key ordering may differ)
 - **Jupyter → Deepnote → Jupyter**: Preserves original Jupyter content while adding Deepnote metadata
 
 This is achieved by storing Deepnote-specific metadata as flat `deepnote_*` keys directly on Jupyter notebook metadata (e.g., `deepnote_notebook_id`, `deepnote_execution_mode`) and cell metadata (e.g., `deepnote_cell_type`, `deepnote_sorting_key`, `deepnote_source`).
