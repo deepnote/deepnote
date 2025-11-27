@@ -244,6 +244,10 @@ version: "1.0.0"`
       cwd: tempDir,
     })
 
+    // Should derive output directory from input filename (test.deepnote -> test/)
+    const expectedOutputDir = path.join(tempDir, 'test')
+    expect(outputDir).toBe(expectedOutputDir)
+
     // Should create output directory with Jupyter notebook(s)
     const stat = await fs.stat(outputDir)
     expect(stat.isDirectory()).toBe(true)
@@ -466,6 +470,11 @@ version: "1.0.0"`
       inputPath: deepnotePath,
       cwd: tempDir,
     })
+
+    // Should derive output directory from input filename (my.test.file.deepnote -> my.test.file/)
+    const expectedOutputDir = path.join(tempDir, 'my.test.file')
+    expect(outputDir).toBe(expectedOutputDir)
+    expect(path.basename(outputDir)).toBe('my.test.file')
 
     const stat = await fs.stat(outputDir)
     expect(stat.isDirectory()).toBe(true)

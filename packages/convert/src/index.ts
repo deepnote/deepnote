@@ -7,8 +7,6 @@ export {
 export type {
   ConvertIpynbFilesToDeepnoteFileOptions,
   ConvertJupyterNotebookOptions,
-  JupyterCell,
-  JupyterNotebook,
   JupyterNotebookInput,
 } from './jupyter-to-deepnote'
 export {
@@ -16,3 +14,4 @@ export {
   convertJupyterNotebooksToDeepnote,
   convertJupyterNotebookToBlocks,
 } from './jupyter-to-deepnote'
+export type { JupyterCell, JupyterNotebook } from './types/jupyter'

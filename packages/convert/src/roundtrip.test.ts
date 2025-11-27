@@ -1,3 +1,4 @@
+// cspell:ignore roundtripped
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'

@@ -251,6 +251,43 @@ describe('convertDeepnoteToJupyterNotebooks', () => {
   })
 })
 
+describe('convertDeepnoteFileToJupyterFiles error handling', () => {
+  const testOutputDir = join(__dirname, '../test-output')
+
+  afterEach(async () => {
+    await fs.rm(testOutputDir, { recursive: true, force: true })
+  })
+
+  it('rejects with a clear error when the .deepnote file does not exist', async () => {
+    const nonExistentPath = join(__dirname, '../test-fixtures/does-not-exist.deepnote')
+    const outputDir = join(testOutputDir, 'non-existent')
+
+    await expect(convertDeepnoteFileToJupyterFiles(nonExistentPath, { outputDir })).rejects.toThrow(
+      /ENOENT|no such file/
+    )
+  })
+
+  it('rejects with a YAML-related error when the file contains invalid YAML', async () => {
+    const invalidYamlPath = join(testOutputDir, 'invalid.deepnote')
+
+    await fs.mkdir(testOutputDir, { recursive: true })
+    await fs.writeFile(
+      invalidYamlPath,
+      `metadata:
+  createdAt: 2025-11-24
+project:
+  name: Test
+  notebooks:
+    - [invalid yaml: {missing closing bracket`,
+      'utf-8'
+    )
+
+    const outputDir = join(testOutputDir, 'invalid-output')
+
+    await expect(convertDeepnoteFileToJupyterFiles(invalidYamlPath, { outputDir })).rejects.toThrow()
+  })
+})
+
 describe('convertBlocksToJupyterNotebook', () => {
   it('converts blocks to a Jupyter notebook', () => {
     const blocks: DeepnoteBlock[] = [

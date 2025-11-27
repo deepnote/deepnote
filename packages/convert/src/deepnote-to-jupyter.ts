@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
+import type { JupyterCell, JupyterNotebook } from './types/jupyter'
 
 export interface ConvertDeepnoteFileToJupyterOptions {
   outputDir: string
@@ -18,38 +19,6 @@ export interface ConvertBlocksToJupyterOptions {
   isModule?: boolean
   /** Working directory for the notebook */
   workingDirectory?: string
-}
-
-interface JupyterCell {
-  block_group?: string
-  cellId: string
-  cell_type: 'code' | 'markdown'
-  execution_count?: number | null
-  metadata: {
-    cell_id: string
-    deepnote_cell_type: string
-    deepnote_block_group?: string
-    deepnote_sorting_key: string
-    deepnote_source?: string
-    [key: string]: unknown
-  }
-  // biome-ignore lint/suspicious/noExplicitAny: Jupyter notebook outputs can have various types
-  outputs?: any[]
-  outputs_reference?: string
-  source: string | string[]
-}
-
-interface JupyterNotebook {
-  cells: JupyterCell[]
-  metadata: {
-    deepnote_notebook_id: string
-    deepnote_execution_mode?: 'block' | 'downstream'
-    deepnote_is_module?: boolean
-    deepnote_working_directory?: string
-    [key: string]: unknown
-  }
-  nbformat: number
-  nbformat_minor: number
 }
 
 /**
@@ -169,7 +138,6 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
 
   const cell: JupyterCell = {
     block_group: block.blockGroup,
-    cellId: block.id,
     cell_type: jupyterCellType,
     execution_count: block.executionCount ?? null,
     metadata,

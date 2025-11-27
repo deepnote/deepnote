@@ -3,6 +3,7 @@ import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
+import type { JupyterCell, JupyterNotebook } from './types/jupyter'
 
 export interface ConvertIpynbFilesToDeepnoteFileOptions {
   outputPath: string
@@ -12,22 +13,6 @@ export interface ConvertIpynbFilesToDeepnoteFileOptions {
 export interface ConvertJupyterNotebookOptions {
   /** Custom ID generator function. Defaults to uuid v4. */
   idGenerator?: () => string
-}
-
-export interface JupyterCell {
-  cell_type: 'code' | 'markdown'
-  execution_count?: number | null
-  metadata: Record<string, unknown>
-  // biome-ignore lint/suspicious/noExplicitAny: Jupyter notebook outputs can have various types
-  outputs?: any[]
-  source: string | string[]
-}
-
-export interface JupyterNotebook {
-  cells: JupyterCell[]
-  metadata: Record<string, unknown>
-  nbformat?: number
-  nbformat_minor?: number
 }
 
 export interface JupyterNotebookInput {
@@ -170,8 +155,11 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   // Check if this cell has Deepnote metadata (from a previous conversion)
   const cellId = cell.metadata?.cell_id as string | undefined
   const deepnoteCellType = cell.metadata?.deepnote_cell_type as string | undefined
-  const blockGroup = cell.metadata?.deepnote_block_group as string | undefined
   const sortingKey = cell.metadata?.deepnote_sorting_key as string | undefined
+
+  // Determine blockGroup: prefer metadata, fall back to top-level field, then generate
+  // Cloud-exported notebooks may have block_group at top level
+  const blockGroup = cell.metadata?.deepnote_block_group ?? cell.block_group ?? idGenerator()
 
   // Restore original content from metadata if available (for lossless roundtrip)
   const deepnoteSource = cell.metadata?.deepnote_source as string | undefined
@@ -188,6 +176,8 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   delete originalMetadata.deepnote_block_group
   delete originalMetadata.deepnote_sorting_key
   delete originalMetadata.deepnote_source
+  // Also remove top-level block_group from metadata to avoid duplication
+  delete (cell as { block_group?: unknown }).block_group
 
   // Build block object with fields in consistent order
   // Only include executionCount and outputs when they have values
@@ -196,7 +186,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   const hasOutputs = cell.cell_type === 'code' && cell.outputs !== undefined
 
   return {
-    blockGroup: blockGroup ?? idGenerator(),
+    blockGroup,
     content: source,
     ...(hasExecutionCount ? { executionCount } : {}),
     id: cellId ?? idGenerator(),
