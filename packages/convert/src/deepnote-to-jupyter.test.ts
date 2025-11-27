@@ -429,4 +429,59 @@ describe('convertBlocksToJupyterNotebook', () => {
 
     expect(notebook.cells[0].metadata.deepnote_source).toBe('SELECT * FROM table')
   })
+
+  it('converts input blocks to code cells', () => {
+    const blocks: DeepnoteBlock[] = [
+      {
+        id: 'input-text-block',
+        type: 'input-text',
+        content: '',
+        blockGroup: 'group-1',
+        sortingKey: '0',
+        metadata: {
+          deepnote_variable_name: 'text_input',
+          deepnote_variable_value: 'hello',
+        },
+      },
+      {
+        id: 'input-checkbox-block',
+        type: 'input-checkbox',
+        content: '',
+        blockGroup: 'group-2',
+        sortingKey: '1',
+        metadata: {
+          deepnote_variable_name: 'checkbox_input',
+          deepnote_variable_value: true,
+        },
+      },
+      {
+        id: 'input-select-block',
+        type: 'input-select',
+        content: '',
+        blockGroup: 'group-3',
+        sortingKey: '2',
+        metadata: {
+          deepnote_variable_name: 'select_input',
+          deepnote_variable_value: 'option1',
+        },
+      },
+    ]
+
+    const notebook = convertBlocksToJupyterNotebook(blocks, {
+      notebookId: 'nb-1',
+      notebookName: 'Test',
+    })
+
+    expect(notebook.cells).toHaveLength(3)
+
+    // All input blocks should become code cells
+    expect(notebook.cells[0].cell_type).toBe('code')
+    expect(notebook.cells[0].metadata.deepnote_cell_type).toBe('input-text')
+
+    expect(notebook.cells[1].cell_type).toBe('code')
+    expect(notebook.cells[1].metadata.deepnote_cell_type).toBe('input-checkbox')
+
+    expect(notebook.cells[2].cell_type).toBe('code')
+    expect(notebook.cells[2].metadata.deepnote_cell_type).toBe('input-select')
+  })
 })

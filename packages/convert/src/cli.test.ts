@@ -269,6 +269,19 @@ version: "1.0.0"`
     ).rejects.toThrow()
   })
 
+  it('throws error when .deepnote file conversion fails', async () => {
+    const deepnotePath = path.join(tempDir, 'invalid.deepnote')
+    // Write content that will pass file reading but fail YAML parsing/validation
+    await fs.writeFile(deepnotePath, 'invalid: [yaml content', 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: deepnotePath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow()
+  })
+
   it('resolves relative inputPath against cwd for file', async () => {
     // Create a test notebook
     const notebookPath = path.join(tempDir, 'test.ipynb')
