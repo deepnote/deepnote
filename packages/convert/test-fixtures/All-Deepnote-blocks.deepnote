@@ -1,0 +1,1427 @@
+metadata:
+  createdAt: 2025-11-26T15:15:58.360Z
+  modifiedAt: 2025-11-26T15:22:45.637Z
+project:
+  id: 2e3ad465-6a02-4a89-b0d8-744629ee9857
+  name: All Deepnote blocks
+  notebooks:
+    - blocks:
+        - blockGroup: de685a7ef23a475c97fb163cfdf865a6
+          content: |-
+            import pandas as pd
+            import numpy as np
+
+            # Create sample data
+            data = {
+                'Name': ['John', 'Emma', 'Michael', 'Sarah', 'David'],
+                'Age': [28, 34, 42, 25, 31],
+                'Salary': [65000, 78000, 95000, 62000, 70000],
+                'Department': ['IT', 'HR', 'Finance', 'Marketing', 'IT'],
+                'Experience': [3, 7, 12, 2, 5]
+            }
+
+            # Create DataFrame
+            df = pd.DataFrame(data)
+
+            # Create salary_max variable
+            salary_max = df['Salary'].max()
+
+            # Create salary_min variable
+            salary_min = df['Salary'].min()
+
+            # Display the DataFrame
+            df
+          executionCount: 1
+          id: de685a7ef23a475c97fb163cfdf865a6
+          metadata:
+            execution_start: 1764170559618
+            execution_millis: 1
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+          outputs:
+            - output_type: execute_result
+              execution_count: 1
+              data:
+                application/vnd.deepnote.dataframe.v3+json:
+                  column_count: 5
+                  columns:
+                    - name: Name
+                      dtype: object
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: null
+                        max: null
+                        histogram: null
+                        categories:
+                          - name: John
+                            count: 1
+                          - name: Emma
+                            count: 1
+                          - name: 3 others
+                            count: 3
+                    - name: Age
+                      dtype: int64
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: "25"
+                        max: "42"
+                        histogram:
+                          - bin_start: 25
+                            bin_end: 26.7
+                            count: 1
+                          - bin_start: 26.7
+                            bin_end: 28.4
+                            count: 1
+                          - bin_start: 28.4
+                            bin_end: 30.1
+                            count: 0
+                          - bin_start: 30.1
+                            bin_end: 31.8
+                            count: 1
+                          - bin_start: 31.8
+                            bin_end: 33.5
+                            count: 0
+                          - bin_start: 33.5
+                            bin_end: 35.2
+                            count: 1
+                          - bin_start: 35.2
+                            bin_end: 36.9
+                            count: 0
+                          - bin_start: 36.9
+                            bin_end: 38.6
+                            count: 0
+                          - bin_start: 38.6
+                            bin_end: 40.3
+                            count: 0
+                          - bin_start: 40.3
+                            bin_end: 42
+                            count: 1
+                        categories: null
+                    - name: Salary
+                      dtype: int64
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: "62000"
+                        max: "95000"
+                        histogram:
+                          - bin_start: 62000
+                            bin_end: 65300
+                            count: 2
+                          - bin_start: 65300
+                            bin_end: 68600
+                            count: 0
+                          - bin_start: 68600
+                            bin_end: 71900
+                            count: 1
+                          - bin_start: 71900
+                            bin_end: 75200
+                            count: 0
+                          - bin_start: 75200
+                            bin_end: 78500
+                            count: 1
+                          - bin_start: 78500
+                            bin_end: 81800
+                            count: 0
+                          - bin_start: 81800
+                            bin_end: 85100
+                            count: 0
+                          - bin_start: 85100
+                            bin_end: 88400
+                            count: 0
+                          - bin_start: 88400
+                            bin_end: 91700
+                            count: 0
+                          - bin_start: 91700
+                            bin_end: 95000
+                            count: 1
+                        categories: null
+                    - name: Department
+                      dtype: object
+                      stats:
+                        unique_count: 4
+                        nan_count: 0
+                        min: null
+                        max: null
+                        histogram: null
+                        categories:
+                          - name: IT
+                            count: 2
+                          - name: HR
+                            count: 1
+                          - name: 2 others
+                            count: 2
+                    - name: Experience
+                      dtype: int64
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: "2"
+                        max: "12"
+                        histogram:
+                          - bin_start: 2
+                            bin_end: 3
+                            count: 1
+                          - bin_start: 3
+                            bin_end: 4
+                            count: 1
+                          - bin_start: 4
+                            bin_end: 5
+                            count: 0
+                          - bin_start: 5
+                            bin_end: 6
+                            count: 1
+                          - bin_start: 6
+                            bin_end: 7
+                            count: 0
+                          - bin_start: 7
+                            bin_end: 8
+                            count: 1
+                          - bin_start: 8
+                            bin_end: 9
+                            count: 0
+                          - bin_start: 9
+                            bin_end: 10
+                            count: 0
+                          - bin_start: 10
+                            bin_end: 11
+                            count: 0
+                          - bin_start: 11
+                            bin_end: 12
+                            count: 1
+                        categories: null
+                    - name: _deepnote_index_column
+                      dtype: int64
+                  row_count: 5
+                  preview_row_count: 5
+                  rows:
+                    - Name: John
+                      Age: 28
+                      Salary: 65000
+                      Department: IT
+                      Experience: 3
+                      _deepnote_index_column: 0
+                    - Name: Emma
+                      Age: 34
+                      Salary: 78000
+                      Department: HR
+                      Experience: 7
+                      _deepnote_index_column: 1
+                    - Name: Michael
+                      Age: 42
+                      Salary: 95000
+                      Department: Finance
+                      Experience: 12
+                      _deepnote_index_column: 2
+                    - Name: Sarah
+                      Age: 25
+                      Salary: 62000
+                      Department: Marketing
+                      Experience: 2
+                      _deepnote_index_column: 3
+                    - Name: David
+                      Age: 31
+                      Salary: 70000
+                      Department: IT
+                      Experience: 5
+                      _deepnote_index_column: 4
+                  type: dataframe
+                text/plain: |2-
+                        Name  Age  Salary Department  Experience
+                  0     John   28   65000         IT           3
+                  1     Emma   34   78000         HR           7
+                  2  Michael   42   95000    Finance          12
+                  3    Sarah   25   62000  Marketing           2
+                  4    David   31   70000         IT           5
+                text/html: |-
+                  <div>
+                  <style scoped>
+                      .dataframe tbody tr th:only-of-type {
+                          vertical-align: middle;
+                      }
+
+                      .dataframe tbody tr th {
+                          vertical-align: top;
+                      }
+
+                      .dataframe thead th {
+                          text-align: right;
+                      }
+                  </style>
+                  <table border="1" class="dataframe">
+                    <thead>
+                      <tr style="text-align: right;">
+                        <th></th>
+                        <th>Name</th>
+                        <th>Age</th>
+                        <th>Salary</th>
+                        <th>Department</th>
+                        <th>Experience</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>0</th>
+                        <td>John</td>
+                        <td>28</td>
+                        <td>65000</td>
+                        <td>IT</td>
+                        <td>3</td>
+                      </tr>
+                      <tr>
+                        <th>1</th>
+                        <td>Emma</td>
+                        <td>34</td>
+                        <td>78000</td>
+                        <td>HR</td>
+                        <td>7</td>
+                      </tr>
+                      <tr>
+                        <th>2</th>
+                        <td>Michael</td>
+                        <td>42</td>
+                        <td>95000</td>
+                        <td>Finance</td>
+                        <td>12</td>
+                      </tr>
+                      <tr>
+                        <th>3</th>
+                        <td>Sarah</td>
+                        <td>25</td>
+                        <td>62000</td>
+                        <td>Marketing</td>
+                        <td>2</td>
+                      </tr>
+                      <tr>
+                        <th>4</th>
+                        <td>David</td>
+                        <td>31</td>
+                        <td>70000</td>
+                        <td>IT</td>
+                        <td>5</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  </div>
+              metadata:
+                table_state_spec: null
+          sortingKey: a0
+          type: code
+        - blockGroup: 94583179b99247a6b4b3b9d5108ba6ba
+          content: >-
+            # Markdown heading
+
+
+            Markdown body text with a [link](https://www.google.com) and a
+            **bold** word.
+          id: 2e57b49d16af4947b7f81af786ac2c38
+          metadata: {}
+          sortingKey: m
+          type: markdown
+        - blockGroup: 41120893dbc24400b21cb797d91fa740
+          content: Heading 1
+          id: 0c6bf2d9301f49608a241625af44a92e
+          metadata:
+            formattedRanges: []
+          sortingKey: p
+          type: text-cell-h1
+        - blockGroup: 664315b491fd4edeb0a79d33fa5a0f1b
+          content: Heading 2
+          id: b1bacf5a27734a00961028718f9f2b97
+          metadata:
+            formattedRanges: []
+          sortingKey: q
+          type: text-cell-h2
+        - blockGroup: cf757ba9851d444997d69973e98e11d1
+          content: Heading 3
+          id: b1ae6c43a2e346d4adb65f5c2010ce3a
+          metadata:
+            formattedRanges: []
+          sortingKey: r
+          type: text-cell-h3
+        - blockGroup: 9036f4aea90e4418abaa210d17accfe7
+          content: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc nec ante
+            egestas, iaculis sem id, convallis nunc. Proin ac aliquam turpis, a
+            vulputate justo. Pellentesque aliquam eros eget erat accumsan, et
+            placerat erat pulvinar. Curabitur mollis magna a nibh mattis
+            blandit. Pellentesque finibus, odio ac vestibulum tristique, velit
+            ante ornare nisl, ac pulvinar ligula diam at lacus. Phasellus at ex
+            velit. Orci varius natoque penatibus et magnis dis parturient
+            montes, nascetur ridiculus mus. Etiam eu velit id massa vulputate
+            eleifend.
+          id: 1715b8ab09ce4a7584b25914cd2a4db1
+          metadata:
+            formattedRanges: []
+          sortingKey: s
+          type: text-cell-p
+        - blockGroup: 805e2e6f730341fb932b79a22fccd80e
+          content: Bullet list item 1
+          id: 346d31485a384000bb3f04b0bed2a19f
+          metadata:
+            formattedRanges: []
+          sortingKey: v
+          type: text-cell-bullet
+        - blockGroup: 61326ee36bb14e2d98f5234d9f39dabc
+          content: Bullet list item 2
+          id: 953fb89080ae4c44853e870cc3bbfdd2
+          metadata:
+            formattedRanges: []
+          sortingKey: x
+          type: text-cell-bullet
+        - blockGroup: 22e900178a06446f93b45d00fe97e83c
+          content: Todo item 1
+          id: 2e31f32749a54189a09be4c6ab1d8276
+          metadata:
+            formattedRanges: []
+          sortingKey: y
+          type: text-cell-todo
+        - blockGroup: 32a29fe241fa4d4f998fc2ba6d993235
+          content: Todo item 1
+          id: 8ee1e168037c48a5a3d0ea79ca6f940b
+          metadata:
+            checked: false
+            formattedRanges: []
+          sortingKey: yU
+          type: text-cell-todo
+        - blockGroup: 980282c570944180861446f243b25043
+          content: This is a callout!
+          id: 6b1862a4f07242f8887e127a9d2fa910
+          metadata:
+            formattedRanges: []
+          sortingKey: yj
+          type: text-cell-callout
+        - blockGroup: b887be6aadf849c0a0ad79430ed9a952
+          content: ""
+          id: cd03bb312208414d80f7de5191d9ecfc
+          metadata: {}
+          sortingKey: yr
+          type: separator
+        - blockGroup: 415da4dc087e448caea1b29d640c2886
+          content: SELECT * FROM df;
+          executionCount: 2
+          id: 08e18bb4311f46e08a77413dde73c62f
+          metadata:
+            execution_start: 1764170559678
+            execution_millis: 652
+            sql_integration_id: deepnote-dataframe-sql
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: df_1
+          outputs:
+            - output_type: execute_result
+              execution_count: 2
+              data:
+                application/vnd.deepnote.dataframe.v3+json:
+                  column_count: 5
+                  columns:
+                    - name: Name
+                      dtype: object
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: null
+                        max: null
+                        histogram: null
+                        categories:
+                          - name: John
+                            count: 1
+                          - name: Emma
+                            count: 1
+                          - name: 3 others
+                            count: 3
+                    - name: Age
+                      dtype: int64
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: "25"
+                        max: "42"
+                        histogram:
+                          - bin_start: 25
+                            bin_end: 26.7
+                            count: 1
+                          - bin_start: 26.7
+                            bin_end: 28.4
+                            count: 1
+                          - bin_start: 28.4
+                            bin_end: 30.1
+                            count: 0
+                          - bin_start: 30.1
+                            bin_end: 31.8
+                            count: 1
+                          - bin_start: 31.8
+                            bin_end: 33.5
+                            count: 0
+                          - bin_start: 33.5
+                            bin_end: 35.2
+                            count: 1
+                          - bin_start: 35.2
+                            bin_end: 36.9
+                            count: 0
+                          - bin_start: 36.9
+                            bin_end: 38.6
+                            count: 0
+                          - bin_start: 38.6
+                            bin_end: 40.3
+                            count: 0
+                          - bin_start: 40.3
+                            bin_end: 42
+                            count: 1
+                        categories: null
+                    - name: Salary
+                      dtype: int64
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: "62000"
+                        max: "95000"
+                        histogram:
+                          - bin_start: 62000
+                            bin_end: 65300
+                            count: 2
+                          - bin_start: 65300
+                            bin_end: 68600
+                            count: 0
+                          - bin_start: 68600
+                            bin_end: 71900
+                            count: 1
+                          - bin_start: 71900
+                            bin_end: 75200
+                            count: 0
+                          - bin_start: 75200
+                            bin_end: 78500
+                            count: 1
+                          - bin_start: 78500
+                            bin_end: 81800
+                            count: 0
+                          - bin_start: 81800
+                            bin_end: 85100
+                            count: 0
+                          - bin_start: 85100
+                            bin_end: 88400
+                            count: 0
+                          - bin_start: 88400
+                            bin_end: 91700
+                            count: 0
+                          - bin_start: 91700
+                            bin_end: 95000
+                            count: 1
+                        categories: null
+                    - name: Department
+                      dtype: object
+                      stats:
+                        unique_count: 4
+                        nan_count: 0
+                        min: null
+                        max: null
+                        histogram: null
+                        categories:
+                          - name: IT
+                            count: 2
+                          - name: HR
+                            count: 1
+                          - name: 2 others
+                            count: 2
+                    - name: Experience
+                      dtype: int64
+                      stats:
+                        unique_count: 5
+                        nan_count: 0
+                        min: "2"
+                        max: "12"
+                        histogram:
+                          - bin_start: 2
+                            bin_end: 3
+                            count: 1
+                          - bin_start: 3
+                            bin_end: 4
+                            count: 1
+                          - bin_start: 4
+                            bin_end: 5
+                            count: 0
+                          - bin_start: 5
+                            bin_end: 6
+                            count: 1
+                          - bin_start: 6
+                            bin_end: 7
+                            count: 0
+                          - bin_start: 7
+                            bin_end: 8
+                            count: 1
+                          - bin_start: 8
+                            bin_end: 9
+                            count: 0
+                          - bin_start: 9
+                            bin_end: 10
+                            count: 0
+                          - bin_start: 10
+                            bin_end: 11
+                            count: 0
+                          - bin_start: 11
+                            bin_end: 12
+                            count: 1
+                        categories: null
+                    - name: _deepnote_index_column
+                      dtype: int64
+                  row_count: 5
+                  preview_row_count: 5
+                  rows:
+                    - Name: John
+                      Age: 28
+                      Salary: 65000
+                      Department: IT
+                      Experience: 3
+                      _deepnote_index_column: 0
+                    - Name: Emma
+                      Age: 34
+                      Salary: 78000
+                      Department: HR
+                      Experience: 7
+                      _deepnote_index_column: 1
+                    - Name: Michael
+                      Age: 42
+                      Salary: 95000
+                      Department: Finance
+                      Experience: 12
+                      _deepnote_index_column: 2
+                    - Name: Sarah
+                      Age: 25
+                      Salary: 62000
+                      Department: Marketing
+                      Experience: 2
+                      _deepnote_index_column: 3
+                    - Name: David
+                      Age: 31
+                      Salary: 70000
+                      Department: IT
+                      Experience: 5
+                      _deepnote_index_column: 4
+                  type: dataframe
+                text/plain: |2-
+                        Name  Age  Salary Department  Experience
+                  0     John   28   65000         IT           3
+                  1     Emma   34   78000         HR           7
+                  2  Michael   42   95000    Finance          12
+                  3    Sarah   25   62000  Marketing           2
+                  4    David   31   70000         IT           5
+                text/html: |-
+                  <div>
+                  <style scoped>
+                      .dataframe tbody tr th:only-of-type {
+                          vertical-align: middle;
+                      }
+
+                      .dataframe tbody tr th {
+                          vertical-align: top;
+                      }
+
+                      .dataframe thead th {
+                          text-align: right;
+                      }
+                  </style>
+                  <table border="1" class="dataframe">
+                    <thead>
+                      <tr style="text-align: right;">
+                        <th></th>
+                        <th>Name</th>
+                        <th>Age</th>
+                        <th>Salary</th>
+                        <th>Department</th>
+                        <th>Experience</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th>0</th>
+                        <td>John</td>
+                        <td>28</td>
+                        <td>65000</td>
+                        <td>IT</td>
+                        <td>3</td>
+                      </tr>
+                      <tr>
+                        <th>1</th>
+                        <td>Emma</td>
+                        <td>34</td>
+                        <td>78000</td>
+                        <td>HR</td>
+                        <td>7</td>
+                      </tr>
+                      <tr>
+                        <th>2</th>
+                        <td>Michael</td>
+                        <td>42</td>
+                        <td>95000</td>
+                        <td>Finance</td>
+                        <td>12</td>
+                      </tr>
+                      <tr>
+                        <th>3</th>
+                        <td>Sarah</td>
+                        <td>25</td>
+                        <td>62000</td>
+                        <td>Marketing</td>
+                        <td>2</td>
+                      </tr>
+                      <tr>
+                        <th>4</th>
+                        <td>David</td>
+                        <td>31</td>
+                        <td>70000</td>
+                        <td>IT</td>
+                        <td>5</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  </div>
+              metadata:
+                table_state_spec: "{}"
+          sortingKey: yv
+          type: sql
+        - blockGroup: 1acefb72e97b49cf83fffe8913225f76
+          content: ""
+          executionCount: 3
+          id: 85eced6f4d504cc783eae547aa0eb630
+          metadata:
+            execution_start: 1764170560778
+            execution_millis: 107
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: df
+            deepnote_visualization_spec:
+              layer:
+                - layer:
+                    - layer:
+                        - mark:
+                            clip: true
+                            type: bar
+                            color: "#2266D3"
+                            tooltip: true
+                          encoding:
+                            x:
+                              sort: null
+                              type: nominal
+                              field: Name
+                              scale:
+                                type: linear
+                            y:
+                              axis:
+                                format:
+                                  type: default
+                                  decimals: null
+                                formatType: numberFormatFromNumberType
+                              type: quantitative
+                              field: Salary
+                              scale:
+                                type: linear
+                              format:
+                                type: default
+                                decimals: null
+                              aggregate: sum
+                              formatType: numberFormatFromNumberType
+                            color:
+                              type: nominal
+                              datum: Salary
+                              scale:
+                                range:
+                                  - "#2266D3"
+                                domain:
+                                  - Salary
+                            xOffset:
+                              datum: series_0
+                          transform: []
+                  resolve:
+                    scale:
+                      color: independent
+              title: ""
+              config:
+                legend:
+                  disable: false
+              $schema: https://vega.github.io/schema/vega-lite/v5.json
+              encoding: {}
+              usermeta:
+                seriesNames:
+                  - Salary
+                seriesOrder:
+                  - 0
+                specSchemaVersion: 2
+                tooltipDefaultMode: true
+          outputs:
+            - output_type: execute_result
+              execution_count: 3
+              data:
+                application/vnd.vega.v5+json:
+                  $schema: https://vega.github.io/schema/vega/v5.json
+                  data:
+                    - name: legend_size_0_store
+                    - name: legend_color_0_store
+                    - name: interval_selection_store
+                    - name: source_0
+                      values:
+                        - Name: John
+                          sum_Salary: 65000
+                        - Name: Emma
+                          sum_Salary: 78000
+                        - Name: Michael
+                          sum_Salary: 95000
+                        - Name: Sarah
+                          sum_Salary: 62000
+                        - Name: David
+                          sum_Salary: 70000
+                    - name: source_0_x_domain_Name
+                      values:
+                        - Name: John
+                        - Name: Emma
+                        - Name: Michael
+                        - Name: Sarah
+                        - Name: David
+                    - name: source_0_y_domain_sum_Salary
+                      values:
+                        - min: 62000
+                          max: 95000
+                  signals:
+                    - name: width
+                      init: "isFinite(containerSize()[0]) ? containerSize()[0] : 200"
+                      on:
+                        - events: window:resize
+                          update: "isFinite(containerSize()[0]) ? containerSize()[0] : 200"
+                    - name: height
+                      init: "isFinite(containerSize()[1]) ? containerSize()[1] : 200"
+                      on:
+                        - events: window:resize
+                          update: "isFinite(containerSize()[1]) ? containerSize()[1] : 200"
+                    - name: unit
+                      value: {}
+                      on:
+                        - events: pointermove
+                          update: "isTuple(group()) ? group() : unit"
+                    - name: legend_size_0
+                      update: vlSelectionResolve("legend_size_0_store", "union", true, true)
+                    - name: legend_color_0
+                      update: vlSelectionResolve("legend_color_0_store", "union", true, true)
+                    - name: interval_selection
+                      update: vlSelectionResolve("interval_selection_store", "union")
+                    - name: legend_size_0_tuple
+                      on:
+                        - events:
+                            - source: scope
+                              type: click
+                          update: "datum && item().mark.marktype !== 'group' && indexof(item().mark.role,
+                            'legend') < 0 && indexof(item().mark.name,
+                            'interval_selection_brush') < 0 ? {unit:
+                            \"layer_0_layer_0_layer_0\", fields:
+                            legend_size_0_tuple_fields, values: []} : null"
+                          force: true
+                        - events:
+                            - source: view
+                              type: dblclick
+                          update: "null"
+                    - name: legend_size_0_tuple_fields
+                      value: []
+                    - name: legend_size_0_toggle
+                      value: false
+                      on:
+                        - events:
+                            - source: scope
+                              type: click
+                          update: "true"
+                        - events:
+                            - source: view
+                              type: dblclick
+                          update: "false"
+                    - name: legend_size_0_modify
+                      on:
+                        - events:
+                            signal: legend_size_0_tuple
+                          update: 'modify("legend_size_0_store", legend_size_0_toggle ? null :
+                            legend_size_0_tuple, legend_size_0_toggle ? null :
+                            true, legend_size_0_toggle ? legend_size_0_tuple :
+                            null)'
+                    - name: legend_color_0_tuple
+                      on:
+                        - events:
+                            - source: scope
+                              type: click
+                          update: "datum && item().mark.marktype !== 'group' && indexof(item().mark.role,
+                            'legend') < 0 && indexof(item().mark.name,
+                            'interval_selection_brush') < 0 ? {unit:
+                            \"layer_0_layer_0_layer_0\", fields:
+                            legend_color_0_tuple_fields, values: []} : null"
+                          force: true
+                        - events:
+                            - source: view
+                              type: dblclick
+                          update: "null"
+                    - name: legend_color_0_tuple_fields
+                      value: []
+                    - name: legend_color_0_toggle
+                      value: false
+                      on:
+                        - events:
+                            - source: scope
+                              type: click
+                          update: "true"
+                        - events:
+                            - source: view
+                              type: dblclick
+                          update: "false"
+                    - name: legend_color_0_modify
+                      on:
+                        - events:
+                            signal: legend_color_0_tuple
+                          update: 'modify("legend_color_0_store", legend_color_0_toggle ? null :
+                            legend_color_0_tuple, legend_color_0_toggle ? null :
+                            true, legend_color_0_toggle ? legend_color_0_tuple :
+                            null)'
+                    - name: interval_selection_x
+                      value: []
+                      on:
+                        - events:
+                            source: scope
+                            filter:
+                              - '!event.item || event.item.mark.name !==
+                                "interval_selection_brush"'
+                            type: pointerdown
+                          update: "[x(unit), x(unit)]"
+                        - events:
+                            source: window
+                            between:
+                              - source: scope
+                                filter:
+                                  - '!event.item || event.item.mark.name !==
+                                    "interval_selection_brush"'
+                                type: pointerdown
+                              - source: window
+                                type: pointerup
+                            type: pointermove
+                            consume: true
+                          update: "[interval_selection_x[0], clamp(x(unit), 0, width)]"
+                        - events:
+                            signal: interval_selection_scale_trigger
+                          update: "[0, 0]"
+                        - events:
+                            - source: view
+                              type: dblclick
+                          update: "[0, 0]"
+                        - events:
+                            signal: interval_selection_translate_delta
+                          update: clampRange(panLinear(interval_selection_translate_anchor.extent_x,
+                            interval_selection_translate_delta.x /
+                            span(interval_selection_translate_anchor.extent_x)),
+                            0, width)
+                        - events:
+                            signal: interval_selection_zoom_delta
+                          update: clampRange(zoomLinear(interval_selection_x,
+                            interval_selection_zoom_anchor.x,
+                            interval_selection_zoom_delta), 0, width)
+                    - name: interval_selection_Name
+                      on:
+                        - events:
+                            signal: interval_selection_x
+                          update: 'interval_selection_x[0] === interval_selection_x[1] ? null :
+                            invert("x", interval_selection_x)'
+                    - name: interval_selection_scale_trigger
+                      value: {}
+                      on:
+                        - events:
+                            - scale: x
+                          update: '(!isArray(interval_selection_Name) || (invert("x",
+                            interval_selection_x)[0] ===
+                            interval_selection_Name[0] && invert("x",
+                            interval_selection_x)[1] ===
+                            interval_selection_Name[1])) ?
+                            interval_selection_scale_trigger : {}'
+                    - name: interval_selection_tuple
+                      on:
+                        - events:
+                            - signal: interval_selection_Name
+                          update: 'interval_selection_Name ? {unit: "layer_0_layer_0_layer_0", fields:
+                            interval_selection_tuple_fields, values:
+                            [interval_selection_Name]} : null'
+                    - name: interval_selection_tuple_fields
+                      value:
+                        - field: Name
+                          channel: x
+                          type: E
+                    - name: interval_selection_translate_anchor
+                      value: {}
+                      on:
+                        - events:
+                            - source: scope
+                              markname: interval_selection_brush
+                              type: pointerdown
+                          update: "{x: x(unit), y: y(unit), extent_x: slice(interval_selection_x)}"
+                    - name: interval_selection_translate_delta
+                      value: {}
+                      on:
+                        - events:
+                            - source: window
+                              between:
+                                - source: scope
+                                  markname: interval_selection_brush
+                                  type: pointerdown
+                                - source: window
+                                  type: pointerup
+                              type: pointermove
+                              consume: true
+                          update: "{x: interval_selection_translate_anchor.x - x(unit), y:
+                            interval_selection_translate_anchor.y - y(unit)}"
+                    - name: interval_selection_zoom_anchor
+                      on:
+                        - events:
+                            - source: scope
+                              markname: interval_selection_brush
+                              type: wheel
+                              consume: true
+                          update: "{x: x(unit), y: y(unit)}"
+                    - name: interval_selection_zoom_delta
+                      on:
+                        - events:
+                            - source: scope
+                              markname: interval_selection_brush
+                              type: wheel
+                              consume: true
+                          update: pow(1.001, event.deltaY * pow(16, event.deltaMode))
+                          force: true
+                    - name: interval_selection_modify
+                      on:
+                        - events:
+                            signal: interval_selection_tuple
+                          update: modify("interval_selection_store", interval_selection_tuple, true)
+                  marks:
+                    - type: rect
+                      name: interval_selection_brush_bg
+                      encode:
+                        enter:
+                          fill:
+                            value: "#333"
+                          fillOpacity:
+                            value: 0.125
+                        update:
+                          y:
+                            - value: 0
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                          x:
+                            - signal: interval_selection_x[0]
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                          y2:
+                            - field:
+                                signal: null
+                                datum: null
+                                group: height
+                                parent: null
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                          x2:
+                            - signal: interval_selection_x[1]
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                      clip: true
+                    - type: rect
+                      name: layer_0_layer_0_layer_0_marks
+                      from:
+                        data: source_0
+                      encode:
+                        update:
+                          tooltip:
+                            signal: '{"Name": isValid(datum["Name"]) ? datum["Name"] : ""+datum["Name"],
+                              "Sum of Salary":
+                              numberFormatFromNumberType(datum["sum_Salary"],
+                              {"decimals":null,"type":"default"})}'
+                          fill:
+                            value: Salary
+                            scale: layer_0_layer_0_color
+                          y:
+                            field: sum_Salary
+                            scale: y
+                          opacity:
+                            - value: 1
+                              test: (!length(data("legend_size_0_store")) ||
+                                vlSelectionTest("legend_size_0_store", datum))
+                                && (!length(data("legend_color_0_store")) ||
+                                vlSelectionTest("legend_color_0_store", datum))
+                                && (!length(data("interval_selection_store")) ||
+                                vlSelectionTest("interval_selection_store",
+                                datum))
+                            - value: 0.2
+                          y2:
+                            value: 0
+                            scale: y
+                          x:
+                            field: Name
+                            scale: x
+                            offset:
+                              value: series_0
+                              scale: xOffset
+                          width:
+                            signal: max(0.25, bandwidth('xOffset'))
+                      style:
+                        - bar
+                      interactive: true
+                      clip: true
+                    - type: rect
+                      name: interval_selection_brush
+                      encode:
+                        enter:
+                          cursor:
+                            value: move
+                          fill:
+                            value: transparent
+                        update:
+                          y2:
+                            - field:
+                                signal: null
+                                datum: null
+                                group: height
+                                parent: null
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                          stroke:
+                            - value: white
+                              test: interval_selection_x[0] !== interval_selection_x[1]
+                            - {}
+                          y:
+                            - value: 0
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                          x:
+                            - signal: interval_selection_x[0]
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                          x2:
+                            - signal: interval_selection_x[1]
+                              test: data("interval_selection_store").length &&
+                                data("interval_selection_store")[0].unit ===
+                                "layer_0_layer_0_layer_0"
+                            - value: 0
+                      clip: true
+                  scales:
+                    - name: x
+                      type: band
+                      domain:
+                        data: source_0_x_domain_Name
+                        field: Name
+                      range:
+                        - 0
+                        - signal: width
+                      paddingOuter: 0.2
+                      paddingInner: 0.2
+                    - name: y
+                      type: linear
+                      domain:
+                        - signal: (data("source_0_y_domain_sum_Salary")[0] || {}).min
+                        - signal: (data("source_0_y_domain_sum_Salary")[0] || {}).max
+                      range:
+                        - signal: height
+                        - 0
+                      nice: true
+                      zero: true
+                    - name: xOffset
+                      type: band
+                      domain:
+                        - series_0
+                      range:
+                        - 0
+                        - signal: bandwidth('x')
+                    - name: layer_0_layer_0_color
+                      type: ordinal
+                      domain:
+                        - Salary
+                      range:
+                        - "#2266D3"
+                  axes:
+                    - scale: y
+                      orient: left
+                      domain: false
+                      zindex: 0
+                      labels: false
+                      grid: true
+                      gridScale: x
+                      maxExtent: 0
+                      tickCount: 5
+                      minExtent: 0
+                      ticks: false
+                      aria: false
+                    - scale: x
+                      title: Name
+                      labelBaseline: middle
+                      zindex: 0
+                      grid: false
+                      orient: bottom
+                      labelAlign: right
+                      labelAngle: 270
+                    - scale: y
+                      labelOverlap: true
+                      encode:
+                        labels:
+                          update:
+                            text:
+                              signal: numberFormatFromNumberType(datum.value,
+                                {"decimals":null,"type":"default"})
+                      grid: false
+                      orient: left
+                      tickCount: 5
+                      zindex: 0
+                      title: Sum of Salary
+                  usermeta:
+                    specSchemaVersion: 2
+                    seriesNames:
+                      - Salary
+                    seriesOrder:
+                      - 0
+                    tooltipDefaultMode: true
+                    outputMetadata:
+                      rowLimitExceeded: false
+                      rowLimit: 5000
+                      filteredDataframeSize: 5
+                      columns:
+                        - name: Name
+                          nativeType: object
+                          distinctValues:
+                            - David
+                            - Emma
+                            - John
+                            - Michael
+                            - Sarah
+                        - name: Age
+                          nativeType: int64
+                          distinctValues:
+                            - 25
+                            - 28
+                            - 31
+                            - 34
+                            - 42
+                        - name: Salary
+                          nativeType: int64
+                          distinctValues:
+                            - 62000
+                            - 65000
+                            - 70000
+                            - 78000
+                            - 95000
+                        - name: Department
+                          nativeType: object
+                          distinctValues:
+                            - Finance
+                            - HR
+                            - IT
+                            - Marketing
+                        - name: Experience
+                          nativeType: int64
+                          distinctValues:
+                            - 2
+                            - 3
+                            - 5
+                            - 7
+                            - 12
+                  background: white
+                  style: cell
+                  autosize:
+                    type: fit
+                    contains: padding
+                  padding: 5
+                  config:
+                    customFormatTypes: true
+                    legend:
+                      disable: false
+                  legends:
+                    - fill: layer_0_layer_0_color
+                      symbolType: square
+                      encode:
+                        symbols:
+                          update:
+                            opacity:
+                              value: 1
+                text/plain: <deepnote_toolkit.chart.deepnote_chart.DeepnoteChart at
+                  0x7fc5d39658d0>
+              metadata: {}
+          sortingKey: yx
+          type: visualization
+        - blockGroup: 2102c87f276446bd8fec2ff65dc7f418
+          content: ""
+          executionCount: 4
+          id: 1ea7c7892b034d03bc780927309c0d98
+          metadata:
+            execution_start: 1764170560948
+            execution_millis: 1
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_big_number_title: Max salary
+            deepnote_big_number_value: salary_max
+            deepnote_big_number_format: currency
+            deepnote_big_number_comparison_type: absolute-change
+            deepnote_big_number_comparison_title: Difference with min
+            deepnote_big_number_comparison_value: salary_min
+            deepnote_big_number_comparison_format: normal
+            deepnote_big_number_comparison_enabled: true
+          outputs:
+            - output_type: execute_result
+              execution_count: 4
+              data:
+                text/plain: "'{\"comparisonTitle\": \"Difference with min\",
+                  \"comparisonValue\": \"62000\", \"title\": \"Max salary\",
+                  \"value\": \"95000\"}'"
+              metadata: {}
+          sortingKey: yy
+          type: big-number
+        - blockGroup: 18827ac2b98e4704b76d64a39e9d642c
+          content: ""
+          executionCount: 5
+          id: 76db10d61b014d8eb2cb2784e2409fcc
+          metadata:
+            execution_start: 1764170560998
+            execution_millis: 0
+            deepnote_input_label: ""
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: name
+            deepnote_variable_value: ""
+          outputs: []
+          sortingKey: yyU
+          type: input-text
+        - blockGroup: 7f81b73c4e0643509751ce9dc88f8fe5
+          content: ""
+          executionCount: 6
+          id: 576ca7a8520a444e994633b656c54848
+          metadata:
+            execution_start: 1764170561058
+            execution_millis: 0
+            deepnote_input_label: ""
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: description
+            deepnote_variable_value: ""
+          outputs: []
+          sortingKey: yyj
+          type: input-textarea
+        - blockGroup: 1739c063083a4fadb3d58b1cd61c0d3b
+          content: ""
+          executionCount: 7
+          id: 32eefed32a844b3e936abb5d79552b27
+          metadata:
+            execution_start: 1764170561108
+            execution_millis: 0
+            deepnote_input_label: ""
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: category
+            deepnote_variable_value: News
+            deepnote_variable_options:
+              - News
+              - Education
+              - Entertainment
+            deepnote_variable_select_type: from-options
+            deepnote_variable_custom_options:
+              - News
+              - Education
+              - Entertainment
+            deepnote_variable_selected_variable: ""
+          outputs: []
+          sortingKey: yyr
+          type: input-select
+        - blockGroup: 7b4528ca17d042edbc01950889709a6d
+          content: ""
+          executionCount: 8
+          id: ce8f105ef7ed45ec9833edbc8df0b0f7
+          metadata:
+            execution_start: 1764170561158
+            execution_millis: 0
+            deepnote_input_label: ""
+            deepnote_slider_step: 1
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: rating
+            deepnote_variable_value: "5"
+            deepnote_slider_max_value: 10
+            deepnote_slider_min_value: 0
+          outputs: []
+          sortingKey: yyv
+          type: input-slider
+        - blockGroup: 32812078f6f74046adbd64390c6be8be
+          content: ""
+          executionCount: 9
+          id: f32dbbe0a9aa45d9b2fab3b3d8a5dfe6
+          metadata:
+            execution_start: 1764170561218
+            execution_millis: 1
+            deepnote_input_label: ""
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: is_published
+            deepnote_variable_value: false
+          outputs: []
+          sortingKey: yyx
+          type: input-checkbox
+        - blockGroup: 3a79b23a183a4a0098a6a0791b9d9876
+          content: ""
+          executionCount: 10
+          id: 7ed3052ffd134819b3ae9a30dd3bcc6c
+          metadata:
+            execution_start: 1764170561358
+            execution_millis: 0
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: date
+            deepnote_variable_value: 2025-11-26T00:00:00.000Z
+            deepnote_input_date_version: 2
+          outputs: []
+          sortingKey: yyy
+          type: input-date
+        - blockGroup: cfb81fa9a70a4c88a0e944a2ae2640e6
+          content: ""
+          executionCount: 11
+          id: fea3835a616b4492b83e3da95e8fc4f8
+          metadata:
+            execution_start: 1764170561418
+            execution_millis: 0
+            deepnote_input_label: ""
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_variable_name: file
+            deepnote_variable_value: ""
+          outputs: []
+          sortingKey: yyyU
+          type: input-file
+        - blockGroup: 4d3a515435e5458abde7a576124132c5
+          content: ""
+          executionCount: 12
+          id: 47bfc233c6414ae9ad9009a77cb9859c
+          metadata:
+            execution_start: 1764170561468
+            execution_millis: 1
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_button_title: Update
+            deepnote_variable_name: button_1
+            deepnote_button_behavior: set_variable
+            deepnote_button_color_scheme: blue
+          outputs: []
+          sortingKey: yyyj
+          type: button
+        - blockGroup: aa01f63c35b149f4ba34c04300051757
+          content: ""
+          executionCount: 13
+          id: 604496ee57c4442383c82c0a471b8872
+          metadata:
+            execution_start: 1764170561528
+            execution_millis: 0
+            execution_context_id: a668c5f6-3805-4a7b-aef8-da0153eb0946
+            deepnote_button_title: Submit
+            deepnote_variable_name: button_1
+            deepnote_button_behavior: run
+            deepnote_button_color_scheme: blue
+          outputs: []
+          sortingKey: yyyr
+          type: button
+      executionMode: block
+      id: a02608bf1cb34320ab722c65c6387c02
+      isModule: false
+      name: Notebook 1
+  settings: {}
+version: 1.0.0
