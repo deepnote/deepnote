@@ -129,8 +129,8 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
     metadata: databaseMetadataSchemasByType['trino'],
     federated_auth_method: z
       .enum(['trino-oauth', 'password'] as const satisfies ReadonlyArray<TrinoAuthMethod>)
-      .nullable()
-      .optional(),
+      .optional()
+      .nullable(),
   }),
 ])
 
