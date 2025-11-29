@@ -71,6 +71,15 @@ deepnote-convert ./analysis --projectName "Data Science Project" -o ./output
 deepnote-convert ~/notebooks/ml-experiments -o ~/projects/
 ```
 
+## Runtime outputs (`.deepnoterun`)
+
+Conversions now emit two artifacts:
+
+- `<project>.deepnote` — notebook structure only (block order, content, metadata that affects code)
+- `.deepnote/<project>.<timestamp>.deepnoterun` — runtime metadata such as execution counts and outputs, plus a `.deepnote/<project>.latestRun.deepnoterun` copy of the newest run
+
+Keeping execution data in `.deepnoterun` files keeps diffs clean while still preserving full context about how the notebook last ran.
+
 ## Programmatic Usage
 
 You can also use the conversion function programmatically in your Node.js or TypeScript applications.
