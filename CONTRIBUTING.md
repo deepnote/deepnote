@@ -49,6 +49,16 @@ pnpm install
 
 This will install all dependencies for the monorepo and its packages.
 
+### Build packages
+
+After installing dependencies, build all packages to ensure they're ready for development and testing:
+
+```bash
+pnpm build
+```
+
+This compiles TypeScript packages and generates output files. **This step is required before running tests** to avoid resolution errors, as packages reference each other through their compiled `dist/` directories.
+
 ---
 
 ## 🧪 Testing
