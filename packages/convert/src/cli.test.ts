@@ -244,17 +244,18 @@ version: "1.0.0"`
       cwd: tempDir,
     })
 
-    // Should derive output directory from input filename (test.deepnote -> test/)
-    const expectedOutputDir = path.join(tempDir, 'test')
+    const projectName = 'test'
+    const expectedOutputDir = path.join(tempDir, projectName)
+
     expect(outputDir).toBe(expectedOutputDir)
 
-    // Should create output directory with Jupyter notebook(s)
     const stat = await fs.stat(outputDir)
+
     expect(stat.isDirectory()).toBe(true)
 
     const files = await fs.readdir(outputDir)
-    expect(files.length).toBeGreaterThan(0)
-    expect(files.some(file => file.endsWith('.ipynb'))).toBe(true)
+
+    expect(files).toEqual(['Test-Notebook.ipynb'])
   })
 
   it('throws error for non-existent paths', async () => {
