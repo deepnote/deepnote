@@ -143,10 +143,22 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
     metadata,
     outputs: block.outputs,
     // TODO: Add outputs_reference
-    source: jupyterCellType === 'markdown' ? createMarkdown(block) : createPythonCode(block),
+    source: getSourceForBlock(block, jupyterCellType, content),
   }
 
   return cell
+}
+
+function getSourceForBlock(block: DeepnoteBlock, jupyterCellType: 'code' | 'markdown', content: string): string {
+  if (jupyterCellType === 'markdown') {
+    return createMarkdown(block)
+  }
+
+  if (block.type === 'code') {
+    return content
+  }
+
+  return createPythonCode(block)
 }
 
 function convertBlockTypeToJupyter(blockType: string): 'code' | 'markdown' {
