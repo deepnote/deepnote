@@ -2,13 +2,14 @@ import fs from 'node:fs/promises'
 import { basename, extname, resolve } from 'node:path'
 import chalk from 'chalk'
 import ora from 'ora'
-import { convertIpynbFilesToDeepnoteFile } from '.'
+
+import { convertDeepnoteFileToJupyter, convertIpynbFilesToDeepnoteFile } from '.'
 
 interface ConvertOptions {
-  inputPath: string
-  projectName?: string
-  outputPath?: string
   cwd?: string
+  inputPath: string
+  outputPath?: string
+  projectName?: string
 }
 
 export async function convert(options: ConvertOptions): Promise<string> {
@@ -102,7 +103,22 @@ export async function convert(options: ConvertOptions): Promise<string> {
   }
 
   if (ext === '.deepnote') {
-    throw new Error('The .deepnote format is not supported for conversion yet.')
+    const spinner = ora('Converting Deepnote project to Jupyter Notebooks...').start()
+
+    try {
+      const filenameWithoutExtension = basename(absolutePath, ext)
+      const outputDirName = filenameWithoutExtension
+      const outputDir = customOutputPath ? resolve(cwd, customOutputPath) : resolve(cwd, outputDirName)
+
+      await convertDeepnoteFileToJupyter(absolutePath, { outputDir })
+
+      spinner.succeed(`Jupyter Notebooks have been saved to ${chalk.bold(outputDir)}`)
+
+      return outputDir
+    } catch (error) {
+      spinner.fail('Conversion failed')
+      throw error
+    }
   }
 
   throw new Error('Unsupported file type. Please provide a .ipynb or .deepnote file.')

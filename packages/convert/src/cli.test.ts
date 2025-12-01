@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
 import { convert } from './cli'
 
 describe('CLI convert function', () => {
@@ -213,17 +214,48 @@ describe('CLI convert function', () => {
     ).rejects.toThrow('Unsupported file type')
   })
 
-  it('throws error for .deepnote files', async () => {
+  it('converts .deepnote files to Jupyter notebooks', async () => {
     const deepnotePath = path.join(tempDir, 'test.deepnote')
-    await fs.writeFile(deepnotePath, 'some content', 'utf-8')
+    const deepnoteContent = `metadata:
+  createdAt: 2025-11-24T00:00:00.000Z
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - id: test-notebook-id
+      name: Test Notebook
+      executionMode: block
+      isModule: false
+      blocks:
+        - id: test-block-id
+          blockGroup: test-block-group
+          type: code
+          content: |
+            print("Hello World")
+          sortingKey: "1"
+          version: 1
+          metadata: {}
+version: "1.0.0"`
 
-    // Should throw error
-    await expect(
-      convert({
-        inputPath: deepnotePath,
-        cwd: tempDir,
-      })
-    ).rejects.toThrow('.deepnote format is not supported')
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
+
+    const outputDir = await convert({
+      inputPath: deepnotePath,
+      cwd: tempDir,
+    })
+
+    const projectName = 'test'
+    const expectedOutputDir = path.join(tempDir, projectName)
+
+    expect(outputDir).toBe(expectedOutputDir)
+
+    const stat = await fs.stat(outputDir)
+
+    expect(stat.isDirectory()).toBe(true)
+
+    const files = await fs.readdir(outputDir)
+
+    expect(files).toEqual(['Test-Notebook.ipynb'])
   })
 
   it('throws error for non-existent paths', async () => {
@@ -233,6 +265,19 @@ describe('CLI convert function', () => {
     await expect(
       convert({
         inputPath: nonExistentPath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow()
+  })
+
+  it('throws error when .deepnote file conversion fails', async () => {
+    const deepnotePath = path.join(tempDir, 'invalid.deepnote')
+    // Write content that will pass file reading but fail YAML parsing/validation
+    await fs.writeFile(deepnotePath, 'invalid: [yaml content', 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: deepnotePath,
         cwd: tempDir,
       })
     ).rejects.toThrow()
@@ -411,15 +456,45 @@ describe('CLI convert function', () => {
 
   it('correctly handles .deepnote extension with multiple dots in filename', async () => {
     const deepnotePath = path.join(tempDir, 'my.test.file.deepnote')
-    await fs.writeFile(deepnotePath, 'some content', 'utf-8')
+    const deepnoteContent = `metadata:
+  createdAt: 2025-11-24T00:00:00.000Z
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - id: test-notebook-id
+      name: Test Notebook
+      executionMode: block
+      isModule: false
+      blocks:
+        - id: test-block-id
+          blockGroup: test-block-group
+          type: code
+          content: |
+            print("Test")
+          sortingKey: "1"
+          version: 1
+          metadata: {}
+version: "1.0.0"`
 
-    // Should still throw error for .deepnote files even with multiple dots
-    await expect(
-      convert({
-        inputPath: deepnotePath,
-        cwd: tempDir,
-      })
-    ).rejects.toThrow('.deepnote format is not supported')
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
+
+    // Should convert to Jupyter notebooks even with multiple dots
+    const outputDir = await convert({
+      inputPath: deepnotePath,
+      cwd: tempDir,
+    })
+
+    // Should derive output directory from input filename (my.test.file.deepnote -> my.test.file/)
+    const expectedOutputDir = path.join(tempDir, 'my.test.file')
+    expect(outputDir).toBe(expectedOutputDir)
+    expect(path.basename(outputDir)).toBe('my.test.file')
+
+    const stat = await fs.stat(outputDir)
+    expect(stat.isDirectory()).toBe(true)
+
+    const files = await fs.readdir(outputDir)
+    expect(files.some(file => file.endsWith('.ipynb'))).toBe(true)
   })
 
   it('correctly rejects unsupported files with multiple dots', async () => {

@@ -4,7 +4,7 @@ import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import * as uuid from 'uuid'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { convertIpynbFilesToDeepnoteFile } from './jupyter-to-deepnote'
+import { convertIpynbFilesToDeepnoteFile, convertJupyterNotebookToBlocks } from './jupyter-to-deepnote'
 
 // Mock uuid to generate predictable IDs for testing
 vi.mock('uuid', async () => {
@@ -489,7 +489,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-004
                 content: print('Hello World')
                 executionCount: 1
@@ -498,7 +497,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 outputs: []
                 sortingKey: "1"
                 type: code
-                version: 1
               - blockGroup: test-uuid-006
                 content: |-
                   import numpy as np
@@ -509,7 +507,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 outputs: []
                 sortingKey: "2"
                 type: code
-                version: 1
             executionMode: block
             id: test-uuid-008
             isModule: false
@@ -545,7 +542,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-004
                 content: x = 1
                 executionCount: 1
@@ -554,7 +550,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 outputs: []
                 sortingKey: "1"
                 type: code
-                version: 1
             executionMode: block
             id: test-uuid-006
             isModule: false
@@ -590,7 +585,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-004
                 content: y = 2
                 executionCount: 1
@@ -599,7 +593,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 outputs: []
                 sortingKey: "1"
                 type: code
-                version: 1
             executionMode: block
             id: test-uuid-006
             isModule: false
@@ -772,7 +765,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-004
                 content: >-
                   # Part 2: Your coding environment
@@ -842,7 +834,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "1"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-006
                 content: >-
                   # This Python 3 environment comes with many helpful analytics
@@ -875,11 +866,18 @@ describe('snapshot tests - exact YAML output format', () => {
                   # Any results you write to the current directory are saved as
                   output.
                 id: test-uuid-007
-                metadata: {}
+                metadata:
+                  _kg_hide-input: false
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.140357Z
+                    iopub.status.busy: 2025-09-01T09:06:57.139933Z
+                    iopub.status.idle: 2025-09-01T09:06:57.371877Z
+                    shell.execute_reply: 2025-09-01T09:06:57.371054Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.140287Z
+                  trusted: true
                 outputs: []
                 sortingKey: "2"
                 type: code
-                version: 1
               - blockGroup: test-uuid-008
                 content: >-
                   This shows us where the competition data is stored, so that we can
@@ -903,17 +901,22 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "3"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-010
                 content: |
                   train_data = pd.read_csv("/kaggle/input/titanic/train.csv")
                   train_data.head()
                 id: test-uuid-011
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.374629Z
+                    iopub.status.busy: 2025-09-01T09:06:57.374278Z
+                    iopub.status.idle: 2025-09-01T09:06:57.427646Z
+                    shell.execute_reply: 2025-09-01T09:06:57.426732Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.374555Z
+                  trusted: true
                 outputs: []
                 sortingKey: "4"
                 type: code
-                version: 1
               - blockGroup: test-uuid-012
                 content: >-
                   Your code should return the output above, which corresponds to the
@@ -952,17 +955,22 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "5"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-014
                 content: |-
                   test_data = pd.read_csv("/kaggle/input/titanic/test.csv")
                   test_data.head()
                 id: test-uuid-015
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.431176Z
+                    iopub.status.busy: 2025-09-01T09:06:57.430967Z
+                    iopub.status.idle: 2025-09-01T09:06:57.470048Z
+                    shell.execute_reply: 2025-09-01T09:06:57.468935Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.431137Z
+                  trusted: true
                 outputs: []
                 sortingKey: "6"
                 type: code
-                version: 1
               - blockGroup: test-uuid-016
                 content: >-
                   As before, make sure that you see the output above in your notebook
@@ -1004,7 +1012,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "7"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-018
                 content: |-
                   women = train_data.loc[train_data.Sex == 'female']["Survived"]
@@ -1012,11 +1019,18 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("% of women who survived:", rate_women)
                 id: test-uuid-019
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.473657Z
+                    iopub.status.busy: 2025-09-01T09:06:57.473144Z
+                    iopub.status.idle: 2025-09-01T09:06:57.484251Z
+                    shell.execute_reply: 2025-09-01T09:06:57.483288Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.473544Z
+                  scrolled: true
+                  trusted: true
                 outputs: []
                 sortingKey: "8"
                 type: code
-                version: 1
               - blockGroup: test-uuid-020
                 content: >-
                   Before moving on, make sure that your code returns the output
@@ -1029,7 +1043,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "9"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-022
                 content: |-
                   men = train_data.loc[train_data.Sex == 'male']["Survived"]
@@ -1037,11 +1050,17 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("% of men who survived:", rate_men)
                 id: test-uuid-023
-                metadata: {}
+                metadata:
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.486507Z
+                    iopub.status.busy: 2025-09-01T09:06:57.486162Z
+                    iopub.status.idle: 2025-09-01T09:06:57.506208Z
+                    shell.execute_reply: 2025-09-01T09:06:57.505447Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.486442Z
+                  trusted: true
                 outputs: []
                 sortingKey: a
                 type: code
-                version: 1
               - blockGroup: test-uuid-024
                 content: >-
                   The code above calculates the percentage of male passengers (in
@@ -1092,7 +1111,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: b
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-026
                 content: >-
                   from sklearn.ensemble import RandomForestClassifier
@@ -1123,11 +1141,18 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   print("Your submission was successfully saved!")
                 id: test-uuid-027
-                metadata: {}
+                metadata:
+                  _kg_hide-output: false
+                  execution:
+                    iopub.execute_input: 2025-09-01T09:06:57.507870Z
+                    iopub.status.busy: 2025-09-01T09:06:57.507569Z
+                    iopub.status.idle: 2025-09-01T09:07:00.901413Z
+                    shell.execute_reply: 2025-09-01T09:07:00.900466Z
+                    shell.execute_reply.started: 2025-09-01T09:06:57.507805Z
+                  trusted: true
                 outputs: []
                 sortingKey: c
                 type: code
-                version: 1
               - blockGroup: test-uuid-028
                 content: >-
                   Make sure that your notebook outputs the same message above (\`Your
@@ -1165,7 +1190,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: d
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-030
                 content: >-
                   # Part 4: Learn more!
@@ -1181,7 +1205,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: e
                 type: markdown
-                version: 1
             executionMode: block
             id: test-uuid-032
             isModule: false
@@ -1220,7 +1243,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-004
                 content: x = 1
                 executionCount: 1
@@ -1229,7 +1251,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 outputs: []
                 sortingKey: "1"
                 type: code
-                version: 1
             executionMode: block
             id: test-uuid-006
             isModule: false
@@ -1241,7 +1262,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-                version: 1
               - blockGroup: test-uuid-009
                 content: y = 2
                 executionCount: 1
@@ -1250,7 +1270,6 @@ describe('snapshot tests - exact YAML output format', () => {
                 outputs: []
                 sortingKey: "1"
                 type: code
-                version: 1
             executionMode: block
             id: test-uuid-011
             isModule: false
@@ -1259,5 +1278,146 @@ describe('snapshot tests - exact YAML output format', () => {
       version: 1.0.0
       "
     `)
+  })
+})
+
+describe('convertJupyterNotebookToBlocks', () => {
+  beforeEach(() => {
+    const mockedV4 = getMockedUuidV4()
+    mockedV4.mockClear()
+    mockedV4.__resetCounter()
+  })
+
+  it('converts a Jupyter notebook to blocks', () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'markdown' as const,
+          metadata: {},
+          source: '# Hello',
+        },
+        {
+          cell_type: 'code' as const,
+          execution_count: 1,
+          metadata: {},
+          outputs: [{ output_type: 'stream', name: 'stdout', text: ['hi\n'] }],
+          source: "print('hi')",
+        },
+      ],
+      metadata: {},
+    }
+
+    const blocks = convertJupyterNotebookToBlocks(notebook)
+
+    expect(blocks).toHaveLength(2)
+    expect(blocks[0].type).toBe('markdown')
+    expect(blocks[0].content).toBe('# Hello')
+    expect(blocks[1].type).toBe('code')
+    expect(blocks[1].content).toBe("print('hi')")
+    expect(blocks[1].executionCount).toBe(1)
+    expect(blocks[1].outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: ['hi\n'] }])
+  })
+
+  it('uses custom idGenerator when provided', () => {
+    let counter = 0
+    const customIdGenerator = () => `custom-id-${++counter}`
+
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'code' as const,
+          metadata: {},
+          outputs: [],
+          source: 'x = 1',
+        },
+        {
+          cell_type: 'code' as const,
+          metadata: {},
+          outputs: [],
+          source: 'y = 2',
+        },
+      ],
+      metadata: {},
+    }
+
+    const blocks = convertJupyterNotebookToBlocks(notebook, {
+      idGenerator: customIdGenerator,
+    })
+
+    expect(blocks).toHaveLength(2)
+    // Each block uses 2 IDs: one for blockGroup and one for id
+    expect(blocks[0].blockGroup).toBe('custom-id-1')
+    expect(blocks[0].id).toBe('custom-id-2')
+    expect(blocks[1].blockGroup).toBe('custom-id-3')
+    expect(blocks[1].id).toBe('custom-id-4')
+  })
+
+  it('uses default uuid v4 when no idGenerator provided', () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'code' as const,
+          metadata: {},
+          outputs: [],
+          source: 'x = 1',
+        },
+      ],
+      metadata: {},
+    }
+
+    const blocks = convertJupyterNotebookToBlocks(notebook)
+
+    expect(blocks).toHaveLength(1)
+    // Should use the mocked uuid which generates test-uuid-XXX
+    expect(blocks[0].blockGroup).toBe('test-uuid-001')
+    expect(blocks[0].id).toBe('test-uuid-002')
+  })
+
+  it('preserves Deepnote metadata from previous conversion', () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'code' as const,
+          metadata: {
+            cell_id: 'original-cell-id',
+            deepnote_cell_type: 'sql',
+            deepnote_block_group: 'original-block-group',
+            deepnote_sorting_key: 'abc',
+            deepnote_source: 'SELECT * FROM table',
+          },
+          outputs: [],
+          source: 'transformed code that should be ignored',
+        },
+      ],
+      metadata: {},
+    }
+
+    const blocks = convertJupyterNotebookToBlocks(notebook)
+
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].id).toBe('original-cell-id')
+    expect(blocks[0].blockGroup).toBe('original-block-group')
+    expect(blocks[0].sortingKey).toBe('abc')
+    expect(blocks[0].type).toBe('sql')
+    // Should restore original content from deepnote_source
+    expect(blocks[0].content).toBe('SELECT * FROM table')
+  })
+
+  it('handles array source format', () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'code' as const,
+          metadata: {},
+          outputs: [],
+          source: ['import numpy as np\n', 'import pandas as pd'],
+        },
+      ],
+      metadata: {},
+    }
+
+    const blocks = convertJupyterNotebookToBlocks(notebook)
+
+    expect(blocks[0].content).toBe('import numpy as np\nimport pandas as pd')
   })
 })
