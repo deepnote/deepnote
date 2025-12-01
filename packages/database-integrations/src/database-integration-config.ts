@@ -6,6 +6,7 @@ import type {
   BigQueryAuthMethod,
   DatabaseAuthMethod,
   SnowflakeAuthMethod,
+  TrinoAuthMethod,
 } from './sql-integration-auth-methods'
 
 const commonIntegrationConfig = z.object({
@@ -126,7 +127,10 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   commonIntegrationConfig.extend({
     type: z.literal('trino'),
     metadata: databaseMetadataSchemasByType['trino'],
-    federated_auth_method: z.null().optional(),
+    federated_auth_method: z
+      .enum(['trino-oauth', 'password'] as const satisfies ReadonlyArray<TrinoAuthMethod>)
+      .optional()
+      .nullable(),
   }),
 ])
 
