@@ -565,6 +565,42 @@ WHERE name = 'O\\'Brien'
     const roundtrippedBlock = roundtripped.project.notebooks[0]?.blocks[0]
     expect(roundtrippedBlock?.content).toBe(specialContent)
   })
+
+  it('throws error when merging notebooks from different projects', () => {
+    // Create two notebooks with different project IDs
+    const notebook1 = {
+      filename: 'notebook1.ipynb',
+      notebook: {
+        cells: [],
+        metadata: {
+          deepnote_project_id: 'project-aaa-111',
+          deepnote_project_name: 'Project A',
+        },
+        nbformat: 4,
+        nbformat_minor: 5,
+      },
+    }
+
+    const notebook2 = {
+      filename: 'notebook2.ipynb',
+      notebook: {
+        cells: [],
+        metadata: {
+          deepnote_project_id: 'project-bbb-222',
+          deepnote_project_name: 'Project B',
+        },
+        nbformat: 4,
+        nbformat_minor: 5,
+      },
+    }
+
+    // Attempting to merge notebooks from different projects should throw
+    expect(() => {
+      convertJupyterNotebooksToDeepnote([notebook1, notebook2], {
+        projectName: 'Merged',
+      })
+    }).toThrow('Cannot merge notebooks from different Deepnote projects')
+  })
 })
 
 describe('Semantic equivalence verification', () => {
@@ -638,6 +674,7 @@ describe('Semantic equivalence verification', () => {
     const roundtrippedLines = roundtrippedYaml.split('\n').length
 
     // These should be close but may not be identical
+    // Threshold of 50 lines accounts for YAML formatting differences (key ordering, whitespace)
     expect(Math.abs(originalLines - roundtrippedLines)).toBeLessThan(50)
   })
 })

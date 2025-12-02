@@ -57,14 +57,31 @@ export function convertJupyterNotebookToBlocks(
 /**
  * Find project metadata from any notebook (prefer first, fallback to others).
  * This handles edge cases where the first notebook was deleted or notebooks were reordered.
+ * Validates that all notebooks belong to the same project to prevent silent cross-project merges.
  */
-function findProjectMetadata(notebooks: JupyterNotebookInput[]) {
+function findProjectMetadata(notebooks: JupyterNotebookInput[]): JupyterNotebook['metadata'] | undefined {
+  let foundMetadata: JupyterNotebook['metadata'] | undefined
+  let foundProjectId: string | undefined
+
   for (const { notebook } of notebooks) {
-    if (notebook?.metadata?.deepnote_project_id !== undefined) {
-      return notebook.metadata
+    const projectId = notebook?.metadata?.deepnote_project_id
+    if (projectId !== undefined) {
+      if (foundProjectId === undefined) {
+        // First notebook with project metadata
+        foundProjectId = projectId
+        foundMetadata = notebook.metadata
+      } else if (projectId !== foundProjectId) {
+        // Conflicting project IDs - this would silently merge different projects
+        throw new Error(
+          `Cannot merge notebooks from different Deepnote projects. ` +
+            `Found project IDs: "${foundProjectId}" and "${projectId}". ` +
+            `Please convert each project separately.`
+        )
+      }
     }
   }
-  return undefined
+
+  return foundMetadata
 }
 
 export function convertJupyterNotebooksToDeepnote(
