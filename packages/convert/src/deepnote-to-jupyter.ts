@@ -87,6 +87,20 @@ export function convertDeepnoteToJupyterNotebooks(
 ): Array<{ filename: string; notebook: JupyterNotebook }> {
   return deepnoteFile.project.notebooks.map(notebook => {
     const jupyterNotebook = convertNotebookToJupyter(deepnoteFile, notebook)
+
+    // Store project-level metadata in ALL notebooks for robust lossless roundtrip
+    // This ensures metadata survives even if some notebooks are deleted or reordered
+    jupyterNotebook.metadata.deepnote_project_id = deepnoteFile.project.id
+    jupyterNotebook.metadata.deepnote_project_init_notebook_id = deepnoteFile.project.initNotebookId
+    jupyterNotebook.metadata.deepnote_project_integrations = deepnoteFile.project.integrations
+    jupyterNotebook.metadata.deepnote_project_settings = deepnoteFile.project.settings
+    jupyterNotebook.metadata.deepnote_metadata_created_at = deepnoteFile.metadata.createdAt
+    jupyterNotebook.metadata.deepnote_metadata_modified_at = deepnoteFile.metadata.modifiedAt
+    jupyterNotebook.metadata.deepnote_metadata_exported_at = deepnoteFile.metadata.exportedAt
+    jupyterNotebook.metadata.deepnote_metadata_checksum = deepnoteFile.metadata.checksum
+    jupyterNotebook.metadata.deepnote_file_version = deepnoteFile.version
+    jupyterNotebook.metadata.deepnote_project_name = deepnoteFile.project.name
+
     const fileName = `${sanitizeFileName(notebook.name)}.ipynb`
 
     return {
@@ -126,6 +140,7 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
     deepnote_block_group: block.blockGroup,
     deepnote_cell_type: block.type,
     deepnote_sorting_key: block.sortingKey,
+    deepnote_block_version: block.version,
 
     // Spread original metadata at root level
     ...(block.metadata || {}),

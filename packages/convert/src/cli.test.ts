@@ -548,6 +548,136 @@ version: "1.0.0"`
     expect(parsed.project.notebooks[0].name).toBe('valid')
   })
 
+  it('--format ipynb works with .deepnote input', async () => {
+    const deepnotePath = path.join(tempDir, 'test.deepnote')
+    const deepnoteContent = `metadata:
+  createdAt: 2025-11-24T00:00:00.000Z
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - id: test-notebook-id
+      name: Test Notebook
+      executionMode: block
+      isModule: false
+      blocks:
+        - id: test-block-id
+          blockGroup: test-block-group
+          type: code
+          content: |
+            print("Hello")
+          sortingKey: "1"
+          version: 1
+          metadata: {}
+version: "1.0.0"`
+
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
+
+    const outputDir = await convert({
+      inputPath: deepnotePath,
+      format: 'ipynb',
+      cwd: tempDir,
+    })
+
+    const stat = await fs.stat(outputDir)
+    expect(stat.isDirectory()).toBe(true)
+
+    const files = await fs.readdir(outputDir)
+    expect(files.some(file => file.endsWith('.ipynb'))).toBe(true)
+  })
+
+  it('--format deepnote works with .ipynb input', async () => {
+    const notebookPath = path.join(tempDir, 'test.ipynb')
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    const outputPath = await convert({
+      inputPath: notebookPath,
+      format: 'deepnote',
+      cwd: tempDir,
+    })
+
+    expect(outputPath.endsWith('.deepnote')).toBe(true)
+
+    const exists = await fs
+      .access(outputPath)
+      .then(() => true)
+      .catch(() => false)
+    expect(exists).toBe(true)
+  })
+
+  it('throws error for invalid format value', async () => {
+    const notebookPath = path.join(tempDir, 'test.ipynb')
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: notebookPath,
+        format: 'invalid' as 'deepnote' | 'ipynb',
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Invalid format')
+  })
+
+  it('throws error when trying to convert .ipynb to .ipynb', async () => {
+    const notebookPath = path.join(tempDir, 'test.ipynb')
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# Test' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+
+    await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: notebookPath,
+        format: 'ipynb',
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Cannot convert .ipynb to .ipynb')
+  })
+
+  it('throws error when trying to convert .deepnote to .deepnote', async () => {
+    const deepnotePath = path.join(tempDir, 'test.deepnote')
+    const deepnoteContent = `metadata:
+  createdAt: 2025-11-24T00:00:00.000Z
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - id: test-notebook-id
+      name: Test Notebook
+      executionMode: block
+      isModule: false
+      blocks: []
+version: "1.0.0"`
+
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: deepnotePath,
+        format: 'deepnote',
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Cannot convert .deepnote to .deepnote')
+  })
+
   it('creates parent directories when outputPath has non-existent parent dirs', async () => {
     // Create a test notebook
     const notebookPath = path.join(tempDir, 'test.ipynb')

@@ -54,23 +54,45 @@ export function convertJupyterNotebookToBlocks(
  * @param options - Conversion options including project name
  * @returns A DeepnoteFile object
  */
+/**
+ * Find project metadata from any notebook (prefer first, fallback to others).
+ * This handles edge cases where the first notebook was deleted or notebooks were reordered.
+ */
+function findProjectMetadata(notebooks: JupyterNotebookInput[]) {
+  for (const { notebook } of notebooks) {
+    if (notebook?.metadata?.deepnote_project_id !== undefined) {
+      return notebook.metadata
+    }
+  }
+  return undefined
+}
+
 export function convertJupyterNotebooksToDeepnote(
   notebooks: JupyterNotebookInput[],
   options: { projectName: string }
 ): DeepnoteFile {
+  // Find project metadata from any notebook (all notebooks have it for robustness)
+  const projectMeta = findProjectMetadata(notebooks)
+
+  // Determine if we have project metadata from a previous .deepnote → .ipynb conversion
+  const hasProjectMeta = projectMeta?.deepnote_project_id !== undefined
+
   const deepnoteFile: DeepnoteFile = {
     metadata: {
-      createdAt: new Date().toISOString(),
+      checksum: projectMeta?.deepnote_metadata_checksum,
+      createdAt: projectMeta?.deepnote_metadata_created_at ?? new Date().toISOString(),
+      exportedAt: projectMeta?.deepnote_metadata_exported_at,
+      modifiedAt: projectMeta?.deepnote_metadata_modified_at,
     },
     project: {
-      id: v4(),
-      initNotebookId: undefined,
-      integrations: [],
-      name: options.projectName,
+      id: projectMeta?.deepnote_project_id ?? v4(),
+      initNotebookId: projectMeta?.deepnote_project_init_notebook_id,
+      integrations: hasProjectMeta ? (projectMeta?.deepnote_project_integrations ?? []) : [],
+      name: projectMeta?.deepnote_project_name ?? options.projectName,
       notebooks: [],
-      settings: {},
+      settings: hasProjectMeta ? (projectMeta?.deepnote_project_settings ?? {}) : {},
     },
-    version: '1.0.0',
+    version: projectMeta?.deepnote_file_version ?? '1.0.0',
   }
 
   for (const { filename, notebook } of notebooks) {
@@ -156,6 +178,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   const cellId = cell.metadata?.cell_id as string | undefined
   const deepnoteCellType = cell.metadata?.deepnote_cell_type as string | undefined
   const sortingKey = cell.metadata?.deepnote_sorting_key as string | undefined
+  const blockVersion = cell.metadata?.deepnote_block_version as number | undefined
 
   // Determine blockGroup: prefer metadata, fall back to top-level field, then generate
   // Cloud-exported notebooks may have block_group at top level
@@ -176,6 +199,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   delete originalMetadata.deepnote_block_group
   delete originalMetadata.deepnote_sorting_key
   delete originalMetadata.deepnote_source
+  delete originalMetadata.deepnote_block_version
   // Also remove top-level block_group from metadata to avoid duplication
   delete (cell as { block_group?: unknown }).block_group
 
@@ -194,6 +218,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     ...(hasOutputs ? { outputs: cell.outputs } : {}),
     sortingKey: sortingKey ?? createSortingKey(index),
     type: blockType,
+    ...(blockVersion !== undefined ? { version: blockVersion } : {}),
   }
 }
 

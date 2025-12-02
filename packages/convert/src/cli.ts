@@ -7,13 +7,25 @@ import { convertDeepnoteFileToJupyter, convertIpynbFilesToDeepnoteFile } from '.
 
 interface ConvertOptions {
   cwd?: string
+  format?: 'deepnote' | 'ipynb'
   inputPath: string
   outputPath?: string
   projectName?: string
 }
 
 export async function convert(options: ConvertOptions): Promise<string> {
-  const { inputPath, projectName: customProjectName, outputPath: customOutputPath, cwd = process.cwd() } = options
+  const {
+    inputPath,
+    projectName: customProjectName,
+    outputPath: customOutputPath,
+    format,
+    cwd = process.cwd(),
+  } = options
+
+  // Validate format option
+  if (format !== undefined && format !== 'deepnote' && format !== 'ipynb') {
+    throw new Error(`Invalid format "${format}". Must be "deepnote" or "ipynb".`)
+  }
 
   const resolveProjectName = (possibleName?: string): string => {
     if (customProjectName) {
@@ -81,7 +93,18 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
   const ext = extname(absolutePath).toLowerCase()
 
-  if (ext === '.ipynb') {
+  // Validate format vs input extension
+  if (format === 'ipynb' && ext === '.ipynb') {
+    throw new Error('Cannot convert .ipynb to .ipynb. Input is already in ipynb format.')
+  }
+  if (format === 'deepnote' && ext === '.deepnote') {
+    throw new Error('Cannot convert .deepnote to .deepnote. Input is already in deepnote format.')
+  }
+
+  // Determine target format: use explicit format or auto-detect from extension
+  const targetFormat = format ?? (ext === '.ipynb' ? 'deepnote' : ext === '.deepnote' ? 'ipynb' : undefined)
+
+  if (ext === '.ipynb' && targetFormat === 'deepnote') {
     const spinner = ora('Converting the Jupyter Notebook to a Deepnote project...').start()
 
     try {
@@ -102,7 +125,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
     }
   }
 
-  if (ext === '.deepnote') {
+  if (ext === '.deepnote' && targetFormat === 'ipynb') {
     const spinner = ora('Converting Deepnote project to Jupyter Notebooks...').start()
 
     try {

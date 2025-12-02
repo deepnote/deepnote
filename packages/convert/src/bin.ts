@@ -13,7 +13,12 @@ async function main() {
       },
       outputPath: {
         alias: 'o',
-        description: 'The path where the .deepnote file will be saved.',
+        description: 'The path where the output file will be saved.',
+        type: String,
+      },
+      format: {
+        alias: 'f',
+        description: 'Output format: "deepnote" or "ipynb". Overrides auto-detection.',
         type: String,
       },
       cwd: {
@@ -27,6 +32,7 @@ async function main() {
     inputPath: argv._.path,
     projectName: argv.flags.projectName,
     outputPath: argv.flags.outputPath,
+    format: argv.flags.format as 'deepnote' | 'ipynb' | undefined,
     cwd: argv.flags.cwd ?? process.cwd(),
   })
 }
