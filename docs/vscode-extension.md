@@ -206,7 +206,7 @@ ORDER BY
 
 ### Exporting to different formats
 
-You can export entire projects or individual notebooks to Jupyter notebook format. To export:
+You can export entire projects or individual notebooks to the Jupyter notebook format. To export:
 
 1. Right-click on a project or notebook in the Explorer
 2. Select "Export"
