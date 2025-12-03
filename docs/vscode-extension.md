@@ -178,7 +178,7 @@ ORDER BY
     average_spend
 ```
 
-**Jinja templating in SQL:**
+#### Jinja templating in SQL:
 
 SQL blocks support Jinja-style templating with `{{ variable }}` syntax, letting you reference Python variables directly in your queries:
 
