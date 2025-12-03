@@ -112,7 +112,7 @@ Integrations allow you to connect to data sources and other tools. To manage int
 
 Your credentials are stored encrypted. We also support enforcing SSL connections and SSH tunnels for secure access.
 
-**Using integrations:**
+#### Using integrations:
 
 Once you've created an integration, you can query it from any SQL block in your projects. In a SQL block, click the "Data source" dropdown at the bottom of the block to choose between "DataFrame SQL" or one of your configured integrations.
 
