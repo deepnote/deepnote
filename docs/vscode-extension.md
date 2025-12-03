@@ -116,7 +116,7 @@ Your credentials are stored encrypted. We also support enforcing SSL connections
 
 Once you've created an integration, you can query it from any SQL block in your projects. In a SQL block, click the "Data source" dropdown at the bottom of the block to choose between "DataFrame SQL" or one of your configured integrations.
 
-For authentication methods like OAuth, federated auth, or IAM roles, these are available on [Deepnote Cloud](https://deepnote.com).
+For authentication methods like OAuth, federated auth, or IAM roles, these are only available on [Deepnote Cloud](https://deepnote.com).
 
 ### IntelliSense and code completion
 
