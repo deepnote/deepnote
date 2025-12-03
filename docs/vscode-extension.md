@@ -1,13 +1,13 @@
 ---
-title: Deepnote extension for VS Code, Cursor, and Windsurf
-description: Complete guide to the official Deepnote extension for working with Deepnote notebooks locally in VS Code, Cursor, and Windsurf.
+title: Deepnote extension for VS Code, Cursor, Windsurf, and Antigravity
+description: Complete guide to the official Deepnote extension for working with Deepnote notebooks locally in VS Code, Cursor, Windsurf, and Antigravity.
 noIndex: false
 noContent: false
 ---
 
-# Deepnote extension for VS Code, Cursor, and Windsurf
+# Deepnote extension for VS Code, Cursor, Windsurf, and Antigravity
 
-A powerful extension for [VS Code](https://code.visualstudio.com/), [Cursor](https://cursor.sh/), and [Windsurf](https://windsurf.ai/) that brings Deepnote notebook capabilities directly into your favorite AI-native code editor. Work with slick AI notebooks featuring SQL blocks, database integrations, and reactive blocks.
+A powerful extension for [VS Code](https://code.visualstudio.com/), [Cursor](https://cursor.sh/), [Windsurf](https://windsurf.ai/), and [Antigravity](https://antigravity.google/) that brings Deepnote notebook capabilities directly into your favorite AI-native code editor. Work with slick AI notebooks featuring SQL blocks, database integrations, and reactive blocks.
 
 **Available on:**
 
@@ -21,7 +21,6 @@ The Deepnote extension provides:
 - **Block execution** - Run code, SQL, and other executable blocks
 - **Rich outputs** - Display DataFrames, plots, and visualizations
 - **IntelliSense** - Code completion and suggestions
-- **Debugging** - Set breakpoints and debug code blocks
 - **Git integration** - Version control for notebooks
 - **Local execution** - Use your own Python environment
 - **One-click deploy** - Push notebooks to Deepnote.com to build and share data apps with cloud CPU/GPU machines
@@ -31,7 +30,7 @@ The Deepnote extension provides:
 ### From marketplace
 
 1. **Open your editor**
-   - Launch VS Code, Cursor, or Windsurf
+   - Launch VS Code, Cursor, Windsurf, or Antigravity
 
 2. **Open Extensions View**
    - Click Extensions icon in sidebar (Ctrl/Cmd + Shift + X)
@@ -53,6 +52,7 @@ The Deepnote extension provides:
 code --install-extension deepnote.vscode-deepnote  # VS Code
 cursor --install-extension deepnote.vscode-deepnote  # Cursor
 windsurf --install-extension deepnote.vscode-deepnote  # Windsurf
+antigravity --install-extension deepnote.vscode-deepnote  # Antigravity
 ```
 
 ### Verify installation
@@ -62,6 +62,156 @@ windsurf --install-extension deepnote.vscode-deepnote  # Windsurf
 3. You should see Deepnote-related commands
 
 ## Features
+
+### Block execution
+
+Deepnote supports a wide variety of blocks including:
+
+- **Code blocks** - Python code execution
+- **SQL blocks** - Query databases with built-in connections
+- **Markdown blocks** - Rich text documentation
+- **Text blocks** - Paragraphs, headers, lists, and other formatted text
+- **Charts** - Data visualizations
+- **Input blocks** - Interactive widgets like text inputs, date pickers, number inputs, and select dropdowns
+
+You can run a single block by clicking the play button or pressing Shift + Enter. The extension also provides controls to clear outputs and remove all execution results.
+
+**Keyboard shortcuts:**
+
+| Action   | Windows/Linux | macOS          |
+| -------- | ------------- | -------------- |
+| Run cell | Shift + Enter | Shift + Return |
+
+### Rich output display
+
+The extension displays a wide variety of output types including text output from stdout and stderr, interactive DataFrame tables, plots from matplotlib, seaborn, and plotly, images in PNG, JPEG, and SVG formats, HTML content, pretty-printed JSON and dictionaries, and formatted error tracebacks.
+
+### Integrations
+
+Integrations allow you to connect to data sources and other tools. To manage integrations, click "Manage integrations" in the top bar or use the "Deepnote: Manage integrations" command.
+
+**Supported data sources:**
+
+- ClickHouse
+- Amazon Redshift
+- Amazon Athena
+- Google BigQuery
+- Snowflake
+- Databricks
+- Dremio
+- Trino
+- MongoDB
+- PostgreSQL
+- MySQL
+- MariaDB
+- Microsoft SQL Server
+- Google AlloyDB
+- Google Cloud Spanner
+- Materialize
+- MindsDB
+
+Your credentials are stored encrypted. We also support enforcing SSL connections and SSH tunnels for secure access.
+
+**Using integrations:**
+
+Once you've created an integration, you can query it from any SQL block in your projects. In a SQL block, click the "Data source" dropdown at the bottom of the block to choose between "DataFrame SQL" or one of your configured integrations.
+
+For authentication methods like OAuth, federated auth, or IAM roles, these are available on [Deepnote Cloud](https://deepnote.com).
+
+### IntelliSense and code completion
+
+The extension provides comprehensive IntelliSense features including auto-completion for Python code, function signatures with documentation, import suggestions, variable inspection, and type hints. When writing SQL, you also get autocompletion for database table and column names. IntelliSense triggers automatically as you type and pause, or you can manually invoke it by pressing Ctrl/Cmd + Space.
+
+### Mixing Python and SQL
+
+One of the things that makes you super productive in a Deepnote notebook is the ability to switch seamlessly between SQL and Python.
+
+**SQL results as DataFrames:**
+
+When you run a SQL block, a DataFrame with the query results is automatically created. You can configure the variable name in the "Variable" input at the bottom of the SQL block, then access it in your Python code blocks:
+
+```sql
+SELECT
+    category,
+    SUM(revenue) as total_revenue
+FROM
+    sales
+WHERE
+    year = 2024
+GROUP BY
+    category
+ORDER BY
+    total_revenue DESC
+```
+
+```python
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 6))
+plt.bar(df_1['category'], df_1['total_revenue'])
+plt.xlabel('Category')
+plt.ylabel('Revenue ($)')
+plt.title('2024 Revenue by Category')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+```
+
+**Query DataFrames with SQL:**
+
+You can use the "DataFrame SQL" data source in SQL blocks (which uses DuckDB under the hood) to query DataFrames that have been defined in earlier code blocks:
+
+```python
+import pandas as pd
+
+customers = pd.read_csv('customers.csv')
+```
+
+```sql
+SELECT
+    *
+FROM
+    customers
+WHERE
+    age >= 30
+ORDER BY
+    average_spend
+```
+
+**Jinja templating in SQL:**
+
+SQL blocks support Jinja-style templating with `{{ variable }}` syntax, letting you reference Python variables directly in your queries:
+
+```python
+selected_year = 2024
+min_revenue = 10000
+categories = ['Electronics', 'Software', 'Services']
+```
+
+```sql
+SELECT
+    category,
+    SUM(revenue) as total_revenue
+FROM
+    sales
+WHERE
+    year = {{ selected_year }}
+    AND revenue >= {{ min_revenue }}
+    AND category IN {{ categories }}
+GROUP BY
+    category
+ORDER BY
+    total_revenue DESC
+```
+
+### Exporting to different formats
+
+You can export entire projects or individual notebooks to Jupyter notebook format. To export:
+
+1. Right-click on a project or notebook in the Explorer
+2. Select "Export"
+
+This allows you to share your work in the widely-supported `.ipynb` format.
 
 ### Native .deepnote file support
 
@@ -77,36 +227,6 @@ To view the raw `.deepnote` file structure:
 
 This opens the file in VS Code's standard text editor with YAML syntax highlighting, allowing you to inspect or edit the underlying file structure directly.
 
-### Block execution
-
-The extension supports executing Python code blocks, SQL blocks with database connections, all types of input blocks, and rendered Markdown blocks. You can run a single block by clicking the play button or pressing Shift + Enter. The extension also provides controls to clear outputs and remove all execution results.
-
-**Keyboard shortcuts:**
-
-| Action   | Windows/Linux | macOS          |
-| -------- | ------------- | -------------- |
-| Run cell | Shift + Enter | Shift + Return |
-
-### Rich output display
-
-The extension displays a wide variety of output types including text output from stdout and stderr, interactive DataFrame tables, plots from matplotlib, seaborn, and plotly, images in PNG, JPEG, and SVG formats, HTML content, pretty-printed JSON and dictionaries, and formatted error tracebacks.
-
-### IntelliSense and code completion
-
-The extension provides comprehensive IntelliSense features including auto-completion for Python code, function signatures with documentation, import suggestions, variable inspection, and type hints. IntelliSense triggers automatically as you type and pause, or you can manually invoke it by pressing Ctrl/Cmd + Space.
-
-### Debugging Support
-
-The extension includes full debugging capabilities, allowing you to set breakpoints in code blocks, step through execution, inspect variables, evaluate expressions, and view the call stack. To start debugging, click in the left margin to set a breakpoint, then click the "Debug Cell" button and use the debug controls to step through your code.
-
-### Variable explorer
-
-The Variable Explorer lets you see all variables in the current scope, inspect their values and types, view DataFrame shapes, and expand nested structures. You can access it by clicking "Variables" in the notebook toolbar or using the Command Palette to run "Deepnote: Show Variables".
-
-### Code blocks
-
-Learn more about code blocks in the [Deepnote documentation](https://deepnote.com/docs/blocks-package).
-
 ## Configuration
 
 ### Extension settings
@@ -115,11 +235,11 @@ Access the extension settings by navigating to File → Preferences → Settings
 
 ### Python environment
 
-To select your Python interpreter, open the Command Palette with Ctrl/Cmd + Shift + P, type "Python: Select Interpreter", and choose your preferred Python environment from the list.
+You can create and manage Python environments using the "Environments" panel. When creating an environment, you choose which Python interpreter to use and specify which packages need to be installed. The extension creates a virtual environment that can be reused across notebooks and projects.
 
 ---
 
-The Deepnote extension brings powerful notebook capabilities to your local development environment, combining the flexibility of Deepnote notebooks with the robust editing features of VS Code, Cursor, and Windsurf. Whether you're executing code, debugging complex logic, or viewing rich outputs, the extension provides a seamless experience that enhances your data science workflow.
+The Deepnote extension brings powerful notebook capabilities to your local development environment, combining the flexibility of Deepnote notebooks with the robust editing features of VS Code, Cursor, Windsurf, and Antigravity. Whether you're executing code or viewing rich outputs, the extension provides a seamless experience that enhances your data science workflow.
 
 **Links:**
 
