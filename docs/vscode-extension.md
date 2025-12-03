@@ -126,7 +126,7 @@ The extension provides comprehensive IntelliSense features including auto-comple
 
 One of the things that makes you super productive in a Deepnote notebook is the ability to switch seamlessly between SQL and Python.
 
-**SQL results as DataFrames:**
+#### SQL results as DataFrames:
 
 When you run a SQL block, a DataFrame with the query results is automatically created. You can configure the variable name in the "Variable" input at the bottom of the SQL block, then access it in your Python code blocks:
 
