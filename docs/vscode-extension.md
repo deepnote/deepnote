@@ -157,7 +157,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-**Query DataFrames with SQL:**
+#### Query DataFrames with SQL:
 
 You can use the "DataFrame SQL" data source in SQL blocks (which uses DuckDB under the hood) to query DataFrames that have been defined in earlier code blocks:
 
