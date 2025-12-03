@@ -114,6 +114,10 @@ spendings
 dashboarding
 
 # Python packages
+figsize
+xlabel
+ylabel
+xticks
 libgcc
 openmp
 brotlipy
