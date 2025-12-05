@@ -66,8 +66,6 @@ There are multiple actions you can execute on the connected GitHub repository in
 - Commit & Push to the remote (this will trigger a modal that will allow you to specify the commit message)
 - Re-Clone - this will clone the repository from scratch into the same directory. Watch out, you might loose your local changes!
 
-After executing any git command, you'll notice that output from the underlying git command that was executed.
-
 <Callout status="info">
 Keep in mind that you can execute any git command within the repository - just open a terminal, navigate to the repository and execute any `git xxx` command. Your Git commands will be augmented with access token automatically.
 </Callout>
