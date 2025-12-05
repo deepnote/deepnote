@@ -2651,7 +2651,9 @@ describe('Database integration env variables', () => {
             integration_id: 'my-trino',
             url: 'trino://my-user:my-password@my-host:8080/my-database',
             params: {
-              connect_args: {},
+              connect_args: {
+                client_tags: ['deepnote/toolkit'],
+              },
             },
             param_style: 'qmark',
           })
