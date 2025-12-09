@@ -2651,7 +2651,9 @@ describe('Database integration env variables', () => {
             integration_id: 'my-trino',
             url: 'trino://my-user:my-password@my-host:8080/my-database',
             params: {
-              connect_args: {},
+              connect_args: {
+                client_tags: ['deepnote/toolkit'],
+              },
             },
             param_style: 'qmark',
           })
@@ -2681,7 +2683,10 @@ describe('Database integration env variables', () => {
         expect(errors).toHaveLength(0)
 
         const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-trino')
-        expect(sqlAlchemyInput.params.connect_args.http_scheme).toBe('https')
+        expect(sqlAlchemyInput.params.connect_args).toEqual({
+          http_scheme: 'https',
+          client_tags: ['deepnote/toolkit'],
+        })
       })
 
       it('should set verify to the CA certificate path if a CA certificate is provided', () => {
@@ -2707,9 +2712,10 @@ describe('Database integration env variables', () => {
         expect(errors).toHaveLength(0)
 
         const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-trino')
-        expect(sqlAlchemyInput.params.connect_args.verify).toBe(
-          '/path/to/project/.deepnote/my-trino/my-ca-certificate-name'
-        )
+        expect(sqlAlchemyInput.params.connect_args).toEqual({
+          verify: '/path/to/project/.deepnote/my-trino/my-ca-certificate-name',
+          client_tags: ['deepnote/toolkit'],
+        })
       })
     })
 
