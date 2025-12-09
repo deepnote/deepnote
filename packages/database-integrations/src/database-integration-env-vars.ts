@@ -480,6 +480,7 @@ const getTrinoEnvVars = (
     )}`,
     params: {
       connect_args: {
+        client_tags: ['deepnote/toolkit'],
         ...(metadata.sslEnabled ? { http_scheme: 'https' } : {}),
         ...(metadata.caCertificateName
           ? {
