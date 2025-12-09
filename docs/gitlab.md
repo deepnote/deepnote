@@ -85,19 +85,21 @@ There are multiple actions you can execute on the connected GitLab repository in
 - **Re-Clone** - This will clone the repository from scratch into the same directory. Watch out, you might lose your local changes!
 - **Create merge request** - Opens GitLab to create a new merge request for your branch
 
-<Callout status="info">
-Keep in mind that you can execute any git command within the repository - just open a terminal, navigate to the repository and execute any `git xxx` command. Your Git commands will be augmented with your access token automatically.
-</Callout>
-
 ### Authentication under the hood
 
 All GitLab operations in Deepnote are performed using the credentials of the user who initiates the action. This means:
 
-- When you pull, commit, push, or perform any Git operation, Deepnote uses **your** GitLab credentials, regardless of who added the repository to the workspace or created the integration
+- When you pull, commit, push, or perform any Git operation through the UI, Deepnote uses your GitLab credentials, regardless of who added the repository to the workspace or created the integration
 - If you don't have access to a repository on GitLab, the operation will fail
 - Commits will be attributed to your GitLab account
 
-For terminal integration, we use OAuth tokens to authenticate `git` commands. To be able to use this approach, we access the repository via HTTPS protocol rather than SSH. The token grants access to repositories based on your GitLab permissions. We use the [Custom Git Credential Helper](https://git-scm.com/docs/gitcredentials#_custom_helpers) to pass the token to the `git` commands.
+#### Terminal usage with GitLab
+
+<Callout status="warning">
+Unlike GitHub repositories, GitLab credentials are **not** automatically injected into terminal sessions. This is due to differences in the access control model between GitLab integrations (which are per-user) and how terminals work in Deepnote (which are owned by a single user but can be shared).
+</Callout>
+
+If you want to use `git` commands from the terminal with GitLab repositories, you'll need to configure authentication manually for the machine.
 
 ## Revoking access
 
