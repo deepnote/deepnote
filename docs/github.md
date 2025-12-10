@@ -66,8 +66,6 @@ There are multiple actions you can execute on the connected GitHub repository in
 - Commit & Push to the remote (this will trigger a modal that will allow you to specify the commit message)
 - Re-Clone - this will clone the repository from scratch into the same directory. Watch out, you might loose your local changes!
 
-After executing any git command, you'll notice that output from the underlying git command that was executed.
-
 <Callout status="info">
 Keep in mind that you can execute any git command within the repository - just open a terminal, navigate to the repository and execute any `git xxx` command. Your Git commands will be augmented with access token automatically.
 </Callout>
@@ -75,6 +73,12 @@ Keep in mind that you can execute any git command within the repository - just o
 ### Authentication under the hood
 
 We use short-lived [access tokens](https://docs.github.com/en/developers/apps/authenticating-with-github-apps) to authenticate `git` commands. To be able to use this approach, we access the repository via HTTPS protocol rather than SSH. The token is valid for 1 hour and only grants access to the repository linked to the given project. We use the [Custom Git Credential Helper](https://git-scm.com/docs/gitcredentials#_custom_helpers) to pass the token to the `git` commands.
+
+This authentication works both in UI actions and terminal sessions. When you run git commands in the terminal within a connected GitHub repository, the credentials are automatically provided.
+
+<Callout status="info">
+Note: GitLab repositories work differently - they use per-user credentials for UI actions but do not automatically inject credentials into terminal sessions. See [GitLab documentation](/docs/gitlab) for details.
+</Callout>
 
 ## Revoking access
 
