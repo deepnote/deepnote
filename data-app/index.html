@@ -311,6 +311,69 @@
       animation: pulse 1s infinite;
     }
 
+    .reactive-run::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--purple);
+      border-radius: 2px;
+      animation: pulse 0.5s infinite;
+    }
+
+    .reactive-run::after {
+      content: '↓ reactive';
+      position: absolute;
+      right: 1rem;
+      top: 0.5rem;
+      font-size: 0.6875rem;
+      color: var(--purple);
+      background: rgba(163, 113, 247, 0.15);
+      padding: 0.125rem 0.5rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .reactivity-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      transition: all 0.15s ease;
+    }
+
+    .reactivity-toggle:hover {
+      background: var(--bg-hover);
+    }
+
+    .reactivity-toggle.active {
+      color: var(--purple);
+      border-color: var(--purple);
+      background: rgba(163, 113, 247, 0.1);
+    }
+
+    .reactivity-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    #reactivity-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+    }
+
     .cell-output-live {
       border-left: 3px solid var(--success);
       padding-left: 1rem;
@@ -971,6 +1034,21 @@
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
           <span id="pyodide-status" class="pyodide-status">Not loaded</span>
+          <button id="autorun-toggle" class="reactivity-toggle active" onclick="toggleAutoRun()" style="display: none;" title="Auto-run: Cells execute automatically when edited">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              <path d="M19 5v14"></path>
+            </svg>
+            <span>Auto</span>
+          </button>
+          <button id="reactivity-toggle" class="reactivity-toggle active" onclick="toggleReactivity()" style="display: none;" title="When enabled, running a cell automatically re-runs dependent cells">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+              <path d="M12 6v6l4 2"></path>
+            </svg>
+            <span>Reactive</span>
+          </button>
+          <span id="reactivity-indicator" style="display: none;"></span>
           <button id="init-pyodide-btn" class="run-btn" onclick="initPyodide()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
@@ -1018,6 +1096,307 @@
     
     // Store for edited code (blockId -> editedCode)
     const editedCode = new Map()
+    
+    // Reactivity state
+    let reactivityEnabled = true
+    let autoRunEnabled = true  // Auto-run on edit (default on)
+    let currentDAG = null
+    let autoRunTimeout = null  // Debounce timer for auto-run
+    let notebookInitialized = false  // Track if all cells have been run at least once
+    
+    // AST Analyzer Python code for Pyodide
+    const AST_ANALYZER_CODE = `
+import ast
+import json
+import re
+
+class _VariableVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.global_vars = set()
+        self.used_global_vars = set()
+        self.imported_modules = set()
+        self.scope_stack = []
+        self.function_globals = set()
+
+    def current_scope_is_global(self):
+        return not self.scope_stack
+
+    def visit_Global(self, node):
+        for name in node.names:
+            self.function_globals.add(name)
+        self.generic_visit(node)
+
+    def visit_Assign(self, node):
+        for target in node.targets:
+            if isinstance(target, ast.Name) and self.current_scope_is_global():
+                self.global_vars.add(target.id)
+        self.generic_visit(node)
+
+    def visit_AugAssign(self, node):
+        if isinstance(node.target, ast.Name) and self.current_scope_is_global():
+            self.global_vars.add(node.target.id)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node):
+        if isinstance(node.target, ast.Name) and self.current_scope_is_global():
+            self.global_vars.add(node.target.id)
+        self.generic_visit(node)
+
+    def visit_NamedExpr(self, node):
+        if isinstance(node.target, ast.Name) and self.current_scope_is_global():
+            self.global_vars.add(node.target.id)
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node):
+        if self.current_scope_is_global():
+            self.global_vars.add(node.name)
+        self.scope_stack.append(node.name)
+        self.generic_visit(node)
+        self.scope_stack.pop()
+
+    def visit_FunctionDef(self, node):
+        if self.current_scope_is_global():
+            self.global_vars.add(node.name)
+        prev = self.function_globals
+        self.function_globals = set()
+        self.scope_stack.append(node.name)
+        self.generic_visit(node)
+        self.scope_stack.pop()
+        self.function_globals = prev
+
+    def visit_AsyncFunctionDef(self, node):
+        self.visit_FunctionDef(node)
+
+    def visit_Name(self, node):
+        builtins = {'print', 'len', 'range', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple',
+            'abs', 'all', 'any', 'bin', 'callable', 'chr', 'dir', 'enumerate', 'eval', 'exec',
+            'filter', 'format', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id',
+            'input', 'isinstance', 'issubclass', 'iter', 'locals', 'map', 'max', 'min', 'next',
+            'oct', 'open', 'ord', 'pow', 'repr', 'reversed', 'round', 'setattr', 'sorted', 'sum',
+            'type', 'vars', 'zip', '__import__', 'True', 'False', 'None'}
+        if isinstance(node.ctx, ast.Load):
+            if node.id not in builtins:
+                if self.current_scope_is_global() or node.id in self.function_globals or node.id in self.global_vars:
+                    self.used_global_vars.add(node.id)
+        elif isinstance(node.ctx, ast.Store) and self.current_scope_is_global():
+            self.global_vars.add(node.id)
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        if isinstance(node.value, ast.Name):
+            if self.current_scope_is_global() or node.value.id in self.function_globals or node.value.id in self.global_vars:
+                self.used_global_vars.add(node.value.id)
+        else:
+            self.generic_visit(node)
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            self.imported_modules.add(alias.asname or alias.name)
+
+    def visit_ImportFrom(self, node):
+        for alias in node.names:
+            self.imported_modules.add(alias.asname or alias.name)
+
+def _deepnote_analyze_block(block):
+    try:
+        block_type = block.get("type") or "code"
+        code = block.get("code", "")
+        metadata = block.get("metadata", {}) or {}
+        block_id = block["blockId"]
+
+        if block_type == "code":
+            # Comment out magic commands
+            lines = code.split("\\n")
+            for i in range(len(lines)):
+                if lines[i].startswith("%") or lines[i].startswith("!"):
+                    lines[i] = "#" + lines[i]
+            code = "\\n".join(lines)
+            
+            visitor = _VariableVisitor()
+            tree = ast.parse(code)
+            visitor.visit(tree)
+            return {
+                "blockId": block_id,
+                "definedVariables": sorted(list(visitor.global_vars)),
+                "usedVariables": sorted(list(visitor.used_global_vars)),
+                "importedModules": list(visitor.imported_modules),
+            }
+        elif block_type == "sql":
+            jinja_vars = set(re.findall(r'\\{\\{\\s*(\\w+)', code))
+            output_vars = [metadata["deepnote_variable_name"]] if metadata.get("deepnote_variable_name") else []
+            return {"blockId": block_id, "definedVariables": output_vars, "usedVariables": sorted(list(jinja_vars)), "importedModules": []}
+        elif block_type.startswith("input-"):
+            var_name = metadata.get("deepnote_variable_name")
+            output_vars = [re.sub(r'^[^a-zA-Z_]+', '', re.sub(r'[^0-9a-zA-Z_]', '', re.sub(r'\\s+', '_', var_name))) or 'input_1'] if var_name else []
+            return {"blockId": block_id, "definedVariables": output_vars, "usedVariables": [], "importedModules": []}
+        else:
+            return {"blockId": block_id, "definedVariables": [], "usedVariables": [], "importedModules": []}
+    except Exception as e:
+        return {"blockId": block.get("blockId", "unknown"), "definedVariables": [], "usedVariables": [], "importedModules": [], "error": {"type": e.__class__.__name__, "message": str(e)}}
+
+def _deepnote_analyze_blocks(blocks_json):
+    try:
+        blocks = json.loads(blocks_json) if isinstance(blocks_json, str) else blocks_json
+        return json.dumps([_deepnote_analyze_block(b) for b in blocks])
+    except Exception as e:
+        return json.dumps({"errorMessage": f"{e.__class__.__name__}: {str(e)}"})
+`
+
+    // DAG Builder - builds dependency graph from AST analysis
+    function buildDAGFromBlocks(blocks) {
+      const edges = []
+      const modulesEdges = []
+
+      // Build module lookup
+      const moduleDefinitionsLookup = {}
+      blocks.forEach(block => {
+        (block.importedModules || []).forEach(m => { moduleDefinitionsLookup[m] = true })
+      })
+
+      // Separate module usage from variable usage
+      const blocksWithUsedImportedModules = blocks.map(block => {
+        const usedImportedModules = block.usedVariables.filter(v => moduleDefinitionsLookup[v])
+        const usedVariables = block.usedVariables.filter(v => !moduleDefinitionsLookup[v])
+        return { ...block, usedVariables, usedImportedModules }
+      })
+
+      // Create nodes
+      const nodes = {}
+      blocksWithUsedImportedModules.forEach(block => {
+        nodes[block.blockId] = {
+          blockId: block.blockId,
+          inputVariables: [],
+          order: block.order,
+          importedModules: block.importedModules || [],
+          outputVariables: [...block.definedVariables],
+          usedImportedModules: block.usedImportedModules || [],
+          error: block.error || null,
+        }
+      })
+
+      // Build edges based on variable dependencies
+      blocksWithUsedImportedModules.forEach(block => {
+        const currentNode = nodes[block.blockId]
+        if (!currentNode) return
+
+        block.usedVariables.forEach(usedVar => {
+          // Find closest defining block before this one
+          const definingBlocks = blocksWithUsedImportedModules
+            .filter(b => b.definedVariables.includes(usedVar) && b.order < block.order)
+            .sort((a, b) => b.order - a.order)
+          const closestDefining = definingBlocks[0]
+
+          // Find closest block that uses this variable before this one
+          const usingBlocks = blocksWithUsedImportedModules
+            .filter(b => b.usedVariables.includes(usedVar) && b.order < block.order)
+            .sort((a, b) => b.order - a.order)
+          const closestUsing = usingBlocks[0]
+
+          let sourceBlock = null
+          if (closestDefining && closestUsing) {
+            sourceBlock = closestDefining.order > closestUsing.order ? closestDefining : closestUsing
+          } else {
+            sourceBlock = closestDefining || closestUsing
+          }
+
+          if (sourceBlock) {
+            if (!currentNode.inputVariables.includes(usedVar)) {
+              currentNode.inputVariables.push(usedVar)
+            }
+            const sourceNode = nodes[sourceBlock.blockId]
+            if (sourceNode && !sourceNode.outputVariables.includes(usedVar)) {
+              sourceNode.outputVariables.push(usedVar)
+            }
+            edges.push({ from: sourceBlock.blockId, to: block.blockId, inputVariables: [usedVar] })
+          }
+        })
+
+        // Module edges (for visualization, not reactivity)
+        ;(block.usedImportedModules || []).forEach(usedModule => {
+          const definingBlock = blocksWithUsedImportedModules.find(b => (b.importedModules || []).includes(usedModule))
+          if (definingBlock) {
+            modulesEdges.push({ from: definingBlock.blockId, to: block.blockId, inputVariables: [usedModule] })
+          }
+        })
+      })
+
+      return { nodes: Object.values(nodes), edges, modulesEdges }
+    }
+
+    // DAG Analyzer - finds downstream blocks that need to re-run
+    function getDownstreamBlocksForBlocksIds(dag, blocksIds) {
+      const changedBlocks = dag.nodes.filter(node => blocksIds.includes(node.blockId))
+      const minOrder = Math.min(...changedBlocks.map(node => node.order))
+      const filteredDag = { ...dag, nodes: dag.nodes.filter(node => node.order >= minOrder) }
+
+      function getDownstreamBlocks(dag, blocksIds, visited = new Set()) {
+        const outputVariables = dag.nodes
+          .filter(node => blocksIds.includes(node.blockId))
+          .flatMap(node => node.outputVariables)
+
+        const blocksThatUseVars = dag.nodes
+          .filter(node => node.inputVariables.some(v => outputVariables.includes(v)))
+          .map(node => node.blockId)
+
+        if (blocksThatUseVars.length === 0) return []
+
+        const nextBlocks = blocksThatUseVars.filter(id => !visited.has(id))
+        nextBlocks.forEach(id => visited.add(id))
+
+        return [...nextBlocks, ...getDownstreamBlocks(dag, nextBlocks, visited)]
+      }
+
+      const downstreamBlockIds = getDownstreamBlocks(filteredDag, blocksIds)
+      
+      // Sort by topological order (using DAG node order which reflects dependencies)
+      return downstreamBlockIds.sort((a, b) => {
+        const nodeA = dag.nodes.find(n => n.blockId === a)
+        const nodeB = dag.nodes.find(n => n.blockId === b)
+        return (nodeA?.order || 0) - (nodeB?.order || 0)
+      })
+    }
+
+    // Analyze notebook blocks and build DAG
+    async function buildNotebookDAG() {
+      if (!pyodideReady) return null
+
+      const notebook = notebookData.project.notebooks[currentNotebookIndex]
+      const blocksForAnalyzer = notebook.blocks
+        .filter(b => b.type === 'code' || b.type === 'sql' || b.type?.startsWith('input-'))
+        .map((block, index) => ({
+          type: block.type,
+          blockId: block.id,
+          code: editedCode.get(block.id) || block.content || '',
+          metadata: block.metadata,
+        }))
+
+      if (blocksForAnalyzer.length === 0) return null
+
+      try {
+        // Pass data via Pyodide globals to avoid escaping issues
+        pyodide.globals.set('_deepnote_blocks_input', JSON.stringify(blocksForAnalyzer))
+        const resultJson = await pyodide.runPythonAsync(`_deepnote_analyze_blocks(_deepnote_blocks_input)`)
+        const result = JSON.parse(resultJson)
+        
+        if (result.errorMessage) {
+          console.error('AST analysis error:', result.errorMessage)
+          return null
+        }
+
+        // Add order based on original notebook block order
+        const blocksWithOrder = result.map(item => ({
+          ...item,
+          order: notebook.blocks.findIndex(b => b.id === item.blockId)
+        }))
+
+        currentDAG = buildDAGFromBlocks(blocksWithOrder)
+        console.log('Built DAG:', currentDAG)
+        return currentDAG
+      } catch (error) {
+        console.error('Failed to build DAG:', error)
+        return null
+      }
+    }
 
     // Pyodide initialization
     async function initPyodide() {
@@ -1094,18 +1473,34 @@ plt.rcParams['xtick.color'] = '#8b949e'
 plt.rcParams['ytick.color'] = '#8b949e'
 plt.rcParams['grid.color'] = '#30363d'
 `)
+        progressFill.style.width = '95%'
+
+        // Load AST analyzer for reactivity
+        messageEl.textContent = 'Loading AST analyzer for reactivity...'
+        await pyodide.runPythonAsync(AST_ANALYZER_CODE)
         progressFill.style.width = '100%'
 
         pyodideReady = true
         pyodideLoading = false
 
+        // Build initial DAG
+        setTimeout(async () => {
+          await buildNotebookDAG()
+          updateReactivityIndicator()
+        }, 100)
+
         statusEl.textContent = 'Ready'
         statusEl.className = 'pyodide-status ready'
-        messageEl.textContent = 'Python ready! Click "Run All" or run individual cells.'
+        messageEl.textContent = 'Python ready with reactivity! Changes auto-propagate to dependent cells.'
         
         initBtn.style.display = 'none'
         runAllBtn.style.display = 'flex'
         runAllBtn.disabled = false
+        
+        // Show reactivity UI
+        document.getElementById('autorun-toggle').style.display = 'flex'
+        document.getElementById('reactivity-toggle').style.display = 'flex'
+        document.getElementById('reactivity-indicator').style.display = 'flex'
         
         setTimeout(() => { progressEl.style.display = 'none' }, 500)
 
@@ -1215,6 +1610,108 @@ len(plt.get_fignums()) > 0
       }
 
       blockEl.classList.remove('cell-running')
+      return true // Indicate success
+    }
+
+    // Run cell with reactivity - also runs downstream dependent cells
+    async function runCellWithReactivity(blockId, isDownstreamRun = false) {
+      const success = await runCell(blockId)
+      
+      // If reactivity is enabled and this isn't already a downstream run, run dependent cells
+      if (reactivityEnabled && !isDownstreamRun && currentDAG) {
+        const downstreamBlockIds = getDownstreamBlocksForBlocksIds(currentDAG, [blockId])
+        
+        if (downstreamBlockIds.length > 0) {
+          console.log(`Reactivity: Running ${downstreamBlockIds.length} downstream cells in dependency order:`, downstreamBlockIds)
+
+          // downstreamBlockIds is already sorted by dependency order from getDownstreamBlocksForBlocksIds
+          const notebook = notebookData.project.notebooks[currentNotebookIndex]
+          const blocksToRun = downstreamBlockIds
+            .map(id => notebook.blocks.find(b => b.id === id))
+            .filter(b => b && (b.type === 'code' || b.type === 'sql'))
+
+          for (const block of blocksToRun) {
+            // Add a visual indicator that this is a reactive run
+            const blockEl = document.getElementById(`block-${block.id}`)
+            if (blockEl) {
+              blockEl.classList.add('reactive-run')
+              await runCell(block.id)
+              setTimeout(() => blockEl.classList.remove('reactive-run'), 1000)
+            }
+          }
+        }
+      }
+    }
+
+    // Update DAG when code is edited
+    async function onCodeEditWithDAGUpdate(blockId, newCode) {
+      onCodeEdit(blockId, newCode)
+
+      // Rebuild DAG after edit (debounced)
+      clearTimeout(window._dagRebuildTimeout)
+      window._dagRebuildTimeout = setTimeout(async () => {
+        await buildNotebookDAG()
+        updateReactivityIndicator()
+      }, 500)
+
+      // Auto-run on edit if enabled (debounced)
+      if (autoRunEnabled && pyodideReady) {
+        clearTimeout(autoRunTimeout)
+        autoRunTimeout = setTimeout(async () => {
+          // If notebook not initialized, run all cells first to establish state
+          if (!notebookInitialized) {
+            console.log('First edit - running all cells to initialize notebook state')
+            await runAllCells()
+          } else {
+            await runCellWithReactivity(blockId)
+          }
+        }, 800)  // Slightly longer debounce for execution
+      }
+    }
+
+    // Update reactivity indicator in UI
+    function updateReactivityIndicator() {
+      const indicator = document.getElementById('reactivity-indicator')
+      if (!indicator) return
+      
+      if (currentDAG) {
+        const edgeCount = currentDAG.edges.length
+        indicator.innerHTML = `
+          <span style="color: var(--success);">●</span>
+          <span>${edgeCount} dependencies tracked</span>
+        `
+      } else {
+        indicator.innerHTML = `
+          <span style="color: var(--text-muted);">○</span>
+          <span>No dependencies</span>
+        `
+      }
+    }
+
+    // Toggle reactivity mode
+    function toggleReactivity() {
+      reactivityEnabled = !reactivityEnabled
+      const toggle = document.getElementById('reactivity-toggle')
+      if (toggle) {
+        toggle.classList.toggle('active', reactivityEnabled)
+        toggle.title = reactivityEnabled
+          ? 'When enabled, editing and running a cell automatically re-runs dependent cells'
+          : 'Reactivity disabled - cells run independently'
+      }
+    }
+
+    function toggleAutoRun() {
+      autoRunEnabled = !autoRunEnabled
+      const toggle = document.getElementById('autorun-toggle')
+      if (toggle) {
+        toggle.classList.toggle('active', autoRunEnabled)
+        toggle.innerHTML = autoRunEnabled
+          ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon><path d="M19 5v14"></path></svg><span>Auto</span>`
+          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg><span>Manual</span>`
+        toggle.title = autoRunEnabled
+          ? 'Auto-run: Cells execute automatically when edited'
+          : 'Manual: Click Run to execute cells'
+      }
     }
 
     function createLiveOutputContainer(blockEl) {
@@ -1234,15 +1731,29 @@ len(plt.get_fignums()) > 0
       runAllBtn.innerHTML = '<svg class="loading-spinner" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg><span>Running...</span>'
 
       const notebook = notebookData.project.notebooks[currentNotebookIndex]
-      const sortedBlocks = [...notebook.blocks].sort((a, b) => 
-        a.sortingKey.localeCompare(b.sortingKey)
-      )
-
-      const codeBlocks = sortedBlocks.filter(b => b.type === 'code' || b.type === 'sql')
+      
+      // Use DAG order if available, otherwise fall back to sorting key
+      let codeBlocks
+      if (currentDAG && currentDAG.nodes.length > 0) {
+        // Sort blocks by DAG order (topological order based on dependencies)
+        const dagOrder = new Map(currentDAG.nodes.map(n => [n.blockId, n.order]))
+        codeBlocks = notebook.blocks
+          .filter(b => b.type === 'code' || b.type === 'sql')
+          .sort((a, b) => (dagOrder.get(a.id) || 999) - (dagOrder.get(b.id) || 999))
+        console.log('Running cells in DAG order:', codeBlocks.map(b => b.id))
+      } else {
+        // Fallback to notebook order
+        codeBlocks = [...notebook.blocks]
+          .sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+          .filter(b => b.type === 'code' || b.type === 'sql')
+      }
 
       for (const block of codeBlocks) {
         await runCell(block.id)
       }
+
+      notebookInitialized = true
+      console.log('Notebook initialized - all cells have been run')
 
       runAllBtn.disabled = false
       runAllBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg><span>Run All</span>'
@@ -1493,7 +2004,7 @@ len(plt.get_fignums()) > 0
       const isModified = editedCode.has(block.id)
       
       const runButton = pyodideReady ? `
-        <button class="run-cell-btn" onclick="event.stopPropagation(); runCell('${block.id}')" title="Run this cell">
+        <button class="run-cell-btn" onclick="event.stopPropagation(); runCellWithReactivity('${block.id}')" title="Run this cell (+ dependent cells if reactive)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
           </svg>
@@ -1505,10 +2016,10 @@ len(plt.get_fignums()) > 0
         <div class="code-editor-wrapper">
           ${isModified ? '<span class="code-modified-badge">Modified</span>' : ''}
           <textarea 
-            class="code-editor" 
+            class="code-editor"
             data-block-id="${block.id}"
             spellcheck="false"
-            oninput="onCodeEdit('${block.id}', this.value)"
+            oninput="onCodeEditWithDAGUpdate('${block.id}', this.value)"
             onkeydown="handleEditorKeydown(event, this)"
           >${escapeHtml(currentCode)}</textarea>
         </div>
@@ -1546,8 +2057,12 @@ len(plt.get_fignums()) > 0
     function onCodeEdit(blockId, newCode) {
       const notebook = notebookData.project.notebooks[currentNotebookIndex]
       const block = notebook.blocks.find(b => b.id === blockId)
-      
-      if (block && newCode !== block.content) {
+
+      // Normalize for comparison (trim and normalize line endings)
+      const originalCode = (block?.content || '').trim().replace(/\r\n/g, '\n')
+      const editedCodeNorm = (newCode || '').trim().replace(/\r\n/g, '\n')
+
+      if (block && editedCodeNorm !== originalCode) {
         editedCode.set(blockId, newCode)
       } else {
         editedCode.delete(blockId)
@@ -1590,13 +2105,13 @@ len(plt.get_fignums()) > 0
           textarea.selectionStart = textarea.selectionEnd = start + 4
         }
         
-        onCodeEdit(textarea.dataset.blockId, textarea.value)
+        onCodeEditWithDAGUpdate(textarea.dataset.blockId, textarea.value)
       }
-      
-      // Ctrl/Cmd + Enter to run cell
+
+      // Ctrl/Cmd + Enter to run cell with reactivity
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault()
-        runCell(textarea.dataset.blockId)
+        runCellWithReactivity(textarea.dataset.blockId)
       }
     }
 
