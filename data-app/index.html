@@ -1242,6 +1242,66 @@ def _deepnote_analyze_blocks(blocks_json):
         return json.dumps({"errorMessage": f"{e.__class__.__name__}: {str(e)}"})
 `
 
+    // Topological sort using Kahn's algorithm
+    function topologicalSort(dag) {
+      if (!dag || !dag.nodes.length) return []
+      
+      // Build adjacency list and in-degree map
+      const adjacency = new Map()  // from -> [to]
+      const inDegree = new Map()   // node -> count of incoming edges
+      const nodeOrder = new Map()  // blockId -> order (for tie-breaking)
+      
+      // Initialize all nodes
+      for (const node of dag.nodes) {
+        adjacency.set(node.blockId, [])
+        inDegree.set(node.blockId, 0)
+        nodeOrder.set(node.blockId, node.order ?? 0)
+      }
+      
+      // Build edges (from defines to uses)
+      for (const edge of dag.edges) {
+        const fromId = edge.fromBlockId
+        const toId = edge.toBlockId
+        if (adjacency.has(fromId) && inDegree.has(toId)) {
+          adjacency.get(fromId).push(toId)
+          inDegree.set(toId, inDegree.get(toId) + 1)
+        }
+      }
+      
+      // Find all nodes with no incoming edges (sorted by original order for consistency)
+      const queue = [...inDegree.entries()]
+        .filter(([_, deg]) => deg === 0)
+        .map(([id]) => id)
+        .sort((a, b) => (nodeOrder.get(a) ?? 0) - (nodeOrder.get(b) ?? 0))
+      
+      const result = []
+      
+      while (queue.length > 0) {
+        // Take the node with lowest original order (for deterministic output)
+        queue.sort((a, b) => (nodeOrder.get(a) ?? 0) - (nodeOrder.get(b) ?? 0))
+        const node = queue.shift()
+        result.push(node)
+        
+        // Remove edges from this node
+        for (const neighbor of adjacency.get(node) || []) {
+          inDegree.set(neighbor, inDegree.get(neighbor) - 1)
+          if (inDegree.get(neighbor) === 0) {
+            queue.push(neighbor)
+          }
+        }
+      }
+      
+      // If we didn't visit all nodes, there's a cycle - return original order
+      if (result.length !== dag.nodes.length) {
+        console.warn('DAG has cycles, falling back to original order')
+        return dag.nodes
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .map(n => n.blockId)
+      }
+      
+      return result
+    }
+
     // DAG Builder - builds dependency graph from AST analysis
     function buildDAGFromBlocks(blocks) {
       const edges = []
@@ -1356,41 +1416,73 @@ def _deepnote_analyze_blocks(blocks_json):
       })
     }
 
+    // Browser-mode auto-fix: Replace file reads with in-memory DataFrames
+    // This enables cross-notebook data flow without a file system
+    function applyBrowserModeTransforms(code, logReplacements = false) {
+      return code.replace(
+        /pd\.read_csv\s*\(\s*["']([^"']+)\.csv["']\s*\)/g,
+        (match, filename) => {
+          // Convert filename to likely variable name (e.g., "houses" -> "df_csv")
+          const varName = `df_csv`  // Common pattern in Deepnote notebooks
+          if (logReplacements) {
+            console.log(`Browser mode: Replacing pd.read_csv("${filename}.csv") with ${varName}.copy()`)
+          }
+          return `${varName}.copy()  # Browser mode: using in-memory DataFrame instead of file`
+        }
+      )
+    }
+
     // Analyze notebook blocks and build DAG
     async function buildNotebookDAG() {
       if (!pyodideReady) return null
 
-      const notebook = notebookData.project.notebooks[currentNotebookIndex]
-      const blocksForAnalyzer = notebook.blocks
-        .filter(b => b.type === 'code' || b.type === 'sql' || b.type?.startsWith('input-'))
-        .map((block, index) => ({
-          type: block.type,
-          blockId: block.id,
-          code: editedCode.get(block.id) || block.content || '',
-          metadata: block.metadata,
-        }))
+      // Analyze ALL notebooks together for cross-notebook dependencies
+      const allBlocksForAnalyzer = []
+      let globalOrder = 0
+      
+      notebookData.project.notebooks.forEach((notebook, notebookIndex) => {
+        notebook.blocks
+          .filter(b => b.type === 'code' || b.type === 'sql' || b.type?.startsWith('input-'))
+          .forEach((block) => {
+            let code = editedCode.get(block.id) || block.content || ''
+            // Apply browser-mode auto-fix for DAG analysis too
+            code = applyBrowserModeTransforms(code)
+            allBlocksForAnalyzer.push({
+              type: block.type,
+              blockId: block.id,
+              code: code,
+              metadata: block.metadata,
+              notebookIndex: notebookIndex,
+              globalOrder: globalOrder++,
+            })
+          })
+      })
 
-      if (blocksForAnalyzer.length === 0) return null
+      if (allBlocksForAnalyzer.length === 0) return null
 
       try {
         // Pass data via Pyodide globals to avoid escaping issues
-        pyodide.globals.set('_deepnote_blocks_input', JSON.stringify(blocksForAnalyzer))
+        pyodide.globals.set('_deepnote_blocks_input', JSON.stringify(allBlocksForAnalyzer))
         const resultJson = await pyodide.runPythonAsync(`_deepnote_analyze_blocks(_deepnote_blocks_input)`)
         const result = JSON.parse(resultJson)
-        
+
         if (result.errorMessage) {
           console.error('AST analysis error:', result.errorMessage)
           return null
         }
 
-        // Add order based on original notebook block order
-        const blocksWithOrder = result.map(item => ({
-          ...item,
-          order: notebook.blocks.findIndex(b => b.id === item.blockId)
-        }))
+        // Add order based on global notebook order (preserving cross-notebook dependencies)
+        const blocksWithOrder = result.map(item => {
+          const inputBlock = allBlocksForAnalyzer.find(b => b.blockId === item.blockId)
+          return {
+            ...item,
+            order: inputBlock?.globalOrder ?? 0,
+            notebookIndex: inputBlock?.notebookIndex ?? 0,
+          }
+        })
 
         currentDAG = buildDAGFromBlocks(blocksWithOrder)
-        console.log('Built DAG:', currentDAG)
+        console.log('Built global DAG (all notebooks):', currentDAG)
         return currentDAG
       } catch (error) {
         console.error('Failed to build DAG:', error)
@@ -1443,6 +1535,10 @@ def _deepnote_analyze_blocks(blocks_json):
         await pyodide.loadPackage('micropip')
         const micropip = pyodide.pyimport('micropip')
         await micropip.install('seaborn')
+        progressFill.style.width = '90%'
+
+        messageEl.textContent = 'Installing DuckDB for SQL support...'
+        await micropip.install('duckdb')
         progressFill.style.width = '95%'
 
         // Setup matplotlib for inline display
@@ -1535,12 +1631,28 @@ plt.rcParams['grid.color'] = '#30363d'
       try {
         // Use edited code if available, otherwise original
         let code = editedCode.get(blockId) || block.content || ''
-        
-        // Skip SQL blocks - they can't run in Pyodide without a database
+
+        // Apply browser-mode transformations
+        code = applyBrowserModeTransforms(code, true)  // true = log replacements
+
+        // Run SQL blocks using DuckDB
         if (block.type === 'sql') {
-          outputContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8125rem;">ℹ️ SQL blocks use pre-computed results (no database in browser)</div>'
-          blockEl.classList.remove('cell-running')
-          return
+          const sqlCode = code.trim()
+          // Get variable name from block metadata or use default
+          const resultVar = block.metadata?.deepnote_variable_name || 'sql_result'
+          
+          // Escape for triple-quoted string (only need to escape triple quotes)
+          const escapedSql = sqlCode.replace(/\\/g, '\\\\').replace(/"""/g, '\\"\\"\\"')
+          
+          // Wrap SQL in DuckDB execution
+          const wrappedCode = `
+import duckdb
+
+# Execute SQL query using DuckDB (can query pandas DataFrames directly)
+${resultVar} = duckdb.query("""${escapedSql}""").df()
+${resultVar}
+`
+          code = wrappedCode
         }
         
         // Skip bash/shell commands
@@ -1676,9 +1788,11 @@ len(plt.get_fignums()) > 0
       
       if (currentDAG) {
         const edgeCount = currentDAG.edges.length
+        const notebookCount = new Set(currentDAG.nodes.map(n => n.notebookIndex)).size
+        const notebookText = notebookCount > 1 ? ` across ${notebookCount} notebooks` : ''
         indicator.innerHTML = `
           <span style="color: var(--success);">●</span>
-          <span>${edgeCount} dependencies tracked</span>
+          <span>${edgeCount} dependencies${notebookText}</span>
         `
       } else {
         indicator.innerHTML = `
@@ -1730,30 +1844,48 @@ len(plt.get_fignums()) > 0
       runAllBtn.disabled = true
       runAllBtn.innerHTML = '<svg class="loading-spinner" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg><span>Running...</span>'
 
-      const notebook = notebookData.project.notebooks[currentNotebookIndex]
+      // Run ALL cells across ALL notebooks in topological order
+      let allCodeBlocks = []
       
-      // Use DAG order if available, otherwise fall back to sorting key
-      let codeBlocks
       if (currentDAG && currentDAG.nodes.length > 0) {
-        // Sort blocks by DAG order (topological order based on dependencies)
+        // Get all code blocks from all notebooks, sorted by DAG order
         const dagOrder = new Map(currentDAG.nodes.map(n => [n.blockId, n.order]))
-        codeBlocks = notebook.blocks
-          .filter(b => b.type === 'code' || b.type === 'sql')
-          .sort((a, b) => (dagOrder.get(a.id) || 999) - (dagOrder.get(b.id) || 999))
-        console.log('Running cells in DAG order:', codeBlocks.map(b => b.id))
+        
+        notebookData.project.notebooks.forEach((notebook) => {
+          notebook.blocks
+            .filter(b => b.type === 'code' || b.type === 'sql')
+            .forEach(block => {
+              allCodeBlocks.push({
+                ...block,
+                dagOrder: dagOrder.get(block.id) ?? 999
+              })
+            })
+        })
+        
+        // Perform topological sort based on DAG edges
+        const sortedBlockIds = topologicalSort(currentDAG)
+        const idToOrder = new Map(sortedBlockIds.map((id, idx) => [id, idx]))
+        
+        // Sort by topological order
+        allCodeBlocks.sort((a, b) => (idToOrder.get(a.id) ?? 999) - (idToOrder.get(b.id) ?? 999))
+        console.log('Running ALL cells across all notebooks in topological order:', allCodeBlocks.map(b => b.id))
       } else {
-        // Fallback to notebook order
-        codeBlocks = [...notebook.blocks]
-          .sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
-          .filter(b => b.type === 'code' || b.type === 'sql')
+        // Fallback: run all notebooks in order
+        notebookData.project.notebooks.forEach((notebook) => {
+          const blocks = [...notebook.blocks]
+            .sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+            .filter(b => b.type === 'code' || b.type === 'sql')
+          allCodeBlocks.push(...blocks)
+        })
+        console.log('Running ALL cells across all notebooks in notebook order')
       }
 
-      for (const block of codeBlocks) {
+      for (const block of allCodeBlocks) {
         await runCell(block.id)
       }
 
       notebookInitialized = true
-      console.log('Notebook initialized - all cells have been run')
+      console.log('All notebooks initialized - all cells have been run')
 
       runAllBtn.disabled = false
       runAllBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg><span>Run All</span>'
