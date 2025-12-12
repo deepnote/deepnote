@@ -1,0 +1,12 @@
+{
+  "name": "deepnote-data-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "yaml": "^2.6.1"
+  }
+}
