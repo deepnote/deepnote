@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Deepnote</title>
+  <!-- Pyodide for in-browser Python execution -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -174,6 +176,172 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
+    }
+
+    /* Pyodide execution styles */
+    .pyodide-banner {
+      background: linear-gradient(135deg, var(--accent-light), rgba(88, 166, 255, 0.1));
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      margin: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .pyodide-banner-text {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .pyodide-banner-text svg {
+      width: 24px;
+      height: 24px;
+      color: var(--accent);
+    }
+
+    .pyodide-banner h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.125rem;
+    }
+
+    .pyodide-banner p {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    .pyodide-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 0.25rem 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+    }
+
+    .pyodide-status.loading {
+      color: var(--warning);
+    }
+
+    .pyodide-status.ready {
+      color: var(--success);
+    }
+
+    .pyodide-status.error {
+      color: var(--error);
+    }
+
+    .run-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.15s;
+    }
+
+    .run-btn:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .run-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .run-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .run-cell-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: all 0.15s;
+      margin-left: auto;
+    }
+
+    .run-cell-btn:hover:not(:disabled) {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .run-cell-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .run-cell-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .cell-running {
+      position: relative;
+    }
+
+    .cell-running::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--warning);
+      border-radius: 2px;
+      animation: pulse 1s infinite;
+    }
+
+    .cell-output-live {
+      border-left: 3px solid var(--success);
+      padding-left: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .cell-output-error {
+      border-left: 3px solid var(--error);
+      background: rgba(248, 81, 73, 0.1);
+      padding: 0.75rem 1rem;
+      border-radius: 0 6px 6px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      color: var(--error);
+      white-space: pre-wrap;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--bg-secondary);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.3s ease;
     }
 
     /* Main Content */
@@ -455,8 +623,54 @@
       overflow-y: auto;
     }
 
-    .code-block-wrapper.collapsed .code-content {
+    .code-block-wrapper.collapsed .code-content,
+    .code-block-wrapper.collapsed .code-editor-wrapper {
       display: none;
+    }
+
+    .code-editor {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      padding: 1rem;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      border: none;
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      outline: none;
+      tab-size: 4;
+      -moz-tab-size: 4;
+    }
+
+    .code-editor:focus {
+      background: #0a0d12;
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+
+    .code-editor:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background: var(--bg-secondary);
+    }
+
+    .code-editor-wrapper {
+      position: relative;
+    }
+
+    .code-modified-badge {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: var(--warning);
+      color: var(--bg-primary);
+      font-size: 0.625rem;
+      font-weight: 600;
+      padding: 0.125rem 0.375rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      pointer-events: none;
     }
 
     /* Output */
@@ -744,6 +958,41 @@
         </div>
       </div>
 
+      <!-- Pyodide Execution Banner -->
+      <div id="pyodide-banner" class="pyodide-banner" style="display: none;">
+        <div class="pyodide-banner-text">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <div>
+            <h3>Run in Browser with WebAssembly</h3>
+            <p id="pyodide-message">Python execution powered by Pyodide</p>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <span id="pyodide-status" class="pyodide-status">Not loaded</span>
+          <button id="init-pyodide-btn" class="run-btn" onclick="initPyodide()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <span>Load Python</span>
+          </button>
+          <button id="run-all-btn" class="run-btn" onclick="runAllCells()" disabled style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span>Run All</span>
+          </button>
+        </div>
+      </div>
+      <div id="pyodide-progress" style="display: none; padding: 0 2rem;">
+        <div class="progress-bar">
+          <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+        </div>
+      </div>
+
       <div class="content-area">
         <div id="stats-section" class="stats-row"></div>
         <div id="content">
@@ -762,6 +1011,243 @@
     let showCode = false
     let allExpanded = true
 
+    // Pyodide state
+    let pyodide = null
+    let pyodideReady = false
+    let pyodideLoading = false
+    
+    // Store for edited code (blockId -> editedCode)
+    const editedCode = new Map()
+
+    // Pyodide initialization
+    async function initPyodide() {
+      if (pyodideLoading || pyodideReady) return
+
+      pyodideLoading = true
+      const statusEl = document.getElementById('pyodide-status')
+      const messageEl = document.getElementById('pyodide-message')
+      const initBtn = document.getElementById('init-pyodide-btn')
+      const runAllBtn = document.getElementById('run-all-btn')
+      const progressEl = document.getElementById('pyodide-progress')
+      const progressFill = document.getElementById('progress-bar-fill')
+
+      initBtn.disabled = true
+      initBtn.innerHTML = '<svg class="loading-spinner" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg><span>Loading...</span>'
+      
+      statusEl.textContent = 'Loading Pyodide...'
+      statusEl.className = 'pyodide-status loading'
+      progressEl.style.display = 'block'
+      progressFill.style.width = '10%'
+
+      try {
+        messageEl.textContent = 'Loading Python runtime...'
+        pyodide = await loadPyodide()
+        progressFill.style.width = '30%'
+
+        messageEl.textContent = 'Installing numpy...'
+        await pyodide.loadPackage('numpy')
+        progressFill.style.width = '45%'
+
+        messageEl.textContent = 'Installing pandas...'
+        await pyodide.loadPackage('pandas')
+        progressFill.style.width = '60%'
+
+        messageEl.textContent = 'Installing scikit-learn...'
+        await pyodide.loadPackage('scikit-learn')
+        progressFill.style.width = '75%'
+
+        messageEl.textContent = 'Installing matplotlib...'
+        await pyodide.loadPackage('matplotlib')
+        progressFill.style.width = '85%'
+
+        messageEl.textContent = 'Installing seaborn via micropip...'
+        await pyodide.loadPackage('micropip')
+        const micropip = pyodide.pyimport('micropip')
+        await micropip.install('seaborn')
+        progressFill.style.width = '95%'
+
+        // Setup matplotlib for inline display
+        await pyodide.runPythonAsync(`
+import matplotlib
+matplotlib.use('AGG')
+import matplotlib.pyplot as plt
+import io
+import base64
+
+def _deepnote_get_figure_base64():
+    """Capture current matplotlib figure as base64 PNG"""
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=100, bbox_inches='tight', facecolor='#1c2128', edgecolor='none')
+    buf.seek(0)
+    img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close('all')
+    return img_base64
+
+# Set dark style for plots
+plt.style.use('dark_background')
+plt.rcParams['figure.facecolor'] = '#1c2128'
+plt.rcParams['axes.facecolor'] = '#161b22'
+plt.rcParams['axes.edgecolor'] = '#30363d'
+plt.rcParams['axes.labelcolor'] = '#e6edf3'
+plt.rcParams['text.color'] = '#e6edf3'
+plt.rcParams['xtick.color'] = '#8b949e'
+plt.rcParams['ytick.color'] = '#8b949e'
+plt.rcParams['grid.color'] = '#30363d'
+`)
+        progressFill.style.width = '100%'
+
+        pyodideReady = true
+        pyodideLoading = false
+
+        statusEl.textContent = 'Ready'
+        statusEl.className = 'pyodide-status ready'
+        messageEl.textContent = 'Python ready! Click "Run All" or run individual cells.'
+        
+        initBtn.style.display = 'none'
+        runAllBtn.style.display = 'flex'
+        runAllBtn.disabled = false
+        
+        setTimeout(() => { progressEl.style.display = 'none' }, 500)
+
+        // Re-render to add run buttons to cells
+        renderContent()
+
+      } catch (error) {
+        console.error('Pyodide initialization failed:', error)
+        statusEl.textContent = 'Failed'
+        statusEl.className = 'pyodide-status error'
+        messageEl.textContent = `Error: ${error.message}`
+        initBtn.disabled = false
+        initBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg><span>Retry</span>'
+        pyodideLoading = false
+      }
+    }
+
+    // Run a single code cell
+    async function runCell(blockId) {
+      if (!pyodideReady) return
+
+      const notebook = notebookData.project.notebooks[currentNotebookIndex]
+      const block = notebook.blocks.find(b => b.id === blockId)
+      if (!block || (block.type !== 'code' && block.type !== 'sql')) return
+
+      const blockEl = document.getElementById(`block-${blockId}`)
+      const outputContainer = blockEl.querySelector('.live-output-container') || createLiveOutputContainer(blockEl)
+      
+      blockEl.classList.add('cell-running')
+      outputContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8125rem;">Running...</div>'
+
+      try {
+        // Use edited code if available, otherwise original
+        let code = editedCode.get(blockId) || block.content || ''
+        
+        // Skip SQL blocks - they can't run in Pyodide without a database
+        if (block.type === 'sql') {
+          outputContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8125rem;">ℹ️ SQL blocks use pre-computed results (no database in browser)</div>'
+          blockEl.classList.remove('cell-running')
+          return
+        }
+        
+        // Skip bash/shell commands
+        if (code.trim().startsWith('%%bash') || code.trim().startsWith('!')) {
+          outputContainer.innerHTML = '<div style="color: var(--warning); font-size: 0.8125rem;">⚠️ Shell commands skipped in browser</div>'
+          blockEl.classList.remove('cell-running')
+          return
+        }
+
+        // Comment out magic commands
+        code = code.split('\n').map(line => {
+          if (line.trim().startsWith('%') || line.trim().startsWith('!')) {
+            return '# ' + line + '  # (skipped in browser)'
+          }
+          return line
+        }).join('\n')
+
+        // Capture stdout
+        await pyodide.runPythonAsync(`
+import sys
+from io import StringIO
+_deepnote_stdout = StringIO()
+_deepnote_old_stdout = sys.stdout
+sys.stdout = _deepnote_stdout
+`)
+
+        // Run the code
+        const result = await pyodide.runPythonAsync(code)
+
+        // Get stdout
+        const stdout = await pyodide.runPythonAsync(`
+sys.stdout = _deepnote_old_stdout
+_deepnote_stdout.getvalue()
+`)
+
+        // Check if there's a matplotlib figure
+        const hasFigure = await pyodide.runPythonAsync(`
+len(plt.get_fignums()) > 0
+`)
+
+        let outputHtml = ''
+
+        if (stdout && stdout.trim()) {
+          outputHtml += `<div class="stream-output" style="margin-bottom: 0.5rem;">${escapeHtml(stdout)}</div>`
+        }
+
+        if (hasFigure) {
+          const imgBase64 = await pyodide.runPythonAsync('_deepnote_get_figure_base64()')
+          outputHtml += `<div class="image-output"><img src="data:image/png;base64,${imgBase64}" alt="Plot" /></div>`
+        }
+
+        if (result !== undefined && result !== null && !hasFigure) {
+          const resultStr = String(result)
+          if (resultStr && resultStr !== 'None') {
+            outputHtml += `<div class="stream-output">${escapeHtml(resultStr)}</div>`
+          }
+        }
+
+        if (outputHtml) {
+          outputContainer.innerHTML = `<div class="cell-output-live">${outputHtml}</div>`
+        } else {
+          outputContainer.innerHTML = '<div style="color: var(--success); font-size: 0.8125rem;">✓ Done</div>'
+        }
+
+      } catch (error) {
+        outputContainer.innerHTML = `<div class="cell-output-error">${escapeHtml(error.message)}</div>`
+      }
+
+      blockEl.classList.remove('cell-running')
+    }
+
+    function createLiveOutputContainer(blockEl) {
+      const container = document.createElement('div')
+      container.className = 'live-output-container'
+      container.style.marginTop = '0.5rem'
+      blockEl.appendChild(container)
+      return container
+    }
+
+    // Run all code cells in order
+    async function runAllCells() {
+      if (!pyodideReady) return
+
+      const runAllBtn = document.getElementById('run-all-btn')
+      runAllBtn.disabled = true
+      runAllBtn.innerHTML = '<svg class="loading-spinner" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg><span>Running...</span>'
+
+      const notebook = notebookData.project.notebooks[currentNotebookIndex]
+      const sortedBlocks = [...notebook.blocks].sort((a, b) => 
+        a.sortingKey.localeCompare(b.sortingKey)
+      )
+
+      const codeBlocks = sortedBlocks.filter(b => b.type === 'code' || b.type === 'sql')
+
+      for (const block of codeBlocks) {
+        await runCell(block.id)
+      }
+
+      runAllBtn.disabled = false
+      runAllBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg><span>Run All</span>'
+    }
+
     // Connect to SSE for live updates
     const eventSource = new EventSource('/events')
     eventSource.onmessage = (event) => {
@@ -777,6 +1263,13 @@
         notebookData = await res.json()
         
         document.getElementById('last-updated').textContent = `Updated ${formatDate(notebookData.metadata.modifiedAt || notebookData.metadata.createdAt)}`
+        
+        // Show Pyodide banner if notebook has code blocks
+        const notebook = notebookData.project.notebooks[currentNotebookIndex]
+        const hasCodeBlocks = notebook.blocks.some(b => b.type === 'code' || b.type === 'sql')
+        if (hasCodeBlocks) {
+          document.getElementById('pyodide-banner').style.display = 'flex'
+        }
         
         renderNotebookTabs()
         renderStats()
@@ -995,6 +1488,31 @@
       const hasOutput = block.outputs?.length > 0
       const codeHidden = !showCode
       const lang = block.type === 'sql' ? 'SQL' : 'Python'
+      const isEditable = pyodideReady && block.type !== 'sql'
+      const currentCode = editedCode.get(block.id) || block.content || ''
+      const isModified = editedCode.has(block.id)
+      
+      const runButton = pyodideReady ? `
+        <button class="run-cell-btn" onclick="event.stopPropagation(); runCell('${block.id}')" title="Run this cell">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          Run
+        </button>
+      ` : ''
+      
+      const codeDisplay = isEditable ? `
+        <div class="code-editor-wrapper">
+          ${isModified ? '<span class="code-modified-badge">Modified</span>' : ''}
+          <textarea 
+            class="code-editor" 
+            data-block-id="${block.id}"
+            spellcheck="false"
+            oninput="onCodeEdit('${block.id}', this.value)"
+            onkeydown="handleEditorKeydown(event, this)"
+          >${escapeHtml(currentCode)}</textarea>
+        </div>
+      ` : `<div class="code-content">${escapeHtml(block.content || '')}</div>`
       
       return `
         <div id="block-${block.id}" class="block">
@@ -1008,18 +1526,78 @@
                 <span>${lang}</span>
                 ${block.executionCount ? `<span class="run-count">· Run ${block.executionCount}</span>` : ''}
               </div>
-              <div class="code-toggle">
-                <span>${codeHidden ? 'Show' : 'Hide'}</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                ${runButton}
+                <div class="code-toggle">
+                  <span>${codeHidden ? 'Show' : 'Hide'}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
               </div>
             </div>
-            <div class="code-content">${escapeHtml(block.content || '')}</div>
+            ${codeDisplay}
           </div>
           ${renderOutputs(block.outputs)}
         </div>
       `
+    }
+    
+    function onCodeEdit(blockId, newCode) {
+      const notebook = notebookData.project.notebooks[currentNotebookIndex]
+      const block = notebook.blocks.find(b => b.id === blockId)
+      
+      if (block && newCode !== block.content) {
+        editedCode.set(blockId, newCode)
+      } else {
+        editedCode.delete(blockId)
+      }
+      
+      // Update the modified badge without full re-render
+      const wrapper = document.querySelector(`[data-block-id="${blockId}"]`)?.parentElement
+      if (wrapper) {
+        const existingBadge = wrapper.querySelector('.code-modified-badge')
+        if (editedCode.has(blockId) && !existingBadge) {
+          wrapper.insertAdjacentHTML('afterbegin', '<span class="code-modified-badge">Modified</span>')
+        } else if (!editedCode.has(blockId) && existingBadge) {
+          existingBadge.remove()
+        }
+      }
+    }
+    
+    function handleEditorKeydown(event, textarea) {
+      // Handle Tab key for indentation
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const value = textarea.value
+        
+        if (event.shiftKey) {
+          // Shift+Tab: remove indentation
+          const lineStart = value.lastIndexOf('\n', start - 1) + 1
+          const lineContent = value.substring(lineStart, end)
+          if (lineContent.startsWith('    ')) {
+            textarea.value = value.substring(0, lineStart) + lineContent.substring(4)
+            textarea.selectionStart = textarea.selectionEnd = start - 4
+          } else if (lineContent.startsWith('\t')) {
+            textarea.value = value.substring(0, lineStart) + lineContent.substring(1)
+            textarea.selectionStart = textarea.selectionEnd = start - 1
+          }
+        } else {
+          // Tab: add indentation
+          textarea.value = value.substring(0, start) + '    ' + value.substring(end)
+          textarea.selectionStart = textarea.selectionEnd = start + 4
+        }
+        
+        onCodeEdit(textarea.dataset.blockId, textarea.value)
+      }
+      
+      // Ctrl/Cmd + Enter to run cell
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault()
+        runCell(textarea.dataset.blockId)
+      }
     }
 
     function toggleCode(header) {
