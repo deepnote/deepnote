@@ -20,11 +20,10 @@ describe('validate all .deepnote files in the repository', () => {
       const fullPath = join(workspaceRoot, filePath)
       const yamlContent = await readFile(fullPath, 'utf-8')
 
-      // Should not throw - validates UTF-8, no duplicates, no anchors/aliases/merge keys, no tags
-      expect(() => deserializeDeepnoteFile(yamlContent)).not.toThrow()
-
-      // Should return a valid DeepnoteFile object
+      // Should not throw and return a valid DeepnoteFile object
+      // Validates UTF-8, no duplicates, no anchors/aliases/merge keys, no tags
       const result = deserializeDeepnoteFile(yamlContent)
+
       expect(result).toBeDefined()
       expect(result.version).toBeDefined()
       expect(result.project).toBeDefined()

@@ -1,10 +1,15 @@
-import { parse, parseDocument } from 'yaml'
+import { parseDocument } from 'yaml'
 
 /**
- * Validates that the YAML content is UTF-8 encoded.
- * Throws if invalid UTF-8 sequences are detected.
+ * Validates that the YAML content is UTF-8 encoded without BOM.
+ * Throws if invalid UTF-8 sequences or BOM are detected.
  */
 function validateUtf8(yamlContent: string): void {
+  // Check for UTF-8 BOM (U+FEFF / 0xEF 0xBB 0xBF)
+  if (yamlContent.charCodeAt(0) === 0xfeff) {
+    throw new Error('Invalid UTF-8 encoding detected in Deepnote file: BOM (Byte Order Mark) is not allowed')
+  }
+
   // Check for invalid UTF-8 by trying to encode/decode
   try {
     const encoder = new TextEncoder()
@@ -23,15 +28,15 @@ function validateUtf8(yamlContent: string): void {
  * - No custom tags (!tag)
  */
 function validateYamlStructure(yamlContent: string): void {
-  // Check for anchors - must be preceded by whitespace or start of line
-  // This avoids false positives from & in URLs or other content
-  if (/(?:^|\s)&\w+/.test(yamlContent)) {
+  // Check for anchors - must appear as a value after : or - (not in URLs or other content)
+  // Matches patterns like "key: &anchor" or "- &anchor"
+  if (/(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)&\w+/.test(yamlContent)) {
     throw new Error('YAML anchors (&) are not allowed in Deepnote files')
   }
 
-  // Check for aliases - must be preceded by whitespace, colon, or dash
-  // This avoids false positives from * in markdown (like **bold**)
-  if (/(?:^|[\s:-])\*\w+/.test(yamlContent)) {
+  // Check for aliases - must appear as a value after : or - (not in Markdown like *bold*)
+  // Matches patterns like "key: *alias" or "- *alias"
+  if (/(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)\*\w+/.test(yamlContent)) {
     throw new Error('YAML aliases (*) are not allowed in Deepnote files')
   }
 
@@ -54,12 +59,14 @@ function validateYamlStructure(yamlContent: string): void {
 }
 
 /**
- * Checks for duplicate keys in the parsed YAML document.
+ * Parse and validate YAML document in a single pass.
+ * Checks for duplicate keys and other parsing errors, then converts to JavaScript object.
  */
-function checkDuplicateKeys(yamlContent: string): void {
+function parseAndValidate(yamlContent: string): unknown {
   const doc = parseDocument(yamlContent, {
     strict: true,
     uniqueKeys: true,
+    version: '1.2',
   })
 
   if (doc.errors.length > 0) {
@@ -69,6 +76,8 @@ function checkDuplicateKeys(yamlContent: string): void {
     }
     throw new Error(`YAML parsing error: ${doc.errors[0].message}`)
   }
+
+  return doc.toJS()
 }
 
 /**
@@ -88,15 +97,8 @@ export function parseYaml(yamlContent: string): unknown {
     // Validate YAML structure (no anchors, aliases, merge keys, custom tags)
     validateYamlStructure(yamlContent)
 
-    // Check for duplicate keys
-    checkDuplicateKeys(yamlContent)
-
-    // Parse with strict YAML 1.2 settings
-    const parsed = parse(yamlContent, {
-      strict: true,
-      uniqueKeys: true,
-      version: '1.2',
-    })
+    // Parse and validate in a single pass (checks duplicate keys and converts to JS)
+    const parsed = parseAndValidate(yamlContent)
 
     return parsed
   } catch (error) {

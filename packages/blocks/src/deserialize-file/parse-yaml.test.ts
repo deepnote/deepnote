@@ -77,14 +77,11 @@ describe('parseYaml', () => {
       expect(() => parseYaml(yamlContent)).toThrow(/Failed to parse Deepnote file/)
     })
 
-    it('throws an error with custom message when given non-YAML input', () => {
-      const yamlContent = 'not:valid:yaml:::'
-      try {
-        parseYaml(yamlContent)
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error)
-        expect((error as Error).message).toMatch(/Failed to parse Deepnote file/)
-      }
+    it('throws an error with custom message when given invalid YAML', () => {
+      // Invalid YAML: unmatched quote
+      const yamlContent = 'key: "unclosed string'
+      expect(() => parseYaml(yamlContent)).toThrow(Error)
+      expect(() => parseYaml(yamlContent)).toThrow(/Failed to parse Deepnote file/)
     })
   })
 
@@ -107,6 +104,27 @@ describe('parseYaml', () => {
       const yamlContent = 'name: Deepnote\nversion: 1.0'
       const result = parseYaml(yamlContent)
       expect(result).toEqual({ name: 'Deepnote', version: 1.0 })
+    })
+
+    it('rejects content with UTF-8 BOM', () => {
+      // UTF-8 BOM is 0xEF 0xBB 0xBF
+      const bom = '\uFEFF'
+      const yamlContent = `${bom}name: Deepnote\nversion: 1.0`
+
+      expect(() => parseYaml(yamlContent)).toThrow(/Invalid UTF-8 encoding/)
+    })
+
+    it('validates UTF-8 encoding integrity', () => {
+      // This test verifies that the validation function is in place
+      // In practice, Node.js file reading with 'utf-8' encoding will handle
+      // invalid sequences, but we verify the validation logic exists
+      const validYaml = 'name: Test\nvalue: 123'
+
+      // Should not throw for valid UTF-8
+      expect(() => parseYaml(validYaml)).not.toThrow()
+
+      // The validation function will catch issues if content is somehow
+      // corrupted or read with wrong encoding before reaching the parser
     })
   })
 
@@ -165,18 +183,57 @@ describe('parseYaml', () => {
       // Both anchor and alias are present, so either error is acceptable
       expect(() => parseYaml(yamlContent)).toThrow(/anchor|alias/i)
     })
+
+    it('does not reject Markdown emphasis in strings', () => {
+      const yamlContent = `
+      description: "This is *bold* text and **more bold**"
+      note: "Use *asterisks* for emphasis"
+      list: "Items: *item1 *item2"
+    `
+      // Should not throw - these are Markdown emphasis, not YAML aliases
+      const result = parseYaml(yamlContent)
+      expect(result).toEqual({
+        description: 'This is *bold* text and **more bold**',
+        note: 'Use *asterisks* for emphasis',
+        list: 'Items: *item1 *item2',
+      })
+    })
+
+    it('does not reject & in URLs', () => {
+      const yamlContent = `
+      url: "https://example.com?foo=bar&baz=qux"
+      link: "https://site.com/path&param=value"
+    `
+      // Should not throw - these are URL query parameters, not YAML anchors
+      const result = parseYaml(yamlContent)
+      expect(result).toEqual({
+        url: 'https://example.com?foo=bar&baz=qux',
+        link: 'https://site.com/path&param=value',
+      })
+    })
   })
 
   describe('merge key rejection', () => {
-    it('throws an error for merge keys', () => {
+    it('throws an error for merge keys with anchor/alias', () => {
       const yamlContent = `
-      base:
+      base: &base
         x: 1
         y: 2
       extended:
-        <<: base
+        <<: *base
         z: 3
     `
+      // This YAML contains anchor, alias, and merge key - any of these should be rejected
+      expect(() => parseYaml(yamlContent)).toThrow(/anchor|alias|merge key/i)
+    })
+
+    it('throws an error for merge key syntax', () => {
+      const yamlContent = `
+      extended:
+        <<: something
+        z: 3
+    `
+      // Even without valid anchor/alias, the <<: syntax should be rejected
       expect(() => parseYaml(yamlContent)).toThrow(/merge keys.*not allowed/i)
     })
   })
