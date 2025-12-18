@@ -72,11 +72,12 @@ function validateYamlStructure(yamlContent: string): void {
 
   // Check for YAML tags (must appear after : or - at start of value, not inside strings)
   // Tags look like: "key: !tag value" or "- !tag value"
+  // Tags can contain word chars, hyphens, and slashes: !custom-type, !python/object
   // We need to avoid false positives from ! inside quoted strings or as part of operators like !== or !event
-  const tagPattern = /(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)(![\w/]+)/gm
+  const tagPattern = /(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)(![\w/-]+)/gm
   const matches = yamlContent.match(tagPattern)
   if (matches) {
-    const tags = matches.map(m => m.match(/(![\w/]+)/)?.[1]).filter(Boolean)
+    const tags = matches.map(m => m.match(/(![\w/-]+)/)?.[1]).filter(Boolean)
     if (tags.length > 0) {
       throw new Error(`YAML tags are not allowed in Deepnote files: ${tags.join(', ')}`)
     }

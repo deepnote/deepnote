@@ -295,6 +295,15 @@ describe('parseYaml', () => {
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
     })
 
+    it('throws an error for tags with hyphens', () => {
+      const yamlContent = `
+      value: !custom-type some value
+      another: !my-custom-tag data
+    `
+      expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
+      expect(() => parseYaml(yamlContent)).toThrow(/!custom-type/)
+    })
+
     it('throws an error for Python-specific tags', () => {
       const yamlContent = `
       date: !python/object/apply:datetime.date [2024, 1, 1]
