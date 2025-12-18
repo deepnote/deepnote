@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
 
 /**
@@ -29,18 +29,20 @@ async function findDeepnoteFiles(dir: string, baseDir: string = dir): Promise<st
 describe('validate all .deepnote files in the repository', () => {
   // Use paths relative to workspace root
   const workspaceRoot = join(__dirname, '../../../..')
-  let deepnoteFiles: string[]
+  let deepnoteFiles: string[] = []
 
-  // Discover all .deepnote files before running tests
-  it('discovers .deepnote files in the repository', async () => {
+  // Discover all .deepnote files before running any tests
+  beforeAll(async () => {
     deepnoteFiles = await findDeepnoteFiles(workspaceRoot)
-    expect(deepnoteFiles.length).toBeGreaterThan(0)
     console.log(`Found ${deepnoteFiles.length} .deepnote files:`, deepnoteFiles)
+  })
+
+  it('discovers .deepnote files in the repository', () => {
+    expect(deepnoteFiles.length).toBeGreaterThan(0)
   })
 
   it('validates all discovered .deepnote files', async () => {
     // Ensure files were discovered
-    expect(deepnoteFiles).toBeDefined()
     expect(deepnoteFiles.length).toBeGreaterThan(0)
 
     const results = await Promise.all(
