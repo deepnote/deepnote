@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
 
@@ -19,6 +19,10 @@ export interface ConvertBlocksToJupyterOptions {
   isModule?: boolean
   /** Working directory for the notebook */
   workingDirectory?: string
+  /** Environment snapshot metadata */
+  environment?: Environment
+  /** Execution snapshot metadata */
+  execution?: Execution
 }
 
 /**
@@ -54,6 +58,8 @@ export function convertBlocksToJupyterNotebook(
       deepnote_execution_mode: options.executionMode,
       deepnote_is_module: options.isModule,
       deepnote_working_directory: options.workingDirectory,
+      deepnote_environment: options.environment,
+      deepnote_execution: options.execution,
     },
     nbformat: 4,
     nbformat_minor: 0,
@@ -127,6 +133,11 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
     deepnote_cell_type: block.type,
     deepnote_sorting_key: block.sortingKey,
 
+    // Snapshot fields
+    deepnote_content_hash: block.contentHash,
+    deepnote_execution_started_at: block.executionStartedAt,
+    deepnote_execution_finished_at: block.executionFinishedAt,
+
     // Spread original metadata at root level
     ...(block.metadata || {}),
   }
@@ -172,7 +183,7 @@ function convertBlockTypeToJupyter(blockType: string): 'code' | 'markdown' {
 }
 
 function convertNotebookToJupyter(
-  _deepnoteFile: DeepnoteFile,
+  deepnoteFile: DeepnoteFile,
   notebook: DeepnoteFile['project']['notebooks'][0]
 ): JupyterNotebook {
   return convertBlocksToJupyterNotebook(notebook.blocks, {
@@ -181,6 +192,8 @@ function convertNotebookToJupyter(
     executionMode: notebook.executionMode as 'block' | 'downstream' | undefined,
     isModule: notebook.isModule,
     workingDirectory: notebook.workingDirectory,
+    environment: deepnoteFile.environment,
+    execution: deepnoteFile.execution,
   })
 }
 
