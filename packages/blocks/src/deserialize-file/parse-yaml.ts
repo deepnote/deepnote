@@ -1,23 +1,48 @@
 import { parseDocument } from 'yaml'
 
 /**
- * Validates that the YAML content is UTF-8 encoded without BOM.
- * Throws if invalid UTF-8 sequences or BOM are detected.
+ * Validates UTF-8 encoding from raw bytes before decoding to string.
+ * This is the proper way to validate UTF-8 - check BEFORE decoding.
+ *
+ * @param bytes - Raw file bytes as Uint8Array
+ * @returns Decoded UTF-8 string without BOM
+ * @throws Error if BOM detected or invalid UTF-8 encoding
+ *
+ * @example
+ * ```typescript
+ * const bytes = await fs.readFile('file.deepnote') // Returns Buffer/Uint8Array
+ * const yamlContent = decodeUtf8NoBom(bytes)
+ * const parsed = parseYaml(yamlContent)
+ * ```
  */
-function validateUtf8(yamlContent: string): void {
-  // Check for UTF-8 BOM (U+FEFF / 0xEF 0xBB 0xBF)
-  if (yamlContent.charCodeAt(0) === 0xfeff) {
-    throw new Error('Invalid UTF-8 encoding detected in Deepnote file: BOM (Byte Order Mark) is not allowed')
+export function decodeUtf8NoBom(bytes: Uint8Array): string {
+  // Reject UTF-8 BOM (0xEF 0xBB 0xBF)
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    throw new Error('UTF-8 BOM detected in Deepnote file - files must be UTF-8 without BOM')
   }
 
-  // Check for invalid UTF-8 by trying to encode/decode
+  // Validate UTF-8 by decoding with fatal=true
+  // This will throw if the bytes contain invalid UTF-8 sequences
   try {
-    const encoder = new TextEncoder()
-    const decoder = new TextDecoder('utf-8', { fatal: true })
-    const bytes = encoder.encode(yamlContent)
-    decoder.decode(bytes)
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch {
     throw new Error('Invalid UTF-8 encoding detected in Deepnote file')
+  }
+}
+
+/**
+ * Validates that a string doesn't start with BOM.
+ * Note: This is a fallback when only a string is available.
+ * By the time we have a JS string, invalid UTF-8 has already been handled during decoding.
+ * For proper UTF-8 validation, use decodeUtf8NoBom() on raw bytes before decoding.
+ *
+ * @param yamlContent - Already-decoded YAML string
+ * @throws Error if BOM prefix detected
+ */
+function validateNoBomPrefix(yamlContent: string): void {
+  // Check for UTF-8 BOM that was decoded as U+FEFF
+  if (yamlContent.charCodeAt(0) === 0xfeff) {
+    throw new Error('UTF-8 BOM detected in Deepnote file - files must be UTF-8 without BOM')
   }
 }
 
@@ -91,8 +116,9 @@ function parseAndValidate(yamlContent: string): unknown {
  */
 export function parseYaml(yamlContent: string): unknown {
   try {
-    // Validate UTF-8 encoding
-    validateUtf8(yamlContent)
+    // Validate no BOM prefix (string-level check only)
+    // Note: For proper UTF-8 validation, use decodeUtf8NoBom() on raw bytes before calling this
+    validateNoBomPrefix(yamlContent)
 
     // Validate YAML structure (no anchors, aliases, merge keys, custom tags)
     validateYamlStructure(yamlContent)

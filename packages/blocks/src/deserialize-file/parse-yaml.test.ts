@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseYaml } from './parse-yaml'
+import { decodeUtf8NoBom, parseYaml } from './parse-yaml'
 
 describe('parseYaml', () => {
   describe('basic parsing', () => {
@@ -85,7 +85,7 @@ describe('parseYaml', () => {
     })
   })
 
-  describe('UTF-8 validation', () => {
+  describe('UTF-8 validation (string-level)', () => {
     it('accepts valid UTF-8 content', () => {
       const yamlContent = `
       name: Deepnote 🚀
@@ -106,25 +106,74 @@ describe('parseYaml', () => {
       expect(result).toEqual({ name: 'Deepnote', version: 1.0 })
     })
 
-    it('rejects content with UTF-8 BOM', () => {
-      // UTF-8 BOM is 0xEF 0xBB 0xBF
+    it('rejects string with BOM prefix', () => {
+      // UTF-8 BOM decoded as U+FEFF in string
       const bom = '\uFEFF'
       const yamlContent = `${bom}name: Deepnote\nversion: 1.0`
 
-      expect(() => parseYaml(yamlContent)).toThrow(/Invalid UTF-8 encoding/)
+      expect(() => parseYaml(yamlContent)).toThrow(/BOM/)
+    })
+  })
+
+  describe('UTF-8 validation (byte-level with decodeUtf8NoBom)', () => {
+    it('accepts valid UTF-8 bytes', () => {
+      const yamlText = 'name: Deepnote 🚀\nversion: 1.0'
+      const bytes = new TextEncoder().encode(yamlText)
+
+      const decoded = decodeUtf8NoBom(bytes)
+      expect(decoded).toBe(yamlText)
     })
 
-    it('validates UTF-8 encoding integrity', () => {
-      // This test verifies that the validation function is in place
-      // In practice, Node.js file reading with 'utf-8' encoding will handle
-      // invalid sequences, but we verify the validation logic exists
-      const validYaml = 'name: Test\nvalue: 123'
+    it('rejects bytes with UTF-8 BOM', () => {
+      const yamlText = 'name: Deepnote\nversion: 1.0'
+      const textBytes = new TextEncoder().encode(yamlText)
 
-      // Should not throw for valid UTF-8
-      expect(() => parseYaml(validYaml)).not.toThrow()
+      // Prepend UTF-8 BOM (0xEF 0xBB 0xBF)
+      const bytesWithBom = new Uint8Array([0xef, 0xbb, 0xbf, ...textBytes])
 
-      // The validation function will catch issues if content is somehow
-      // corrupted or read with wrong encoding before reaching the parser
+      expect(() => decodeUtf8NoBom(bytesWithBom)).toThrow(/BOM/)
+      expect(() => decodeUtf8NoBom(bytesWithBom)).toThrow(/UTF-8 without BOM/)
+    })
+
+    it('rejects invalid UTF-8 byte sequences', () => {
+      // Invalid UTF-8: continuation byte without lead byte
+      const invalidBytes = new Uint8Array([
+        0x6e,
+        0x61,
+        0x6d,
+        0x65,
+        0x3a,
+        0x20, // "name: "
+        0x80,
+        0x81,
+        0x82, // Invalid UTF-8 sequence
+      ])
+
+      expect(() => decodeUtf8NoBom(invalidBytes)).toThrow(/Invalid UTF-8 encoding/)
+    })
+
+    it('rejects overlong UTF-8 sequences', () => {
+      // Overlong encoding of "/" (should be 0x2F, not 0xC0 0xAF)
+      const overlongBytes = new Uint8Array([
+        0x6e,
+        0x61,
+        0x6d,
+        0x65,
+        0x3a,
+        0x20, // "name: "
+        0xc0,
+        0xaf, // Overlong encoding (invalid)
+      ])
+
+      expect(() => decodeUtf8NoBom(overlongBytes)).toThrow(/Invalid UTF-8 encoding/)
+    })
+
+    it('accepts multi-byte UTF-8 characters', () => {
+      const yamlText = 'name: "日本語 🚀"'
+      const bytes = new TextEncoder().encode(yamlText)
+
+      const decoded = decodeUtf8NoBom(bytes)
+      expect(decoded).toBe(yamlText)
     })
   })
 
