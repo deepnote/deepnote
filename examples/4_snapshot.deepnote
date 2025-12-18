@@ -2,7 +2,7 @@ environment:
   hash: sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
   platform: linux-x86_64
   python:
-    environment: uv
+    environment: venv
     version: '3.12.0'
   packages:
     pandas: '2.1.0'
@@ -16,8 +16,8 @@ execution:
     dataset: sales_data
     year: 2025
   summary:
-    blocksExecuted: 3
-    blocksSucceeded: 3
+    blocksExecuted: 2
+    blocksSucceeded: 2
     blocksFailed: 0
     totalDurationMs: 26682
 metadata:
