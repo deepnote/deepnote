@@ -3,10 +3,13 @@ import { z } from 'zod'
 export const deepnoteBlockSchema = z.object({
   blockGroup: z.string().optional(),
   content: z.string().optional(),
-  contentHash: z.string().optional(),
+  contentHash: z
+    .string()
+    .regex(/^(md5|sha256):[a-f0-9]+$/i)
+    .optional(),
   executionCount: z.number().optional(),
-  executionFinishedAt: z.string().optional(),
-  executionStartedAt: z.string().optional(),
+  executionFinishedAt: z.string().datetime().optional(),
+  executionStartedAt: z.string().datetime().optional(),
   id: z.string(),
   metadata: z.record(z.any()).optional(),
   outputs: z.array(z.any()).optional(),
@@ -32,10 +35,10 @@ export type Environment = z.infer<typeof environmentSchema>
 
 export const executionSummarySchema = z
   .object({
-    blocksExecuted: z.number().optional(),
-    blocksFailed: z.number().optional(),
-    blocksSucceeded: z.number().optional(),
-    totalDurationMs: z.number().optional(),
+    blocksExecuted: z.number().int().nonnegative().optional(),
+    blocksFailed: z.number().int().nonnegative().optional(),
+    blocksSucceeded: z.number().int().nonnegative().optional(),
+    totalDurationMs: z.number().nonnegative().optional(),
   })
   .optional()
 
@@ -54,9 +57,9 @@ export type ExecutionError = z.infer<typeof executionErrorSchema>
 export const executionSchema = z
   .object({
     error: executionErrorSchema,
-    finishedAt: z.string().optional(),
-    inputs: z.record(z.any()).optional(),
-    startedAt: z.string().optional(),
+    finishedAt: z.string().datetime().optional(),
+    inputs: z.record(z.unknown()).optional(),
+    startedAt: z.string().datetime().optional(),
     summary: executionSummarySchema,
     triggeredBy: z.enum(['user', 'schedule', 'api', 'ci']).optional(),
   })

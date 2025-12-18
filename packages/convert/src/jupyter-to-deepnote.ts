@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
+import { environmentSchema, executionSchema } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
@@ -65,10 +66,16 @@ export function convertJupyterNotebooksToDeepnote(
 
   for (const { notebook } of notebooks) {
     if (!environment && notebook.metadata?.deepnote_environment) {
-      environment = notebook.metadata.deepnote_environment as Environment
+      const parsed = environmentSchema.safeParse(notebook.metadata.deepnote_environment)
+      if (parsed.success) {
+        environment = parsed.data
+      }
     }
     if (!execution && notebook.metadata?.deepnote_execution) {
-      execution = notebook.metadata.deepnote_execution as Execution
+      const parsed = executionSchema.safeParse(notebook.metadata.deepnote_execution)
+      if (parsed.success) {
+        execution = parsed.data
+      }
     }
   }
 
