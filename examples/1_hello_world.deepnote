@@ -1,3 +1,6 @@
+environment:
+  python:
+    version: '3.11.0'
 metadata:
   createdAt: 2025-11-04T00:31:57.544Z
   modifiedAt: 2025-11-04T00:33:32.073Z
