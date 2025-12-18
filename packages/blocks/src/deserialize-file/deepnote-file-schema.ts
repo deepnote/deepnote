@@ -26,8 +26,12 @@ export const environmentSchema = z
     hash: z.string().optional(),
     packages: z.record(z.string()).optional(),
     platform: z.string().optional(),
-    pythonEnvironment: z.enum(['uv', 'conda', 'venv', 'poetry', 'system']).optional(),
-    pythonVersion: z.string().optional(),
+    python: z
+      .object({
+        environment: z.enum(['uv', 'conda', 'venv', 'poetry', 'system']).optional(),
+        version: z.string().optional(),
+      })
+      .optional(),
   })
   .optional()
 

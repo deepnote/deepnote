@@ -211,8 +211,10 @@ describe('Snapshot fields roundtrip', () => {
     const original: DeepnoteFile = {
       environment: {
         hash: 'sha256:abc123',
-        pythonVersion: '3.12.0',
-        pythonEnvironment: 'uv',
+        python: {
+          version: '3.12.0',
+          environment: 'uv',
+        },
         platform: 'linux-x86_64',
         packages: {
           pandas: '2.1.0',
