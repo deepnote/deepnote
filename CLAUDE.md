@@ -7,7 +7,8 @@ This document provides guidelines for Claude (AI assistant) when working on the 
 This is a TypeScript monorepo for Deepnote's open-source packages, managed with pnpm workspaces. The repository contains:
 
 - **packages/blocks** - Core package for working with Deepnote blocks and notebook files
-- **packages/hello-world** - Example package
+- **packages/convert** - Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`)
+- **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
 
 ## Development Workflow
 
