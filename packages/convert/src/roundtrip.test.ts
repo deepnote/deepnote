@@ -1,6 +1,7 @@
 // cspell:ignore roundtripped
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
+import type { DeepnoteFile } from '@deepnote/blocks'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { convertDeepnoteToJupyterNotebooks } from './deepnote-to-jupyter'
@@ -202,5 +203,156 @@ describe('Jupyter → Deepnote → Jupyter roundtrip', () => {
         expect(roundtripped.cells[i].outputs).toEqual(original.cells[i].outputs)
       }
     }
+  })
+})
+
+describe('Snapshot fields roundtrip', () => {
+  it('preserves environment and execution during Deepnote → Jupyter → Deepnote', () => {
+    const original: DeepnoteFile = {
+      environment: {
+        hash: 'sha256:abc123',
+        python: {
+          version: '3.12.0',
+          environment: 'uv',
+        },
+        platform: 'linux-x86_64',
+        packages: {
+          pandas: '2.1.0',
+          numpy: '1.26.0',
+        },
+      },
+      execution: {
+        startedAt: '2025-12-11T10:31:48.441Z',
+        finishedAt: '2025-12-11T10:32:15.123Z',
+        triggeredBy: 'user',
+        inputs: { store: 'NYC-001' },
+        summary: {
+          blocksExecuted: 2,
+          blocksSucceeded: 2,
+          blocksFailed: 0,
+          totalDurationMs: 27000,
+        },
+      },
+      metadata: {
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      project: {
+        id: 'project-123',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'notebook-1',
+            name: 'Test Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                type: 'code',
+                sortingKey: '0',
+                content: 'x = 10',
+              },
+            ],
+          },
+        ],
+      },
+      version: '1.0.0',
+    }
+
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
+    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+      projectName: original.project.name,
+    })
+
+    expect(roundtripped.environment).toEqual(original.environment)
+    expect(roundtripped.execution).toEqual(original.execution)
+  })
+
+  it('preserves block snapshot fields during Deepnote → Jupyter → Deepnote', () => {
+    const original: DeepnoteFile = {
+      metadata: {
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      project: {
+        id: 'project-123',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'notebook-1',
+            name: 'Test Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                type: 'code',
+                sortingKey: '0',
+                content: 'x = 10',
+                contentHash: 'md5:d3b07384d113edec49eaa6238ad5ff00',
+                executionStartedAt: '2025-12-11T10:31:45.123Z',
+                executionFinishedAt: '2025-12-11T10:31:45.138Z',
+              },
+              {
+                id: 'block-2',
+                type: 'code',
+                sortingKey: '1',
+                content: 'y = x * 2',
+                contentHash: 'md5:e1671797c52e15f763380b45e841ec32',
+                executionStartedAt: '2025-12-11T10:31:45.200Z',
+                executionFinishedAt: '2025-12-11T10:31:45.650Z',
+              },
+            ],
+          },
+        ],
+      },
+      version: '1.0.0',
+    }
+
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
+    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+      projectName: original.project.name,
+    })
+
+    const originalBlocks = original.project.notebooks[0].blocks
+    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+
+    for (let i = 0; i < originalBlocks.length; i++) {
+      expect(roundtrippedBlocks[i].contentHash).toBe(originalBlocks[i].contentHash)
+      expect(roundtrippedBlocks[i].executionStartedAt).toBe(originalBlocks[i].executionStartedAt)
+      expect(roundtrippedBlocks[i].executionFinishedAt).toBe(originalBlocks[i].executionFinishedAt)
+    }
+  })
+
+  it('preserves execution error during roundtrip', () => {
+    const original: DeepnoteFile = {
+      execution: {
+        startedAt: '2025-12-11T10:31:48.441Z',
+        finishedAt: '2025-12-11T10:32:15.123Z',
+        triggeredBy: 'schedule',
+        error: {
+          name: 'KernelCrash',
+          message: 'Kernel died unexpectedly',
+          traceback: ['line 1', 'line 2'],
+        },
+      },
+      metadata: {
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      project: {
+        id: 'project-123',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'notebook-1',
+            name: 'Test Notebook',
+            blocks: [],
+          },
+        ],
+      },
+      version: '1.0.0',
+    }
+
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
+    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+      projectName: original.project.name,
+    })
+
+    expect(roundtripped.execution?.error).toEqual(original.execution?.error)
   })
 })

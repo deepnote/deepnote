@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
+import { environmentSchema, executionSchema } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
@@ -58,7 +59,29 @@ export function convertJupyterNotebooksToDeepnote(
   notebooks: JupyterNotebookInput[],
   options: { projectName: string }
 ): DeepnoteFile {
+  // Extract environment and execution from the first notebook that has them
+  // (these are project-level fields stored in notebook metadata during conversion)
+  let environment: Environment | undefined
+  let execution: Execution | undefined
+
+  for (const { notebook } of notebooks) {
+    if (!environment && notebook.metadata?.deepnote_environment) {
+      const parsed = environmentSchema.safeParse(notebook.metadata.deepnote_environment)
+      if (parsed.success) {
+        environment = parsed.data
+      }
+    }
+    if (!execution && notebook.metadata?.deepnote_execution) {
+      const parsed = executionSchema.safeParse(notebook.metadata.deepnote_execution)
+      if (parsed.success) {
+        execution = parsed.data
+      }
+    }
+  }
+
   const deepnoteFile: DeepnoteFile = {
+    environment,
+    execution,
     metadata: {
       createdAt: new Date().toISOString(),
     },
@@ -157,6 +180,11 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   const deepnoteCellType = cell.metadata?.deepnote_cell_type as string | undefined
   const sortingKey = cell.metadata?.deepnote_sorting_key as string | undefined
 
+  // Restore snapshot fields from metadata
+  const contentHash = cell.metadata?.deepnote_content_hash as string | undefined
+  const executionStartedAt = cell.metadata?.deepnote_execution_started_at as string | undefined
+  const executionFinishedAt = cell.metadata?.deepnote_execution_finished_at as string | undefined
+
   // Determine blockGroup: prefer metadata, fall back to top-level field, then generate
   // Cloud-exported notebooks may have block_group at top level
   const blockGroup = cell.metadata?.deepnote_block_group ?? cell.block_group ?? idGenerator()
@@ -176,6 +204,9 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   delete originalMetadata.deepnote_block_group
   delete originalMetadata.deepnote_sorting_key
   delete originalMetadata.deepnote_source
+  delete originalMetadata.deepnote_content_hash
+  delete originalMetadata.deepnote_execution_started_at
+  delete originalMetadata.deepnote_execution_finished_at
   // Also remove top-level block_group from metadata to avoid duplication
   delete (cell as { block_group?: unknown }).block_group
 
@@ -188,7 +219,10 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   return {
     blockGroup,
     content: source,
+    ...(contentHash ? { contentHash } : {}),
     ...(hasExecutionCount ? { executionCount } : {}),
+    ...(executionFinishedAt ? { executionFinishedAt } : {}),
+    ...(executionStartedAt ? { executionStartedAt } : {}),
     id: cellId ?? idGenerator(),
     metadata: originalMetadata,
     ...(hasOutputs ? { outputs: cell.outputs } : {}),
