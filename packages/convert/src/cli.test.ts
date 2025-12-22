@@ -797,6 +797,23 @@ version: "1.0.0"`
     ).rejects.toThrow('Unsupported Python file format')
   })
 
+  it('throws error for Python files with marimo/percent in comments', async () => {
+    const pyPath = path.join(tempDir, 'commented.py')
+    const content = `# This file mentions import marimo in a comment
+# and @app.cell too
+# but it's not actually a marimo file
+print("regular python file")
+`
+    await fs.writeFile(pyPath, content, 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: pyPath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Unsupported Python file format')
+  })
+
   it('creates parent directories when outputPath has non-existent parent dirs', async () => {
     // Create a test notebook
     const notebookPath = path.join(tempDir, 'test.ipynb')

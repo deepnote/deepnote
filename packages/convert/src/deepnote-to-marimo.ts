@@ -59,14 +59,21 @@ export function convertDeepnoteToMarimoApps(deepnoteFile: DeepnoteFile): Array<{
 export function serializeMarimoFormat(app: MarimoApp): string {
   const lines: string[] = []
 
-  // Add import
-  lines.push('import marimo')
+  // Check if we have any markdown cells
+  const hasMarkdownCells = app.cells.some(cell => cell.cellType === 'markdown')
+
+  // Add import - use 'as mo' alias if there are markdown cells
+  if (hasMarkdownCells) {
+    lines.push('import marimo as mo')
+  } else {
+    lines.push('import marimo')
+  }
   lines.push('')
 
   // Add version marker
   lines.push(`__generated_with = "${app.generatedWith || MARIMO_VERSION}"`)
 
-  // Add app initialization
+  // Add app initialization - use mo or marimo based on import
   const appOptions: string[] = []
   if (app.width) {
     appOptions.push(`width="${app.width}"`)
@@ -74,8 +81,9 @@ export function serializeMarimoFormat(app: MarimoApp): string {
   if (app.title) {
     appOptions.push(`title="${escapeString(app.title)}"`)
   }
+  const marimoRef = hasMarkdownCells ? 'mo' : 'marimo'
   const optionsStr = appOptions.length > 0 ? appOptions.join(', ') : ''
-  lines.push(`app = marimo.App(${optionsStr})`)
+  lines.push(`app = ${marimoRef}.App(${optionsStr})`)
   lines.push('')
   lines.push('')
 
@@ -203,10 +211,38 @@ function isMarkdownBlockType(blockType: string): boolean {
   return markdownTypes.includes(blockType)
 }
 
+/**
+ * Escapes a string for use in a Python double-quoted string literal.
+ * Handles backslashes, quotes, control characters, and non-printable characters.
+ */
 function escapeString(str: string): string {
-  return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return (
+    str
+      .replace(/\\/g, '\\\\') // Backslash must be first
+      .replace(/"/g, '\\"') // Double quotes
+      .replace(/\n/g, '\\n') // Newline
+      .replace(/\r/g, '\\r') // Carriage return
+      .replace(/\t/g, '\\t') // Tab
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally matching backspace character
+      .replace(/[\x08]/g, '\\b') // Backspace (use hex to avoid \b word boundary)
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally matching form feed character
+      .replace(/[\x0C]/g, '\\f') // Form feed (use hex to avoid literal control char)
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally matching control characters for escaping
+      .replace(/[\x00-\x07\x0B\x0E-\x1F\x7F-\x9F]/g, char => {
+        // Escape other control characters as \uXXXX
+        const code = char.charCodeAt(0)
+        return `\\u${code.toString(16).padStart(4, '0')}`
+      })
+  )
 }
 
+/**
+ * Escapes content for use in a Python raw triple-quoted string (r""").
+ * Raw strings don't interpret escape sequences except for quotes.
+ * We need to handle embedded triple quotes and ensure the string ends properly.
+ */
 function escapeTripleQuote(str: string): string {
-  return str.replace(/"""/g, '\\"\\"\\"')
+  // In raw strings, we can't use backslash escapes except at the end
+  // The safest approach is to break up any """ sequences
+  return str.replace(/"""/g, '""\\"""')
 }

@@ -48,12 +48,12 @@ export function parseMarimoFormat(content: string): MarimoApp {
   const versionMatch = /__generated_with\s*=\s*["']([^"']+)["']/.exec(content)
   const generatedWith = versionMatch?.[1]
 
-  // Extract app width
-  const widthMatch = /marimo\.App\([^)]*width\s*=\s*["']([^"']+)["']/.exec(content)
+  // Extract app width - handle both 'marimo.App' and 'mo.App'
+  const widthMatch = /(?:marimo|mo)\.App\([^)]*width\s*=\s*["']([^"']+)["']/.exec(content)
   const width = widthMatch?.[1]
 
-  // Extract title
-  const titleMatch = /marimo\.App\([^)]*title\s*=\s*["']([^"']+)["']/.exec(content)
+  // Extract title - handle both 'marimo.App' and 'mo.App'
+  const titleMatch = /(?:marimo|mo)\.App\([^)]*title\s*=\s*["']([^"']+)["']/.exec(content)
   const title = titleMatch?.[1]
 
   // Parse cells - look for @app.cell decorated functions

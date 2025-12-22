@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { v4 } from 'uuid'
-import { stringify } from 'yaml'
+import { parse as parseYaml, stringify } from 'yaml'
 import type { QuartoCell, QuartoCellOptions, QuartoDocument, QuartoFrontmatter } from './types/quarto'
 import { createSortingKey } from './utils'
 
@@ -49,15 +49,19 @@ export function parseQuartoFormat(content: string): QuartoDocument {
   let frontmatter: QuartoFrontmatter | undefined
   let mainContent = content
 
-  const frontmatterMatch = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content)
+  // Match YAML frontmatter between --- markers (allows empty content)
+  const frontmatterMatch = /^---\r?\n([\s\S]*?)---\r?\n?/.exec(content)
   if (frontmatterMatch) {
-    frontmatter = parseYamlFrontmatter(frontmatterMatch[1])
+    const parsed = parseYamlFrontmatter(frontmatterMatch[1])
+    // Always set frontmatter if there's a frontmatter block, even if empty
+    frontmatter = parsed
     mainContent = content.slice(frontmatterMatch[0].length)
   }
 
   // Split content into chunks based on code fences
   // Match ```{language} ... ``` patterns
-  const codeChunkRegex = /```\{(\w+)\}\r?\n([\s\S]*?)```/g
+  // Allow hyphens in language identifiers (e.g., python-repl)
+  const codeChunkRegex = /```\{([\w-]+)\}\r?\n([\s\S]*?)```/g
 
   let lastIndex = 0
   let match: RegExpExecArray | null = codeChunkRegex.exec(mainContent)
@@ -115,35 +119,33 @@ export function parseQuartoFormat(content: string): QuartoDocument {
 
 /**
  * Parses YAML frontmatter string into a QuartoFrontmatter object.
- * This is a simplified parser - for production use, consider using a full YAML library.
+ * Uses the yaml package to properly handle nested objects, arrays, and all YAML features.
  */
-function parseYamlFrontmatter(yaml: string): QuartoFrontmatter {
-  const frontmatter: QuartoFrontmatter = {}
-  const lines = yaml.split('\n')
-
-  for (const line of lines) {
-    const match = /^(\w+):\s*(.*)$/.exec(line)
-    if (match) {
-      const key = match[1]
-      let value: string | boolean = match[2].trim()
-
-      // Handle quoted strings
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1)
-      }
-
-      // Handle boolean values
-      if (value === 'true') {
-        frontmatter[key] = true
-      } else if (value === 'false') {
-        frontmatter[key] = false
-      } else {
-        frontmatter[key] = value
-      }
-    }
+function parseYamlFrontmatter(yamlString: string): QuartoFrontmatter {
+  // Handle empty input
+  if (!yamlString || yamlString.trim() === '') {
+    return {}
   }
 
-  return frontmatter
+  try {
+    const parsed = parseYaml(yamlString)
+
+    // If parsing returns null or undefined, return empty object
+    if (parsed === null || parsed === undefined) {
+      return {}
+    }
+
+    // Ensure the result is an object (not a primitive or array)
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+
+    return parsed as QuartoFrontmatter
+  } catch {
+    // If YAML parsing fails, return empty object
+    // In production, you might want to log this error
+    return {}
+  }
 }
 
 /**
@@ -173,41 +175,110 @@ function parseQuartoCellOptions(content: string): QuartoCellOptions | undefined 
         value = true
       } else if (value === 'false') {
         value = false
-      } else if (!Number.isNaN(Number(value))) {
-        value = Number(value)
+      } else {
+        // Try to parse as number, but only if it's finite
+        const num = Number(value)
+        if (!Number.isNaN(num) && Number.isFinite(num)) {
+          value = num
+        }
+        // Otherwise keep as string
       }
 
-      // Map to typed properties
+      // Map to typed properties with runtime type validation
       switch (key) {
         case 'label':
-          options.label = value as string
+          if (typeof value === 'string') {
+            options.label = value
+          } else {
+            raw[key] = value
+          }
           break
         case 'echo':
-          options.echo = value as boolean
+          if (typeof value === 'boolean') {
+            options.echo = value
+          } else if (value === 'true' || value === 'false') {
+            options.echo = value === 'true'
+          } else {
+            raw[key] = value
+          }
           break
         case 'eval':
-          options.eval = value as boolean
+          if (typeof value === 'boolean') {
+            options.eval = value
+          } else if (value === 'true' || value === 'false') {
+            options.eval = value === 'true'
+          } else {
+            raw[key] = value
+          }
           break
         case 'output':
-          options.output = value as boolean
+          if (typeof value === 'boolean') {
+            options.output = value
+          } else if (value === 'true' || value === 'false') {
+            options.output = value === 'true'
+          } else {
+            raw[key] = value
+          }
           break
         case 'fig-cap':
-          options.figCap = value as string
+          if (typeof value === 'string') {
+            options.figCap = value
+          } else {
+            raw[key] = value
+          }
           break
         case 'fig-width':
-          options.figWidth = value as number
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            options.figWidth = value
+          } else if (typeof value === 'string') {
+            const num = Number(value)
+            if (!Number.isNaN(num) && Number.isFinite(num)) {
+              options.figWidth = num
+            } else {
+              raw[key] = value
+            }
+          } else {
+            raw[key] = value
+          }
           break
         case 'fig-height':
-          options.figHeight = value as number
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            options.figHeight = value
+          } else if (typeof value === 'string') {
+            const num = Number(value)
+            if (!Number.isNaN(num) && Number.isFinite(num)) {
+              options.figHeight = num
+            } else {
+              raw[key] = value
+            }
+          } else {
+            raw[key] = value
+          }
           break
         case 'tbl-cap':
-          options.tblCap = value as string
+          if (typeof value === 'string') {
+            options.tblCap = value
+          } else {
+            raw[key] = value
+          }
           break
         case 'warning':
-          options.warning = value as boolean
+          if (typeof value === 'boolean') {
+            options.warning = value
+          } else if (value === 'true' || value === 'false') {
+            options.warning = value === 'true'
+          } else {
+            raw[key] = value
+          }
           break
         case 'message':
-          options.message = value as boolean
+          if (typeof value === 'boolean') {
+            options.message = value
+          } else if (value === 'true' || value === 'false') {
+            options.message = value === 'true'
+          } else {
+            raw[key] = value
+          }
           break
         default:
           raw[key] = value

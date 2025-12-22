@@ -113,7 +113,6 @@
     "nbconvert",
     "Papermill",
     "Jupytext",
-    "workflows",
     "reparsed",
     "ggplot",
     "Spyder"

@@ -8,15 +8,18 @@ project:
     - id: 00000000-0000-0000-0000-000000000002
       name: Notebook1
       blocks:
-        - id: 00000000-0000-0000-0000-000000000003
+        - blockGroup: "0"
+          id: 00000000-0000-0000-0000-000000000003
           sortingKey: "0"
           type: markdown
           content: "# Hello World"
-        - id: 00000000-0000-0000-0000-000000000004
+        - blockGroup: "1"
+          id: 00000000-0000-0000-0000-000000000004
           sortingKey: "1"
           type: code
           content: 'print("Hello, World!")'
-        - id: 00000000-0000-0000-0000-000000000005
+        - blockGroup: "2"
+          id: 00000000-0000-0000-0000-000000000005
           sortingKey: "2"
           type: code
           content: |

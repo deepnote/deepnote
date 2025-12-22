@@ -353,7 +353,8 @@ function isMarimoFile(filename: string): boolean {
 
 /** Check if file content is Marimo format */
 function isMarimoContent(content: string): boolean {
-  return content.includes('import marimo') && content.includes('@app.cell')
+  // Check for marimo import at line start (not in comments/strings)
+  return /^import marimo\b/m.test(content) && /@app\.cell\b/.test(content)
 }
 
 /** Check if file content is percent format */

@@ -23,6 +23,7 @@ describe('serializeMarimoFormat', () => {
     const result = serializeMarimoFormat(app)
 
     expect(result).toContain('import marimo')
+    expect(result).toContain('app = marimo.App(')
     expect(result).toContain('__generated_with = "0.10.0"')
     expect(result).toContain('width="full"')
     expect(result).toContain('title="My Notebook"')
@@ -35,6 +36,8 @@ describe('serializeMarimoFormat', () => {
 
     const result = serializeMarimoFormat(app)
 
+    expect(result).toContain('import marimo')
+    expect(result).toContain('app = marimo.App()')
     expect(result).toContain('@app.cell')
     expect(result).toContain('def __():')
     expect(result).toContain('print("hello")')
@@ -47,6 +50,8 @@ describe('serializeMarimoFormat', () => {
 
     const result = serializeMarimoFormat(app)
 
+    expect(result).toContain('import marimo as mo')
+    expect(result).toContain('app = mo.App()')
     expect(result).toContain('@app.cell')
     expect(result).toContain('mo.md(r"""')
     expect(result).toContain('# Hello World')
@@ -304,6 +309,147 @@ describe('convertDeepnoteFileToMarimoFiles error handling', () => {
     const outputDir = path.join(tempDir, 'output')
 
     await expect(convertDeepnoteFileToMarimoFiles(invalidYamlPath, { outputDir })).rejects.toThrow()
+  })
+})
+
+describe('Marimo import handling', () => {
+  it('uses "import marimo as mo" when there are markdown cells', () => {
+    const app = {
+      cells: [
+        { cellType: 'code' as const, content: 'x = 1' },
+        { cellType: 'markdown' as const, content: '# Title' },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('import marimo as mo')
+    expect(result).toContain('app = mo.App()')
+    expect(result).toContain('mo.md(r"""')
+  })
+
+  it('uses "import marimo" when there are only code cells', () => {
+    const app = {
+      cells: [
+        { cellType: 'code' as const, content: 'x = 1' },
+        { cellType: 'code' as const, content: 'y = 2' },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('import marimo')
+    expect(result).not.toContain('import marimo as mo')
+    expect(result).toContain('app = marimo.App()')
+  })
+})
+
+describe('String escaping', () => {
+  it('escapes control characters in title strings', () => {
+    const app = {
+      title: 'Title with\nnewline and\ttab',
+      cells: [],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('title="Title with\\nnewline and\\ttab"')
+  })
+
+  it('escapes backslashes and quotes in title strings', () => {
+    const app = {
+      title: 'Title with "quotes" and \\backslash',
+      cells: [],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('title="Title with \\"quotes\\" and \\\\backslash"')
+  })
+
+  it('escapes non-printable characters in title strings', () => {
+    const app = {
+      title: 'Title with\x00null\x1Fcontrol',
+      cells: [],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('\\u0000')
+    expect(result).toContain('\\u001f')
+  })
+
+  it('escapes triple quotes in markdown cells', () => {
+    const app = {
+      cells: [{ cellType: 'markdown' as const, content: 'Text with """ triple quotes' }],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('mo.md(r"""')
+    expect(result).toContain('Text with ""\\"""')
+    expect(result).toContain('""")')
+  })
+
+  it('handles markdown with multiple triple quote sequences', () => {
+    const app = {
+      cells: [{ cellType: 'markdown' as const, content: '""" first """ and """ second """' }],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // Each """ should be escaped
+    const tripleQuoteCount = (result.match(/""\\"""/g) || []).length
+    expect(tripleQuoteCount).toBeGreaterThanOrEqual(3) // At least 3 (opening + 2 content)
+  })
+
+  it('preserves newlines in markdown cells with raw strings', () => {
+    const app = {
+      cells: [{ cellType: 'markdown' as const, content: 'Line 1\nLine 2\nLine 3' }],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // Raw strings preserve literal newlines
+    expect(result).toContain('Line 1')
+    expect(result).toContain('Line 2')
+    expect(result).toContain('Line 3')
+  })
+
+  it('handles all control characters in title', () => {
+    const app = {
+      title: 'Test\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F',
+      cells: [],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // Should escape all control characters
+    expect(result).toContain('\\u0000') // null
+    expect(result).toContain('\\u0001') // start of heading
+    expect(result).toContain('\\t') // tab (0x09)
+    expect(result).toContain('\\n') // newline (0x0A)
+    expect(result).toContain('\\r') // carriage return (0x0D)
+    expect(result).toContain('\\b') // backspace (0x08)
+    expect(result).toContain('\\f') // form feed (0x0C)
+  })
+
+  it('generates valid Python code with special characters', () => {
+    const app = {
+      title: 'Test "quotes" and \\backslash\nand newline',
+      cells: [
+        { cellType: 'code' as const, content: 'x = 1' },
+        { cellType: 'markdown' as const, content: 'Markdown with """ triple quotes' },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // The generated code should be syntactically valid Python
+    expect(result).toContain('import marimo as mo')
+    expect(result).toContain('title="Test \\"quotes\\" and \\\\backslash\\nand newline"')
+    expect(result).toContain('mo.md(r"""')
+    expect(result).toContain('Markdown with ""\\"""')
   })
 })
 

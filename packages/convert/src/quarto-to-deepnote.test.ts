@@ -49,6 +49,92 @@ jupyter: python3
     expect(doc.frontmatter?.jupyter).toBe('python3')
   })
 
+  it('parses YAML frontmatter with nested objects', () => {
+    const content = `---
+title: "Complex Document"
+format:
+  html:
+    theme: cosmo
+    toc: true
+  pdf:
+    documentclass: article
+execute:
+  echo: false
+  warning: false
+---
+
+# Content here
+`
+    const doc = parseQuartoFormat(content)
+
+    expect(doc.frontmatter).toBeDefined()
+    expect(doc.frontmatter?.title).toBe('Complex Document')
+    expect(doc.frontmatter?.format).toEqual({
+      html: { theme: 'cosmo', toc: true },
+      pdf: { documentclass: 'article' },
+    })
+    expect(doc.frontmatter?.execute).toEqual({
+      echo: false,
+      warning: false,
+    })
+  })
+
+  it('parses YAML frontmatter with arrays', () => {
+    const content = `---
+title: "Document with Arrays"
+authors:
+  - name: Alice
+    affiliation: University A
+  - name: Bob
+    affiliation: University B
+keywords:
+  - data science
+  - machine learning
+  - python
+tags: [tag1, tag2, tag3]
+---
+
+# Content here
+`
+    const doc = parseQuartoFormat(content)
+
+    expect(doc.frontmatter).toBeDefined()
+    expect(doc.frontmatter?.title).toBe('Document with Arrays')
+    expect(doc.frontmatter?.authors).toEqual([
+      { name: 'Alice', affiliation: 'University A' },
+      { name: 'Bob', affiliation: 'University B' },
+    ])
+    expect(doc.frontmatter?.keywords).toEqual(['data science', 'machine learning', 'python'])
+    expect(doc.frontmatter?.tags).toEqual(['tag1', 'tag2', 'tag3'])
+  })
+
+  it('handles empty YAML frontmatter', () => {
+    const content = `---
+---
+
+# Content here
+`
+    const doc = parseQuartoFormat(content)
+
+    expect(doc.frontmatter).toBeDefined()
+    expect(Object.keys(doc.frontmatter || {}).length).toBe(0)
+  })
+
+  it('handles invalid YAML frontmatter gracefully', () => {
+    const content = `---
+title: "Unclosed quote
+invalid: [unclosed array
+---
+
+# Content here
+`
+    const doc = parseQuartoFormat(content)
+
+    // Should return empty frontmatter on parse error
+    expect(doc.frontmatter).toBeDefined()
+    expect(Object.keys(doc.frontmatter || {}).length).toBe(0)
+  })
+
   it('parses a simple code chunk', () => {
     const content = `# Introduction
 
@@ -76,6 +162,27 @@ library(ggplot2)
     expect(doc.cells).toHaveLength(1)
     expect(doc.cells[0].cellType).toBe('code')
     expect(doc.cells[0].language).toBe('r')
+  })
+
+  it('parses code chunks with hyphenated language identifiers', () => {
+    const content = `\`\`\`{python-repl}
+>>> print("hello")
+hello
+\`\`\`
+
+\`\`\`{some-custom-lang}
+code here
+\`\`\`
+`
+    const doc = parseQuartoFormat(content)
+
+    expect(doc.cells).toHaveLength(2)
+    expect(doc.cells[0].cellType).toBe('code')
+    expect(doc.cells[0].language).toBe('python-repl')
+    expect(doc.cells[0].content).toBe('>>> print("hello")\nhello')
+    expect(doc.cells[1].cellType).toBe('code')
+    expect(doc.cells[1].language).toBe('some-custom-lang')
+    expect(doc.cells[1].content).toBe('code here')
   })
 
   it('parses cell options with #| syntax', () => {
@@ -107,6 +214,97 @@ plt.show()
 
     expect(doc.cells[0].options?.figWidth).toBe(8)
     expect(doc.cells[0].options?.figHeight).toBe(6)
+  })
+
+  it('validates option types and preserves malformed values in raw', () => {
+    const content = `\`\`\`{python}
+#| label: valid-label
+#| echo: not-a-boolean
+#| fig-width: not-a-number
+#| fig-height: 10
+#| warning: false
+#| custom-option: some-value
+print("test")
+\`\`\`
+`
+    const doc = parseQuartoFormat(content)
+
+    expect(doc.cells).toHaveLength(1)
+    const options = doc.cells[0].options
+
+    // Valid values should be in typed fields
+    expect(options?.label).toBe('valid-label')
+    expect(options?.figHeight).toBe(10)
+    expect(options?.warning).toBe(false)
+
+    // Invalid values should be in raw
+    expect(options?.echo).toBeUndefined()
+    expect(options?.figWidth).toBeUndefined()
+    expect(options?.raw?.echo).toBe('not-a-boolean')
+    expect(options?.raw?.['fig-width']).toBe('not-a-number')
+
+    // Unknown options should be in raw
+    expect(options?.raw?.['custom-option']).toBe('some-value')
+  })
+
+  it('accepts string representations of booleans', () => {
+    const content = `\`\`\`{python}
+#| echo: "true"
+#| eval: "false"
+#| output: true
+#| warning: false
+print("test")
+\`\`\`
+`
+    const doc = parseQuartoFormat(content)
+
+    const options = doc.cells[0].options
+    expect(options?.echo).toBe(true)
+    expect(options?.eval).toBe(false)
+    expect(options?.output).toBe(true)
+    expect(options?.warning).toBe(false)
+  })
+
+  it('accepts string representations of numbers', () => {
+    const content = `\`\`\`{python}
+#| fig-width: "8.5"
+#| fig-height: 6
+plt.show()
+\`\`\`
+`
+    const doc = parseQuartoFormat(content)
+
+    const options = doc.cells[0].options
+    expect(options?.figWidth).toBe(8.5)
+    expect(options?.figHeight).toBe(6)
+  })
+
+  it('handles edge cases in option values', () => {
+    const content = `\`\`\`{python}
+#| label: 123
+#| echo: maybe
+#| fig-width: NaN
+#| fig-height: Infinity
+print("test")
+\`\`\`
+`
+    const doc = parseQuartoFormat(content)
+
+    const options = doc.cells[0].options
+
+    // Number as label should go to raw (not a string)
+    expect(options?.label).toBeUndefined()
+    expect(options?.raw?.label).toBe(123)
+
+    // Invalid boolean should go to raw
+    expect(options?.echo).toBeUndefined()
+    expect(options?.raw?.echo).toBe('maybe')
+
+    // NaN and Infinity strings should go to raw (not valid numbers)
+    expect(options?.figWidth).toBeUndefined()
+    expect(options?.figHeight).toBeUndefined()
+    expect(options?.raw?.['fig-width']).toBe('NaN')
+    expect(options?.raw?.['fig-height']).toBe('Infinity')
   })
 
   it('parses multiple cells', () => {
