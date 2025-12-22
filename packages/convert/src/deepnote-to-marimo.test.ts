@@ -94,6 +94,33 @@ describe('serializeMarimoFormat', () => {
     expect(result).toContain('return result, summary,')
   })
 
+  it('does not indent empty lines in code cells', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'code' as const,
+          content: 'x = 1\n\ny = 2\n\n\nz = 3',
+        },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // Empty lines should not have indentation (no trailing spaces)
+    const lines = result.split('\n')
+    const emptyLines = lines.filter(line => line === '')
+    expect(emptyLines.length).toBeGreaterThan(0) // Should have empty lines
+
+    // Verify no lines are just whitespace (4 spaces)
+    const whitespaceOnlyLines = lines.filter(line => line === '    ')
+    expect(whitespaceOnlyLines.length).toBe(0)
+
+    // Non-empty code lines should still be indented
+    expect(result).toContain('    x = 1')
+    expect(result).toContain('    y = 2')
+    expect(result).toContain('    z = 3')
+  })
+
   it('serializes hidden cells', () => {
     const app = {
       cells: [
@@ -387,7 +414,8 @@ describe('String escaping', () => {
     const result = serializeMarimoFormat(app)
 
     expect(result).toContain('mo.md(r"""')
-    expect(result).toContain('Text with ""\\"""')
+    // Triple quotes are escaped by breaking the raw string and concatenating
+    expect(result).toContain('Text with """+\'"\'+r""" triple quotes')
     expect(result).toContain('""")')
   })
 
@@ -398,9 +426,30 @@ describe('String escaping', () => {
 
     const result = serializeMarimoFormat(app)
 
-    // Each """ should be escaped
-    const tripleQuoteCount = (result.match(/""\\"""/g) || []).length
-    expect(tripleQuoteCount).toBeGreaterThanOrEqual(3) // At least 3 (opening + 2 content)
+    // Each """ should be escaped by breaking the raw string
+    // The pattern """+'"'+r""" should appear for each embedded triple quote
+    const escapePattern = /"""\+'"'\+r"""/g
+    const escapeCount = (result.match(escapePattern) || []).length
+    expect(escapeCount).toBe(4) // 4 embedded triple quotes in the content
+  })
+
+  it('generates valid Python code with embedded triple quotes', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'markdown' as const,
+          content: 'Example: ```python\ncode = """\nMultiline\n"""\n```',
+        },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // Verify the structure: r"""..."""+'"'+r"""..."""
+    expect(result).toContain('mo.md(r"""')
+    expect(result).toContain('"""+\'"\'+r"""')
+    // The closing should still be """
+    expect(result).toMatch(/"""[)\s]*return/)
   })
 
   it('preserves newlines in markdown cells with raw strings', () => {
@@ -449,7 +498,7 @@ describe('String escaping', () => {
     expect(result).toContain('import marimo as mo')
     expect(result).toContain('title="Test \\"quotes\\" and \\\\backslash\\nand newline"')
     expect(result).toContain('mo.md(r"""')
-    expect(result).toContain('Markdown with ""\\"""')
+    expect(result).toContain('Markdown with """+\'"\'+r"""')
   })
 })
 

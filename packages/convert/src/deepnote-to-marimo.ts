@@ -119,7 +119,12 @@ export function serializeMarimoFormat(app: MarimoApp): string {
       // Code cell
       const contentLines = cell.content.split('\n')
       for (const contentLine of contentLines) {
-        lines.push(`    ${contentLine}`)
+        // Don't add indentation to empty or whitespace-only lines
+        if (contentLine.trim() === '') {
+          lines.push('')
+        } else {
+          lines.push(`    ${contentLine}`)
+        }
       }
 
       // Add return statement for exports
@@ -233,11 +238,11 @@ function escapeString(str: string): string {
 
 /**
  * Escapes content for use in a Python raw triple-quoted string (r""").
- * Raw strings don't interpret escape sequences except for quotes.
- * We need to handle embedded triple quotes and ensure the string ends properly.
+ * Raw strings don't interpret escape sequences, so we can't use backslashes to escape.
+ * When we encounter triple quotes, we break the raw string and concatenate with a regular string.
  */
 function escapeTripleQuote(str: string): string {
-  // In raw strings, we can't use backslash escapes except at the end
-  // The safest approach is to break up any """ sequences
-  return str.replace(/"""/g, '""\\"""')
+  // Split the raw string at """ and concatenate with a regular string containing the quote
+  // r"""text""" becomes r"""text""" + '"' + r"""more"""
+  return str.replace(/"""/g, '"""+\'"\'+r"""')
 }

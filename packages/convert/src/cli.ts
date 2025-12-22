@@ -191,12 +191,14 @@ async function convertDirectory(
   }
 }
 
-async function convertJupyterToDeepnote(
+async function convertSingleFileToDeepnote(
   absolutePath: string,
+  formatName: string,
+  converter: (paths: string[], opts: { projectName: string; outputPath: string }) => Promise<void>,
   resolveProjectName: (name?: string) => string,
   resolveOutputPath: (filename: string) => Promise<string>
 ): Promise<string> {
-  const spinner = ora('Converting the Jupyter Notebook to a Deepnote project...').start()
+  const spinner = ora(`Converting the ${formatName} to a Deepnote project...`).start()
 
   try {
     const ext = extname(absolutePath)
@@ -206,7 +208,7 @@ async function convertJupyterToDeepnote(
     const outputFilename = `${filenameWithoutExtension}.deepnote`
     const outputPath = await resolveOutputPath(outputFilename)
 
-    await convertIpynbFilesToDeepnoteFile([absolutePath], { projectName, outputPath })
+    await converter([absolutePath], { projectName, outputPath })
 
     spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
 
@@ -217,82 +219,60 @@ async function convertJupyterToDeepnote(
   }
 }
 
-async function convertQuartoToDeepnote(
+function convertJupyterToDeepnote(
   absolutePath: string,
   resolveProjectName: (name?: string) => string,
   resolveOutputPath: (filename: string) => Promise<string>
 ): Promise<string> {
-  const spinner = ora('Converting the Quarto document to a Deepnote project...').start()
-
-  try {
-    const ext = extname(absolutePath)
-    const filenameWithoutExtension = basename(absolutePath, ext)
-    const projectName = resolveProjectName(filenameWithoutExtension)
-
-    const outputFilename = `${filenameWithoutExtension}.deepnote`
-    const outputPath = await resolveOutputPath(outputFilename)
-
-    await convertQuartoFilesToDeepnoteFile([absolutePath], { projectName, outputPath })
-
-    spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
-
-    return outputPath
-  } catch (error) {
-    spinner.fail('Conversion failed')
-    throw error
-  }
+  return convertSingleFileToDeepnote(
+    absolutePath,
+    'Jupyter Notebook',
+    convertIpynbFilesToDeepnoteFile,
+    resolveProjectName,
+    resolveOutputPath
+  )
 }
 
-async function convertPercentToDeepnote(
+function convertQuartoToDeepnote(
   absolutePath: string,
   resolveProjectName: (name?: string) => string,
   resolveOutputPath: (filename: string) => Promise<string>
 ): Promise<string> {
-  const spinner = ora('Converting the percent format notebook to a Deepnote project...').start()
-
-  try {
-    const ext = extname(absolutePath)
-    const filenameWithoutExtension = basename(absolutePath, ext)
-    const projectName = resolveProjectName(filenameWithoutExtension)
-
-    const outputFilename = `${filenameWithoutExtension}.deepnote`
-    const outputPath = await resolveOutputPath(outputFilename)
-
-    await convertPercentFilesToDeepnoteFile([absolutePath], { projectName, outputPath })
-
-    spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
-
-    return outputPath
-  } catch (error) {
-    spinner.fail('Conversion failed')
-    throw error
-  }
+  return convertSingleFileToDeepnote(
+    absolutePath,
+    'Quarto document',
+    convertQuartoFilesToDeepnoteFile,
+    resolveProjectName,
+    resolveOutputPath
+  )
 }
 
-async function convertMarimoToDeepnote(
+function convertPercentToDeepnote(
   absolutePath: string,
   resolveProjectName: (name?: string) => string,
   resolveOutputPath: (filename: string) => Promise<string>
 ): Promise<string> {
-  const spinner = ora('Converting the Marimo notebook to a Deepnote project...').start()
+  return convertSingleFileToDeepnote(
+    absolutePath,
+    'percent format notebook',
+    convertPercentFilesToDeepnoteFile,
+    resolveProjectName,
+    resolveOutputPath
+  )
+}
 
-  try {
-    const ext = extname(absolutePath)
-    const filenameWithoutExtension = basename(absolutePath, ext)
-    const projectName = resolveProjectName(filenameWithoutExtension)
-
-    const outputFilename = `${filenameWithoutExtension}.deepnote`
-    const outputPath = await resolveOutputPath(outputFilename)
-
-    await convertMarimoFilesToDeepnoteFile([absolutePath], { projectName, outputPath })
-
-    spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
-
-    return outputPath
-  } catch (error) {
-    spinner.fail('Conversion failed')
-    throw error
-  }
+function convertMarimoToDeepnote(
+  absolutePath: string,
+  resolveProjectName: (name?: string) => string,
+  resolveOutputPath: (filename: string) => Promise<string>
+): Promise<string> {
+  return convertSingleFileToDeepnote(
+    absolutePath,
+    'Marimo notebook',
+    convertMarimoFilesToDeepnoteFile,
+    resolveProjectName,
+    resolveOutputPath
+  )
 }
 
 async function convertDeepnoteToFormat(

@@ -66,7 +66,7 @@ export function serializePercentFormat(notebook: PercentNotebook): string {
     }
 
     if (cell.tags && cell.tags.length > 0) {
-      const tagsStr = cell.tags.map(t => `"${t}"`).join(', ')
+      const tagsStr = cell.tags.map(t => JSON.stringify(t)).join(', ')
       marker += ` tags=[${tagsStr}]`
     }
 
@@ -148,8 +148,12 @@ function convertBlockToCell(block: DeepnoteBlock): PercentCell {
   const title = block.metadata?.title as string | undefined
   const tags = block.metadata?.tags as string[] | undefined
 
+  // Restore original cell type if it was a raw cell
+  const percentCellType = block.metadata?.percent_cell_type as string | undefined
+  const cellType: 'code' | 'markdown' | 'raw' = percentCellType === 'raw' ? 'raw' : isMarkdown ? 'markdown' : 'code'
+
   return {
-    cellType: isMarkdown ? 'markdown' : 'code',
+    cellType,
     content,
     ...(title ? { title } : {}),
     ...(tags && tags.length > 0 ? { tags } : {}),

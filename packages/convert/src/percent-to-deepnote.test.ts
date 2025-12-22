@@ -67,6 +67,18 @@ print("hello")
     expect(notebook.cells[0].content).toBe('Short markdown')
   })
 
+  it('parses raw cells', () => {
+    const content = `# %% [raw]
+Raw content here
+No processing
+`
+    const notebook = parsePercentFormat(content)
+
+    expect(notebook.cells).toHaveLength(1)
+    expect(notebook.cells[0].cellType).toBe('raw')
+    expect(notebook.cells[0].content).toBe('Raw content here\nNo processing')
+  })
+
   it('parses multiple cells', () => {
     const content = `# %% [markdown]
 # # Title
@@ -222,6 +234,24 @@ describe('convertPercentNotebookToBlocks', () => {
 
     expect(blocks[0].blockGroup).toBe('custom-id-1')
     expect(blocks[0].id).toBe('custom-id-2')
+  })
+
+  it('converts raw cells to markdown blocks with metadata', () => {
+    const notebook = {
+      cells: [
+        {
+          cellType: 'raw' as const,
+          content: 'Raw content\nNo processing',
+        },
+      ],
+    }
+
+    const blocks = convertPercentNotebookToBlocks(notebook)
+
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].type).toBe('markdown')
+    expect(blocks[0].content).toBe('Raw content\nNo processing')
+    expect(blocks[0].metadata).toHaveProperty('percent_cell_type', 'raw')
   })
 
   it('preserves title and tags in metadata', () => {

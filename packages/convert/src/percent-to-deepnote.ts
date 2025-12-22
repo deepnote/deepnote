@@ -232,9 +232,17 @@ export async function convertPercentFilesToDeepnoteFile(
 }
 
 function convertCellToBlock(cell: PercentCell, index: number, idGenerator: () => string): DeepnoteBlock {
-  const blockType = cell.cellType === 'markdown' ? 'markdown' : 'code'
+  // Map cell types to Deepnote block types
+  // Raw cells are treated as markdown but preserve original type in metadata
+  const blockType = cell.cellType === 'markdown' || cell.cellType === 'raw' ? 'markdown' : 'code'
 
   const metadata: Record<string, unknown> = {}
+
+  // Preserve original cell type for raw cells so they can be restored
+  if (cell.cellType === 'raw') {
+    metadata.percent_cell_type = 'raw'
+  }
+
   if (cell.title) {
     metadata.title = cell.title
   }

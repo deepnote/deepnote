@@ -9,7 +9,7 @@ import {
   convertDeepnoteToPercentNotebooks,
   serializePercentFormat,
 } from './deepnote-to-percent'
-import { parsePercentFormat } from './percent-to-deepnote'
+import { convertPercentNotebookToBlocks, parsePercentFormat } from './percent-to-deepnote'
 
 describe('serializePercentFormat', () => {
   it('serializes a simple code cell', () => {
@@ -84,6 +84,24 @@ df.head()
 `)
   })
 
+  it('serializes cells with tags containing special characters', () => {
+    const notebook = {
+      cells: [
+        {
+          cellType: 'code' as const,
+          content: 'print("test")',
+          tags: ['tag with "quotes"', 'tag with \\ backslash', 'tag with\nnewline'],
+        },
+      ],
+    }
+
+    const result = serializePercentFormat(notebook)
+
+    expect(result).toBe(`# %% tags=["tag with \\"quotes\\"", "tag with \\\\ backslash", "tag with\\nnewline"]
+print("test")
+`)
+  })
+
   it('serializes cells with both title and tags', () => {
     const notebook = {
       cells: [
@@ -133,6 +151,27 @@ describe('convertBlocksToPercentNotebook', () => {
     expect(notebook.cells).toHaveLength(1)
     expect(notebook.cells[0].cellType).toBe('markdown')
     expect(notebook.cells[0].content).toBe('# Hello World')
+  })
+
+  it('restores raw cells from metadata', () => {
+    const blocks: DeepnoteBlock[] = [
+      {
+        id: 'block-1',
+        type: 'markdown',
+        content: 'Raw content\nNo processing',
+        blockGroup: 'group-1',
+        sortingKey: '0',
+        metadata: {
+          percent_cell_type: 'raw',
+        },
+      },
+    ]
+
+    const notebook = convertBlocksToPercentNotebook(blocks)
+
+    expect(notebook.cells).toHaveLength(1)
+    expect(notebook.cells[0].cellType).toBe('raw')
+    expect(notebook.cells[0].content).toBe('Raw content\nNo processing')
   })
 
   it('converts code blocks', () => {
@@ -322,6 +361,28 @@ describe('convertDeepnoteFileToPercentFiles error handling', () => {
 })
 
 describe('Percent format roundtrip', () => {
+  it('preserves raw cells during roundtrip', () => {
+    const original = `# %% [raw]
+Raw content
+No processing
+
+# %% [markdown]
+# Markdown
+
+# %%
+print("code")
+`
+    const notebook = parsePercentFormat(original)
+    const serialized = serializePercentFormat(notebook)
+    const reparsed = parsePercentFormat(serialized)
+
+    expect(reparsed.cells.length).toBe(3)
+    expect(reparsed.cells[0].cellType).toBe('raw')
+    expect(reparsed.cells[0].content).toBe('Raw content\nNo processing')
+    expect(reparsed.cells[1].cellType).toBe('markdown')
+    expect(reparsed.cells[2].cellType).toBe('code')
+  })
+
   it('preserves content during parse → serialize roundtrip', () => {
     const original = `# %% [markdown]
 # # Hello World
@@ -345,6 +406,37 @@ x = 1
       expect(reparsed.cells[i].title).toBe(notebook.cells[i].title)
       expect(reparsed.cells[i].tags).toEqual(notebook.cells[i].tags)
     }
+  })
+
+  it('preserves raw cells through Deepnote roundtrip', () => {
+    const blocks: DeepnoteBlock[] = [
+      {
+        id: 'block-1',
+        type: 'markdown',
+        content: 'Raw content',
+        blockGroup: 'group-1',
+        sortingKey: '0',
+        metadata: {
+          percent_cell_type: 'raw',
+        },
+      },
+      {
+        id: 'block-2',
+        type: 'code',
+        content: 'print("test")',
+        blockGroup: 'group-2',
+        sortingKey: '1',
+      },
+    ]
+
+    // Convert to percent
+    const percentNotebook = convertBlocksToPercentNotebook(blocks)
+    expect(percentNotebook.cells[0].cellType).toBe('raw')
+
+    // Convert back to Deepnote
+    const roundtrippedBlocks = convertPercentNotebookToBlocks(percentNotebook)
+    expect(roundtrippedBlocks[0].type).toBe('markdown')
+    expect(roundtrippedBlocks[0].metadata).toHaveProperty('percent_cell_type', 'raw')
   })
 
   it('preserves Deepnote → Percent → Deepnote content', async () => {
