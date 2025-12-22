@@ -108,7 +108,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
   // Handle Jupyter notebooks
   if (ext === '.ipynb') {
-    return convertJupyterToDeeepnote(absolutePath, resolveProjectName, resolveOutputPath)
+    return convertJupyterToDeepnote(absolutePath, resolveProjectName, resolveOutputPath)
   }
 
   // Handle Quarto documents
@@ -191,7 +191,7 @@ async function convertDirectory(
   }
 }
 
-async function convertJupyterToDeeepnote(
+async function convertJupyterToDeepnote(
   absolutePath: string,
   resolveProjectName: (name?: string) => string,
   resolveOutputPath: (filename: string) => Promise<string>
@@ -342,9 +342,8 @@ async function convertDeepnoteToFormat(
 
 /** Check if a filename looks like a percent format file */
 function isPercentFile(filename: string): boolean {
-  // Percent files are .py files but we need to check content to be sure
-  // For directory scanning, we use naming convention hints
-  return filename.toLowerCase().endsWith('.percent.py') || filename.toLowerCase().endsWith('.py')
+  // Percent files use .percent.py naming convention for directory scanning
+  return filename.toLowerCase().endsWith('.percent.py')
 }
 
 /** Check if a filename looks like a Marimo file */

@@ -4,6 +4,7 @@ import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { MarimoApp, MarimoCell } from './types/marimo'
+import { createSortingKey } from './utils'
 
 export interface ConvertMarimoFilesToDeepnoteFileOptions {
   outputPath: string
@@ -271,31 +272,4 @@ function convertCellToBlock(cell: MarimoCell, index: number, idGenerator: () => 
     sortingKey: createSortingKey(index),
     type: blockType,
   }
-}
-
-function createSortingKey(index: number): string {
-  const maxLength = 6
-  const chars = '0123456789abcdefghijklmnopqrstuvwxyz'
-  const base = chars.length
-
-  if (index < 0) {
-    throw new Error('Index must be non-negative')
-  }
-
-  let result = ''
-  let num = index + 1
-  let iterations = 0
-
-  while (num > 0 && iterations < maxLength) {
-    num--
-    result = chars[num % base] + result
-    num = Math.floor(num / base)
-    iterations++
-  }
-
-  if (num > 0) {
-    throw new Error(`Index ${index} exceeds maximum key length of ${maxLength}`)
-  }
-
-  return result
 }

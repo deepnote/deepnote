@@ -258,7 +258,7 @@ version: "1.0.0"`
 
     const files = await fs.readdir(outputDir)
 
-    expect(files).toEqual(['Test-Notebook.ipynb'])
+    expect(files).toEqual(['Test_Notebook.ipynb'])
   })
 
   it('throws error for non-existent paths', async () => {

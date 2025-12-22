@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
+import { sanitizeFileName } from './utils'
 
 export interface ConvertDeepnoteFileToJupyterOptions {
   outputDir: string
@@ -195,8 +196,4 @@ function convertNotebookToJupyter(
     environment: deepnoteFile.environment,
     execution: deepnoteFile.execution,
   })
-}
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '-')
 }

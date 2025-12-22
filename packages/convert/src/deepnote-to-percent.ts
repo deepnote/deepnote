@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { PercentCell, PercentNotebook } from './types/percent'
+import { sanitizeFileName } from './utils'
 
 export interface ConvertDeepnoteFileToPercentOptions {
   outputDir: string
@@ -158,8 +159,4 @@ function convertBlockToCell(block: DeepnoteBlock): PercentCell {
 function isMarkdownBlockType(blockType: string): boolean {
   const markdownTypes = ['markdown', 'text', 'separator', 'heading', 'image']
   return markdownTypes.includes(blockType)
-}
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '-')
 }
