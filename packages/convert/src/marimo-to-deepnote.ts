@@ -58,15 +58,20 @@ export function parseMarimoFormat(content: string): MarimoApp {
 
   // Parse cells - look for @app.cell decorated functions
   // This regex matches @app.cell (with optional parameters) followed by def
+  // Capture group 1: decorator arguments (if any)
+  // Capture group 2: function name
+  // Capture group 3: function parameters
+  // Capture group 4: function body
   const cellRegex =
-    /@app\.cell(?:\([^)]*\))?\s*\n\s*def\s+(\w+)\s*\(([^)]*)\)\s*(?:->.*?)?\s*:\s*\n([\s\S]*?)(?=@app\.cell|if\s+__name__|$)/g
+    /@app\.cell(?:\(([^)]*)\))?\s*\n\s*def\s+(\w+)\s*\(([^)]*)\)\s*(?:->.*?)?\s*:\s*\n([\s\S]*?)(?=@app\.cell|if\s+__name__|$)/g
 
   let match: RegExpExecArray | null = cellRegex.exec(content)
 
   while (match !== null) {
-    const functionName = match[1]
-    const params = match[2].trim()
-    let body = match[3]
+    const decoratorArgs = match[1] || ''
+    const functionName = match[2]
+    const params = match[3].trim()
+    let body = match[4]
 
     // Parse dependencies from parameters
     const dependencies = params
@@ -94,10 +99,9 @@ export function parseMarimoFormat(content: string): MarimoApp {
       }
     }
 
-    // Check for hidden/disabled decorators
-    const decoratorLine = content.slice(Math.max(0, match.index - 100), match.index)
-    const hidden = /hide_code\s*=\s*True/.test(decoratorLine) || /@app\.cell\(hide_code\s*=\s*True\)/.test(match[0])
-    const disabled = /disabled\s*=\s*True/.test(decoratorLine)
+    // Parse decorator arguments directly from the captured decorator line
+    const hidden = /hide_code\s*=\s*True/.test(decoratorArgs)
+    const disabled = /disabled\s*=\s*True/.test(decoratorArgs)
 
     // Remove return statement and leading/trailing whitespace from body
     // Handle both "return" and "return var," patterns
@@ -119,8 +123,11 @@ export function parseMarimoFormat(content: string): MarimoApp {
 
     if (isMarkdown) {
       // Extract markdown content from mo.md() call
+      // Support all valid Python string prefixes: r, f, rf, fr, or none
       const mdMatch =
-        /(?:mo|marimo)\.md\s*\(\s*(?:r?(?:f?"""([\s\S]*?)"""|f?'''([\s\S]*?)'''|"([^"]*)"|'([^']*)'))\s*\)/.exec(body)
+        /(?:mo|marimo)\.md\s*\(\s*(?:(?:r|f|rf|fr)?(?:"""([\s\S]*?)"""|'''([\s\S]*?)'''|"([^"]*)"|'([^']*)'))\s*\)/.exec(
+          body
+        )
       if (mdMatch) {
         const mdContent = mdMatch[1] || mdMatch[2] || mdMatch[3] || mdMatch[4] || ''
         cells.push({

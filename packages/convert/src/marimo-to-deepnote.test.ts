@@ -125,6 +125,49 @@ if __name__ == "__main__":
     expect(mdCell?.content).toContain('Hello World')
   })
 
+  it('parses markdown cells with all valid string prefixes', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    import marimo as mo
+    return mo,
+
+@app.cell
+def __(mo):
+    mo.md(rf"""Markdown with rf prefix""")
+    return
+
+@app.cell
+def __(mo):
+    mo.md(fr"""Markdown with fr prefix""")
+    return
+
+@app.cell
+def __(mo):
+    mo.md(f"""Markdown with f prefix""")
+    return
+
+@app.cell
+def __(mo):
+    mo.md("""Markdown with no prefix""")
+    return
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    const mdCells = app.cells.filter(c => c.cellType === 'markdown')
+    expect(mdCells.length).toBe(4)
+    expect(mdCells[0].content).toContain('rf prefix')
+    expect(mdCells[1].content).toContain('fr prefix')
+    expect(mdCells[2].content).toContain('f prefix')
+    expect(mdCells[3].content).toContain('no prefix')
+  })
+
   it('parses hidden cells', () => {
     const content = `import marimo
 
@@ -142,6 +185,36 @@ if __name__ == "__main__":
 
     expect(app.cells).toHaveLength(1)
     expect(app.cells[0].hidden).toBe(true)
+  })
+
+  it('parses decorator arguments correctly even with long preceding lines', () => {
+    // This test verifies that decorator parsing doesn't rely on fixed lookback
+    const content = `import marimo
+
+app = marimo.App()
+
+# This is a very long comment line that exceeds 100 characters to ensure the old lookback approach would fail to capture the decorator correctly if it were still being used in the implementation
+
+@app.cell(hide_code=True, disabled=True)
+def __():
+    print("hidden and disabled")
+    return
+
+@app.cell
+def __():
+    print("normal cell")
+    return
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(2)
+    expect(app.cells[0].hidden).toBe(true)
+    expect(app.cells[0].disabled).toBe(true)
+    expect(app.cells[1].hidden).toBeUndefined()
+    expect(app.cells[1].disabled).toBeUndefined()
   })
 
   it('parses named functions', () => {
