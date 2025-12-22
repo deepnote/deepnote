@@ -188,12 +188,13 @@ if __name__ == "__main__":
   })
 
   it('parses decorator arguments correctly even with long preceding lines', () => {
-    // This test verifies that decorator parsing captures arguments directly from the regex match
+    // Verifies decorator arguments (hide_code, disabled) are captured directly from the regex match,
+    // so parsing works regardless of how much content precedes the decorator
     const content = `import marimo
 
 app = marimo.App()
 
-# This is a very long comment line that exceeds 100 characters to ensure fixed-offset slicing would fail to capture the decorator correctly if it were still being used
+# This is a very long comment line that exceeds 100 characters and demonstrates that preceding content length does not affect decorator argument parsing
 
 @app.cell(hide_code=True, disabled=True)
 def __():
