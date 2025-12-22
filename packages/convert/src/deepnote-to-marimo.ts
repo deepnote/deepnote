@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { MarimoApp, MarimoCell } from './types/marimo'
-import { sanitizeFileName } from './utils'
+import { isMarkdownBlockType, sanitizeFileName } from './utils'
 
 export interface ConvertDeepnoteFileToMarimoOptions {
   outputDir: string
@@ -204,11 +204,6 @@ function convertBlockToCell(block: DeepnoteBlock): MarimoCell {
     ...(hidden ? { hidden } : {}),
     ...(disabled ? { disabled } : {}),
   }
-}
-
-function isMarkdownBlockType(blockType: string): boolean {
-  const markdownTypes = ['markdown', 'text', 'separator', 'heading', 'image']
-  return markdownTypes.includes(blockType)
 }
 
 /**

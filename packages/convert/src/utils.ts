@@ -41,3 +41,29 @@ export function createSortingKey(index: number): string {
 export function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_')
 }
+
+/**
+ * Deepnote block types that should be converted to code cells.
+ * Unknown types default to markdown (less lossy).
+ */
+const CODE_BLOCK_TYPES = ['big-number', 'button', 'code', 'notebook-function', 'sql', 'visualization'] as const
+
+/**
+ * Checks if a Deepnote block type should be converted to a markdown cell.
+ * Uses a whitelist of code types and defaults unknown types to markdown (less lossy).
+ *
+ * @param blockType - The type of the Deepnote block
+ * @returns true if the block should be treated as markdown
+ */
+export function isMarkdownBlockType(blockType: string): boolean {
+  // Input blocks (input-text, input-checkbox, etc.) are code
+  if (blockType.startsWith('input-')) {
+    return false
+  }
+  // Known code types
+  if ((CODE_BLOCK_TYPES as readonly string[]).includes(blockType)) {
+    return false
+  }
+  // Default to markdown for unknown types (less lossy)
+  return true
+}

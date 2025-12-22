@@ -10,6 +10,7 @@ import {
   serializeQuartoFormat,
 } from './deepnote-to-quarto'
 import { parseQuartoFormat } from './quarto-to-deepnote'
+import type { QuartoDocument } from './types/quarto'
 
 describe('serializeQuartoFormat', () => {
   it('serializes frontmatter', () => {
@@ -294,6 +295,33 @@ describe('convertDeepnoteFileToQuartoFiles error handling', () => {
 })
 
 describe('Quarto format roundtrip', () => {
+  it('preserves consecutive markdown cells during roundtrip', () => {
+    const document: QuartoDocument = {
+      cells: [
+        { cellType: 'markdown', content: '# First markdown' },
+        { cellType: 'markdown', content: 'Second markdown' },
+        { cellType: 'code', content: 'print("code")', language: 'python' },
+        { cellType: 'markdown', content: 'Third markdown' },
+        { cellType: 'markdown', content: 'Fourth markdown' },
+      ],
+    }
+
+    const serialized = serializeQuartoFormat(document)
+
+    // Verify delimiter is added between consecutive markdown cells
+    expect(serialized).toContain('<!-- cell -->')
+
+    const reparsed = parseQuartoFormat(serialized)
+
+    // Should preserve all 5 cells
+    expect(reparsed.cells.length).toBe(5)
+    expect(reparsed.cells[0].content).toBe('# First markdown')
+    expect(reparsed.cells[1].content).toBe('Second markdown')
+    expect(reparsed.cells[2].content).toContain('print("code")')
+    expect(reparsed.cells[3].content).toBe('Third markdown')
+    expect(reparsed.cells[4].content).toBe('Fourth markdown')
+  })
+
   it('preserves content during parse → serialize roundtrip', () => {
     const original = `---
 title: "Test Document"
@@ -341,8 +369,12 @@ Done!
       const serialized = serializeQuartoFormat(document)
       const reparsed = parseQuartoFormat(serialized)
 
-      // Cell count should match (plus title cell from frontmatter)
-      expect(reparsed.cells.length).toBeGreaterThanOrEqual(document.cells.length)
+      // Count non-empty cells (empty cells are filtered out during conversion)
+      const nonEmptyCells = document.cells.filter(c => c.content.trim())
+
+      // Cell count should match for non-empty cells
+      // Consecutive markdown cells are delimited with <!-- cell --> to preserve boundaries
+      expect(reparsed.cells.length).toBeGreaterThanOrEqual(nonEmptyCells.length)
     }
   })
 })

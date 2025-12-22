@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { QuartoCell, QuartoCellOptions, QuartoDocument, QuartoFrontmatter } from './types/quarto'
-import { sanitizeFileName } from './utils'
+import { isMarkdownBlockType, sanitizeFileName } from './utils'
 
 export interface ConvertDeepnoteFileToQuartoOptions {
   outputDir: string
@@ -84,8 +84,14 @@ export function serializeQuartoFormat(document: QuartoDocument): string {
   }
 
   // Add cells
+  let previousCellType: 'code' | 'markdown' | null = null
   for (const cell of document.cells) {
     if (cell.cellType === 'markdown') {
+      // Add delimiter between consecutive markdown cells to preserve boundaries
+      if (previousCellType === 'markdown') {
+        lines.push('<!-- cell -->')
+        lines.push('')
+      }
       lines.push(cell.content)
       lines.push('')
     } else {
@@ -103,6 +109,7 @@ export function serializeQuartoFormat(document: QuartoDocument): string {
       lines.push('```')
       lines.push('')
     }
+    previousCellType = cell.cellType
   }
 
   // Remove trailing empty lines
@@ -244,9 +251,4 @@ function convertBlockToCell(block: DeepnoteBlock): QuartoCell {
   }
 
   return cell
-}
-
-function isMarkdownBlockType(blockType: string): boolean {
-  const markdownTypes = ['markdown', 'text', 'separator', 'heading', 'image']
-  return markdownTypes.includes(blockType)
 }

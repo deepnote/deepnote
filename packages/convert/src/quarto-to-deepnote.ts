@@ -70,10 +70,8 @@ export function parseQuartoFormat(content: string): QuartoDocument {
     // Add markdown before this code chunk
     const markdownBefore = mainContent.slice(lastIndex, match.index).trim()
     if (markdownBefore) {
-      cells.push({
-        cellType: 'markdown',
-        content: markdownBefore,
-      })
+      // Split at cell delimiters to preserve cell boundaries
+      addMarkdownCells(cells, markdownBefore)
     }
 
     // Parse the code chunk
@@ -105,15 +103,31 @@ export function parseQuartoFormat(content: string): QuartoDocument {
   // Add remaining markdown after last code chunk
   const markdownAfter = mainContent.slice(lastIndex).trim()
   if (markdownAfter) {
-    cells.push({
-      cellType: 'markdown',
-      content: markdownAfter,
-    })
+    // Split at cell delimiters to preserve cell boundaries
+    addMarkdownCells(cells, markdownAfter)
   }
 
   return {
     ...(frontmatter ? { frontmatter } : {}),
     cells,
+  }
+}
+
+/**
+ * Splits markdown content at cell delimiter comments and adds each part as a separate cell.
+ * The delimiter `<!-- cell -->` is used to preserve cell boundaries during roundtrip conversion.
+ */
+function addMarkdownCells(cells: QuartoCell[], content: string): void {
+  // Split at cell delimiter, preserving cell boundaries
+  const parts = content.split(/\s*<!--\s*cell\s*-->\s*/)
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (trimmed) {
+      cells.push({
+        cellType: 'markdown',
+        content: trimmed,
+      })
+    }
   }
 }
 
