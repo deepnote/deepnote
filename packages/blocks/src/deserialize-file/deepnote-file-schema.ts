@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const deepnoteBlockSchema = z.object({
-  blockGroup: z.string().optional(),
+  blockGroup: z.string(),
   content: z.string().optional(),
   contentHash: z
     .string()
