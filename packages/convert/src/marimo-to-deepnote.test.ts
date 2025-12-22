@@ -188,12 +188,12 @@ if __name__ == "__main__":
   })
 
   it('parses decorator arguments correctly even with long preceding lines', () => {
-    // This test verifies that decorator parsing doesn't rely on fixed lookback
+    // This test verifies that decorator parsing captures arguments directly from the regex match
     const content = `import marimo
 
 app = marimo.App()
 
-# This is a very long comment line that exceeds 100 characters to ensure the old lookback approach would fail to capture the decorator correctly if it were still being used in the implementation
+# This is a very long comment line that exceeds 100 characters to ensure fixed-offset slicing would fail to capture the decorator correctly if it were still being used
 
 @app.cell(hide_code=True, disabled=True)
 def __():
