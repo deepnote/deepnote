@@ -814,6 +814,42 @@ print("regular python file")
     ).rejects.toThrow('Unsupported Python file format')
   })
 
+  it('throws error for Python files with marimo markers in string literals', async () => {
+    const pyPath = path.join(tempDir, 'string-literal.py')
+    const content = `"""
+This docstring mentions import marimo and @app.cell
+but it's not actually a marimo file
+"""
+print("regular python file")
+`
+    await fs.writeFile(pyPath, content, 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: pyPath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Unsupported Python file format')
+  })
+
+  it('throws error for Python files with percent markers in string literals', async () => {
+    const pyPath = path.join(tempDir, 'percent-string.py')
+    const content = `"""
+This docstring has # %% cell markers
+but it's not actually a percent file
+"""
+print("regular python file")
+`
+    await fs.writeFile(pyPath, content, 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: pyPath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Unsupported Python file format')
+  })
+
   it('creates parent directories when outputPath has non-existent parent dirs', async () => {
     // Create a test notebook
     const notebookPath = path.join(tempDir, 'test.ipynb')

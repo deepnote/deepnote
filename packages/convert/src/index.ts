@@ -49,6 +49,7 @@ export {
 } from './jupyter-to-deepnote'
 export type {
   ConvertMarimoAppOptions,
+  ConvertMarimoAppsToDeepnoteOptions,
   ConvertMarimoFilesToDeepnoteFileOptions,
   MarimoAppInput,
 } from './marimo-to-deepnote'

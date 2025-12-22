@@ -192,8 +192,12 @@ describe('convertBlocksToPercentNotebook', () => {
 
     expect(notebook.cells).toHaveLength(1)
     expect(notebook.cells[0].cellType).toBe('code')
-    // Should contain the generated Python code for SQL
-    expect(notebook.cells[0].content).toContain('SELECT')
+    // Should contain the generated Python code for SQL with the variable name
+    expect(notebook.cells[0].content).toContain('df_users')
+    // Should contain the SQL query
+    expect(notebook.cells[0].content).toContain('SELECT * FROM users')
+    // Should contain the Deepnote toolkit SQL execution call
+    expect(notebook.cells[0].content).toContain('_dntk.execute_sql')
   })
 
   it('converts text blocks to markdown cells', () => {
@@ -338,6 +342,7 @@ x = 1
     for (let i = 0; i < notebook.cells.length; i++) {
       expect(reparsed.cells[i].cellType).toBe(notebook.cells[i].cellType)
       expect(reparsed.cells[i].content).toBe(notebook.cells[i].content)
+      expect(reparsed.cells[i].title).toBe(notebook.cells[i].title)
       expect(reparsed.cells[i].tags).toEqual(notebook.cells[i].tags)
     }
   })

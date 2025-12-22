@@ -354,10 +354,17 @@ function isMarimoFile(filename: string): boolean {
 /** Check if file content is Marimo format */
 function isMarimoContent(content: string): boolean {
   // Check for marimo import at line start (not in comments/strings)
-  return /^import marimo\b/m.test(content) && /@app\.cell\b/.test(content)
+  // Avoid false positives from triple-quoted strings containing the markers
+  return (
+    /^import marimo\b/m.test(content) &&
+    /@app\.cell\b/.test(content) &&
+    !/^\s*['"]{3}[\s\S]*?import marimo/m.test(content)
+  )
 }
 
 /** Check if file content is percent format */
 function isPercentContent(content: string): boolean {
-  return /^# %%/m.test(content)
+  // Ensure the marker appears outside of string literals
+  // Simple heuristic: check it's not inside triple-quoted strings
+  return /^# %%/m.test(content) && !/^\s*['"]{3}[\s\S]*?# %%/m.test(content)
 }

@@ -57,7 +57,7 @@ format:
     theme: cosmo
     toc: true
   pdf:
-    documentclass: article
+    output: file
 execute:
   echo: false
   warning: false
@@ -71,7 +71,7 @@ execute:
     expect(doc.frontmatter?.title).toBe('Complex Document')
     expect(doc.frontmatter?.format).toEqual({
       html: { theme: 'cosmo', toc: true },
-      pdf: { documentclass: 'article' },
+      pdf: { output: 'file' },
     })
     expect(doc.frontmatter?.execute).toEqual({
       echo: false,

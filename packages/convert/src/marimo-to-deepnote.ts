@@ -168,21 +168,33 @@ export function convertMarimoAppToBlocks(app: MarimoApp, options?: ConvertMarimo
   return app.cells.map((cell, index) => convertCellToBlock(cell, index, idGenerator))
 }
 
+export interface ConvertMarimoAppsToDeepnoteOptions {
+  /** Project name for the Deepnote file */
+  projectName: string
+  /** Custom ID generator function. Defaults to uuid v4. */
+  idGenerator?: () => string
+}
+
 /**
  * Converts Marimo app objects into a Deepnote project file.
  * This is a pure conversion function that doesn't perform any file I/O.
  *
  * @param apps - Array of Marimo apps with filenames
- * @param options - Conversion options including project name
+ * @param options - Conversion options including project name and optional ID generator
  * @returns A DeepnoteFile object
  */
-export function convertMarimoAppsToDeepnote(apps: MarimoAppInput[], options: { projectName: string }): DeepnoteFile {
+export function convertMarimoAppsToDeepnote(
+  apps: MarimoAppInput[],
+  options: ConvertMarimoAppsToDeepnoteOptions
+): DeepnoteFile {
+  const idGenerator = options.idGenerator ?? v4
+
   const deepnoteFile: DeepnoteFile = {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: v4(),
+      id: idGenerator(),
       initNotebookId: undefined,
       integrations: [],
       name: options.projectName,
@@ -199,12 +211,12 @@ export function convertMarimoAppsToDeepnote(apps: MarimoAppInput[], options: { p
     // Use app title if available, otherwise use filename
     const notebookName = app.title || filenameWithoutExt
 
-    const blocks = convertMarimoAppToBlocks(app)
+    const blocks = convertMarimoAppToBlocks(app, { idGenerator })
 
     deepnoteFile.project.notebooks.push({
       blocks,
       executionMode: 'block',
-      id: v4(),
+      id: idGenerator(),
       isModule: false,
       name: notebookName,
     })
