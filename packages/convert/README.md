@@ -1,13 +1,18 @@
 # @deepnote/convert
 
-Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`) with lossless roundtrip support.
+Bidirectional converter between Deepnote project files (`.deepnote`) and multiple notebook formats: Jupyter (`.ipynb`), Quarto (`.qmd`), Percent (`.py`), and Marimo (`.py`).
 
 ```bash
-# Convert a Jupyter notebook to a Deepnote project
+# Convert any supported format to Deepnote
 npx @deepnote/convert notebook.ipynb
+npx @deepnote/convert document.qmd
+npx @deepnote/convert notebook.py  # percent or marimo format
 
-# Convert a Deepnote project to Jupyter notebooks
-npx @deepnote/convert project.deepnote
+# Convert Deepnote to any supported format
+npx @deepnote/convert project.deepnote                      # defaults to Jupyter
+npx @deepnote/convert project.deepnote --outputFormat quarto
+npx @deepnote/convert project.deepnote --outputFormat percent
+npx @deepnote/convert project.deepnote --outputFormat marimo
 ```
 
 ## Installation
@@ -16,153 +21,217 @@ npx @deepnote/convert project.deepnote
 npm install -g @deepnote/convert
 ```
 
+## Supported Formats
+
+| Format      | Extension | Description                                             |
+| ----------- | --------- | ------------------------------------------------------- |
+| **Jupyter** | `.ipynb`  | Standard Jupyter Notebook JSON format                   |
+| **Quarto**  | `.qmd`    | Quarto markdown documents with code chunks              |
+| **Percent** | `.py`     | Python files with `# %%` cell markers (VS Code, Spyder) |
+| **Marimo**  | `.py`     | Marimo reactive notebooks with `@app.cell` decorators   |
+
 ## CLI Usage
 
-The package provides a `deepnote-convert` command-line tool for bidirectional conversion between Jupyter and Deepnote formats.
+The package provides a `deepnote-convert` command-line tool for bidirectional conversion.
 
-### Convert Jupyter → Deepnote
+### Convert to Deepnote
 
-#### Convert a Single Notebook
-
-Convert a single `.ipynb` file to a `.deepnote` file:
+Any supported format converts to `.deepnote` automatically:
 
 ```bash
-deepnote-convert path/to/notebook.ipynb
-```
+# Single file
+deepnote-convert notebook.ipynb
+deepnote-convert document.qmd
+deepnote-convert notebook.py  # auto-detects percent vs marimo
 
-This will create a `notebook.deepnote` file in the current directory.
-
-#### Convert a Directory of Notebooks
-
-Convert all `.ipynb` files in a directory to a single `.deepnote` project:
-
-```bash
+# Directory of files
 deepnote-convert path/to/notebooks/
 ```
 
-This will create a `notebooks.deepnote` file in the current directory containing all notebooks from the directory.
+### Convert from Deepnote
 
-### Convert Deepnote → Jupyter
-
-Convert a `.deepnote` file to Jupyter notebooks:
+Use `--outputFormat` to choose the target format (defaults to `jupyter`):
 
 ```bash
-deepnote-convert path/to/project.deepnote
+deepnote-convert project.deepnote                        # → Jupyter notebooks
+deepnote-convert project.deepnote --outputFormat jupyter # → Jupyter notebooks
+deepnote-convert project.deepnote --outputFormat quarto  # → Quarto documents
+deepnote-convert project.deepnote --outputFormat percent # → Percent format files
+deepnote-convert project.deepnote --outputFormat marimo  # → Marimo notebooks
 ```
-
-This will create a `project/` directory containing separate `.ipynb` files for each notebook in the Deepnote project.
 
 ### Options
 
 #### `--projectName <name>`
 
-Set a custom name for the Deepnote project:
+Set a custom name for the Deepnote project (when converting to `.deepnote`):
 
 ```bash
 deepnote-convert notebook.ipynb --projectName "My Analysis"
 ```
 
-If not specified, the project name will default to the filename (without extension) or directory name.
-
 #### `-o, --outputPath <path>`
 
-Specify where to save the output file(s):
+Specify where to save the output:
 
 ```bash
-# For Jupyter → Deepnote: Save to a specific file
+# To Deepnote: Save to a specific file or directory
 deepnote-convert notebook.ipynb -o output/project.deepnote
-
-# For Jupyter → Deepnote: Save to a directory (filename will be auto-generated)
 deepnote-convert notebook.ipynb -o output/
 
-# For Deepnote → Jupyter: Specify output directory for notebooks
-deepnote-convert project.deepnote -o output/jupyter-notebooks/
+# From Deepnote: Specify output directory
+deepnote-convert project.deepnote -o output/notebooks/
 ```
 
-If not specified:
+#### `--outputFormat <format>`
 
-- For Jupyter → Deepnote: Output file will be saved in the current directory
-- For Deepnote → Jupyter: A directory will be created using the `.deepnote` filename (e.g., `project.deepnote` → `project/`)
+Choose output format when converting from `.deepnote`:
+
+```bash
+deepnote-convert project.deepnote --outputFormat quarto
+```
+
+Options: `jupyter` (default), `quarto`, `percent`, `marimo`
 
 ### Examples
 
 ```bash
-# Jupyter → Deepnote: Convert a single notebook with custom name
+# Jupyter → Deepnote
 deepnote-convert titanic.ipynb --projectName "Titanic Analysis"
+deepnote-convert ./notebooks -o ./output
 
-# Jupyter → Deepnote: Convert all notebooks in a directory
-deepnote-convert ./analysis --projectName "Data Science Project" -o ./output
+# Quarto → Deepnote
+deepnote-convert analysis.qmd --projectName "Data Report"
 
-# Jupyter → Deepnote: Convert multiple notebooks from a folder
-deepnote-convert ~/notebooks/ml-experiments -o ~/projects/
+# Percent → Deepnote (auto-detected from # %% markers)
+deepnote-convert script.py
 
-# Deepnote → Jupyter: Convert a Deepnote project to Jupyter notebooks
-deepnote-convert my-project.deepnote
+# Marimo → Deepnote (auto-detected from @app.cell decorators)
+deepnote-convert reactive.py
 
-# Deepnote → Jupyter: Specify output directory
-deepnote-convert my-project.deepnote -o ./jupyter-notebooks/
+# Deepnote → various formats
+deepnote-convert project.deepnote                        # Jupyter (default)
+deepnote-convert project.deepnote --outputFormat quarto  # Quarto
+deepnote-convert project.deepnote --outputFormat percent # Percent
+deepnote-convert project.deepnote --outputFormat marimo  # Marimo
 ```
+
+### Python File Detection
+
+When converting `.py` files, the converter auto-detects the format:
+
+- **Marimo**: Contains `import marimo` and `@app.cell` decorators
+- **Percent**: Contains `# %%` cell markers
+
+For directory scanning, use explicit naming:
+
+- `*.marimo.py` for Marimo files
+- `*.percent.py` for percent format files
 
 ### Lossless Roundtrip Conversion
 
-The converter supports lossless roundtrip conversions:
+The converter supports lossless roundtrip conversions for Jupyter:
 
-- **Deepnote → Jupyter → Deepnote**: Preserves all Deepnote-specific metadata in Jupyter cell metadata, enabling faithful reconstruction of the original notebook's structure and metadata (note: serialization formatting or key ordering may differ)
+- **Deepnote → Jupyter → Deepnote**: Preserves all Deepnote-specific metadata in Jupyter cell metadata
 - **Jupyter → Deepnote → Jupyter**: Preserves original Jupyter content while adding Deepnote metadata
 
-This is achieved by storing Deepnote-specific metadata as flat `deepnote_*` keys directly on Jupyter notebook metadata (e.g., `deepnote_notebook_id`, `deepnote_execution_mode`) and cell metadata (e.g., `deepnote_cell_type`, `deepnote_sorting_key`, `deepnote_source`).
+Other formats (Quarto, Percent, Marimo) preserve content and structure but may not retain all Deepnote-specific metadata.
 
 ## Programmatic Usage
 
-You can also use the conversion functions programmatically in your Node.js or TypeScript applications.
-
-### Jupyter → Deepnote
+### Convert to Deepnote
 
 ```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
+import {
+  convertIpynbFilesToDeepnoteFile,
+  convertQuartoFilesToDeepnoteFile,
+  convertPercentFilesToDeepnoteFile,
+  convertMarimoFilesToDeepnoteFile,
+} from "@deepnote/convert";
 
-await convertIpynbFilesToDeepnoteFile(["path/to/notebook.ipynb"], {
+// From Jupyter
+await convertIpynbFilesToDeepnoteFile(["notebook.ipynb"], {
+  outputPath: "output.deepnote",
+  projectName: "My Project",
+});
+
+// From Quarto
+await convertQuartoFilesToDeepnoteFile(["document.qmd"], {
+  outputPath: "output.deepnote",
+  projectName: "My Project",
+});
+
+// From Percent
+await convertPercentFilesToDeepnoteFile(["script.py"], {
+  outputPath: "output.deepnote",
+  projectName: "My Project",
+});
+
+// From Marimo
+await convertMarimoFilesToDeepnoteFile(["notebook.py"], {
   outputPath: "output.deepnote",
   projectName: "My Project",
 });
 ```
 
-### Deepnote → Jupyter
-
-#### File-based Conversion
-
-For automatic file I/O (reading and writing files):
+### Convert from Deepnote
 
 ```typescript
-import { convertDeepnoteFileToJupyter } from "@deepnote/convert";
+import {
+  convertDeepnoteFileToJupyter,
+  convertDeepnoteFileToQuartoFiles,
+  convertDeepnoteFileToPercentFiles,
+  convertDeepnoteFileToMarimoFiles,
+} from "@deepnote/convert";
 
-await convertDeepnoteFileToJupyter("path/to/project.deepnote", {
+// To Jupyter
+await convertDeepnoteFileToJupyter("project.deepnote", {
   outputDir: "./jupyter-notebooks",
+});
+
+// To Quarto
+await convertDeepnoteFileToQuartoFiles("project.deepnote", {
+  outputDir: "./quarto-docs",
+});
+
+// To Percent
+await convertDeepnoteFileToPercentFiles("project.deepnote", {
+  outputDir: "./percent-scripts",
+});
+
+// To Marimo
+await convertDeepnoteFileToMarimoFiles("project.deepnote", {
+  outputDir: "./marimo-notebooks",
 });
 ```
 
-#### Pure Conversion (No File I/O)
+### Pure Conversion (No File I/O)
 
 For programmatic use with in-memory data:
 
 ```typescript
 import fs from "node:fs/promises";
 import { deserializeDeepnoteFile } from "@deepnote/blocks";
-import { convertDeepnoteToJupyterNotebooks } from "@deepnote/convert";
+import {
+  convertDeepnoteToJupyterNotebooks,
+  convertDeepnoteToQuartoDocuments,
+  convertDeepnoteToPercentNotebooks,
+  convertDeepnoteToMarimoApps,
+} from "@deepnote/convert";
 
 // Read and deserialize the Deepnote file
 const yamlContent = await fs.readFile("project.deepnote", "utf-8");
 const deepnoteFile = deserializeDeepnoteFile(yamlContent);
 
-// Convert to Jupyter notebooks (pure function, no I/O)
-const notebooks = convertDeepnoteToJupyterNotebooks(deepnoteFile);
+// Convert to any format (pure functions, no I/O)
+const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnoteFile);
+const quartoDocuments = convertDeepnoteToQuartoDocuments(deepnoteFile);
+const percentNotebooks = convertDeepnoteToPercentNotebooks(deepnoteFile);
+const marimoApps = convertDeepnoteToMarimoApps(deepnoteFile);
 
-// Now you can work with the notebooks in memory
-for (const { filename, notebook } of notebooks) {
+// Work with the results in memory
+for (const { filename, notebook } of jupyterNotebooks) {
   console.log(`${filename}: ${notebook.cells.length} cells`);
-
-  // Or save them yourself
-  await fs.writeFile(filename, JSON.stringify(notebook, null, 2));
 }
 ```
 
