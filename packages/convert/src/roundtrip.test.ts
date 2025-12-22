@@ -246,6 +246,7 @@ describe('Snapshot fields roundtrip', () => {
             blocks: [
               {
                 id: 'block-1',
+                blockGroup: 'group-1',
                 type: 'code',
                 sortingKey: '0',
                 content: 'x = 10',
@@ -281,6 +282,7 @@ describe('Snapshot fields roundtrip', () => {
             blocks: [
               {
                 id: 'block-1',
+                blockGroup: 'group-1',
                 type: 'code',
                 sortingKey: '0',
                 content: 'x = 10',
@@ -290,6 +292,7 @@ describe('Snapshot fields roundtrip', () => {
               },
               {
                 id: 'block-2',
+                blockGroup: 'group-2',
                 type: 'code',
                 sortingKey: '1',
                 content: 'y = x * 2',
