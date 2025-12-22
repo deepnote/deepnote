@@ -114,8 +114,9 @@ export function parseMarimoFormat(content: string): MarimoApp {
       : undefined
 
     // Parse exports from return statement
+    // Note: We use [^\n]+ instead of [^#\n]+ to handle # characters inside strings
     let exports: string[] | undefined
-    const returnMatch = /return\s+([^#\n]+?)(?:,\s*)?(?:\n|$)/.exec(body)
+    const returnMatch = /return\s+([^\n]+?)(?:,\s*)?(?:\n|$)/.exec(body)
     if (returnMatch) {
       const returnVal = returnMatch[1].trim()
       if (returnVal && returnVal !== 'None') {
@@ -137,7 +138,8 @@ export function parseMarimoFormat(content: string): MarimoApp {
 
     // Remove return statement and leading/trailing whitespace from body
     // Handle both "return" and "return var," patterns
-    body = body.replace(/\n?\s*return\s*(?:[^#\n]+)?(?:,\s*)?(?:\n|$)/g, '').trim()
+    // Note: We use [^\n]+ instead of [^#\n]+ to handle # characters inside strings
+    body = body.replace(/\n?\s*return\s*(?:[^\n]+)?(?:,\s*)?(?:\n|$)/g, '').trim()
 
     // Remove common indentation
     const lines = body.split('\n')

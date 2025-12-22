@@ -343,6 +343,29 @@ if __name__ == "__main__":
 
     expect(app.cells[0].exports).toEqual(['data', 'config'])
   })
+
+  it('handles # characters inside string literals in return statements', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    hashtag = "#trending"
+    comment = "This has a # in it"
+    return hashtag, comment,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    // Should correctly parse exports even with # inside strings
+    expect(app.cells[0].exports).toEqual(['hashtag', 'comment'])
+    // The cell content should not include the return statement
+    expect(app.cells[0].content).not.toContain('return')
+    expect(app.cells[0].content).toContain('hashtag = "#trending"')
+  })
 })
 
 describe('convertMarimoAppToBlocks', () => {
