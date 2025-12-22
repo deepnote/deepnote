@@ -152,6 +152,7 @@ describe('deserializeDeepnoteFile', () => {
             blocks: [
               {
                 id: 'block-1',
+                blockGroup: 'group-1',
                 type: 'code',
                 sortingKey: '0',
                 content: 'x = 10',
@@ -190,6 +191,7 @@ describe('deserializeDeepnoteFile', () => {
             blocks: [
               {
                 id: 'block-1',
+                blockGroup: 'group-1',
                 type: 'code',
                 sortingKey: '0',
                 content: 'x = 10',
