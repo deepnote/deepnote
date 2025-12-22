@@ -8,6 +8,7 @@ import { convert } from './cli'
 import { parseMarimoFormat } from './marimo-to-deepnote'
 import { parsePercentFormat } from './percent-to-deepnote'
 import { parseQuartoFormat } from './quarto-to-deepnote'
+import type { JupyterNotebook } from './types/jupyter'
 
 describe('CLI convert function', () => {
   let tempDir: string
@@ -259,6 +260,12 @@ version: "1.0.0"`
     const files = await fs.readdir(outputDir)
 
     expect(files).toEqual(['Test_Notebook.ipynb'])
+
+    // Verify the content is valid Jupyter format
+    const ipynbContent = await fs.readFile(path.join(outputDir, files[0]), 'utf-8')
+    const notebook: JupyterNotebook = JSON.parse(ipynbContent)
+    expect(notebook.nbformat).toBe(4)
+    expect(notebook.cells.length).toBeGreaterThan(0)
   })
 
   it('throws error for non-existent paths', async () => {

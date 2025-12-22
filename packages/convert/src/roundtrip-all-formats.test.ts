@@ -314,7 +314,7 @@ describe('Marimo format bidirectional roundtrip', () => {
 // ============================================================================
 
 describe('Format integrity validation', () => {
-  it('all percent format example files are valid and parseable', async () => {
+  it('all percent format example files are valid and parsable', async () => {
     const files = ['simple.percent.py', 'data-analysis.percent.py']
 
     for (const file of files) {
@@ -330,7 +330,7 @@ describe('Format integrity validation', () => {
     }
   })
 
-  it('all quarto format example files are valid and parseable', async () => {
+  it('all quarto format example files are valid and parsable', async () => {
     const files = ['simple.qmd', 'data-analysis.qmd']
 
     for (const file of files) {
@@ -346,7 +346,7 @@ describe('Format integrity validation', () => {
     }
   })
 
-  it('all marimo format example files are valid and parseable', async () => {
+  it('all marimo format example files are valid and parsable', async () => {
     const files = ['simple.marimo.py', 'data-analysis.marimo.py']
 
     for (const file of files) {

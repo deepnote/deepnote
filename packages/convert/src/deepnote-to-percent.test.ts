@@ -287,6 +287,36 @@ describe('convertDeepnoteFileToPercentFiles', () => {
   })
 })
 
+describe('convertDeepnoteFileToPercentFiles error handling', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
+  })
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true })
+  })
+
+  it('rejects with a clear error when the .deepnote file does not exist', async () => {
+    const nonExistentPath = path.join(__dirname, '../test-fixtures/does-not-exist.deepnote')
+    const outputDir = path.join(tempDir, 'output')
+
+    await expect(convertDeepnoteFileToPercentFiles(nonExistentPath, { outputDir })).rejects.toThrow(
+      /ENOENT|no such file/
+    )
+  })
+
+  it('rejects with an error when the file contains invalid YAML', async () => {
+    const invalidYamlPath = path.join(tempDir, 'invalid.deepnote')
+    await fs.writeFile(invalidYamlPath, 'invalid: [yaml: {missing closing bracket', 'utf-8')
+
+    const outputDir = path.join(tempDir, 'output')
+
+    await expect(convertDeepnoteFileToPercentFiles(invalidYamlPath, { outputDir })).rejects.toThrow()
+  })
+})
+
 describe('Percent format roundtrip', () => {
   it('preserves content during parse → serialize roundtrip', () => {
     const original = `# %% [markdown]
