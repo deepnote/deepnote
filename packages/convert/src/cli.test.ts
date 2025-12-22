@@ -5,6 +5,9 @@ import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { convert } from './cli'
+import { parseMarimoFormat } from './marimo-to-deepnote'
+import { parsePercentFormat } from './percent-to-deepnote'
+import { parseQuartoFormat } from './quarto-to-deepnote'
 
 describe('CLI convert function', () => {
   let tempDir: string
@@ -188,7 +191,7 @@ describe('CLI convert function', () => {
     expect(exists).toBe(true)
   })
 
-  it('throws error when no .ipynb files found in directory', async () => {
+  it('throws error when no supported files found in directory', async () => {
     const emptyDir = path.join(tempDir, 'empty')
     await fs.mkdir(emptyDir)
 
@@ -198,7 +201,7 @@ describe('CLI convert function', () => {
         inputPath: emptyDir,
         cwd: tempDir,
       })
-    ).rejects.toThrow('No .ipynb files found')
+    ).rejects.toThrow('No supported notebook files found')
   })
 
   it('throws error for unsupported file types', async () => {
@@ -546,6 +549,245 @@ version: "1.0.0"`
     const parsed = deserializeDeepnoteFile(content)
     expect(parsed.project.notebooks).toHaveLength(1)
     expect(parsed.project.notebooks[0].name).toBe('valid')
+  })
+
+  // ============================================================================
+  // Percent Format Tests
+  // ============================================================================
+
+  it('converts a percent format .py file to Deepnote', async () => {
+    const percentPath = path.join(tempDir, 'notebook.py')
+    const percentContent = `# %% [markdown]
+# # Test Notebook
+
+# %%
+print("Hello")
+
+# %%
+x = 1
+`
+    await fs.writeFile(percentPath, percentContent, 'utf-8')
+
+    const outputPath = await convert({
+      inputPath: percentPath,
+      cwd: tempDir,
+    })
+
+    expect(outputPath).toBe(path.join(tempDir, 'notebook.deepnote'))
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.notebooks).toHaveLength(1)
+    expect(parsed.project.notebooks[0].blocks.length).toBe(3)
+  })
+
+  it('converts .deepnote to percent format files', async () => {
+    const deepnotePath = path.join(tempDir, 'test.deepnote')
+    const deepnoteContent = `metadata:
+  createdAt: 2025-11-24T00:00:00.000Z
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - id: test-notebook-id
+      name: Test Notebook
+      executionMode: block
+      isModule: false
+      blocks:
+        - id: block-1
+          blockGroup: group-1
+          type: markdown
+          content: "# Hello"
+          sortingKey: "0"
+          metadata: {}
+        - id: block-2
+          blockGroup: group-2
+          type: code
+          content: print("hello")
+          sortingKey: "1"
+          metadata: {}
+version: "1.0.0"`
+
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
+
+    const outputDir = await convert({
+      inputPath: deepnotePath,
+      outputFormat: 'percent',
+      cwd: tempDir,
+    })
+
+    const files = await fs.readdir(outputDir)
+    expect(files.some(f => f.endsWith('.py'))).toBe(true)
+
+    const pyFile = files.find(f => f.endsWith('.py'))
+    // biome-ignore lint/style/noNonNullAssertion: we asserted above that the file exists
+    const pyContent = await fs.readFile(path.join(outputDir, pyFile!), 'utf-8')
+    const notebook = parsePercentFormat(pyContent)
+    expect(notebook.cells.length).toBe(2)
+  })
+
+  // ============================================================================
+  // Quarto Format Tests
+  // ============================================================================
+
+  it('converts a Quarto .qmd file to Deepnote', async () => {
+    const quartoPath = path.join(tempDir, 'notebook.qmd')
+    const quartoContent = `---
+title: "Test Document"
+jupyter: python3
+---
+
+# Introduction
+
+Some text here.
+
+\`\`\`{python}
+print("Hello")
+\`\`\`
+`
+    await fs.writeFile(quartoPath, quartoContent, 'utf-8')
+
+    const outputPath = await convert({
+      inputPath: quartoPath,
+      cwd: tempDir,
+    })
+
+    expect(outputPath).toBe(path.join(tempDir, 'notebook.deepnote'))
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.notebooks).toHaveLength(1)
+    expect(parsed.project.notebooks[0].blocks.length).toBeGreaterThan(0)
+  })
+
+  it('converts .deepnote to Quarto format files', async () => {
+    const deepnotePath = path.join(tempDir, 'test.deepnote')
+    const deepnoteContent = `metadata:
+  createdAt: 2025-11-24T00:00:00.000Z
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - id: test-notebook-id
+      name: Test Notebook
+      executionMode: block
+      isModule: false
+      blocks:
+        - id: block-1
+          blockGroup: group-1
+          type: markdown
+          content: "# Hello"
+          sortingKey: "0"
+          metadata: {}
+        - id: block-2
+          blockGroup: group-2
+          type: code
+          content: print("hello")
+          sortingKey: "1"
+          metadata: {}
+version: "1.0.0"`
+
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
+
+    const outputDir = await convert({
+      inputPath: deepnotePath,
+      outputFormat: 'quarto',
+      cwd: tempDir,
+    })
+
+    const files = await fs.readdir(outputDir)
+    expect(files.some(f => f.endsWith('.qmd'))).toBe(true)
+
+    const qmdFile = files.find(f => f.endsWith('.qmd'))
+    // biome-ignore lint/style/noNonNullAssertion: we asserted above that the file exists
+    const qmdContent = await fs.readFile(path.join(outputDir, qmdFile!), 'utf-8')
+    const doc = parseQuartoFormat(qmdContent)
+    expect(doc.cells.length).toBeGreaterThan(0)
+  })
+
+  // ============================================================================
+  // Marimo Format Tests
+  // ============================================================================
+
+  it('converts a Marimo .py file to Deepnote', async () => {
+    const marimoPath = path.join(tempDir, 'notebook.py')
+    const marimoContent = `import marimo
+
+__generated_with = "0.10.0"
+app = marimo.App()
+
+@app.cell
+def __():
+    print("Hello")
+    return
+
+if __name__ == "__main__":
+    app.run()
+`
+    await fs.writeFile(marimoPath, marimoContent, 'utf-8')
+
+    const outputPath = await convert({
+      inputPath: marimoPath,
+      cwd: tempDir,
+    })
+
+    expect(outputPath).toBe(path.join(tempDir, 'notebook.deepnote'))
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.notebooks).toHaveLength(1)
+    expect(parsed.project.notebooks[0].blocks.length).toBeGreaterThan(0)
+  })
+
+  it('converts .deepnote to Marimo format files', async () => {
+    const deepnotePath = path.join(tempDir, 'test.deepnote')
+    const deepnoteContent = `metadata:
+  createdAt: 2025-11-24T00:00:00.000Z
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - id: test-notebook-id
+      name: Test Notebook
+      executionMode: block
+      isModule: false
+      blocks:
+        - id: block-1
+          blockGroup: group-1
+          type: code
+          content: print("hello")
+          sortingKey: "0"
+          metadata: {}
+version: "1.0.0"`
+
+    await fs.writeFile(deepnotePath, deepnoteContent, 'utf-8')
+
+    const outputDir = await convert({
+      inputPath: deepnotePath,
+      outputFormat: 'marimo',
+      cwd: tempDir,
+    })
+
+    const files = await fs.readdir(outputDir)
+    expect(files.some(f => f.endsWith('.py'))).toBe(true)
+
+    const pyFile = files.find(f => f.endsWith('.py'))
+    // biome-ignore lint/style/noNonNullAssertion: we asserted above that the file exists
+    const pyContent = await fs.readFile(path.join(outputDir, pyFile!), 'utf-8')
+    const app = parseMarimoFormat(pyContent)
+    expect(app.cells.length).toBeGreaterThan(0)
+  })
+
+  it('throws error for unsupported Python files', async () => {
+    const pyPath = path.join(tempDir, 'regular.py')
+    await fs.writeFile(pyPath, 'print("just a regular python file")', 'utf-8')
+
+    await expect(
+      convert({
+        inputPath: pyPath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('Unsupported Python file format')
   })
 
   it('creates parent directories when outputPath has non-existent parent dirs', async () => {

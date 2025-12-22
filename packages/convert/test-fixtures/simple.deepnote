@@ -1,0 +1,27 @@
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: 2025-01-01T00:00:00.000Z
+project:
+  name: simple-test
+  id: 00000000-0000-0000-0000-000000000001
+  notebooks:
+    - id: 00000000-0000-0000-0000-000000000002
+      name: Notebook1
+      blocks:
+        - id: 00000000-0000-0000-0000-000000000003
+          sortingKey: "0"
+          type: markdown
+          content: "# Hello World"
+        - id: 00000000-0000-0000-0000-000000000004
+          sortingKey: "1"
+          type: code
+          content: 'print("Hello, World!")'
+        - id: 00000000-0000-0000-0000-000000000005
+          sortingKey: "2"
+          type: code
+          content: |
+            x = 1
+            y = 2
+            print(x + y)
+version: 1.0.0
+

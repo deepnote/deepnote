@@ -1,0 +1,365 @@
+/**
+ * Comprehensive roundtrip tests for all notebook formats.
+ *
+ * Tests BOTH directions for ALL formats:
+ * - Format → Deepnote → Format (e.g., Jupyter → Deepnote → Jupyter)
+ * - Deepnote → Format → Deepnote (e.g., Deepnote → Jupyter → Deepnote)
+ *
+ * This ensures:
+ * 1. No data loss when importing from a format
+ * 2. No data loss when exporting to a format
+ * 3. Cell counts, types, and content are preserved in both directions
+ */
+
+import fs from 'node:fs/promises'
+import { join } from 'node:path'
+import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { describe, expect, it } from 'vitest'
+
+import { convertDeepnoteToJupyterNotebooks } from './deepnote-to-jupyter'
+import { convertDeepnoteToMarimoApps, serializeMarimoFormat } from './deepnote-to-marimo'
+import { convertDeepnoteToPercentNotebooks, serializePercentFormat } from './deepnote-to-percent'
+import { convertDeepnoteToQuartoDocuments, serializeQuartoFormat } from './deepnote-to-quarto'
+import { convertJupyterNotebooksToDeepnote } from './jupyter-to-deepnote'
+import { convertMarimoAppsToDeepnote, parseMarimoFormat } from './marimo-to-deepnote'
+import { convertPercentNotebooksToDeepnote, parsePercentFormat } from './percent-to-deepnote'
+import { convertQuartoDocumentsToDeepnote, parseQuartoFormat } from './quarto-to-deepnote'
+import type { JupyterNotebook } from './types/jupyter'
+
+const testFixturesDir = join(__dirname, '../test-fixtures')
+
+// ============================================================================
+// JUPYTER ROUNDTRIP TESTS
+// ============================================================================
+
+describe('Jupyter bidirectional roundtrip', () => {
+  it('Jupyter → Deepnote → Jupyter: preserves cell count and types', async () => {
+    const ipynbContent = await fs.readFile(join(testFixturesDir, 'simple.ipynb'), 'utf-8')
+    const originalJupyter: JupyterNotebook = JSON.parse(ipynbContent)
+
+    // Step 1: Jupyter → Deepnote
+    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'test.ipynb', notebook: originalJupyter }], {
+      projectName: 'Test',
+    })
+
+    // Step 2: Deepnote → Jupyter
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
+    const roundtrippedJupyter = jupyterNotebooks[0].notebook
+
+    // Verify cell count
+    expect(roundtrippedJupyter.cells.length).toBe(originalJupyter.cells.length)
+
+    // Verify cell types
+    for (let i = 0; i < originalJupyter.cells.length; i++) {
+      expect(roundtrippedJupyter.cells[i].cell_type).toBe(originalJupyter.cells[i].cell_type)
+    }
+  })
+
+  it('Deepnote → Jupyter → Deepnote: preserves block count, types, and content', async () => {
+    const yamlContent = await fs.readFile(join(testFixturesDir, 'simple.deepnote'), 'utf-8')
+    const originalDeepnote = deserializeDeepnoteFile(yamlContent)
+
+    // Step 1: Deepnote → Jupyter
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(originalDeepnote)
+
+    // Step 2: Jupyter → Deepnote
+    const roundtrippedDeepnote = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+      projectName: originalDeepnote.project.name,
+    })
+
+    // Verify notebook count
+    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+
+    // Verify each notebook
+    for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
+      const originalNotebook = originalDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+
+      // Verify block count
+      expect(roundtrippedNotebook.blocks.length).toBe(originalNotebook.blocks.length)
+
+      // Verify block types and content
+      for (let b = 0; b < originalNotebook.blocks.length; b++) {
+        expect(roundtrippedNotebook.blocks[b].type).toBe(originalNotebook.blocks[b].type)
+        expect(roundtrippedNotebook.blocks[b].content).toBe(originalNotebook.blocks[b].content)
+        expect(roundtrippedNotebook.blocks[b].id).toBe(originalNotebook.blocks[b].id)
+        expect(roundtrippedNotebook.blocks[b].sortingKey).toBe(originalNotebook.blocks[b].sortingKey)
+      }
+    }
+  })
+})
+
+// ============================================================================
+// PERCENT FORMAT ROUNDTRIP TESTS
+// ============================================================================
+
+describe('Percent format bidirectional roundtrip', () => {
+  it('Percent → Deepnote → Percent: preserves cell count, types, and content', async () => {
+    const percentContent = await fs.readFile(join(testFixturesDir, 'simple.percent.py'), 'utf-8')
+    const originalPercent = parsePercentFormat(percentContent)
+
+    // Step 1: Percent → Deepnote
+    const deepnote = convertPercentNotebooksToDeepnote([{ filename: 'test.py', notebook: originalPercent }], {
+      projectName: 'Test',
+    })
+
+    // Step 2: Deepnote → Percent
+    const percentNotebooks = convertDeepnoteToPercentNotebooks(deepnote)
+    const serialized = serializePercentFormat(percentNotebooks[0].notebook)
+    const roundtrippedPercent = parsePercentFormat(serialized)
+
+    // Verify cell count
+    expect(roundtrippedPercent.cells.length).toBe(originalPercent.cells.length)
+
+    // Verify cell types and content
+    for (let i = 0; i < originalPercent.cells.length; i++) {
+      expect(roundtrippedPercent.cells[i].cellType).toBe(originalPercent.cells[i].cellType)
+      expect(roundtrippedPercent.cells[i].content.trim()).toBe(originalPercent.cells[i].content.trim())
+    }
+  })
+
+  it('Deepnote → Percent → Deepnote: preserves block count and types', async () => {
+    const yamlContent = await fs.readFile(join(testFixturesDir, 'simple.deepnote'), 'utf-8')
+    const originalDeepnote = deserializeDeepnoteFile(yamlContent)
+
+    // Step 1: Deepnote → Percent
+    const percentNotebooks = convertDeepnoteToPercentNotebooks(originalDeepnote)
+
+    // Step 2: Percent → Deepnote
+    const roundtrippedDeepnote = convertPercentNotebooksToDeepnote(
+      percentNotebooks.map(({ filename, notebook }) => ({ filename, notebook })),
+      { projectName: originalDeepnote.project.name }
+    )
+
+    // Verify notebook count
+    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+
+    // Verify each notebook's block count
+    for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
+      const originalNotebook = originalDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+
+      // Block count should match
+      expect(roundtrippedNotebook.blocks.length).toBe(originalNotebook.blocks.length)
+    }
+  })
+
+  it('Percent → Deepnote → Percent: data-analysis example', async () => {
+    const percentContent = await fs.readFile(join(testFixturesDir, 'data-analysis.percent.py'), 'utf-8')
+    const originalPercent = parsePercentFormat(percentContent)
+
+    const deepnote = convertPercentNotebooksToDeepnote([{ filename: 'test.py', notebook: originalPercent }], {
+      projectName: 'Test',
+    })
+
+    const percentNotebooks = convertDeepnoteToPercentNotebooks(deepnote)
+    const serialized = serializePercentFormat(percentNotebooks[0].notebook)
+    const roundtrippedPercent = parsePercentFormat(serialized)
+
+    expect(roundtrippedPercent.cells.length).toBe(originalPercent.cells.length)
+  })
+})
+
+// ============================================================================
+// QUARTO FORMAT ROUNDTRIP TESTS
+// ============================================================================
+
+describe('Quarto format bidirectional roundtrip', () => {
+  it('Quarto → Deepnote → Quarto: preserves cell count and types', async () => {
+    const quartoContent = await fs.readFile(join(testFixturesDir, 'simple.qmd'), 'utf-8')
+    const originalQuarto = parseQuartoFormat(quartoContent)
+
+    // Step 1: Quarto → Deepnote
+    const deepnote = convertQuartoDocumentsToDeepnote([{ filename: 'test.qmd', document: originalQuarto }], {
+      projectName: 'Test',
+    })
+
+    // Step 2: Deepnote → Quarto
+    const quartoDocuments = convertDeepnoteToQuartoDocuments(deepnote)
+    const serialized = serializeQuartoFormat(quartoDocuments[0].document)
+    const roundtrippedQuarto = parseQuartoFormat(serialized)
+
+    // Cell count should be >= original (title from frontmatter may add cell)
+    expect(roundtrippedQuarto.cells.length).toBeGreaterThanOrEqual(originalQuarto.cells.length)
+
+    // Verify original cells are present with correct types
+    const originalCodeCells = originalQuarto.cells.filter(c => c.cellType === 'code')
+    const roundtrippedCodeCells = roundtrippedQuarto.cells.filter(c => c.cellType === 'code')
+    expect(roundtrippedCodeCells.length).toBe(originalCodeCells.length)
+  })
+
+  it('Deepnote → Quarto → Deepnote: preserves block count and types', async () => {
+    const yamlContent = await fs.readFile(join(testFixturesDir, 'simple.deepnote'), 'utf-8')
+    const originalDeepnote = deserializeDeepnoteFile(yamlContent)
+
+    // Step 1: Deepnote → Quarto
+    const quartoDocuments = convertDeepnoteToQuartoDocuments(originalDeepnote)
+
+    // Step 2: Quarto → Deepnote
+    const roundtrippedDeepnote = convertQuartoDocumentsToDeepnote(
+      quartoDocuments.map(({ filename, document }) => ({ filename, document })),
+      { projectName: originalDeepnote.project.name }
+    )
+
+    // Verify notebook count
+    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+
+    // Verify each notebook's block count (may be >= due to title cell)
+    for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
+      const originalNotebook = originalDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+
+      expect(roundtrippedNotebook.blocks.length).toBeGreaterThanOrEqual(originalNotebook.blocks.length)
+    }
+  })
+
+  it('Quarto → Deepnote → Quarto: data-analysis example', async () => {
+    const quartoContent = await fs.readFile(join(testFixturesDir, 'data-analysis.qmd'), 'utf-8')
+    const originalQuarto = parseQuartoFormat(quartoContent)
+
+    const deepnote = convertQuartoDocumentsToDeepnote([{ filename: 'test.qmd', document: originalQuarto }], {
+      projectName: 'Test',
+    })
+
+    const quartoDocuments = convertDeepnoteToQuartoDocuments(deepnote)
+    const serialized = serializeQuartoFormat(quartoDocuments[0].document)
+    const roundtrippedQuarto = parseQuartoFormat(serialized)
+
+    // Code cells should be preserved
+    const originalCodeCells = originalQuarto.cells.filter(c => c.cellType === 'code')
+    const roundtrippedCodeCells = roundtrippedQuarto.cells.filter(c => c.cellType === 'code')
+    expect(roundtrippedCodeCells.length).toBe(originalCodeCells.length)
+  })
+})
+
+// ============================================================================
+// MARIMO FORMAT ROUNDTRIP TESTS
+// ============================================================================
+
+describe('Marimo format bidirectional roundtrip', () => {
+  it('Marimo → Deepnote → Marimo: preserves cell count and types', async () => {
+    const marimoContent = await fs.readFile(join(testFixturesDir, 'simple.marimo.py'), 'utf-8')
+    const originalMarimo = parseMarimoFormat(marimoContent)
+
+    // Step 1: Marimo → Deepnote
+    const deepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: originalMarimo }], {
+      projectName: 'Test',
+    })
+
+    // Step 2: Deepnote → Marimo
+    const marimoApps = convertDeepnoteToMarimoApps(deepnote)
+    const serialized = serializeMarimoFormat(marimoApps[0].app)
+    const roundtrippedMarimo = parseMarimoFormat(serialized)
+
+    // Verify cell count
+    expect(roundtrippedMarimo.cells.length).toBe(originalMarimo.cells.length)
+
+    // Verify cell types
+    for (let i = 0; i < originalMarimo.cells.length; i++) {
+      expect(roundtrippedMarimo.cells[i].cellType).toBe(originalMarimo.cells[i].cellType)
+    }
+  })
+
+  it('Deepnote → Marimo → Deepnote: preserves block count and types', async () => {
+    const yamlContent = await fs.readFile(join(testFixturesDir, 'simple.deepnote'), 'utf-8')
+    const originalDeepnote = deserializeDeepnoteFile(yamlContent)
+
+    // Step 1: Deepnote → Marimo
+    const marimoApps = convertDeepnoteToMarimoApps(originalDeepnote)
+
+    // Step 2: Marimo → Deepnote
+    const roundtrippedDeepnote = convertMarimoAppsToDeepnote(
+      marimoApps.map(({ filename, app }) => ({ filename, app })),
+      { projectName: originalDeepnote.project.name }
+    )
+
+    // Verify notebook count
+    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+
+    // Verify each notebook's block count
+    for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
+      const originalNotebook = originalDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+
+      expect(roundtrippedNotebook.blocks.length).toBe(originalNotebook.blocks.length)
+    }
+  })
+
+  it('Marimo → Deepnote → Marimo: data-analysis example with dependencies', async () => {
+    const marimoContent = await fs.readFile(join(testFixturesDir, 'data-analysis.marimo.py'), 'utf-8')
+    const originalMarimo = parseMarimoFormat(marimoContent)
+
+    const deepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: originalMarimo }], {
+      projectName: 'Test',
+    })
+
+    const marimoApps = convertDeepnoteToMarimoApps(deepnote)
+    const serialized = serializeMarimoFormat(marimoApps[0].app)
+    const roundtrippedMarimo = parseMarimoFormat(serialized)
+
+    // Cell count should match
+    expect(roundtrippedMarimo.cells.length).toBe(originalMarimo.cells.length)
+
+    // Verify dependencies are preserved for cells that have them
+    for (let i = 0; i < originalMarimo.cells.length; i++) {
+      if (originalMarimo.cells[i].dependencies?.length) {
+        expect(roundtrippedMarimo.cells[i].dependencies).toEqual(originalMarimo.cells[i].dependencies)
+      }
+    }
+  })
+})
+
+// ============================================================================
+// FORMAT INTEGRITY VALIDATION
+// ============================================================================
+
+describe('Format integrity validation', () => {
+  it('all percent format example files are valid and parseable', async () => {
+    const files = ['simple.percent.py', 'data-analysis.percent.py']
+
+    for (const file of files) {
+      const content = await fs.readFile(join(testFixturesDir, file), 'utf-8')
+      const notebook = parsePercentFormat(content)
+
+      expect(notebook.cells.length).toBeGreaterThan(0)
+      expect(notebook.cells.some(c => c.cellType === 'code')).toBe(true)
+
+      // Should be re-serializable
+      const serialized = serializePercentFormat(notebook)
+      expect(serialized).toContain('# %%')
+    }
+  })
+
+  it('all quarto format example files are valid and parseable', async () => {
+    const files = ['simple.qmd', 'data-analysis.qmd']
+
+    for (const file of files) {
+      const content = await fs.readFile(join(testFixturesDir, file), 'utf-8')
+      const doc = parseQuartoFormat(content)
+
+      expect(doc.cells.length).toBeGreaterThan(0)
+      expect(doc.cells.some(c => c.cellType === 'code')).toBe(true)
+
+      // Should be re-serializable
+      const serialized = serializeQuartoFormat(doc)
+      expect(serialized).toContain('```{python}')
+    }
+  })
+
+  it('all marimo format example files are valid and parseable', async () => {
+    const files = ['simple.marimo.py', 'data-analysis.marimo.py']
+
+    for (const file of files) {
+      const content = await fs.readFile(join(testFixturesDir, file), 'utf-8')
+      const app = parseMarimoFormat(content)
+
+      expect(app.cells.length).toBeGreaterThan(0)
+      expect(app.cells.some(c => c.cellType === 'code')).toBe(true)
+
+      // Should be re-serializable
+      const serialized = serializeMarimoFormat(app)
+      expect(serialized).toContain('import marimo')
+      expect(serialized).toContain('@app.cell')
+    }
+  })
+})

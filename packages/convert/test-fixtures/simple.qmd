@@ -1,0 +1,25 @@
+---
+title: "Hello World"
+jupyter: python3
+---
+
+# Welcome
+
+This is a simple Quarto document.
+
+```{python}
+print("Hello, World!")
+```
+
+```{python}
+x = 10
+y = 20
+result = x + y
+print(f"Result: {result}")
+```
+
+## Conclusion
+
+That's all for now!
+
+
