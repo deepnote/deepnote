@@ -6,6 +6,38 @@ import { stringify } from 'yaml'
 import type { MarimoApp, MarimoCell } from './types/marimo'
 import { createSortingKey } from './utils'
 
+/**
+ * Splits a string on commas that are at the top level (not inside parentheses, brackets, or braces).
+ * This handles cases like "func(a, b), other" correctly.
+ */
+function splitOnTopLevelCommas(str: string): string[] {
+  const results: string[] = []
+  let current = ''
+  let depth = 0
+
+  for (const char of str) {
+    if (char === '(' || char === '[' || char === '{') {
+      depth++
+      current += char
+    } else if (char === ')' || char === ']' || char === '}') {
+      depth--
+      current += char
+    } else if (char === ',' && depth === 0) {
+      results.push(current)
+      current = ''
+    } else {
+      current += char
+    }
+  }
+
+  // Don't forget the last segment
+  if (current) {
+    results.push(current)
+  }
+
+  return results
+}
+
 export interface ConvertMarimoFilesToDeepnoteFileOptions {
   outputPath: string
   projectName: string
@@ -89,8 +121,8 @@ export function parseMarimoFormat(content: string): MarimoApp {
       if (returnVal && returnVal !== 'None') {
         // Handle tuple returns like "df, pd," or "(df, pd)"
         const cleanReturn = returnVal.replace(/^\(|\)$/g, '').replace(/,\s*$/, '')
-        exports = cleanReturn
-          .split(',')
+        // Split on top-level commas only (not inside parentheses)
+        exports = splitOnTopLevelCommas(cleanReturn)
           .map(e => e.trim())
           .filter(e => e.length > 0 && e !== 'None')
         if (exports.length === 0) {
@@ -196,13 +228,16 @@ export function convertMarimoAppsToDeepnote(
 ): DeepnoteFile {
   const idGenerator = options.idGenerator ?? v4
 
+  // Generate the first notebook ID upfront so we can use it as the project entrypoint
+  const firstNotebookId = apps.length > 0 ? idGenerator() : undefined
+
   const deepnoteFile: DeepnoteFile = {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
       id: idGenerator(),
-      initNotebookId: undefined,
+      initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
       notebooks: [],
@@ -211,7 +246,8 @@ export function convertMarimoAppsToDeepnote(
     version: '1.0.0',
   }
 
-  for (const { filename, app } of apps) {
+  for (let i = 0; i < apps.length; i++) {
+    const { filename, app } = apps[i]
     const extension = extname(filename)
     const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
@@ -220,10 +256,13 @@ export function convertMarimoAppsToDeepnote(
 
     const blocks = convertMarimoAppToBlocks(app, { idGenerator })
 
+    // Use pre-generated ID for the first notebook, generate new ones for the rest
+    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : idGenerator()
+
     deepnoteFile.project.notebooks.push({
       blocks,
       executionMode: 'block',
-      id: idGenerator(),
+      id: notebookId,
       isModule: false,
       name: notebookName,
     })

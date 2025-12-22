@@ -131,6 +131,21 @@ df.describe()
     expect(notebook.cells[0].tags).toEqual(['analysis'])
   })
 
+  it('known limitation: tags with brackets are not fully parsed', () => {
+    // This documents a known limitation: the simple regex stops at the first ']'
+    // so tag values containing brackets won't be parsed correctly.
+    // A full parser would be needed to handle nested brackets with quoted strings.
+    const content = `# %% tags=["tag[0]", "normal"]
+code()
+`
+    const notebook = parsePercentFormat(content)
+
+    expect(notebook.cells).toHaveLength(1)
+    // The tag with brackets is truncated - this is the known limitation
+    expect(notebook.cells[0].tags).toEqual(['tag[0'])
+    // Note: "normal" is lost because the regex stopped at the first ']'
+  })
+
   it('parses raw cells', () => {
     const content = `# %% [raw]
 This is raw content.
@@ -398,38 +413,39 @@ describe('convertPercentFilesToDeepnoteFile', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-001
+        id: test-uuid-002
+        initNotebookId: test-uuid-001
         integrations: []
         name: Simple Test
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-002
+              - blockGroup: test-uuid-003
                 content: |-
                   # Hello World
 
                   This is a simple percent format notebook.
-                id: test-uuid-003
+                id: test-uuid-004
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-              - blockGroup: test-uuid-004
+              - blockGroup: test-uuid-005
                 content: print("Hello, World!")
-                id: test-uuid-005
+                id: test-uuid-006
                 metadata: {}
                 sortingKey: "1"
                 type: code
-              - blockGroup: test-uuid-006
+              - blockGroup: test-uuid-007
                 content: |-
                   x = 10
                   y = 20
                   result = x + y
                   print(f"Result: {result}")
-                id: test-uuid-007
+                id: test-uuid-008
                 metadata: {}
                 sortingKey: "2"
                 type: code
             executionMode: block
-            id: test-uuid-008
+            id: test-uuid-001
             isModule: false
             name: simple.percent
         settings: {}

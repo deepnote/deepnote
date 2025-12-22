@@ -544,53 +544,54 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-001
+        id: test-uuid-002
+        initNotebookId: test-uuid-001
         integrations: []
         name: Simple Test
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-002
+              - blockGroup: test-uuid-003
                 content: "# Hello World"
-                id: test-uuid-003
+                id: test-uuid-004
                 metadata: {}
                 sortingKey: "0"
                 type: markdown
-              - blockGroup: test-uuid-004
+              - blockGroup: test-uuid-005
                 content: |-
                   # Welcome
 
                   This is a simple Quarto document.
-                id: test-uuid-005
+                id: test-uuid-006
                 metadata: {}
                 sortingKey: "1"
                 type: markdown
-              - blockGroup: test-uuid-006
+              - blockGroup: test-uuid-007
                 content: print("Hello, World!")
-                id: test-uuid-007
+                id: test-uuid-008
                 metadata: {}
                 sortingKey: "2"
                 type: code
-              - blockGroup: test-uuid-008
+              - blockGroup: test-uuid-009
                 content: |-
                   x = 10
                   y = 20
                   result = x + y
                   print(f"Result: {result}")
-                id: test-uuid-009
+                id: test-uuid-010
                 metadata: {}
                 sortingKey: "3"
                 type: code
-              - blockGroup: test-uuid-010
+              - blockGroup: test-uuid-011
                 content: |-
                   ## Conclusion
 
                   That's all for now!
-                id: test-uuid-011
+                id: test-uuid-012
                 metadata: {}
                 sortingKey: "4"
                 type: markdown
             executionMode: block
-            id: test-uuid-012
+            id: test-uuid-001
             isModule: false
             name: Hello World
         settings: {}

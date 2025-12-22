@@ -100,6 +100,9 @@ export function parsePercentFormat(content: string): PercentNotebook {
       let title: string | undefined
       let tags: string[] | undefined
 
+      // Note: This regex stops at the first ']' which will break for tag values
+      // containing brackets (e.g., tags=["tag[0]"]). This is a known limitation.
+      // A full parser would be needed to handle nested brackets with quoted strings.
       const tagsMatch = /tags\s*=\s*\[([^\]]*)\]/.exec(rest)
       if (tagsMatch) {
         const tagsStr = tagsMatch[1]
@@ -169,13 +172,16 @@ export function convertPercentNotebooksToDeepnote(
   notebooks: PercentNotebookInput[],
   options: { projectName: string }
 ): DeepnoteFile {
+  // Generate the first notebook ID upfront so we can use it as the project entrypoint
+  const firstNotebookId = notebooks.length > 0 ? v4() : undefined
+
   const deepnoteFile: DeepnoteFile = {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
       id: v4(),
-      initNotebookId: undefined,
+      initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
       notebooks: [],
@@ -184,16 +190,20 @@ export function convertPercentNotebooksToDeepnote(
     version: '1.0.0',
   }
 
-  for (const { filename, notebook } of notebooks) {
+  for (let i = 0; i < notebooks.length; i++) {
+    const { filename, notebook } = notebooks[i]
     const extension = extname(filename)
     const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
     const blocks = convertPercentNotebookToBlocks(notebook)
 
+    // Use pre-generated ID for the first notebook, generate new ones for the rest
+    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : v4()
+
     deepnoteFile.project.notebooks.push({
       blocks,
       executionMode: 'block',
-      id: v4(),
+      id: notebookId,
       isModule: false,
       name: filenameWithoutExt,
     })

@@ -303,6 +303,46 @@ if __name__ == "__main__":
 
     expect(app.cells[0].exports).toEqual(['x', 'y', 'z'])
   })
+
+  it('parses exports with nested commas in function calls', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    result = func(a, b)
+    other = compute(x, y, z)
+    return result, other,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    // Should correctly identify 'result' and 'other' as exports,
+    // not split on commas inside the function calls
+    expect(app.cells[0].exports).toEqual(['result', 'other'])
+  })
+
+  it('parses exports with nested brackets and braces', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    data = [1, 2, 3]
+    config = {"a": 1, "b": 2}
+    return data, config,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells[0].exports).toEqual(['data', 'config'])
+  })
 })
 
 describe('convertMarimoAppToBlocks', () => {

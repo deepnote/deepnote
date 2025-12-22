@@ -353,13 +353,16 @@ export function convertQuartoDocumentsToDeepnote(
   documents: QuartoDocumentInput[],
   options: { projectName: string }
 ): DeepnoteFile {
+  // Generate the first notebook ID upfront so we can use it as the project entrypoint
+  const firstNotebookId = documents.length > 0 ? v4() : undefined
+
   const deepnoteFile: DeepnoteFile = {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
       id: v4(),
-      initNotebookId: undefined,
+      initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
       notebooks: [],
@@ -368,7 +371,8 @@ export function convertQuartoDocumentsToDeepnote(
     version: '1.0.0',
   }
 
-  for (const { filename, document } of documents) {
+  for (let i = 0; i < documents.length; i++) {
+    const { filename, document } = documents[i]
     const extension = extname(filename)
     const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
@@ -377,10 +381,13 @@ export function convertQuartoDocumentsToDeepnote(
 
     const blocks = convertQuartoDocumentToBlocks(document)
 
+    // Use pre-generated ID for the first notebook, generate new ones for the rest
+    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : v4()
+
     deepnoteFile.project.notebooks.push({
       blocks,
       executionMode: 'block',
-      id: v4(),
+      id: notebookId,
       isModule: false,
       name: typeof notebookName === 'string' ? notebookName : filenameWithoutExt,
     })

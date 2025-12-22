@@ -80,6 +80,13 @@ export function convertJupyterNotebooksToDeepnote(
     }
   }
 
+  // Determine the first notebook's ID upfront so we can use it as the project entrypoint
+  // Prefer ID from metadata (for roundtrip), otherwise generate a new one
+  const firstNotebookId =
+    notebooks.length > 0
+      ? ((notebooks[0].notebook.metadata?.deepnote_notebook_id as string | undefined) ?? v4())
+      : undefined
+
   const deepnoteFile: DeepnoteFile = {
     environment,
     execution,
@@ -88,7 +95,7 @@ export function convertJupyterNotebooksToDeepnote(
     },
     project: {
       id: v4(),
-      initNotebookId: undefined,
+      initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
       notebooks: [],
@@ -97,7 +104,8 @@ export function convertJupyterNotebooksToDeepnote(
     version: '1.0.0',
   }
 
-  for (const { filename, notebook } of notebooks) {
+  for (let i = 0; i < notebooks.length; i++) {
+    const { filename, notebook } = notebooks[i]
     const extension = extname(filename)
     const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
@@ -110,10 +118,13 @@ export function convertJupyterNotebooksToDeepnote(
     const isModule = notebook.metadata?.deepnote_is_module as boolean | undefined
     const workingDirectory = notebook.metadata?.deepnote_working_directory as string | undefined
 
+    // Use pre-computed ID for first notebook to match initNotebookId
+    const resolvedNotebookId = i === 0 && firstNotebookId ? firstNotebookId : (notebookId ?? v4())
+
     deepnoteFile.project.notebooks.push({
       blocks,
       executionMode: executionMode ?? 'block',
-      id: notebookId ?? v4(),
+      id: resolvedNotebookId,
       isModule: isModule ?? false,
       name: notebookName ?? filenameWithoutExt,
       workingDirectory,
