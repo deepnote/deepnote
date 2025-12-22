@@ -110,6 +110,127 @@ describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
   })
 })
 
+describe('Platform-specific Jupyter notebook compatibility', () => {
+  it('preserves Google Colab metadata during roundtrip', async () => {
+    const inputPath = join(testFixturesDir, 'colab-sample.ipynb')
+    const originalJson = await fs.readFile(inputPath, 'utf-8')
+    const original: JupyterNotebook = JSON.parse(originalJson)
+
+    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'colab-sample.ipynb', notebook: original }], {
+      projectName: 'Colab Test',
+    })
+
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
+    const roundtripped = jupyterNotebooks[0].notebook
+
+    // Verify cell count preserved
+    expect(roundtripped.cells.length).toBe(original.cells.length)
+
+    // Verify Colab-specific cell metadata is preserved
+    for (let i = 0; i < original.cells.length; i++) {
+      const originalCell = original.cells[i]
+      const roundtrippedCell = roundtripped.cells[i]
+
+      // Colab cell IDs
+      if (originalCell.metadata?.id) {
+        expect(roundtrippedCell.metadata?.id).toBe(originalCell.metadata.id)
+      }
+
+      // Colab-specific metadata (colab object with base_uri, outputId)
+      if (originalCell.metadata?.colab) {
+        expect(roundtrippedCell.metadata?.colab).toEqual(originalCell.metadata.colab)
+      }
+
+      // Colab form cells (cellView)
+      if (originalCell.metadata?.cellView) {
+        expect(roundtrippedCell.metadata?.cellView).toBe(originalCell.metadata.cellView)
+      }
+
+      // Colab outputId
+      if (originalCell.metadata?.outputId) {
+        expect(roundtrippedCell.metadata?.outputId).toBe(originalCell.metadata.outputId)
+      }
+    }
+  })
+
+  it('preserves Amazon SageMaker metadata during roundtrip', async () => {
+    const inputPath = join(testFixturesDir, 'sagemaker-sample.ipynb')
+    const originalJson = await fs.readFile(inputPath, 'utf-8')
+    const original: JupyterNotebook = JSON.parse(originalJson)
+
+    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'sagemaker-sample.ipynb', notebook: original }], {
+      projectName: 'SageMaker Test',
+    })
+
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
+    const roundtripped = jupyterNotebooks[0].notebook
+
+    // Verify cell count preserved
+    expect(roundtripped.cells.length).toBe(original.cells.length)
+
+    // Verify SageMaker-specific cell metadata is preserved
+    for (let i = 0; i < original.cells.length; i++) {
+      const originalCell = original.cells[i]
+      const roundtrippedCell = roundtripped.cells[i]
+
+      // SageMaker tags
+      if (originalCell.metadata?.tags) {
+        expect(roundtrippedCell.metadata?.tags).toEqual(originalCell.metadata.tags)
+      }
+
+      // scrolled setting
+      if (originalCell.metadata?.scrolled !== undefined) {
+        expect(roundtrippedCell.metadata?.scrolled).toBe(originalCell.metadata.scrolled)
+      }
+    }
+  })
+
+  it('preserves Kaggle metadata during roundtrip', async () => {
+    const inputPath = join(testFixturesDir, 'kaggle-sample.ipynb')
+    const originalJson = await fs.readFile(inputPath, 'utf-8')
+    const original: JupyterNotebook = JSON.parse(originalJson)
+
+    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'kaggle-sample.ipynb', notebook: original }], {
+      projectName: 'Kaggle Test',
+    })
+
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
+    const roundtripped = jupyterNotebooks[0].notebook
+
+    // Verify cell count preserved
+    expect(roundtripped.cells.length).toBe(original.cells.length)
+
+    // Verify Kaggle-specific cell metadata is preserved
+    for (let i = 0; i < original.cells.length; i++) {
+      const originalCell = original.cells[i]
+      const roundtrippedCell = roundtripped.cells[i]
+
+      // Kaggle UUIDs
+      if (originalCell.metadata?._uuid) {
+        expect(roundtrippedCell.metadata?._uuid).toBe(originalCell.metadata._uuid)
+      }
+
+      // Kaggle cell GUIDs
+      if (originalCell.metadata?._cell_guid) {
+        expect(roundtrippedCell.metadata?._cell_guid).toBe(originalCell.metadata._cell_guid)
+      }
+
+      // Kaggle hide input/output
+      if (originalCell.metadata?._kg_hide_input !== undefined) {
+        expect(roundtrippedCell.metadata?._kg_hide_input).toBe(originalCell.metadata._kg_hide_input)
+      }
+      if (originalCell.metadata?._kg_hide_output !== undefined) {
+        expect(roundtrippedCell.metadata?._kg_hide_output).toBe(originalCell.metadata._kg_hide_output)
+      }
+
+      // Kaggle execution timing
+      if (originalCell.metadata?.execution) {
+        expect(roundtrippedCell.metadata?.execution).toEqual(originalCell.metadata.execution)
+      }
+    }
+  })
+})
+
 describe('Jupyter → Deepnote → Jupyter roundtrip', () => {
   it('preserves cell count and types', async () => {
     const inputPath = join(testFixturesDir, 'titanic-tutorial.ipynb')

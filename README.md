@@ -79,6 +79,7 @@ Reusable packages and libraries powering Deepnote's notebook, runtime, and colla
 **[@deepnote/convert](./packages/convert)** CLI tool and library for bidirectional conversion between Deepnote (`.deepnote`) and multiple notebook formats.
 
 - **Supported formats**: Jupyter (`.ipynb`), Quarto (`.qmd`), Percent (`.py` with `# %%`), and Marimo (`.py` with `@app.cell`)
+- **Platform compatible**: Import Jupyter notebooks (`.ipynb`) from Google Colab, Amazon SageMaker, Kaggle, or Azure ML, edit locally, and export back — all platform-specific metadata is preserved during roundtrip
 - **CLI tool**: `deepnote-convert` command for batch conversions
 - **Programmatic API**: Use in Node.js/TypeScript applications
 - **Bidirectional**: Any format → Deepnote, and Deepnote → any format (via `--outputFormat`)

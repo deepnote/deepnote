@@ -137,6 +137,20 @@ The converter supports lossless roundtrip conversions for Jupyter:
 
 Other formats (Quarto, Percent, Marimo) preserve content and structure but may not retain all Deepnote-specific metadata.
 
+### Platform Compatibility
+
+Since Jupyter (`.ipynb`) is the standard format, notebooks from cloud platforms that use Jupyter are fully supported with metadata preservation:
+
+| Platform               | Status              | Notes                                              |
+| ---------------------- | ------------------- | -------------------------------------------------- |
+| **Google Colab**       | ✅ Fully compatible | Preserves Colab cell IDs, form cells, GPU settings |
+| **Amazon SageMaker**   | ✅ Fully compatible | Preserves tags, training/inference markers         |
+| **Kaggle**             | ✅ Fully compatible | Preserves UUIDs, cell GUIDs, hide input/output     |
+| **Azure ML Notebooks** | ✅ Fully compatible | Standard Jupyter with Azure metadata               |
+| **JupyterLab/Hub**     | ✅ Fully compatible | Standard Jupyter format                            |
+
+Platform-specific cell metadata is preserved during roundtrip conversion, allowing notebooks to be edited in Deepnote and exported back to the original platform without losing settings.
+
 ## Programmatic Usage
 
 ### Convert to Deepnote
