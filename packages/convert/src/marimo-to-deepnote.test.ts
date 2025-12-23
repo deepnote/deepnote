@@ -267,6 +267,99 @@ if __name__ == "__main__":
     expect(app.cells[0].content).toContain('greet("World")')
   })
 
+  it('preserves relative indentation in multiline code cells', () => {
+    // This test ensures that indentation is correctly normalized:
+    // all lines should have their common leading indentation removed,
+    // but relative indentation between lines should be preserved
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def _():
+    import os
+    import sqlalchemy
+
+    _password = os.environ.get("POSTGRES_PASSWORD", "postgres")
+    DATABASE_URL = f"postgresql://postgres:{_password}@localhost:5432/squeal"
+    engine = sqlalchemy.create_engine(DATABASE_URL)
+
+    print(DATABASE_URL)
+    return (engine,)
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(1)
+    const cellContent = app.cells[0].content
+
+    // All lines should start at column 0 (no leading indentation)
+    const lines = cellContent.split('\n')
+    for (const line of lines) {
+      if (line.trim().length > 0) {
+        // Non-empty lines should not have leading indentation from the original function body
+        expect(line).not.toMatch(/^ {4}/) // Should not have 4-space indent from function body
+        expect(line).toBe(line.trimStart()) // Each non-empty line should start at column 0
+      }
+    }
+
+    // Verify the content is correct
+    expect(cellContent).toContain('import os')
+    expect(cellContent).toContain('import sqlalchemy')
+    expect(cellContent).toContain('_password = os.environ.get')
+  })
+
+  it('preserves relative indentation for nested structures', () => {
+    // Test that nested code structures maintain their relative indentation
+    // Note: The converter removes all return statements (including those inside nested functions)
+    // so we test with a structure that doesn't rely on return statements
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    class MyClass:
+        def method(self):
+            print("nested")
+        def other(self):
+            if True:
+                print("deeply nested")
+
+    obj = MyClass()
+    return obj,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(1)
+    const cellContent = app.cells[0].content
+    const lines = cellContent.split('\n').filter(l => l.trim().length > 0)
+
+    // First line should have no indentation
+    expect(lines[0]).toBe('class MyClass:')
+
+    // "def method(self):" should be indented by 4 spaces relative to class
+    const methodDefLine = lines.find(l => l.includes('def method'))
+    expect(methodDefLine).toBe('    def method(self):')
+
+    // "print(\"nested\")" should be indented by 8 spaces (inside method)
+    const printNestedLine = lines.find(l => l.includes('print("nested")'))
+    expect(printNestedLine).toBe('        print("nested")')
+
+    // "print(\"deeply nested\")" should be indented by 12 spaces (inside if inside method)
+    const printDeeplyNestedLine = lines.find(l => l.includes('print("deeply nested")'))
+    expect(printDeeplyNestedLine).toBe('            print("deeply nested")')
+
+    // "obj = MyClass()" should have no indentation (same level as first line)
+    const objLine = lines.find(l => l.includes('obj = MyClass'))
+    expect(objLine).toBe('obj = MyClass()')
+  })
+
   it('parses multiple dependencies', () => {
     const content = `import marimo
 

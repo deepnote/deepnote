@@ -192,6 +192,75 @@ greet("World")
 greet("World")`)
   })
 
+  it('preserves relative indentation in multiline code cells', () => {
+    // This test ensures that indentation is correctly preserved:
+    // each line should maintain its original indentation relative to other lines
+    const content = `# %%
+import os
+import sqlalchemy
+
+_password = os.environ.get("POSTGRES_PASSWORD", "postgres")
+DATABASE_URL = f"postgresql://postgres:{_password}@localhost:5432/squeal"
+engine = sqlalchemy.create_engine(DATABASE_URL)
+
+print(DATABASE_URL)
+`
+    const notebook = parsePercentFormat(content)
+
+    expect(notebook.cells).toHaveLength(1)
+    const cellContent = notebook.cells[0].content
+    const lines = cellContent.split('\n')
+
+    // All lines should start at column 0 (percent format doesn't add function body indentation)
+    for (const line of lines) {
+      if (line.trim().length > 0) {
+        expect(line).toBe(line.trimStart())
+      }
+    }
+
+    // Verify the content is correct
+    expect(cellContent).toContain('import os')
+    expect(cellContent).toContain('import sqlalchemy')
+  })
+
+  it('preserves relative indentation for nested structures', () => {
+    // Test that nested code structures maintain their relative indentation
+    const content = `# %%
+class MyClass:
+    def method(self):
+        print("nested")
+    def other(self):
+        if True:
+            print("deeply nested")
+
+obj = MyClass()
+`
+    const notebook = parsePercentFormat(content)
+
+    expect(notebook.cells).toHaveLength(1)
+    const cellContent = notebook.cells[0].content
+    const lines = cellContent.split('\n').filter(l => l.length > 0)
+
+    // First line should have no indentation
+    expect(lines[0]).toBe('class MyClass:')
+
+    // "def method(self):" should be indented by 4 spaces relative to class
+    const methodDefLine = lines.find(l => l.includes('def method'))
+    expect(methodDefLine).toBe('    def method(self):')
+
+    // "print(\"nested\")" should be indented by 8 spaces (inside method)
+    const printNestedLine = lines.find(l => l.includes('print("nested")'))
+    expect(printNestedLine).toBe('        print("nested")')
+
+    // "print(\"deeply nested\")" should be indented by 12 spaces (inside if inside method)
+    const printDeeplyNestedLine = lines.find(l => l.includes('print("deeply nested")'))
+    expect(printDeeplyNestedLine).toBe('            print("deeply nested")')
+
+    // "obj = MyClass()" should have no indentation (same level as first line)
+    const objLine = lines.find(l => l.includes('obj = MyClass'))
+    expect(objLine).toBe('obj = MyClass()')
+  })
+
   it('handles markdown with code blocks', () => {
     const content = `# %% [markdown]
 # ## Code Example

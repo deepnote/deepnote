@@ -136,21 +136,28 @@ export function parseMarimoFormat(content: string): MarimoApp {
     const hidden = /hide_code\s*=\s*True/.test(decoratorArgs)
     const disabled = /disabled\s*=\s*True/.test(decoratorArgs)
 
-    // Remove return statement and leading/trailing whitespace from body
+    // Remove return statement from body (without trimming yet - we need to preserve indentation for normalization)
     // Handle both "return" and "return var," patterns
     // Note: We use [^\n]+ instead of [^#\n]+ to handle # characters inside strings
-    body = body.replace(/\n?\s*return\s*(?:[^\n]+)?(?:,\s*)?(?:\n|$)/g, '').trim()
+    body = body.replace(/\n?\s*return\s*(?:[^\n]+)?(?:,\s*)?(?:\n|$)/g, '')
 
-    // Remove common indentation
+    // Remove common indentation first (before trimming, so we preserve relative indentation)
     const lines = body.split('\n')
     if (lines.length > 0) {
-      const firstLine = lines.find(l => l.trim().length > 0)
-      if (firstLine) {
-        const indentMatch = /^(\s*)/.exec(firstLine)
+      const firstNonEmptyLine = lines.find(l => l.trim().length > 0)
+      if (firstNonEmptyLine) {
+        const indentMatch = /^(\s*)/.exec(firstNonEmptyLine)
         const indent = indentMatch?.[1] || ''
-        body = lines.map(l => (l.startsWith(indent) ? l.slice(indent.length) : l)).join('\n')
+        if (indent.length > 0) {
+          body = lines.map(l => (l.startsWith(indent) ? l.slice(indent.length) : l)).join('\n')
+        } else {
+          body = lines.join('\n')
+        }
       }
     }
+
+    // Now trim leading/trailing empty lines (but preserve internal whitespace structure)
+    body = body.trim()
 
     // Check if it's a markdown cell (uses mo.md())
     const isMarkdown = /^\s*mo\.md\s*\(/.test(body) || /^\s*marimo\.md\s*\(/.test(body)
