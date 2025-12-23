@@ -58,6 +58,50 @@ describe('serializeMarimoFormat', () => {
     expect(result).toContain('This is a test.')
   })
 
+  it('serializes a SQL cell', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'sql' as const,
+          content: 'SELECT * FROM users WHERE active = true',
+          dependencies: ['engine'],
+          exports: ['df'],
+        },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('import marimo as mo')
+    expect(result).toContain('app = mo.App()')
+    expect(result).toContain('@app.cell')
+    expect(result).toContain('def __(engine):')
+    expect(result).toContain('df = mo.sql(')
+    expect(result).toContain('f"""')
+    expect(result).toContain('SELECT * FROM users WHERE active = true')
+    expect(result).toContain('engine=engine')
+    expect(result).toContain('return df,')
+  })
+
+  it('serializes a SQL cell without engine dependency', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'sql' as const,
+          content: 'SELECT COUNT(*) FROM orders',
+          exports: ['count'],
+        },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    expect(result).toContain('count = mo.sql(')
+    expect(result).toContain('SELECT COUNT(*) FROM orders')
+    expect(result).not.toContain('engine=')
+    expect(result).toContain('return count,')
+  })
+
   it('serializes cells with dependencies', () => {
     const app = {
       cells: [
@@ -201,6 +245,31 @@ describe('convertBlocksToMarimoApp', () => {
     expect(app.cells).toHaveLength(1)
     expect(app.cells[0].cellType).toBe('code')
     expect(app.cells[0].content).toBe('print("hello")')
+  })
+
+  it('converts SQL blocks', () => {
+    const blocks: DeepnoteBlock[] = [
+      {
+        id: 'block-1',
+        type: 'sql',
+        content: 'SELECT * FROM users',
+        blockGroup: 'group-1',
+        sortingKey: '0',
+        metadata: {
+          deepnote_variable_name: 'df',
+          marimo_dependencies: ['engine'],
+          marimo_exports: ['df'],
+        },
+      },
+    ]
+
+    const app = convertBlocksToMarimoApp(blocks, 'Test')
+
+    expect(app.cells).toHaveLength(1)
+    expect(app.cells[0].cellType).toBe('sql')
+    expect(app.cells[0].content).toBe('SELECT * FROM users')
+    expect(app.cells[0].dependencies).toEqual(['engine'])
+    expect(app.cells[0].exports).toEqual(['df'])
   })
 
   it('preserves Marimo metadata from blocks', () => {

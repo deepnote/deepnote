@@ -13,7 +13,7 @@
 
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { deepnoteFileSchema, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 
 import { convertDeepnoteToJupyterNotebooks } from './deepnote-to-jupyter'
@@ -254,9 +254,14 @@ describe('Marimo format bidirectional roundtrip', () => {
     // Verify cell count
     expect(roundtrippedMarimo.cells.length).toBe(originalMarimo.cells.length)
 
-    // Verify cell types
+    // Verify cell types and content preservation
     for (let i = 0; i < originalMarimo.cells.length; i++) {
       expect(roundtrippedMarimo.cells[i].cellType).toBe(originalMarimo.cells[i].cellType)
+
+      // Verify code cell content (including indentation) is preserved exactly
+      if (originalMarimo.cells[i].cellType === 'code') {
+        expect(roundtrippedMarimo.cells[i].content).toBe(originalMarimo.cells[i].content)
+      }
     }
   })
 
@@ -300,12 +305,145 @@ describe('Marimo format bidirectional roundtrip', () => {
     // Cell count should match
     expect(roundtrippedMarimo.cells.length).toBe(originalMarimo.cells.length)
 
-    // Verify dependencies are preserved for cells that have them
+    // Verify dependencies and content are preserved
     for (let i = 0; i < originalMarimo.cells.length; i++) {
       if (originalMarimo.cells[i].dependencies?.length) {
         expect(roundtrippedMarimo.cells[i].dependencies).toEqual(originalMarimo.cells[i].dependencies)
       }
+
+      // Verify code cell content (including indentation) is preserved exactly
+      if (originalMarimo.cells[i].cellType === 'code') {
+        expect(roundtrippedMarimo.cells[i].content).toBe(originalMarimo.cells[i].content)
+      }
     }
+  })
+
+  it('Marimo → Deepnote → Marimo: SQL blocks preserve query and metadata', () => {
+    const marimoWithSql = {
+      cells: [
+        {
+          cellType: 'sql' as const,
+          content: 'SELECT * FROM users WHERE active = true',
+          dependencies: ['engine'],
+          exports: ['df'],
+        },
+        {
+          cellType: 'sql' as const,
+          content: 'SELECT COUNT(*) as total FROM orders',
+          exports: ['count'],
+        },
+      ],
+    }
+
+    // Step 1: Marimo → Deepnote
+    const deepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: marimoWithSql }], {
+      projectName: 'Test',
+    })
+
+    // Validate the Deepnote file structure
+    const validationResult = deepnoteFileSchema.safeParse(deepnote)
+    expect(validationResult.success).toBe(true)
+
+    // Step 2: Deepnote → Marimo
+    const marimoApps = convertDeepnoteToMarimoApps(deepnote)
+    const serialized = serializeMarimoFormat(marimoApps[0].app)
+    const roundtrippedMarimo = parseMarimoFormat(serialized)
+
+    // Verify cell count
+    expect(roundtrippedMarimo.cells.length).toBe(marimoWithSql.cells.length)
+
+    // Verify first SQL cell
+    expect(roundtrippedMarimo.cells[0].cellType).toBe('sql')
+    expect(roundtrippedMarimo.cells[0].content).toBe('SELECT * FROM users WHERE active = true')
+    expect(roundtrippedMarimo.cells[0].dependencies).toEqual(['engine'])
+    expect(roundtrippedMarimo.cells[0].exports).toEqual(['df'])
+
+    // Verify second SQL cell
+    expect(roundtrippedMarimo.cells[1].cellType).toBe('sql')
+    expect(roundtrippedMarimo.cells[1].content).toBe('SELECT COUNT(*) as total FROM orders')
+    expect(roundtrippedMarimo.cells[1].exports).toEqual(['count'])
+  })
+
+  it('Deepnote → Marimo → Deepnote: SQL blocks preserve type and content', () => {
+    const deepnoteWithSql: import('@deepnote/blocks').DeepnoteFile = {
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'test-project',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'test-notebook',
+            name: 'Test Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                blockGroup: 'group-1',
+                sortingKey: 'a0',
+                type: 'sql',
+                content: 'SELECT id, name, email FROM users WHERE created_at > NOW() - INTERVAL 30 DAY',
+                metadata: {
+                  deepnote_variable_name: 'recent_users',
+                  marimo_dependencies: ['engine'],
+                  marimo_exports: ['recent_users'],
+                },
+              },
+              {
+                id: 'block-2',
+                blockGroup: 'group-2',
+                sortingKey: 'a1',
+                type: 'sql',
+                content: 'SELECT product_id, SUM(quantity) as total FROM orders GROUP BY product_id',
+                metadata: {
+                  deepnote_variable_name: 'product_totals',
+                  marimo_exports: ['product_totals'],
+                },
+              },
+            ],
+          },
+        ],
+      },
+      version: '1.0',
+      environment: { python: { version: '3.11' } },
+      execution: {},
+    }
+
+    // Validate the original Deepnote file
+    const originalValidation = deepnoteFileSchema.safeParse(deepnoteWithSql)
+    expect(originalValidation.success).toBe(true)
+
+    // Step 1: Deepnote → Marimo
+    const marimoApps = convertDeepnoteToMarimoApps(deepnoteWithSql)
+    const serialized = serializeMarimoFormat(marimoApps[0].app)
+
+    // Step 2: Marimo → Deepnote
+    const parsedMarimo = parseMarimoFormat(serialized)
+    const roundtrippedDeepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: parsedMarimo }], {
+      projectName: deepnoteWithSql.project.name,
+    })
+
+    // Validate the roundtripped Deepnote file
+    const roundtrippedValidation = deepnoteFileSchema.safeParse(roundtrippedDeepnote)
+    expect(roundtrippedValidation.success).toBe(true)
+
+    // Verify block count
+    expect(roundtrippedDeepnote.project.notebooks[0].blocks.length).toBe(
+      deepnoteWithSql.project.notebooks[0].blocks.length
+    )
+
+    // Verify first SQL block
+    const block1 = roundtrippedDeepnote.project.notebooks[0].blocks[0]
+    expect(block1.type).toBe('sql')
+    expect(block1.content).toBe('SELECT id, name, email FROM users WHERE created_at > NOW() - INTERVAL 30 DAY')
+    expect(block1.metadata?.deepnote_variable_name).toBe('recent_users')
+    expect(block1.metadata?.marimo_dependencies).toEqual(['engine'])
+    expect(block1.metadata?.marimo_exports).toEqual(['recent_users'])
+
+    // Verify second SQL block
+    const block2 = roundtrippedDeepnote.project.notebooks[0].blocks[1]
+    expect(block2.type).toBe('sql')
+    expect(block2.content).toBe('SELECT product_id, SUM(quantity) as total FROM orders GROUP BY product_id')
+    expect(block2.metadata?.deepnote_variable_name).toBe('product_totals')
+    expect(block2.metadata?.marimo_exports).toEqual(['product_totals'])
   })
 })
 

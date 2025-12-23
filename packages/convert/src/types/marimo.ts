@@ -31,9 +31,9 @@
  */
 
 export interface MarimoCell {
-  /** Cell type: 'code' or 'markdown' */
-  cellType: 'code' | 'markdown'
-  /** Cell content (Python code or markdown text) */
+  /** Cell type: 'code', 'markdown', or 'sql' */
+  cellType: 'code' | 'markdown' | 'sql'
+  /** Cell content (Python code, markdown text, or SQL query) */
   content: string
   /** Function name (usually __ for anonymous cells) */
   functionName?: string

@@ -215,6 +215,9 @@ export function parseMarimoFormat(content: string): MarimoApp {
     // Check if it's a markdown cell (uses mo.md())
     const isMarkdown = /^\s*mo\.md\s*\(/.test(body) || /^\s*marimo\.md\s*\(/.test(body)
 
+    // Check if it's a SQL cell (uses mo.sql())
+    const isSql = /^\s*(?:\w+\s*=\s*)?(?:mo|marimo)\.sql\s*\(/.test(body)
+
     if (isMarkdown) {
       // Extract markdown content from mo.md() call
       // Support all valid Python string prefixes: r, f, rf, fr, or none
@@ -229,6 +232,25 @@ export function parseMarimoFormat(content: string): MarimoApp {
           content: mdContent.trim(),
           functionName,
           ...(dependencies && dependencies.length > 0 ? { dependencies } : {}),
+          ...(hidden ? { hidden } : {}),
+          ...(disabled ? { disabled } : {}),
+        })
+      }
+    } else if (isSql) {
+      // Extract SQL query from mo.sql() call
+      // Pattern: variable = mo.sql(f"""query""", engine=engine) or mo.sql("""query""", engine=engine)
+      const sqlMatch =
+        /(?:mo|marimo)\.sql\s*\(\s*(?:f)?(?:"""([\s\S]*?)"""|'''([\s\S]*?)'''|"([^"]*)"|'([^']*)')\s*(?:,[\s\S]*)?\)/.exec(
+          body
+        )
+      if (sqlMatch) {
+        const sqlQuery = sqlMatch[1] || sqlMatch[2] || sqlMatch[3] || sqlMatch[4] || ''
+        cells.push({
+          cellType: 'sql',
+          content: sqlQuery.trim(),
+          functionName,
+          ...(dependencies && dependencies.length > 0 ? { dependencies } : {}),
+          ...(exports && exports.length > 0 ? { exports } : {}),
           ...(hidden ? { hidden } : {}),
           ...(disabled ? { disabled } : {}),
         })
@@ -363,7 +385,14 @@ export async function convertMarimoFilesToDeepnoteFile(
 }
 
 function convertCellToBlock(cell: MarimoCell, index: number, idGenerator: () => string): DeepnoteBlock {
-  const blockType = cell.cellType === 'markdown' ? 'markdown' : 'code'
+  let blockType: string
+  if (cell.cellType === 'markdown') {
+    blockType = 'markdown'
+  } else if (cell.cellType === 'sql') {
+    blockType = 'sql'
+  } else {
+    blockType = 'code'
+  }
 
   const metadata: Record<string, unknown> = {}
 
@@ -382,6 +411,11 @@ function convertCellToBlock(cell: MarimoCell, index: number, idGenerator: () => 
   }
   if (cell.functionName && cell.functionName !== '__') {
     metadata.marimo_function_name = cell.functionName
+  }
+
+  // For SQL blocks, set the variable name from exports if available
+  if (cell.cellType === 'sql' && cell.exports && cell.exports.length > 0) {
+    metadata.deepnote_variable_name = cell.exports[0]
   }
 
   return {

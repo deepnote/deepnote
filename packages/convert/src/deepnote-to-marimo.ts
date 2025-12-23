@@ -59,11 +59,11 @@ export function convertDeepnoteToMarimoApps(deepnoteFile: DeepnoteFile): Array<{
 export function serializeMarimoFormat(app: MarimoApp): string {
   const lines: string[] = []
 
-  // Check if we have any markdown cells
-  const hasMarkdownCells = app.cells.some(cell => cell.cellType === 'markdown')
+  // Check if we have any markdown or SQL cells (both use mo.md() or mo.sql())
+  const hasMarkdownOrSqlCells = app.cells.some(cell => cell.cellType === 'markdown' || cell.cellType === 'sql')
 
-  // Add import - use 'as mo' alias if there are markdown cells
-  if (hasMarkdownCells) {
+  // Add import - use 'as mo' alias if there are markdown or SQL cells
+  if (hasMarkdownOrSqlCells) {
     lines.push('import marimo as mo')
   } else {
     lines.push('import marimo')
@@ -81,7 +81,7 @@ export function serializeMarimoFormat(app: MarimoApp): string {
   if (app.title) {
     appOptions.push(`title="${escapeString(app.title)}"`)
   }
-  const marimoRef = hasMarkdownCells ? 'mo' : 'marimo'
+  const marimoRef = hasMarkdownOrSqlCells ? 'mo' : 'marimo'
   const optionsStr = appOptions.length > 0 ? appOptions.join(', ') : ''
   lines.push(`app = ${marimoRef}.App(${optionsStr})`)
   lines.push('')
@@ -115,6 +115,29 @@ export function serializeMarimoFormat(app: MarimoApp): string {
       }
       lines.push(`    """)`)
       lines.push('    return')
+    } else if (cell.cellType === 'sql') {
+      // Wrap SQL query in mo.sql()
+      const escaped = escapeTripleQuote(cell.content)
+      const varName = cell.exports && cell.exports.length > 0 ? cell.exports[0] : 'df'
+
+      // Check if there's an 'engine' dependency for the SQL connection
+      const hasEngine = cell.dependencies?.includes('engine')
+      const engineParam = hasEngine ? ', engine=engine' : ''
+
+      lines.push(`    ${varName} = mo.sql(`)
+      lines.push(`        f"""`)
+      for (const contentLine of escaped.split('\n')) {
+        lines.push(`        ${contentLine}`)
+      }
+      lines.push(`        """${engineParam}`)
+      lines.push(`    )`)
+
+      // Add return statement for exports
+      if (cell.exports && cell.exports.length > 0) {
+        lines.push(`    return ${cell.exports.join(', ')},`)
+      } else {
+        lines.push('    return')
+      }
     } else {
       // Code cell
       const contentLines = cell.content.split('\n')
@@ -171,20 +194,30 @@ export async function convertDeepnoteFileToMarimoFiles(
 
 function convertBlockToCell(block: DeepnoteBlock): MarimoCell {
   const isMarkdown = isMarkdownBlockType(block.type)
+  const isSql = block.type === 'sql'
   const metadata = block.metadata || {}
 
   let content: string
+  let cellType: 'code' | 'markdown' | 'sql'
+
   if (isMarkdown) {
+    cellType = 'markdown'
     try {
       content = createMarkdown(block)
     } catch {
       // Fallback to raw content for unsupported markdown block types
       content = block.content || ''
     }
+  } else if (isSql) {
+    cellType = 'sql'
+    // For SQL blocks, use the raw SQL query content
+    content = block.content || ''
   } else if (block.type === 'code') {
+    cellType = 'code'
     content = block.content || ''
   } else {
-    // For SQL, visualization, input blocks, etc., generate Python code
+    cellType = 'code'
+    // For visualization, input blocks, etc., generate Python code
     try {
       content = createPythonCode(block)
     } catch {
@@ -201,7 +234,7 @@ function convertBlockToCell(block: DeepnoteBlock): MarimoCell {
   const functionName = metadata.marimo_function_name as string | undefined
 
   return {
-    cellType: isMarkdown ? 'markdown' : 'code',
+    cellType,
     content,
     ...(functionName ? { functionName } : {}),
     ...(dependencies && dependencies.length > 0 ? { dependencies } : {}),

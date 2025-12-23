@@ -610,6 +610,86 @@ if __name__ == "__main__":
     // Cell-level return should be stripped
     expect(app.cells[0].content).not.toContain('return calc')
   })
+
+  it('parses SQL cells with mo.sql()', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def _(engine):
+    df = mo.sql(
+        f"""
+        SELECT * FROM film
+        """,
+        engine=engine
+    )
+    return (df,)
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(1)
+    expect(app.cells[0].cellType).toBe('sql')
+    expect(app.cells[0].content).toContain('SELECT * FROM film')
+    expect(app.cells[0].exports).toEqual(['df'])
+    expect(app.cells[0].dependencies).toEqual(['engine'])
+  })
+
+  it('parses SQL cells with marimo.sql()', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def _(connection):
+    result = marimo.sql(
+        """
+        SELECT COUNT(*) FROM users
+        WHERE active = true
+        """,
+        engine=connection
+    )
+    return result,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(1)
+    expect(app.cells[0].cellType).toBe('sql')
+    expect(app.cells[0].content).toContain('SELECT COUNT(*) FROM users')
+    expect(app.cells[0].content).toContain('WHERE active = true')
+    expect(app.cells[0].exports).toEqual(['result'])
+    expect(app.cells[0].dependencies).toEqual(['connection'])
+  })
+
+  it('parses SQL cells without f-string prefix', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def _(engine):
+    data = mo.sql(
+        """SELECT id, name FROM products""",
+        engine=engine
+    )
+    return data,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(1)
+    expect(app.cells[0].cellType).toBe('sql')
+    expect(app.cells[0].content).toBe('SELECT id, name FROM products')
+    expect(app.cells[0].exports).toEqual(['data'])
+  })
 })
 
 describe('convertMarimoAppToBlocks', () => {
@@ -702,6 +782,44 @@ describe('convertMarimoAppToBlocks', () => {
     const blocks = convertMarimoAppToBlocks(app)
 
     expect(blocks[0].metadata?.marimo_function_name).toBe('my_function')
+  })
+
+  it('converts SQL cells to Deepnote SQL blocks', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'sql' as const,
+          content: 'SELECT * FROM users',
+          dependencies: ['engine'],
+          exports: ['df'],
+        },
+      ],
+    }
+
+    const blocks = convertMarimoAppToBlocks(app)
+
+    expect(blocks[0].type).toBe('sql')
+    expect(blocks[0].content).toBe('SELECT * FROM users')
+    expect(blocks[0].metadata?.marimo_dependencies).toEqual(['engine'])
+    expect(blocks[0].metadata?.marimo_exports).toEqual(['df'])
+    expect(blocks[0].metadata?.deepnote_variable_name).toBe('df')
+  })
+
+  it('converts SQL cells without variable name', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'sql' as const,
+          content: 'SELECT COUNT(*) FROM orders',
+        },
+      ],
+    }
+
+    const blocks = convertMarimoAppToBlocks(app)
+
+    expect(blocks[0].type).toBe('sql')
+    expect(blocks[0].content).toBe('SELECT COUNT(*) FROM orders')
+    expect(blocks[0].metadata?.deepnote_variable_name).toBeUndefined()
   })
 })
 
