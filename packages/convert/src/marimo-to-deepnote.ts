@@ -190,9 +190,17 @@ export function parseMarimoFormat(content: string): MarimoApp {
 
     // Remove ONLY the cell-level return statements (at base indentation), preserve nested ones
     const filteredLines = lines.filter(line => {
+      // Normalize whitespace to handle tabs vs spaces consistently
+      const normalizedLine = line.replace(/\t/g, '    ')
+      const normalizedBaseIndent = baseIndent.replace(/\t/g, '    ')
+
       // Check if this line is at the base indentation level (not more indented)
-      if (line.startsWith(baseIndent) && !line.startsWith(`${baseIndent} `) && !line.startsWith(`${baseIndent}\t`)) {
-        const lineContent = line.slice(baseIndent.length)
+      if (
+        normalizedLine.startsWith(normalizedBaseIndent) &&
+        !normalizedLine.startsWith(`${normalizedBaseIndent} `) &&
+        !normalizedLine.startsWith(`${normalizedBaseIndent}\t`)
+      ) {
+        const lineContent = normalizedLine.slice(normalizedBaseIndent.length)
         // Remove return statements at the base level
         if (/^return\s*(?:[^\n]*)?(?:,\s*)?$/.test(lineContent)) {
           return false
@@ -365,12 +373,20 @@ export async function convertMarimoFilesToDeepnoteFile(
   const apps: MarimoAppInput[] = []
 
   for (const filePath of inputFilePaths) {
-    const content = await fs.readFile(filePath, 'utf-8')
-    const app = parseMarimoFormat(content)
-    apps.push({
-      filename: basename(filePath),
-      app,
-    })
+    try {
+      const content = await fs.readFile(filePath, 'utf-8')
+      const app = parseMarimoFormat(content)
+      apps.push({
+        filename: basename(filePath),
+        app,
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      const errorStack = err instanceof Error ? err.stack : undefined
+      throw new Error(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
+        cause: errorStack ? { originalError: err, stack: errorStack } : err,
+      })
+    }
   }
 
   const deepnoteFile = convertMarimoAppsToDeepnote(apps, {

@@ -302,6 +302,9 @@ if __name__ == "__main__":
         // Non-empty lines should not have leading indentation from the original function body
         expect(line).not.toMatch(/^ {4}/) // Should not have 4-space indent from function body
         expect(line).toBe(line.trimStart()) // Each non-empty line should start at column 0
+      } else {
+        // Blank lines should be truly empty (no spaces or tabs)
+        expect(line).toBe('')
       }
     }
 
