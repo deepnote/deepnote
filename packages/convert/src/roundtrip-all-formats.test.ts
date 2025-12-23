@@ -310,6 +310,182 @@ describe('Marimo format bidirectional roundtrip', () => {
 })
 
 // ============================================================================
+// DEEPNOTE HEADING BLOCK ROUNDTRIP TESTS
+// ============================================================================
+
+describe('Deepnote heading block roundtrip', () => {
+  // Deepnote heading blocks (text-cell-h1, h2, h3) get converted to markdown
+  // (# text, ## text, ### text) when exporting to other formats.
+  // This tests that the markdown content is preserved during roundtrip.
+
+  const createDeepnoteWithHeadings = (): import('@deepnote/blocks').DeepnoteFile => ({
+    metadata: { createdAt: '2025-01-01T00:00:00Z' },
+    project: {
+      id: 'test-project',
+      name: 'Test Project',
+      notebooks: [
+        {
+          id: 'test-notebook',
+          name: 'Test Notebook',
+          blocks: [
+            {
+              id: 'heading-1',
+              blockGroup: 'group-1',
+              type: 'text-cell-h1',
+              sortingKey: '0',
+              content: 'Main Title',
+            },
+            {
+              id: 'heading-2',
+              blockGroup: 'group-2',
+              type: 'text-cell-h2',
+              sortingKey: '1',
+              content: 'Section Title',
+            },
+            {
+              id: 'heading-3',
+              blockGroup: 'group-3',
+              type: 'text-cell-h3',
+              sortingKey: '2',
+              content: 'Subsection Title',
+            },
+            {
+              id: 'code-1',
+              blockGroup: 'group-4',
+              type: 'code',
+              sortingKey: '3',
+              content: 'print("hello")',
+            },
+          ],
+        },
+      ],
+    },
+    version: '1.0.0',
+  })
+
+  it('Deepnote heading → Jupyter markdown → Deepnote: preserves heading content', () => {
+    const original = createDeepnoteWithHeadings()
+
+    // Step 1: Deepnote → Jupyter
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
+
+    // Verify headings are converted to markdown
+    const jupyterCells = jupyterNotebooks[0].notebook.cells
+    expect(jupyterCells[0].cell_type).toBe('markdown')
+    expect(jupyterCells[0].source).toContain('# Main Title')
+    expect(jupyterCells[1].cell_type).toBe('markdown')
+    expect(jupyterCells[1].source).toContain('## Section Title')
+    expect(jupyterCells[2].cell_type).toBe('markdown')
+    expect(jupyterCells[2].source).toContain('### Subsection Title')
+
+    // Step 2: Jupyter → Deepnote
+    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+      projectName: original.project.name,
+    })
+
+    // Verify block count and content preserved
+    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+    expect(roundtrippedBlocks.length).toBe(4)
+
+    // Heading content should be preserved (as markdown content)
+    expect(roundtrippedBlocks[0].content).toContain('Main Title')
+    expect(roundtrippedBlocks[1].content).toContain('Section Title')
+    expect(roundtrippedBlocks[2].content).toContain('Subsection Title')
+    expect(roundtrippedBlocks[3].content).toBe('print("hello")')
+  })
+
+  it('Deepnote heading → Percent markdown → Deepnote: preserves heading content', () => {
+    const original = createDeepnoteWithHeadings()
+
+    // Step 1: Deepnote → Percent
+    const percentNotebooks = convertDeepnoteToPercentNotebooks(original)
+
+    // Verify headings are converted to markdown cells
+    const percentCells = percentNotebooks[0].notebook.cells
+    expect(percentCells[0].cellType).toBe('markdown')
+    expect(percentCells[0].content).toContain('Main Title')
+    expect(percentCells[1].cellType).toBe('markdown')
+    expect(percentCells[1].content).toContain('Section Title')
+    expect(percentCells[2].cellType).toBe('markdown')
+    expect(percentCells[2].content).toContain('Subsection Title')
+
+    // Step 2: Percent → Deepnote
+    const roundtripped = convertPercentNotebooksToDeepnote(
+      percentNotebooks.map(({ filename, notebook }) => ({ filename, notebook })),
+      { projectName: original.project.name }
+    )
+
+    // Verify block count and content preserved
+    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+    expect(roundtrippedBlocks.length).toBe(4)
+
+    expect(roundtrippedBlocks[0].content).toContain('Main Title')
+    expect(roundtrippedBlocks[1].content).toContain('Section Title')
+    expect(roundtrippedBlocks[2].content).toContain('Subsection Title')
+    expect(roundtrippedBlocks[3].content).toBe('print("hello")')
+  })
+
+  it('Deepnote heading → Quarto markdown → Deepnote: preserves heading content', () => {
+    const original = createDeepnoteWithHeadings()
+
+    // Step 1: Deepnote → Quarto
+    const quartoDocuments = convertDeepnoteToQuartoDocuments(original)
+
+    // Verify headings are converted to markdown cells
+    const quartoCells = quartoDocuments[0].document.cells
+    const markdownCells = quartoCells.filter(c => c.cellType === 'markdown')
+    expect(markdownCells.some(c => c.content.includes('Main Title'))).toBe(true)
+    expect(markdownCells.some(c => c.content.includes('Section Title'))).toBe(true)
+    expect(markdownCells.some(c => c.content.includes('Subsection Title'))).toBe(true)
+
+    // Step 2: Quarto → Deepnote
+    const roundtripped = convertQuartoDocumentsToDeepnote(
+      quartoDocuments.map(({ filename, document }) => ({ filename, document })),
+      { projectName: original.project.name }
+    )
+
+    // Verify content preserved (may have more blocks due to title handling)
+    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+    expect(roundtrippedBlocks.length).toBeGreaterThanOrEqual(4)
+
+    const allContent = roundtrippedBlocks.map(b => b.content).join('\n')
+    expect(allContent).toContain('Main Title')
+    expect(allContent).toContain('Section Title')
+    expect(allContent).toContain('Subsection Title')
+    expect(allContent).toContain('print("hello")')
+  })
+
+  it('Deepnote heading → Marimo markdown → Deepnote: preserves heading content', () => {
+    const original = createDeepnoteWithHeadings()
+
+    // Step 1: Deepnote → Marimo
+    const marimoApps = convertDeepnoteToMarimoApps(original)
+
+    // Verify headings are converted to markdown cells
+    const marimoCells = marimoApps[0].app.cells
+    const markdownCells = marimoCells.filter(c => c.cellType === 'markdown')
+    expect(markdownCells.some(c => c.content.includes('Main Title'))).toBe(true)
+    expect(markdownCells.some(c => c.content.includes('Section Title'))).toBe(true)
+    expect(markdownCells.some(c => c.content.includes('Subsection Title'))).toBe(true)
+
+    // Step 2: Marimo → Deepnote
+    const roundtripped = convertMarimoAppsToDeepnote(
+      marimoApps.map(({ filename, app }) => ({ filename, app })),
+      { projectName: original.project.name }
+    )
+
+    // Verify content preserved
+    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+    expect(roundtrippedBlocks.length).toBe(4)
+
+    expect(roundtrippedBlocks[0].content).toContain('Main Title')
+    expect(roundtrippedBlocks[1].content).toContain('Section Title')
+    expect(roundtrippedBlocks[2].content).toContain('Subsection Title')
+    expect(roundtrippedBlocks[3].content).toBe('print("hello")')
+  })
+})
+
+// ============================================================================
 // FORMAT INTEGRITY VALIDATION
 // ============================================================================
 
