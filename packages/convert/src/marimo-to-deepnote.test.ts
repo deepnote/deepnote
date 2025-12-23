@@ -456,9 +456,77 @@ if __name__ == "__main__":
 
     // Should correctly parse exports even with # inside strings
     expect(app.cells[0].exports).toEqual(['hashtag', 'comment'])
-    // The cell content should not include the return statement
+    // The cell content should not include the cell-level return statement
     expect(app.cells[0].content).not.toContain('return')
     expect(app.cells[0].content).toContain('hashtag = "#trending"')
+  })
+
+  it('preserves return statements inside nested functions', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    def helper(x):
+        if x > 0:
+            return x * 2
+        return 0
+
+    def another():
+        return "nested return"
+
+    result = helper(5)
+    return result,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(1)
+    expect(app.cells[0].exports).toEqual(['result'])
+
+    // Nested returns should be preserved
+    expect(app.cells[0].content).toContain('return x * 2')
+    expect(app.cells[0].content).toContain('return 0')
+    expect(app.cells[0].content).toContain('return "nested return"')
+
+    // Cell-level return should be stripped
+    expect(app.cells[0].content).not.toContain('return result')
+  })
+
+  it('preserves return statements inside class methods', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    class Calculator:
+        def add(self, a, b):
+            return a + b
+
+        def multiply(self, a, b):
+            return a * b
+
+    calc = Calculator()
+    return calc,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    expect(app.cells).toHaveLength(1)
+    expect(app.cells[0].exports).toEqual(['calc'])
+
+    // Method returns should be preserved
+    expect(app.cells[0].content).toContain('return a + b')
+    expect(app.cells[0].content).toContain('return a * b')
+
+    // Cell-level return should be stripped
+    expect(app.cells[0].content).not.toContain('return calc')
   })
 })
 

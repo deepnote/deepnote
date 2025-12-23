@@ -113,51 +113,67 @@ export function parseMarimoFormat(content: string): MarimoApp {
           .filter(p => p.length > 0)
       : undefined
 
-    // Parse exports from return statement
-    // Note: We use [^\n]+ instead of [^#\n]+ to handle # characters inside strings
-    let exports: string[] | undefined
-    const returnMatch = /return\s+([^\n]+?)(?:,\s*)?(?:\n|$)/.exec(body)
-    if (returnMatch) {
-      const returnVal = returnMatch[1].trim()
-      if (returnVal && returnVal !== 'None') {
-        // Handle tuple returns like "df, pd," or "(df, pd)"
-        const cleanReturn = returnVal.replace(/^\(|\)$/g, '').replace(/,\s*$/, '')
-        // Split on top-level commas only (not inside parentheses)
-        exports = splitOnTopLevelCommas(cleanReturn)
-          .map(e => e.trim())
-          .filter(e => e.length > 0 && e !== 'None')
-        if (exports.length === 0) {
-          exports = undefined
-        }
-      }
-    }
-
     // Parse decorator arguments directly from the captured decorator line
     const hidden = /hide_code\s*=\s*True/.test(decoratorArgs)
     const disabled = /disabled\s*=\s*True/.test(decoratorArgs)
 
-    // Remove return statement from body (without trimming yet - we need to preserve indentation for normalization)
-    // Handle both "return" and "return var," patterns
-    // Note: We use [^\n]+ instead of [^#\n]+ to handle # characters inside strings
-    body = body.replace(/\n?\s*return\s*(?:[^\n]+)?(?:,\s*)?(?:\n|$)/g, '')
-
-    // Remove common indentation first (before trimming, so we preserve relative indentation)
+    // Find the base indentation level (the indent of the first non-empty line)
+    // This is the cell's top-level code indent - we only strip returns at this level
     const lines = body.split('\n')
-    if (lines.length > 0) {
-      const firstNonEmptyLine = lines.find(l => l.trim().length > 0)
-      if (firstNonEmptyLine) {
-        const indentMatch = /^(\s*)/.exec(firstNonEmptyLine)
-        const indent = indentMatch?.[1] || ''
-        if (indent.length > 0) {
-          body = lines.map(l => (l.startsWith(indent) ? l.slice(indent.length) : l)).join('\n')
-        } else {
-          body = lines.join('\n')
+    const firstNonEmptyLine = lines.find(l => l.trim().length > 0)
+    const baseIndentMatch = firstNonEmptyLine ? /^(\s*)/.exec(firstNonEmptyLine) : null
+    const baseIndent = baseIndentMatch?.[1] || ''
+
+    // Parse exports from the cell-level return statement (only at base indentation)
+    // We look for the LAST return at the base indent level, as that's the cell's export declaration
+    let exports: string[] | undefined
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i]
+      // Check if this line is a return at the base indentation level
+      if (line.startsWith(baseIndent) && !line.startsWith(`${baseIndent} `) && !line.startsWith(`${baseIndent}\t`)) {
+        const lineContent = line.slice(baseIndent.length)
+        const returnMatch = /^return\s*([^\n]*?)(?:,\s*)?$/.exec(lineContent)
+        if (returnMatch) {
+          const returnVal = returnMatch[1].trim()
+          if (returnVal && returnVal !== 'None' && returnVal !== '') {
+            // Handle tuple returns like "df, pd," or "(df, pd)"
+            const cleanReturn = returnVal.replace(/^\(|\)$/g, '').replace(/,\s*$/, '')
+            // Split on top-level commas only (not inside parentheses)
+            exports = splitOnTopLevelCommas(cleanReturn)
+              .map(e => e.trim())
+              .filter(e => e.length > 0 && e !== 'None')
+            if (exports.length === 0) {
+              exports = undefined
+            }
+          }
+          break // Found the cell-level return, stop searching
         }
       }
     }
 
-    // Now trim leading/trailing empty lines (but preserve internal whitespace structure)
-    body = body.trim()
+    // Remove ONLY the cell-level return statements (at base indentation), preserve nested ones
+    const filteredLines = lines.filter(line => {
+      // Check if this line is at the base indentation level (not more indented)
+      if (line.startsWith(baseIndent) && !line.startsWith(`${baseIndent} `) && !line.startsWith(`${baseIndent}\t`)) {
+        const lineContent = line.slice(baseIndent.length)
+        // Remove return statements at the base level
+        if (/^return\s*(?:[^\n]*)?(?:,\s*)?$/.test(lineContent)) {
+          return false
+        }
+      }
+      return true
+    })
+
+    // Remove common indentation
+    let processedBody: string
+    if (baseIndent.length > 0) {
+      processedBody = filteredLines.map(l => (l.startsWith(baseIndent) ? l.slice(baseIndent.length) : l)).join('\n')
+    } else {
+      processedBody = filteredLines.join('\n')
+    }
+
+    // Trim leading/trailing empty lines (but preserve internal whitespace structure)
+    body = processedBody.trim()
 
     // Check if it's a markdown cell (uses mo.md())
     const isMarkdown = /^\s*mo\.md\s*\(/.test(body) || /^\s*marimo\.md\s*\(/.test(body)
