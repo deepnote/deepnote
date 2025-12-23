@@ -5,6 +5,7 @@ import { environmentSchema, executionSchema } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
+import { createSortingKey } from './utils'
 
 export interface ConvertIpynbFilesToDeepnoteFileOptions {
   outputPath: string
@@ -79,6 +80,13 @@ export function convertJupyterNotebooksToDeepnote(
     }
   }
 
+  // Determine the first notebook's ID upfront so we can use it as the project entrypoint
+  // Prefer ID from metadata (for roundtrip), otherwise generate a new one
+  const firstNotebookId =
+    notebooks.length > 0
+      ? ((notebooks[0].notebook.metadata?.deepnote_notebook_id as string | undefined) ?? v4())
+      : undefined
+
   const deepnoteFile: DeepnoteFile = {
     environment,
     execution,
@@ -87,7 +95,7 @@ export function convertJupyterNotebooksToDeepnote(
     },
     project: {
       id: v4(),
-      initNotebookId: undefined,
+      initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
       notebooks: [],
@@ -96,7 +104,8 @@ export function convertJupyterNotebooksToDeepnote(
     version: '1.0.0',
   }
 
-  for (const { filename, notebook } of notebooks) {
+  for (let i = 0; i < notebooks.length; i++) {
+    const { filename, notebook } = notebooks[i]
     const extension = extname(filename)
     const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
@@ -109,10 +118,13 @@ export function convertJupyterNotebooksToDeepnote(
     const isModule = notebook.metadata?.deepnote_is_module as boolean | undefined
     const workingDirectory = notebook.metadata?.deepnote_working_directory as string | undefined
 
+    // Use pre-computed ID for first notebook to match initNotebookId
+    const resolvedNotebookId = i === 0 && firstNotebookId ? firstNotebookId : (notebookId ?? v4())
+
     deepnoteFile.project.notebooks.push({
       blocks,
       executionMode: executionMode ?? 'block',
-      id: notebookId ?? v4(),
+      id: resolvedNotebookId,
       isModule: isModule ?? false,
       name: notebookName ?? filenameWithoutExt,
       workingDirectory,
@@ -229,31 +241,4 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     sortingKey: sortingKey ?? createSortingKey(index),
     type: blockType,
   }
-}
-
-function createSortingKey(index: number): string {
-  const maxLength = 6
-  const chars = '0123456789abcdefghijklmnopqrstuvwxyz'
-  const base = chars.length
-
-  if (index < 0) {
-    throw new Error('Index must be non-negative')
-  }
-
-  let result = ''
-  let num = index + 1
-  let iterations = 0
-
-  while (num > 0 && iterations < maxLength) {
-    num--
-    result = chars[num % base] + result
-    num = Math.floor(num / base)
-    iterations++
-  }
-
-  if (num > 0) {
-    throw new Error(`Index ${index} exceeds maximum key length of ${maxLength}`)
-  }
-
-  return result
 }

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
+import { isMarkdownBlockType, sanitizeFileName } from './utils'
 
 export interface ConvertDeepnoteFileToJupyterOptions {
   outputDir: string
@@ -173,13 +174,7 @@ function getSourceForBlock(block: DeepnoteBlock, jupyterCellType: 'code' | 'mark
 }
 
 function convertBlockTypeToJupyter(blockType: string): 'code' | 'markdown' {
-  const codeTypes = ['big-number', 'button', 'code', 'notebook-function', 'sql', 'visualization']
-
-  if (blockType.startsWith('input-')) {
-    return 'code'
-  }
-
-  return codeTypes.includes(blockType) ? 'code' : 'markdown'
+  return isMarkdownBlockType(blockType) ? 'markdown' : 'code'
 }
 
 function convertNotebookToJupyter(
@@ -195,8 +190,4 @@ function convertNotebookToJupyter(
     environment: deepnoteFile.environment,
     execution: deepnoteFile.execution,
   })
-}
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '-')
 }
