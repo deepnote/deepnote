@@ -3,3 +3,5 @@ if [ "$branch_name" = "main" ]; then
   echo "Pushing directly to main is not allowed."
   exit 1
 fi
+
+pnpm lintAndFormat && pnpm typecheck && pnpm test && pnpm spell-check
