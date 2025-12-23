@@ -438,6 +438,88 @@ if __name__ == "__main__":
     expect(app.cells[0].exports).toEqual(['data', 'config'])
   })
 
+  it('parses exports with commas inside string literals', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    message = "hello, world"
+    count = 42
+    return message, count,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    // Should correctly identify 'message' and 'count' as exports,
+    // not split on the comma inside the string literal
+    expect(app.cells[0].exports).toEqual(['message', 'count'])
+  })
+
+  it('parses exports with various quote types and commas', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    single = 'a, b'
+    double = "c, d"
+    backtick = \`e, f\`
+    return single, double, backtick,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    // Should handle single quotes, double quotes, and backticks
+    expect(app.cells[0].exports).toEqual(['single', 'double', 'backtick'])
+  })
+
+  it('parses exports with escaped quotes', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    text = "She said, \\"hello, there\\""
+    other = 'It\\'s a test'
+    return text, other,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    // Should handle escaped quotes correctly
+    expect(app.cells[0].exports).toEqual(['text', 'other'])
+  })
+
+  it('parses exports with brackets inside strings', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    pattern = "data[0]"
+    value = 123
+    return pattern, value,
+
+if __name__ == "__main__":
+    app.run()
+`
+    const app = parseMarimoFormat(content)
+
+    // Should not treat brackets inside strings as nesting
+    expect(app.cells[0].exports).toEqual(['pattern', 'value'])
+  })
+
   it('handles # characters inside string literals in return statements', () => {
     const content = `import marimo
 

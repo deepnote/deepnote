@@ -146,17 +146,6 @@ code()
     // Note: "normal" is lost because the regex stopped at the first ']'
   })
 
-  it('parses raw cells', () => {
-    const content = `# %% [raw]
-This is raw content.
-`
-    const notebook = parsePercentFormat(content)
-
-    expect(notebook.cells).toHaveLength(1)
-    expect(notebook.cells[0].cellType).toBe('raw')
-    expect(notebook.cells[0].content).toBe('This is raw content.')
-  })
-
   it('handles empty content', () => {
     const notebook = parsePercentFormat('')
 

@@ -7,15 +7,51 @@ import type { MarimoApp, MarimoCell } from './types/marimo'
 import { createSortingKey } from './utils'
 
 /**
- * Splits a string on commas that are at the top level (not inside parentheses, brackets, or braces).
- * This handles cases like "func(a, b), other" correctly.
+ * Splits a string on commas that are at the top level (not inside parentheses, brackets, braces, or string literals).
+ * This handles cases like "func(a, b), other" and 'return "a,b", x' correctly.
+ * Supports single quotes, double quotes, and backticks, with proper escape handling.
  */
 function splitOnTopLevelCommas(str: string): string[] {
   const results: string[] = []
   let current = ''
   let depth = 0
+  let inString: '"' | "'" | '`' | null = null
+  let escaped = false
 
   for (const char of str) {
+    // Handle escape sequences
+    if (escaped) {
+      current += char
+      escaped = false
+      continue
+    }
+
+    if (char === '\\') {
+      current += char
+      escaped = true
+      continue
+    }
+
+    // Handle string literals
+    if (char === '"' || char === "'" || char === '`') {
+      if (inString === null) {
+        // Entering a string
+        inString = char
+      } else if (inString === char) {
+        // Exiting a string (matching quote)
+        inString = null
+      }
+      current += char
+      continue
+    }
+
+    // If we're inside a string, just add the character
+    if (inString !== null) {
+      current += char
+      continue
+    }
+
+    // Handle brackets/parens/braces (only when not in a string)
     if (char === '(' || char === '[' || char === '{') {
       depth++
       current += char
@@ -23,6 +59,7 @@ function splitOnTopLevelCommas(str: string): string[] {
       depth--
       current += char
     } else if (char === ',' && depth === 0) {
+      // Split on comma only at top level and not in a string
       results.push(current)
       current = ''
     } else {
