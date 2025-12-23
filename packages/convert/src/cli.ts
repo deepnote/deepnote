@@ -71,20 +71,29 @@ export async function convert(options: ConvertOptions): Promise<string> {
       .map(entry => entry.name)
       .sort((a, b) => a.localeCompare(b))
 
-    const percentFiles = entries
-      .filter(entry => entry.isFile() && isPercentFile(entry.name))
-      .map(entry => entry.name)
-      .sort((a, b) => a.localeCompare(b))
-
     const quartoFiles = entries
       .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.qmd'))
       .map(entry => entry.name)
       .sort((a, b) => a.localeCompare(b))
 
-    const marimoFiles = entries
-      .filter(entry => entry.isFile() && isMarimoFile(entry.name))
+    // For .py files, we need to check content to distinguish between percent and marimo formats
+    const pyFiles = entries
+      .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.py'))
       .map(entry => entry.name)
       .sort((a, b) => a.localeCompare(b))
+
+    const percentFiles: string[] = []
+    const marimoFiles: string[] = []
+
+    // Check content of each .py file to determine format
+    for (const pyFile of pyFiles) {
+      const content = await fs.readFile(resolve(absolutePath, pyFile), 'utf-8')
+      if (isMarimoContent(content)) {
+        marimoFiles.push(pyFile)
+      } else if (isPercentContent(content)) {
+        percentFiles.push(pyFile)
+      }
+    }
 
     // Prioritize by file type
     if (ipynbFiles.length > 0) {
@@ -93,11 +102,11 @@ export async function convert(options: ConvertOptions): Promise<string> {
     if (quartoFiles.length > 0) {
       return convertDirectory(absolutePath, quartoFiles, 'quarto', resolveProjectName, resolveOutputPath)
     }
-    if (percentFiles.length > 0) {
-      return convertDirectory(absolutePath, percentFiles, 'percent', resolveProjectName, resolveOutputPath)
-    }
     if (marimoFiles.length > 0) {
       return convertDirectory(absolutePath, marimoFiles, 'marimo', resolveProjectName, resolveOutputPath)
+    }
+    if (percentFiles.length > 0) {
+      return convertDirectory(absolutePath, percentFiles, 'percent', resolveProjectName, resolveOutputPath)
     }
 
     throw new Error('No supported notebook files found in the specified directory (.ipynb, .qmd, .py)')
@@ -317,17 +326,6 @@ async function convertDeepnoteToFormat(
     spinner.fail('Conversion failed')
     throw error
   }
-}
-
-/** Check if a filename looks like a percent format file */
-function isPercentFile(filename: string): boolean {
-  // Percent files use .percent.py naming convention for directory scanning
-  return filename.toLowerCase().endsWith('.percent.py')
-}
-
-/** Check if a filename looks like a Marimo file */
-function isMarimoFile(filename: string): boolean {
-  return filename.toLowerCase().endsWith('.marimo.py')
 }
 
 /** Check if file content is Marimo format */
