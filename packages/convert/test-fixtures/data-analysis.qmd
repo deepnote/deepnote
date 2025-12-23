@@ -1,0 +1,78 @@
+---
+title: "Data Analysis Example"
+author: "Data Scientist"
+jupyter: python3
+format: html
+---
+
+# Introduction
+
+This document demonstrates a typical data analysis workflow using Quarto and Python.
+
+```{python}
+import pandas as pd
+import numpy as np
+
+# Create sample data
+np.random.seed(42)
+data = {
+    'name': ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'],
+    'age': [25, 30, 35, 28, 32],
+    'salary': [50000, 60000, 75000, 55000, 70000],
+    'department': ['Engineering', 'Marketing', 'Engineering', 'Sales', 'Marketing']
+}
+df = pd.DataFrame(data)
+```
+
+## Data Overview
+
+Let's examine the structure and summary statistics of our dataset.
+
+```{python}
+#| label: data-overview
+#| echo: true
+print("Dataset Shape:", df.shape)
+print("\nColumn Types:")
+print(df.dtypes)
+```
+
+```{python}
+#| label: summary-stats
+df.describe()
+```
+
+## Analysis by Department
+
+Group the data by department and calculate mean values.
+
+```{python}
+#| label: department-analysis
+#| fig-cap: "Department statistics"
+department_stats = df.groupby('department').agg({
+    'age': 'mean',
+    'salary': ['mean', 'min', 'max']
+})
+print(department_stats)
+```
+
+## Visualization
+
+```{python}
+#| label: fig-scatter
+#| fig-cap: "Age vs Salary scatter plot"
+#| fig-width: 8
+#| fig-height: 6
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8, 6))
+plt.scatter(df['age'], df['salary'])
+plt.xlabel('Age')
+plt.ylabel('Salary')
+plt.title('Age vs Salary')
+plt.show()
+```
+
+## Conclusion
+
+This analysis shows the distribution of employees across departments.
+
+
