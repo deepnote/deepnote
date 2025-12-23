@@ -82,18 +82,33 @@ export async function convert(options: ConvertOptions): Promise<string> {
       .map(entry => entry.name)
       .sort((a, b) => a.localeCompare(b))
 
-    const percentFiles: string[] = []
-    const marimoFiles: string[] = []
-
-    // Check content of each .py file to determine format
-    for (const pyFile of pyFiles) {
+    // Read and classify .py files in parallel with bounded concurrency
+    const classifyPyFile = async (
+      pyFile: string
+    ): Promise<{ file: string; type: 'marimo' | 'percent' | 'unknown' }> => {
       const content = await fs.readFile(resolve(absolutePath, pyFile), 'utf-8')
       if (isMarimoContent(content)) {
-        marimoFiles.push(pyFile)
-      } else if (isPercentContent(content)) {
-        percentFiles.push(pyFile)
+        return { file: pyFile, type: 'marimo' }
       }
+      if (isPercentContent(content)) {
+        return { file: pyFile, type: 'percent' }
+      }
+      return { file: pyFile, type: 'unknown' }
     }
+
+    // Use bounded concurrency to avoid overwhelming the file system
+    const CONCURRENCY_LIMIT = 10
+    const results: Array<{ file: string; type: 'marimo' | 'percent' | 'unknown' }> = []
+
+    for (let i = 0; i < pyFiles.length; i += CONCURRENCY_LIMIT) {
+      const batch = pyFiles.slice(i, i + CONCURRENCY_LIMIT)
+      const batchResults = await Promise.all(batch.map(classifyPyFile))
+      results.push(...batchResults)
+    }
+
+    // Aggregate results while preserving order
+    const marimoFiles = results.filter(r => r.type === 'marimo').map(r => r.file)
+    const percentFiles = results.filter(r => r.type === 'percent').map(r => r.file)
 
     // Prioritize by file type
     if (ipynbFiles.length > 0) {

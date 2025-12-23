@@ -127,7 +127,12 @@ export function serializeMarimoFormat(app: MarimoApp): string {
       lines.push(`    ${varName} = mo.sql(`)
       lines.push(`        f"""`)
       for (const contentLine of escaped.split('\n')) {
-        lines.push(`        ${contentLine}`)
+        // Don't add indentation to empty lines
+        if (contentLine === '' || contentLine.trim() === '') {
+          lines.push('')
+        } else {
+          lines.push(`        ${contentLine}`)
+        }
       }
       lines.push(`        """${engineParam}`)
       lines.push(`    )`)
