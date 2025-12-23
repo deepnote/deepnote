@@ -165,6 +165,77 @@ describe('serializeMarimoFormat', () => {
     expect(result).toContain('    z = 3')
   })
 
+  it('does not indent empty lines in markdown cells', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'markdown' as const,
+          content: '# Title\n\nParagraph 1\n\n\nParagraph 2',
+        },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // Find the markdown content section (between mo.md(r""" and """))
+    const lines = result.split('\n')
+    const mdStartIdx = lines.findIndex(line => line.includes('mo.md(r"""'))
+    const mdEndIdx = lines.findIndex((line, idx) => idx > mdStartIdx && line.includes('"""'))
+
+    // Check lines within the markdown block
+    const mdLines = lines.slice(mdStartIdx + 1, mdEndIdx)
+
+    // Empty lines should be truly empty (no spaces)
+    const emptyLines = mdLines.filter(line => line === '')
+    expect(emptyLines.length).toBeGreaterThan(0) // Should have empty lines
+
+    // Verify no lines are just whitespace (4 spaces)
+    const whitespaceOnlyLines = mdLines.filter(line => line === '    ')
+    expect(whitespaceOnlyLines.length).toBe(0)
+
+    // Non-empty markdown lines should still be indented
+    expect(result).toContain('    # Title')
+    expect(result).toContain('    Paragraph 1')
+    expect(result).toContain('    Paragraph 2')
+  })
+
+  it('does not indent empty lines in SQL cells', () => {
+    const app = {
+      cells: [
+        {
+          cellType: 'sql' as const,
+          content: 'SELECT *\nFROM users\n\nWHERE active = true\n\n\nORDER BY name',
+          dependencies: ['engine'],
+          exports: ['df'],
+        },
+      ],
+    }
+
+    const result = serializeMarimoFormat(app)
+
+    // Find the SQL content section (between f""" and """)
+    const lines = result.split('\n')
+    const sqlStartIdx = lines.findIndex(line => line.includes('f"""'))
+    const sqlEndIdx = lines.findIndex((line, idx) => idx > sqlStartIdx && line.includes('"""'))
+
+    // Check lines within the SQL block
+    const sqlLines = lines.slice(sqlStartIdx + 1, sqlEndIdx)
+
+    // Empty lines should be truly empty (no spaces)
+    const emptyLines = sqlLines.filter(line => line === '')
+    expect(emptyLines.length).toBeGreaterThan(0) // Should have empty lines
+
+    // Verify no lines are just whitespace (4 spaces or 8 spaces)
+    const whitespaceOnlyLines = sqlLines.filter(line => /^\s+$/.test(line))
+    expect(whitespaceOnlyLines.length).toBe(0)
+
+    // Non-empty SQL lines should still be indented
+    expect(result).toContain('        SELECT *')
+    expect(result).toContain('        FROM users')
+    expect(result).toContain('        WHERE active = true')
+    expect(result).toContain('        ORDER BY name')
+  })
+
   it('serializes hidden cells', () => {
     const app = {
       cells: [
@@ -405,6 +476,31 @@ describe('convertDeepnoteFileToMarimoFiles error handling', () => {
     const outputDir = path.join(tempDir, 'output')
 
     await expect(convertDeepnoteFileToMarimoFiles(invalidYamlPath, { outputDir })).rejects.toThrow()
+  })
+
+  it('provides clear error message with filename when file write fails', async () => {
+    const testFixturesDir = path.join(__dirname, '../test-fixtures')
+    const inputPath = path.join(testFixturesDir, 'simple.deepnote')
+
+    // Use a read-only directory to trigger write failure
+    const readOnlyDir = path.join(tempDir, 'readonly')
+    await fs.mkdir(readOnlyDir, { mode: 0o444 })
+
+    try {
+      await convertDeepnoteFileToMarimoFiles(inputPath, { outputDir: readOnlyDir })
+      // If it doesn't throw, fail the test
+      expect.fail('Expected function to throw an error')
+    } catch (err) {
+      // Verify the error message includes the filename
+      expect(err).toBeInstanceOf(Error)
+      const error = err as Error
+      expect(error.message).toMatch(/Failed to write.*\.py/)
+      // Verify it includes context about the original error
+      expect(error.cause).toBeDefined()
+    } finally {
+      // Clean up: make directory writable again so afterEach can remove it
+      await fs.chmod(readOnlyDir, 0o755).catch(() => {})
+    }
   })
 })
 

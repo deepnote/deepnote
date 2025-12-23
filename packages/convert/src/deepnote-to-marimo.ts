@@ -111,7 +111,12 @@ export function serializeMarimoFormat(app: MarimoApp): string {
       const escaped = escapeTripleQuote(cell.content)
       lines.push(`    mo.md(r"""`)
       for (const contentLine of escaped.split('\n')) {
-        lines.push(`    ${contentLine}`)
+        // Don't add indentation to empty or whitespace-only lines
+        if (contentLine.trim() === '') {
+          lines.push('')
+        } else {
+          lines.push(`    ${contentLine}`)
+        }
       }
       lines.push(`    """)`)
       lines.push('    return')
@@ -192,8 +197,15 @@ export async function convertDeepnoteFileToMarimoFiles(
 
   for (const { filename, app } of apps) {
     const filePath = join(options.outputDir, filename)
-    const content = serializeMarimoFormat(app)
-    await fs.writeFile(filePath, content, 'utf-8')
+    try {
+      const content = serializeMarimoFormat(app)
+      await fs.writeFile(filePath, content, 'utf-8')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      throw new Error(`Failed to write ${filename}: ${errorMessage}`, {
+        cause: err,
+      })
+    }
   }
 }
 
