@@ -66,7 +66,6 @@ export async function convert(options: ConvertOptions): Promise<string> {
   if (stat.isDirectory()) {
     const entries = await fs.readdir(absolutePath, { withFileTypes: true })
 
-    // Check for different file types in directory
     const ipynbFiles = entries
       .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.ipynb'))
       .map(entry => entry.name)
