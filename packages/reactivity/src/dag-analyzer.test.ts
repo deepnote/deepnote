@@ -92,7 +92,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
     expect(blocksToExecute).toEqual([])
   })
 
-  it('should return only blocks that depends on the changed block', () => {
+  it('should return only blocks that depend on the changed block', () => {
     const dag: BlockContentDepsDAG = {
       nodes: [
         {
