@@ -190,7 +190,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
     expect(blocksToExecute).toEqual(['4'])
   })
 
-  it('should not get gilled by cyclic dependency', () => {
+  it('should not get killed by cyclic dependency', () => {
     const dag: BlockContentDepsDAG = {
       nodes: [
         {
