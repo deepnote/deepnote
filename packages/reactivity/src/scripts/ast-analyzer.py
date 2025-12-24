@@ -6,7 +6,7 @@ from jinja2 import meta, Environment
 
 
 class VariableVisitor(ast.NodeVisitor):
-    def __init__(self):
+    def __init__(self) -> None:
         self.global_vars = set()  # Variables defined globally
         self.used_global_vars = set()  # Variables used and defined globally
         self.imported_modules = set()  # Imported modules
