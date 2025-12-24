@@ -336,9 +336,9 @@ def analyze_blocks(blocks):
             analysis.append(
                 {
                     "id": block["id"],
-                    "definedVariables": list(),
-                    "usedVariables": list(),
-                    "importedModules": list(),
+                    "definedVariables": [],
+                    "usedVariables": [],
+                    "importedModules": [],
                     "error": {
                         "type": e.__class__.__name__,
                         "message": str(e),
