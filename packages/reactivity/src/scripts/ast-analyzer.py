@@ -294,13 +294,13 @@ def analyze_blocks(blocks):
 
                 if "metadata" in block and block["metadata"]:
                     if "function_notebook_inputs" in block["metadata"]:
-                        for input_key, input_config in block["metadata"]["function_notebook_inputs"].items():
+                        for _, input_config in block["metadata"]["function_notebook_inputs"].items():
                             if input_config.get("custom_value") is None and input_config.get("variable_name"):
                                 sanitized_name = sanitize_python_variable_name(input_config["variable_name"])
                                 input_variables.append(sanitized_name)
 
                     if "function_notebook_export_mappings" in block["metadata"]:
-                        for output_key, output_config in block["metadata"]["function_notebook_export_mappings"].items():
+                        for _, output_config in block["metadata"]["function_notebook_export_mappings"].items():
                             if output_config.get("enabled") is True and output_config.get("variable_name"):
                                 sanitized_name = sanitize_python_variable_name(output_config["variable_name"])
                                 output_variables.append(sanitized_name)
