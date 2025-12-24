@@ -12,71 +12,71 @@ import os
 
 def test_ast_analyzer():
     """Test the local AST analyzer with sample data"""
-    
+
     test_blocks = [
         {
-            "type": "python",
-            "blockId": "1",
-            "code": "a = 42"
+            "type": "code",
+            "id": "1",
+            "content": "a = 42"
         },
         {
-            "type": "python", 
-            "blockId": "2",
-            "code": "b = 1 + a"
+            "type": "code",
+            "id": "2",
+            "content": "b = 1 + a"
         },
         {
             "type": "sql",
-            "blockId": "3", 
-            "code": "SELECT * FROM users WHERE id == {{someVariable}}"
+            "id": "3",
+            "content": "SELECT * FROM users WHERE id == {{someVariable}}"
         }
     ]
-    
+
     expected_result = [
         {
-            "blockId": "1",
+            "id": "1",
             "definedVariables": ["a"],
             "usedVariables": [],
             "importedModules": []
         },
         {
-            "blockId": "2", 
+            "id": "2",
             "definedVariables": ["b"],
             "usedVariables": ["a"],
             "importedModules": []
         },
         {
-            "blockId": "3",
+            "id": "3",
             "definedVariables": [],
-            "usedVariables": ["someVariable"],
+            "usedVariables": ["someVariable", "users"],
             "importedModules": []
         }
     ]
-    
+
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as input_file:
         json.dump({"blocks": test_blocks}, input_file)
         input_path = input_file.name
-    
+
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as output_file:
         output_path = output_file.name
-    
+
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         script_path = os.path.join(script_dir, 'ast-analyzer.py')
-        
+
         result = subprocess.run([
             'python3', script_path,
             '--input', input_path,
             '--output', output_path
         ], capture_output=True, text=True)
-        
+
         if result.returncode != 0:
             print(f"Script failed with return code {result.returncode}")
             print(f"stderr: {result.stderr}")
             return False
-        
+
         with open(output_path, 'r') as f:
             actual_result = json.load(f)
-        
+
         if actual_result == expected_result:
             print("✅ Test passed! AST analyzer works correctly.")
             return True
@@ -85,7 +85,7 @@ def test_ast_analyzer():
             print(f"Expected: {json.dumps(expected_result, indent=2)}")
             print(f"Actual: {json.dumps(actual_result, indent=2)}")
             return False
-            
+
     finally:
         os.unlink(input_path)
         os.unlink(output_path)

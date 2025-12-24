@@ -130,7 +130,7 @@ class VariableVisitor(ast.NodeVisitor):
 
 def get_defined_used_variables(block):
     visitor = VariableVisitor()
-    tree = ast.parse(block["code"])
+    tree = ast.parse(block["content"])
     visitor.visit(tree)
     return (
         visitor.global_vars,
@@ -209,12 +209,12 @@ def extract_jinja_variables(sql_code):
 # If we would strip the lines the line numbers in the errors would not be correct.
 def comment_out_jupyter_bash_commands(blocks):
     for block in blocks:
-        if "code" in block:
-            lines = block["code"].split("\n")
+        if "content" in block:
+            lines = block["content"].split("\n")
             for i in range(len(lines)):
                 if lines[i].startswith("%") or lines[i].startswith("!"):
                     lines[i] = "#" + lines[i]
-            block["code"] = "\n".join(lines)
+            block["content"] = "\n".join(lines)
     return blocks
 
 
@@ -233,14 +233,14 @@ def analyze_blocks(blocks):
                 block_used_list.sort()
                 analysis.append(
                     {
-                        "blockId": block["blockId"],
+                        "id": block["id"],
                         "definedVariables": block_defined_list,
                         "usedVariables": block_used_list,
                         "importedModules": list(block_imported),
                     }
                 )
             elif block["type"] == "sql":
-                jinja_variables = extract_jinja_variables(block["code"])
+                jinja_variables = extract_jinja_variables(block["content"])
                 jinja_variables_list = list(jinja_variables)
                 jinja_variables_list.sort()
 
@@ -250,7 +250,7 @@ def analyze_blocks(blocks):
 
                 analysis.append(
                     {
-                        "blockId": block["blockId"],
+                        "id": block["id"],
                         "definedVariables": output_variables,
                         "usedVariables": jinja_variables_list,
                         "importedModules": [],
@@ -263,7 +263,7 @@ def analyze_blocks(blocks):
 
                 analysis.append(
                     {
-                        "blockId": block["blockId"],
+                        "id": block["id"],
                         "definedVariables": output_variables,
                         "usedVariables": [],
                         "importedModules": [],
@@ -282,7 +282,7 @@ def analyze_blocks(blocks):
 
                 analysis.append(
                     {
-                        "blockId": block["blockId"],
+                        "id": block["id"],
                         "definedVariables": [],
                         "usedVariables": used_variables,
                         "importedModules": [],
@@ -310,7 +310,7 @@ def analyze_blocks(blocks):
 
                 analysis.append(
                     {
-                        "blockId": block["blockId"],
+                        "id": block["id"],
                         "definedVariables": output_variables,
                         "usedVariables": input_variables,
                         "importedModules": [],
@@ -326,7 +326,7 @@ def analyze_blocks(blocks):
 
                 analysis.append(
                     {
-                        "blockId": block["blockId"],
+                        "id": block["id"],
                         "definedVariables": output_variables,
                         "usedVariables": [],
                         "importedModules": [],
@@ -335,7 +335,7 @@ def analyze_blocks(blocks):
         except Exception as e:
             analysis.append(
                 {
-                    "blockId": block["blockId"],
+                    "id": block["id"],
                     "definedVariables": list(),
                     "usedVariables": list(),
                     "importedModules": list(),

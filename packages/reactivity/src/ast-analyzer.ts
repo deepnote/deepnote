@@ -1,4 +1,5 @@
 import * as path from 'node:path'
+import type { DeepnoteBlock } from '@deepnote/blocks'
 import { z } from 'zod'
 import { safelyCallChildProcessWithInputOutput } from './child-process-utils'
 
@@ -27,17 +28,8 @@ const AST_ANALYZER_SUPPORTED_CELL_TYPES_LIST = [
   'input-dropdown',
 ] as const
 
-export type AstAnalyzerSupportedCellType = (typeof AST_ANALYZER_SUPPORTED_CELL_TYPES_LIST)[number]
-
-export interface AstAnalyzerInputBlock {
-  cellId: string
-  cell_type: AstAnalyzerSupportedCellType | string
-  source: string
-  metadata?: unknown
-}
-
 export interface BlockContentDepsWithOrder {
-  blockId: string
+  id: string
   definedVariables: string[]
   usedVariables: string[]
   importedModules?: string[]
@@ -52,7 +44,7 @@ const SUPPORTED_CELL_TYPES = new Set<string>(AST_ANALYZER_SUPPORTED_CELL_TYPES_L
 
 // Zod schema for the AST analyzer Python script output
 const AstAnalyzerItemSchema = z.object({
-  blockId: z.string(),
+  id: z.string(),
   definedVariables: z.array(z.string()),
   usedVariables: z.array(z.string()),
   importedModules: z.array(z.string()).optional(),
@@ -72,19 +64,15 @@ const AstAnalyzerResponseSchema = z.union([AstAnalyzerSuccessSchema, AstAnalyzer
  * Tested within dag.test.ts integration test.
  * Intentionally mixing Python and SQL blocks here because we want to use just one local process invocation.
  */
-export async function getBlocksContentDeps(blocks: AstAnalyzerInputBlock[]): Promise<BlockContentDepsWithOrder[]> {
+export async function getBlocksContentDeps(blocks: DeepnoteBlock[]): Promise<BlockContentDepsWithOrder[]> {
   const blocksNeedingComputation = blocks
     // Process only supported cell types
-    .filter(block => SUPPORTED_CELL_TYPES.has(block.cell_type))
+    .filter(block => SUPPORTED_CELL_TYPES.has(block.type))
     // Format blocks for parser
-    .map(block => {
-      return {
-        type: block.cell_type,
-        blockId: block.cellId,
-        code: block.source,
-        metadata: block.metadata,
-      }
-    })
+    .map(block => ({
+      ...block,
+      content: block.content ?? '',
+    }))
 
   // Early return if no blocks need computation
   if (blocksNeedingComputation.length === 0) {
@@ -108,7 +96,7 @@ export async function getBlocksContentDeps(blocks: AstAnalyzerInputBlock[]): Pro
     if (Array.isArray(parsedData)) {
       const resultWithOrder = parsedData.map(block => ({
         ...block,
-        order: blocks.findIndex(b => b.cellId === block.blockId),
+        order: blocks.findIndex(b => b.id === block.id),
       }))
 
       return resultWithOrder
