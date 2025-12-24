@@ -45,6 +45,7 @@ class VariableVisitor(ast.NodeVisitor):
         if isinstance(node.target, ast.Name) and self.current_scope_is_global():
             self.global_vars.add(node.target.id)
         self.generic_visit(node)
+
     def visit_ClassDef(self, node):
         if self.current_scope_is_global():
             self.global_vars.add(node.name)
