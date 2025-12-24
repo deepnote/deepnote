@@ -75,7 +75,7 @@ def test_ast_analyzer():
         script_path = os.path.join(script_dir, 'ast-analyzer.py')
 
         result = subprocess.run([
-            'python3', script_path,
+            sys.executable, script_path,
             '--input', input_path,
             '--output', output_path
         ], capture_output=True, text=True)
