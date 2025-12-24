@@ -287,4 +287,79 @@ describe('getDownstreamBlocksForBlocksIds', () => {
 
     expect(blocksToExecute).toEqual(['2', '5', '3', '6'])
   })
+
+  it('should return empty array for empty blocksIds', () => {
+    const dag: BlockContentDepsDAG = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const blocksToExecute = getDownstreamBlocksForBlocksIds(dag, [])
+
+    expect(blocksToExecute).toEqual([])
+  })
+
+  it('should return empty array for non-existent blocksIds', () => {
+    const dag: BlockContentDepsDAG = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const blocksToExecute = getDownstreamBlocksForBlocksIds(dag, ['non-existent'])
+
+    expect(blocksToExecute).toEqual([])
+  })
+
+  it('should correctly handle mixed valid and non-existent blocksIds', () => {
+    const dag: BlockContentDepsDAG = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['b'],
+          inputVariables: ['a'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const blocksToExecute = getDownstreamBlocksForBlocksIds(dag, ['1', 'non-existent'])
+
+    expect(blocksToExecute).toEqual(['2'])
+  })
 })

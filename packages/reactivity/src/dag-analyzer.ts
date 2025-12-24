@@ -6,6 +6,11 @@ import type { BlockContentDepsDAG } from './types'
  */
 export function getDownstreamBlocksForBlocksIds(dag: BlockContentDepsDAG, blocksIds: string[]): string[] {
   const changedBlocks = dag.nodes.filter(node => blocksIds.includes(node.id))
+
+  if (changedBlocks.length === 0) {
+    return []
+  }
+
   const minOrder = Math.min(...changedBlocks.map(node => node.order))
   const filteredDag = {
     ...dag,
