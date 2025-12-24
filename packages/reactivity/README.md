@@ -9,3 +9,35 @@ This package provides utilities for analyzing dependencies between Deepnote bloc
 - **AST Analysis**: Extracts variable definitions and usages from Python and SQL blocks.
 - **Dependency Tracking**: Identifies how blocks depend on each other through variables.
 - **Reactivity Support**: Powers the reactive execution model by analyzing block content.
+
+## Usage
+
+The primary entry point for the library is `getDAGForBlocks`. It analyzes the content of the blocks and builds a Directed Acyclic Graph (DAG) representing their dependencies.
+
+### Basic Example
+
+```typescript
+import { getDAGForBlocks } from "@deepnote/reactivity";
+
+const blocks = [
+  // ... array of DeepnoteBlock objects
+];
+
+const { dag, newlyComputedBlocksContentDeps } = await getDAGForBlocks(blocks);
+
+// Access the dependency graph
+console.log(dag.nodes);
+console.log(dag.edges);
+```
+
+### Key Functions
+
+- **`getDAGForBlocks(blocks, options?)`**: Analyzes blocks and returns the complete dependency graph. Use `acceptPartialDAG: true` in the options if you want to receive a graph even if some blocks have syntax errors.
+- **`getDownstreamBlocks(blocks, blocksToExecute)`**: Given a list of blocks that have changed or are being executed, returns the set of downstream blocks that also need to be executed to maintain consistency.
+- **`getBlocksContentDeps(blocks)`**: A lower-level utility that just performs the AST analysis on the blocks without building the full graph.
+
+### Core Concepts
+
+- **Nodes**: Each block in the notebook is a node in the DAG. Nodes contain information about `inputVariables` (variables used) and `outputVariables` (variables defined).
+- **Edges**: An edge exists from block A to block B if block B uses a variable defined by block A.
+- **Reactivity**: By understanding these dependencies, Deepnote can automatically determine which blocks need to be re-run when a variable is changed in an upstream block.
