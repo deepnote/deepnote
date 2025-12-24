@@ -87,8 +87,14 @@ def test_ast_analyzer():
             return False
 
     finally:
-        os.unlink(input_path)
-        os.unlink(output_path)
+        try:
+            os.unlink(input_path)
+        except FileNotFoundError:
+            pass
+        try:
+            os.unlink(output_path)
+        except FileNotFoundError:
+            pass
 
 if __name__ == "__main__":
     success = test_ast_analyzer()
