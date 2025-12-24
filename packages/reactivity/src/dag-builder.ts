@@ -47,17 +47,37 @@ export function buildDAGFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockCo
     }
   })
 
+  const createEdge = (fromBlockId: string, toBlockId: string, variableName: string) => {
+    const toNode = nodes[toBlockId]
+    if (!toNode) {
+      return
+    }
+
+    if (!toNode.inputVariables.includes(variableName)) {
+      toNode.inputVariables.push(variableName)
+    }
+
+    const fromNode = nodes[fromBlockId]
+    if (!fromNode) {
+      return
+    }
+
+    if (!fromNode.outputVariables.includes(variableName)) {
+      fromNode.outputVariables.push(variableName)
+    }
+
+    edges.push({
+      from: fromBlockId,
+      to: toBlockId,
+      inputVariables: [variableName],
+    })
+  }
+
   // We are not simply adding all edges based on usedVariables to definedVariables.
   // We are taking block order into account - creating edges only with the closest defining block
   // or the closest block that uses the variable. When traversing the DAG, we should still
   // get the same result as if we were adding all edges.
   blocksWithUsedImportedModules.forEach(block => {
-    // Nodes for all blocks are created above; safe to assert existence when indexing
-    const currentNode = nodes[block.id]
-    if (!currentNode) {
-      return
-    }
-
     block.usedVariables.forEach((usedVar: string) => {
       const [closestDefiningBlock] = blocksWithUsedImportedModules
         .filter(b => b.definedVariables.includes(usedVar) && b.order < block.order)
@@ -71,77 +91,17 @@ export function buildDAGFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockCo
       // we want to create an edge between the closest one.
       if (closestDefiningBlock && closesBlockThatUsesVariable) {
         if (closestDefiningBlock.order > closesBlockThatUsesVariable.order) {
-          if (!currentNode.inputVariables.includes(usedVar)) {
-            currentNode.inputVariables.push(usedVar)
-          }
-          const definingNode = nodes[closestDefiningBlock.id]
-          if (!definingNode) {
-            return
-          }
-          if (!definingNode.outputVariables.includes(usedVar)) {
-            definingNode.outputVariables.push(usedVar)
-          }
-
-          edges.push({
-            from: closestDefiningBlock.id,
-            to: block.id,
-            inputVariables: [usedVar],
-          })
+          createEdge(closestDefiningBlock.id, block.id, usedVar)
         } else {
-          if (!currentNode.inputVariables.includes(usedVar)) {
-            currentNode.inputVariables.push(usedVar)
-          }
-          const usingNode = nodes[closesBlockThatUsesVariable.id]
-          if (!usingNode) {
-            return
-          }
-          if (!usingNode.outputVariables.includes(usedVar)) {
-            usingNode.outputVariables.push(usedVar)
-          }
-
-          edges.push({
-            from: closesBlockThatUsesVariable.id,
-            to: block.id,
-            inputVariables: [usedVar],
-          })
+          createEdge(closesBlockThatUsesVariable.id, block.id, usedVar)
         }
       } else {
         if (closestDefiningBlock) {
-          if (!currentNode.inputVariables.includes(usedVar)) {
-            currentNode.inputVariables.push(usedVar)
-          }
-          const definingNode = nodes[closestDefiningBlock.id]
-          if (!definingNode) {
-            return
-          }
-          if (!definingNode.outputVariables.includes(usedVar)) {
-            definingNode.outputVariables.push(usedVar)
-          }
-
-          edges.push({
-            from: closestDefiningBlock.id,
-            to: block.id,
-            inputVariables: [usedVar],
-          })
+          createEdge(closestDefiningBlock.id, block.id, usedVar)
         }
 
         if (closesBlockThatUsesVariable) {
-          if (!currentNode.inputVariables.includes(usedVar)) {
-            currentNode.inputVariables.push(usedVar)
-          }
-          const usingNode = nodes[closesBlockThatUsesVariable.id]
-          if (!usingNode) {
-            return
-          }
-          if (!usingNode.outputVariables.includes(usedVar)) {
-            usingNode.outputVariables.push(usedVar)
-          }
-
-          edges.push({
-            from: closesBlockThatUsesVariable.id,
-            to: block.id,
-            inputVariables: [usedVar],
-          })
+          createEdge(closesBlockThatUsesVariable.id, block.id, usedVar)
         }
       }
     })
