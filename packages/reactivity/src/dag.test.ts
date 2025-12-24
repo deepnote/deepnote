@@ -1,6 +1,6 @@
 import assert from 'node:assert'
 import type { DeepnoteBlock } from '@deepnote/blocks'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getDAGForBlocks, getDownstreamBlocks } from './dag'
 import * as dagAnalyzer from './dag-analyzer'
 
@@ -22,6 +22,10 @@ function createBlocks(
 }
 
 describe('DAG', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   describe('getDAGForBlocks', () => {
     it('should return an empty edges/nodes when given an empty array of blocks', async () => {
       const { dag } = await getDAGForBlocks([])
@@ -378,8 +382,6 @@ describe('DAG', () => {
           content: '',
           metadata: {
             deepnote_big_number_title: 'Title',
-            // TODO: handle this as well
-            // deepnote_big_number_title: 'Title {{ title_variable }}',
             deepnote_big_number_value: 'test_variable',
             deepnote_big_number_comparison_value: 'another_variable',
           },
@@ -1309,29 +1311,6 @@ describe('DAG', () => {
       expect(downstreamBlocksDesc.newlyComputedBlocksContentDeps).toHaveLength(1)
     })
 
-    it('should compute content dependencies for blocks with error', async () => {
-      const blocks = createBlocks([
-        {
-          id: '1',
-          type: 'code',
-          content: 'a = 1\nb = 2',
-        },
-      ])
-
-      const blocksToExecute = createBlocks([
-        {
-          id: '1',
-          type: 'code',
-          content: 'a = 1\nb = 2',
-        },
-      ])
-
-      const downstreamBlocksDesc = await getDownstreamBlocks(blocks, blocksToExecute)
-
-      assert(downstreamBlocksDesc.status !== 'fatal', 'Should not be fatal')
-      expect(downstreamBlocksDesc.newlyComputedBlocksContentDeps).toHaveLength(1)
-    })
-
     it('should return missing-deps status if code block could not be parsed', async () => {
       const content = `
         brokenCode----[()](3šš)
@@ -1355,9 +1334,12 @@ describe('DAG', () => {
       const downstreamBlocksDesc = await getDownstreamBlocks(blocks, blocksToExecute)
 
       expect(downstreamBlocksDesc.status).toBe('missing-deps')
+      assert(downstreamBlocksDesc.status === 'missing-deps')
+      expect(downstreamBlocksDesc.newlyComputedBlocksContentDeps).toHaveLength(1)
+      expect(downstreamBlocksDesc.newlyComputedBlocksContentDeps[0].error).toBeDefined()
     })
 
-    it('should return fatal status if code block could not be parsed', async () => {
+    it('should return fatal status if downstream analysis fails', async () => {
       vi.spyOn(dagAnalyzer, 'getDownstreamBlocksForBlocksIds').mockImplementation(() => {
         throw new Error('Error')
       })
