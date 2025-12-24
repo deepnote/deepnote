@@ -2,13 +2,9 @@ import assert from 'node:assert'
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { describe, expect, it, vi } from 'vitest'
 import { getDAGForBlocks, getDownstreamBlocks } from './dag'
-import { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
+import * as dagAnalyzer from './dag-analyzer'
 
 const DATAFRAME_SQL_INTEGRATION_ID = 'dataframe-sql-integration'
-
-vi.mock('./dag-analyzer', () => ({
-  getDownstreamBlocksForBlocksIds: vi.fn().mockReturnValue(['2', '4']),
-}))
 
 function createBlocks(
   blocks: {
@@ -1362,7 +1358,7 @@ describe('DAG', () => {
     })
 
     it('should return fatal status if code block could not be parsed', async () => {
-      vi.mocked(getDownstreamBlocksForBlocksIds).mockImplementation(() => {
+      vi.spyOn(dagAnalyzer, 'getDownstreamBlocksForBlocksIds').mockImplementation(() => {
         throw new Error('Error')
       })
 
