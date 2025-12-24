@@ -141,7 +141,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
     expect(blocksToExecute).toEqual(['4'])
   })
 
-  it('should not return blocks that depend on the change block but were defined before the changed block', () => {
+  it('should not return blocks that depend on the changed block but were defined before the changed block', () => {
     const dag: BlockContentDepsDAG = {
       nodes: [
         {
