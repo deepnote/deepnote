@@ -52,7 +52,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
     expect(blocksToExecute).toEqual(expect.arrayContaining(['2', '3', '4']))
   })
 
-  it('should return empty array if blocks do not depend on change block', () => {
+  it('should return empty array if blocks do not depend on changed block', () => {
     const dag: BlockContentDepsDAG = {
       nodes: [
         {
