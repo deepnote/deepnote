@@ -100,6 +100,15 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
 
+  packages/reactivity:
+    dependencies:
+      '@deepnote/blocks':
+        specifier: workspace:*
+        version: link:../blocks
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
 packages:
 
   '@babel/generator@7.28.3':

@@ -1,0 +1,92 @@
+import type { DeepnoteBlock } from '@deepnote/blocks'
+import { type BlockContentDepsWithOrder, getBlocksContentDeps } from './ast-analyzer'
+import { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
+import { buildDAGFromBlocks } from './dag-builder'
+
+export class DagError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DagError'
+  }
+}
+
+export type DownstreamBlocksStatus = 'success' | 'missing-deps' | 'fatal'
+
+export type GetDownstreamBlocksResult =
+  | {
+      status: 'success' | 'missing-deps'
+      blocksToExecuteWithDeps: DeepnoteBlock[]
+      newlyComputedBlocksContentDeps: BlockContentDepsWithOrder[]
+    }
+  | {
+      status: 'fatal'
+      error: DagError | SyntaxError
+    }
+
+export async function getDAGForBlocks(
+  blocks: DeepnoteBlock[],
+  options: {
+    // If true, the function will not throw an error and return partial DAG
+    // this may happen when there is an error in one of the processed blocks.
+    // Partial DAG should be used only in the DAG chart.
+    acceptPartialDAG: boolean
+  } = { acceptPartialDAG: false }
+) {
+  try {
+    const blocksWithContentDeps = await getBlocksContentDeps(blocks)
+
+    const blocksWithErrorInContentDeps = blocksWithContentDeps.filter(block => block.error)
+    const blocksWithoutErrorsInContentDeps = blocksWithContentDeps.filter(block => !block.error)
+
+    if (blocksWithErrorInContentDeps.length > 0 && !options.acceptPartialDAG) {
+      const firstErrorBlock = blocksWithErrorInContentDeps[0]
+      if (firstErrorBlock?.error?.type === 'SyntaxError') {
+        throw new SyntaxError(firstErrorBlock.error.message)
+      }
+    }
+
+    const allBlocksForDAG = options.acceptPartialDAG ? blocksWithContentDeps : blocksWithoutErrorsInContentDeps
+    const dag = buildDAGFromBlocks(allBlocksForDAG)
+    return { dag, blocksWithErrorInContentDeps, newlyComputedBlocksContentDeps: blocksWithContentDeps }
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw error
+    }
+
+    throw new DagError(error instanceof Error ? error.message : String(error))
+  }
+}
+
+/**
+ * Takes blocks, creates DAG and returns blocks that should be executed based in blocksToExecute for downstream execution.
+ * @param blocks All blocks in the notebook
+ * @param blocksToExecute Blocks that triggered the downstream execution
+ */
+export async function getDownstreamBlocks(
+  blocks: DeepnoteBlock[],
+  blocksToExecute: DeepnoteBlock[]
+): Promise<GetDownstreamBlocksResult> {
+  try {
+    const { dag, blocksWithErrorInContentDeps, newlyComputedBlocksContentDeps } = await getDAGForBlocks(blocks, {
+      acceptPartialDAG: true,
+    })
+    const downstreamBlocks = getDownstreamBlocksForBlocksIds(
+      dag,
+      blocksToExecute.map(cell => cell.id)
+    )
+    // Merge the blocks we want to execute (input blocks) with the blocks that depend on them
+    const blocksToExecuteWithDeps = blocks.filter(
+      block => blocksToExecute.find(b => b.id === block.id) || downstreamBlocks.includes(block.id)
+    )
+
+    const status = blocksWithErrorInContentDeps.length === 0 ? 'success' : 'missing-deps'
+
+    return { status, blocksToExecuteWithDeps, newlyComputedBlocksContentDeps }
+  } catch (error) {
+    if (error instanceof DagError || error instanceof SyntaxError) {
+      return { status: 'fatal', error }
+    }
+
+    return { status: 'fatal', error: new DagError(error instanceof Error ? error.message : String(error)) }
+  }
+}
