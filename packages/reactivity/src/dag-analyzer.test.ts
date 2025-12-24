@@ -3,7 +3,7 @@ import { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
 import type { BlockContentDepsDAG } from './types'
 
 describe('getDownstreamBlocksForBlocksIds', () => {
-  it('should return all blocks that depends on the changed block', () => {
+  it('should return all blocks that depend on the changed block', () => {
     const dag: BlockContentDepsDAG = {
       nodes: [
         {
