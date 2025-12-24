@@ -35,7 +35,7 @@ describe('AstAnalyzer', () => {
         }),
         expect.objectContaining({
           id: '2',
-          usedVariables: expect.arrayContaining(['a']),
+          usedVariables: ['a', 'users'],
           order: 1,
         }),
       ])

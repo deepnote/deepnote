@@ -23,7 +23,7 @@ describe('buildDAGFromBlocks', () => {
     expect(dag.nodes).toHaveLength(2)
     expect(dag.nodes[0].id).toEqual('1')
     expect(dag.nodes[1].id).toEqual('2')
-    expect(dag.nodes[1].inputVariables).toContain('a')
+    expect(dag.nodes[1].inputVariables).toEqual(['a'])
   })
 
   it('should create an edge between defining and using block', () => {
@@ -111,17 +111,18 @@ describe('buildDAGFromBlocks', () => {
 
     // Edge 1 -> 2 (2 uses a from 1)
     // Edge 2 -> 3 (3 uses a from 1, but 2 is the closest block that uses it)
-    expect(dag.edges).toContainEqual({
-      from: '1',
-      to: '2',
-      inputVariables: ['a'],
-    })
-    expect(dag.edges).toContainEqual({
-      from: '2',
-      to: '3',
-      inputVariables: ['a'],
-    })
-    expect(dag.edges).toHaveLength(2)
+    expect(dag.edges).toEqual([
+      {
+        from: '1',
+        to: '2',
+        inputVariables: ['a'],
+      },
+      {
+        from: '2',
+        to: '3',
+        inputVariables: ['a'],
+      },
+    ])
   })
 
   it('should handle imported modules and create modulesEdges', () => {
@@ -154,7 +155,7 @@ describe('buildDAGFromBlocks', () => {
 
     // pandas should be moved from usedVariables to usedImportedModules in the node
     const node2 = dag.nodes.find(n => n.id === '2')
-    expect(node2?.usedImportedModules).toContain('pandas')
+    expect(node2?.usedImportedModules).toEqual(['pandas'])
     expect(node2?.inputVariables).not.toContain('pandas')
   })
 

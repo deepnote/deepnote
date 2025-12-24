@@ -49,7 +49,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
 
     const blocksToExecute = getDownstreamBlocksForBlocksIds(dag, ['1'])
 
-    expect(blocksToExecute).toEqual(expect.arrayContaining(['2', '3', '4']))
+    expect(blocksToExecute).toEqual(['2', '3', '4'])
   })
 
   it('should return empty array if blocks do not depend on changed block', () => {
@@ -218,7 +218,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
 
     const blocksToExecute = getDownstreamBlocksForBlocksIds(dag, ['1'])
 
-    expect(blocksToExecute).toEqual(expect.arrayContaining(['1', '2']))
+    expect(blocksToExecute).toEqual(['2', '1'])
   })
 
   it('should return all downstream dependencies of all changed blocks', () => {
@@ -285,6 +285,6 @@ describe('getDownstreamBlocksForBlocksIds', () => {
 
     const blocksToExecute = getDownstreamBlocksForBlocksIds(dag, ['1', '4'])
 
-    expect(blocksToExecute).toEqual(expect.arrayContaining(['2', '3', '5', '6']))
+    expect(blocksToExecute).toEqual(['2', '5', '3', '6'])
   })
 })

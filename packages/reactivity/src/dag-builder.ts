@@ -107,9 +107,9 @@ export function buildDAGFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockCo
     })
 
     block.usedImportedModules?.forEach((usedModule: string) => {
-      const closestDefiningBlock = blocksWithUsedImportedModules.find(b =>
-        (b.importedModules ?? []).includes(usedModule)
-      )
+      const [closestDefiningBlock] = blocksWithUsedImportedModules
+        .filter(b => (b.importedModules ?? []).includes(usedModule) && b.order < block.order)
+        .sort((a, b) => b.order - a.order)
 
       if (closestDefiningBlock) {
         modulesEdges.push({

@@ -90,21 +90,26 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([
+        edges: [
           expect.objectContaining({ from: '1', inputVariables: ['a'], 'to': '2' }),
           expect.objectContaining({ from: '1', inputVariables: ['b'], 'to': '2' }),
           expect.objectContaining({ from: '2', inputVariables: ['c'], 'to': '4' }),
-        ]),
-        nodes: expect.arrayContaining([
+        ],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
-            outputVariables: expect.arrayContaining(['a', 'b']),
+            outputVariables: ['a', 'b'],
           }),
           expect.objectContaining({
             id: '2',
-            inputVariables: expect.arrayContaining(['a', 'b']),
+            inputVariables: ['a', 'b'],
             outputVariables: ['c'],
+          }),
+          expect.objectContaining({
+            id: '3',
+            inputVariables: [],
+            outputVariables: [],
           }),
           expect.objectContaining({
             id: '4',
@@ -120,7 +125,7 @@ describe('DAG', () => {
               type: 'SyntaxError',
             },
           }),
-        ]),
+        ],
       })
     })
 
@@ -175,20 +180,20 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([
+        edges: [
           expect.objectContaining({ from: '1', inputVariables: ['a'], 'to': '2' }),
           expect.objectContaining({ from: '1', inputVariables: ['b'], 'to': '2' }),
           expect.objectContaining({ from: '2', inputVariables: ['c'], 'to': '4' }),
-        ]),
-        nodes: expect.arrayContaining([
+        ],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
-            outputVariables: expect.arrayContaining(['a', 'b']),
+            outputVariables: ['a', 'b'],
           }),
           expect.objectContaining({
             id: '2',
-            inputVariables: expect.arrayContaining(['a', 'b']),
+            inputVariables: ['a', 'b'],
             outputVariables: ['c'],
           }),
           expect.objectContaining({
@@ -201,7 +206,7 @@ describe('DAG', () => {
             inputVariables: ['c'],
             outputVariables: ['d'],
           }),
-        ]),
+        ],
       })
     })
 
@@ -246,15 +251,15 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([
-          expect.objectContaining({
-            from: '1',
-            inputVariables: ['test_variable'],
-            'to': '3',
-          }),
+        edges: [
           expect.objectContaining({
             from: '2',
             inputVariables: ['another_variable'],
+            'to': '3',
+          }),
+          expect.objectContaining({
+            from: '1',
+            inputVariables: ['test_variable'],
             'to': '3',
           }),
           expect.objectContaining({
@@ -267,8 +272,8 @@ describe('DAG', () => {
             inputVariables: ['imported_2'],
             'to': '4',
           }),
-        ]),
-        nodes: expect.arrayContaining([
+        ],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -281,15 +286,15 @@ describe('DAG', () => {
           }),
           expect.objectContaining({
             id: '3',
-            inputVariables: expect.arrayContaining(['test_variable', 'another_variable']),
-            outputVariables: expect.arrayContaining(['imported_1', 'imported_2']),
+            inputVariables: ['another_variable', 'test_variable'],
+            outputVariables: ['imported_1', 'imported_2'],
           }),
           expect.objectContaining({
             id: '4',
-            inputVariables: expect.arrayContaining(['imported_1', 'imported_2']),
+            inputVariables: ['imported_1', 'imported_2'],
             outputVariables: [],
           }),
-        ]),
+        ],
       })
     })
 
@@ -327,19 +332,19 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([
-          expect.objectContaining({
-            from: '1',
-            inputVariables: ['test_variable'],
-            'to': '3',
-          }),
+        edges: [
           expect.objectContaining({
             from: '2',
             inputVariables: ['another_variable'],
             'to': '3',
           }),
-        ]),
-        nodes: expect.arrayContaining([
+          expect.objectContaining({
+            from: '1',
+            inputVariables: ['test_variable'],
+            'to': '3',
+          }),
+        ],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -352,10 +357,10 @@ describe('DAG', () => {
           }),
           expect.objectContaining({
             id: '3',
-            inputVariables: expect.arrayContaining(['test_variable', 'another_variable']),
+            inputVariables: ['another_variable', 'test_variable'],
             outputVariables: ['imported_variable'],
           }),
-        ]),
+        ],
       })
     })
 
@@ -389,19 +394,19 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([
-          expect.objectContaining({
-            from: '1',
-            inputVariables: ['test_variable'],
-            'to': '3',
-          }),
+        edges: [
           expect.objectContaining({
             from: '2',
             inputVariables: ['another_variable'],
             'to': '3',
           }),
-        ]),
-        nodes: expect.arrayContaining([
+          expect.objectContaining({
+            from: '1',
+            inputVariables: ['test_variable'],
+            'to': '3',
+          }),
+        ],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -414,10 +419,10 @@ describe('DAG', () => {
           }),
           expect.objectContaining({
             id: '3',
-            inputVariables: expect.arrayContaining(['test_variable', 'another_variable']),
+            inputVariables: ['another_variable', 'test_variable'],
             outputVariables: [],
           }),
-        ]),
+        ],
       })
     })
 
@@ -445,10 +450,8 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([
-          expect.objectContaining({ from: '1', inputVariables: ['button_1'], 'to': '2' }),
-        ]),
-        nodes: expect.arrayContaining([
+        edges: [expect.objectContaining({ from: '1', inputVariables: ['button_1'], 'to': '2' })],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -458,7 +461,7 @@ describe('DAG', () => {
             id: '2',
             inputVariables: ['button_1'],
           }),
-        ]),
+        ],
       })
     })
 
@@ -480,8 +483,8 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([expect.objectContaining({ from: '1', inputVariables: ['test'], 'to': '2' })]),
-        nodes: expect.arrayContaining([
+        edges: [expect.objectContaining({ from: '1', inputVariables: ['test'], 'to': '2' })],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -492,7 +495,7 @@ describe('DAG', () => {
             inputVariables: ['test'],
             outputVariables: [],
           }),
-        ]),
+        ],
       })
     })
 
@@ -513,13 +516,13 @@ describe('DAG', () => {
       expect(dag).toEqual({
         modulesEdges: [],
         edges: [],
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '0',
             inputVariables: [],
             outputVariables: ['df_1'],
           }),
-        ]),
+        ],
       })
     })
 
@@ -544,7 +547,7 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        edges: expect.arrayContaining([
+        edges: [
           expect.objectContaining({
             from: '0',
             inputVariables: ['column_names'],
@@ -555,19 +558,19 @@ describe('DAG', () => {
             inputVariables: ['station_name'],
             to: '1',
           }),
-        ]),
-        nodes: expect.arrayContaining([
+        ],
+        nodes: [
           expect.objectContaining({
             id: '0',
             inputVariables: [],
-            outputVariables: expect.arrayContaining(['column_names', 'station_name']),
+            outputVariables: ['column_names', 'station_name'],
           }),
           expect.objectContaining({
             id: '1',
-            inputVariables: expect.arrayContaining(['column_names', 'station_name']),
+            inputVariables: ['column_names', 'station_name'],
             outputVariables: ['df_1'],
           }),
-        ]),
+        ],
       })
     })
 
@@ -603,9 +606,13 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        modulesEdges: expect.arrayContaining([expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })]),
-        edges: expect.arrayContaining([expect.objectContaining({ from: '1', inputVariables: ['users'], to: '2' })]),
-        nodes: expect.arrayContaining([
+        modulesEdges: [expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })],
+        edges: [
+          expect.objectContaining({ from: '1', inputVariables: ['condition_string'], to: '2' }),
+          expect.objectContaining({ from: '1', inputVariables: ['some_id'], to: '2' }),
+          expect.objectContaining({ from: '1', inputVariables: ['users'], to: '2' }),
+        ],
+        nodes: [
           expect.objectContaining({
             id: '0',
             importedModules: ['pd'],
@@ -616,17 +623,17 @@ describe('DAG', () => {
           expect.objectContaining({
             id: '1',
             inputVariables: [],
-            outputVariables: expect.arrayContaining(['some_id', 'users', 'condition_string']),
+            outputVariables: ['condition_string', 'some_id', 'users'],
             usedImportedModules: ['pd'],
           }),
           expect.objectContaining({
             id: '2',
-            inputVariables: expect.arrayContaining(['some_id', 'users', 'condition_string']),
+            inputVariables: ['condition_string', 'some_id', 'users'],
             outputVariables: ['df_1'],
             importedModules: [],
             usedImportedModules: [],
           }),
-        ]),
+        ],
       })
     })
     it('should return a DAG for SQL Dataframe block that refers dfs defined in code block', async () => {
@@ -655,9 +662,9 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        modulesEdges: expect.arrayContaining([expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })]),
-        edges: expect.arrayContaining([expect.objectContaining({ from: '1', inputVariables: ['users'], to: '2' })]),
-        nodes: expect.arrayContaining([
+        modulesEdges: [expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })],
+        edges: [expect.objectContaining({ from: '1', inputVariables: ['users'], to: '2' })],
+        nodes: [
           expect.objectContaining({
             id: '0',
             importedModules: ['pd'],
@@ -678,7 +685,7 @@ describe('DAG', () => {
             importedModules: [],
             usedImportedModules: [],
           }),
-        ]),
+        ],
       })
     })
 
@@ -717,13 +724,13 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        modulesEdges: expect.arrayContaining([expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })]),
-        edges: expect.arrayContaining([
+        modulesEdges: [expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })],
+        edges: [
           expect.objectContaining({ from: '1', inputVariables: ['users'], to: '2' }),
           expect.objectContaining({ from: '2', inputVariables: ['df_1'], to: '3' }),
           expect.objectContaining({ from: '2', inputVariables: ['users'], to: '3' }),
-        ]),
-        nodes: expect.arrayContaining([
+        ],
+        nodes: [
           expect.objectContaining({
             id: '0',
             importedModules: ['pd'],
@@ -740,18 +747,18 @@ describe('DAG', () => {
           expect.objectContaining({
             id: '2',
             inputVariables: ['users'],
-            outputVariables: expect.arrayContaining(['users', 'df_1']),
+            outputVariables: ['df_1', 'users'],
             importedModules: [],
             usedImportedModules: [],
           }),
           expect.objectContaining({
             id: '3',
-            inputVariables: expect.arrayContaining(['users', 'df_1']),
+            inputVariables: ['df_1', 'users'],
             outputVariables: ['df_2'],
             importedModules: [],
             usedImportedModules: [],
           }),
-        ]),
+        ],
       })
     })
 
@@ -782,14 +789,14 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        modulesEdges: expect.arrayContaining([
+        modulesEdges: [
           expect.objectContaining({
             from: '1',
             to: '3',
             inputVariables: ['np'],
           }),
-        ]),
-        nodes: expect.arrayContaining([
+        ],
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -810,12 +817,12 @@ describe('DAG', () => {
             inputVariables: ['arr'],
             outputVariables: ['reshaped_arr'],
           }),
-        ]),
-        edges: expect.arrayContaining([
+        ],
+        edges: [
           expect.objectContaining({ from: '1', inputVariables: ['arr'], to: '2' }),
           expect.objectContaining({ from: '2', inputVariables: ['arr'], to: '3' }),
           expect.objectContaining({ from: '3', inputVariables: ['arr'], to: '4' }),
-        ]),
+        ],
       })
     })
 
@@ -842,7 +849,7 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -858,11 +865,11 @@ describe('DAG', () => {
             inputVariables: ['p1'],
             outputVariables: [],
           }),
-        ]),
-        edges: expect.arrayContaining([
+        ],
+        edges: [
           expect.objectContaining({ from: '1', inputVariables: ['MyClass'], to: '2' }),
           expect.objectContaining({ from: '2', inputVariables: ['p1'], to: '3' }),
-        ]),
+        ],
       })
     })
 
@@ -889,7 +896,7 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -902,14 +909,14 @@ describe('DAG', () => {
           }),
           expect.objectContaining({
             id: '3',
-            inputVariables: expect.arrayContaining(['my_var', 'test']),
+            inputVariables: ['my_var', 'test'],
             outputVariables: [],
           }),
-        ]),
-        edges: expect.arrayContaining([
+        ],
+        edges: [
           expect.objectContaining({ from: '2', inputVariables: ['my_var'], to: '3' }),
           expect.objectContaining({ from: '1', inputVariables: ['test'], to: '3' }),
-        ]),
+        ],
       })
     })
 
@@ -936,7 +943,7 @@ describe('DAG', () => {
 
       expect(dag).toEqual({
         modulesEdges: [],
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -952,11 +959,11 @@ describe('DAG', () => {
             inputVariables: ['test'],
             outputVariables: [],
           }),
-        ]),
-        edges: expect.arrayContaining([
+        ],
+        edges: [
           expect.objectContaining({ from: '1', inputVariables: ['num'], to: '2' }),
           expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' }),
-        ]),
+        ],
       })
     })
 
@@ -982,7 +989,7 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -1000,9 +1007,9 @@ describe('DAG', () => {
             inputVariables: ['test'],
             outputVariables: [],
           }),
-        ]),
-        edges: expect.arrayContaining([expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' })]),
-        modulesEdges: expect.arrayContaining([expect.objectContaining({ from: '1', to: '2', inputVariables: ['pd'] })]),
+        ],
+        edges: [expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' })],
+        modulesEdges: [expect.objectContaining({ from: '1', to: '2', inputVariables: ['pd'] })],
       })
     })
 
@@ -1028,7 +1035,7 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -1046,9 +1053,9 @@ describe('DAG', () => {
             inputVariables: ['test'],
             outputVariables: [],
           }),
-        ]),
-        edges: expect.arrayContaining([expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' })]),
-        modulesEdges: expect.arrayContaining([expect.objectContaining({ from: '1', to: '2', inputVariables: ['pd'] })]),
+        ],
+        edges: [expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' })],
+        modulesEdges: [expect.objectContaining({ from: '1', to: '2', inputVariables: ['pd'] })],
       })
     })
 
@@ -1074,7 +1081,7 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
@@ -1092,11 +1099,9 @@ describe('DAG', () => {
             inputVariables: ['test'],
             outputVariables: [],
           }),
-        ]),
-        edges: expect.arrayContaining([expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' })]),
-        modulesEdges: expect.arrayContaining([
-          expect.objectContaining({ from: '1', to: '2', inputVariables: ['pandas'] }),
-        ]),
+        ],
+        edges: [expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' })],
+        modulesEdges: [expect.objectContaining({ from: '1', to: '2', inputVariables: ['pandas'] })],
       })
     })
 
@@ -1132,11 +1137,11 @@ describe('DAG', () => {
       const { dag } = await getDAGForBlocks(blocks)
 
       expect(dag).toEqual({
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
-            importedModules: expect.arrayContaining(['pandas', 'array']),
+            importedModules: ['array', 'pandas'],
             outputVariables: [],
           }),
           expect.objectContaining({
@@ -1161,15 +1166,15 @@ describe('DAG', () => {
             inputVariables: ['arr'],
             outputVariables: [],
           }),
-        ]),
-        edges: expect.arrayContaining([
+        ],
+        edges: [
           expect.objectContaining({ from: '2', inputVariables: ['test'], to: '3' }),
           expect.objectContaining({ from: '4', inputVariables: ['arr'], to: '5' }),
-        ]),
-        modulesEdges: expect.arrayContaining([
+        ],
+        modulesEdges: [
           expect.objectContaining({ from: '1', to: '2', inputVariables: ['pandas'] }),
           expect.objectContaining({ from: '1', to: '4', inputVariables: ['array'] }),
-        ]),
+        ],
       })
     })
 
@@ -1187,13 +1192,13 @@ describe('DAG', () => {
       expect(dag).toEqual({
         modulesEdges: [],
         edges: [],
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '1',
             inputVariables: [],
-            outputVariables: expect.arrayContaining(['a', 'b']),
+            outputVariables: ['a', 'b'],
           }),
-        ]),
+        ],
       })
     })
 
@@ -1225,7 +1230,7 @@ describe('DAG', () => {
             inputVariables: ['ids'],
           },
         ],
-        nodes: expect.arrayContaining([
+        nodes: [
           expect.objectContaining({
             id: '0',
             inputVariables: [],
@@ -1238,7 +1243,7 @@ describe('DAG', () => {
             outputVariables: [],
             error: null,
           }),
-        ]),
+        ],
       })
     })
   })

@@ -227,12 +227,14 @@ def analyze_blocks(blocks):
                 block_defined_list.sort()
                 block_used_list = list(block_used)
                 block_used_list.sort()
+                block_imported_list = list(block_imported)
+                block_imported_list.sort()
                 analysis.append(
                     {
                         "id": block["id"],
                         "definedVariables": block_defined_list,
                         "usedVariables": block_used_list,
-                        "importedModules": list(block_imported),
+                        "importedModules": block_imported_list,
                     }
                 )
             elif block["type"] == "sql":
