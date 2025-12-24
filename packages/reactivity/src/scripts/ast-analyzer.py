@@ -2,6 +2,7 @@ import ast
 import json
 import sys
 import argparse
+import re
 from jinja2 import meta, Environment
 
 
@@ -159,7 +160,6 @@ def sanitize_python_variable_name(name):
     """
     Python implementation of sanitizePythonVariableName from utils.ts
     """
-    import re
     sanitized = re.sub(r'\s+', '_', name)
     sanitized = re.sub(r'[^0-9a-zA-Z_]', '', sanitized)
     sanitized = re.sub(r'^[^a-zA-Z_]+', '', sanitized)
@@ -183,7 +183,6 @@ def extract_jinja_variables(sql_code):
     jinja_variables = meta.find_undeclared_variables(parsed_content)
 
     # Look for table names after FROM, JOIN, etc. that could be variables
-    import re
     sql_variables = set()
 
     clean_sql = re.sub(r'\{\{.*?\}\}', '', sql_code)
