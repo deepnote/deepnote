@@ -102,10 +102,6 @@ export async function safelyCallChildProcessWithInputOutput(
     )
   } finally {
     // Clean up temporary files
-    try {
-      await Promise.all([unlink(inputPath).catch(() => {}), unlink(outputPath).catch(() => {})])
-    } catch {
-      // Ignore cleanup errors
-    }
+    await Promise.all([unlink(inputPath).catch(() => {}), unlink(outputPath).catch(() => {})])
   }
 }
