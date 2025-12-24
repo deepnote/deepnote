@@ -28,6 +28,11 @@ def test_ast_analyzer():
             "type": "sql",
             "id": "3",
             "content": "SELECT * FROM users WHERE id == {{someVariable}}"
+        },
+        {
+            "type": "code",
+            "id": "4",
+            "content": "try:\n    raise ValueError('error')\nexcept Exception:\n    pass"
         }
     ]
 
@@ -48,6 +53,12 @@ def test_ast_analyzer():
             "id": "3",
             "definedVariables": [],
             "usedVariables": ["someVariable", "users"],
+            "importedModules": []
+        },
+        {
+            "id": "4",
+            "definedVariables": [],
+            "usedVariables": [],
             "importedModules": []
         }
     ]

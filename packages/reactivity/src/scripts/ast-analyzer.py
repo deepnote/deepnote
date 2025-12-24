@@ -3,7 +3,12 @@ import json
 import sys
 import argparse
 import re
+import builtins
 from jinja2 import meta, Environment
+
+
+# Set of Python built-in names to ignore during analysis
+BUILTINS_SET = set(dir(builtins))
 
 
 class VariableVisitor(ast.NodeVisitor):
@@ -81,17 +86,8 @@ class VariableVisitor(ast.NodeVisitor):
         self.function_globals = prev_function_globals
 
     def visit_Name(self, node):
-        builtins = {
-            'print', 'len', 'range', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple',
-            'abs', 'all', 'any', 'bin', 'callable', 'chr', 'dir', 'enumerate', 'eval', 'exec',
-            'filter', 'format', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id',
-            'input', 'isinstance', 'issubclass', 'iter', 'locals', 'map', 'max', 'min', 'next',
-            'oct', 'open', 'ord', 'pow', 'repr', 'reversed', 'round', 'setattr', 'sorted', 'sum',
-            'type', 'vars', 'zip', '__import__', 'True', 'False', 'None'
-        }
-
         if isinstance(node.ctx, ast.Load):
-            if node.id in builtins:
+            if node.id in BUILTINS_SET:
                 self.generic_visit(node)
                 return
 
