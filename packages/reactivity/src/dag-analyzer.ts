@@ -15,7 +15,11 @@ export function getDownstreamBlocksForBlocksIds(dag: BlockContentDepsDAG, blocks
   return getDownstreamBlocks(filteredDag, blocksIds)
 }
 
-function getDownstreamBlocks(dag: BlockContentDepsDAG, blocksIds: string[], visited = new Set()): string[] {
+function getDownstreamBlocks(
+  dag: BlockContentDepsDAG,
+  blocksIds: string[],
+  visited: Set<string> = new Set()
+): string[] {
   const outputVariables = dag.nodes.filter(node => blocksIds.includes(node.id)).flatMap(node => node.outputVariables)
 
   const blocksThatAreUsingVariables = dag.nodes
