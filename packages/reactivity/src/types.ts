@@ -13,7 +13,7 @@ export const BlockContentDepsSchema = z.object({
   usedVariables: z.array(z.string()),
   importedModules: z.array(z.string()).optional(),
   // Note: if this field is not returned by AST parser, it will be calculated within webapp
-  usedImportedModules: z.array(z.string()).optional().optional(),
+  usedImportedModules: z.array(z.string()).optional(),
   error: BlockErrorSchema.optional(),
 })
 
