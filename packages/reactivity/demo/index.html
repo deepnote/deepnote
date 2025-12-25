@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deepnote Reactivity Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7f9;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .notebook {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .block {
+            margin-bottom: 20px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .block.highlighted {
+            border-color: #2ea44f;
+            box-shadow: 0 0 0 3px rgba(46, 164, 79, 0.2);
+        }
+        .block.will-rerun {
+            border-color: #f97316;
+            background-color: #fff7ed;
+        }
+        .block-header span.tag {
+            background: #e1e4e8;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+        .block.will-rerun .block-header span.tag {
+            background: #f97316;
+            color: white;
+        }
+        .block-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .block-content {
+            padding: 0;
+        }
+        textarea {
+            width: 100%;
+            height: 80px;
+            border: none;
+            padding: 12px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 14px;
+            resize: vertical;
+            display: block;
+            box-sizing: border-box;
+        }
+        textarea:focus {
+            outline: none;
+            background-color: #fffdef;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid #d1d5da;
+            background: #fafbfc;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #f3f4f6;
+        }
+        button.primary {
+            background: #2ea44f;
+            color: white;
+            border-color: rgba(27,31,35,0.15);
+        }
+        button.primary:hover {
+            background: #2c974b;
+        }
+        .results {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .pane {
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .pane h3 {
+            margin-top: 0;
+            font-size: 16px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        pre {
+            font-size: 12px;
+            background: #f6f8fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 400px;
+        }
+        .edge {
+            padding: 4px 8px;
+            margin: 4px 0;
+            background: #eef;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .variable {
+            color: #d73a49;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Deepnote Reactivity Demo</h1>
+        <div>
+            <button onclick="addBlock()">+ Add Block</button>
+            <button class="primary" onclick="analyze()">Run Analysis</button>
+        </div>
+    </div>
+
+    <div class="notebook" id="notebook">
+        <!-- Blocks will be added here -->
+    </div>
+
+    <div class="results">
+        <div class="pane">
+            <h3>Dependencies (Edges)</h3>
+            <div id="edges-list"></div>
+        </div>
+        <div class="pane">
+            <h3>Raw DAG Output</h3>
+            <pre id="raw-output">Hit 'Run Analysis' to see results</pre>
+        </div>
+    </div>
+
+    <script>
+        let blockCount = 0;
+
+        function addBlock(content = '') {
+            blockCount++;
+            const id = 'block-' + blockCount;
+            const blockHtml = `
+                <div class="block" id="container-${id}">
+                    <div class="block-header">
+                        <div>
+                            <span>BLOCK ID: <strong>${id}</strong></span>
+                            <span class="tag" id="tag-${id}" style="display:none">WILL RERUN</span>
+                        </div>
+                        <div class="block-actions">
+                            <button onclick="checkDownstream('${id}')" style="padding: 2px 6px; font-size: 10px;">Check Downstream</button>
+                            <button onclick="removeBlock('${id}')" style="padding: 2px 6px; font-size: 10px; color: #d73a49;">Remove</button>
+                        </div>
+                    </div>
+                    <div class="block-content">
+                        <textarea id="${id}" placeholder="Enter Python code..." oninput="clearHighlights()">${content}</textarea>
+                    </div>
+                </div>
+            `;
+            document.getElementById('notebook').insertAdjacentHTML('beforeend', blockHtml);
+        }
+
+        function removeBlock(id) {
+            document.getElementById('container-' + id).remove();
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.block').forEach(el => {
+                el.classList.remove('will-rerun');
+                el.classList.remove('highlighted');
+            });
+            document.querySelectorAll('.tag').forEach(el => el.style.display = 'none');
+        }
+
+        async function checkDownstream(blockId) {
+            clearHighlights();
+            const container = document.getElementById('container-' + blockId);
+            container.classList.add('highlighted');
+
+            const textareas = document.querySelectorAll('textarea');
+            const blocks = Array.from(textareas).map((ta, index) => ({
+                id: ta.id,
+                type: 'code',
+                content: ta.value,
+                blockGroup: 'default',
+                sortingKey: String(index).padStart(5, '0')
+            }));
+
+            const targetBlock = blocks.find(b => b.id === blockId);
+
+            try {
+                const response = await fetch('/downstream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        blocks,
+                        blocksToExecute: [targetBlock]
+                    })
+                });
+
+                if (!response.ok) throw new Error(await response.text());
+
+                const result = await response.json();
+                if (result.status === 'fatal') {
+                    alert('Error: ' + result.error.message);
+                    return;
+                }
+
+                // result.blocksToExecuteWithDeps contains all blocks that will run
+                result.blocksToExecuteWithDeps.forEach(block => {
+                    if (block.id !== blockId) {
+                        const el = document.getElementById('container-' + block.id);
+                        if (el) {
+                            el.classList.add('will-rerun');
+                            document.getElementById('tag-' + block.id).style.display = 'inline-block';
+                        }
+                    }
+                });
+
+                document.getElementById('raw-output').textContent = "Downstream analysis for " + blockId + ":\n" + JSON.stringify(result, null, 2);
+            } catch (err) {
+                alert('Analysis failed: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        async function analyze() {
+            clearHighlights();
+            const textareas = document.querySelectorAll('textarea');
+            const blocks = Array.from(textareas).map((ta, index) => ({
+                id: ta.id,
+                type: 'code',
+                content: ta.value,
+                blockGroup: 'default',
+                sortingKey: String(index).padStart(5, '0')
+            }));
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blocks })
+                });
+
+                if (!response.ok) throw new Error(await response.text());
+
+                const result = await response.json();
+                displayResults(result);
+            } catch (err) {
+                alert('Analysis failed: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        function displayResults(result) {
+            document.getElementById('raw-output').textContent = JSON.stringify(result, null, 2);
+
+            const edgesList = document.getElementById('edges-list');
+            edgesList.innerHTML = '';
+
+            if (result.dag.edges.length === 0) {
+                edgesList.innerHTML = '<p>No dependencies found between blocks.</p>';
+                return;
+            }
+
+            result.dag.edges.forEach(edge => {
+                const div = document.createElement('div');
+                div.className = 'edge';
+                div.innerHTML = `Block <strong>${edge.from}</strong> &rarr; Block <strong>${edge.to}</strong> (via <span class="variable">${edge.inputVariables.join(', ')}</span>)`;
+                edgesList.appendChild(div);
+            });
+        }
+
+        // Add some initial blocks
+        addBlock('x = 10\ny = 20');
+        addBlock('z = x + y');
+        addBlock('print(z)');
+    </script>
+</body>
+</html>

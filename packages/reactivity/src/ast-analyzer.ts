@@ -1,7 +1,18 @@
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { z } from 'zod'
 import { safelyCallChildProcessWithInputOutput } from './child-process-utils'
+
+// Workaround for __dirname in ESM and CJS
+const getDirname = () => {
+  try {
+    return path.dirname(fileURLToPath(import.meta.url))
+  } catch {
+    return __dirname
+  }
+}
+const currentDirname = getDirname()
 
 export class AstAnalyzerInternalError extends Error {
   constructor(message: string) {
@@ -82,7 +93,7 @@ export async function getBlocksContentDeps(blocks: DeepnoteBlock[]): Promise<Blo
   try {
     const inputData = JSON.stringify({ blocks: blocksNeedingComputation })
 
-    const scriptPath = path.join(__dirname, './scripts/ast-analyzer.py')
+    const scriptPath = path.join(currentDirname, './scripts/ast-analyzer.py')
     const outputData = await safelyCallChildProcessWithInputOutput('python3', [scriptPath], inputData)
 
     const json = JSON.parse(outputData)
