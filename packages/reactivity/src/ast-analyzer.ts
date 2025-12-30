@@ -91,7 +91,7 @@ export async function getBlockDependencies(
     const outputData = await safelyCallChildProcessWithInputOutput(pythonInterpreter, [scriptPath], inputData)
 
     const json = JSON.parse(outputData)
-    const parsed = AstAnalyzerResponseSchema.safeParse(json)
+    const parsed = await AstAnalyzerResponseSchema.safeParseAsync(json)
     if (!parsed.success) {
       throw new AstAnalyzerInternalError('Internal parser error: unexpected output format from AST analyzer.')
     }
