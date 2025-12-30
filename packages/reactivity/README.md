@@ -32,9 +32,9 @@ console.log(dag.edges);
 
 ### Key Functions
 
-- **`getDAGForBlocks(blocks, options?)`**: Analyzes blocks and returns the complete dependency graph. Use `acceptPartialDAG: true` in the options if you want to receive a graph even if some blocks have syntax errors.
-- **`getDownstreamBlocks(blocks, blocksToExecute)`**: Given a list of blocks that have changed or are being executed, returns the set of downstream blocks that also need to be executed to maintain consistency.
-- **`getBlockDependencies(blocks)`**: A lower-level utility that just performs the AST analysis on the blocks without building the full graph.
+- **`getDAGForBlocks(blocks, options?)`**: Analyzes blocks and returns the complete dependency graph. Use `acceptPartialDAG: true` in the options if you want to receive a graph even if some blocks have syntax errors. You can also provide a `pythonInterpreter` path.
+- **`getDownstreamBlocks(blocks, blocksToExecute, options?)`**: Given a list of blocks that have changed or are being executed, returns the set of downstream blocks that also need to be executed to maintain consistency. Supports `pythonInterpreter` option.
+- **`getBlockDependencies(blocks, options?)`**: A lower-level utility that just performs the AST analysis on the blocks without building the full graph. Supports `pythonInterpreter` option.
 
 ### Core Concepts
 

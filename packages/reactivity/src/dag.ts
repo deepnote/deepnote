@@ -30,10 +30,13 @@ export async function getDAGForBlocks(
     // this may happen when there is an error in one of the processed blocks.
     // Partial DAG should be used only in the DAG chart.
     acceptPartialDAG: boolean
+    pythonInterpreter?: string
   } = { acceptPartialDAG: false }
 ) {
   try {
-    const blocksWithContentDeps = await getBlockDependencies(blocks)
+    const blocksWithContentDeps = await getBlockDependencies(blocks, {
+      pythonInterpreter: options.pythonInterpreter,
+    })
 
     const blocksWithErrorInContentDeps = blocksWithContentDeps.filter(block => block.error)
     const blocksWithoutErrorsInContentDeps = blocksWithContentDeps.filter(block => !block.error)
@@ -61,14 +64,17 @@ export async function getDAGForBlocks(
  * Takes blocks, creates DAG and returns blocks that should be executed based in blocksToExecute for downstream execution.
  * @param blocks All blocks in the notebook
  * @param blocksToExecute Blocks that triggered the downstream execution
+ * @param options Options for DAG generation
  */
 export async function getDownstreamBlocks(
   blocks: DeepnoteBlock[],
-  blocksToExecute: DeepnoteBlock[]
+  blocksToExecute: DeepnoteBlock[],
+  options: { pythonInterpreter?: string } = {}
 ): Promise<GetDownstreamBlocksResult> {
   try {
     const { dag, blocksWithErrorInContentDeps, newlyComputedBlocksContentDeps } = await getDAGForBlocks(blocks, {
       acceptPartialDAG: true,
+      pythonInterpreter: options.pythonInterpreter,
     })
     const downstreamBlocks = getDownstreamBlocksForBlocksIds(
       dag,

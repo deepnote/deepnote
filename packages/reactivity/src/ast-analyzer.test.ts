@@ -73,5 +73,12 @@ describe('AstAnalyzer', () => {
         expect.objectContaining({ id: '3', definedVariables: [], usedVariables: ['y'] }),
       ])
     })
+
+    it('should throw error when python interpreter is not found', async () => {
+      const mockBlocks = [{ id: '1', type: 'code', content: 'a = 1' }] as DeepnoteBlock[]
+      await expect(getBlockDependencies(mockBlocks, { pythonInterpreter: 'non-existent-python' })).rejects.toThrow(
+        /Failed to run AST analyzer process/
+      )
+    })
   })
 })

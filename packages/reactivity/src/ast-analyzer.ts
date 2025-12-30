@@ -64,7 +64,12 @@ const AstAnalyzerResponseSchema = z.union([AstAnalyzerSuccessSchema, AstAnalyzer
  * Tested within dag.test.ts integration test.
  * Intentionally mixing Python and SQL blocks here because we want to use just one local process invocation.
  */
-export async function getBlockDependencies(blocks: DeepnoteBlock[]): Promise<BlockContentDepsWithOrder[]> {
+export async function getBlockDependencies(
+  blocks: DeepnoteBlock[],
+  options: { pythonInterpreter?: string } = {}
+): Promise<BlockContentDepsWithOrder[]> {
+  const { pythonInterpreter = 'python3' } = options
+
   const blocksNeedingComputation = blocks
     // Process only supported cell types
     .filter(block => SUPPORTED_CELL_TYPES.has(block.type))
@@ -83,7 +88,7 @@ export async function getBlockDependencies(blocks: DeepnoteBlock[]): Promise<Blo
     const inputData = JSON.stringify({ blocks: blocksNeedingComputation })
 
     const scriptPath = path.join(__dirname, 'scripts', 'ast-analyzer.py')
-    const outputData = await safelyCallChildProcessWithInputOutput('python3', [scriptPath], inputData)
+    const outputData = await safelyCallChildProcessWithInputOutput(pythonInterpreter, [scriptPath], inputData)
 
     const json = JSON.parse(outputData)
     const parsed = AstAnalyzerResponseSchema.safeParse(json)
