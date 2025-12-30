@@ -1,10 +1,10 @@
-import type { BlockContentDepsDAG } from './types'
+import type { BlockDependencyDag } from './types'
 
 /**
  * Accepts ids of changed inputs and returns ids of blocks that use these inputs (dependencies).
  * The method finds dependencies in downstream mode - we are filtering out nodes from the DAG that are defined before the changed blocks.
  */
-export function getDownstreamBlocksForBlocksIds(dag: BlockContentDepsDAG, blocksIds: string[]): string[] {
+export function getDownstreamBlocksForBlocksIds(dag: BlockDependencyDag, blocksIds: string[]): string[] {
   const changedBlocks = dag.nodes.filter(node => blocksIds.includes(node.id))
 
   if (changedBlocks.length === 0) {
@@ -20,11 +20,7 @@ export function getDownstreamBlocksForBlocksIds(dag: BlockContentDepsDAG, blocks
   return getDownstreamBlocks(filteredDag, blocksIds)
 }
 
-function getDownstreamBlocks(
-  dag: BlockContentDepsDAG,
-  blocksIds: string[],
-  visited: Set<string> = new Set()
-): string[] {
+function getDownstreamBlocks(dag: BlockDependencyDag, blocksIds: string[], visited: Set<string> = new Set()): string[] {
   const outputVariables = dag.nodes.filter(node => blocksIds.includes(node.id)).flatMap(node => node.outputVariables)
 
   const blocksThatAreUsingVariables = dag.nodes

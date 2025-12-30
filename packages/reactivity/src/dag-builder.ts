@@ -1,5 +1,5 @@
 import type { BlockContentDepsWithOrder } from './ast-analyzer'
-import type { BlockContentDepsDAG, DagEdge, DagNode } from './types'
+import type { BlockDependencyDag, DagEdge, DagNode } from './types'
 
 /**
  * Goes through all blocks and creates DAG.
@@ -10,7 +10,7 @@ import type { BlockContentDepsDAG, DagEdge, DagNode } from './types'
  * initial (top-to-bottom) run and after that all the imports should be present so there is no need re-run the blocks that use them or depend on them.
  * We are still creating `modulesEdges` which are visualized as dashed lines in the DAG graph.
  */
-export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockContentDepsDAG {
+export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockDependencyDag {
   const edges: DagEdge[] = []
   const modulesEdges: DagEdge[] = []
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
-import type { BlockContentDepsDAG } from './types'
+import type { BlockDependencyDag } from './types'
 
 describe('getDownstreamBlocksForBlocksIds', () => {
   it('should return all blocks that depend on the changed block', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -53,7 +53,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should return empty array if blocks do not depend on changed block', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -93,7 +93,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should return only blocks that depend on the changed block', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -142,7 +142,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should not return blocks that depend on the changed block but were defined before the changed block', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -191,7 +191,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should not get killed by cyclic dependency', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -222,7 +222,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should return all downstream dependencies of all changed blocks', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -289,7 +289,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should return empty array for empty blocksIds', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -311,7 +311,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should return empty array for non-existent blocksIds', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',
@@ -333,7 +333,7 @@ describe('getDownstreamBlocksForBlocksIds', () => {
   })
 
   it('should correctly handle mixed valid and non-existent blocksIds', () => {
-    const dag: BlockContentDepsDAG = {
+    const dag: BlockDependencyDag = {
       nodes: [
         {
           id: '1',

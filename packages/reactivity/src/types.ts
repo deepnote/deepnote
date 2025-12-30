@@ -33,7 +33,7 @@ export interface DagEdge {
   inputVariables: string[]
 }
 
-export interface BlockContentDepsDAG {
+export interface BlockDependencyDag {
   nodes: DagNode[]
   edges: DagEdge[]
   modulesEdges: DagEdge[]
