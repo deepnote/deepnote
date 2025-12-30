@@ -27,7 +27,7 @@ export interface DagNode {
   error: BlockError | null
 }
 
-export interface DAGEdge {
+export interface DagEdge {
   from: string
   to: string
   inputVariables: string[]
@@ -35,6 +35,6 @@ export interface DAGEdge {
 
 export interface BlockContentDepsDAG {
   nodes: DagNode[]
-  edges: DAGEdge[]
-  modulesEdges: DAGEdge[]
+  edges: DagEdge[]
+  modulesEdges: DagEdge[]
 }
