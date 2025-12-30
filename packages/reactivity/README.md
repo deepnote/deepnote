@@ -2,6 +2,18 @@
 
 Reactivity and dependency graph for Deepnote notebooks.
 
+## Requirements
+
+This package requires **Python 3** and the **jinja2** Python library to be installed on the system where it is running. The `jinja2` library is used for parsing variable dependencies in SQL blocks.
+
+You can install the requirement via pip:
+
+```bash
+pip install jinja2
+```
+
+By default, the package looks for `python3` in the system path. You can override this by providing a `pythonInterpreter` path in the options of the main functions.
+
 ## Overview
 
 This package provides utilities for analyzing dependencies between Deepnote blocks to build a reactivity graph. It uses a Python-based AST analyzer to identify defined and used variables in various block types.
