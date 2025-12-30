@@ -10,7 +10,7 @@ import type { BlockContentDepsDAG, DAGEdge, DAGNode } from './types'
  * initial (top-to-bottom) run and after that all the imports should be present so there is no need re-run the blocks that use them or depend on them.
  * We are still creating `modulesEdges` which are visualized as dashed lines in the DAG graph.
  */
-export function buildDAGFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockContentDepsDAG {
+export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockContentDepsDAG {
   const edges: DAGEdge[] = []
   const modulesEdges: DAGEdge[] = []
 

@@ -1,7 +1,7 @@
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { type BlockContentDepsWithOrder, getBlockDependencies } from './ast-analyzer'
 import { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
-import { buildDAGFromBlocks } from './dag-builder'
+import { buildDagFromBlocks } from './dag-builder'
 
 export class DagError extends Error {
   constructor(message: string) {
@@ -49,7 +49,7 @@ export async function getDAGForBlocks(
     }
 
     const allBlocksForDAG = options.acceptPartialDAG ? blocksWithContentDeps : blocksWithoutErrorsInContentDeps
-    const dag = buildDAGFromBlocks(allBlocksForDAG)
+    const dag = buildDagFromBlocks(allBlocksForDAG)
     return { dag, blocksWithErrorInContentDeps, newlyComputedBlocksContentDeps: blocksWithContentDeps }
   } catch (error) {
     if (error instanceof SyntaxError) {

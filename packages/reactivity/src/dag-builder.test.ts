@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { buildDAGFromBlocks } from './dag-builder'
+import { buildDagFromBlocks } from './dag-builder'
 
-describe('buildDAGFromBlocks', () => {
+describe('buildDagFromBlocks', () => {
   it('should create nodes for all blocks', () => {
     const blocks = [
       {
@@ -18,7 +18,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     expect(dag.nodes).toHaveLength(2)
     expect(dag.nodes[0].id).toEqual('1')
@@ -42,7 +42,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     expect(dag.edges).toHaveLength(1)
     expect(dag.edges[0]).toEqual({
@@ -74,7 +74,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     // Should only have edge from 2 to 3, not from 1 to 3
     expect(dag.edges).toHaveLength(1)
@@ -107,7 +107,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     // Edge 1 -> 2 (2 uses a from 1)
     // Edge 2 -> 3 (3 uses a from 1, but 2 is the closest block that uses it)
@@ -142,7 +142,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     // pandas is a module, so it should be in modulesEdges, not edges
     expect(dag.edges).toHaveLength(0)
@@ -176,7 +176,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     const node2 = dag.nodes.find(n => n.id === '2')
     expect(node2).toEqual({
@@ -201,7 +201,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     expect(dag.nodes[0].error).toEqual({
       type: 'SyntaxError',
@@ -219,7 +219,7 @@ describe('buildDAGFromBlocks', () => {
       },
     ]
 
-    const dag = buildDAGFromBlocks(blocks)
+    const dag = buildDagFromBlocks(blocks)
 
     expect(dag.edges).toHaveLength(0)
     expect(dag.nodes[0].inputVariables).toHaveLength(0)
