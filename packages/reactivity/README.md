@@ -18,7 +18,7 @@ By default, the package looks for `python3` in the system path. You can override
 
 This package provides utilities for analyzing dependencies between Deepnote blocks to build a reactivity graph. It uses a Python-based AST analyzer to identify defined and used variables in various block types.
 
-- **AST Analysis**: Extracts variable definitions and usages from Python and SQL blocks.
+- **AST Analysis**: Extracts variable definitions and usages across Python, SQL, button, big-number, notebook-function, and input-\* blocks.
 - **Dependency Tracking**: Identifies how blocks depend on each other through variables.
 - **Reactivity Support**: Powers the reactive execution model by analyzing block content.
 
