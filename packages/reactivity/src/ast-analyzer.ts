@@ -82,7 +82,7 @@ export async function getBlockDependencies(blocks: DeepnoteBlock[]): Promise<Blo
   try {
     const inputData = JSON.stringify({ blocks: blocksNeedingComputation })
 
-    const scriptPath = path.join(__dirname, './scripts/ast-analyzer.py')
+    const scriptPath = path.join(__dirname, 'scripts', 'ast-analyzer.py')
     const outputData = await safelyCallChildProcessWithInputOutput('python3', [scriptPath], inputData)
 
     const json = JSON.parse(outputData)
