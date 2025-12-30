@@ -1,0 +1,6 @@
+export type { BlockContentDepsWithOrder } from './ast-analyzer'
+export { AstAnalyzerInternalError, getBlockDependencies } from './ast-analyzer'
+export * from './dag'
+export { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
+export { buildDagFromBlocks } from './dag-builder'
+export * from './types'
