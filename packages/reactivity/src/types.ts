@@ -7,7 +7,7 @@ const BlockErrorSchema = z.object({
 
 type BlockError = z.infer<typeof BlockErrorSchema>
 
-export const BlockContentDepsSchema = z.object({
+export const BlockDependencySchema = z.object({
   id: z.string(),
   definedVariables: z.array(z.string()),
   usedVariables: z.array(z.string()),
