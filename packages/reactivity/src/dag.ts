@@ -1,5 +1,5 @@
 import type { DeepnoteBlock } from '@deepnote/blocks'
-import { type BlockContentDepsWithOrder, getBlocksContentDeps } from './ast-analyzer'
+import { type BlockContentDepsWithOrder, getBlockDependencies } from './ast-analyzer'
 import { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
 import { buildDAGFromBlocks } from './dag-builder'
 
@@ -33,7 +33,7 @@ export async function getDAGForBlocks(
   } = { acceptPartialDAG: false }
 ) {
   try {
-    const blocksWithContentDeps = await getBlocksContentDeps(blocks)
+    const blocksWithContentDeps = await getBlockDependencies(blocks)
 
     const blocksWithErrorInContentDeps = blocksWithContentDeps.filter(block => block.error)
     const blocksWithoutErrorsInContentDeps = blocksWithContentDeps.filter(block => !block.error)

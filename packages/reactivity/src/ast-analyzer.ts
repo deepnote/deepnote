@@ -64,7 +64,7 @@ const AstAnalyzerResponseSchema = z.union([AstAnalyzerSuccessSchema, AstAnalyzer
  * Tested within dag.test.ts integration test.
  * Intentionally mixing Python and SQL blocks here because we want to use just one local process invocation.
  */
-export async function getBlocksContentDeps(blocks: DeepnoteBlock[]): Promise<BlockContentDepsWithOrder[]> {
+export async function getBlockDependencies(blocks: DeepnoteBlock[]): Promise<BlockContentDepsWithOrder[]> {
   const blocksNeedingComputation = blocks
     // Process only supported cell types
     .filter(block => SUPPORTED_CELL_TYPES.has(block.type))

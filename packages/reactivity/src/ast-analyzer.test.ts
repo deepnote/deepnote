@@ -1,11 +1,11 @@
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import { getBlocksContentDeps } from './ast-analyzer'
+import { getBlockDependencies } from './ast-analyzer'
 
 describe('AstAnalyzer', () => {
-  describe('getBlocksContentDeps', () => {
+  describe('getBlockDependencies', () => {
     it('should return empty array for empty input', async () => {
-      const result = await getBlocksContentDeps([])
+      const result = await getBlockDependencies([])
       expect(result).toEqual([])
     })
 
@@ -14,7 +14,7 @@ describe('AstAnalyzer', () => {
         { id: '1', type: 'unsupported', content: 'a = 1', blockGroup: 'a', sortingKey: 'a' },
       ] as DeepnoteBlock[]
 
-      const result = await getBlocksContentDeps(mockBlocks)
+      const result = await getBlockDependencies(mockBlocks)
       expect(result).toEqual([])
     })
 
@@ -24,7 +24,7 @@ describe('AstAnalyzer', () => {
         { id: '2', type: 'sql', content: 'SELECT * FROM users WHERE id = {{ a }}', blockGroup: 'a', sortingKey: 'b' },
       ] as DeepnoteBlock[]
 
-      const result = await getBlocksContentDeps(mockBlocks)
+      const result = await getBlockDependencies(mockBlocks)
 
       expect(result).toEqual([
         expect.objectContaining({
@@ -46,7 +46,7 @@ describe('AstAnalyzer', () => {
         { id: '1', type: 'code', content: 'a = ', blockGroup: 'a', sortingKey: 'a' },
       ] as DeepnoteBlock[]
 
-      const result = await getBlocksContentDeps(mockBlocks)
+      const result = await getBlockDependencies(mockBlocks)
 
       expect(result).toEqual([
         expect.objectContaining({
@@ -65,7 +65,7 @@ describe('AstAnalyzer', () => {
         { id: '3', type: 'code', content: 'print(y)', blockGroup: 'a', sortingKey: 'c' },
       ] as DeepnoteBlock[]
 
-      const result = await getBlocksContentDeps(mockBlocks)
+      const result = await getBlockDependencies(mockBlocks)
 
       expect(result).toEqual([
         expect.objectContaining({ id: '1', definedVariables: ['x'], usedVariables: [] }),
