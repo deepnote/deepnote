@@ -44,9 +44,9 @@ console.log(dag.edges);
 
 ### Key Functions
 
-- **`getDagForBlocks(blocks, options?)`**: Analyzes blocks and returns the complete dependency graph. Use `acceptPartialDAG: true` in the options if you want to receive a graph even if some blocks have syntax errors. You can also provide a `pythonInterpreter` path.
-- **`getDownstreamBlocks(blocks, blocksToExecute, options?)`**: Given a list of blocks that have changed or are being executed, returns the set of downstream blocks that also need to be executed to maintain consistency. Supports `pythonInterpreter` option.
-- **`getBlockDependencies(blocks, options?)`**: A lower-level utility that just performs the AST analysis on the blocks without building the full graph. Supports `pythonInterpreter` option.
+- **`getDagForBlocks(blocks, options?)`**: Builds the complete dependency graph of the notebook. This is useful for mapping out data flow and powering features like dependency visualizations. Use `acceptPartialDAG: true` in the options if you want to receive a graph even if some blocks have syntax errors. Supports `pythonInterpreter` option.
+- **`getDownstreamBlocks(blocks, blocksToExecute, options?)`**: Identifies all blocks that need to be re-run when specific upstream blocks are executed or modified. This is the core function for implementing **reactive execution**, ensuring that the entire notebook remains consistent. Supports `pythonInterpreter` option.
+- **`getBlockDependencies(blocks, options?)`**: A lower-level utility that extracts variable definitions and usages from block content using AST analysis. It is useful for inspecting the inputs and outputs of individual blocks without constructing the full graph. Supports `pythonInterpreter` option.
 
 ### Core Concepts
 
