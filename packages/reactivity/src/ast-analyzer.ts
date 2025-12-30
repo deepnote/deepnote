@@ -93,7 +93,9 @@ export async function getBlockDependencies(
     const json = JSON.parse(outputData)
     const parsed = await AstAnalyzerResponseSchema.safeParseAsync(json)
     if (!parsed.success) {
-      throw new AstAnalyzerInternalError('Internal parser error: unexpected output format from AST analyzer.')
+      throw new AstAnalyzerInternalError(
+        `Internal parser error: unexpected output format from AST analyzer, ${parsed.error.message}`
+      )
     }
 
     const parsedData = parsed.data
