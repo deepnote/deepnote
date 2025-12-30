@@ -14,12 +14,12 @@ export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockCo
   const edges: DAGEdge[] = []
   const modulesEdges: DAGEdge[] = []
 
-  const moduleDefinitionsLookup: Record<string, true> = {}
-  blocks
+  const moduleDefinitionsLookup = blocks
     .flatMap(block => block.importedModules ?? [])
-    .forEach(m => {
-      moduleDefinitionsLookup[m] = true
-    })
+    .reduce<Record<string, true>>((acc, m) => {
+      acc[m] = true
+      return acc
+    }, {})
 
   const blocksWithUsedImportedModules = blocks.map(block => {
     const usedImportedModules = block.usedVariables.filter(
@@ -34,9 +34,8 @@ export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockCo
     }
   })
 
-  const nodes: Record<string, DAGNode> = {}
-  blocksWithUsedImportedModules.forEach(block => {
-    nodes[block.id] = {
+  const nodes = blocksWithUsedImportedModules.reduce<Record<string, DAGNode>>((acc, block) => {
+    acc[block.id] = {
       id: block.id,
       inputVariables: [],
       order: block.order,
@@ -45,7 +44,8 @@ export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockCo
       usedImportedModules: block.usedImportedModules ?? [],
       error: block.error ?? null,
     }
-  })
+    return acc
+  }, {})
 
   const createEdge = (fromBlockId: string, toBlockId: string, variableName: string) => {
     const toNode = nodes[toBlockId]
