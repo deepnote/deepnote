@@ -1,7 +1,7 @@
 import assert from 'node:assert'
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getDAGForBlocks, getDownstreamBlocks } from './dag'
+import { getDagForBlocks, getDownstreamBlocks } from './dag'
 import * as dagAnalyzer from './dag-analyzer'
 
 const DATAFRAME_SQL_INTEGRATION_ID = 'dataframe-sql-integration'
@@ -26,9 +26,9 @@ describe('DAG', () => {
     vi.restoreAllMocks()
   })
 
-  describe('getDAGForBlocks', () => {
+  describe('getDagForBlocks', () => {
     it('should return an empty edges/nodes when given an empty array of blocks', async () => {
-      const { dag } = await getDAGForBlocks([])
+      const { dag } = await getDagForBlocks([])
 
       expect(dag).toEqual({
         edges: [],
@@ -46,7 +46,7 @@ describe('DAG', () => {
         },
       ])
 
-      await expect(getDAGForBlocks(blocks, { acceptPartialDAG: false })).rejects.toThrow(SyntaxError)
+      await expect(getDagForBlocks(blocks, { acceptPartialDAG: false })).rejects.toThrow(SyntaxError)
     })
 
     it('should not throw SyntaxError when there is invalid code but we accept partial DAG', async () => {
@@ -58,7 +58,7 @@ describe('DAG', () => {
         },
       ])
 
-      await expect(getDAGForBlocks(blocks, { acceptPartialDAG: true })).resolves.toBeTruthy()
+      await expect(getDagForBlocks(blocks, { acceptPartialDAG: true })).resolves.toBeTruthy()
     })
 
     it('should return partial DAG when there is error', async () => {
@@ -86,7 +86,7 @@ describe('DAG', () => {
         { id: '5', type: 'code', content: 'notValidPythonCode = **42 <<<\nprint(d)' },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks, { acceptPartialDAG: true })
+      const { dag } = await getDagForBlocks(blocks, { acceptPartialDAG: true })
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -139,7 +139,7 @@ describe('DAG', () => {
       ]
 
       // @ts-expect-error skipping all required properties in `blocks`
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         edges: [],
@@ -176,7 +176,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -247,7 +247,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -328,7 +328,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -388,7 +388,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -444,7 +444,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -477,7 +477,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -509,7 +509,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -541,7 +541,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -601,7 +601,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })],
@@ -657,7 +657,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })],
@@ -719,7 +719,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [expect.objectContaining({ from: '0', inputVariables: ['pd'], to: '1' })],
@@ -784,7 +784,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [
@@ -843,7 +843,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -890,7 +890,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -937,7 +937,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -984,7 +984,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         nodes: [
@@ -1030,7 +1030,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         nodes: [
@@ -1076,7 +1076,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         nodes: [
@@ -1132,7 +1132,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         nodes: [
@@ -1185,7 +1185,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks)
+      const { dag } = await getDagForBlocks(blocks)
 
       expect(dag).toEqual({
         modulesEdges: [],
@@ -1217,7 +1217,7 @@ describe('DAG', () => {
         },
       ])
 
-      const { dag } = await getDAGForBlocks(blocks, { acceptPartialDAG: true })
+      const { dag } = await getDagForBlocks(blocks, { acceptPartialDAG: true })
 
       expect(dag).toEqual({
         modulesEdges: [],

@@ -23,7 +23,7 @@ export type GetDownstreamBlocksResult =
       error: DagError | SyntaxError
     }
 
-export async function getDAGForBlocks(
+export async function getDagForBlocks(
   blocks: DeepnoteBlock[],
   options: {
     // If true, the function will not throw an error and return partial DAG
@@ -72,7 +72,7 @@ export async function getDownstreamBlocks(
   options: { pythonInterpreter?: string } = {}
 ): Promise<GetDownstreamBlocksResult> {
   try {
-    const { dag, blocksWithErrorInContentDeps, newlyComputedBlocksContentDeps } = await getDAGForBlocks(blocks, {
+    const { dag, blocksWithErrorInContentDeps, newlyComputedBlocksContentDeps } = await getDagForBlocks(blocks, {
       acceptPartialDAG: true,
       pythonInterpreter: options.pythonInterpreter,
     })
