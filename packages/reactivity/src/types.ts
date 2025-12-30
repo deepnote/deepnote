@@ -17,7 +17,7 @@ export const BlockContentDepsSchema = z.object({
   error: BlockErrorSchema.optional(),
 })
 
-export interface DAGNode {
+export interface DagNode {
   id: string
   inputVariables: string[]
   importedModules: string[]
@@ -34,7 +34,7 @@ export interface DAGEdge {
 }
 
 export interface BlockContentDepsDAG {
-  nodes: DAGNode[]
+  nodes: DagNode[]
   edges: DAGEdge[]
   modulesEdges: DAGEdge[]
 }

@@ -1,5 +1,5 @@
 import type { BlockContentDepsWithOrder } from './ast-analyzer'
-import type { BlockContentDepsDAG, DAGEdge, DAGNode } from './types'
+import type { BlockContentDepsDAG, DAGEdge, DagNode } from './types'
 
 /**
  * Goes through all blocks and creates DAG.
@@ -34,7 +34,7 @@ export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockCo
     }
   })
 
-  const nodes = blocksWithUsedImportedModules.reduce<Record<string, DAGNode>>((acc, block) => {
+  const nodes = blocksWithUsedImportedModules.reduce<Record<string, DagNode>>((acc, block) => {
     acc[block.id] = {
       id: block.id,
       inputVariables: [],
