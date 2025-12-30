@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/reactivity",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Reactivity and dependency graph for Deepnote notebooks",
   "keywords": [],
   "repository": {
