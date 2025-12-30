@@ -12,6 +12,7 @@ deepnote/
 ├── packages/        # Core TypeScript packages
 │   ├── blocks/      # @deepnote/blocks - Block types and schemas
 │   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
+│   ├── reactivity/  # @deepnote/reactivity - Reactivity and dependency graph
 ├── docs/            # Documentation files
 ├── .github/         # GitHub workflows & templates
 │   └── workflows/   # CI/CD pipelines
