@@ -1,7 +1,14 @@
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { z } from 'zod'
 import { safelyCallChildProcessWithInputOutput } from './child-process-utils'
+
+const _dirname =
+  typeof __dirname !== 'undefined'
+    ? __dirname
+    : // @ts-expect-error: Safe ESM fallback; import.meta.url is only evaluated in ESM where __dirname is undefined.
+      path.dirname(fileURLToPath(import.meta.url))
 
 export class AstAnalyzerInternalError extends Error {
   constructor(message: string) {
@@ -87,7 +94,7 @@ export async function getBlockDependencies(
   try {
     const inputData = JSON.stringify({ blocks: blocksNeedingComputation })
 
-    const scriptPath = path.join(__dirname, 'scripts', 'ast-analyzer.py')
+    const scriptPath = path.join(_dirname, 'scripts', 'ast-analyzer.py')
     const outputData = await safelyCallChildProcessWithInputOutput(pythonInterpreter, [scriptPath], inputData)
 
     const json = JSON.parse(outputData)
