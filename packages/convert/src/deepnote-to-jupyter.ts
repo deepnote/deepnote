@@ -128,13 +128,10 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
   const content = block.content || ''
   const jupyterCellType = convertBlockTypeToJupyter(block.type)
 
-  // Use type assertion to access executable block fields that may not exist on all block types
-  const executableBlock = block as DeepnoteBlock & {
-    executionStartedAt?: string
-    executionFinishedAt?: string
-    executionCount?: number
-    outputs?: unknown[]
-  }
+  const executionStartedAt = 'executionStartedAt' in block ? block.executionStartedAt : undefined
+  const executionFinishedAt = 'executionFinishedAt' in block ? block.executionFinishedAt : undefined
+  const executionCount = 'executionCount' in block ? block.executionCount : null
+  const outputs = 'outputs' in block ? block.outputs : undefined
 
   const metadata: JupyterCell['metadata'] = {
     cell_id: block.id,
@@ -144,8 +141,8 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
 
     // Snapshot fields
     deepnote_content_hash: block.contentHash,
-    deepnote_execution_started_at: executableBlock.executionStartedAt,
-    deepnote_execution_finished_at: executableBlock.executionFinishedAt,
+    deepnote_execution_started_at: executionStartedAt,
+    deepnote_execution_finished_at: executionFinishedAt,
 
     // Spread original metadata at root level
     ...(block.metadata || {}),
@@ -159,9 +156,9 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
   const cell: JupyterCell = {
     block_group: block.blockGroup,
     cell_type: jupyterCellType,
-    execution_count: executableBlock.executionCount ?? null,
+    execution_count: executionCount ?? null,
     metadata,
-    outputs: executableBlock.outputs,
+    outputs,
     // TODO: Add outputs_reference
     source: getSourceForBlock(block, jupyterCellType, content),
   }
