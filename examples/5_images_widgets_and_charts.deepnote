@@ -1,6 +1,6 @@
 metadata:
   createdAt: 2026-01-07T09:34:39.434Z
-  modifiedAt: '2026-01-07T17:46:37.923Z'
+  modifiedAt: '2026-01-07T17:47:28.065Z'
 project:
   id: 2251cf35-d19a-4966-94ad-71ca8687fff0
   initNotebookId: f9903b00-f4e2-47b9-a96d-b98298e346d1
@@ -16456,26 +16456,26 @@ project:
           sortingKey: '9'
           type: code
           contentHash: sha256:a2776dad157c2cb772a22c1fadda18c85de68b71f649d5c1ff9c594838ec3df4
-          executionFinishedAt: '2026-01-07T10:45:34.794Z'
-          executionStartedAt: '2026-01-07T10:45:34.779Z'
+          executionFinishedAt: '2026-01-07T17:47:24.655Z'
+          executionStartedAt: '2026-01-07T17:47:24.030Z'
           outputs:
             - data:
                 text/plain: <IPython.core.display.SVG object>
               execution_count: 0
               output_type: execute_result
               metadata:
-                cellId: 74faa855-d202-4b10-aa4b-fc3790914360
-                cellIndex: 9
                 outputType: display_data
+                cellId: 74faa855-d202-4b10-aa4b-fc3790914360
                 id: 74faa855-d202-4b10-aa4b-fc3790914360
                 __hadOutputs: true
                 __deepnotePocket:
                   blockGroup: eb682ab4-f936-49d8-b006-68593fa03f0a
                   contentHash: sha256:a2776dad157c2cb772a22c1fadda18c85de68b71f649d5c1ff9c594838ec3df4
-                  executionFinishedAt: '2026-01-07T10:33:06.306Z'
-                  executionStartedAt: '2026-01-07T10:33:06.295Z'
+                  executionFinishedAt: '2026-01-07T10:45:34.794Z'
+                  executionStartedAt: '2026-01-07T10:45:34.779Z'
                   sortingKey: '9'
                   type: code
+                cellIndex: 9
                 transient: {}
                 metadata: {}
                 __displayOpenPlotIcon: true
@@ -19735,7 +19735,7 @@ project:
   settings: {}
 version: 1.0.0
 environment:
-  hash: sha256:a4a425fd73e58321ca68e42ddbc8db1c1fde9fe841c3a12d2d62feb5942496b0
+  hash: sha256:7af809a082529efd81cbb486e355b9c8ec0c67abf22bdb505dd4f00e723aa91c
   packages:
     alembic: 1.17.1
     altair: 5.5.0
@@ -19817,6 +19817,7 @@ environment:
     jedi: 0.19.2
     jinja2: 3.1.6
     jmespath: 1.0.1
+    joblib: 1.5.3
     jsonpointer: 3.0.0
     jsonschema: 4.25.1
     jsonschema-specifications: 2025.9.1
@@ -19900,6 +19901,8 @@ environment:
     rpds-py: 0.28.0
     rsa: 4.9.1
     s3transfer: 0.14.0
+    scikit-learn: 1.8.0
+    scipy: 1.16.3
     scramp: 1.4.6
     send2trash: 1.8.3
     six: 1.17.0
@@ -19920,6 +19923,7 @@ environment:
     streamlit: 1.51.0
     tenacity: 9.1.2
     terminado: 0.18.1
+    threadpoolctl: 3.6.0
     tinycss2: 1.4.0
     toml: 0.10.2
     tomlkit: 0.13.3
@@ -19949,11 +19953,11 @@ environment:
     environment: venv
     version: 3.13.9
 execution:
-  finishedAt: '2026-01-07T10:45:45.271Z'
-  startedAt: '2026-01-07T10:45:32.253Z'
+  finishedAt: '2026-01-07T17:47:24.655Z'
+  startedAt: '2026-01-07T17:47:24.025Z'
   summary:
-    blocksExecuted: 17
+    blocksExecuted: 1
     blocksFailed: 0
-    blocksSucceeded: 17
-    totalDurationMs: 13018
+    blocksSucceeded: 1
+    totalDurationMs: 630
   triggeredBy: user
