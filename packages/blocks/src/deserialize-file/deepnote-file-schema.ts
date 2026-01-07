@@ -1,24 +1,399 @@
 import { z } from 'zod'
 
-export const deepnoteBlockSchema = z.object({
+// =============================================================================
+// Base metadata schemas
+// =============================================================================
+
+const baseCellMetadataSchema = z
+  .object({
+    cell_id: z.unknown().optional(),
+    deepnote_app_is_code_hidden: z.boolean().optional(),
+    deepnote_app_is_output_hidden: z.boolean().optional(),
+    deepnote_app_block_visible: z.boolean().optional(),
+    deepnote_app_block_width: z.number().optional(),
+    deepnote_app_block_group_id: z.string().nullable().optional(),
+    deepnote_app_block_subgroup_id: z.string().optional(),
+    deepnote_app_block_order: z.number().optional(),
+    deepnote_app_outputs_were_cleared: z.boolean().optional(),
+  })
+  .passthrough()
+
+const executableCellMetadataSchema = baseCellMetadataSchema
+  .extend({
+    allow_embed: z.union([z.boolean(), z.enum(['code_output', 'code', 'output'])]).optional(),
+    is_code_hidden: z.boolean().optional(),
+    is_output_hidden: z.boolean().optional(),
+    output_cleared: z.boolean().optional(),
+    execution_start: z.number().optional(),
+    execution_millis: z.number().optional(),
+    source_hash: z.string().optional(),
+    execution_context_id: z.string().optional(),
+    deepnote_to_be_reexecuted: z.boolean().optional(),
+    deepnote_cell_height: z.number().optional(),
+    deepnote_output_heights: z.record(z.number()).optional(),
+    deepnote_table_state: z.record(z.any()).optional(),
+    deepnote_table_loading: z.boolean().optional(),
+    deepnote_table_invalid: z.boolean().optional(),
+    deepnote_output_height_limit_disabled: z.boolean().optional(),
+    last_executed_function_notebook_id: z.string().optional(),
+    last_function_run_started_at: z.number().optional(),
+    function_notebook_export_states: z.record(z.any()).optional(),
+  })
+  .passthrough()
+
+const textCellMetadataSchema = baseCellMetadataSchema
+  .extend({
+    is_collapsed: z.boolean().optional(),
+    formattedRanges: z.array(z.any()).optional(),
+  })
+  .passthrough()
+
+// =============================================================================
+// Common block fields
+// =============================================================================
+
+const baseBlockFields = {
+  id: z.string(),
   blockGroup: z.string(),
-  content: z.string().optional(),
+  sortingKey: z.string(),
   contentHash: z
     .string()
     .regex(/^(md5|sha256):[a-f0-9]+$/i)
     .optional(),
-  executionCount: z.number().optional(),
+  version: z.number().optional(),
+}
+
+const executableBlockFields = {
+  ...baseBlockFields,
+  executionCount: z.number().nullable().optional(),
   executionFinishedAt: z.string().datetime().optional(),
   executionStartedAt: z.string().datetime().optional(),
-  id: z.string(),
-  metadata: z.record(z.any()).optional(),
   outputs: z.array(z.any()).optional(),
-  sortingKey: z.string(),
-  type: z.string(),
-  version: z.number().optional(),
+}
+
+// =============================================================================
+// Non-executable block schemas
+// =============================================================================
+
+const markdownBlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('markdown'),
+  content: z.string().optional(),
+  metadata: baseCellMetadataSchema.extend({ deepnote_cell_height: z.number().optional() }).optional(),
 })
 
+const imageBlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('image'),
+  content: z.literal('').optional(),
+  metadata: baseCellMetadataSchema
+    .extend({
+      deepnote_img_src: z.string().optional(),
+      deepnote_img_width: z.enum(['actual', '50%', '75%', '100%']).optional(),
+      deepnote_img_alignment: z.enum(['left', 'center', 'right']).optional(),
+    })
+    .optional(),
+})
+
+const separatorBlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('separator'),
+  content: z.literal('').optional(),
+  metadata: baseCellMetadataSchema.optional(),
+})
+
+const textCellH1BlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('text-cell-h1'),
+  content: z.string().optional(),
+  metadata: textCellMetadataSchema.optional(),
+})
+
+const textCellH2BlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('text-cell-h2'),
+  content: z.string().optional(),
+  metadata: textCellMetadataSchema.optional(),
+})
+
+const textCellH3BlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('text-cell-h3'),
+  content: z.string().optional(),
+  metadata: textCellMetadataSchema.optional(),
+})
+
+const textCellPBlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('text-cell-p'),
+  content: z.string().optional(),
+  metadata: textCellMetadataSchema.optional(),
+})
+
+const textCellBulletBlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('text-cell-bullet'),
+  content: z.string().optional(),
+  metadata: textCellMetadataSchema.optional(),
+})
+
+const textCellTodoBlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('text-cell-todo'),
+  content: z.string().optional(),
+  metadata: textCellMetadataSchema.extend({ checked: z.boolean().optional() }).optional(),
+})
+
+const textCellCalloutBlockSchema = z.object({
+  ...baseBlockFields,
+  type: z.literal('text-cell-callout'),
+  content: z.string().optional(),
+  metadata: textCellMetadataSchema
+    .extend({ color: z.enum(['blue', 'green', 'yellow', 'red', 'purple']).optional() })
+    .optional(),
+})
+
+// =============================================================================
+// Executable block schemas
+// =============================================================================
+
+const codeBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('code'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({ function_export_name: z.string().optional() }).optional(),
+})
+
+const sqlBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('sql'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema
+    .extend({
+      deepnote_variable_name: z.string().optional(),
+      deepnote_return_variable_type: z.enum(['dataframe', 'query_preview']).optional(),
+      sql_integration_id: z.string().optional(),
+      is_compiled_sql_query_visible: z.boolean().optional(),
+      function_export_name: z.string().optional(),
+    })
+    .optional(),
+})
+
+const notebookFunctionBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('notebook-function'),
+  content: z.literal('').optional(),
+  metadata: executableCellMetadataSchema
+    .extend({
+      function_notebook_id: z.string().nullable(),
+      function_notebook_inputs: z.record(z.any()).optional(),
+      function_notebook_export_mappings: z.record(z.any()).optional(),
+    })
+    .optional(),
+})
+
+const visualizationBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('visualization'),
+  content: z.literal('').optional(),
+  metadata: executableCellMetadataSchema
+    .extend({
+      deepnote_variable_name: z.string().optional(),
+      deepnote_visualization_spec: z.record(z.any()).optional(),
+      deepnote_config_collapsed: z.boolean().optional(),
+      deepnote_chart_height: z.number().optional(),
+      deepnote_chart_filter: z.record(z.any()).optional(),
+    })
+    .optional(),
+})
+
+const buttonBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('button'),
+  content: z.literal('').optional(),
+  metadata: executableCellMetadataSchema
+    .extend({
+      deepnote_button_title: z.string().optional(),
+      deepnote_button_color_scheme: z.enum(['blue', 'red', 'neutral', 'green', 'yellow']).optional(),
+      deepnote_button_behavior: z.enum(['run', 'set_variable']).optional(),
+      deepnote_variable_name: z.string().optional(),
+    })
+    .optional(),
+})
+
+const bigNumberBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('big-number'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_big_number_title: z.string(),
+    deepnote_big_number_value: z.string(),
+    deepnote_big_number_format: z.string(),
+    deepnote_big_number_comparison_enabled: z.boolean().optional(),
+    deepnote_big_number_comparison_title: z.string().optional(),
+    deepnote_big_number_comparison_value: z.string().optional(),
+    deepnote_big_number_comparison_type: z.string().optional(),
+    deepnote_big_number_comparison_format: z.string().optional(),
+  }),
+})
+
+// =============================================================================
+// Input block schemas
+// =============================================================================
+
+const inputTextBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-text'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.string(),
+    deepnote_variable_default_value: z.string().nullable().optional(),
+    deepnote_input_label: z.string().optional(),
+  }),
+})
+
+const inputTextareaBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-textarea'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.string(),
+    deepnote_variable_default_value: z.string().nullable().optional(),
+    deepnote_input_label: z.string().optional(),
+  }),
+})
+
+const inputCheckboxBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-checkbox'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.boolean(),
+    deepnote_variable_default_value: z.boolean().nullable().optional(),
+    deepnote_input_checkbox_label: z.string().optional(),
+    deepnote_input_label: z.string().optional(),
+  }),
+})
+
+const inputSelectBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-select'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.union([z.string(), z.array(z.string())]),
+    deepnote_variable_default_value: z
+      .union([z.string(), z.array(z.string())])
+      .nullable()
+      .optional(),
+    deepnote_variable_options: z.array(z.string()),
+    deepnote_variable_custom_options: z.array(z.string()),
+    deepnote_variable_selected_variable: z.string(),
+    deepnote_variable_select_type: z.enum(['from-options', 'from-variable']),
+    deepnote_allow_multiple_values: z.boolean().optional(),
+    deepnote_allow_empty_values: z.boolean().optional(),
+    deepnote_input_label: z.string().optional(),
+  }),
+})
+
+const inputSliderBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-slider'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.string(),
+    deepnote_variable_default_value: z.string().nullable().optional(),
+    deepnote_slider_min_value: z.number(),
+    deepnote_slider_max_value: z.number(),
+    deepnote_slider_step: z.number(),
+    deepnote_input_label: z.string().optional(),
+  }),
+})
+
+const inputDateBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-date'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.string(),
+    deepnote_variable_default_value: z.string().nullable().optional(),
+    deepnote_allow_empty_values: z.boolean().optional(),
+    deepnote_input_date_version: z.number().optional(),
+    deepnote_input_label: z.string().optional(),
+  }),
+})
+
+const inputDateRangeBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-date-range'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.union([z.tuple([z.string(), z.string()]), z.string()]),
+    deepnote_variable_default_value: z
+      .union([z.tuple([z.string(), z.string()]), z.string()])
+      .nullable()
+      .optional(),
+    deepnote_input_label: z.string().optional(),
+  }),
+})
+
+const inputFileBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('input-file'),
+  content: z.string().optional(),
+  metadata: executableCellMetadataSchema.extend({
+    deepnote_variable_name: z.string(),
+    deepnote_variable_value: z.string(),
+    deepnote_input_label: z.string().optional(),
+    deepnote_allowed_file_extensions: z.string().optional(),
+  }),
+})
+
+// =============================================================================
+// Combined block schema (discriminated union)
+// =============================================================================
+
+export const deepnoteBlockSchema = z.discriminatedUnion('type', [
+  // Non-executable blocks
+  markdownBlockSchema,
+  imageBlockSchema,
+  separatorBlockSchema,
+  textCellH1BlockSchema,
+  textCellH2BlockSchema,
+  textCellH3BlockSchema,
+  textCellPBlockSchema,
+  textCellBulletBlockSchema,
+  textCellTodoBlockSchema,
+  textCellCalloutBlockSchema,
+  // Executable blocks
+  codeBlockSchema,
+  sqlBlockSchema,
+  notebookFunctionBlockSchema,
+  visualizationBlockSchema,
+  buttonBlockSchema,
+  bigNumberBlockSchema,
+  // Input blocks
+  inputTextBlockSchema,
+  inputTextareaBlockSchema,
+  inputCheckboxBlockSchema,
+  inputSelectBlockSchema,
+  inputSliderBlockSchema,
+  inputDateBlockSchema,
+  inputDateRangeBlockSchema,
+  inputFileBlockSchema,
+])
+
 export type DeepnoteBlock = z.infer<typeof deepnoteBlockSchema>
+
+// =============================================================================
+// File-level schemas
+// =============================================================================
 
 export const environmentSchema = z
   .object({
