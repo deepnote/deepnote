@@ -1,6 +1,16 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
+import type {
+  InputCheckboxBlock,
+  InputDateBlock,
+  InputDateRangeBlock,
+  InputFileBlock,
+  InputSelectBlock,
+  InputSliderBlock,
+  InputTextareaBlock,
+  InputTextBlock,
+} from '../deserialize-file/deepnote-file-schema'
 import {
   createPythonCodeForInputCheckboxBlock,
   createPythonCodeForInputDateBlock,
@@ -10,14 +20,6 @@ import {
   createPythonCodeForInputSliderBlock,
   createPythonCodeForInputTextareaBlock,
   createPythonCodeForInputTextBlock,
-  type InputCheckboxBlock,
-  type InputDateBlock,
-  type InputDateRangeBlock,
-  type InputFileBlock,
-  type InputSelectBlock,
-  type InputSliderBlock,
-  type InputTextareaBlock,
-  type InputTextBlock,
 } from './input-blocks'
 
 describe('createPythonCodeForInputTextBlock', () => {

@@ -1,14 +1,6 @@
-import type { ExecutableBlockMetadata } from '../blocks'
 import type { ButtonBlock, DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
 import { pythonCode } from '../python-snippets'
 import { sanitizePythonVariableName } from './python-utils'
-
-export interface ButtonBlockMetadata extends ExecutableBlockMetadata {
-  deepnote_button_title?: string
-  deepnote_button_color_scheme?: string
-  deepnote_button_behavior?: 'run' | 'set_variable'
-  deepnote_variable_name?: string
-}
 
 export interface ButtonExecutionContext {
   /**

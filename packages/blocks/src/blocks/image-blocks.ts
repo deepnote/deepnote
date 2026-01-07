@@ -1,11 +1,5 @@
 import type { DeepnoteBlock, ImageBlock } from '../deserialize-file/deepnote-file-schema'
 
-export interface ImageBlockMetadata {
-  deepnote_img_src?: string
-  deepnote_img_width?: string
-  deepnote_img_alignment?: string
-}
-
 function escapeHtmlAttribute(value: string): string {
   return value
     .replace(/&/g, '&amp;')

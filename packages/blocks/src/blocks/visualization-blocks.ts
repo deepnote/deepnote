@@ -1,15 +1,6 @@
-import type { ExecutableBlockMetadata } from '../blocks'
 import type { DeepnoteBlock, VisualizationBlock } from '../deserialize-file/deepnote-file-schema'
 import { pythonCode } from '../python-snippets'
 import { sanitizePythonVariableName } from './python-utils'
-
-export interface VisualizationBlockMetadata extends ExecutableBlockMetadata {
-  deepnote_variable_name?: string
-  deepnote_visualization_spec?: unknown
-  deepnote_chart_filter?: {
-    advancedFilters?: unknown[]
-  }
-}
 
 export function createPythonCodeForVisualizationBlock(block: VisualizationBlock): string {
   const variableName = block.metadata?.deepnote_variable_name

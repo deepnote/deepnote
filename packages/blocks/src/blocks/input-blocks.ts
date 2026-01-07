@@ -1,6 +1,5 @@
 import { dedent } from 'ts-dedent'
 
-import type { ExecutableBlockMetadata } from '../blocks'
 import type {
   DeepnoteBlock,
   InputBlock,
@@ -15,19 +14,6 @@ import type {
 } from '../deserialize-file/deepnote-file-schema'
 import { pythonCode } from '../python-snippets'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
-
-// Re-export the Zod-inferred types
-export type {
-  InputBlock,
-  InputCheckboxBlock,
-  InputDateBlock,
-  InputDateRangeBlock,
-  InputFileBlock,
-  InputSelectBlock,
-  InputSliderBlock,
-  InputTextareaBlock,
-  InputTextBlock,
-}
 
 // Date range types and utilities
 export type DateTimeString = string
@@ -73,52 +59,6 @@ export function isValidAbsoluteDateRange(value: DateRangeInputValue): value is D
     value.length === 2 &&
     value.every(v => typeof v === 'string' && (v === '' || YYYY_MM_DD_REGEX.test(v)))
   )
-}
-
-// Input block metadata interfaces
-export interface InputBlockMetadata extends ExecutableBlockMetadata {
-  deepnote_variable_name: string
-}
-
-export interface InputTextBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: string
-}
-
-export interface InputTextareaBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: string
-}
-
-export interface InputCheckboxBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: boolean
-}
-
-export interface InputSelectBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: string | string[]
-  deepnote_variable_options?: string[]
-  deepnote_variable_custom_options?: string[]
-  deepnote_variable_selected_variable?: string
-  deepnote_variable_select_type?: 'from_options' | 'from_variable'
-  deepnote_allow_multiple_values?: boolean
-}
-
-export interface InputSliderBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: string
-  deepnote_slider_min_value?: number
-  deepnote_slider_max_value?: number
-  deepnote_slider_step?: number
-}
-
-export interface InputFileBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: string
-}
-
-export interface InputDateBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: string
-  deepnote_input_date_version?: number
-}
-
-export interface InputDateRangeBlockMetadata extends InputBlockMetadata {
-  deepnote_variable_value: DateRangeInputValue
 }
 
 // Python code generation functions
