@@ -14,7 +14,6 @@ const baseCellMetadataSchema = z
     deepnote_app_block_group_id: z.string().nullable().optional(),
     deepnote_app_block_subgroup_id: z.string().optional(),
     deepnote_app_block_order: z.number().optional(),
-    deepnote_app_outputs_were_cleared: z.boolean().optional(),
   })
   .passthrough()
 
@@ -28,13 +27,9 @@ const executableCellMetadataSchema = baseCellMetadataSchema
     execution_millis: z.number().optional(),
     source_hash: z.string().optional(),
     execution_context_id: z.string().optional(),
-    deepnote_to_be_reexecuted: z.boolean().optional(),
     deepnote_cell_height: z.number().optional(),
     deepnote_output_heights: z.record(z.number()).optional(),
     deepnote_table_state: z.record(z.any()).optional(),
-    deepnote_table_loading: z.boolean().optional(),
-    deepnote_table_invalid: z.boolean().optional(),
-    deepnote_output_height_limit_disabled: z.boolean().optional(),
     last_executed_function_notebook_id: z.string().optional(),
     last_function_run_started_at: z.number().optional(),
     function_notebook_export_states: z.record(z.any()).optional(),
