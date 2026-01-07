@@ -1,6 +1,6 @@
 metadata:
   createdAt: 2026-01-07T09:34:39.434Z
-  modifiedAt: '2026-01-07T15:50:14.848Z'
+  modifiedAt: '2026-01-07T17:46:37.923Z'
 project:
   id: 2251cf35-d19a-4966-94ad-71ca8687fff0
   initNotebookId: f9903b00-f4e2-47b9-a96d-b98298e346d1
@@ -18994,12 +18994,12 @@ project:
                 transient: {}
                 metadata: {}
         - blockGroup: 8b474f04-9a2a-4a38-8aef-e1e4f37454a2
-          content: '## Vega / Vega-Lite cisualizations'
+          content: '## Vega / Vega-Lite visualizations'
           id: fa3f08ab-daed-4b30-ac32-d7c5eecaa1fd
           metadata: {}
           sortingKey: h
           type: markdown
-          contentHash: sha256:aae26f4d6dacb4f06cca9741cb5faf3737b6b6377948fac21c188ac55dca3303
+          contentHash: sha256:dd04fe7c6b2b9a42a64faefcf39580fb1da8b47eb98e9181fabc41e7071e415f
         - blockGroup: 2c1697e0-f5c4-4d45-979f-22518eb3d250
           content: '### Altair bar chart (Vega-Lite)'
           id: de7ec0d2-801a-46f8-9a9a-9a238a6c9e46
