@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
-import { environmentSchema, executionSchema } from '@deepnote/blocks'
+import { deepnoteBlockSchema, environmentSchema, executionSchema } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
@@ -228,7 +228,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   const hasExecutionCount = executionCount !== undefined
   const hasOutputs = cell.cell_type === 'code' && cell.outputs !== undefined
 
-  return {
+  return deepnoteBlockSchema.parse({
     blockGroup,
     content: source,
     ...(contentHash ? { contentHash } : {}),
@@ -240,5 +240,5 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     ...(hasOutputs ? { outputs: cell.outputs } : {}),
     sortingKey: sortingKey ?? createSortingKey(index),
     type: blockType,
-  } as DeepnoteBlock
+  })
 }
