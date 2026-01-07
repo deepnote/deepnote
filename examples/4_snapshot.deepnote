@@ -3,11 +3,11 @@ environment:
   platform: linux-x86_64
   python:
     environment: venv
-    version: '3.12.0'
+    version: 3.12.0
   packages:
-    pandas: '2.1.0'
-    numpy: '1.26.0'
-    matplotlib: '3.8.0'
+    pandas: 2.1.0
+    numpy: 1.26.0
+    matplotlib: 3.8.0
 execution:
   startedAt: '2025-12-11T10:31:48.441Z'
   finishedAt: '2025-12-11T10:32:15.123Z'
@@ -23,7 +23,7 @@ execution:
 metadata:
   createdAt: '2025-12-11T10:30:00.000Z'
   exportedAt: '2025-12-11T10:32:20.000Z'
-  modifiedAt: '2025-12-11T10:32:15.123Z'
+  modifiedAt: '2026-01-07T15:48:25.180Z'
 project:
   id: snapshot-example-001
   name: Snapshot Fields Example
@@ -31,15 +31,15 @@ project:
     - blocks:
         - blockGroup: intro-block-group
           content: |-
-            # Snapshot Fields Example
+            # Snapshot fields example
 
             This example demonstrates all the new snapshot fields available in the `.deepnote` format:
 
-            ## Top-Level Fields
+            ## Top-level fields
             - **environment**: Python version, packages, platform info
             - **execution**: Timestamps, trigger info, execution summary
 
-            ## Block-Level Fields
+            ## Block-level fields
             - **contentHash**: MD5 hash of block content for change detection
             - **executionStartedAt**: When block execution started
             - **executionFinishedAt**: When block execution completed
@@ -47,6 +47,7 @@ project:
           metadata: {}
           sortingKey: a0
           type: markdown
+          contentHash: sha256:41015a039bf56cdaf905d8dcce8eab92250c3702d29a47a97e810e9f0245123c
         - blockGroup: code-block-1-group
           content: |
             import pandas as pd
@@ -58,36 +59,40 @@ project:
                 'sales': [100, 150, 200]
             })
             print(data)
-          contentHash: 'md5:8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d'
-          executionCount: 1
-          executionStartedAt: '2025-12-11T10:31:50.000Z'
-          executionFinishedAt: '2025-12-11T10:31:52.500Z'
           id: code-block-1-id
           metadata: {}
+          sortingKey: a1
+          type: code
+          contentHash: sha256:866b7b12b5639fda2014bd867b5194f48042ced8caf5f95f55d5820186bf6147
+          executionCount: 1
+          executionFinishedAt: '2025-12-11T10:31:52.500Z'
+          executionStartedAt: '2025-12-11T10:31:50.000Z'
           outputs:
             - name: stdout
               output_type: stream
-              text: "   year  sales\n0  2023    100\n1  2024    150\n2  2025    200\n"
-          sortingKey: a1
-          type: code
+              text: |2
+                   year  sales
+                0  2023    100
+                1  2024    150
+                2  2025    200
         - blockGroup: code-block-2-group
           content: |
             # Calculate growth rate
             growth = data['sales'].pct_change() * 100
             print(f"Year-over-year growth: {growth.iloc[-1]:.1f}%")
-          contentHash: 'md5:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d'
-          executionCount: 2
-          executionStartedAt: '2025-12-11T10:31:53.000Z'
-          executionFinishedAt: '2025-12-11T10:31:53.150Z'
           id: code-block-2-id
           metadata: {}
+          sortingKey: a2
+          type: code
+          contentHash: sha256:049babb5a86b386448688aab9ed50e57845e3b01ff0b930727726fa378457fd9
+          executionCount: 2
+          executionFinishedAt: '2025-12-11T10:31:53.150Z'
+          executionStartedAt: '2025-12-11T10:31:53.000Z'
           outputs:
             - name: stdout
               output_type: stream
               text: |
                 Year-over-year growth: 33.3%
-          sortingKey: a2
-          type: code
         - blockGroup: summary-block-group
           content: |-
             ## Summary
@@ -100,6 +105,7 @@ project:
           metadata: {}
           sortingKey: a3
           type: markdown
+          contentHash: sha256:c63023930fa7be994d45ed9ed7c7f7e0f5e1ef91b457515149e177138b116b1a
       executionMode: block
       id: snapshot-notebook-001
       isModule: false
