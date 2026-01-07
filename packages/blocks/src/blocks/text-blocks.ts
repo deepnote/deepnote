@@ -10,16 +10,14 @@ import type {
   TextCellTodoBlock,
 } from '../deserialize-file/deepnote-file-schema'
 
-// Re-export the Zod-inferred types with backwards-compatible aliases
-export type ParagraphTextBlock = TextCellPBlock
-export type Heading1TextBlock = TextCellH1Block
-export type Heading2TextBlock = TextCellH2Block
-export type Heading3TextBlock = TextCellH3Block
-export type BulletTextBlock = TextCellBulletBlock
-export type TodoTextBlock = TextCellTodoBlock
-export type CalloutTextBlock = TextCellCalloutBlock
-export type HeadingTextBlock = Heading1TextBlock | Heading2TextBlock | Heading3TextBlock
-export type TextBlock = ParagraphTextBlock | HeadingTextBlock | BulletTextBlock | TodoTextBlock | CalloutTextBlock
+type TextBlock =
+  | TextCellPBlock
+  | TextCellH1Block
+  | TextCellH2Block
+  | TextCellH3Block
+  | TextCellBulletBlock
+  | TextCellTodoBlock
+  | TextCellCalloutBlock
 
 export interface FormatMarks {
   bold?: boolean

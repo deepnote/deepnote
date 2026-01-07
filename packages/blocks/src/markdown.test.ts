@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { UnsupportedBlockTypeError } from './blocks'
 import type {
-  BulletTextBlock,
-  CalloutTextBlock,
-  Heading1TextBlock,
-  Heading2TextBlock,
-  Heading3TextBlock,
-  ParagraphTextBlock,
-  TodoTextBlock,
-} from './blocks/text-blocks'
-import type { CodeBlock, ImageBlock, SeparatorBlock } from './deserialize-file/deepnote-file-schema'
+  CodeBlock,
+  ImageBlock,
+  SeparatorBlock,
+  TextCellBulletBlock,
+  TextCellCalloutBlock,
+  TextCellH1Block,
+  TextCellH2Block,
+  TextCellH3Block,
+  TextCellPBlock,
+  TextCellTodoBlock,
+} from './deserialize-file/deepnote-file-schema'
 import { createMarkdown, stripMarkdown } from './markdown'
 
 describe('createMarkdown', () => {
@@ -44,7 +46,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for heading 1 text block', () => {
-    const block: Heading1TextBlock = {
+    const block: TextCellH1Block = {
       id: '123',
       type: 'text-cell-h1',
       content: 'Main Title',
@@ -59,7 +61,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for heading 2 text block', () => {
-    const block: Heading2TextBlock = {
+    const block: TextCellH2Block = {
       id: '123',
       type: 'text-cell-h2',
       blockGroup: 'abc',
@@ -74,7 +76,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for heading 3 text block', () => {
-    const block: Heading3TextBlock = {
+    const block: TextCellH3Block = {
       id: '123',
       type: 'text-cell-h3',
       blockGroup: 'abc',
@@ -89,7 +91,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for bullet text block', () => {
-    const block: BulletTextBlock = {
+    const block: TextCellBulletBlock = {
       id: '123',
       type: 'text-cell-bullet',
       blockGroup: 'abc',
@@ -104,7 +106,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for unchecked todo text block', () => {
-    const block: TodoTextBlock = {
+    const block: TextCellTodoBlock = {
       id: '123',
       type: 'text-cell-todo',
       blockGroup: 'abc',
@@ -121,7 +123,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for checked todo text block', () => {
-    const block: TodoTextBlock = {
+    const block: TextCellTodoBlock = {
       id: '123',
       type: 'text-cell-todo',
       blockGroup: 'abc',
@@ -138,7 +140,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for callout text block', () => {
-    const block: CalloutTextBlock = {
+    const block: TextCellCalloutBlock = {
       id: '123',
       type: 'text-cell-callout',
       blockGroup: 'abc',
@@ -153,7 +155,7 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for paragraph text block', () => {
-    const block: ParagraphTextBlock = {
+    const block: TextCellPBlock = {
       id: '123',
       type: 'text-cell-p',
       blockGroup: 'abc',
@@ -205,7 +207,7 @@ describe('createMarkdown', () => {
 
 describe('stripMarkdown', () => {
   it('strips markdown from heading 1 text block', () => {
-    const block: Heading1TextBlock = {
+    const block: TextCellH1Block = {
       id: '123',
       type: 'text-cell-h1',
       content: '# Main Title',
@@ -220,7 +222,7 @@ describe('stripMarkdown', () => {
   })
 
   it('strips markdown from heading 2 text block', () => {
-    const block: Heading2TextBlock = {
+    const block: TextCellH2Block = {
       id: '123',
       type: 'text-cell-h2',
       blockGroup: 'abc',
@@ -235,7 +237,7 @@ describe('stripMarkdown', () => {
   })
 
   it('strips markdown from heading 3 text block', () => {
-    const block: Heading3TextBlock = {
+    const block: TextCellH3Block = {
       id: '123',
       type: 'text-cell-h3',
       blockGroup: 'abc',
@@ -250,7 +252,7 @@ describe('stripMarkdown', () => {
   })
 
   it('strips markdown from bullet text block', () => {
-    const block: BulletTextBlock = {
+    const block: TextCellBulletBlock = {
       id: '123',
       type: 'text-cell-bullet',
       blockGroup: 'abc',
@@ -265,7 +267,7 @@ describe('stripMarkdown', () => {
   })
 
   it('strips markdown from todo text block', () => {
-    const block: TodoTextBlock = {
+    const block: TextCellTodoBlock = {
       id: '123',
       type: 'text-cell-todo',
       blockGroup: 'abc',
@@ -282,7 +284,7 @@ describe('stripMarkdown', () => {
   })
 
   it('strips markdown from callout text block', () => {
-    const block: CalloutTextBlock = {
+    const block: TextCellCalloutBlock = {
       id: '123',
       type: 'text-cell-callout',
       blockGroup: 'abc',
@@ -297,7 +299,7 @@ describe('stripMarkdown', () => {
   })
 
   it('strips markdown from paragraph text block', () => {
-    const block: ParagraphTextBlock = {
+    const block: TextCellPBlock = {
       id: '123',
       type: 'text-cell-p',
       blockGroup: 'abc',
