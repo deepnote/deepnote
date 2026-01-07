@@ -325,6 +325,56 @@ export const deepnoteBlockSchema = z.discriminatedUnion('type', [
 export type DeepnoteBlock = z.infer<typeof deepnoteBlockSchema>
 
 // =============================================================================
+// Individual block types (inferred from Zod schemas)
+// =============================================================================
+
+export type MarkdownBlock = z.infer<typeof markdownBlockSchema>
+export type ImageBlock = z.infer<typeof imageBlockSchema>
+export type SeparatorBlock = z.infer<typeof separatorBlockSchema>
+export type TextCellH1Block = z.infer<typeof textCellH1BlockSchema>
+export type TextCellH2Block = z.infer<typeof textCellH2BlockSchema>
+export type TextCellH3Block = z.infer<typeof textCellH3BlockSchema>
+export type TextCellPBlock = z.infer<typeof textCellPBlockSchema>
+export type TextCellBulletBlock = z.infer<typeof textCellBulletBlockSchema>
+export type TextCellTodoBlock = z.infer<typeof textCellTodoBlockSchema>
+export type TextCellCalloutBlock = z.infer<typeof textCellCalloutBlockSchema>
+export type CodeBlock = z.infer<typeof codeBlockSchema>
+export type SqlBlock = z.infer<typeof sqlBlockSchema>
+export type NotebookFunctionBlock = z.infer<typeof notebookFunctionBlockSchema>
+export type VisualizationBlock = z.infer<typeof visualizationBlockSchema>
+export type ButtonBlock = z.infer<typeof buttonBlockSchema>
+export type BigNumberBlock = z.infer<typeof bigNumberBlockSchema>
+export type InputTextBlock = z.infer<typeof inputTextBlockSchema>
+export type InputTextareaBlock = z.infer<typeof inputTextareaBlockSchema>
+export type InputCheckboxBlock = z.infer<typeof inputCheckboxBlockSchema>
+export type InputSelectBlock = z.infer<typeof inputSelectBlockSchema>
+export type InputSliderBlock = z.infer<typeof inputSliderBlockSchema>
+export type InputDateBlock = z.infer<typeof inputDateBlockSchema>
+export type InputDateRangeBlock = z.infer<typeof inputDateRangeBlockSchema>
+export type InputFileBlock = z.infer<typeof inputFileBlockSchema>
+
+/** Union of all input block types */
+export type InputBlock =
+  | InputTextBlock
+  | InputTextareaBlock
+  | InputCheckboxBlock
+  | InputSelectBlock
+  | InputSliderBlock
+  | InputDateBlock
+  | InputDateRangeBlock
+  | InputFileBlock
+
+/** Union of all text cell block types */
+export type TextCellBlock =
+  | TextCellH1Block
+  | TextCellH2Block
+  | TextCellH3Block
+  | TextCellPBlock
+  | TextCellBulletBlock
+  | TextCellTodoBlock
+  | TextCellCalloutBlock
+
+// =============================================================================
 // File-level schemas
 // =============================================================================
 

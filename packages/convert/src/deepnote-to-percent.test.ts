@@ -243,7 +243,7 @@ describe('convertBlocksToPercentNotebook', () => {
     const blocks: DeepnoteBlock[] = [
       {
         id: 'block-1',
-        type: 'text',
+        type: 'text-cell-p',
         content: 'Some text content',
         blockGroup: 'group-1',
         sortingKey: '0',

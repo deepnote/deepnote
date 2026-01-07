@@ -401,7 +401,7 @@ export async function convertMarimoFilesToDeepnoteFile(
 }
 
 function convertCellToBlock(cell: MarimoCell, index: number, idGenerator: () => string): DeepnoteBlock {
-  let blockType: string
+  let blockType: 'code' | 'markdown' | 'sql'
   if (cell.cellType === 'markdown') {
     blockType = 'markdown'
   } else if (cell.cellType === 'sql') {

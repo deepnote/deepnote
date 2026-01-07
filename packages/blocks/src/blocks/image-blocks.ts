@@ -1,15 +1,9 @@
-import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock, ImageBlock } from '../deserialize-file/deepnote-file-schema'
 
 export interface ImageBlockMetadata {
   deepnote_img_src?: string
   deepnote_img_width?: string
   deepnote_img_alignment?: string
-}
-
-export interface ImageBlock extends DeepnoteBlock {
-  content: ''
-  metadata: ImageBlockMetadata
-  type: 'image'
 }
 
 function escapeHtmlAttribute(value: string): string {
@@ -34,9 +28,9 @@ function sanitizeAlignment(alignment: string): string {
 }
 
 export function createMarkdownForImageBlock(block: ImageBlock): string {
-  const src = escapeHtmlAttribute(block.metadata.deepnote_img_src ?? '')
-  const width = sanitizeWidth(block.metadata.deepnote_img_width ?? '')
-  const alignment = sanitizeAlignment(block.metadata.deepnote_img_alignment ?? '')
+  const src = escapeHtmlAttribute(block.metadata?.deepnote_img_src ?? '')
+  const width = sanitizeWidth(block.metadata?.deepnote_img_width ?? '')
+  const alignment = sanitizeAlignment(block.metadata?.deepnote_img_alignment ?? '')
 
   return `<img src="${src}" width="${width}" align="${alignment}" />`
 }

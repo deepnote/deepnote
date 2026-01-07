@@ -207,7 +207,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     source = deepnoteSource
   }
 
-  const blockType = deepnoteCellType ?? (cell.cell_type === 'code' ? 'code' : 'markdown')
+  const blockType = (deepnoteCellType ?? (cell.cell_type === 'code' ? 'code' : 'markdown')) as DeepnoteBlock['type']
 
   // Extract original metadata (exclude Deepnote-specific fields)
   const originalMetadata = { ...cell.metadata }
@@ -240,5 +240,5 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     ...(hasOutputs ? { outputs: cell.outputs } : {}),
     sortingKey: sortingKey ?? createSortingKey(index),
     type: blockType,
-  }
+  } as DeepnoteBlock
 }

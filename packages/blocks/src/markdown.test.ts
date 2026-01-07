@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { UnsupportedBlockTypeError } from './blocks'
-import type { CodeBlock } from './blocks/code-blocks'
-import type { ImageBlock } from './blocks/image-blocks'
 import type {
   BulletTextBlock,
   CalloutTextBlock,
@@ -9,16 +7,16 @@ import type {
   Heading2TextBlock,
   Heading3TextBlock,
   ParagraphTextBlock,
-  SeparatorBlock,
   TodoTextBlock,
 } from './blocks/text-blocks'
+import type { CodeBlock, ImageBlock, SeparatorBlock } from './deserialize-file/deepnote-file-schema'
 import { createMarkdown, stripMarkdown } from './markdown'
 
 describe('createMarkdown', () => {
   it('returns markdown content as-is for markdown block type', () => {
     const block = {
       id: '123',
-      type: 'markdown',
+      type: 'markdown' as const,
       blockGroup: 'abc',
       content: '# Already Markdown',
       metadata: {},
@@ -33,7 +31,7 @@ describe('createMarkdown', () => {
   it('returns empty string when markdown block has undefined content', () => {
     const block = {
       id: '456',
-      type: 'markdown',
+      type: 'markdown' as const,
       blockGroup: 'abc',
       content: undefined,
       metadata: {},
@@ -185,9 +183,10 @@ describe('createMarkdown', () => {
   })
 
   it('creates markdown for image block', () => {
-    const block: ImageBlock = {
+    // Using type assertion since the test checks sanitization of arbitrary width values
+    const block = {
       id: '123',
-      type: 'image',
+      type: 'image' as const,
       content: '',
       blockGroup: 'abc',
       sortingKey: 'a0',
@@ -196,7 +195,7 @@ describe('createMarkdown', () => {
         deepnote_img_width: '500',
         deepnote_img_alignment: 'center',
       },
-    }
+    } as unknown as ImageBlock
 
     const result = createMarkdown(block)
 

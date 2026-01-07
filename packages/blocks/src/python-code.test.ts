@@ -1,10 +1,11 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
-import type { BigNumberBlock } from './blocks/big-number-blocks'
-import type { ButtonBlock, ButtonExecutionContext } from './blocks/button-blocks'
-import type { CodeBlock } from './blocks/code-blocks'
+import type { ButtonExecutionContext } from './blocks/button-blocks'
 import type {
+  BigNumberBlock,
+  ButtonBlock,
+  CodeBlock,
   InputCheckboxBlock,
   InputDateBlock,
   InputDateRangeBlock,
@@ -13,9 +14,9 @@ import type {
   InputSliderBlock,
   InputTextareaBlock,
   InputTextBlock,
-} from './blocks/input-blocks'
-import type { SqlBlock } from './blocks/sql-blocks'
-import type { VisualizationBlock } from './blocks/visualization-blocks'
+  SqlBlock,
+  VisualizationBlock,
+} from './deserialize-file/deepnote-file-schema'
 import { createPythonCode } from './python-code'
 
 describe('createPythonCode', () => {
@@ -89,6 +90,7 @@ describe('createPythonCode', () => {
         metadata: {
           deepnote_big_number_title: 'Total Sales',
           deepnote_big_number_value: 'sales',
+          deepnote_big_number_format: '',
           deepnote_big_number_comparison_title: 'vs Last Month',
           deepnote_big_number_comparison_value: 'last_month_sales',
         },
@@ -142,6 +144,7 @@ describe('createPythonCode', () => {
         metadata: {
           deepnote_big_number_title: 'Revenue',
           deepnote_big_number_value: 'total_revenue',
+          deepnote_big_number_format: '',
         },
       }
 

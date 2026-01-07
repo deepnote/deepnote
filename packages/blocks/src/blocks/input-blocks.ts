@@ -1,9 +1,33 @@
 import { dedent } from 'ts-dedent'
 
 import type { ExecutableBlockMetadata } from '../blocks'
-import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
+import type {
+  DeepnoteBlock,
+  InputBlock,
+  InputCheckboxBlock,
+  InputDateBlock,
+  InputDateRangeBlock,
+  InputFileBlock,
+  InputSelectBlock,
+  InputSliderBlock,
+  InputTextareaBlock,
+  InputTextBlock,
+} from '../deserialize-file/deepnote-file-schema'
 import { pythonCode } from '../python-snippets'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
+
+// Re-export the Zod-inferred types
+export type {
+  InputBlock,
+  InputCheckboxBlock,
+  InputDateBlock,
+  InputDateRangeBlock,
+  InputFileBlock,
+  InputSelectBlock,
+  InputSliderBlock,
+  InputTextareaBlock,
+  InputTextBlock,
+}
 
 // Date range types and utilities
 export type DateTimeString = string
@@ -96,65 +120,6 @@ export interface InputDateBlockMetadata extends InputBlockMetadata {
 export interface InputDateRangeBlockMetadata extends InputBlockMetadata {
   deepnote_variable_value: DateRangeInputValue
 }
-
-// Input block interfaces
-export interface InputTextBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputTextBlockMetadata
-  type: 'input-text'
-}
-
-export interface InputTextareaBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputTextareaBlockMetadata
-  type: 'input-textarea'
-}
-
-export interface InputCheckboxBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputCheckboxBlockMetadata
-  type: 'input-checkbox'
-}
-
-export interface InputSelectBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputSelectBlockMetadata
-  type: 'input-select'
-}
-
-export interface InputSliderBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputSliderBlockMetadata
-  type: 'input-slider'
-}
-
-export interface InputFileBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputFileBlockMetadata
-  type: 'input-file'
-}
-
-export interface InputDateBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputDateBlockMetadata
-  type: 'input-date'
-}
-
-export interface InputDateRangeBlock extends DeepnoteBlock {
-  content: string
-  metadata: InputDateRangeBlockMetadata
-  type: 'input-date-range'
-}
-
-export type InputBlock =
-  | InputTextBlock
-  | InputTextareaBlock
-  | InputCheckboxBlock
-  | InputSelectBlock
-  | InputSliderBlock
-  | InputFileBlock
-  | InputDateBlock
-  | InputDateRangeBlock
 
 // Python code generation functions
 export function createPythonCodeForInputTextBlock(block: InputTextBlock): string {

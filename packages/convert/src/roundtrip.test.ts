@@ -437,9 +437,13 @@ describe('Snapshot fields roundtrip', () => {
     const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
 
     for (let i = 0; i < originalBlocks.length; i++) {
-      expect(roundtrippedBlocks[i].contentHash).toBe(originalBlocks[i].contentHash)
-      expect(roundtrippedBlocks[i].executionStartedAt).toBe(originalBlocks[i].executionStartedAt)
-      expect(roundtrippedBlocks[i].executionFinishedAt).toBe(originalBlocks[i].executionFinishedAt)
+      const originalBlock = originalBlocks[i]
+      const roundtrippedBlock = roundtrippedBlocks[i]
+      expect(roundtrippedBlock.contentHash).toBe(originalBlock.contentHash)
+      if (originalBlock.type === 'code' && roundtrippedBlock.type === 'code') {
+        expect(roundtrippedBlock.executionStartedAt).toBe(originalBlock.executionStartedAt)
+        expect(roundtrippedBlock.executionFinishedAt).toBe(originalBlock.executionFinishedAt)
+      }
     }
   })
 
