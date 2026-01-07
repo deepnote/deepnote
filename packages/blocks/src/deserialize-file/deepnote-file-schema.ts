@@ -48,6 +48,12 @@ const textCellMetadataSchema = baseCellMetadataSchema
   })
   .passthrough()
 
+// Base metadata schema for input blocks (extends executable with common input fields)
+const baseInputMetadataSchema = executableCellMetadataSchema.extend({
+  deepnote_variable_name: z.string(),
+  deepnote_input_label: z.string().optional(),
+})
+
 // =============================================================================
 // Common block fields
 // =============================================================================
@@ -69,6 +75,45 @@ const executableBlockFields = {
   executionFinishedAt: z.string().datetime().optional(),
   executionStartedAt: z.string().datetime().optional(),
   outputs: z.array(z.any()).optional(),
+}
+
+// =============================================================================
+// Schema factory helpers
+// =============================================================================
+
+/** Creates a text cell block schema with optional metadata extensions */
+const createTextCellBlockSchema = <T extends string, M extends z.ZodRawShape = z.ZodRawShape>(
+  type: T,
+  metadataExtensions?: M
+) =>
+  z.object({
+    ...baseBlockFields,
+    type: z.literal(type),
+    content: z.string().optional(),
+    metadata: metadataExtensions
+      ? textCellMetadataSchema.extend(metadataExtensions).optional()
+      : textCellMetadataSchema.optional(),
+  })
+
+/** Creates an input block schema with the given value type and additional metadata */
+const createInputBlockSchema = <T extends string, V extends z.ZodTypeAny, M extends z.ZodRawShape = z.ZodRawShape>(
+  type: T,
+  valueSchema: V,
+  additionalMetadata?: M,
+  options?: { noDefaultValue?: boolean }
+) => {
+  const baseMetadata = {
+    deepnote_variable_value: valueSchema,
+    ...(options?.noDefaultValue ? {} : { deepnote_variable_default_value: valueSchema.nullable().optional() }),
+    ...additionalMetadata,
+  }
+
+  return z.object({
+    ...executableBlockFields,
+    type: z.literal(type),
+    content: z.string().optional(),
+    metadata: baseInputMetadataSchema.extend(baseMetadata),
+  })
 }
 
 // =============================================================================
@@ -102,55 +147,16 @@ const separatorBlockSchema = z.object({
   metadata: baseCellMetadataSchema.optional(),
 })
 
-const textCellH1BlockSchema = z.object({
-  ...baseBlockFields,
-  type: z.literal('text-cell-h1'),
-  content: z.string().optional(),
-  metadata: textCellMetadataSchema.optional(),
+const textCellH1BlockSchema = createTextCellBlockSchema('text-cell-h1')
+const textCellH2BlockSchema = createTextCellBlockSchema('text-cell-h2')
+const textCellH3BlockSchema = createTextCellBlockSchema('text-cell-h3')
+const textCellPBlockSchema = createTextCellBlockSchema('text-cell-p')
+const textCellBulletBlockSchema = createTextCellBlockSchema('text-cell-bullet')
+const textCellTodoBlockSchema = createTextCellBlockSchema('text-cell-todo', {
+  checked: z.boolean().optional(),
 })
-
-const textCellH2BlockSchema = z.object({
-  ...baseBlockFields,
-  type: z.literal('text-cell-h2'),
-  content: z.string().optional(),
-  metadata: textCellMetadataSchema.optional(),
-})
-
-const textCellH3BlockSchema = z.object({
-  ...baseBlockFields,
-  type: z.literal('text-cell-h3'),
-  content: z.string().optional(),
-  metadata: textCellMetadataSchema.optional(),
-})
-
-const textCellPBlockSchema = z.object({
-  ...baseBlockFields,
-  type: z.literal('text-cell-p'),
-  content: z.string().optional(),
-  metadata: textCellMetadataSchema.optional(),
-})
-
-const textCellBulletBlockSchema = z.object({
-  ...baseBlockFields,
-  type: z.literal('text-cell-bullet'),
-  content: z.string().optional(),
-  metadata: textCellMetadataSchema.optional(),
-})
-
-const textCellTodoBlockSchema = z.object({
-  ...baseBlockFields,
-  type: z.literal('text-cell-todo'),
-  content: z.string().optional(),
-  metadata: textCellMetadataSchema.extend({ checked: z.boolean().optional() }).optional(),
-})
-
-const textCellCalloutBlockSchema = z.object({
-  ...baseBlockFields,
-  type: z.literal('text-cell-callout'),
-  content: z.string().optional(),
-  metadata: textCellMetadataSchema
-    .extend({ color: z.enum(['blue', 'green', 'yellow', 'red', 'purple']).optional() })
-    .optional(),
+const textCellCalloutBlockSchema = createTextCellBlockSchema('text-cell-callout', {
+  color: z.enum(['blue', 'green', 'yellow', 'red', 'purple']).optional(),
 })
 
 // =============================================================================
@@ -241,119 +247,46 @@ const bigNumberBlockSchema = z.object({
 // Input block schemas
 // =============================================================================
 
-const inputTextBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-text'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.string(),
-    deepnote_variable_default_value: z.string().nullable().optional(),
-    deepnote_input_label: z.string().optional(),
-  }),
+// Common value schemas for reuse
+const stringOrStringArraySchema = z.union([z.string(), z.array(z.string())])
+const dateRangeValueSchema = z.union([z.tuple([z.string(), z.string()]), z.string()])
+
+const inputTextBlockSchema = createInputBlockSchema('input-text', z.string())
+
+const inputTextareaBlockSchema = createInputBlockSchema('input-textarea', z.string())
+
+const inputCheckboxBlockSchema = createInputBlockSchema('input-checkbox', z.boolean(), {
+  deepnote_input_checkbox_label: z.string().optional(),
 })
 
-const inputTextareaBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-textarea'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.string(),
-    deepnote_variable_default_value: z.string().nullable().optional(),
-    deepnote_input_label: z.string().optional(),
-  }),
+const inputSelectBlockSchema = createInputBlockSchema('input-select', stringOrStringArraySchema, {
+  deepnote_variable_options: z.array(z.string()),
+  deepnote_variable_custom_options: z.array(z.string()),
+  deepnote_variable_selected_variable: z.string(),
+  deepnote_variable_select_type: z.enum(['from-options', 'from-variable']),
+  deepnote_allow_multiple_values: z.boolean().optional(),
+  deepnote_allow_empty_values: z.boolean().optional(),
 })
 
-const inputCheckboxBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-checkbox'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.boolean(),
-    deepnote_variable_default_value: z.boolean().nullable().optional(),
-    deepnote_input_checkbox_label: z.string().optional(),
-    deepnote_input_label: z.string().optional(),
-  }),
+const inputSliderBlockSchema = createInputBlockSchema('input-slider', z.string(), {
+  deepnote_slider_min_value: z.number(),
+  deepnote_slider_max_value: z.number(),
+  deepnote_slider_step: z.number(),
 })
 
-const inputSelectBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-select'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.union([z.string(), z.array(z.string())]),
-    deepnote_variable_default_value: z
-      .union([z.string(), z.array(z.string())])
-      .nullable()
-      .optional(),
-    deepnote_variable_options: z.array(z.string()),
-    deepnote_variable_custom_options: z.array(z.string()),
-    deepnote_variable_selected_variable: z.string(),
-    deepnote_variable_select_type: z.enum(['from-options', 'from-variable']),
-    deepnote_allow_multiple_values: z.boolean().optional(),
-    deepnote_allow_empty_values: z.boolean().optional(),
-    deepnote_input_label: z.string().optional(),
-  }),
+const inputDateBlockSchema = createInputBlockSchema('input-date', z.string(), {
+  deepnote_allow_empty_values: z.boolean().optional(),
+  deepnote_input_date_version: z.number().optional(),
 })
 
-const inputSliderBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-slider'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.string(),
-    deepnote_variable_default_value: z.string().nullable().optional(),
-    deepnote_slider_min_value: z.number(),
-    deepnote_slider_max_value: z.number(),
-    deepnote_slider_step: z.number(),
-    deepnote_input_label: z.string().optional(),
-  }),
-})
+const inputDateRangeBlockSchema = createInputBlockSchema('input-date-range', dateRangeValueSchema)
 
-const inputDateBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-date'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.string(),
-    deepnote_variable_default_value: z.string().nullable().optional(),
-    deepnote_allow_empty_values: z.boolean().optional(),
-    deepnote_input_date_version: z.number().optional(),
-    deepnote_input_label: z.string().optional(),
-  }),
-})
-
-const inputDateRangeBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-date-range'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.union([z.tuple([z.string(), z.string()]), z.string()]),
-    deepnote_variable_default_value: z
-      .union([z.tuple([z.string(), z.string()]), z.string()])
-      .nullable()
-      .optional(),
-    deepnote_input_label: z.string().optional(),
-  }),
-})
-
-const inputFileBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('input-file'),
-  content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_variable_name: z.string(),
-    deepnote_variable_value: z.string(),
-    deepnote_input_label: z.string().optional(),
-    deepnote_allowed_file_extensions: z.string().optional(),
-  }),
-})
+const inputFileBlockSchema = createInputBlockSchema(
+  'input-file',
+  z.string(),
+  { deepnote_allowed_file_extensions: z.string().optional() },
+  { noDefaultValue: true }
+)
 
 // =============================================================================
 // Combined block schema (discriminated union)
