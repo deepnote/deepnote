@@ -11,7 +11,7 @@ const emptyContent = () => z.preprocess(() => '', z.literal('').optional())
 // Base metadata schemas
 // =============================================================================
 
-function removeNullDeepnoteVariableDefaultValue<T extends { deepnote_variable_default_value?: unknown }>(
+function removeNullDeepnoteVariableDefaultValue<TValue, T extends { deepnote_variable_default_value?: TValue }>(
   value: T
 ): {
   [K in keyof T]: K extends 'deepnote_variable_default_value' ? Exclude<T[K], null> : T[K]
