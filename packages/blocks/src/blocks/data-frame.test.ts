@@ -1,9 +1,8 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
-import type { CodeBlock } from './code-blocks'
+import type { CodeBlock, SqlBlock } from '../deserialize-file/deepnote-file-schema'
 import { createDataFrameConfig } from './data-frame'
-import type { SqlBlock } from './sql-blocks'
 
 describe('createDataFrameConfig', () => {
   it('creates config for code block with empty table state', () => {

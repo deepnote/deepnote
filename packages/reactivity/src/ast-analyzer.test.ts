@@ -12,7 +12,7 @@ describe('AstAnalyzer', () => {
     it('should filter out unsupported cell types', async () => {
       const mockBlocks = [
         { id: '1', type: 'unsupported', content: 'a = 1', blockGroup: 'a', sortingKey: 'a' },
-      ] as DeepnoteBlock[]
+      ] as unknown as DeepnoteBlock[]
 
       const result = await getBlockDependencies(mockBlocks)
       expect(result).toEqual([])

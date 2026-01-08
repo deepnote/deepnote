@@ -472,6 +472,7 @@ describe('Deepnote heading block roundtrip', () => {
               type: 'text-cell-h1',
               sortingKey: '0',
               content: 'Main Title',
+              metadata: {},
             },
             {
               id: 'heading-2',
@@ -479,6 +480,7 @@ describe('Deepnote heading block roundtrip', () => {
               type: 'text-cell-h2',
               sortingKey: '1',
               content: 'Section Title',
+              metadata: {},
             },
             {
               id: 'heading-3',
@@ -486,6 +488,7 @@ describe('Deepnote heading block roundtrip', () => {
               type: 'text-cell-h3',
               sortingKey: '2',
               content: 'Subsection Title',
+              metadata: {},
             },
             {
               id: 'code-1',
@@ -493,6 +496,7 @@ describe('Deepnote heading block roundtrip', () => {
               type: 'code',
               sortingKey: '3',
               content: 'print("hello")',
+              metadata: {},
             },
           ],
         },

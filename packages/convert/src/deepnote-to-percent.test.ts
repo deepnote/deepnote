@@ -143,6 +143,7 @@ describe('convertBlocksToPercentNotebook', () => {
         content: '# Hello World',
         blockGroup: 'group-1',
         sortingKey: '0',
+        metadata: {},
       },
     ]
 
@@ -182,6 +183,7 @@ describe('convertBlocksToPercentNotebook', () => {
         content: 'print("hello")',
         blockGroup: 'group-1',
         sortingKey: '0',
+        metadata: {},
       },
     ]
 
@@ -243,10 +245,11 @@ describe('convertBlocksToPercentNotebook', () => {
     const blocks: DeepnoteBlock[] = [
       {
         id: 'block-1',
-        type: 'text',
+        type: 'text-cell-p',
         content: 'Some text content',
         blockGroup: 'group-1',
         sortingKey: '0',
+        metadata: {},
       },
     ]
 
@@ -426,6 +429,7 @@ x = 1
         content: 'print("test")',
         blockGroup: 'group-2',
         sortingKey: '1',
+        metadata: {},
       },
     ]
 

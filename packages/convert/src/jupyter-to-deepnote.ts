@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
-import { environmentSchema, executionSchema } from '@deepnote/blocks'
+import { deepnoteBlockSchema, environmentSchema, executionSchema } from '@deepnote/blocks'
 import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
-import { createSortingKey } from './utils'
+import { createSortingKey, sortKeysAlphabetically } from './utils'
 
 export interface ConvertIpynbFilesToDeepnoteFileOptions {
   outputPath: string
@@ -207,7 +207,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     source = deepnoteSource
   }
 
-  const blockType = deepnoteCellType ?? (cell.cell_type === 'code' ? 'code' : 'markdown')
+  const blockType = (deepnoteCellType ?? (cell.cell_type === 'code' ? 'code' : 'markdown')) as DeepnoteBlock['type']
 
   // Extract original metadata (exclude Deepnote-specific fields)
   const originalMetadata = { ...cell.metadata }
@@ -222,13 +222,13 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   // Also remove top-level block_group from metadata to avoid duplication
   delete (cell as { block_group?: unknown }).block_group
 
-  // Build block object with fields in consistent order
+  // Build block object - order doesn't matter here since we sort alphabetically after parsing
   // Only include executionCount and outputs when they have values
   const executionCount = cell.execution_count ?? undefined
   const hasExecutionCount = executionCount !== undefined
   const hasOutputs = cell.cell_type === 'code' && cell.outputs !== undefined
 
-  return {
+  const parsed = deepnoteBlockSchema.parse({
     blockGroup,
     content: source,
     ...(contentHash ? { contentHash } : {}),
@@ -240,5 +240,8 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     ...(hasOutputs ? { outputs: cell.outputs } : {}),
     sortingKey: sortingKey ?? createSortingKey(index),
     type: blockType,
-  }
+  })
+
+  // Sort keys alphabetically for stable YAML output
+  return sortKeysAlphabetically(parsed)
 }

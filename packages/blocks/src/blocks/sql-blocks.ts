@@ -1,37 +1,18 @@
 import { dedent } from 'ts-dedent'
 
-import type { ExecutableBlockMetadata } from '../blocks'
-import type { DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock, SqlBlock } from '../deserialize-file/deepnote-file-schema'
 import { createDataFrameConfig } from './data-frame'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
 import { convertToEnvironmentVariableName, getSqlEnvVarName } from './sql-utils'
-import type { TableState } from './table-state'
-
-export type SqlBlockVariableType = 'dataframe' | 'query_preview'
-
-export interface SqlBlockMetadata extends ExecutableBlockMetadata {
-  deepnote_return_variable_type?: SqlBlockVariableType
-  deepnote_table_state?: TableState
-  deepnote_variable_name?: string
-  function_export_name?: string
-  is_compiled_sql_query_visible?: boolean
-  sql_integration_id?: string
-}
-
-export interface SqlBlock extends DeepnoteBlock {
-  content: string
-  metadata: SqlBlockMetadata
-  type: 'sql'
-}
 
 export function createPythonCodeForSqlBlock(block: SqlBlock): string {
-  const query = block.content
-  const pythonVariableName = block.metadata.deepnote_variable_name
+  const query = block.content ?? ''
+  const pythonVariableName = block.metadata?.deepnote_variable_name
   const sanitizedPythonVariableName =
     pythonVariableName !== undefined ? sanitizePythonVariableName(pythonVariableName) || 'input_1' : undefined
-  const returnVariableType = block.metadata.deepnote_return_variable_type ?? 'dataframe'
+  const returnVariableType = block.metadata?.deepnote_return_variable_type ?? 'dataframe'
 
-  const integrationId = block.metadata.sql_integration_id
+  const integrationId = block.metadata?.sql_integration_id
   const connectionEnvVarName = integrationId
     ? convertToEnvironmentVariableName(getSqlEnvVarName(integrationId))
     : 'SQL_ALCHEMY_JSON_ENV_VAR'
