@@ -34,7 +34,6 @@ describe('validate all .deepnote files in the repository', () => {
   // Discover all .deepnote files before running any tests
   beforeAll(async () => {
     deepnoteFiles = await findDeepnoteFiles(workspaceRoot)
-    console.log(`Found ${deepnoteFiles.length} .deepnote files:`, deepnoteFiles)
   })
 
   it('discovers .deepnote files in the repository', () => {
