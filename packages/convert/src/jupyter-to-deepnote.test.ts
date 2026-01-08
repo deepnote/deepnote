@@ -162,20 +162,24 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const markdownBlock = notebook.blocks[0]
     expect(markdownBlock.type).toBe('markdown')
     expect(markdownBlock.content).toBe('# Hello World\n\nThis is a test notebook.')
-    expect(markdownBlock.outputs).toBeUndefined()
+    expect('outputs' in markdownBlock).toBe(false)
 
     // Verify second block (code with string source)
     const codeBlock1 = notebook.blocks[1]
     expect(codeBlock1.type).toBe('code')
     expect(codeBlock1.content).toBe("print('Hello World')")
-    expect(codeBlock1.executionCount).toBe(1)
-    expect(codeBlock1.outputs).toEqual([])
+    if (codeBlock1.type === 'code') {
+      expect(codeBlock1.executionCount).toBe(1)
+      expect(codeBlock1.outputs).toEqual([])
+    }
 
     // Verify third block (code with array source)
     const codeBlock2 = notebook.blocks[2]
     expect(codeBlock2.type).toBe('code')
     expect(codeBlock2.content).toBe('import numpy as np\nimport pandas as pd')
-    expect(codeBlock2.executionCount).toBe(2)
+    if (codeBlock2.type === 'code') {
+      expect(codeBlock2.executionCount).toBe(2)
+    }
   })
 
   it('handles cells with source as string array', async () => {
@@ -225,7 +229,9 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const result = deserializeDeepnoteFile(content)
 
     const block = result.project.notebooks[0].blocks[0]
-    expect(block.executionCount).toBeUndefined()
+    if (block.type === 'code') {
+      expect(block.executionCount).toBeUndefined()
+    }
   })
 
   it('converts multiple Jupyter notebooks into one Deepnote file', async () => {
@@ -400,13 +406,15 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const result = deserializeDeepnoteFile(content)
 
     const block = result.project.notebooks[0].blocks[0]
-    expect(block.outputs).toBeDefined()
-    expect(block.outputs).toHaveLength(1)
-    expect(block.outputs?.[0]).toEqual({
-      output_type: 'stream',
-      name: 'stdout',
-      text: ['Hello World\n'],
-    })
+    if (block.type === 'code') {
+      expect(block.outputs).toBeDefined()
+      expect(block.outputs).toHaveLength(1)
+      expect(block.outputs?.[0]).toEqual({
+        output_type: 'stream',
+        name: 'stdout',
+        text: ['Hello World\n'],
+      })
+    }
   })
 
   it('does not include outputs for markdown cells', async () => {
@@ -438,7 +446,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const block = result.project.notebooks[0].blocks[0]
     expect(block.type).toBe('markdown')
-    expect(block.outputs).toBeUndefined()
+    expect('outputs' in block).toBe(false)
   })
 })
 
@@ -1319,8 +1327,10 @@ describe('convertJupyterNotebookToBlocks', () => {
     expect(blocks[0].content).toBe('# Hello')
     expect(blocks[1].type).toBe('code')
     expect(blocks[1].content).toBe("print('hi')")
-    expect(blocks[1].executionCount).toBe(1)
-    expect(blocks[1].outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: ['hi\n'] }])
+    if (blocks[1].type === 'code') {
+      expect(blocks[1].executionCount).toBe(1)
+      expect(blocks[1].outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: ['hi\n'] }])
+    }
   })
 
   it('uses custom idGenerator when provided', () => {

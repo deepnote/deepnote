@@ -128,7 +128,16 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
   const content = block.content || ''
   const jupyterCellType = convertBlockTypeToJupyter(block.type)
 
+  const executionStartedAt = 'executionStartedAt' in block ? block.executionStartedAt : undefined
+  const executionFinishedAt = 'executionFinishedAt' in block ? block.executionFinishedAt : undefined
+  const executionCount = 'executionCount' in block ? block.executionCount : null
+  const outputs = 'outputs' in block ? block.outputs : undefined
+
   const metadata: JupyterCell['metadata'] = {
+    // Spread original metadata first so explicit fields below take precedence
+    ...(block.metadata || {}),
+
+    // Explicit fields override any conflicting metadata properties
     cell_id: block.id,
     deepnote_block_group: block.blockGroup,
     deepnote_cell_type: block.type,
@@ -136,11 +145,8 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
 
     // Snapshot fields
     deepnote_content_hash: block.contentHash,
-    deepnote_execution_started_at: block.executionStartedAt,
-    deepnote_execution_finished_at: block.executionFinishedAt,
-
-    // Spread original metadata at root level
-    ...(block.metadata || {}),
+    deepnote_execution_started_at: executionStartedAt,
+    deepnote_execution_finished_at: executionFinishedAt,
   }
 
   // Store original content for lossless roundtrip conversion
@@ -151,9 +157,9 @@ function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
   const cell: JupyterCell = {
     block_group: block.blockGroup,
     cell_type: jupyterCellType,
-    execution_count: block.executionCount ?? null,
+    execution_count: executionCount ?? null,
     metadata,
-    outputs: block.outputs,
+    outputs,
     // TODO: Add outputs_reference
     source: getSourceForBlock(block, jupyterCellType, content),
   }
