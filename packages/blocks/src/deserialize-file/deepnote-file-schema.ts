@@ -1,6 +1,13 @@
 import { z } from 'zod'
 
 // =============================================================================
+// Backward compatibility helpers
+// =============================================================================
+
+/** Preprocesses any content value to empty string for blocks that don't use content */
+const emptyContent = () => z.preprocess(() => '', z.literal('').optional())
+
+// =============================================================================
 // Base metadata schemas
 // =============================================================================
 
@@ -49,7 +56,7 @@ const textCellMetadataSchema = baseCellMetadataSchema
 
 // Base metadata schema for input blocks (extends executable with common input fields)
 const baseInputMetadataSchema = executableCellMetadataSchema.extend({
-  deepnote_variable_name: z.string(),
+  deepnote_variable_name: z.string().default('unnamed_variable'),
   deepnote_input_label: z.string().optional(),
 })
 
@@ -94,7 +101,7 @@ const markdownBlockSchema = z.object({
 const imageBlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('image'),
-  content: z.literal('').optional(),
+  content: emptyContent(),
   metadata: baseCellMetadataSchema
     .extend({
       deepnote_img_src: z.string().optional(),
@@ -107,7 +114,7 @@ const imageBlockSchema = z.object({
 const separatorBlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('separator'),
-  content: z.literal('').optional(),
+  content: emptyContent(),
   metadata: baseCellMetadataSchema.default({}),
 })
 
@@ -191,7 +198,7 @@ const sqlBlockSchema = z.object({
 const notebookFunctionBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('notebook-function'),
-  content: z.literal('').optional(),
+  content: emptyContent(),
   metadata: executableCellMetadataSchema
     .extend({
       function_notebook_id: z.string().nullable(),
@@ -204,7 +211,7 @@ const notebookFunctionBlockSchema = z.object({
 const visualizationBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('visualization'),
-  content: z.literal('').optional(),
+  content: emptyContent(),
   metadata: executableCellMetadataSchema
     .extend({
       deepnote_variable_name: z.string().optional(),
@@ -219,7 +226,7 @@ const visualizationBlockSchema = z.object({
 const buttonBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('button'),
-  content: z.literal('').optional(),
+  content: emptyContent(),
   metadata: executableCellMetadataSchema
     .extend({
       deepnote_button_title: z.string().optional(),
@@ -235,9 +242,9 @@ const bigNumberBlockSchema = z.object({
   type: z.literal('big-number'),
   content: z.string().optional(),
   metadata: executableCellMetadataSchema.extend({
-    deepnote_big_number_title: z.string(),
-    deepnote_big_number_value: z.string(),
-    deepnote_big_number_format: z.string(),
+    deepnote_big_number_title: z.string().default(''),
+    deepnote_big_number_value: z.string().default(''),
+    deepnote_big_number_format: z.string().default(''),
     deepnote_big_number_comparison_enabled: z.boolean().optional(),
     deepnote_big_number_comparison_title: z.string().optional(),
     deepnote_big_number_comparison_value: z.string().optional(),
@@ -255,7 +262,7 @@ const inputTextBlockSchema = z.object({
   type: z.literal('input-text'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.string(),
+    deepnote_variable_value: z.string().default(''),
     deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
   }),
 })
@@ -265,7 +272,7 @@ const inputTextareaBlockSchema = z.object({
   type: z.literal('input-textarea'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.string(),
+    deepnote_variable_value: z.string().default(''),
     deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
   }),
 })
@@ -275,7 +282,7 @@ const inputCheckboxBlockSchema = z.object({
   type: z.literal('input-checkbox'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.boolean(),
+    deepnote_variable_value: z.boolean().default(false),
     deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.boolean().optional()),
     deepnote_input_checkbox_label: z.string().optional(),
   }),
@@ -286,15 +293,15 @@ const inputSelectBlockSchema = z.object({
   type: z.literal('input-select'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.union([z.string(), z.array(z.string())]),
+    deepnote_variable_value: z.union([z.string(), z.array(z.string())]).default(''),
     deepnote_variable_default_value: z.preprocess(
       val => (val === null ? undefined : val),
       z.union([z.string(), z.array(z.string())]).optional()
     ),
-    deepnote_variable_options: z.array(z.string()),
-    deepnote_variable_custom_options: z.array(z.string()),
-    deepnote_variable_selected_variable: z.string(),
-    deepnote_variable_select_type: z.enum(['from-options', 'from-variable']),
+    deepnote_variable_options: z.array(z.string()).default([]),
+    deepnote_variable_custom_options: z.array(z.string()).default([]),
+    deepnote_variable_selected_variable: z.string().default(''),
+    deepnote_variable_select_type: z.enum(['from-options', 'from-variable']).default('from-options'),
     deepnote_allow_multiple_values: z.boolean().optional(),
     deepnote_allow_empty_values: z.boolean().optional(),
   }),
@@ -305,11 +312,11 @@ const inputSliderBlockSchema = z.object({
   type: z.literal('input-slider'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.string(),
+    deepnote_variable_value: z.string().default('0'),
     deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
-    deepnote_slider_min_value: z.number(),
-    deepnote_slider_max_value: z.number(),
-    deepnote_slider_step: z.number(),
+    deepnote_slider_min_value: z.number().default(0),
+    deepnote_slider_max_value: z.number().default(100),
+    deepnote_slider_step: z.number().default(1),
   }),
 })
 
@@ -318,7 +325,7 @@ const inputDateBlockSchema = z.object({
   type: z.literal('input-date'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.string(),
+    deepnote_variable_value: z.string().default(''),
     deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
     deepnote_allow_empty_values: z.boolean().optional(),
     deepnote_input_date_version: z.number().optional(),
@@ -330,7 +337,7 @@ const inputDateRangeBlockSchema = z.object({
   type: z.literal('input-date-range'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.union([z.tuple([z.string(), z.string()]), z.string()]),
+    deepnote_variable_value: z.union([z.tuple([z.string(), z.string()]), z.string()]).default(''),
     deepnote_variable_default_value: z.preprocess(
       val => (val === null ? undefined : val),
       z.union([z.tuple([z.string(), z.string()]), z.string()]).optional()
@@ -343,7 +350,7 @@ const inputFileBlockSchema = z.object({
   type: z.literal('input-file'),
   content: z.string().optional(),
   metadata: baseInputMetadataSchema.extend({
-    deepnote_variable_value: z.string(),
+    deepnote_variable_value: z.string().default(''),
     deepnote_allowed_file_extensions: z.string().optional(),
   }),
 })
