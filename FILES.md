@@ -156,7 +156,7 @@ A snapshot is a complete `.deepnote` file that represents a **point-in-time capt
 - All code and configuration from the source file
 - Complete execution outputs from all blocks
 - Metadata about when and where it was executed
-- Environment information for reproducibility
+- Environment information for reproducibility (the `environment` block is **required** in snapshot files)
 
 ### Why Use Snapshots?
 
