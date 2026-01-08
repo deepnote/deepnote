@@ -96,6 +96,8 @@ Blocks are the fundamental units of content. Each block has:
 
 ### Block Types
 
+Common block types include:
+
 | Type            | Description                                          |
 | --------------- | ---------------------------------------------------- |
 | `code`          | Python code cells                                    |
@@ -109,6 +111,8 @@ Blocks are the fundamental units of content. Each block has:
 | `text-cell-h2`  | Heading level 2 text block                           |
 | `text-cell-h3`  | Heading level 3 text block                           |
 | `text-cell-p`   | Paragraph text block                                 |
+
+For the complete list of block types, see the [block type schema](https://github.com/deepnote/deepnote/blob/main/packages/blocks/src/deserialize-file/deepnote-file-schema.ts#L371-L399).
 
 ### Outputs
 
