@@ -464,6 +464,10 @@ describe('convertBlocksToJupyterNotebook', () => {
         metadata: {
           deepnote_variable_name: 'select_input',
           deepnote_variable_value: 'option1',
+          deepnote_variable_options: ['option1', 'option2'],
+          deepnote_variable_custom_options: [],
+          deepnote_variable_selected_variable: '',
+          deepnote_variable_select_type: 'from-options',
         },
       },
     ]

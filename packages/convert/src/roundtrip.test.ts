@@ -371,6 +371,7 @@ describe('Snapshot fields roundtrip', () => {
                 type: 'code',
                 sortingKey: '0',
                 content: 'x = 10',
+                metadata: {},
               },
             ],
           },
@@ -410,6 +411,7 @@ describe('Snapshot fields roundtrip', () => {
                 contentHash: 'md5:d3b07384d113edec49eaa6238ad5ff00',
                 executionStartedAt: '2025-12-11T10:31:45.123Z',
                 executionFinishedAt: '2025-12-11T10:31:45.138Z',
+                metadata: {},
               },
               {
                 id: 'block-2',
@@ -420,6 +422,7 @@ describe('Snapshot fields roundtrip', () => {
                 contentHash: 'md5:e1671797c52e15f763380b45e841ec32',
                 executionStartedAt: '2025-12-11T10:31:45.200Z',
                 executionFinishedAt: '2025-12-11T10:31:45.650Z',
+                metadata: {},
               },
             ],
           },

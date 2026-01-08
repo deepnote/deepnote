@@ -289,6 +289,7 @@ describe('convertBlocksToMarimoApp', () => {
         content: '# Hello World',
         blockGroup: 'group-1',
         sortingKey: '0',
+        metadata: {},
       },
     ]
 
@@ -308,6 +309,7 @@ describe('convertBlocksToMarimoApp', () => {
         content: 'print("hello")',
         blockGroup: 'group-1',
         sortingKey: '0',
+        metadata: {},
       },
     ]
 

@@ -129,6 +129,10 @@ describe('createPythonCodeForInputSelectBlock', () => {
       metadata: {
         deepnote_variable_name: 'my_select',
         deepnote_variable_value: 'Option 1',
+        deepnote_variable_options: ['Option 1', 'Option 2'],
+        deepnote_variable_custom_options: [],
+        deepnote_variable_selected_variable: '',
+        deepnote_variable_select_type: 'from-options',
       },
     }
 
@@ -147,6 +151,10 @@ describe('createPythonCodeForInputSelectBlock', () => {
       metadata: {
         deepnote_variable_name: 'my_select',
         deepnote_variable_value: ['Option 1', 'Option 2'],
+        deepnote_variable_options: ['Option 1', 'Option 2', 'Option 3'],
+        deepnote_variable_custom_options: [],
+        deepnote_variable_selected_variable: '',
+        deepnote_variable_select_type: 'from-options',
         deepnote_allow_multiple_values: true,
       },
     }
@@ -166,6 +174,10 @@ describe('createPythonCodeForInputSelectBlock', () => {
       metadata: {
         deepnote_variable_name: 'my_select',
         deepnote_variable_value: '',
+        deepnote_variable_options: ['Option 1', 'Option 2'],
+        deepnote_variable_custom_options: [],
+        deepnote_variable_selected_variable: '',
+        deepnote_variable_select_type: 'from-options',
         deepnote_allow_multiple_values: false,
       },
     }
@@ -187,6 +199,9 @@ describe('createPythonCodeForInputSliderBlock', () => {
       metadata: {
         deepnote_variable_name: 'my_slider',
         deepnote_variable_value: '42',
+        deepnote_slider_min_value: 0,
+        deepnote_slider_max_value: 100,
+        deepnote_slider_step: 1,
       },
     }
 

@@ -378,6 +378,10 @@ describe('createPythonCode', () => {
         metadata: {
           deepnote_variable_name: 'select_input',
           deepnote_variable_value: 'Option 1',
+          deepnote_variable_options: ['Option 1', 'Option 2'],
+          deepnote_variable_custom_options: [],
+          deepnote_variable_selected_variable: '',
+          deepnote_variable_select_type: 'from-options',
         },
       }
 
@@ -396,6 +400,9 @@ describe('createPythonCode', () => {
         metadata: {
           deepnote_variable_name: 'slider_input',
           deepnote_variable_value: '5',
+          deepnote_slider_min_value: 0,
+          deepnote_slider_max_value: 10,
+          deepnote_slider_step: 1,
         },
       }
 
