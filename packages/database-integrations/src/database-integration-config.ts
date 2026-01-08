@@ -17,12 +17,12 @@ const commonIntegrationConfig = z.object({
 export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   commonIntegrationConfig.extend({
     type: z.literal('alloydb'),
-    metadata: databaseMetadataSchemasByType['alloydb'],
+    metadata: databaseMetadataSchemasByType.alloydb,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('athena'),
-    metadata: databaseMetadataSchemasByType['athena'],
+    metadata: databaseMetadataSchemasByType.athena,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
@@ -37,42 +37,42 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   }),
   commonIntegrationConfig.extend({
     type: z.literal('clickhouse'),
-    metadata: databaseMetadataSchemasByType['clickhouse'],
+    metadata: databaseMetadataSchemasByType.clickhouse,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('databricks'),
-    metadata: databaseMetadataSchemasByType['databricks'],
+    metadata: databaseMetadataSchemasByType.databricks,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('dremio'),
-    metadata: databaseMetadataSchemasByType['dremio'],
+    metadata: databaseMetadataSchemasByType.dremio,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('mariadb'),
-    metadata: databaseMetadataSchemasByType['mariadb'],
+    metadata: databaseMetadataSchemasByType.mariadb,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('materialize'),
-    metadata: databaseMetadataSchemasByType['materialize'],
+    metadata: databaseMetadataSchemasByType.materialize,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('mindsdb'),
-    metadata: databaseMetadataSchemasByType['mindsdb'],
+    metadata: databaseMetadataSchemasByType.mindsdb,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('mongodb'),
-    metadata: databaseMetadataSchemasByType['mongodb'],
+    metadata: databaseMetadataSchemasByType.mongodb,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('mysql'),
-    metadata: databaseMetadataSchemasByType['mysql'],
+    metadata: databaseMetadataSchemasByType.mysql,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
@@ -82,12 +82,12 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   }),
   commonIntegrationConfig.extend({
     type: z.literal('pgsql'),
-    metadata: databaseMetadataSchemasByType['pgsql'],
+    metadata: databaseMetadataSchemasByType.pgsql,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
     type: z.literal('redshift'),
-    metadata: databaseMetadataSchemasByType['redshift'],
+    metadata: databaseMetadataSchemasByType.redshift,
     // Note: federated_auth_method historically stores ALL auth methods (not just federated ones)
     // for backwards compatibility. Accept all Redshift auth method values.
     federated_auth_method: z
@@ -99,7 +99,7 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   }),
   commonIntegrationConfig.extend({
     type: z.literal('snowflake'),
-    metadata: databaseMetadataSchemasByType['snowflake'],
+    metadata: databaseMetadataSchemasByType.snowflake,
     // Note: federated_auth_method historically stores ALL auth methods (not just federated ones)
     // for backwards compatibility. Accept all SnowflakeAuthMethod values.
     federated_auth_method: z
@@ -116,7 +116,7 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   }),
   commonIntegrationConfig.extend({
     type: z.literal('spanner'),
-    metadata: databaseMetadataSchemasByType['spanner'],
+    metadata: databaseMetadataSchemasByType.spanner,
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
@@ -126,7 +126,7 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
   }),
   commonIntegrationConfig.extend({
     type: z.literal('trino'),
-    metadata: databaseMetadataSchemasByType['trino'],
+    metadata: databaseMetadataSchemasByType.trino,
     federated_auth_method: z
       .enum(['trino-oauth', 'password'] as const satisfies ReadonlyArray<TrinoAuthMethod>)
       .optional()
