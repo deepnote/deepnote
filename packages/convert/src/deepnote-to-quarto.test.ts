@@ -118,6 +118,7 @@ describe('convertBlocksToQuartoDocument', () => {
         content: '# Hello World',
         blockGroup: 'group-1',
         sortingKey: '0',
+        metadata: {},
       },
     ]
 
@@ -137,6 +138,7 @@ describe('convertBlocksToQuartoDocument', () => {
         content: 'print("hello")',
         blockGroup: 'group-1',
         sortingKey: '0',
+        metadata: {},
       },
     ]
 

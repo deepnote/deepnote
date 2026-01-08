@@ -92,6 +92,7 @@ project:
             deepnote_variable_custom_options:
               - I am a first option
               - I am a second option
+            deepnote_variable_selected_variable: ''
             deepnote_variable_select_type: from-options
             deepnote_allow_multiple_values: false
             deepnote_allow_empty_values: false

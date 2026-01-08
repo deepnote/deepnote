@@ -67,3 +67,18 @@ export function isMarkdownBlockType(blockType: string): boolean {
   // Default to markdown for unknown types (less lossy)
   return true
 }
+
+/**
+ * Sorts object keys alphabetically while preserving the type.
+ * Useful for producing stable, predictable output in serialized formats like YAML.
+ *
+ * @param obj - The object whose keys should be sorted
+ * @returns A new object with the same values but keys in alphabetical order
+ */
+export function sortKeysAlphabetically<T extends object>(obj: T): T {
+  const sorted = {} as T
+  for (const key of Object.keys(obj).sort()) {
+    ;(sorted as Record<string, unknown>)[key] = (obj as Record<string, unknown>)[key]
+  }
+  return sorted
+}

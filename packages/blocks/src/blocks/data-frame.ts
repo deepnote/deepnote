@@ -1,11 +1,10 @@
 import { dedent } from 'ts-dedent'
 
-import type { CodeBlock } from './code-blocks'
+import type { CodeBlock, SqlBlock } from '../deserialize-file/deepnote-file-schema'
 import { escapePythonString } from './python-utils'
-import type { SqlBlock } from './sql-blocks'
 
 export function createDataFrameConfig(block: CodeBlock | SqlBlock): string {
-  const tableState = block.metadata.deepnote_table_state ?? {}
+  const tableState = block.metadata?.deepnote_table_state ?? {}
   const tableStateAsJson = JSON.stringify(tableState)
 
   return dedent`

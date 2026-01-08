@@ -171,8 +171,10 @@ describe('deserializeDeepnoteFile', () => {
     const result = deserializeDeepnoteFile('yaml-content')
     const block = result.project.notebooks[0].blocks[0]
     expect(block.contentHash).toBe('md5:d3b07384d113edec49eaa6238ad5ff00')
-    expect(block.executionStartedAt).toBe('2025-12-11T10:31:45.123Z')
-    expect(block.executionFinishedAt).toBe('2025-12-11T10:31:45.138Z')
+    if (block.type === 'code') {
+      expect(block.executionStartedAt).toBe('2025-12-11T10:31:45.123Z')
+      expect(block.executionFinishedAt).toBe('2025-12-11T10:31:45.138Z')
+    }
   })
 
   it('backward compatibility: files without new fields still parse', () => {
