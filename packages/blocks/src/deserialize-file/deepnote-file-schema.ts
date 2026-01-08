@@ -241,16 +241,18 @@ const bigNumberBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('big-number'),
   content: z.string().optional(),
-  metadata: executableCellMetadataSchema.extend({
-    deepnote_big_number_title: z.string().default(''),
-    deepnote_big_number_value: z.string().default(''),
-    deepnote_big_number_format: z.string().default(''),
-    deepnote_big_number_comparison_enabled: z.boolean().optional(),
-    deepnote_big_number_comparison_title: z.string().optional(),
-    deepnote_big_number_comparison_value: z.string().optional(),
-    deepnote_big_number_comparison_type: z.string().optional(),
-    deepnote_big_number_comparison_format: z.string().optional(),
-  }),
+  metadata: executableCellMetadataSchema
+    .extend({
+      deepnote_big_number_title: z.string().default(''),
+      deepnote_big_number_value: z.string().default(''),
+      deepnote_big_number_format: z.string().default(''),
+      deepnote_big_number_comparison_enabled: z.boolean().optional(),
+      deepnote_big_number_comparison_title: z.string().optional(),
+      deepnote_big_number_comparison_value: z.string().optional(),
+      deepnote_big_number_comparison_type: z.string().optional(),
+      deepnote_big_number_comparison_format: z.string().optional(),
+    })
+    .default({}),
 })
 
 // =============================================================================
