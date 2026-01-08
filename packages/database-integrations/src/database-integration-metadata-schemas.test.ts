@@ -5,7 +5,7 @@ import { DatabaseAuthMethods } from './sql-integration-auth-methods'
 describe('SQL integration metadata schemas', () => {
   describe('Athena', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['athena'].safeParse({
+      const result = databaseMetadataSchemasByType.athena.safeParse({
         access_key_id: 'my-access-key-id',
         region: 'my-region',
         s3_output_path: 'my-s3-output-path',
@@ -22,7 +22,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['athena'].safeParse({
+      const result = databaseMetadataSchemasByType.athena.safeParse({
         access_key_id: 'my-access-key-id',
         region: 'my-region',
         s3_output_path: 'my-s3-output-path',
@@ -41,7 +41,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['athena'].safeParse({
+      const result = databaseMetadataSchemasByType.athena.safeParse({
         access_key_id: 'my-access-key-id',
         region: 'my-region',
         secret_access_key: 'my-secret-access-key',
@@ -119,7 +119,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('ClickHouse', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['clickhouse'].safeParse({
+      const result = databaseMetadataSchemasByType.clickhouse.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -136,7 +136,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['clickhouse'].safeParse({
+      const result = databaseMetadataSchemasByType.clickhouse.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -169,7 +169,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['clickhouse'].safeParse({
+      const result = databaseMetadataSchemasByType.clickhouse.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -181,7 +181,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('Databricks', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['databricks'].safeParse({
+      const result = databaseMetadataSchemasByType.databricks.safeParse({
         host: 'my-host',
         httpPath: 'my-http-path',
         token: 'my-token',
@@ -198,7 +198,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['databricks'].safeParse({
+      const result = databaseMetadataSchemasByType.databricks.safeParse({
         host: 'my-host',
         httpPath: 'my-http-path',
         token: 'my-token',
@@ -227,7 +227,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['databricks'].safeParse({
+      const result = databaseMetadataSchemasByType.databricks.safeParse({
         host: 'my-host',
         httpPath: 'my-http-path',
         token: 'my-token',
@@ -239,7 +239,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('Dremio', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['dremio'].safeParse({
+      const result = databaseMetadataSchemasByType.dremio.safeParse({
         schema: 'my-schema',
         host: 'my-host',
         port: 'my-port',
@@ -256,7 +256,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['dremio'].safeParse({
+      const result = databaseMetadataSchemasByType.dremio.safeParse({
         schema: 'my-schema',
         host: 'my-host',
         port: 'my-port',
@@ -281,7 +281,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['dremio'].safeParse({
+      const result = databaseMetadataSchemasByType.dremio.safeParse({
         schema: 'my-schema',
         host: 'my-host',
         port: 'my-port',
@@ -293,7 +293,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('MongoDB', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['mongodb'].safeParse({
+      const result = databaseMetadataSchemasByType.mongodb.safeParse({
         connection_string: 'my-connection-string',
       })
 
@@ -304,7 +304,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['mongodb'].safeParse({
+      const result = databaseMetadataSchemasByType.mongodb.safeParse({
         connection_string: 'my-connection-string',
         rawConnectionString: 'my-raw-connection-string',
         prefix: 'my-prefix',
@@ -345,7 +345,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['mongodb'].safeParse({
+      const result = databaseMetadataSchemasByType.mongodb.safeParse({
         host: 'my-host',
         port: 'my-port',
         user: 'my-user',
@@ -366,7 +366,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('Redshift', () => {
     it('should validate valid metadata with username and password', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: 'username-and-password',
         database: 'my-database',
         host: 'my-host',
@@ -385,7 +385,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with iam role', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: 'iam-role',
         database: 'my-database',
         host: 'my-host',
@@ -406,7 +406,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with individual credentials', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: 'individual-credentials',
         database: 'my-database',
         host: 'my-host',
@@ -421,7 +421,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: 'username-and-password',
         database: 'my-database',
         host: 'my-host',
@@ -431,7 +431,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should parse metadata with null auth method and default to username-and-password', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: null,
         database: 'my-database',
         host: 'my-host',
@@ -447,7 +447,7 @@ describe('SQL integration metadata schemas', () => {
       )
     })
     it('should parse metadata with undefined auth method and default to username-and-password', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: undefined,
         database: 'my-database',
         host: 'my-host',
@@ -464,7 +464,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should parse metadata with not defined auth method and default to username-and-password', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         database: 'my-database',
         host: 'my-host',
         user: 'my-user',
@@ -480,7 +480,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with invalid auth method', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: 'invalid-auth-method',
         database: 'my-database',
         host: 'my-host',
@@ -492,7 +492,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['redshift'].safeParse({
+      const result = databaseMetadataSchemasByType.redshift.safeParse({
         authMethod: 'username-and-password',
         database: 'my-database',
         host: 'my-host',
@@ -529,7 +529,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('Snowflake', () => {
     it('should validate valid metadata with password', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: 'password',
         accountName: 'my-account-name',
         username: 'my-username',
@@ -546,7 +546,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with okta', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: 'okta',
         accountName: 'my-account-name',
         clientId: 'my-client-id',
@@ -569,7 +569,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with snowflake oauth', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: 'snowflake',
         accountName: 'my-account-name',
         clientId: 'my-client-id',
@@ -586,7 +586,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with key pair', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: 'key-pair',
         accountName: 'my-account-name',
       })
@@ -599,7 +599,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with service account key pair', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: 'service-account-key-pair',
         accountName: 'my-account-name',
         username: 'my-username',
@@ -618,7 +618,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should parse metadata with null auth method and default to password', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: null,
         accountName: 'my-account-name',
         username: 'my-username',
@@ -635,7 +635,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should parse metadata with undefined auth method and default to password', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: undefined,
         accountName: 'my-account-name',
         username: 'my-username',
@@ -652,7 +652,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should parse metadata with missing auth method and default to password', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         accountName: 'my-account-name',
         username: 'my-username',
         password: 'my-password',
@@ -668,7 +668,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['snowflake'].safeParse({
+      const result = databaseMetadataSchemasByType.snowflake.safeParse({
         authMethod: 'password',
         accountName: 'my-account-name',
       })
@@ -679,7 +679,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('Spanner', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['spanner'].safeParse({
+      const result = databaseMetadataSchemasByType.spanner.safeParse({
         service_account: 'my-service-account',
         dataBoostEnabled: true,
         instance: 'my-instance',
@@ -696,7 +696,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['spanner'].safeParse({
+      const result = databaseMetadataSchemasByType.spanner.safeParse({
         dataBoostEnabled: true,
       })
 
@@ -706,7 +706,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('Trino', () => {
     it('should validate valid metadata with password auth', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
@@ -729,7 +729,7 @@ describe('SQL integration metadata schemas', () => {
     it.each([null, undefined])(
       'should validate valid metadata with %s authMethod (backward compatibility)',
       authMethod => {
-        const result = databaseMetadataSchemasByType['trino'].safeParse({
+        const result = databaseMetadataSchemasByType.trino.safeParse({
           ...(authMethod !== undefined ? { authMethod } : {}),
           host: 'my-host',
           user: 'my-user',
@@ -753,7 +753,7 @@ describe('SQL integration metadata schemas', () => {
     it.each([null, undefined])(
       'should validate metadata with %s authMethod as password fallback with all optional fields (backward compatibility)',
       authMethod => {
-        const result = databaseMetadataSchemasByType['trino'].safeParse({
+        const result = databaseMetadataSchemasByType.trino.safeParse({
           ...(authMethod !== undefined ? { authMethod } : {}),
           host: 'my-host',
           user: 'my-user',
@@ -792,7 +792,7 @@ describe('SQL integration metadata schemas', () => {
       'should fail metadata with %s authMethod if password-specific fields are missing (backward compatibility)',
       authMethod => {
         // Validates that authMethod: null requires user/password like password auth
-        const resultMissingUser = databaseMetadataSchemasByType['trino'].safeParse({
+        const resultMissingUser = databaseMetadataSchemasByType.trino.safeParse({
           ...(authMethod !== undefined ? { authMethod } : {}),
           host: 'my-host',
           password: 'my-password',
@@ -801,7 +801,7 @@ describe('SQL integration metadata schemas', () => {
         })
         expect(resultMissingUser.success).toBe(false)
 
-        const resultMissingPassword = databaseMetadataSchemasByType['trino'].safeParse({
+        const resultMissingPassword = databaseMetadataSchemasByType.trino.safeParse({
           ...(authMethod !== undefined ? { authMethod } : {}),
           host: 'my-host',
           user: 'my-user',
@@ -813,7 +813,7 @@ describe('SQL integration metadata schemas', () => {
     )
 
     it('should validate valid metadata with password auth and optional fields', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
@@ -848,7 +848,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with OAuth auth', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -873,7 +873,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with OAuth auth and optional fields', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -912,7 +912,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on password auth metadata with missing user field', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'password',
         host: 'my-host',
         password: 'my-password',
@@ -924,7 +924,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on password auth metadata with missing password field', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'password',
         host: 'my-host',
         user: 'my-user',
@@ -936,7 +936,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on OAuth metadata with missing clientId', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -950,7 +950,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on OAuth metadata with missing clientSecret', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -964,7 +964,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on OAuth metadata with missing authUrl', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -978,7 +978,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on OAuth metadata with missing tokenUrl', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -992,7 +992,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on OAuth metadata with invalid authUrl', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -1007,7 +1007,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on OAuth metadata with invalid tokenUrl', () => {
-      const result = databaseMetadataSchemasByType['trino'].safeParse({
+      const result = databaseMetadataSchemasByType.trino.safeParse({
         authMethod: 'trino-oauth',
         host: 'my-host',
         database: 'my-database',
@@ -1024,7 +1024,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('AlloyDB', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['alloydb'].safeParse({
+      const result = databaseMetadataSchemasByType.alloydb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1041,7 +1041,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['alloydb'].safeParse({
+      const result = databaseMetadataSchemasByType.alloydb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1066,7 +1066,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['alloydb'].safeParse({
+      const result = databaseMetadataSchemasByType.alloydb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1078,7 +1078,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('MariaDB', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['mariadb'].safeParse({
+      const result = databaseMetadataSchemasByType.mariadb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1095,7 +1095,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['mariadb'].safeParse({
+      const result = databaseMetadataSchemasByType.mariadb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1120,7 +1120,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['mariadb'].safeParse({
+      const result = databaseMetadataSchemasByType.mariadb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1132,7 +1132,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('MindsDB', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['mindsdb'].safeParse({
+      const result = databaseMetadataSchemasByType.mindsdb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1149,7 +1149,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['mindsdb'].safeParse({
+      const result = databaseMetadataSchemasByType.mindsdb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1174,7 +1174,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['mindsdb'].safeParse({
+      const result = databaseMetadataSchemasByType.mindsdb.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1186,7 +1186,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('MySQL', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['mysql'].safeParse({
+      const result = databaseMetadataSchemasByType.mysql.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1203,7 +1203,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['mysql'].safeParse({
+      const result = databaseMetadataSchemasByType.mysql.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1228,7 +1228,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['mysql'].safeParse({
+      const result = databaseMetadataSchemasByType.mysql.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1240,7 +1240,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('PostgreSQL', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['pgsql'].safeParse({
+      const result = databaseMetadataSchemasByType.pgsql.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1257,7 +1257,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['pgsql'].safeParse({
+      const result = databaseMetadataSchemasByType.pgsql.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1282,7 +1282,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['pgsql'].safeParse({
+      const result = databaseMetadataSchemasByType.pgsql.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1294,7 +1294,7 @@ describe('SQL integration metadata schemas', () => {
 
   describe('Materialize', () => {
     it('should validate valid metadata', () => {
-      const result = databaseMetadataSchemasByType['materialize'].safeParse({
+      const result = databaseMetadataSchemasByType.materialize.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1313,7 +1313,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should validate valid metadata with optional fields', () => {
-      const result = databaseMetadataSchemasByType['materialize'].safeParse({
+      const result = databaseMetadataSchemasByType.materialize.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
@@ -1340,7 +1340,7 @@ describe('SQL integration metadata schemas', () => {
     })
 
     it('should fail on metadata with missing fields', () => {
-      const result = databaseMetadataSchemasByType['materialize'].safeParse({
+      const result = databaseMetadataSchemasByType.materialize.safeParse({
         host: 'my-host',
         user: 'my-user',
         password: 'my-password',
