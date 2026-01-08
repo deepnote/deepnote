@@ -113,8 +113,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: &node_versions
-          # Pinned version from .nvmrc for deterministic local/CI behavior
+        node-version:
+          &node_versions # Pinned version from .nvmrc for deterministic local/CI behavior
           - 'nvmrc'
           # Test compatibility with newer major versions
           - '22'
