@@ -35,10 +35,10 @@ const executableBlockMetadataSchema = baseBlockMetadataSchema
     execution_context_id: z.string().optional(),
     deepnote_cell_height: z.number().optional(),
     deepnote_output_heights: z.array(z.number().nullable()).optional(),
-    deepnote_table_state: z.record(z.any()).optional(),
+    deepnote_table_state: z.record(z.string(), z.any()).optional(),
     last_executed_function_notebook_id: z.string().optional(),
     last_function_run_started_at: z.number().optional(),
-    function_notebook_export_states: z.record(z.any()).optional(),
+    function_notebook_export_states: z.record(z.string(), z.any()).optional(),
   })
   .passthrough()
 
@@ -193,8 +193,8 @@ const notebookFunctionBlockSchema = z.object({
   metadata: executableBlockMetadataSchema
     .extend({
       function_notebook_id: z.string().nullable(),
-      function_notebook_inputs: z.record(z.any()).optional(),
-      function_notebook_export_mappings: z.record(z.any()).optional(),
+      function_notebook_inputs: z.record(z.string(), z.any()).optional(),
+      function_notebook_export_mappings: z.record(z.string(), z.any()).optional(),
     })
     .default({ function_notebook_id: null }),
 })
@@ -206,10 +206,10 @@ const visualizationBlockSchema = z.object({
   metadata: executableBlockMetadataSchema
     .extend({
       deepnote_variable_name: z.string().optional(),
-      deepnote_visualization_spec: z.record(z.any()).optional(),
+      deepnote_visualization_spec: z.record(z.string(), z.any()).optional(),
       deepnote_config_collapsed: z.boolean().optional(),
       deepnote_chart_height: z.number().optional(),
-      deepnote_chart_filter: z.record(z.any()).optional(),
+      deepnote_chart_filter: z.record(z.string(), z.any()).optional(),
     })
     .default({}),
 })
@@ -243,7 +243,7 @@ const bigNumberBlockSchema = z.object({
       deepnote_big_number_comparison_type: z.string().optional(),
       deepnote_big_number_comparison_format: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 // =============================================================================
@@ -257,9 +257,9 @@ const inputTextBlockSchema = z.object({
   metadata: baseInputMetadataSchema
     .extend({
       deepnote_variable_value: z.string().default(''),
-      deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
+      deepnote_variable_default_value: z.string().nullish(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputTextareaBlockSchema = z.object({
@@ -269,9 +269,9 @@ const inputTextareaBlockSchema = z.object({
   metadata: baseInputMetadataSchema
     .extend({
       deepnote_variable_value: z.string().default(''),
-      deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
+      deepnote_variable_default_value: z.string().nullish(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputCheckboxBlockSchema = z.object({
@@ -281,10 +281,10 @@ const inputCheckboxBlockSchema = z.object({
   metadata: baseInputMetadataSchema
     .extend({
       deepnote_variable_value: z.boolean().default(false),
-      deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.boolean().optional()),
+      deepnote_variable_default_value: z.boolean().nullish(),
       deepnote_input_checkbox_label: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputSelectBlockSchema = z.object({
@@ -294,10 +294,7 @@ const inputSelectBlockSchema = z.object({
   metadata: baseInputMetadataSchema
     .extend({
       deepnote_variable_value: z.union([z.string(), z.array(z.string())]).default(''),
-      deepnote_variable_default_value: z.preprocess(
-        val => (val === null ? undefined : val),
-        z.union([z.string(), z.array(z.string())]).optional()
-      ),
+      deepnote_variable_default_value: z.union([z.string(), z.array(z.string())]).nullish(),
       deepnote_variable_options: z.array(z.string()).default([]),
       deepnote_variable_custom_options: z.array(z.string()).default([]),
       deepnote_variable_selected_variable: z.string().default(''),
@@ -305,7 +302,7 @@ const inputSelectBlockSchema = z.object({
       deepnote_allow_multiple_values: z.boolean().optional(),
       deepnote_allow_empty_values: z.boolean().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputSliderBlockSchema = z.object({
@@ -315,12 +312,12 @@ const inputSliderBlockSchema = z.object({
   metadata: baseInputMetadataSchema
     .extend({
       deepnote_variable_value: z.string().default('0'),
-      deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
+      deepnote_variable_default_value: z.string().nullish(),
       deepnote_slider_min_value: z.number().default(0),
       deepnote_slider_max_value: z.number().default(100),
       deepnote_slider_step: z.number().default(1),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputDateBlockSchema = z.object({
@@ -330,11 +327,11 @@ const inputDateBlockSchema = z.object({
   metadata: baseInputMetadataSchema
     .extend({
       deepnote_variable_value: z.string().default(''),
-      deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
+      deepnote_variable_default_value: z.string().nullish(),
       deepnote_allow_empty_values: z.boolean().optional(),
       deepnote_input_date_version: z.number().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputDateRangeBlockSchema = z.object({
@@ -344,12 +341,9 @@ const inputDateRangeBlockSchema = z.object({
   metadata: baseInputMetadataSchema
     .extend({
       deepnote_variable_value: z.union([z.tuple([z.string(), z.string()]), z.string()]).default(''),
-      deepnote_variable_default_value: z.preprocess(
-        val => (val === null ? undefined : val),
-        z.union([z.tuple([z.string(), z.string()]), z.string()]).optional()
-      ),
+      deepnote_variable_default_value: z.union([z.tuple([z.string(), z.string()]), z.string()]).nullish(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputFileBlockSchema = z.object({
@@ -361,7 +355,7 @@ const inputFileBlockSchema = z.object({
       deepnote_variable_value: z.string().default(''),
       deepnote_allowed_file_extensions: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 // =============================================================================
@@ -458,7 +452,7 @@ export const environmentSchema = z
   .object({
     customImage: z.string().optional(),
     hash: z.string().optional(),
-    packages: z.record(z.string()).optional(),
+    packages: z.record(z.string(), z.string()).optional(),
     platform: z.string().optional(),
     python: z
       .object({
@@ -496,7 +490,7 @@ export const executionSchema = z
   .object({
     error: executionErrorSchema,
     finishedAt: z.string().datetime().optional(),
-    inputs: z.record(z.unknown()).optional(),
+    inputs: z.record(z.string(), z.unknown()).optional(),
     startedAt: z.string().datetime().optional(),
     summary: executionSummarySchema,
     triggeredBy: z.enum(['user', 'schedule', 'api', 'ci']).optional(),
