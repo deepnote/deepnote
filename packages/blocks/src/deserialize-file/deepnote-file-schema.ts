@@ -11,22 +11,6 @@ const emptyContent = () => z.preprocess(() => '', z.literal('').optional())
 // Base metadata schemas
 // =============================================================================
 
-function removeNullDeepnoteVariableDefaultValue<TValue, T extends { deepnote_variable_default_value?: TValue }>(
-  value: T
-): {
-  [K in keyof T]: K extends 'deepnote_variable_default_value' ? Exclude<T[K], null> : T[K]
-} {
-  if (value.deepnote_variable_default_value === null) {
-    const { deepnote_variable_default_value: _, ...rest } = value
-    return rest as {
-      [K in keyof T]: K extends 'deepnote_variable_default_value' ? Exclude<T[K], null> : T[K]
-    }
-  }
-  return value as {
-    [K in keyof T]: K extends 'deepnote_variable_default_value' ? Exclude<T[K], null> : T[K]
-  }
-}
-
 const baseBlockMetadataSchema = z
   .object({
     deepnote_app_is_code_hidden: z.boolean().optional(),
@@ -275,7 +259,6 @@ const inputTextBlockSchema = z.object({
       deepnote_variable_value: z.string().default(''),
       deepnote_variable_default_value: z.string().nullish(),
     })
-    .transform(removeNullDeepnoteVariableDefaultValue)
     .prefault({}),
 })
 
@@ -288,7 +271,6 @@ const inputTextareaBlockSchema = z.object({
       deepnote_variable_value: z.string().default(''),
       deepnote_variable_default_value: z.string().nullish(),
     })
-    .transform(removeNullDeepnoteVariableDefaultValue)
     .prefault({}),
 })
 
@@ -302,7 +284,6 @@ const inputCheckboxBlockSchema = z.object({
       deepnote_variable_default_value: z.boolean().nullish(),
       deepnote_input_checkbox_label: z.string().optional(),
     })
-    .transform(removeNullDeepnoteVariableDefaultValue)
     .prefault({}),
 })
 
@@ -321,7 +302,6 @@ const inputSelectBlockSchema = z.object({
       deepnote_allow_multiple_values: z.boolean().optional(),
       deepnote_allow_empty_values: z.boolean().optional(),
     })
-    .transform(removeNullDeepnoteVariableDefaultValue)
     .prefault({}),
 })
 
@@ -337,7 +317,6 @@ const inputSliderBlockSchema = z.object({
       deepnote_slider_max_value: z.number().default(100),
       deepnote_slider_step: z.number().default(1),
     })
-    .transform(removeNullDeepnoteVariableDefaultValue)
     .prefault({}),
 })
 
@@ -352,7 +331,6 @@ const inputDateBlockSchema = z.object({
       deepnote_allow_empty_values: z.boolean().optional(),
       deepnote_input_date_version: z.number().optional(),
     })
-    .transform(removeNullDeepnoteVariableDefaultValue)
     .prefault({}),
 })
 
@@ -365,7 +343,6 @@ const inputDateRangeBlockSchema = z.object({
       deepnote_variable_value: z.union([z.tuple([z.string(), z.string()]), z.string()]).default(''),
       deepnote_variable_default_value: z.union([z.tuple([z.string(), z.string()]), z.string()]).nullish(),
     })
-    .transform(removeNullDeepnoteVariableDefaultValue)
     .prefault({}),
 })
 
