@@ -65,7 +65,7 @@ const baseBlockFields = {
   sortingKey: z.string(),
   contentHash: z
     .string()
-    .regex(/^(md5|sha256):[a-f0-9]+$/i)
+    .regex(/^([a-z0-9]+:)?[a-f0-9]+$/i)
     .optional(),
   version: z.number().optional(),
 }
