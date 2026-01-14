@@ -37,6 +37,10 @@ export {
   convertDeepnoteToQuartoDocuments,
   serializeQuartoFormat,
 } from './deepnote-to-quarto'
+// ============================================================================
+// Format Detection
+// ============================================================================
+export { detectFormat, type NotebookFormat } from './format-detection'
 export type {
   ConvertIpynbFilesToDeepnoteFileOptions,
   ConvertJupyterNotebookOptions,
