@@ -45,13 +45,7 @@
     "commander": "^14.0.2"
   },
   "devDependencies": {
-    "@types/node": "^22.18.12",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
-  },
-  "engines": {
-    "node": ">=22.14.0",
-    "pnpm": ">=10.17.1"
+    "tsx": "^4.20.6"
   },
   "publishConfig": {
     "access": "public",
