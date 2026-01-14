@@ -6,12 +6,12 @@ This document describes the file formats used by Deepnote for storing notebooks,
 
 Deepnote uses two primary file types:
 
-| Format                | Extension            | Purpose                                                    |
-| --------------------- | -------------------- | ---------------------------------------------------------- |
-| **Deepnote Project**  | `.deepnote`          | Source file containing code, markdown, and configuration   |
-| **Deepnote Snapshot** | `.snapshot.deepnote` | Point-in-time capture of a notebook execution with outputs |
+| File                  | Extension            | Purpose                                                  |
+| --------------------- | -------------------- | -------------------------------------------------------- |
+| **Deepnote Project**  | `.deepnote`          | Source file containing code, markdown, and configuration |
+| **Deepnote Snapshot** | `.snapshot.deepnote` | A `.deepnote` file with execution outputs populated      |
 
-Both formats are YAML-based, human-readable, and designed to be Git-friendly.
+Both use the same YAML-based format. A snapshot is simply a `.deepnote` file that includes block outputs and execution metadata, stored separately to keep your source files output-free.
 
 ## The `.deepnote` Format
 
@@ -84,15 +84,16 @@ Each notebook in `project.notebooks` contains:
 
 Blocks are the fundamental units of content. Each block has:
 
-| Field        | Description                                     |
-| ------------ | ----------------------------------------------- |
-| `id`         | Unique identifier                               |
-| `blockGroup` | Groups related blocks together                  |
-| `type`       | Block type (see table below)                    |
-| `content`    | The source code, markdown text, or query        |
-| `sortingKey` | Determines display order                        |
-| `metadata`   | Execution timing and other metadata             |
-| `outputs`    | Execution outputs (when snapshots are disabled) |
+| Field         | Description                                     |
+| ------------- | ----------------------------------------------- |
+| `id`          | Unique identifier                               |
+| `blockGroup`  | Groups related blocks together                  |
+| `type`        | Block type (see table below)                    |
+| `content`     | The source code, markdown text, or query        |
+| `contentHash` | SHA-256 hash of the `content` field (optional)  |
+| `sortingKey`  | Determines display order                        |
+| `metadata`    | Execution timing and other metadata             |
+| `outputs`     | Execution outputs (when snapshots are disabled) |
 
 ### Block Types
 
@@ -145,18 +146,20 @@ outputs:
       - "..."
 ```
 
-## The `.snapshot.deepnote` Format
+## Snapshots (`.snapshot.deepnote`)
 
-Snapshot files capture the complete state of a notebook execution, providing reproducibility and execution history.
+A snapshot is a `.deepnote` file with execution outputs populated. It uses the same format as your source file, but includes block outputs and execution metadata.
 
 ### What is a Snapshot?
 
-A snapshot is a complete `.deepnote` file that represents a **point-in-time capture** of a notebook execution. It includes:
+Snapshots store execution outputs separately from your source code. The `_latest` snapshot accumulates outputs as you run blocks, always containing the most recent output for each block. It includes:
 
 - All code and configuration from the source file
-- Complete execution outputs from all blocks
-- Metadata about when and where it was executed
-- Environment information for reproducibility (the `environment` block is **required** in snapshot files)
+- Execution outputs from blocks (updated incrementally as blocks run)
+- Metadata about when blocks were executed
+- Environment information (the `environment` field is **required** in snapshot files)
+
+Each block's `contentHash` lets you verify whether the code that produced an output matches the current code.
 
 ### Why Use Snapshots?
 
@@ -164,8 +167,10 @@ A snapshot is a complete `.deepnote` file that represents a **point-in-time capt
 | --------------------- | ----------------------------------------------------------------------------- |
 | **Clean Git history** | Your `.deepnote` files only change when code changes, not when outputs change |
 | **Execution history** | Review what outputs looked like at different points in time                   |
-| **Reproducibility**   | Each snapshot captures everything needed to understand a run                  |
+| **Code provenance**   | `contentHash` verifies which code version produced each output                |
 | **Collaboration**     | Share specific execution states with teammates                                |
+
+> **Note:** Snapshots capture code provenance (via `contentHash`) but not data provenance. If external data sources change between runs, outputs may differ even with identical code.
 
 ### Directory Structure
 
@@ -204,21 +209,45 @@ customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_2025-01-08T10-30-00.snaps
 
 ### The `latest` Snapshot
 
-The `_latest.snapshot.deepnote` file always contains the most recent outputs for every block. When you run blocks:
+The `_latest.snapshot.deepnote` file accumulates outputs as you run blocks, always containing the most recent output for each block. When you run a block:
 
-1. Outputs are written to the `latest` snapshot
+1. Its output is written to the `latest` snapshot (replacing any previous output for that block)
 2. A timestamped copy is created for history
 3. The main `.deepnote` file remains output-free
 
+This means the `latest` snapshot may contain outputs from blocks run at different times, not necessarily from a single execution run.
+
+### Timestamped Snapshots
+
+Unlike the `latest` snapshot which accumulates outputs over time, timestamped snapshots capture a **point-in-time execution** of the entire notebook. When you run all blocks in a notebook (or trigger a full execution), a timestamped snapshot is created that represents that specific run.
+
+**Key differences:**
+
+| Aspect          | `latest` Snapshot                                  | Timestamped Snapshot                       |
+| --------------- | -------------------------------------------------- | ------------------------------------------ |
+| **Creation**    | Updated incrementally as individual blocks run     | Created from a complete notebook execution |
+| **Consistency** | May contain outputs from different execution times | All outputs from the same execution run    |
+| **Purpose**     | Quick access to most recent state                  | Historical record of a specific run        |
+| **Overwriting** | Always overwritten with new outputs                | Immutable once created                     |
+
+**Example workflow:**
+
+1. You run block A at 10:00 AM → `latest` snapshot updated
+2. You run block B at 10:15 AM → `latest` snapshot updated again
+3. You run all blocks at 10:30 AM → New timestamped snapshot created: `project_id_2025-01-08T10-30-00.snapshot.deepnote`
+
+The timestamped snapshot from step 3 contains a coherent execution state where all outputs were produced together, while the `latest` snapshot may contain block A's output from 10:00 and block B's output from 10:15.
+
 ### Snapshot Structure
 
-A snapshot has the same structure as a `.deepnote` file, with outputs populated:
+Since a snapshot is a `.deepnote` file, it has the same structure — just with `outputs` and `contentHash` populated:
 
 ```yaml
 version: 1.0.0
 metadata:
   createdAt: "2025-01-08T10:30:00.000Z"
   modifiedAt: "2025-01-08T10:30:00.000Z"
+  snapshotHash: sha256:def456... # top-level hash for quick comparison
 project:
   id: 2e814690-4f02-465c-8848-5567ab9253b7
   name: Customer Analysis
@@ -232,6 +261,7 @@ project:
             import pandas as pd
             df = pd.read_csv('data.csv')
             df.head()
+          contentHash: sha256:a1b2c3... # hash of the content field
           metadata:
             execution_start: 1704710400000
             execution_millis: 150
@@ -243,6 +273,26 @@ project:
               output_type: execute_result
               execution_count: 1
 ```
+
+### Snapshot Hash
+
+The `snapshotHash` in metadata provides a single value to quickly check if a snapshot is still in sync with the current code and environment.
+
+**Computed from:**
+
+- All block `contentHash` values across all notebooks
+- `environment.hash` (if present)
+- `version` (file format version)
+- `project.integrations` (id, type, name of each integration)
+
+**Explicitly excluded:**
+
+- Temporal fields (`createdAt`, `modifiedAt`, execution timestamps)
+- Execution metadata
+- Block inputs
+- Block outputs
+
+This means `snapshotHash` answers: _"Has the code, environment, or integrations changed since this snapshot was taken?"_ — without being affected by when blocks were run, data source changes or what outputs the blocks produced.
 
 ## Migration Guide
 
