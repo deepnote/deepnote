@@ -23,13 +23,13 @@ export function isPercentContent(content: string): boolean {
  * For .py files, content is required to distinguish between Marimo and Percent formats.
  */
 export function detectFormat(filename: string, content?: string): NotebookFormat {
-  const ext = filename.toLowerCase()
+  const lowercaseFilename = filename.toLowerCase()
 
-  if (ext.endsWith('.ipynb')) return 'jupyter'
-  if (ext.endsWith('.deepnote')) return 'deepnote'
-  if (ext.endsWith('.qmd')) return 'quarto'
+  if (lowercaseFilename.endsWith('.ipynb')) return 'jupyter'
+  if (lowercaseFilename.endsWith('.deepnote')) return 'deepnote'
+  if (lowercaseFilename.endsWith('.qmd')) return 'quarto'
 
-  if (ext.endsWith('.py')) {
+  if (lowercaseFilename.endsWith('.py')) {
     if (!content) {
       throw new Error('Content is required to detect format for .py files')
     }
