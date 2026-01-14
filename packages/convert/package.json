@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/convert",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "",
   "keywords": [],
   "repository": {
@@ -30,9 +30,9 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown --format esm --format cjs --dts src/bin.ts src/index.ts",
+    "build": "tsdown",
     "test": "vitest",
-    "watch": "tsdown --watch --format esm --format cjs --dts src/bin.ts src/index.ts"
+    "watch": "tsdown --watch"
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
