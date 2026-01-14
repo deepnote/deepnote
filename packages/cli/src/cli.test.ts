@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createProgram, run } from './cli'
+import { version } from './version'
 
 describe('CLI', () => {
   describe('createProgram', () => {
@@ -10,7 +11,7 @@ describe('CLI', () => {
 
     it('has version set', () => {
       const program = createProgram()
-      expect(program.version()).toBe('0.1.0')
+      expect(program.version()).toBe(version)
     })
 
     it('has expected commands registered', () => {
