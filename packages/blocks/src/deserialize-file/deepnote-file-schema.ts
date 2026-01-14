@@ -560,3 +560,12 @@ export const deepnoteFileSchema = z.object({
 })
 
 export type DeepnoteFile = z.infer<typeof deepnoteFileSchema>
+
+// Snapshot schema requires environment and execution fields.
+// .unwrap() extracts the inner schema from ZodOptional, making these fields required.
+export const deepnoteSnapshotSchema = deepnoteFileSchema.extend({
+  environment: environmentSchema.unwrap(),
+  execution: executionSchema.unwrap(),
+})
+
+export type DeepnoteSnapshot = z.infer<typeof deepnoteSnapshotSchema>

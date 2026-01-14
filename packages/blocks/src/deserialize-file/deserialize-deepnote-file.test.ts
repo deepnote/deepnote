@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { deepnoteBlockSchema, deepnoteFileSchema } from './deepnote-file-schema'
+import { deepnoteBlockSchema, deepnoteFileSchema, deepnoteSnapshotSchema } from './deepnote-file-schema'
 import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
 import * as parseYamlModule from './parse-yaml'
 
@@ -322,5 +322,93 @@ describe('contentHash schema validation', () => {
     const block = createBlock('md5:')
     const result = deepnoteBlockSchema.safeParse(block)
     expect(result.success).toBe(false)
+  })
+})
+
+describe('deepnoteSnapshotSchema', () => {
+  const baseFile = {
+    metadata: {
+      createdAt: '2025-01-01T00:00:00Z',
+    },
+    version: '1',
+    project: {
+      id: 'project-123',
+      name: 'Test Project',
+      notebooks: [],
+    },
+  }
+
+  const validEnvironment = {
+    hash: 'sha256:abc123',
+    python: {
+      version: '3.12.0',
+      environment: 'uv' as const,
+    },
+    platform: 'linux-x86_64',
+    packages: {
+      pandas: '2.1.0',
+    },
+  }
+
+  const validExecution = {
+    startedAt: '2025-12-11T10:31:48.441Z',
+    finishedAt: '2025-12-11T10:32:15.123Z',
+    triggeredBy: 'user' as const,
+    summary: {
+      blocksExecuted: 5,
+      blocksSucceeded: 5,
+      blocksFailed: 0,
+      totalDurationMs: 27000,
+    },
+  }
+
+  it('accepts valid snapshot with environment and execution', () => {
+    const snapshot = {
+      ...baseFile,
+      environment: validEnvironment,
+      execution: validExecution,
+    }
+
+    const result = deepnoteSnapshotSchema.safeParse(snapshot)
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects snapshot without environment', () => {
+    const snapshot = {
+      ...baseFile,
+      execution: validExecution,
+    }
+
+    const result = deepnoteSnapshotSchema.safeParse(snapshot)
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects snapshot without execution', () => {
+    const snapshot = {
+      ...baseFile,
+      environment: validEnvironment,
+    }
+
+    const result = deepnoteSnapshotSchema.safeParse(snapshot)
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects snapshot without both environment and execution', () => {
+    const result = deepnoteSnapshotSchema.safeParse(baseFile)
+    expect(result.success).toBe(false)
+  })
+
+  it('still validates as deepnoteFileSchema when both fields present', () => {
+    const snapshot = {
+      ...baseFile,
+      environment: validEnvironment,
+      execution: validExecution,
+    }
+
+    const fileResult = deepnoteFileSchema.safeParse(snapshot)
+    const snapshotResult = deepnoteSnapshotSchema.safeParse(snapshot)
+
+    expect(fileResult.success).toBe(true)
+    expect(snapshotResult.success).toBe(true)
   })
 })

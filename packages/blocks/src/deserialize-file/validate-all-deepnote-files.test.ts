@@ -1,7 +1,9 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { deepnoteSnapshotSchema } from './deepnote-file-schema'
 import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
+import { parseYaml } from './parse-yaml'
 
 /**
  * Recursively find all .deepnote files in a directory
@@ -71,6 +73,48 @@ describe('validate all .deepnote files in the repository', () => {
 
       // Verify timestamps are strings (not Date objects)
       expect(typeof result.metadata.createdAt, `${filePath} createdAt should be string`).toBe('string')
+    }
+  })
+})
+
+describe('validate all .snapshot.deepnote files in examples/snapshots', () => {
+  const workspaceRoot = join(__dirname, '../../../..')
+  const snapshotsDir = join(workspaceRoot, 'examples/snapshots')
+  let snapshotFiles: string[] = []
+
+  beforeAll(async () => {
+    const entries = await readdir(snapshotsDir, { withFileTypes: true })
+    snapshotFiles = entries
+      .filter(entry => entry.isFile() && entry.name.endsWith('.snapshot.deepnote'))
+      .map(entry => entry.name)
+      .sort()
+  })
+
+  it('discovers .snapshot.deepnote files in examples/snapshots', () => {
+    expect(snapshotFiles.length).toBeGreaterThan(0)
+  })
+
+  it('validates all snapshot files against deepnoteSnapshotSchema', async () => {
+    expect(snapshotFiles.length).toBeGreaterThan(0)
+
+    const results = await Promise.all(
+      snapshotFiles.map(async fileName => {
+        const fullPath = join(snapshotsDir, fileName)
+        const yamlContent = await readFile(fullPath, 'utf-8')
+        const parsed = parseYaml(yamlContent)
+        const result = deepnoteSnapshotSchema.safeParse(parsed)
+
+        return { fileName, result }
+      })
+    )
+
+    for (const { fileName, result } of results) {
+      expect(result.success, `${fileName} should validate against deepnoteSnapshotSchema`).toBe(true)
+
+      if (result.success) {
+        expect(result.data.environment, `${fileName} should have environment`).toBeDefined()
+        expect(result.data.execution, `${fileName} should have execution`).toBeDefined()
+      }
     }
   })
 })

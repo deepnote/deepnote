@@ -2,6 +2,7 @@ export type { TableState } from './blocks/table-state'
 export type {
   DeepnoteBlock,
   DeepnoteFile,
+  DeepnoteSnapshot,
   Environment,
   Execution,
   ExecutionError,
@@ -10,6 +11,7 @@ export type {
 export {
   deepnoteBlockSchema,
   deepnoteFileSchema,
+  deepnoteSnapshotSchema,
   environmentSchema,
   executionErrorSchema,
   executionSchema,
