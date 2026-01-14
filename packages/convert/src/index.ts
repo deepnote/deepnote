@@ -4,6 +4,7 @@
 export type { ConvertBlocksToJupyterOptions } from './deepnote-to-jupyter'
 export {
   convertBlocksToJupyterNotebook,
+  convertBlockToJupyterCell,
   convertDeepnoteFileToJupyterFiles as convertDeepnoteFileToJupyter,
   convertDeepnoteToJupyterNotebooks,
 } from './deepnote-to-jupyter'
