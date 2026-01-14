@@ -1,30 +1,32 @@
+import * as crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
-import * as uuid from 'uuid'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { convertMarimoAppToBlocks, convertMarimoFilesToDeepnoteFile, parseMarimoFormat } from './marimo-to-deepnote'
 
-// Mock uuid to generate predictable IDs for testing
-vi.mock('uuid', async () => {
-  const actual = await vi.importActual<typeof import('uuid')>('uuid')
+// Mock crypto.randomUUID to generate predictable IDs for testing
+vi.mock('node:crypto', async () => {
+  const actual = await vi.importActual<typeof import('node:crypto')>('node:crypto')
   let counter = 0
-  const mockV4 = vi.fn(() => {
+  const mockRandomUUID = vi.fn(() => {
     counter++
     return `test-uuid-${counter.toString().padStart(3, '0')}`
   })
-  ;(mockV4 as typeof mockV4 & { __resetCounter: () => void }).__resetCounter = () => {
+  ;(mockRandomUUID as typeof mockRandomUUID & { __resetCounter: () => void }).__resetCounter = () => {
     counter = 0
   }
   return {
     ...actual,
-    v4: mockV4,
+    randomUUID: mockRandomUUID,
   }
 })
 
-function getMockedUuidV4() {
-  return vi.mocked(uuid.v4) as ReturnType<typeof vi.mocked<typeof uuid.v4>> & { __resetCounter: () => void }
+function getMockedRandomUUID() {
+  return vi.mocked(crypto.randomUUID) as ReturnType<typeof vi.mocked<typeof crypto.randomUUID>> & {
+    __resetCounter: () => void
+  }
 }
 
 describe('parseMarimoFormat', () => {
@@ -697,9 +699,9 @@ if __name__ == "__main__":
 
 describe('convertMarimoAppToBlocks', () => {
   beforeEach(() => {
-    const mockedV4 = getMockedUuidV4()
-    mockedV4.mockClear()
-    mockedV4.__resetCounter()
+    const mockedRandomUUID = getMockedRandomUUID()
+    mockedRandomUUID.mockClear()
+    mockedRandomUUID.__resetCounter()
   })
 
   it('converts a Marimo app to blocks', () => {
@@ -832,9 +834,9 @@ describe('convertMarimoFilesToDeepnoteFile', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
-    const mockedV4 = getMockedUuidV4()
-    mockedV4.mockClear()
-    mockedV4.__resetCounter()
+    const mockedRandomUUID = getMockedRandomUUID()
+    mockedRandomUUID.mockClear()
+    mockedRandomUUID.__resetCounter()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
   })

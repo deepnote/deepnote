@@ -1,7 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { PercentCell, PercentNotebook } from './types/percent'
 import { createSortingKey } from './utils'
@@ -12,7 +12,7 @@ export interface ConvertPercentFilesToDeepnoteFileOptions {
 }
 
 export interface ConvertPercentNotebookOptions {
-  /** Custom ID generator function. Defaults to uuid v4. */
+  /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
 }
 
@@ -156,7 +156,7 @@ export function convertPercentNotebookToBlocks(
   notebook: PercentNotebook,
   options?: ConvertPercentNotebookOptions
 ): DeepnoteBlock[] {
-  const idGenerator = options?.idGenerator ?? v4
+  const idGenerator = options?.idGenerator ?? randomUUID
   return notebook.cells.map((cell, index) => convertCellToBlock(cell, index, idGenerator))
 }
 
@@ -173,14 +173,14 @@ export function convertPercentNotebooksToDeepnote(
   options: { projectName: string }
 ): DeepnoteFile {
   // Generate the first notebook ID upfront so we can use it as the project entrypoint
-  const firstNotebookId = notebooks.length > 0 ? v4() : undefined
+  const firstNotebookId = notebooks.length > 0 ? randomUUID() : undefined
 
   const deepnoteFile: DeepnoteFile = {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: v4(),
+      id: randomUUID(),
       initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
@@ -198,7 +198,7 @@ export function convertPercentNotebooksToDeepnote(
     const blocks = convertPercentNotebookToBlocks(notebook)
 
     // Use pre-generated ID for the first notebook, generate new ones for the rest
-    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : v4()
+    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : randomUUID()
 
     deepnoteFile.project.notebooks.push({
       blocks,
