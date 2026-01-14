@@ -1,9 +1,10 @@
 metadata:
   createdAt: '2025-11-04T05:25:00.936Z'
-  modifiedAt: '2026-01-14T12:15:06.220Z'
+  modifiedAt: '2026-01-14T14:09:13.693Z'
+  snapshotHash: sha256:7a3db0f474fa2fc56855a45456c85ec5214a57c271938b9bb4fd72eb29cd5e2b
 project:
   id: 1c0d890d-b9b3-492b-bc41-6dd4047cc2ff
-  name: integrations
+  name: Integrations example
   integrations:
     - id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
       name: ClickHouse playground OSS

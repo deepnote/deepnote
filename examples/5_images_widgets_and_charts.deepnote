@@ -1,11 +1,12 @@
 metadata:
   createdAt: 2026-01-07T09:34:39.434Z
-  modifiedAt: '2026-01-14T12:10:35.060Z'
+  modifiedAt: '2026-01-14T14:08:50.382Z'
+  snapshotHash: sha256:5673bb3a774c11f5e42bcd456d1010836fb1610ab3a7e7cfcdf0264eea9d1247
 project:
   id: 2251cf35-d19a-4966-94ad-71ca8687fff0
   initNotebookId: f9903b00-f4e2-47b9-a96d-b98298e346d1
   integrations: []
-  name: output_tests
+  name: Output tests
   notebooks:
     - blocks:
         - blockGroup: 15e244d3-454f-4c1f-8294-86f374808f8f

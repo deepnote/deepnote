@@ -1,9 +1,10 @@
 metadata:
   createdAt: '2025-11-04T03:58:18.554Z'
-  modifiedAt: '2026-01-14T11:27:17.803Z'
+  modifiedAt: '2026-01-14T13:55:42.716Z'
+  snapshotHash: sha256:13a162d5bce256279b333af1008ed54c4d78017e73f37fd96bd1ed2628035635
 project:
   id: d025b1dd-0ea7-49e8-8229-b571dd98d430
-  name: blocks.deepnote
+  name: Deepnote blocks
   notebooks:
     - blocks:
         - blockGroup: 00cb9c25-8938-454b-ab4c-fd5af04fa0ad
@@ -22,8 +23,8 @@ project:
           metadata: {}
           sortingKey: a1
           type: code
-          executionCount: 0
           contentHash: sha256:866b5033009e3e3f3e40bef180e6924d937996a57fc8b5ce85090b5d14459f1f
+          executionCount: 0
       executionMode: block
       id: 921d82a6-7cb1-4fc6-a061-810ce23f803d
       name: 1. Text blocks

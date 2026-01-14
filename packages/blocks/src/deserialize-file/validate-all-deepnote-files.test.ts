@@ -109,12 +109,13 @@ describe('validate all .snapshot.deepnote files in examples/snapshots', () => {
     )
 
     for (const { fileName, result } of results) {
-      expect(result.success, `${fileName} should validate against deepnoteSnapshotSchema`).toBe(true)
-
-      if (result.success) {
-        expect(result.data.environment, `${fileName} should have environment`).toBeDefined()
-        expect(result.data.execution, `${fileName} should have execution`).toBeDefined()
+      if (!result.success) {
+        const errors = result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('\n  ')
+        expect.fail(`${fileName} failed validation:\n  ${errors}`)
       }
+
+      expect(result.data.environment, `${fileName} should have environment`).toBeDefined()
+      expect(result.data.execution, `${fileName} should have execution`).toBeDefined()
     }
   })
 })

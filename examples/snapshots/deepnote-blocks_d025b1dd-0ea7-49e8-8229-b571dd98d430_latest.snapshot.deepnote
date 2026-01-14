@@ -1,9 +1,10 @@
 metadata:
   createdAt: '2025-11-04T03:58:18.554Z'
-  modifiedAt: '2026-01-14T11:27:15.069Z'
+  modifiedAt: '2026-01-14T13:55:41.587Z'
+  snapshotHash: sha256:13a162d5bce256279b333af1008ed54c4d78017e73f37fd96bd1ed2628035635
 project:
   id: d025b1dd-0ea7-49e8-8229-b571dd98d430
-  name: blocks.deepnote
+  name: Deepnote blocks
   notebooks:
     - blocks:
         - blockGroup: 00cb9c25-8938-454b-ab4c-fd5af04fa0ad
@@ -15,12 +16,14 @@ project:
           metadata: {}
           sortingKey: a0
           type: markdown
+          contentHash: sha256:eb9e62431ccf3c55d9ba38c18ff9156cc22d90f06a674dddaa43e7bbc68b3f91
         - blockGroup: 51ce0ff4-65dc-42ca-b2c1-1bf0d37fab2a
           content: print("Hello World!")
           id: 2665e1a332df6436b0ce30d662bfe1f1
           metadata: {}
           sortingKey: a1
           type: code
+          contentHash: sha256:866b5033009e3e3f3e40bef180e6924d937996a57fc8b5ce85090b5d14459f1f
           executionCount: 0
           outputs:
             - name: stdout
@@ -199,13 +202,13 @@ project:
       name: 2. Input blocks
 version: 1.0.0
 execution:
-  finishedAt: '2026-01-14T11:27:15.017Z'
-  startedAt: '2026-01-14T11:27:15.000Z'
+  finishedAt: '2026-01-14T13:55:41.542Z'
+  startedAt: '2026-01-14T13:55:41.519Z'
   summary:
     blocksExecuted: 1
     blocksFailed: 0
     blocksSucceeded: 1
-    totalDurationMs: 17
+    totalDurationMs: 23
   triggeredBy: user
 environment:
   hash: sha256:1cfc8657751731c03e0937180f8190c8ecc2eef48c963ac5b752e8d618634135

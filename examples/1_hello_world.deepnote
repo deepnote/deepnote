@@ -1,9 +1,10 @@
 metadata:
   createdAt: 2025-11-04T00:31:57.544Z
-  modifiedAt: '2026-01-14T12:15:08.414Z'
+  modifiedAt: '2026-01-14T13:54:15.969Z'
+  snapshotHash: sha256:29de6eb7a0a8b89cd0cb020b22e784aaa3e347d02ce17653a23557d15fc26ae2
 project:
   id: 18aaab73-3599-4bb5-b2ab-c05ac09f597d
-  name: Hello World
+  name: Hello world
   notebooks:
     - blocks:
         - blockGroup: 15bc86a3d6684d3aa0eaad3b0c42a1eb
@@ -15,8 +16,8 @@ project:
             execution_context_id: 64071681-0ac3-4ec4-bf54-9f24799bda87
           sortingKey: a0
           type: code
-          executionCount: 1
           contentHash: sha256:720ad93a070ca1889b939d639e469171d3020b6b9b79b31323354da0a3ef23f4
+          executionCount: 1
       executionMode: block
       id: 7061f86dec6e4e11893288f295a82017
       isModule: false

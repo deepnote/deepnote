@@ -1,22 +1,27 @@
 metadata:
   createdAt: '2025-12-11T10:30:00.000Z'
-  modifiedAt: '2026-01-14T12:16:23.557Z'
+  modifiedAt: '2026-01-14T13:53:19.852Z'
 project:
   id: inline-outputs-example
-  name: Inline Outputs Example
+  name: Inline outputs example
   notebooks:
     - blocks:
         - blockGroup: intro-block-group
-          content: |-
+          content: >-
             # Inline Outputs Example
 
-            This example demonstrates storing execution outputs directly in the `.deepnote` file.
-            Each code block contains its outputs inline, making the file self-contained.
+
+            This example demonstrates storing execution outputs directly in the
+            `.deepnote` file.
+
+            Each code block contains its outputs inline, making the file
+            self-contained.
           id: intro-block-id
           metadata: {}
           sortingKey: a0
           type: markdown
-          contentHash: sha256:679b47164552cd214b3b5e1fdd7d32b1c73b0dbf7c780198f57d1b650257549a
+          contentHash: >-
+            sha256:679b47164552cd214b3b5e1fdd7d32b1c73b0dbf7c780198f57d1b650257549a
         - blockGroup: print-block-group
           content: print("Hello from inline outputs!")
           id: print-block-id
@@ -29,7 +34,8 @@ project:
               output_type: stream
               text: |
                 Hello from inline outputs!
-          contentHash: sha256:d4d9f58c0b96071a6b7b828c9dc334d700ef39fc790514382f75ce6f050e8b3f
+          contentHash: >-
+            sha256:d4d9f58c0b96071a6b7b828c9dc334d700ef39fc790514382f75ce6f050e8b3f
           executionStartedAt: '2026-01-14T12:16:20.956Z'
           executionFinishedAt: '2026-01-14T12:16:20.973Z'
         - blockGroup: calc-block-group
@@ -57,7 +63,8 @@ project:
                   type: code
                 cellIndex: 2
                 metadata: {}
-          contentHash: sha256:fd53e320df49a920c3ce41ebd4e2c80093a7c2d5d899e5b3f4a260652a2fb66d
+          contentHash: >-
+            sha256:fd53e320df49a920c3ce41ebd4e2c80093a7c2d5d899e5b3f4a260652a2fb66d
           executionStartedAt: '2026-01-14T12:16:20.970Z'
           executionFinishedAt: '2026-01-14T12:16:20.998Z'
         - blockGroup: greeting-block-group
@@ -75,7 +82,8 @@ project:
               output_type: stream
               text: |
                 Welcome to Deepnote!
-          contentHash: sha256:3ab3fb1d6064368db4b18e2a1c04439a0ce1448f3556c9a1b78ecb55ccaf3d08
+          contentHash: >-
+            sha256:3ab3fb1d6064368db4b18e2a1c04439a0ce1448f3556c9a1b78ecb55ccaf3d08
           executionStartedAt: '2026-01-14T12:16:20.991Z'
           executionFinishedAt: '2026-01-14T12:16:21.035Z'
       executionMode: block

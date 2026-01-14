@@ -326,9 +326,10 @@ describe('contentHash schema validation', () => {
 })
 
 describe('deepnoteSnapshotSchema', () => {
-  const baseFile = {
+  const baseSnapshot = {
     metadata: {
       createdAt: '2025-01-01T00:00:00Z',
+      snapshotHash: 'sha256:abc123def456',
     },
     version: '1',
     project: {
@@ -364,7 +365,7 @@ describe('deepnoteSnapshotSchema', () => {
 
   it('accepts valid snapshot with environment and execution', () => {
     const snapshot = {
-      ...baseFile,
+      ...baseSnapshot,
       environment: validEnvironment,
       execution: validExecution,
     }
@@ -375,7 +376,7 @@ describe('deepnoteSnapshotSchema', () => {
 
   it('rejects snapshot without environment', () => {
     const snapshot = {
-      ...baseFile,
+      ...baseSnapshot,
       execution: validExecution,
     }
 
@@ -385,7 +386,7 @@ describe('deepnoteSnapshotSchema', () => {
 
   it('rejects snapshot without execution', () => {
     const snapshot = {
-      ...baseFile,
+      ...baseSnapshot,
       environment: validEnvironment,
     }
 
@@ -394,13 +395,39 @@ describe('deepnoteSnapshotSchema', () => {
   })
 
   it('rejects snapshot without both environment and execution', () => {
-    const result = deepnoteSnapshotSchema.safeParse(baseFile)
+    const result = deepnoteSnapshotSchema.safeParse(baseSnapshot)
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects snapshot without snapshotHash in metadata', () => {
+    const snapshot = {
+      metadata: {
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      version: '1',
+      project: {
+        id: 'project-123',
+        name: 'Test Project',
+        notebooks: [],
+      },
+      environment: {
+        hash: 'sha256:abc123',
+        python: { version: '3.12.0', environment: 'uv' as const },
+      },
+      execution: {
+        startedAt: '2025-12-11T10:31:48.441Z',
+        finishedAt: '2025-12-11T10:32:15.123Z',
+        triggeredBy: 'user' as const,
+      },
+    }
+
+    const result = deepnoteSnapshotSchema.safeParse(snapshot)
     expect(result.success).toBe(false)
   })
 
   it('still validates as deepnoteFileSchema when both fields present', () => {
     const snapshot = {
-      ...baseFile,
+      ...baseSnapshot,
       environment: validEnvironment,
       execution: validExecution,
     }
