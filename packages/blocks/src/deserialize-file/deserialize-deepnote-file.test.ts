@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { deepnoteFileSchema } from './deepnote-file-schema'
+import { deepnoteBlockSchema, deepnoteFileSchema } from './deepnote-file-schema'
 import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
 import * as parseYamlModule from './parse-yaml'
 
@@ -262,5 +262,65 @@ describe('deserializeDeepnoteFile', () => {
     expect(() => deserializeDeepnoteFile('bad')).toThrow('Failed to parse the Deepnote file: blocks.0.type: Required.')
 
     safeParseSpy.mockRestore()
+  })
+})
+
+describe('contentHash schema validation', () => {
+  const createBlock = (contentHash: string | undefined) => ({
+    id: 'block-1',
+    blockGroup: 'group-1',
+    type: 'code' as const,
+    sortingKey: '0',
+    content: 'x = 10',
+    contentHash,
+    metadata: {},
+  })
+
+  it('accepts contentHash with md5 prefix', () => {
+    const block = createBlock('md5:d3b07384d113edec49eaa6238ad5ff00')
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts contentHash with sha256 prefix', () => {
+    const block = createBlock('sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts contentHash with other prefixes', () => {
+    const block = createBlock('blake2:abc123def456')
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts contentHash without prefix (plain hex)', () => {
+    const block = createBlock('d3b07384d113edec49eaa6238ad5ff00')
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts undefined contentHash', () => {
+    const block = createBlock(undefined)
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects contentHash with invalid hex characters', () => {
+    const block = createBlock('md5:xyz123')
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects contentHash with empty string', () => {
+    const block = createBlock('')
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects contentHash with only prefix and no hash', () => {
+    const block = createBlock('md5:')
+    const result = deepnoteBlockSchema.safeParse(block)
+    expect(result.success).toBe(false)
   })
 })

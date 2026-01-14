@@ -5,6 +5,7 @@ import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   convertBlocksToJupyterNotebook,
+  convertBlockToJupyterCell,
   convertDeepnoteFileToJupyterFiles,
   convertDeepnoteToJupyterNotebooks,
 } from './deepnote-to-jupyter'
@@ -286,6 +287,156 @@ project:
     const outputDir = join(testOutputDir, 'invalid-output')
 
     await expect(convertDeepnoteFileToJupyterFiles(invalidYamlPath, { outputDir })).rejects.toThrow()
+  })
+})
+
+describe('convertBlockToJupyterCell', () => {
+  it('converts a code block to a code cell', () => {
+    const block: DeepnoteBlock = {
+      id: 'code-block',
+      type: 'code',
+      content: "print('hello')",
+      blockGroup: 'group-1',
+      sortingKey: '0',
+      executionCount: 1,
+      outputs: [{ output_type: 'stream', name: 'stdout', text: ['hello\n'] }],
+      metadata: {},
+    }
+
+    const cell = convertBlockToJupyterCell(block)
+
+    expect(cell.cell_type).toBe('code')
+    expect(cell.source).toBe("print('hello')")
+    expect(cell.execution_count).toBe(1)
+    expect(cell.outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: ['hello\n'] }])
+    expect(cell.metadata.cell_id).toBe('code-block')
+    expect(cell.metadata.deepnote_cell_type).toBe('code')
+  })
+
+  it('converts a markdown block to a markdown cell', () => {
+    const block: DeepnoteBlock = {
+      id: 'md-block',
+      type: 'markdown',
+      content: '# Title\n\nSome text',
+      blockGroup: 'group-1',
+      sortingKey: '0',
+      metadata: {},
+    }
+
+    const cell = convertBlockToJupyterCell(block)
+
+    expect(cell.cell_type).toBe('markdown')
+    expect(cell.source).toBe('# Title\n\nSome text')
+    expect(cell.metadata.cell_id).toBe('md-block')
+    expect(cell.metadata.deepnote_cell_type).toBe('markdown')
+    expect(cell.outputs).toBeUndefined()
+  })
+
+  it('preserves deepnote_source for roundtrip conversion', () => {
+    const block: DeepnoteBlock = {
+      id: 'sql-block',
+      type: 'sql',
+      content: 'SELECT * FROM users',
+      blockGroup: 'group-1',
+      sortingKey: '0',
+      metadata: {},
+    }
+
+    const cell = convertBlockToJupyterCell(block)
+
+    expect(cell.metadata.deepnote_source).toBe('SELECT * FROM users')
+    expect(cell.metadata.deepnote_cell_type).toBe('sql')
+  })
+
+  it('preserves sorting key and block group', () => {
+    const block: DeepnoteBlock = {
+      id: 'block-1',
+      type: 'code',
+      content: 'x = 1',
+      blockGroup: 'group-abc',
+      sortingKey: '42',
+      metadata: {},
+    }
+
+    const cell = convertBlockToJupyterCell(block)
+
+    expect(cell.block_group).toBe('group-abc')
+    expect(cell.metadata.deepnote_block_group).toBe('group-abc')
+    expect(cell.metadata.deepnote_sorting_key).toBe('42')
+  })
+
+  it('produces identical output to convertBlocksToJupyterNotebook for each block', () => {
+    const blocks: DeepnoteBlock[] = [
+      {
+        id: 'block-1',
+        type: 'markdown',
+        content: '# Hello World',
+        blockGroup: 'group-1',
+        sortingKey: '0',
+        metadata: {},
+      },
+      {
+        id: 'block-2',
+        type: 'code',
+        content: "print('hello')",
+        blockGroup: 'group-2',
+        sortingKey: '1',
+        executionCount: 1,
+        outputs: [{ output_type: 'stream', name: 'stdout', text: ['hello\n'] }],
+        metadata: {},
+      },
+    ]
+
+    const notebook = convertBlocksToJupyterNotebook(blocks, {
+      notebookId: 'nb-1',
+      notebookName: 'Test',
+    })
+
+    // Convert each block individually and compare
+    const cellsFromIndividualConversion = blocks.map(block => convertBlockToJupyterCell(block))
+
+    expect(cellsFromIndividualConversion).toEqual(notebook.cells)
+  })
+
+  it('handles input blocks correctly', () => {
+    const block: DeepnoteBlock = {
+      id: 'input-text-block',
+      type: 'input-text',
+      content: '',
+      blockGroup: 'group-1',
+      sortingKey: '0',
+      metadata: {
+        deepnote_variable_name: 'text_input',
+        deepnote_variable_value: 'hello',
+      },
+    }
+
+    const cell = convertBlockToJupyterCell(block)
+
+    expect(cell.cell_type).toBe('code')
+    expect(cell.metadata.deepnote_cell_type).toBe('input-text')
+    expect(cell.metadata.deepnote_variable_name).toBe('text_input')
+    expect(cell.metadata.deepnote_variable_value).toBe('hello')
+  })
+
+  it('preserves execution timing metadata', () => {
+    const block: DeepnoteBlock = {
+      id: 'block-1',
+      type: 'code',
+      content: 'x = 1',
+      blockGroup: 'group-1',
+      sortingKey: '0',
+      executionStartedAt: '2024-01-01T00:00:00Z',
+      executionFinishedAt: '2024-01-01T00:00:01Z',
+      contentHash: 'abc123',
+      metadata: {},
+    }
+
+    const cell = convertBlockToJupyterCell(block)
+
+    expect(cell.metadata.deepnote_execution_started_at).toBe('2024-01-01T00:00:00Z')
+    expect(cell.metadata.deepnote_execution_finished_at).toBe('2024-01-01T00:00:01Z')
+    expect(cell.metadata.deepnote_content_hash).toBe('abc123')
   })
 })
 

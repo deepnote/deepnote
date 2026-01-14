@@ -49,7 +49,7 @@ export function convertBlocksToJupyterNotebook(
   blocks: DeepnoteBlock[],
   options: ConvertBlocksToJupyterOptions
 ): JupyterNotebook {
-  const cells = blocks.map(block => convertBlockToCell(block))
+  const cells = blocks.map(block => convertBlockToJupyterCell(block))
 
   return {
     cells,
@@ -124,7 +124,27 @@ export async function convertDeepnoteFileToJupyterFiles(
   }
 }
 
-function convertBlockToCell(block: DeepnoteBlock): JupyterCell {
+/**
+ * Converts a single Deepnote block to a Jupyter cell.
+ * This is useful for streaming export scenarios where blocks need to be
+ * processed one at a time rather than converting an entire notebook at once.
+ *
+ * @param block - A single DeepnoteBlock to convert
+ * @returns A JupyterCell object
+ *
+ * @example
+ * ```typescript
+ * import { convertBlockToJupyterCell } from '@deepnote/convert'
+ * import type { JupyterCell } from '@deepnote/convert'
+ *
+ * // Streaming export example
+ * for await (const block of blockStream) {
+ *   const cell: JupyterCell = convertBlockToJupyterCell(block)
+ *   outputStream.write(JSON.stringify(cell))
+ * }
+ * ```
+ */
+export function convertBlockToJupyterCell(block: DeepnoteBlock): JupyterCell {
   const content = block.content || ''
   const jupyterCellType = convertBlockTypeToJupyter(block.type)
 
