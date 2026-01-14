@@ -1,15 +1,9 @@
-// ============================================================================
-// Jupyter (.ipynb) Converters
-// ============================================================================
 export type { ConvertBlocksToJupyterOptions } from './deepnote-to-jupyter'
 export {
   convertBlocksToJupyterNotebook,
   convertDeepnoteFileToJupyterFiles as convertDeepnoteFileToJupyter,
   convertDeepnoteToJupyterNotebooks,
 } from './deepnote-to-jupyter'
-// ============================================================================
-// Marimo (.py with @app.cell) Converters
-// ============================================================================
 export type { ConvertDeepnoteFileToMarimoOptions } from './deepnote-to-marimo'
 export {
   convertBlocksToMarimoApp,
@@ -17,9 +11,6 @@ export {
   convertDeepnoteToMarimoApps,
   serializeMarimoFormat,
 } from './deepnote-to-marimo'
-// ============================================================================
-// Percent Format (.py with # %%) Converters
-// ============================================================================
 export type { ConvertDeepnoteFileToPercentOptions } from './deepnote-to-percent'
 export {
   convertBlocksToPercentNotebook,
@@ -27,9 +18,6 @@ export {
   convertDeepnoteToPercentNotebooks,
   serializePercentFormat,
 } from './deepnote-to-percent'
-// ============================================================================
-// Quarto (.qmd) Converters
-// ============================================================================
 export type { ConvertDeepnoteFileToQuartoOptions } from './deepnote-to-quarto'
 export {
   convertBlocksToQuartoDocument,
@@ -37,9 +25,6 @@ export {
   convertDeepnoteToQuartoDocuments,
   serializeQuartoFormat,
 } from './deepnote-to-quarto'
-// ============================================================================
-// Format Detection
-// ============================================================================
 export { detectFormat, type NotebookFormat } from './format-detection'
 export type {
   ConvertIpynbFilesToDeepnoteFileOptions,
