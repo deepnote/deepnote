@@ -1,0 +1,5 @@
+src/
+*.ts
+!*.d.ts
+tsdown.config.ts
+.npmignore
