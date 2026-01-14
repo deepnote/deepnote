@@ -1,32 +1,34 @@
+import * as crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
-import * as uuid from 'uuid'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { convertIpynbFilesToDeepnoteFile, convertJupyterNotebookToBlocks } from './jupyter-to-deepnote'
 
-// Mock uuid to generate predictable IDs for testing
-vi.mock('uuid', async () => {
-  const actual = await vi.importActual<typeof import('uuid')>('uuid')
+// Mock crypto.randomUUID to generate predictable IDs for testing
+vi.mock('node:crypto', async () => {
+  const actual = await vi.importActual<typeof import('node:crypto')>('node:crypto')
   let counter = 0
-  const mockV4 = vi.fn(() => {
+  const mockRandomUUID = vi.fn(() => {
     counter++
     return `test-uuid-${counter.toString().padStart(3, '0')}`
   })
   // Attach reset function to the mock
-  ;(mockV4 as typeof mockV4 & { __resetCounter: () => void }).__resetCounter = () => {
+  ;(mockRandomUUID as typeof mockRandomUUID & { __resetCounter: () => void }).__resetCounter = () => {
     counter = 0
   }
   return {
     ...actual,
-    v4: mockV4,
+    randomUUID: mockRandomUUID,
   }
 })
 
-// Helper to get the mocked uuid.v4 with reset function
-function getMockedUuidV4() {
-  return vi.mocked(uuid.v4) as ReturnType<typeof vi.mocked<typeof uuid.v4>> & { __resetCounter: () => void }
+// Helper to get the mocked crypto.randomUUID with reset function
+function getMockedRandomUUID() {
+  return vi.mocked(crypto.randomUUID) as ReturnType<typeof vi.mocked<typeof crypto.randomUUID>> & {
+    __resetCounter: () => void
+  }
 }
 
 describe('createSortingKey', () => {
@@ -38,9 +40,9 @@ describe('createSortingKey', () => {
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     try {
-      const mockedV4 = getMockedUuidV4()
-      mockedV4.mockClear()
-      mockedV4.__resetCounter()
+      const mockedRandomUUID = getMockedRandomUUID()
+      mockedRandomUUID.mockClear()
+      mockedRandomUUID.__resetCounter()
 
       await convertIpynbFilesToDeepnoteFile([path.join(__dirname, '__fixtures__', 'simple.ipynb')], {
         outputPath,
@@ -80,9 +82,9 @@ describe('createSortingKey', () => {
 
     try {
       await fs.writeFile(inputPath, JSON.stringify(notebookWithManyCells), 'utf-8')
-      const mockedV4 = getMockedUuidV4()
-      mockedV4.mockClear()
-      mockedV4.__resetCounter()
+      const mockedRandomUUID = getMockedRandomUUID()
+      mockedRandomUUID.mockClear()
+      mockedRandomUUID.__resetCounter()
 
       await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
 
@@ -114,9 +116,9 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
     // Reset the UUID counter before each test
-    const mockedV4 = getMockedUuidV4()
-    mockedV4.mockClear()
-    mockedV4.__resetCounter()
+    const mockedRandomUUID = getMockedRandomUUID()
+    mockedRandomUUID.mockClear()
+    mockedRandomUUID.__resetCounter()
     // Set a fixed date for deterministic timestamps
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
@@ -456,9 +458,9 @@ describe('snapshot tests - exact YAML output format', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
     // Reset the UUID counter before each test
-    const mockedV4 = getMockedUuidV4()
-    mockedV4.mockClear()
-    mockedV4.__resetCounter()
+    const mockedRandomUUID = getMockedRandomUUID()
+    mockedRandomUUID.mockClear()
+    mockedRandomUUID.__resetCounter()
     // Set a fixed date for deterministic timestamps
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
@@ -1296,9 +1298,9 @@ describe('snapshot tests - exact YAML output format', () => {
 
 describe('convertJupyterNotebookToBlocks', () => {
   beforeEach(() => {
-    const mockedV4 = getMockedUuidV4()
-    mockedV4.mockClear()
-    mockedV4.__resetCounter()
+    const mockedRandomUUID = getMockedRandomUUID()
+    mockedRandomUUID.mockClear()
+    mockedRandomUUID.__resetCounter()
   })
 
   it('converts a Jupyter notebook to blocks', () => {
