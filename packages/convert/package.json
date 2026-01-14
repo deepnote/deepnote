@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/convert",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "",
   "keywords": [],
   "repository": {
@@ -12,11 +12,13 @@
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     }
   },
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "deepnote-convert": "./dist/bin.js"
@@ -28,9 +30,9 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown --format esm --dts src/bin.ts src/index.ts",
+    "build": "tsdown --format esm --format cjs --dts src/bin.ts src/index.ts",
     "test": "vitest",
-    "watch": "tsdown --watch --format esm --dts src/bin.ts src/index.ts"
+    "watch": "tsdown --watch --format esm --format cjs --dts src/bin.ts src/index.ts"
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
