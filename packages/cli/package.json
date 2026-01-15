@@ -41,6 +41,7 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
+    "@deepnote/blocks": "workspace:*",
     "chalk": "^5.4.1",
     "commander": "^14.0.2"
   },

@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { createInspectAction } from './commands/inspect'
 import { version } from './version'
 
 /**
@@ -27,18 +28,14 @@ export function createProgram(): Command {
 
 /**
  * Registers all available commands on the program.
- * Commands are placeholders for now - full implementation will come in later phases.
  */
 function registerCommands(program: Command): void {
-  // Run command - for executing .deepnote projects
+  // Inspect command - for inspecting and displaying .deepnote file metadata
   program
-    .command('run')
-    .description('Run a Deepnote project locally or on Deepnote Cloud')
-    .argument('[path]', 'Path to .deepnote file or project URL')
-    .option('--cloud', 'Run on Deepnote Cloud instead of locally')
-    .action(() => {
-      process.exit(1)
-    })
+    .command('inspect')
+    .description('Inspect and display metadata from a .deepnote file')
+    .argument('<path>', 'Path to .deepnote file')
+    .action(createInspectAction(program))
 }
 
 /**

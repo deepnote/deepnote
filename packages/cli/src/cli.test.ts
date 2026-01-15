@@ -18,19 +18,17 @@ describe('CLI', () => {
       const program = createProgram()
       const commandNames = program.commands.map(cmd => cmd.name())
 
-      expect(commandNames).toContain('run')
+      expect(commandNames).toContain('inspect')
     })
   })
 
   describe('commands', () => {
-    it('run command has expected options', () => {
+    it('inspect command is properly configured', () => {
       const program = createProgram()
-      const runCmd = program.commands.find(cmd => cmd.name() === 'run')
+      const inspectCmd = program.commands.find(cmd => cmd.name() === 'inspect')
 
-      expect(runCmd).toBeDefined()
-
-      const optionNames = runCmd?.options.map(opt => opt.long) ?? []
-      expect(optionNames).toContain('--cloud')
+      expect(inspectCmd).toBeDefined()
+      expect(inspectCmd?.description()).toBe('Inspect and display metadata from a .deepnote file')
     })
   })
 

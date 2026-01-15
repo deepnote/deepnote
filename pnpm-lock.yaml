@@ -65,6 +65,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@deepnote/blocks':
+        specifier: workspace:*
+        version: link:../blocks
       chalk:
         specifier: ^5.4.1
         version: 5.6.2

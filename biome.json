@@ -123,5 +123,17 @@
   "assist": {
     "enabled": true,
     "actions": { "source": { "organizeImports": "on" } }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/cli/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
 }
