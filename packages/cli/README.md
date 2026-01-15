@@ -48,6 +48,7 @@ pnpm build
 # Run the CLI in development mode (without building)
 pnpm dev --help
 pnpm dev --version
+pnpm dev inspect path/to/file.deepnote
 
 # Run tests
 pnpm test
