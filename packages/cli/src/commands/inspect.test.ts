@@ -1,10 +1,14 @@
 import { resolve } from 'node:path'
 import { Command } from 'commander'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { createInspectAction } from './inspect'
 
 // Test file path relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = 'examples/1_hello_world.deepnote'
+
+function getOutput(spy: Mock<typeof console.log>): string {
+  return spy.mock.calls.map(call => call.join(' ')).join('\n')
+}
 
 describe('inspect command', () => {
   let program: Command
@@ -13,6 +17,10 @@ describe('inspect command', () => {
   beforeEach(() => {
     program = new Command()
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    consoleSpy.mockRestore()
   })
 
   describe('createInspectAction', () => {
@@ -31,7 +39,7 @@ describe('inspect command', () => {
 
       expect(consoleSpy).toHaveBeenCalled()
 
-      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      const output = getOutput(consoleSpy)
       expect(output).toContain('Path:')
       expect(output).toContain('Name:')
       expect(output).toContain('Project ID:')
@@ -47,7 +55,7 @@ describe('inspect command', () => {
 
       await action(filePath)
 
-      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      const output = getOutput(consoleSpy)
       expect(output).toContain('Hello world')
       expect(output).toContain('18aaab73-3599-4bb5-b2ab-c05ac09f597d')
       expect(output).toContain('1.0.0')
@@ -59,7 +67,7 @@ describe('inspect command', () => {
 
       await action(filePath)
 
-      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      const output = getOutput(consoleSpy)
       expect(output).toContain('Notebooks:')
       expect(output).toContain('1. Hello World - example')
       expect(output).toContain('1 blocks')
@@ -73,7 +81,7 @@ describe('inspect command', () => {
       await action(HELLO_WORLD_FILE)
 
       expect(consoleSpy).toHaveBeenCalled()
-      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      const output = getOutput(consoleSpy)
       expect(output).toContain('Hello world')
     })
 
@@ -84,7 +92,7 @@ describe('inspect command', () => {
       await action(absolutePath)
 
       expect(consoleSpy).toHaveBeenCalled()
-      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      const output = getOutput(consoleSpy)
       expect(output).toContain('Hello world')
     })
   })
