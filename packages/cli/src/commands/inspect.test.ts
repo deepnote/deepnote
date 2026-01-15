@@ -40,13 +40,13 @@ describe('inspect command', () => {
       expect(consoleSpy).toHaveBeenCalled()
 
       const output = getOutput(consoleSpy)
-      expect(output).toContain('Path:')
-      expect(output).toContain('Name:')
-      expect(output).toContain('Project ID:')
-      expect(output).toContain('Version:')
-      expect(output).toContain('Created:')
-      expect(output).toContain('Notebooks count:')
-      expect(output).toContain('Blocks:')
+      expect(output).toContain(`Path: ${filePath}`)
+      expect(output).toContain('Name: Hello world')
+      expect(output).toContain('Project ID: 18aaab73-3599-4bb5-b2ab-c05ac09f597d')
+      expect(output).toContain('Version: 1.0.0')
+      expect(output).toContain('Created: 2025-11-04T00:31:57.544Z')
+      expect(output).toContain('Notebooks count: 1')
+      expect(output).toContain('Blocks: 1')
     })
 
     it('displays correct project metadata', async () => {
