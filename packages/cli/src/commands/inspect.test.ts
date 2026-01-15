@@ -3,6 +3,9 @@ import { Command } from 'commander'
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { createInspectAction } from './inspect'
 
+// Test file path relative to project root (tests are run from root)
+const HELLO_WORLD_FILE = 'examples/1_hello_world.deepnote'
+
 describe('inspect command', () => {
   let program: Command
   let consoleSpy: Mock<typeof console.log>
@@ -22,7 +25,7 @@ describe('inspect command', () => {
   describe('inspecting valid .deepnote files', () => {
     it('inspects hello world example without errors', async () => {
       const action = createInspectAction(program)
-      const filePath = resolve(process.cwd(), '../../examples/1_hello_world.deepnote')
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
       await action(filePath)
 
@@ -40,7 +43,7 @@ describe('inspect command', () => {
 
     it('displays correct project metadata', async () => {
       const action = createInspectAction(program)
-      const filePath = resolve(process.cwd(), '../../examples/1_hello_world.deepnote')
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
       await action(filePath)
 
@@ -52,7 +55,7 @@ describe('inspect command', () => {
 
     it('displays notebook information', async () => {
       const action = createInspectAction(program)
-      const filePath = resolve(process.cwd(), '../../examples/1_hello_world.deepnote')
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
       await action(filePath)
 
@@ -67,7 +70,7 @@ describe('inspect command', () => {
     it('accepts relative paths', async () => {
       const action = createInspectAction(program)
 
-      await action('../../examples/1_hello_world.deepnote')
+      await action(HELLO_WORLD_FILE)
 
       expect(consoleSpy).toHaveBeenCalled()
       const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n')
@@ -76,7 +79,7 @@ describe('inspect command', () => {
 
     it('accepts absolute paths', async () => {
       const action = createInspectAction(program)
-      const absolutePath = resolve(process.cwd(), '../../examples/1_hello_world.deepnote')
+      const absolutePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
       await action(absolutePath)
 
