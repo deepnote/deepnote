@@ -47,7 +47,7 @@ function getWelcomeText(): string {
 ${chalk.dim('Run .deepnote files locally or on Deepnote Cloud for data science workflows,')}
 ${chalk.dim('automation, CI/CD pipelines, and interactive development.')}
 
-${chalk.dim('Documentation:')} ${chalk.underline('https://docs.deepnote.com/cli')}
+${chalk.dim('Documentation:')} ${chalk.underline('https://deepnote.com/docs/getting-started')}
 ${chalk.dim('Repository:')}    ${chalk.underline('https://github.com/deepnote/deepnote')}`
 }
 
