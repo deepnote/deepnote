@@ -12,7 +12,29 @@ deepnote --help
 
 # Show version
 deepnote --version
+
+# Inspect a .deepnote file
+deepnote inspect path/to/file.deepnote
 ```
+
+## Commands
+
+### `inspect <path>`
+
+Inspect and display metadata from a `.deepnote` file.
+
+```bash
+deepnote inspect my-project.deepnote
+```
+
+This command displays:
+
+- File path
+- Project name and ID
+- File format version
+- Creation, modification, and export timestamps
+- Number of notebooks and blocks
+- List of notebooks with their block counts
 
 ## Development
 
