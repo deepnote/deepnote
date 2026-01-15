@@ -1,10 +1,10 @@
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { createInspectAction } from './inspect'
 
 // Test file path relative to project root (tests are run from root)
-const HELLO_WORLD_FILE = 'examples/1_hello_world.deepnote'
+const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 
 function getOutput(spy: Mock<typeof console.log>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
