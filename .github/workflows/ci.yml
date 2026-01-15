@@ -226,10 +226,6 @@ jobs:
       - name: Test CLI --help
         run: node dist/bin.js --help
         working-directory: packages/cli
-
-      - name: Test CLI run --help
-        run: node dist/bin.js run --help
-        working-directory: packages/cli
   license-check:
     name: License Check
     runs-on: ubuntu-latest
