@@ -21,11 +21,7 @@ async function inspectDeepnoteFile(path: string | undefined): Promise<void> {
   }
 
   const absolutePath = resolve(process.cwd(), path)
-  const stat = await fs.stat(absolutePath).catch(() => null)
-
-  if (!stat) {
-    throw new Error(`File not found: ${absolutePath}`)
-  }
+  const stat = await fs.stat(absolutePath)
 
   if (!stat.isFile()) {
     throw new Error(`Path must point to a file: ${absolutePath}`)
