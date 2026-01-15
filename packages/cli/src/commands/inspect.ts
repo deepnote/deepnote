@@ -46,7 +46,7 @@ function printDeepnoteFileMetadata(
   absolutePath: string,
   deepnoteFile: ReturnType<typeof deserializeDeepnoteFile>
 ): void {
-  const { project, metadata, version: fileVersion, execution } = deepnoteFile
+  const { project, metadata, version: fileVersion } = deepnoteFile
   const notebooks = project.notebooks
   const totalBlocks = notebooks.reduce((sum, notebook) => sum + notebook.blocks.length, 0)
 
