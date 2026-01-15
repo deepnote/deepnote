@@ -67,8 +67,8 @@ function printDeepnoteFileMetadata(
   console.log(`${chalk.dim('Notebooks count:')} ${notebooks.length}`)
   console.log(`${chalk.dim('Blocks:')} ${totalBlocks}`)
 
-  console.log(`${chalk.dim('Notebooks:')}`)
   if (notebooks.length > 0) {
+    console.log(`${chalk.dim('Notebooks:')}`)
     for (const notebook of notebooks) {
       const moduleSuffix = notebook.isModule ? ', module' : ''
       console.log(`- ${notebook.name} (${notebook.blocks.length} blocks${moduleSuffix})`)
