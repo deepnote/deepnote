@@ -14,7 +14,7 @@ export function createProgram(): Command {
     .description(getWelcomeText())
     .version(version, '-v, --version', 'Display the CLI version')
     .helpOption('-h, --help', 'Display help information')
-    .showHelpAfterError(true)
+    .showHelpAfterError(false)
     .configureOutput({
       // Write errors to stderr with chalk styling
       outputError: (str, write) => write(chalk.red(str)),
