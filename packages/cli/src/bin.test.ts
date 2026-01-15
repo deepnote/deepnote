@@ -10,6 +10,8 @@ describe('bin', () => {
   })
 
   it('calls run() when imported', async () => {
+    vi.resetModules()
+
     const { run } = await import('./cli')
 
     await import('./bin')
