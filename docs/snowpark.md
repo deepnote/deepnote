@@ -17,7 +17,7 @@ The Snowpark + Deepnote integration makes the warehouse feels like an in-memory 
 
 ### How to connect
 
-Begin by `pip` installing Snowpark inside of Deepnote. Note that **Snowpark requires Python 3.9** (this can be selected from the [environments tab in Deepnote](/docs/custom-environments)).
+Begin by `pip` installing Snowpark inside of Deepnote. Note that **Snowpark requires Python 3.10 or later** (this can be selected from the [environments tab in Deepnote](/docs/custom-environments)).
 
 ```python
 !pip install snowflake-snowpark-python
