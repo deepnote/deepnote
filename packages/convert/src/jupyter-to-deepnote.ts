@@ -1,8 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
 import { deepnoteBlockSchema, environmentSchema, executionSchema } from '@deepnote/blocks'
-import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
 import { createSortingKey, sortKeysAlphabetically } from './utils'
@@ -13,7 +13,7 @@ export interface ConvertIpynbFilesToDeepnoteFileOptions {
 }
 
 export interface ConvertJupyterNotebookOptions {
-  /** Custom ID generator function. Defaults to uuid v4. */
+  /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
 }
 
@@ -44,7 +44,7 @@ export function convertJupyterNotebookToBlocks(
   notebook: JupyterNotebook,
   options?: ConvertJupyterNotebookOptions
 ): DeepnoteBlock[] {
-  const idGenerator = options?.idGenerator ?? v4
+  const idGenerator = options?.idGenerator ?? randomUUID
   return notebook.cells.map((cell, index) => convertCellToBlock(cell, index, idGenerator))
 }
 
@@ -84,7 +84,7 @@ export function convertJupyterNotebooksToDeepnote(
   // Prefer ID from metadata (for roundtrip), otherwise generate a new one
   const firstNotebookId =
     notebooks.length > 0
-      ? ((notebooks[0].notebook.metadata?.deepnote_notebook_id as string | undefined) ?? v4())
+      ? ((notebooks[0].notebook.metadata?.deepnote_notebook_id as string | undefined) ?? randomUUID())
       : undefined
 
   const deepnoteFile: DeepnoteFile = {
@@ -94,7 +94,7 @@ export function convertJupyterNotebooksToDeepnote(
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: v4(),
+      id: randomUUID(),
       initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
@@ -119,7 +119,7 @@ export function convertJupyterNotebooksToDeepnote(
     const workingDirectory = notebook.metadata?.deepnote_working_directory as string | undefined
 
     // Use pre-computed ID for first notebook to match initNotebookId
-    const resolvedNotebookId = i === 0 && firstNotebookId ? firstNotebookId : (notebookId ?? v4())
+    const resolvedNotebookId = i === 0 && firstNotebookId ? firstNotebookId : (notebookId ?? randomUUID())
 
     deepnoteFile.project.notebooks.push({
       blocks,

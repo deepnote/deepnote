@@ -1,7 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { v4 } from 'uuid'
 import { parse as parseYaml, stringify } from 'yaml'
 import type { QuartoCell, QuartoCellOptions, QuartoDocument, QuartoFrontmatter } from './types/quarto'
 import { createSortingKey } from './utils'
@@ -12,7 +12,7 @@ export interface ConvertQuartoFilesToDeepnoteFileOptions {
 }
 
 export interface ConvertQuartoDocumentOptions {
-  /** Custom ID generator function. Defaults to uuid v4. */
+  /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
 }
 
@@ -319,7 +319,7 @@ export function convertQuartoDocumentToBlocks(
   document: QuartoDocument,
   options?: ConvertQuartoDocumentOptions
 ): DeepnoteBlock[] {
-  const idGenerator = options?.idGenerator ?? v4
+  const idGenerator = options?.idGenerator ?? randomUUID
   const blocks: DeepnoteBlock[] = []
 
   // Add title from frontmatter as first markdown block if present
@@ -354,14 +354,14 @@ export function convertQuartoDocumentsToDeepnote(
   options: { projectName: string }
 ): DeepnoteFile {
   // Generate the first notebook ID upfront so we can use it as the project entrypoint
-  const firstNotebookId = documents.length > 0 ? v4() : undefined
+  const firstNotebookId = documents.length > 0 ? randomUUID() : undefined
 
   const deepnoteFile: DeepnoteFile = {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: v4(),
+      id: randomUUID(),
       initNotebookId: firstNotebookId,
       integrations: [],
       name: options.projectName,
@@ -382,7 +382,7 @@ export function convertQuartoDocumentsToDeepnote(
     const blocks = convertQuartoDocumentToBlocks(document)
 
     // Use pre-generated ID for the first notebook, generate new ones for the rest
-    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : v4()
+    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : randomUUID()
 
     deepnoteFile.project.notebooks.push({
       blocks,

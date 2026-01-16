@@ -84,6 +84,8 @@ Reusable packages and libraries powering Deepnote's notebook, runtime, and colla
 - **Programmatic API**: Use in Node.js/TypeScript applications
 - **Bidirectional**: Any format → Deepnote, and Deepnote → any format (via `--outputFormat`)
 
+**[File Formats](./FILES.md)** Complete specification of the `.deepnote` and `.snapshot.deepnote` file formats, including schema details, block types, and snapshot management. Snapshots separate outputs from source code for cleaner Git history, while `contentHash` provides code provenance — verifying which code produced each output.
+
 ## Deepnote for academia
 
 Deepnote Cloud is **free for students and educators**! Get unlimited access to all core features, cloud compute, and real-time collaboration for your research and teaching.

@@ -1,7 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { v4 } from 'uuid'
 import { stringify } from 'yaml'
 import type { MarimoApp, MarimoCell } from './types/marimo'
 import { createSortingKey } from './utils'
@@ -81,7 +81,7 @@ export interface ConvertMarimoFilesToDeepnoteFileOptions {
 }
 
 export interface ConvertMarimoAppOptions {
-  /** Custom ID generator function. Defaults to uuid v4. */
+  /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
 }
 
@@ -295,14 +295,14 @@ export function parseMarimoFormat(content: string): MarimoApp {
  * @returns Array of DeepnoteBlock objects
  */
 export function convertMarimoAppToBlocks(app: MarimoApp, options?: ConvertMarimoAppOptions): DeepnoteBlock[] {
-  const idGenerator = options?.idGenerator ?? v4
+  const idGenerator = options?.idGenerator ?? randomUUID
   return app.cells.map((cell, index) => convertCellToBlock(cell, index, idGenerator))
 }
 
 export interface ConvertMarimoAppsToDeepnoteOptions {
   /** Project name for the Deepnote file */
   projectName: string
-  /** Custom ID generator function. Defaults to uuid v4. */
+  /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
 }
 
@@ -318,7 +318,7 @@ export function convertMarimoAppsToDeepnote(
   apps: MarimoAppInput[],
   options: ConvertMarimoAppsToDeepnoteOptions
 ): DeepnoteFile {
-  const idGenerator = options.idGenerator ?? v4
+  const idGenerator = options.idGenerator ?? randomUUID
 
   // Generate the first notebook ID upfront so we can use it as the project entrypoint
   const firstNotebookId = apps.length > 0 ? idGenerator() : undefined
