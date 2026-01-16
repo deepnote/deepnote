@@ -1,0 +1,53 @@
+{
+  "name": "@deepnote/runtime-core",
+  "version": "0.1.0",
+  "description": "Core runtime for executing Deepnote projects",
+  "keywords": [
+    "deepnote",
+    "runtime",
+    "notebook"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/runtime-core"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown --watch"
+  },
+  "dependencies": {
+    "@deepnote/blocks": "workspace:*",
+    "@jupyterlab/nbformat": "^4.3.2",
+    "@jupyterlab/services": "^7.3.2",
+    "tcp-port-used": "^1.0.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/tcp-port-used": "^1.0.4",
+    "@types/ws": "^8.5.13"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}
