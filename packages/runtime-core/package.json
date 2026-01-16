@@ -1,33 +1,29 @@
 {
-  "name": "@deepnote/cli",
+  "name": "@deepnote/runtime-core",
   "version": "0.1.0",
-  "description": "Command-line interface for running Deepnote projects locally and on Deepnote Cloud",
+  "description": "Core runtime for executing Deepnote projects",
   "keywords": [
-    "cli",
     "deepnote",
-    "notebook",
-    "data-science"
+    "runtime",
+    "notebook"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/deepnote/deepnote.git",
-    "directory": "packages/cli"
+    "directory": "packages/runtime-core"
   },
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
     }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "deepnote": "./dist/bin.js"
-  },
   "files": [
     "dist",
     "README.md",
@@ -36,18 +32,19 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "dev": "tsx src/bin.ts",
     "test": "vitest",
     "watch": "tsdown --watch"
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
-    "@deepnote/runtime-core": "workspace:*",
-    "chalk": "^5.4.1",
-    "commander": "^14.0.2"
+    "@jupyterlab/nbformat": "^4.3.2",
+    "@jupyterlab/services": "^7.3.2",
+    "tcp-port-used": "^1.0.2",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "tsx": "^4.20.6"
+    "@types/tcp-port-used": "^1.0.4",
+    "@types/ws": "^8.5.13"
   },
   "publishConfig": {
     "access": "public",
