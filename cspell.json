@@ -86,6 +86,7 @@
     "Pclass",
     "pgsql",
     "pnpm",
+    "prefault",
     "pyformat",
     "pymongo",
     "pymssql",
