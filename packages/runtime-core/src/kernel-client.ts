@@ -197,11 +197,12 @@ export class KernelClient {
         }
 
       default:
-        // Fallback for unknown message types
         return {
-          output_type: msgType as 'stream',
-          ...content,
-        } as IOutput
+          output_type: 'error',
+          ename: 'UnknownMsgType',
+          evalue: `Received unknown message type: ${msgType}`,
+          traceback: [],
+        }
     }
   }
 }
