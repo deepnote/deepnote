@@ -114,6 +114,27 @@ describe('server-starter', () => {
       expect(info.url).toBe('http://localhost:8890')
     })
 
+    it('skips port pair when second port is in use', async () => {
+      // First candidate port (8888) is free, but 8889 is in use - reject pair
+      // Next candidate pair (8890, 8891) is both free - accept
+      vi.mocked(tcpPortUsed.check)
+        .mockResolvedValueOnce(false) // 8888 available
+        .mockResolvedValueOnce(true) // 8889 in use - reject pair
+        .mockResolvedValueOnce(false) // 8890 available
+        .mockResolvedValueOnce(false) // 8891 available
+
+      const serverPromise = startServer({
+        pythonPath: 'python',
+        workingDirectory: '/project',
+      })
+
+      await vi.advanceTimersByTimeAsync(100)
+      const info = await serverPromise
+
+      expect(info.jupyterPort).toBe(8890)
+      expect(info.lspPort).toBe(8891)
+    })
+
     it('returns correct server info', async () => {
       const serverPromise = startServer({
         pythonPath: 'python',

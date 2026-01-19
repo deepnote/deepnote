@@ -244,15 +244,13 @@ describe('ExecutionEngine', () => {
         await engine.runProject(BLOCKS_EXAMPLE)
 
         // The first notebook has a markdown block that should be skipped
-        const executedCodes = mockKernelClient.execute.mock.calls.map(call => call[0])
+        const executedCodes = mockKernelClient.execute.mock.calls.map(call => call[0] as string)
         // Markdown content should not be executed
-        expect(executedCodes).not.toContain(expect.stringContaining('# This is a markdown heading'))
+        expect(executedCodes.some(code => code.includes('# This is a markdown heading'))).toBe(false)
       })
 
       it('executes input blocks', async () => {
         await engine.start()
-        await engine.runProject(BLOCKS_EXAMPLE)
-
         // Input blocks should be executed (they set variables)
         const summary = await engine.runProject(BLOCKS_EXAMPLE)
         // The 2nd notebook has input-text, input-textarea, input-select, etc.
@@ -301,9 +299,32 @@ describe('ExecutionEngine', () => {
         await engine.start()
         await engine.runProject(BLOCKS_EXAMPLE, { notebookName: '2. Input blocks' })
 
-        // Blocks should be executed in sortingKey order
-        // The execute calls should happen in sequence
-        expect(mockKernelClient.execute.mock.calls.length).toBeGreaterThan(0)
+        // Get the blocks from the '2. Input blocks' notebook and sort by sortingKey
+        const inputBlocksNotebook = BLOCKS_EXAMPLE.project.notebooks.find(n => n.name === '2. Input blocks')
+        if (!inputBlocksNotebook) throw new Error('Notebook "2. Input blocks" not found in test data')
+        const executableBlocks = inputBlocksNotebook.blocks
+          .filter(b => b.type !== 'markdown')
+          .slice()
+          .sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+
+        // Map the executed calls to identify the order
+        const executedCodes = mockKernelClient.execute.mock.calls.map(call => call[0] as string)
+
+        // Verify execution count matches the number of executable blocks
+        expect(executedCodes.length).toBe(executableBlocks.length)
+
+        // Verify each executed code corresponds to the expected block in sorted order
+        executableBlocks.forEach((block, index) => {
+          const executedCode = executedCodes[index]
+          if (block.type === 'code') {
+            // Code blocks execute their content
+            expect(executedCode).toContain(block.content)
+          } else if (block.type.startsWith('input-')) {
+            // Input blocks set a variable
+            const varName = block.metadata?.deepnote_variable_name as string
+            expect(executedCode).toContain(varName)
+          }
+        })
       })
 
       it('stops execution on first failure (fail-fast)', async () => {
