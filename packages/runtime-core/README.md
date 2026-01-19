@@ -28,9 +28,9 @@ const engine = new ExecutionEngine({
   workingDirectory: "/path/to/project",
 });
 
-await engine.start();
-
 try {
+  await engine.start();
+
   const summary = await engine.runFile("./my-project.deepnote", {
     onBlockStart: (block) => console.log(`Running ${block.type}...`),
     onBlockDone: (result) => console.log(result.success ? "✓" : "✗"),
