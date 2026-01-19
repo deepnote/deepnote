@@ -12,11 +12,10 @@ npm install @deepnote/runtime-core
 
 ## Prerequisites
 
-You must have `deepnote-toolkit` installed in your Python environment:
+You must have `deepnote-toolkit` with the `server` extra installed in your Python environment:
 
 ```bash
-pip install deepnote-toolkit
-pip install deepnote-toolkit[server]
+pip install "deepnote-toolkit[server]"
 ```
 
 ## Usage
