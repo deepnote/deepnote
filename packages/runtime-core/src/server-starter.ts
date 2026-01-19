@@ -106,14 +106,12 @@ export async function stopServer(info: ServerInfo): Promise<void> {
       if (info.process.exitCode === null) {
         info.process.kill('SIGKILL')
       }
-      // biome-ignore lint/nursery/noFloatingPromises: resolve() is not a Promise
-      resolve()
+      void resolve()
     }, 2000)
 
     info.process.once('exit', () => {
       clearTimeout(timeout)
-      // biome-ignore lint/nursery/noFloatingPromises: resolve() is not a Promise
-      resolve()
+      void resolve()
     })
   })
 }
