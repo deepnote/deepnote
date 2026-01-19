@@ -19,6 +19,7 @@ export interface ExecutionCallbacks {
  * Client for communicating with a Jupyter kernel via the Jupyter protocol.
  */
 export class KernelClient {
+  private kernelManager: KernelManager | null = null
   private sessionManager: SessionManager | null = null
   private session: ISessionConnection | null = null
   private kernel: IKernelConnection | null = null
@@ -27,13 +28,17 @@ export class KernelClient {
    * Connect to a Jupyter server and start a kernel session.
    */
   async connect(serverUrl: string): Promise<void> {
+    const url = new URL(serverUrl)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = url.toString()
+
     const serverSettings = ServerConnection.makeSettings({
       baseUrl: serverUrl,
-      wsUrl: serverUrl.replace('http', 'ws'),
+      wsUrl,
     })
 
-    const kernelManager = new KernelManager({ serverSettings })
-    this.sessionManager = new SessionManager({ kernelManager, serverSettings })
+    this.kernelManager = new KernelManager({ serverSettings })
+    this.sessionManager = new SessionManager({ kernelManager: this.kernelManager, serverSettings })
 
     // Wait for session manager to be ready
     await this.sessionManager.ready
@@ -142,6 +147,11 @@ export class KernelClient {
     if (this.sessionManager) {
       this.sessionManager.dispose()
       this.sessionManager = null
+    }
+
+    if (this.kernelManager) {
+      this.kernelManager.dispose()
+      this.kernelManager = null
     }
 
     this.kernel = null
