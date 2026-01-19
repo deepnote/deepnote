@@ -38,9 +38,11 @@ describe('CLI', () => {
 
       expect(runCmd).toBeDefined()
       expect(runCmd?.description()).toBe('Run a .deepnote file')
-      expect(runCmd?.options.map(o => o.flags)).toContain('--python <path>')
-      expect(runCmd?.options.map(o => o.flags)).toContain('--notebook <name>')
-      expect(runCmd?.options.map(o => o.flags)).toContain('--block <id>')
+
+      const optionFlags = runCmd?.options.map(o => o.flags)
+      expect(optionFlags).toContain('--python <path>')
+      expect(optionFlags).toContain('--notebook <name>')
+      expect(optionFlags).toContain('--block <id>')
     })
   })
 
