@@ -125,8 +125,7 @@ async function findConsecutiveAvailablePorts(startPort: number): Promise<number>
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const candidatePort = startPort + attempt * 2
 
-    const portInUse = await isPortInUse(candidatePort)
-    const nextPortInUse = await isPortInUse(candidatePort + 1)
+    const [portInUse, nextPortInUse] = await Promise.all([isPortInUse(candidatePort), isPortInUse(candidatePort + 1)])
 
     if (!portInUse && !nextPortInUse) {
       return candidatePort
