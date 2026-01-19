@@ -178,6 +178,7 @@ export class ExecutionEngine {
         }
       } catch (error) {
         failedBlocks++
+        executedBlocks++
         const blockResult: BlockExecutionResult = {
           blockId: block.id,
           blockType: block.type,
