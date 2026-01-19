@@ -28,36 +28,41 @@ export class KernelClient {
    * Connect to a Jupyter server and start a kernel session.
    */
   async connect(serverUrl: string): Promise<void> {
-    const url = new URL(serverUrl)
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = url.toString()
+    try {
+      const url = new URL(serverUrl)
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = url.toString()
 
-    const serverSettings = ServerConnection.makeSettings({
-      baseUrl: serverUrl,
-      wsUrl,
-    })
+      const serverSettings = ServerConnection.makeSettings({
+        baseUrl: serverUrl,
+        wsUrl,
+      })
 
-    this.kernelManager = new KernelManager({ serverSettings })
-    this.sessionManager = new SessionManager({ kernelManager: this.kernelManager, serverSettings })
+      this.kernelManager = new KernelManager({ serverSettings })
+      this.sessionManager = new SessionManager({ kernelManager: this.kernelManager, serverSettings })
 
-    // Wait for session manager to be ready
-    await this.sessionManager.ready
+      // Wait for session manager to be ready
+      await this.sessionManager.ready
 
-    // Start a new session with Python kernel
-    this.session = await this.sessionManager.startNew({
-      name: 'deepnote-cli',
-      path: 'deepnote-cli',
-      type: 'notebook',
-      kernel: { name: 'python3' },
-    })
+      // Start a new session with Python kernel
+      this.session = await this.sessionManager.startNew({
+        name: 'deepnote-cli',
+        path: 'deepnote-cli',
+        type: 'notebook',
+        kernel: { name: 'python3' },
+      })
 
-    this.kernel = this.session.kernel
-    if (!this.kernel) {
-      throw new Error('Failed to start kernel')
+      this.kernel = this.session.kernel
+      if (!this.kernel) {
+        throw new Error('Failed to start kernel')
+      }
+
+      // Wait for kernel to be idle (ready to execute)
+      await this.waitForKernelIdle()
+    } catch (error) {
+      await this.disconnect()
+      throw error
     }
-
-    // Wait for kernel to be idle (ready to execute)
-    await this.waitForKernelIdle()
   }
 
   /**
