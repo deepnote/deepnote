@@ -1,9 +1,9 @@
-import { stat } from 'node:fs/promises'
-import { dirname, extname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import { type BlockExecutionResult, type DeepnoteBlock, ExecutionEngine } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { renderOutput } from '../output-renderer'
+import { resolveDeepnoteFile } from '../utils/file-resolver'
 
 interface RunOptions {
   python?: string
@@ -23,18 +23,7 @@ export function createRunAction(program: Command): (path: string, options: RunOp
 }
 
 async function runDeepnoteFile(path: string, options: RunOptions): Promise<void> {
-  // Validate file path
-  const absolutePath = resolve(process.cwd(), path)
-
-  const fileStat = await stat(absolutePath).catch(() => null)
-  if (!fileStat?.isFile()) {
-    throw new Error(`File not found: ${absolutePath}`)
-  }
-
-  if (extname(absolutePath).toLowerCase() !== '.deepnote') {
-    throw new Error('Expected a .deepnote file')
-  }
-
+  const { absolutePath } = await resolveDeepnoteFile(path)
   const workingDirectory = dirname(absolutePath)
   const pythonPath = options.python ?? 'python'
 
