@@ -95,7 +95,7 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
  * Stop the deepnote-toolkit server.
  */
 export async function stopServer(info: ServerInfo): Promise<void> {
-  if (info.process.killed) return
+  if (info.process.exitCode !== null) return
 
   // Try graceful shutdown first
   info.process.kill('SIGTERM')
@@ -103,7 +103,7 @@ export async function stopServer(info: ServerInfo): Promise<void> {
   // Wait briefly for graceful exit
   await new Promise<void>(resolve => {
     const timeout = setTimeout(() => {
-      if (!info.process.killed) {
+      if (info.process.exitCode === null) {
         info.process.kill('SIGKILL')
       }
       // biome-ignore lint/nursery/noFloatingPromises: resolve() is not a Promise
