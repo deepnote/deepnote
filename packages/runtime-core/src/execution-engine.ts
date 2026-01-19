@@ -72,8 +72,13 @@ export class ExecutionEngine {
       port: this.config.serverPort,
     })
 
-    this.kernel = new KernelClient()
-    await this.kernel.connect(this.server.url)
+    try {
+      this.kernel = new KernelClient()
+      await this.kernel.connect(this.server.url)
+    } catch (error) {
+      await this.stop()
+      throw error
+    }
   }
 
   /**
