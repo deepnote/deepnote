@@ -127,6 +127,7 @@ export class KernelClient {
           resolve(result)
         })
         .catch(reject)
+        .finally(() => future?.dispose())
     })
   }
 
