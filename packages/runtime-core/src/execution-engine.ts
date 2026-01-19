@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises'
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
 import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
-/** Block types that can be executed */
-const EXECUTABLE_BLOCK_TYPES = [
+/** Block types that can be executed (typed array ensures only valid types are listed) */
+const EXECUTABLE_BLOCK_TYPES: ExecutableBlock['type'][] = [
   'code',
   'sql',
   'input-text',
@@ -22,6 +22,9 @@ const EXECUTABLE_BLOCK_TYPES = [
   'button',
   'big-number',
 ]
+
+/** Set for O(1) runtime lookup - typed as Set<string> to accept any block.type */
+const EXECUTABLE_BLOCK_TYPE_SET: ReadonlySet<string> = new Set(EXECUTABLE_BLOCK_TYPES)
 
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
@@ -200,8 +203,8 @@ export class ExecutionEngine {
   /**
    * Check if a block is executable.
    */
-  private isExecutableBlock(block: DeepnoteBlock): boolean {
-    return EXECUTABLE_BLOCK_TYPES.includes(block.type)
+  private isExecutableBlock(block: DeepnoteBlock): block is ExecutableBlock {
+    return EXECUTABLE_BLOCK_TYPE_SET.has(block.type)
   }
 
   /**

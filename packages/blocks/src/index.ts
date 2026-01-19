@@ -4,6 +4,7 @@ export type {
   DeepnoteFile,
   DeepnoteSnapshot,
   Environment,
+  ExecutableBlock,
   Execution,
   ExecutionError,
   ExecutionSummary,
