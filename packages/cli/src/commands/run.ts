@@ -52,6 +52,15 @@ async function runDeepnoteFile(path: string, options: RunOptions): Promise<void>
     await engine.start()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+
+    // Attempt to clean up any partially-initialized resource
+    try {
+      await engine.stop()
+    } catch (stopError) {
+      const stopMessage = stopError instanceof Error ? stopError.message : String(stopError)
+      console.error(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
+    }
+
     throw new Error(
       `Failed to start server: ${message}\n\nMake sure deepnote-toolkit is installed:\n  pip install deepnote-toolkit[server]`
     )
