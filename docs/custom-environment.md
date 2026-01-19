@@ -20,7 +20,7 @@ Custom environments are especially valuable for complex projects where dependenc
 
 We recommend building your custom Dockerfile on top of our `deepnote:python3.x` base image to ensure compatibility with all Deepnote features. If you're creating an environment from scratch, your image must meet these requirements:
 
-- Python (versions 3.9-3.12) installed and accessible via the `python` command
+- Python (versions 3.10-3.13) installed and accessible via the `python` command
 - Built for the `linux/amd64` platform (M1 Mac users: use `-platform linux/amd64` flag)
 - Functioning `pip` installation that can install packages to Python's path
 - `bash` and `curl` installed
@@ -47,10 +47,10 @@ Building a local Dockerfile in Deepnote is a premium feature available only on *
 
 You can customize your environment by placing a `Dockerfile` in your project's root directory. Deepnote handles all the image building and hosting for you.
 
-The most common approach is to extend one of our default environments. For example, here's how to add [OpenCV](https://opencv.org/) dependencies to our Python 3.9 base image:
+The most common approach is to extend one of our default environments. For example, here's how to add [OpenCV](https://opencv.org/) dependencies to our Python 3.11 base image:
 
 ```
-FROM deepnote/python:3.9
+FROM deepnote/python:3.11
 
 RUN apt update && apt install -y ffmpeg libsm6 libxext6
 
