@@ -109,24 +109,13 @@ async function runDeepnoteFile(path: string, options: RunOptions): Promise<void>
  * Get a human-readable label for a block.
  */
 function getBlockLabel(block: DeepnoteBlock): string {
-  // For code blocks, show first line or truncated content
-  if (block.type === 'code' && block.content) {
-    const firstLine = block.content.split('\n')[0].trim()
-    if (firstLine.length > 40) {
-      return `code: ${firstLine.substring(0, 37)}...`
-    }
-    if (firstLine) {
-      return `code: ${firstLine}`
-    }
-  }
-
   // For input blocks, show variable name if available
   if (block.type.startsWith('input-')) {
     const metadata = block.metadata as { deepnote_variable_name?: string } | undefined
     if (metadata?.deepnote_variable_name) {
-      return `${block.type} (${metadata.deepnote_variable_name})`
+      return `${block.type} ${block.id} (${metadata.deepnote_variable_name})`
     }
   }
 
-  return block.type
+  return `${block.type} (${block.id})`
 }
