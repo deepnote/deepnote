@@ -2,6 +2,8 @@
 
 Core runtime for executing Deepnote projects.
 
+This project is under active development and is not ready for use. Expect breaking changes.
+
 ## Installation
 
 ```bash
@@ -13,6 +15,7 @@ npm install @deepnote/runtime-core
 You must have `deepnote-toolkit` installed in your Python environment:
 
 ```bash
+pip install deepnote-toolkit
 pip install deepnote-toolkit[server]
 ```
 
@@ -39,22 +42,3 @@ try {
   await engine.stop();
 }
 ```
-
-## API
-
-### `ExecutionEngine`
-
-High-level API for executing Deepnote projects.
-
-- `start()` - Start the deepnote-toolkit server and connect to the kernel
-- `stop()` - Stop the server and disconnect
-- `runFile(path, options)` - Execute a .deepnote file
-- `runProject(file, options)` - Execute a parsed DeepnoteFile
-
-### `startServer(options)` / `stopServer(info)`
-
-Low-level API for managing the deepnote-toolkit server process.
-
-### `KernelClient`
-
-Low-level API for communicating with a Jupyter kernel via the Jupyter protocol.
