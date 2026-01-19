@@ -7,7 +7,7 @@ import chalk from 'chalk'
 export function renderOutput(output: IOutput): void {
   switch (output.output_type) {
     case 'stream':
-      renderStreamOutput(output as { output_type: 'stream'; name: string; text: string })
+      renderStreamOutput(output as { output_type: 'stream'; name: string; text: string | string[] })
       break
 
     case 'execute_result':
@@ -21,7 +21,7 @@ export function renderOutput(output: IOutput): void {
   }
 }
 
-function renderStreamOutput(output: { name: string; text: string }): void {
+function renderStreamOutput(output: { name: string; text: string | string[] }): void {
   const text = Array.isArray(output.text) ? output.text.join('') : output.text
 
   if (output.name === 'stderr') {
