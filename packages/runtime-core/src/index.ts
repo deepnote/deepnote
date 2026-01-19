@@ -1,5 +1,5 @@
 export type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-export type { IOutput } from '@jupyterlab/nbformat'
+export type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@jupyterlab/nbformat'
 export type { ExecutionOptions } from './execution-engine'
 export { ExecutionEngine } from './execution-engine'
 export type { ExecutionCallbacks, ExecutionResult } from './kernel-client'

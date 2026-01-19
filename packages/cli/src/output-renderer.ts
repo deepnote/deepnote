@@ -1,27 +1,36 @@
-import type { IOutput } from '@deepnote/runtime-core'
+import type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 
 /**
  * Render a Jupyter output to the terminal.
  */
 export function renderOutput(output: IOutput): void {
-  switch (output.output_type) {
-    case 'stream':
-      renderStreamOutput(output as { output_type: 'stream'; name: string; text: string | string[] })
-      break
-
-    case 'execute_result':
-    case 'display_data':
-      renderDataOutput(output as { output_type: string; data: Record<string, unknown> })
-      break
-
-    case 'error':
-      renderErrorOutput(output as { output_type: 'error'; ename: string; evalue: string; traceback: string[] })
-      break
+  if (isStream(output)) {
+    renderStreamOutput(output)
+  } else if (isDisplayData(output) || isExecuteResult(output)) {
+    renderDataOutput(output)
+  } else if (isError(output)) {
+    renderErrorOutput(output)
   }
 }
 
-function renderStreamOutput(output: { name: string; text: string | string[] }): void {
+function isStream(output: IOutput): output is IStream {
+  return output.output_type === 'stream'
+}
+
+function isDisplayData(output: IOutput): output is IDisplayData {
+  return output.output_type === 'display_data'
+}
+
+function isExecuteResult(output: IOutput): output is IExecuteResult {
+  return output.output_type === 'execute_result'
+}
+
+function isError(output: IOutput): output is IError {
+  return output.output_type === 'error'
+}
+
+function renderStreamOutput(output: IStream): void {
   const text = Array.isArray(output.text) ? output.text.join('') : output.text
 
   if (output.name === 'stderr') {
@@ -31,7 +40,7 @@ function renderStreamOutput(output: { name: string; text: string | string[] }): 
   }
 }
 
-function renderDataOutput(output: { data: Record<string, unknown> }): void {
+function renderDataOutput(output: IDisplayData | IExecuteResult): void {
   const data = output.data
 
   // Prefer text/plain for terminal rendering
@@ -59,7 +68,7 @@ function renderDataOutput(output: { data: Record<string, unknown> }): void {
   }
 }
 
-function renderErrorOutput(output: { ename: string; evalue: string; traceback: string[] }): void {
+function renderErrorOutput(output: IError): void {
   console.error(chalk.red(`${output.ename}: ${output.evalue}`))
 
   if (output.traceback && output.traceback.length > 0) {
