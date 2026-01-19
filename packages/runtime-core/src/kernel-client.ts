@@ -1,4 +1,4 @@
-import type { IMimeBundle, IOutput } from '@jupyterlab/nbformat'
+import type { IDisplayData, IExecuteResult, IOutput } from '@jupyterlab/nbformat'
 import { KernelManager, ServerConnection, SessionManager } from '@jupyterlab/services'
 import type { IKernelConnection } from '@jupyterlab/services/lib/kernel/kernel'
 import type { ISessionConnection } from '@jupyterlab/services/lib/session/session'
@@ -176,16 +176,16 @@ export class KernelClient {
       case 'execute_result':
         return {
           output_type: 'execute_result',
-          data: content.data as IMimeBundle,
-          metadata: (content.metadata ?? {}) as IMimeBundle,
+          data: content.data as IExecuteResult['data'],
+          metadata: (content.metadata ?? {}) as IExecuteResult['metadata'],
           execution_count: content.execution_count as number,
         }
 
       case 'display_data':
         return {
           output_type: 'display_data',
-          data: content.data as IMimeBundle,
-          metadata: (content.metadata ?? {}) as IMimeBundle,
+          data: content.data as IDisplayData['data'],
+          metadata: (content.metadata ?? {}) as IDisplayData['metadata'],
         }
 
       case 'error':
