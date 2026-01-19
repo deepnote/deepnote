@@ -6,7 +6,6 @@ import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
-/** Block types that can be executed (typed array ensures only valid types are listed) */
 const EXECUTABLE_BLOCK_TYPES: ExecutableBlock['type'][] = [
   'code',
   'sql',
@@ -23,7 +22,6 @@ const EXECUTABLE_BLOCK_TYPES: ExecutableBlock['type'][] = [
   'big-number',
 ]
 
-/** Set for O(1) runtime lookup - typed as Set<string> to accept any block.type */
 const EXECUTABLE_BLOCK_TYPE_SET: ReadonlySet<string> = new Set(EXECUTABLE_BLOCK_TYPES)
 
 export interface ExecutionOptions {
@@ -31,15 +29,11 @@ export interface ExecutionOptions {
   notebookName?: string
   /** Run only the specified block (by id) */
   blockId?: string
-  /** Called when a block starts executing */
+  /** Callback functions */
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void
-  /** Called when a block finishes executing */
   onBlockDone?: (result: BlockExecutionResult) => void
-  /** Called when an output is received during execution */
   onOutput?: (blockId: string, output: IOutput) => void
-  /** Called when the server is starting */
   onServerStarting?: () => void
-  /** Called when the server is ready */
   onServerReady?: () => void
 }
 
