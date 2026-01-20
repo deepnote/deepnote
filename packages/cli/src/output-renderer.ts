@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from 'node:util'
 import type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 
@@ -74,16 +75,8 @@ function renderErrorOutput(output: IError): void {
   if (output.traceback && output.traceback.length > 0) {
     for (const line of output.traceback) {
       // Strip ANSI codes that might be in the traceback and apply our own styling
-      const cleanLine = stripAnsi(line)
+      const cleanLine = stripVTControlCharacters(line)
       console.error(chalk.red(cleanLine))
     }
   }
-}
-
-/**
- * Strip ANSI escape codes from a string.
- */
-function stripAnsi(str: string): string {
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes require control characters
-  return str.replace(/\x1b\[[0-9;]*m/g, '')
 }
