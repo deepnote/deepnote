@@ -1,25 +1,59 @@
 import { dirname } from 'node:path'
-import { type BlockExecutionResult, type DeepnoteBlock, ExecutionEngine } from '@deepnote/runtime-core'
+import { type BlockExecutionResult, type DeepnoteBlock, ExecutionEngine, type IOutput } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
+import { ExitCode } from '../exit-codes'
+import { debug, outputJson } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
-import { resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
-interface RunOptions {
+export interface RunOptions {
   python?: string
   cwd?: string
   notebook?: string
   block?: string
+  json?: boolean
+}
+
+/** Result of a single block execution for JSON output */
+interface BlockResult {
+  id: string
+  type: string
+  label: string
+  success: boolean
+  durationMs: number
+  outputs: IOutput[]
+  error?: string | undefined
+}
+
+/** Overall run result for JSON output */
+interface RunResult {
+  success: boolean
+  path: string
+  executedBlocks: number
+  totalBlocks: number
+  failedBlocks: number
+  totalDurationMs: number
+  blocks: BlockResult[]
 }
 
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
+      debug(`Running file: ${path}`)
+      debug(`Options: ${JSON.stringify(options)}`)
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      program.error(chalk.red(message))
+      // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
+      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      if (options.json) {
+        outputJson({ success: false, error: message })
+        process.exit(exitCode)
+      } else {
+        program.error(chalk.red(message), { exitCode })
+      }
     }
   }
 }
@@ -28,8 +62,14 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
   const pythonEnv = options.python ?? 'python'
+  const isJson = options.json ?? false
 
-  console.log(chalk.dim(`Parsing ${absolutePath}...`))
+  // Collect block results for JSON output
+  const blockResults: BlockResult[] = []
+
+  if (!isJson) {
+    console.log(chalk.dim(`Parsing ${absolutePath}...`))
+  }
 
   // Create and start the execution engine
   const engine = new ExecutionEngine({
@@ -37,7 +77,9 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     workingDirectory,
   })
 
-  console.log(chalk.dim('Starting deepnote-toolkit server...'))
+  if (!isJson) {
+    console.log(chalk.dim('Starting deepnote-toolkit server...'))
+  }
 
   try {
     await engine.start()
@@ -49,7 +91,9 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       await engine.stop()
     } catch (stopError) {
       const stopMessage = stopError instanceof Error ? stopError.message : String(stopError)
-      console.error(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
+      if (!isJson) {
+        console.error(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
+      }
     }
 
     throw new Error(
@@ -57,7 +101,12 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     )
   }
 
-  console.log(chalk.dim('Server ready. Executing blocks...\n'))
+  if (!isJson) {
+    console.log(chalk.dim('Server ready. Executing blocks...\n'))
+  }
+
+  // Track current block label for JSON output (onBlockDone doesn't receive the block)
+  let currentBlockLabel = ''
 
   try {
     const summary = await engine.runFile(absolutePath, {
@@ -65,42 +114,78 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       blockId: options.block,
 
       onBlockStart: (block: DeepnoteBlock, index: number, total: number) => {
-        const blockLabel = getBlockLabel(block)
-        process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${blockLabel}`)} `)
+        currentBlockLabel = getBlockLabel(block)
+
+        if (!isJson) {
+          process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${currentBlockLabel}`)} `)
+        }
       },
 
       onBlockDone: (result: BlockExecutionResult) => {
-        if (result.success) {
-          console.log(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
-        } else {
-          console.log(chalk.red('✗'))
-        }
+        // Collect result for JSON output
+        blockResults.push({
+          id: result.blockId,
+          type: result.blockType,
+          label: currentBlockLabel,
+          success: result.success,
+          durationMs: result.durationMs,
+          outputs: result.outputs,
+          error: result.error?.message,
+        })
 
-        // Render outputs
-        for (const output of result.outputs) {
-          renderOutput(output)
-        }
+        if (!isJson) {
+          if (result.success) {
+            console.log(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
+          } else {
+            console.log(chalk.red('✗'))
+          }
 
-        // Add blank line between blocks for readability
-        if (result.outputs.length > 0) {
-          console.log()
+          // Render outputs
+          for (const output of result.outputs) {
+            renderOutput(output)
+          }
+
+          // Add blank line between blocks for readability
+          if (result.outputs.length > 0) {
+            console.log()
+          }
         }
       },
     })
 
-    // Print summary
-    console.log(chalk.dim('─'.repeat(50)))
+    // Determine exit code based on failures
+    const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
-    if (summary.failedBlocks > 0) {
-      console.log(
-        chalk.red(
-          `Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`
-        )
-      )
-      process.exitCode = 1
+    if (isJson) {
+      // Output JSON result and exit
+      const result: RunResult = {
+        success: summary.failedBlocks === 0,
+        path: absolutePath,
+        executedBlocks: summary.executedBlocks,
+        totalBlocks: summary.totalBlocks,
+        failedBlocks: summary.failedBlocks,
+        totalDurationMs: summary.totalDurationMs,
+        blocks: blockResults,
+      }
+      outputJson(result)
+      await engine.stop()
+      process.exit(exitCode)
     } else {
-      const duration = (summary.totalDurationMs / 1000).toFixed(1)
-      console.log(chalk.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
+      // Print summary
+      console.log(chalk.dim('─'.repeat(50)))
+
+      if (summary.failedBlocks > 0) {
+        console.log(
+          chalk.red(
+            `Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`
+          )
+        )
+      } else {
+        const duration = (summary.totalDurationMs / 1000).toFixed(1)
+        console.log(chalk.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
+      }
+
+      process.exitCode = exitCode
     }
   } finally {
     await engine.stop()

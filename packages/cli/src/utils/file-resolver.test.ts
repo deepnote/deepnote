@@ -33,15 +33,13 @@ describe('resolvePathToDeepnoteFile', () => {
     it('throws error when path is a directory', async () => {
       const absolutePath = resolve(process.cwd(), EXAMPLES_DIR)
 
-      await expect(resolvePathToDeepnoteFile(EXAMPLES_DIR)).rejects.toThrow(
-        `Expected a file, but got a directory: ${absolutePath}`
-      )
+      await expect(resolvePathToDeepnoteFile(EXAMPLES_DIR)).rejects.toThrow(`Not a file: ${absolutePath}`)
     })
   })
 
   describe('invalid file extension', () => {
     it('throws error for non-.deepnote file', async () => {
-      await expect(resolvePathToDeepnoteFile(IPYNB_FILE)).rejects.toThrow('Expected a .deepnote file')
+      await expect(resolvePathToDeepnoteFile(IPYNB_FILE)).rejects.toThrow('Unsupported file type: .ipynb')
     })
 
     it('throws error for file without extension', async () => {

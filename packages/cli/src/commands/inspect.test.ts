@@ -1,10 +1,14 @@
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { createInspectAction } from './inspect'
+import { resetOutputConfig } from '../output'
+import { createInspectAction, type InspectOptions } from './inspect'
 
 // Test file path relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
+
+/** Default options for testing */
+const DEFAULT_OPTIONS: InspectOptions = {}
 
 function getOutput(spy: Mock<typeof console.log>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
@@ -17,6 +21,7 @@ describe('inspect command', () => {
   beforeEach(() => {
     program = new Command()
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    resetOutputConfig()
   })
 
   afterEach(() => {
@@ -35,7 +40,7 @@ describe('inspect command', () => {
       const action = createInspectAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath)
+      await action(filePath, DEFAULT_OPTIONS)
 
       expect(consoleSpy).toHaveBeenCalled()
 
@@ -53,7 +58,7 @@ describe('inspect command', () => {
       const action = createInspectAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath)
+      await action(filePath, DEFAULT_OPTIONS)
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('Hello world')
@@ -65,12 +70,28 @@ describe('inspect command', () => {
       const action = createInspectAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath)
+      await action(filePath, DEFAULT_OPTIONS)
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('Notebooks:')
       expect(output).toContain('1. Hello World - example')
       expect(output).toContain('1 blocks')
+    })
+
+    it('outputs JSON when --json option is used', async () => {
+      const action = createInspectAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+      await action(filePath, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      expect(parsed.project.name).toBe('Hello world')
+      expect(parsed.project.id).toBe('18aaab73-3599-4bb5-b2ab-c05ac09f597d')
+      expect(parsed.version).toBe('1.0.0')
+      expect(parsed.statistics.notebookCount).toBe(1)
+      expect(parsed.statistics.totalBlocks).toBe(1)
     })
   })
 
@@ -78,7 +99,7 @@ describe('inspect command', () => {
     it('accepts relative paths', async () => {
       const action = createInspectAction(program)
 
-      await action(HELLO_WORLD_FILE)
+      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
 
       expect(consoleSpy).toHaveBeenCalled()
       const output = getOutput(consoleSpy)
@@ -89,7 +110,7 @@ describe('inspect command', () => {
       const action = createInspectAction(program)
       const absolutePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(absolutePath)
+      await action(absolutePath, DEFAULT_OPTIONS)
 
       expect(consoleSpy).toHaveBeenCalled()
       const output = getOutput(consoleSpy)
