@@ -235,6 +235,15 @@ export class ExecutionEngine {
   }
 
   /**
+   * Check if a string is a valid Python identifier.
+   * Python identifiers must start with a letter or underscore,
+   * followed by letters, digits, or underscores.
+   */
+  private isValidPythonIdentifier(name: string): boolean {
+    return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)
+  }
+
+  /**
    * Inject input values into the kernel before execution.
    * Converts values to Python literals and executes assignment statements.
    */
@@ -245,6 +254,10 @@ export class ExecutionEngine {
 
     const assignments: string[] = []
     for (const [name, value] of Object.entries(inputs)) {
+      // Validate variable name to prevent code injection
+      if (!this.isValidPythonIdentifier(name)) {
+        throw new Error(`Invalid variable name: "${name}". Must be a valid Python identifier.`)
+      }
       const pythonValue = this.toPythonLiteral(value)
       assignments.push(`${name} = ${pythonValue}`)
     }
@@ -284,6 +297,10 @@ export class ExecutionEngine {
         .replace(/\n/g, '\\n')
         .replace(/\r/g, '\\r')
         .replace(/\t/g, '\\t')
+        .replace(/\0/g, '\\x00')
+        // Escape other control characters (code points < 0x20 except already handled, and DEL 0x7F)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally escaping control chars
+        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, char => `\\x${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
       return `'${escaped}'`
     }
     if (Array.isArray(value)) {

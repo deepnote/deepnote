@@ -587,7 +587,60 @@ describe('ExecutionEngine', () => {
         })
 
         const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
-        expect(firstCall).toContain("config = {'debug': True, 'level': 3}")
+        // Assert keys independently to avoid order dependency
+        expect(firstCall).toContain('config = ')
+        expect(firstCall).toMatch(/'debug': True/)
+        expect(firstCall).toMatch(/'level': 3/)
+      })
+
+      it('injects empty arrays correctly', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { items: [] },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('items = []')
+      })
+
+      it('injects empty objects correctly', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { obj: {} },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('obj = {}')
+      })
+
+      it('rejects invalid variable names', async () => {
+        await engine.start()
+
+        await expect(
+          engine.runProject(HELLO_WORLD, {
+            inputs: { 'invalid-name': 'value' },
+          })
+        ).rejects.toThrow('Invalid variable name')
+      })
+
+      it('rejects variable names starting with digits', async () => {
+        await engine.start()
+
+        await expect(
+          engine.runProject(HELLO_WORLD, {
+            inputs: { '123abc': 'value' },
+          })
+        ).rejects.toThrow('Invalid variable name')
+      })
+
+      it('rejects variable names with injection attempts', async () => {
+        await engine.start()
+
+        await expect(
+          engine.runProject(HELLO_WORLD, {
+            inputs: { 'x; import os': 'value' },
+          })
+        ).rejects.toThrow('Invalid variable name')
       })
 
       it('escapes special characters in strings', async () => {
@@ -598,6 +651,16 @@ describe('ExecutionEngine', () => {
 
         const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
         expect(firstCall).toContain("text = 'Hello\\nWorld\\t\\'test\\''")
+      })
+
+      it('escapes null bytes and control characters', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { text: 'hello\x00world\x01\x1f' },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain("text = 'hello\\x00world\\x01\\x1f'")
       })
 
       it('does not inject when inputs is empty', async () => {

@@ -31,7 +31,7 @@ vi.mock('@deepnote/reactivity', () => {
   }
 })
 
-import { createRunAction, MissingInputError, MissingIntegrationError } from './run'
+import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
 
 // Example files relative to project root
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -92,18 +92,7 @@ describe('run command', () => {
 
   describe('runDeepnoteProject via createRunAction', () => {
     let program: Command
-    let action: (
-      path: string,
-      options: {
-        python?: string
-        cwd?: string
-        notebook?: string
-        block?: string
-        input?: string[]
-        listInputs?: boolean
-        json?: boolean
-      }
-    ) => Promise<void>
+    let action: (path: string, options: RunOptions) => Promise<void>
     let consoleLogSpy: Mock
     let consoleErrorSpy: Mock
     let stdoutWriteSpy: Mock
@@ -729,6 +718,19 @@ describe('run command', () => {
           })
         )
       })
+
+      it('handles empty values', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['empty='] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { empty: '' },
+          })
+        )
+      })
     })
 
     describe('--list-inputs flag', () => {
@@ -775,6 +777,9 @@ describe('run command', () => {
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)
 
+        // Guard against empty array
+        expect(parsed.inputs.length).toBeGreaterThan(0)
+
         // Check first input has expected properties
         expect(parsed.inputs[0]).toHaveProperty('variableName')
         expect(parsed.inputs[0]).toHaveProperty('type')
@@ -795,6 +800,18 @@ describe('run command', () => {
         const output = getOutput(consoleLogSpy)
         // The "1. Text blocks" notebook has no input blocks
         expect(output).toContain('No input blocks found')
+      })
+
+      it('ignores --input when --list-inputs is set', async () => {
+        await action(BLOCKS_FILE, { listInputs: true, input: ['foo=bar'] })
+
+        // Should NOT call runFile
+        expect(mockRunFile).not.toHaveBeenCalled()
+        expect(mockStart).not.toHaveBeenCalled()
+
+        // Should still print input information
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Input variables')
       })
     })
   })
