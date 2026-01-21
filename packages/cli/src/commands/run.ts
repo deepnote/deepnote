@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import type { Command } from 'commander'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
-import { resolveDeepnoteFile } from '../utils/file-resolver'
+import { resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 interface RunOptions {
   python?: string
@@ -25,7 +25,7 @@ export function createRunAction(program: Command): (path: string, options: RunOp
 }
 
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath } = await resolveDeepnoteFile(path)
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
   const pythonPath = options.python ?? 'python'
 

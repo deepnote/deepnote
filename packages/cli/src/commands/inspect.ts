@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import type { Command } from 'commander'
-import { resolveDeepnoteFile } from '../utils/file-resolver'
+import { resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export function createInspectAction(program: Command): (path: string | undefined) => Promise<void> {
   return async path => {
@@ -16,7 +16,7 @@ export function createInspectAction(program: Command): (path: string | undefined
 }
 
 async function inspectDeepnoteFile(path: string | undefined): Promise<void> {
-  const { absolutePath } = await resolveDeepnoteFile(path)
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
 
   const rawBytes = await fs.readFile(absolutePath)
   const yamlContent = decodeUtf8NoBom(rawBytes)
