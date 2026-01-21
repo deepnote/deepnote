@@ -1,4 +1,4 @@
-import chalk, { type ChalkInstance } from 'chalk'
+import { Chalk, type ChalkInstance } from 'chalk'
 
 /**
  * Global output configuration for the CLI.
@@ -23,6 +23,9 @@ const defaultConfig: OutputConfig = {
 /** Current output configuration (mutable singleton) */
 let currentConfig: OutputConfig = { ...defaultConfig }
 
+/** CLI-specific chalk instance (avoids modifying global chalk) */
+let cliChalk: ChalkInstance = new Chalk()
+
 /**
  * Get the current output configuration.
  */
@@ -36,10 +39,9 @@ export function getOutputConfig(): Readonly<OutputConfig> {
 export function setOutputConfig(config: Partial<OutputConfig>): void {
   currentConfig = { ...currentConfig, ...config }
 
-  // Update chalk's color level based on config
-  if (!currentConfig.color) {
-    chalk.level = 0
-  }
+  // Create new chalk instance with appropriate color level
+  // This avoids modifying the global chalk instance
+  cliChalk = new Chalk({ level: currentConfig.color ? undefined : 0 })
 }
 
 /**
@@ -48,6 +50,7 @@ export function setOutputConfig(config: Partial<OutputConfig>): void {
  */
 export function resetOutputConfig(): void {
   currentConfig = { ...defaultConfig }
+  cliChalk = new Chalk()
 }
 
 /**
@@ -78,9 +81,10 @@ export function shouldDisableColor(): boolean {
 
 /**
  * Get a chalk instance configured for current output settings.
+ * Uses a CLI-specific instance to avoid modifying global chalk state.
  */
 export function getChalk(): ChalkInstance {
-  return chalk
+  return cliChalk
 }
 
 /**
@@ -97,7 +101,7 @@ export function log(message: string): void {
  */
 export function debug(message: string): void {
   if (currentConfig.debug && !currentConfig.quiet) {
-    console.error(chalk.dim(`[debug] ${message}`))
+    console.error(cliChalk.dim(`[debug] ${message}`))
   }
 }
 
@@ -105,7 +109,7 @@ export function debug(message: string): void {
  * Log an error message (always shown, even in quiet mode).
  */
 export function error(message: string): void {
-  console.error(chalk.red(message))
+  console.error(cliChalk.red(message))
 }
 
 /**

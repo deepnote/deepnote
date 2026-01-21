@@ -117,4 +117,22 @@ describe('inspect command', () => {
       expect(output).toContain('Hello world')
     })
   })
+
+  describe('error handling', () => {
+    it('outputs JSON error and exits when --json option is used', async () => {
+      const action = createInspectAction(program)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit called')
+      })
+
+      await expect(action('non-existent-file.deepnote', { json: true })).rejects.toThrow('process.exit called')
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(false)
+      expect(parsed.error).toContain('File not found')
+
+      exitSpy.mockRestore()
+    })
+  })
 })

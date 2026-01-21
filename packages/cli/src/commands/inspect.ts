@@ -22,7 +22,12 @@ export function createInspectAction(
       const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      program.error(message, { exitCode })
+      if (options.json) {
+        outputJson({ success: false, error: message })
+        process.exit(exitCode)
+      } else {
+        program.error(message, { exitCode })
+      }
     }
   }
 }

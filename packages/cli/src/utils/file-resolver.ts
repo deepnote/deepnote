@@ -43,7 +43,12 @@ export async function resolvePathToDeepnoteFile(
   const absolutePath = resolve(process.cwd(), path)
   debug(`Resolved path: ${absolutePath}`)
 
-  const fileStat = await stat(absolutePath).catch(() => null)
+  const fileStat = await stat(absolutePath).catch((err: unknown) => {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code
+    // Only treat ENOENT/ENOTDIR as "not found", rethrow other errors (permission denied, I/O failures)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return null
+    throw err
+  })
   if (!fileStat) {
     const suggestion = await suggestSimilarFiles(path)
     throw new FileResolutionError(`File not found: ${absolutePath}${suggestion}`)
@@ -74,7 +79,7 @@ async function suggestSimilarFiles(path: string): Promise<string> {
     const resolvedDir = resolve(process.cwd(), dir)
 
     const files = await readdir(resolvedDir)
-    const deepnoteFiles = files.filter(f => f.endsWith('.deepnote'))
+    const deepnoteFiles = files.filter(f => f.toLowerCase().endsWith('.deepnote'))
 
     if (deepnoteFiles.length === 0) {
       return '\n\nNo .deepnote files found in this directory.'
