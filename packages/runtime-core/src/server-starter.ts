@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import tcpPortUsed from 'tcp-port-used'
+import { resolvePythonExecutable } from './python-env'
 
 const DEFAULT_PORT = 8888
 const SERVER_STARTUP_TIMEOUT_MS = 120_000
@@ -13,8 +14,8 @@ export interface ServerInfo {
 }
 
 export interface ServerOptions {
-  /** Path to Python interpreter */
-  pythonPath: string
+  /** Path to Python virtual environment directory (e.g., /path/to/venv) */
+  pythonEnv: string
   /** Working directory for the server */
   workingDirectory: string
   /** Optional starting port (auto-finds available if not specified) */
@@ -28,7 +29,10 @@ export interface ServerOptions {
  * Spawns `python -m deepnote_toolkit server` and waits for it to be ready.
  */
 export async function startServer(options: ServerOptions): Promise<ServerInfo> {
-  const { pythonPath, workingDirectory, port, startupTimeoutMs = SERVER_STARTUP_TIMEOUT_MS } = options
+  const { pythonEnv, workingDirectory, port, startupTimeoutMs = SERVER_STARTUP_TIMEOUT_MS } = options
+
+  // Resolve the Python executable from the venv path
+  const pythonPath = await resolvePythonExecutable(pythonEnv)
 
   // Find available consecutive ports (Jupyter + LSP)
   const jupyterPort = await findConsecutiveAvailablePorts(port ?? DEFAULT_PORT)

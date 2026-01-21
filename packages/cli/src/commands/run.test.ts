@@ -16,7 +16,7 @@ vi.mock('@deepnote/runtime-core', () => {
       stop = mockStop
       runFile = mockRunFile
 
-      constructor(config: { pythonPath: string; workingDirectory: string }) {
+      constructor(config: { pythonEnv: string; workingDirectory: string }) {
         mockConstructor(config)
       }
     },
@@ -130,7 +130,7 @@ describe('run command', () => {
       await action(HELLO_WORLD_FILE, {})
 
       expect(mockConstructor).toHaveBeenCalledWith({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: expect.stringContaining('examples'),
       })
     })
@@ -138,10 +138,10 @@ describe('run command', () => {
     it('uses custom python path when provided', async () => {
       setupSuccessfulRun()
 
-      await action(HELLO_WORLD_FILE, { python: '/usr/bin/python3' })
+      await action(HELLO_WORLD_FILE, { python: '/path/to/venv' })
 
       expect(mockConstructor).toHaveBeenCalledWith({
-        pythonPath: '/usr/bin/python3',
+        pythonEnv: '/path/to/venv',
         workingDirectory: expect.any(String),
       })
     })
@@ -152,7 +152,7 @@ describe('run command', () => {
       await action(HELLO_WORLD_FILE, { cwd: '/custom/work/dir' })
 
       expect(mockConstructor).toHaveBeenCalledWith({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/custom/work/dir',
       })
     })

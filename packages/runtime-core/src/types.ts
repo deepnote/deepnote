@@ -1,8 +1,8 @@
 import type { IOutput } from '@jupyterlab/nbformat'
 
 export interface RuntimeConfig {
-  /** Path to Python interpreter */
-  pythonPath: string
+  /** Path to Python virtual environment directory (e.g., /path/to/venv) */
+  pythonEnv: string
   /** Working directory for execution */
   workingDirectory: string
   /** Optional port for the Jupyter server (auto-assigned if not provided) */

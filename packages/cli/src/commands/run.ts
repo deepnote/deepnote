@@ -27,13 +27,13 @@ export function createRunAction(program: Command): (path: string, options: RunOp
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
-  const pythonPath = options.python ?? 'python'
+  const pythonEnv = options.python ?? 'python'
 
   console.log(chalk.dim(`Parsing ${absolutePath}...`))
 
   // Create and start the execution engine
   const engine = new ExecutionEngine({
-    pythonPath,
+    pythonEnv,
     workingDirectory,
   })
 

@@ -73,7 +73,7 @@ describe('ExecutionEngine', () => {
     vi.clearAllMocks()
 
     engine = new ExecutionEngine({
-      pythonPath: '/usr/bin/python3',
+      pythonEnv: '/path/to/venv',
       workingDirectory: '/project',
     })
 
@@ -99,7 +99,7 @@ describe('ExecutionEngine', () => {
       await engine.start()
 
       expect(mockStartServer).toHaveBeenCalledWith({
-        pythonPath: '/usr/bin/python3',
+        pythonEnv: '/path/to/venv',
         workingDirectory: '/project',
         port: undefined,
       })
@@ -107,7 +107,7 @@ describe('ExecutionEngine', () => {
 
     it('passes server port when specified', async () => {
       const engineWithPort = new ExecutionEngine({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/project',
         serverPort: 9000,
       })

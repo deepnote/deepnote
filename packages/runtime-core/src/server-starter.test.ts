@@ -12,6 +12,13 @@ vi.mock('tcp-port-used', () => ({
   },
 }))
 
+// Mock python-env to avoid filesystem checks in unit tests
+vi.mock('./python-env', () => ({
+  resolvePythonExecutable: vi.fn((venvPath: string) =>
+    Promise.resolve(venvPath === 'python' ? 'python' : `${venvPath}/bin/python`)
+  ),
+}))
+
 // Import after mocking
 import { spawn } from 'node:child_process'
 import tcpPortUsed from 'tcp-port-used'
@@ -71,7 +78,7 @@ describe('server-starter', () => {
   describe('startServer', () => {
     it('spawns deepnote-toolkit server with correct arguments', async () => {
       const serverPromise = startServer({
-        pythonPath: '/usr/bin/python3',
+        pythonEnv: '/path/to/venv',
         workingDirectory: '/project',
         port: 9000,
       })
@@ -80,8 +87,9 @@ describe('server-starter', () => {
       await vi.advanceTimersByTimeAsync(100)
       await serverPromise
 
+      // The pythonEnv is resolved to the python executable by resolvePythonExecutable
       expect(spawn).toHaveBeenCalledWith(
-        '/usr/bin/python3',
+        '/path/to/venv/bin/python',
         ['-m', 'deepnote_toolkit', 'server', '--jupyter-port', '9000', '--ls-port', '9001'],
         expect.objectContaining({
           cwd: '/project',
@@ -102,7 +110,7 @@ describe('server-starter', () => {
         .mockResolvedValueOnce(false) // 8891 available
 
       const serverPromise = startServer({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/project',
       })
 
@@ -124,7 +132,7 @@ describe('server-starter', () => {
         .mockResolvedValueOnce(false) // 8891 available
 
       const serverPromise = startServer({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/project',
       })
 
@@ -137,7 +145,7 @@ describe('server-starter', () => {
 
     it('returns correct server info', async () => {
       const serverPromise = startServer({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/project',
         port: 8000,
       })
@@ -157,7 +165,7 @@ describe('server-starter', () => {
       fetchSpy.mockRejectedValueOnce(new Error('Connection refused')).mockResolvedValueOnce(new Response('{}'))
 
       const serverPromise = startServer({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/project',
       })
 
@@ -191,7 +199,7 @@ describe('server-starter', () => {
       )
 
       const serverPromise = startServer({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/project',
       })
       // Immediately attach error handler to avoid unhandled rejection
@@ -211,7 +219,7 @@ describe('server-starter', () => {
       fetchSpy.mockRejectedValue(new Error('Connection refused'))
 
       const serverPromise = startServer({
-        pythonPath: 'python',
+        pythonEnv: 'python',
         workingDirectory: '/project',
         startupTimeoutMs: 1000,
       })
@@ -233,7 +241,7 @@ describe('server-starter', () => {
 
       await expect(
         startServer({
-          pythonPath: 'python',
+          pythonEnv: 'python',
           workingDirectory: '/project',
         })
       ).rejects.toThrow('Could not find consecutive available ports')

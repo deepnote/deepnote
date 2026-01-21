@@ -43,7 +43,7 @@ export interface ExecutionOptions {
  * @example
  * ```typescript
  * const engine = new ExecutionEngine({
- *   pythonPath: 'python',
+ *   pythonEnv: '/path/to/venv',  // or 'python' for system Python
  *   workingDirectory: '/path/to/project',
  * })
  *
@@ -67,7 +67,7 @@ export class ExecutionEngine {
    */
   async start(): Promise<void> {
     this.server = await startServer({
-      pythonPath: this.config.pythonPath,
+      pythonEnv: this.config.pythonEnv,
       workingDirectory: this.config.workingDirectory,
       port: this.config.serverPort,
     })
