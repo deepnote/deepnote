@@ -28,9 +28,10 @@ let cliChalk: ChalkInstance = new Chalk()
 
 /**
  * Get the current output configuration.
+ * Returns a copy to prevent external mutations from affecting internal state.
  */
 export function getOutputConfig(): Readonly<OutputConfig> {
-  return currentConfig
+  return { ...currentConfig }
 }
 
 /**

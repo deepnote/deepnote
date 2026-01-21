@@ -34,9 +34,11 @@ describe('output', () => {
       })
     })
 
-    it('returns readonly config', () => {
+    it('returns config that does not mutate internal state', () => {
       const config = getOutputConfig()
-      expect(config).toBeDefined()
+      // Attempt to mutate should not affect internal state
+      ;(config as { debug: boolean }).debug = true
+      expect(getOutputConfig().debug).toBe(false)
     })
   })
 
@@ -56,6 +58,9 @@ describe('output', () => {
     it('disables chalk when color is false', () => {
       setOutputConfig({ color: false })
       expect(getOutputConfig().color).toBe(false)
+      // Verify chalk actually produces uncolored output
+      const chalk = getChalk()
+      expect(chalk.red('text')).toBe('text')
     })
   })
 

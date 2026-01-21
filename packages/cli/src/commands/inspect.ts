@@ -3,7 +3,7 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, outputJson } from '../output'
+import { debug, error as logError, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface InspectOptions {
@@ -11,7 +11,7 @@ export interface InspectOptions {
 }
 
 export function createInspectAction(
-  program: Command
+  _program: Command
 ): (path: string | undefined, options: InspectOptions) => Promise<void> {
   return async (path, options) => {
     try {
@@ -24,10 +24,10 @@ export function createInspectAction(
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
       if (options.json) {
         outputJson({ success: false, error: message })
-        process.exit(exitCode)
       } else {
-        program.error(message, { exitCode })
+        logError(message)
       }
+      process.exit(exitCode)
     }
   }
 }

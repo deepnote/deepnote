@@ -147,18 +147,21 @@ describe('CLI', () => {
     })
 
     it('calls createProgram and parse', () => {
-      // Mock process.argv to test default behavior
       const originalArgv = process.argv
-      process.argv = ['node', 'deepnote', '--version']
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit called')
+      })
 
-      // This will print version and exit normally
       try {
-        run()
-      } catch {
-        // Expected to throw due to exitOverride not being set
+        process.argv = ['node', 'deepnote', '--version']
+        // run() will call process.exit when displaying version
+        expect(() => run()).toThrow('process.exit called')
+        // Verify process.exit was called with 0 (success)
+        expect(exitSpy).toHaveBeenCalledWith(0)
+      } finally {
+        process.argv = originalArgv
+        exitSpy.mockRestore()
       }
-
-      process.argv = originalArgv
     })
   })
 
