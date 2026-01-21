@@ -97,7 +97,7 @@ async function determineInputFormat(
 
   if (ext === '.py') {
     const content = await fs.readFile(absolutePath, 'utf-8')
-    const format = detectFormat(content)
+    const format = detectFormat(absolutePath, content)
     if (format === 'marimo') return 'marimo'
     if (format === 'percent') return 'percent'
     throw new Error(
@@ -116,8 +116,9 @@ async function determineInputFormat(
     // Check .py files for format
     const pyFiles = files.filter(f => f.endsWith('.py'))
     for (const pyFile of pyFiles) {
-      const content = await fs.readFile(resolve(absolutePath, pyFile), 'utf-8')
-      const format = detectFormat(content)
+      const pyFilePath = resolve(absolutePath, pyFile)
+      const content = await fs.readFile(pyFilePath, 'utf-8')
+      const format = detectFormat(pyFilePath, content)
       if (format === 'marimo') return 'marimo'
       if (format === 'percent') return 'percent'
     }
@@ -262,7 +263,7 @@ async function getFilesFromDirectory(
     const filteredFiles: string[] = []
     for (const file of files) {
       const content = await fs.readFile(file, 'utf-8')
-      const detectedFormat = detectFormat(content)
+      const detectedFormat = detectFormat(file, content)
       if (detectedFormat === format) {
         filteredFiles.push(file)
       }
