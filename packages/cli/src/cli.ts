@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
 import { ExitCode } from './exit-codes'
@@ -166,6 +167,69 @@ ${c.bold('Examples:')}
     })
     .action(createRunAction(program))
 
+  // DAG command - analyze block dependencies
+  const dagCmd = program
+    .command('dag')
+    .description('Analyze block dependencies and variable flow')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Subcommands:')}
+  show        Show the dependency graph between blocks
+  vars        List variables defined and used by each block
+  downstream  Show blocks that need re-run if a block changes
+
+${c.bold('Output Formats:')}
+  --json      Output as JSON for scripting
+  --dot       Output as DOT format for Graphviz visualization
+
+${c.bold('Examples:')}
+  ${c.dim('# Show the dependency graph')}
+  $ deepnote dag show my-project.deepnote
+
+  ${c.dim('# List variables for each block')}
+  $ deepnote dag vars my-project.deepnote
+
+  ${c.dim('# Show what needs re-run if a block changes')}
+  $ deepnote dag downstream my-project.deepnote --block "Load Data"
+
+  ${c.dim('# Generate Graphviz visualization')}
+  $ deepnote dag show my-project.deepnote --dot | dot -Tpng -o deps.png
+
+  ${c.dim('# Analyze only a specific notebook')}
+  $ deepnote dag show my-project.deepnote --notebook "Analysis"
+`
+    })
+
+  dagCmd
+    .command('show')
+    .description('Show the dependency graph between blocks')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('--json', 'Output in JSON format for scripting')
+    .option('--dot', 'Output in DOT format for Graphviz')
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagShowAction(program))
+
+  dagCmd
+    .command('vars')
+    .description('List variables defined and used by each block')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('--json', 'Output in JSON format for scripting')
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagVarsAction(program))
+
+  dagCmd
+    .command('downstream')
+    .description('Show blocks that need re-run if a block changes')
+    .argument('<path>', 'Path to a .deepnote file')
+    .requiredOption('-b, --block <id>', 'Block ID or label to analyze')
+    .option('--json', 'Output in JSON format for scripting')
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagDownstreamAction(program))
+
   // Completion command - generate shell completions
   program
     .command('completion')
@@ -255,6 +319,15 @@ _deepnote_completions() {
             COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             return 0
             ;;
+        dag)
+            COMPREPLY=( $(compgen -W "show vars downstream" -- "\${cur}") )
+            return 0
+            ;;
+        show|vars|downstream)
+            # Complete .deepnote files for dag subcommands
+            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            return 0
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
             return 0
@@ -283,6 +356,7 @@ _deepnote() {
     commands=(
         'inspect:Inspect and display metadata from a .deepnote file'
         'run:Run a .deepnote file'
+        'dag:Analyze block dependencies and variable flow'
         'completion:Generate shell completion scripts'
         'help:Display help for command'
     )
@@ -323,6 +397,31 @@ _deepnote() {
                         '--json[Output results in JSON format]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
+                dag)
+                    local -a subcommands
+                    subcommands=(
+                        'show:Show the dependency graph'
+                        'vars:List variables defined and used by each block'
+                        'downstream:Show blocks that need re-run if a block changes'
+                    )
+                    _arguments \\
+                        '1: :->subcommand' \\
+                        '*:: :->args'
+                    case $state in
+                        subcommand)
+                            _describe -t subcommands 'dag subcommands' subcommands
+                            ;;
+                        args)
+                            _arguments \\
+                                '--json[Output in JSON format]' \\
+                                '--dot[Output in DOT format for Graphviz]' \\
+                                '--notebook[Analyze only a specific notebook]:notebook name:' \\
+                                '--python[Path to Python interpreter]:python path:_files' \\
+                                '--block[Block ID or label to analyze]:block:' \\
+                                '*:deepnote file:_files -g "*.deepnote"'
+                            ;;
+                    esac
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -355,6 +454,7 @@ complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
 # Commands
 complete -c deepnote -n __fish_use_subcommand -a inspect -d 'Inspect and display metadata from a .deepnote file'
 complete -c deepnote -n __fish_use_subcommand -a run -d 'Run a .deepnote file'
+complete -c deepnote -n __fish_use_subcommand -a dag -d 'Analyze block dependencies and variable flow'
 complete -c deepnote -n __fish_use_subcommand -a completion -d 'Generate shell completion scripts'
 complete -c deepnote -n __fish_use_subcommand -a help -d 'Display help for command'
 
@@ -369,11 +469,22 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 
+# dag subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -a show -d 'Show the dependency graph'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -a vars -d 'List variables defined and used by each block'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -a downstream -d 'Show blocks that need re-run if a block changes'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -l dot -d 'Output in DOT format for Graphviz'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -l notebook -d 'Analyze only a specific notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -l python -d 'Path to Python interpreter'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -l block -s b -d 'Block ID or label to analyze'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -F -a '*.deepnote'
+
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 
 # help subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run completion'
+complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run dag completion'
 `
 }
 
