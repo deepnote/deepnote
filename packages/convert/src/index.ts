@@ -71,6 +71,32 @@ export {
   convertQuartoFilesToDeepnoteFile,
   parseQuartoFormat,
 } from './quarto-to-deepnote'
+// Snapshot utilities
+export type {
+  BlockOutput,
+  MergeOptions,
+  SnapshotInfo,
+  SnapshotOptions,
+  SplitResult,
+} from './snapshot'
+export {
+  addContentHashes,
+  computeContentHash,
+  computeSnapshotHash,
+  countBlocksWithOutputs,
+  findSnapshotsForProject,
+  generateSnapshotFilename,
+  getSnapshotDir,
+  hasOutputs,
+  loadLatestSnapshot,
+  loadSnapshotFile,
+  mergeSnapshotIntoSource,
+  parseSnapshotFilename,
+  parseSourceFilePath,
+  slugifyProjectName,
+  snapshotExists,
+  splitDeepnoteFile,
+} from './snapshot'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'
 export type { MarimoApp, MarimoCell } from './types/marimo'
 export type { PercentCell, PercentNotebook } from './types/percent'
