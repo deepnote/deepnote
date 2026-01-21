@@ -5,27 +5,14 @@ export interface ResolvedFile {
   absolutePath: string
 }
 
-export interface ResolvePathToDeepnoteFileOptions {
-  /** Custom error message when path is missing */
-  missingPathMessage?: string
-}
-
 /**
  * Resolves and validates a .deepnote file path.
  *
  * @param path - The path to the .deepnote file (relative or absolute)
- * @param options - Optional configuration
  * @returns The resolved absolute path
- * @throws Error if the path is missing, file doesn't exist, or isn't a .deepnote file
+ * @throws Error if file doesn't exist or isn't a .deepnote file
  */
-export async function resolvePathToDeepnoteFile(
-  path: string | undefined,
-  options: ResolvePathToDeepnoteFileOptions = {}
-): Promise<ResolvedFile> {
-  if (!path) {
-    throw new Error(options.missingPathMessage ?? 'Missing path to a .deepnote file.')
-  }
-
+export async function resolvePathToDeepnoteFile(path: string): Promise<ResolvedFile> {
   const absolutePath = resolve(process.cwd(), path)
 
   const fileStat = await stat(absolutePath).catch(() => null)

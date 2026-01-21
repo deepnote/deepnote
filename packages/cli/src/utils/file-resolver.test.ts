@@ -22,22 +22,6 @@ describe('resolvePathToDeepnoteFile', () => {
     await rm(tempDir, { recursive: true, force: true })
   })
 
-  describe('missing path', () => {
-    it('throws error when path is undefined', async () => {
-      await expect(resolvePathToDeepnoteFile(undefined)).rejects.toThrow('Missing path to a .deepnote file.')
-    })
-
-    it('throws error when path is empty string', async () => {
-      await expect(resolvePathToDeepnoteFile('')).rejects.toThrow('Missing path to a .deepnote file.')
-    })
-
-    it('uses custom error message when provided', async () => {
-      await expect(
-        resolvePathToDeepnoteFile(undefined, { missingPathMessage: 'Custom error message' })
-      ).rejects.toThrow('Custom error message')
-    })
-  })
-
   describe('file not found', () => {
     it('throws error for non-existent file', async () => {
       const nonExistentPath = join(EXAMPLES_DIR, 'does-not-exist.deepnote')

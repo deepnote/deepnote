@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import type { Command } from 'commander'
 import { resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
-export function createInspectAction(program: Command): (path: string | undefined) => Promise<void> {
+export function createInspectAction(program: Command): (path: string) => Promise<void> {
   return async path => {
     try {
       await inspectDeepnoteFile(path)
@@ -15,7 +15,7 @@ export function createInspectAction(program: Command): (path: string | undefined
   }
 }
 
-async function inspectDeepnoteFile(path: string | undefined): Promise<void> {
+async function inspectDeepnoteFile(path: string): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
 
   const rawBytes = await fs.readFile(absolutePath)
