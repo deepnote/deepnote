@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
+import { createValidateAction } from './commands/validate'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, setOutputConfig, shouldDisableColor } from './output'
 import { version } from './version'
@@ -166,6 +167,40 @@ ${c.bold('Examples:')}
     })
     .action(createRunAction(program))
 
+  // Validate command - validate a .deepnote file against the schema
+  program
+    .command('validate')
+    .description('Validate a .deepnote file against the schema')
+    .argument('<path>', 'Path to a .deepnote file to validate')
+    .option('--json', 'Output in JSON format for scripting')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Reports whether the .deepnote file is valid and lists any schema violations.
+  Uses the Zod schemas from @deepnote/blocks to validate the file structure.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  File is valid
+  ${c.dim('1')}  File is invalid (schema violations found)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file)
+
+${c.bold('Examples:')}
+  ${c.dim('# Validate a .deepnote file')}
+  $ deepnote validate my-project.deepnote
+
+  ${c.dim('# Validate with JSON output for CI/CD')}
+  $ deepnote validate my-project.deepnote --json
+
+  ${c.dim('# Validate and check exit code in scripts')}
+  $ deepnote validate my-project.deepnote && echo "Valid!"
+
+  ${c.dim('# Parse JSON output with jq')}
+  $ deepnote validate my-project.deepnote --json | jq '.valid'
+`
+    })
+    .action(createValidateAction(program))
+
   // Completion command - generate shell completions
   program
     .command('completion')
@@ -255,6 +290,11 @@ _deepnote_completions() {
             COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             return 0
             ;;
+        validate)
+            # Complete .deepnote files
+            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            return 0
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
             return 0
@@ -283,6 +323,7 @@ _deepnote() {
     commands=(
         'inspect:Inspect and display metadata from a .deepnote file'
         'run:Run a .deepnote file'
+        'validate:Validate a .deepnote file against the schema'
         'completion:Generate shell completion scripts'
         'help:Display help for command'
     )
@@ -323,6 +364,11 @@ _deepnote() {
                         '--json[Output results in JSON format]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
+                validate)
+                    _arguments \\
+                        '--json[Output in JSON format]' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -355,6 +401,7 @@ complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
 # Commands
 complete -c deepnote -n __fish_use_subcommand -a inspect -d 'Inspect and display metadata from a .deepnote file'
 complete -c deepnote -n __fish_use_subcommand -a run -d 'Run a .deepnote file'
+complete -c deepnote -n __fish_use_subcommand -a validate -d 'Validate a .deepnote file against the schema'
 complete -c deepnote -n __fish_use_subcommand -a completion -d 'Generate shell completion scripts'
 complete -c deepnote -n __fish_use_subcommand -a help -d 'Display help for command'
 
@@ -369,11 +416,15 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 
+# validate subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote'
+
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 
 # help subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run completion'
+complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run validate completion'
 `
 }
 
