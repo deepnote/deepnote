@@ -8,6 +8,7 @@ import { resolveDeepnoteFile } from '../utils/file-resolver'
 
 interface RunOptions {
   python?: string
+  cwd?: string
   notebook?: string
   block?: string
 }
@@ -25,7 +26,7 @@ export function createRunAction(program: Command): (path: string, options: RunOp
 
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolveDeepnoteFile(path)
-  const workingDirectory = dirname(absolutePath)
+  const workingDirectory = options.cwd ?? dirname(absolutePath)
   const pythonPath = options.python ?? 'python'
 
   console.log(chalk.dim(`Parsing ${absolutePath}...`))

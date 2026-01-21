@@ -83,7 +83,10 @@ describe('run command', () => {
 
   describe('runDeepnoteProject via createRunAction', () => {
     let program: Command
-    let action: (path: string, options: { python?: string; notebook?: string; block?: string }) => Promise<void>
+    let action: (
+      path: string,
+      options: { python?: string; cwd?: string; notebook?: string; block?: string }
+    ) => Promise<void>
     let consoleLogSpy: Mock
     let consoleErrorSpy: Mock
     let stdoutWriteSpy: Mock
@@ -140,6 +143,17 @@ describe('run command', () => {
       expect(mockConstructor).toHaveBeenCalledWith({
         pythonPath: '/usr/bin/python3',
         workingDirectory: expect.any(String),
+      })
+    })
+
+    it('uses custom working directory when provided', async () => {
+      setupSuccessfulRun()
+
+      await action(HELLO_WORLD_FILE, { cwd: '/custom/work/dir' })
+
+      expect(mockConstructor).toHaveBeenCalledWith({
+        pythonPath: 'python',
+        workingDirectory: '/custom/work/dir',
       })
     })
 
