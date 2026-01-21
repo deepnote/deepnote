@@ -69,6 +69,9 @@ importers:
       '@deepnote/blocks':
         specifier: workspace:*
         version: link:../blocks
+      '@deepnote/reactivity':
+        specifier: workspace:*
+        version: link:../reactivity
       '@deepnote/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
