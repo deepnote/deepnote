@@ -125,18 +125,20 @@ export async function convert(options: ConvertOptions): Promise<string> {
     const marimoFiles = results.filter(r => r.type === 'marimo').map(r => r.file)
     const percentFiles = results.filter(r => r.type === 'percent').map(r => r.file)
 
+    const directoryOptions = { resolveProjectName, resolveOutputPath, singleFile }
+
     // Prioritize by file type
     if (ipynbFiles.length > 0) {
-      return convertDirectory(absolutePath, ipynbFiles, 'jupyter', resolveProjectName, resolveOutputPath, singleFile)
+      return convertDirectory({ dirPath: absolutePath, files: ipynbFiles, format: 'jupyter', ...directoryOptions })
     }
     if (quartoFiles.length > 0) {
-      return convertDirectory(absolutePath, quartoFiles, 'quarto', resolveProjectName, resolveOutputPath, singleFile)
+      return convertDirectory({ dirPath: absolutePath, files: quartoFiles, format: 'quarto', ...directoryOptions })
     }
     if (marimoFiles.length > 0) {
-      return convertDirectory(absolutePath, marimoFiles, 'marimo', resolveProjectName, resolveOutputPath, singleFile)
+      return convertDirectory({ dirPath: absolutePath, files: marimoFiles, format: 'marimo', ...directoryOptions })
     }
     if (percentFiles.length > 0) {
-      return convertDirectory(absolutePath, percentFiles, 'percent', resolveProjectName, resolveOutputPath, singleFile)
+      return convertDirectory({ dirPath: absolutePath, files: percentFiles, format: 'percent', ...directoryOptions })
     }
 
     throw new Error('No supported notebook files found in the specified directory (.ipynb, .qmd, .py)')
@@ -144,14 +146,16 @@ export async function convert(options: ConvertOptions): Promise<string> {
 
   const ext = extname(absolutePath).toLowerCase()
 
+  const fileOptions = { absolutePath, resolveProjectName, resolveOutputPath, singleFile }
+
   // Handle Jupyter notebooks
   if (ext === '.ipynb') {
-    return convertJupyterToDeepnote(absolutePath, resolveProjectName, resolveOutputPath, singleFile)
+    return convertJupyterToDeepnote(fileOptions)
   }
 
   // Handle Quarto documents
   if (ext === '.qmd') {
-    return convertQuartoToDeepnote(absolutePath, resolveProjectName, resolveOutputPath, singleFile)
+    return convertQuartoToDeepnote(fileOptions)
   }
 
   // Handle Python files (could be percent or marimo)
@@ -160,11 +164,11 @@ export async function convert(options: ConvertOptions): Promise<string> {
     const content = await fs.readFile(absolutePath, 'utf-8')
 
     if (isMarimoContent(content)) {
-      return convertMarimoToDeepnote(absolutePath, resolveProjectName, resolveOutputPath, singleFile)
+      return convertMarimoToDeepnote(fileOptions)
     }
 
     if (isPercentContent(content)) {
-      return convertPercentToDeepnote(absolutePath, resolveProjectName, resolveOutputPath, singleFile)
+      return convertPercentToDeepnote(fileOptions)
     }
 
     throw new Error(
@@ -180,14 +184,17 @@ export async function convert(options: ConvertOptions): Promise<string> {
   throw new Error('Unsupported file type. Please provide a .ipynb, .qmd, .py (percent/marimo), or .deepnote file.')
 }
 
-async function convertDirectory(
-  dirPath: string,
-  files: string[],
-  format: 'jupyter' | 'quarto' | 'percent' | 'marimo',
-  resolveProjectName: (name?: string) => string,
-  resolveOutputPath: (filename: string) => Promise<string>,
+interface ConvertDirectoryOptions {
+  dirPath: string
+  files: string[]
+  format: 'jupyter' | 'quarto' | 'percent' | 'marimo'
+  resolveProjectName: (name?: string) => string
+  resolveOutputPath: (filename: string) => Promise<string>
   singleFile: boolean
-): Promise<string> {
+}
+
+async function convertDirectory(options: ConvertDirectoryOptions): Promise<string> {
+  const { dirPath, files, format, resolveProjectName, resolveOutputPath, singleFile } = options
   const formatNames = {
     jupyter: 'Jupyter Notebooks',
     quarto: 'Quarto documents',
@@ -242,14 +249,17 @@ async function convertDirectory(
   }
 }
 
-async function convertSingleFileToDeepnote(
-  absolutePath: string,
-  formatName: string,
-  converter: (paths: string[], opts: { projectName: string; outputPath: string }) => Promise<void>,
-  resolveProjectName: (name?: string) => string,
-  resolveOutputPath: (filename: string) => Promise<string>,
+interface ConvertSingleFileOptions {
+  absolutePath: string
+  formatName: string
+  converter: (paths: string[], opts: { projectName: string; outputPath: string }) => Promise<void>
+  resolveProjectName: (name?: string) => string
+  resolveOutputPath: (filename: string) => Promise<string>
   singleFile: boolean
-): Promise<string> {
+}
+
+async function convertSingleFileToDeepnote(options: ConvertSingleFileOptions): Promise<string> {
+  const { absolutePath, formatName, converter, resolveProjectName, resolveOutputPath, singleFile } = options
   const spinner = ora(`Converting the ${formatName} to a Deepnote project...`).start()
 
   try {
@@ -283,68 +293,43 @@ async function convertSingleFileToDeepnote(
   }
 }
 
-function convertJupyterToDeepnote(
-  absolutePath: string,
-  resolveProjectName: (name?: string) => string,
-  resolveOutputPath: (filename: string) => Promise<string>,
+interface ConvertToDeepnoteOptions {
+  absolutePath: string
+  resolveProjectName: (name?: string) => string
+  resolveOutputPath: (filename: string) => Promise<string>
   singleFile: boolean
-): Promise<string> {
-  return convertSingleFileToDeepnote(
-    absolutePath,
-    'Jupyter Notebook',
-    convertIpynbFilesToDeepnoteFile,
-    resolveProjectName,
-    resolveOutputPath,
-    singleFile
-  )
 }
 
-function convertQuartoToDeepnote(
-  absolutePath: string,
-  resolveProjectName: (name?: string) => string,
-  resolveOutputPath: (filename: string) => Promise<string>,
-  singleFile: boolean
-): Promise<string> {
-  return convertSingleFileToDeepnote(
-    absolutePath,
-    'Quarto document',
-    convertQuartoFilesToDeepnoteFile,
-    resolveProjectName,
-    resolveOutputPath,
-    singleFile
-  )
+function convertJupyterToDeepnote(options: ConvertToDeepnoteOptions): Promise<string> {
+  return convertSingleFileToDeepnote({
+    ...options,
+    formatName: 'Jupyter Notebook',
+    converter: convertIpynbFilesToDeepnoteFile,
+  })
 }
 
-function convertPercentToDeepnote(
-  absolutePath: string,
-  resolveProjectName: (name?: string) => string,
-  resolveOutputPath: (filename: string) => Promise<string>,
-  singleFile: boolean
-): Promise<string> {
-  return convertSingleFileToDeepnote(
-    absolutePath,
-    'percent format notebook',
-    convertPercentFilesToDeepnoteFile,
-    resolveProjectName,
-    resolveOutputPath,
-    singleFile
-  )
+function convertQuartoToDeepnote(options: ConvertToDeepnoteOptions): Promise<string> {
+  return convertSingleFileToDeepnote({
+    ...options,
+    formatName: 'Quarto document',
+    converter: convertQuartoFilesToDeepnoteFile,
+  })
 }
 
-function convertMarimoToDeepnote(
-  absolutePath: string,
-  resolveProjectName: (name?: string) => string,
-  resolveOutputPath: (filename: string) => Promise<string>,
-  singleFile: boolean
-): Promise<string> {
-  return convertSingleFileToDeepnote(
-    absolutePath,
-    'Marimo notebook',
-    convertMarimoFilesToDeepnoteFile,
-    resolveProjectName,
-    resolveOutputPath,
-    singleFile
-  )
+function convertPercentToDeepnote(options: ConvertToDeepnoteOptions): Promise<string> {
+  return convertSingleFileToDeepnote({
+    ...options,
+    formatName: 'percent format notebook',
+    converter: convertPercentFilesToDeepnoteFile,
+  })
+}
+
+function convertMarimoToDeepnote(options: ConvertToDeepnoteOptions): Promise<string> {
+  return convertSingleFileToDeepnote({
+    ...options,
+    formatName: 'Marimo notebook',
+    converter: convertMarimoFilesToDeepnoteFile,
+  })
 }
 
 /**
