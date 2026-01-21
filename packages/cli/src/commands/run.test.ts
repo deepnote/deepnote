@@ -23,7 +23,7 @@ vi.mock('@deepnote/runtime-core', () => {
   }
 })
 
-import { createRunAction } from './run'
+import { createRunAction, MissingInputError } from './run'
 
 // Example files relative to project root
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -85,7 +85,15 @@ describe('run command', () => {
     let program: Command
     let action: (
       path: string,
-      options: { python?: string; cwd?: string; notebook?: string; block?: string }
+      options: {
+        python?: string
+        cwd?: string
+        notebook?: string
+        block?: string
+        input?: string[]
+        listInputs?: boolean
+        json?: boolean
+      }
     ) => Promise<void>
     let consoleLogSpy: Mock
     let consoleErrorSpy: Mock
@@ -318,6 +326,231 @@ describe('run command', () => {
       await expect(action(HELLO_WORLD_FILE, {})).rejects.toThrow('program.error called')
 
       expect(mockStop).toHaveBeenCalledTimes(1)
+    })
+
+    describe('--input flag', () => {
+      it('passes inputs to runFile', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['name=Alice', 'count=42'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { name: 'Alice', count: 42 },
+          })
+        )
+      })
+
+      it('parses string values', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['greeting=Hello World'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { greeting: 'Hello World' },
+          })
+        )
+      })
+
+      it('parses numeric values as JSON', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['int=123', 'float=3.14', 'negative=-5'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { int: 123, float: 3.14, negative: -5 },
+          })
+        )
+      })
+
+      it('parses boolean values as JSON', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['enabled=true', 'disabled=false'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { enabled: true, disabled: false },
+          })
+        )
+      })
+
+      it('parses null values as JSON', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['nothing=null'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { nothing: null },
+          })
+        )
+      })
+
+      it('parses array values as JSON', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['items=["a","b","c"]'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { items: ['a', 'b', 'c'] },
+          })
+        )
+      })
+
+      it('parses object values as JSON', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['config={"debug":true,"level":3}'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { config: { debug: true, level: 3 } },
+          })
+        )
+      })
+
+      it('handles values with equals signs', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { input: ['equation=a=b+c'] })
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: { equation: 'a=b+c' },
+          })
+        )
+      })
+
+      it('throws error for invalid input format (no equals)', async () => {
+        await expect(action(HELLO_WORLD_FILE, { input: ['missing-equals'] })).rejects.toThrow('program.error called')
+
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('Invalid input format')
+        expect(errorArg).toContain('missing-equals')
+      })
+
+      it('throws error for empty key', async () => {
+        await expect(action(HELLO_WORLD_FILE, { input: ['=value'] })).rejects.toThrow('program.error called')
+
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('empty key')
+      })
+
+      it('passes empty inputs when no --input flags provided', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, {})
+
+        expect(mockRunFile).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            inputs: {},
+          })
+        )
+      })
+    })
+
+    describe('--list-inputs flag', () => {
+      it('lists inputs without running', async () => {
+        await action(BLOCKS_FILE, { listInputs: true })
+
+        // Should NOT call runFile
+        expect(mockRunFile).not.toHaveBeenCalled()
+        expect(mockStart).not.toHaveBeenCalled()
+
+        // Should print input information
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Input variables')
+      })
+
+      it('shows input variable names from the file', async () => {
+        await action(BLOCKS_FILE, { listInputs: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('input_text')
+        expect(output).toContain('input-text')
+      })
+
+      it('shows current values of inputs', async () => {
+        await action(BLOCKS_FILE, { listInputs: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Current value')
+      })
+
+      it('outputs JSON when --json flag is used', async () => {
+        await action(BLOCKS_FILE, { listInputs: true, json: true })
+
+        const output = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed).toHaveProperty('path')
+        expect(parsed).toHaveProperty('inputs')
+        expect(Array.isArray(parsed.inputs)).toBe(true)
+      })
+
+      it('JSON output includes input details', async () => {
+        await action(BLOCKS_FILE, { listInputs: true, json: true })
+
+        const output = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(output)
+
+        // Check first input has expected properties
+        expect(parsed.inputs[0]).toHaveProperty('variableName')
+        expect(parsed.inputs[0]).toHaveProperty('type')
+        expect(parsed.inputs[0]).toHaveProperty('currentValue')
+        expect(parsed.inputs[0]).toHaveProperty('hasValue')
+      })
+
+      it('shows "No input blocks found" for file without inputs', async () => {
+        await action(HELLO_WORLD_FILE, { listInputs: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('No input blocks found')
+      })
+
+      it('filters by notebook when --notebook is provided', async () => {
+        await action(BLOCKS_FILE, { listInputs: true, notebook: '1. Text blocks' })
+
+        const output = getOutput(consoleLogSpy)
+        // The "1. Text blocks" notebook has no input blocks
+        expect(output).toContain('No input blocks found')
+      })
+    })
+  })
+
+  describe('MissingInputError', () => {
+    it('has correct name', () => {
+      const error = new MissingInputError('test', ['var1', 'var2'])
+      expect(error.name).toBe('MissingInputError')
+    })
+
+    it('stores missing inputs', () => {
+      const error = new MissingInputError('test', ['input_date', 'input_name'])
+      expect(error.missingInputs).toEqual(['input_date', 'input_name'])
+    })
+
+    it('has correct message', () => {
+      const error = new MissingInputError('Missing required inputs: x, y', ['x', 'y'])
+      expect(error.message).toBe('Missing required inputs: x, y')
+    })
+
+    it('is an instance of Error', () => {
+      const error = new MissingInputError('test', [])
+      expect(error).toBeInstanceOf(Error)
     })
   })
 })
