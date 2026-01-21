@@ -19,6 +19,7 @@ describe('CLI', () => {
       const commandNames = program.commands.map(cmd => cmd.name())
 
       expect(commandNames).toContain('inspect')
+      expect(commandNames).toContain('run')
     })
   })
 
@@ -29,6 +30,19 @@ describe('CLI', () => {
 
       expect(inspectCmd).toBeDefined()
       expect(inspectCmd?.description()).toBe('Inspect and display metadata from a .deepnote file')
+    })
+
+    it('run command is properly configured', () => {
+      const program = createProgram()
+      const runCmd = program.commands.find(cmd => cmd.name() === 'run')
+
+      expect(runCmd).toBeDefined()
+      expect(runCmd?.description()).toBe('Run a .deepnote file')
+
+      const optionFlags = runCmd?.options.map(o => o.flags)
+      expect(optionFlags).toContain('--python <path>')
+      expect(optionFlags).toContain('--notebook <name>')
+      expect(optionFlags).toContain('--block <id>')
     })
   })
 

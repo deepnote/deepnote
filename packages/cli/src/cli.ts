@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
+import { createRunAction } from './commands/run'
 import { version } from './version'
 
 /**
@@ -36,6 +37,17 @@ function registerCommands(program: Command): void {
     .description('Inspect and display metadata from a .deepnote file')
     .argument('<path>', 'Path to .deepnote file')
     .action(createInspectAction(program))
+
+  // Run command - execute a .deepnote file
+  program
+    .command('run')
+    .description('Run a .deepnote file')
+    .argument('<path>', 'Path to .deepnote file')
+    .option('--python <path>', 'Path to Python virtual environment directory', 'python')
+    .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
+    .option('--notebook <name>', 'Run only the specified notebook')
+    .option('--block <id>', 'Run only the specified block')
+    .action(createRunAction(program))
 }
 
 /**

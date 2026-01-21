@@ -1,0 +1,48 @@
+import { stat } from 'node:fs/promises'
+import { join } from 'node:path'
+
+/**
+ * Resolves the Python executable path from a virtual environment directory.
+ *
+ * @param venvPath - Path to the virtual environment directory
+ * @returns The resolved path to the Python executable
+ * @throws Error if the venv path doesn't exist or no Python executable is found
+ */
+export async function resolvePythonExecutable(venvPath: string): Promise<string> {
+  // Handle default 'python' case - use system Python
+  if (venvPath === 'python' || venvPath === 'python3') {
+    return venvPath
+  }
+
+  let fileStat: Awaited<ReturnType<typeof stat>>
+  try {
+    fileStat = await stat(venvPath)
+  } catch (err) {
+    const error = err as NodeJS.ErrnoException
+    if (error.code === 'ENOENT') {
+      throw new Error(`Python environment path not found: ${venvPath}`)
+    }
+    throw new Error(`Failed to access Python environment path: ${venvPath} (${error.code}: ${error.message})`)
+  }
+
+  if (!fileStat.isDirectory()) {
+    throw new Error(`Python environment path is not a directory: ${venvPath}`)
+  }
+
+  // Determine the bin directory and python executable based on platform
+  const binDir = process.platform === 'win32' ? join(venvPath, 'Scripts') : join(venvPath, 'bin')
+  const candidates = process.platform === 'win32' ? ['python.exe', 'python3.exe'] : ['python', 'python3']
+
+  for (const candidate of candidates) {
+    const pythonPath = join(binDir, candidate)
+    const pythonStat = await stat(pythonPath).catch(() => null)
+    if (pythonStat?.isFile()) {
+      return pythonPath
+    }
+  }
+
+  throw new Error(
+    `No Python executable found in virtual environment: ${venvPath}\n` +
+      `Expected to find one of: ${candidates.map(c => join(binDir, c)).join(', ')}`
+  )
+}

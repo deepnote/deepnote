@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises'
-import { extname, resolve } from 'node:path'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import type { Command } from 'commander'
+import { resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
-export function createInspectAction(program: Command): (path: string | undefined) => Promise<void> {
+export function createInspectAction(program: Command): (path: string) => Promise<void> {
   return async path => {
     try {
       await inspectDeepnoteFile(path)
@@ -15,21 +15,8 @@ export function createInspectAction(program: Command): (path: string | undefined
   }
 }
 
-async function inspectDeepnoteFile(path: string | undefined): Promise<void> {
-  if (!path) {
-    throw new Error('Missing path to a .deepnote file.')
-  }
-
-  const absolutePath = resolve(process.cwd(), path)
-  const stat = await fs.stat(absolutePath)
-
-  if (!stat.isFile()) {
-    throw new Error(`File not found: ${absolutePath}`)
-  }
-
-  if (extname(absolutePath).toLowerCase() !== '.deepnote') {
-    throw new Error('Unsupported file type. Expected a .deepnote file.')
-  }
+async function inspectDeepnoteFile(path: string): Promise<void> {
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
 
   const rawBytes = await fs.readFile(absolutePath)
   const yamlContent = decodeUtf8NoBom(rawBytes)
