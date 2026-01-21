@@ -15,7 +15,7 @@ interface RunOptions {
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
-      await runDeepnoteFile(path, options)
+      await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       program.error(chalk.red(message))
@@ -23,7 +23,7 @@ export function createRunAction(program: Command): (path: string, options: RunOp
   }
 }
 
-async function runDeepnoteFile(path: string, options: RunOptions): Promise<void> {
+async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolveDeepnoteFile(path)
   const workingDirectory = dirname(absolutePath)
   const pythonPath = options.python ?? 'python'

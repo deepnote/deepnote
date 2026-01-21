@@ -81,7 +81,7 @@ describe('run command', () => {
     })
   })
 
-  describe('runDeepnoteFile via createRunAction', () => {
+  describe('runDeepnoteProject via createRunAction', () => {
     let program: Command
     let action: (path: string, options: { python?: string; notebook?: string; block?: string }) => Promise<void>
     let consoleLogSpy: Mock
