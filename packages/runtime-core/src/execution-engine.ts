@@ -133,7 +133,9 @@ export class ExecutionEngine {
       for (const block of sortedBlocks) {
         if (this.isExecutableBlock(block)) {
           // Skip if filtering by blockId and this isn't the target
-          if (options.blockId && block.id !== options.blockId) continue
+          if (options.blockId && block.id !== options.blockId) {
+            continue
+          }
           allExecutableBlocks.push({ block, notebookName: notebook.name })
         }
       }
