@@ -2,20 +2,27 @@ export type NotebookFormat = 'jupyter' | 'deepnote' | 'marimo' | 'percent' | 'qu
 
 /** Check if file content is Marimo format */
 export function isMarimoContent(content: string): boolean {
-  // Check for marimo import at line start (not in comments/strings)
-  // Avoid false positives from triple-quoted strings containing the markers
-  return (
-    /^import marimo\b/m.test(content) &&
-    /@app\.cell\b/.test(content) &&
-    !/^\s*['"]{3}[\s\S]*?import marimo/m.test(content)
-  )
+  // Marimo notebooks always start with 'import marimo' at the file level
+  // Check if first non-empty line is the marimo import, and @app.cell decorator exists
+  const lines = content.split('\n')
+  const firstNonEmpty = lines.find(line => line.trim().length > 0)
+
+  return firstNonEmpty?.trim().startsWith('import marimo') === true && /@app\.cell\b/.test(content)
 }
 
 /** Check if file content is percent format */
 export function isPercentContent(content: string): boolean {
-  // Ensure the marker appears outside of string literals
-  // Simple heuristic: check it's not inside triple-quoted strings
-  return /^# %%/m.test(content) && !/^\s*['"]{3}[\s\S]*?# %%/m.test(content)
+  // Percent format files have '# %%' cell markers at the start of lines
+  // Check that the first occurrence of '# %%' is not inside a triple-quoted string
+  // by verifying it appears before any triple quotes in the file
+  const cellMarkerIndex = content.search(/^# %%/m)
+  if (cellMarkerIndex === -1) {
+    return false
+  }
+
+  const tripleQuoteIndex = content.search(/['"]{3}/)
+  // If no triple quotes, or cell marker comes before them, it's percent format
+  return tripleQuoteIndex === -1 || cellMarkerIndex < tripleQuoteIndex
 }
 
 /**

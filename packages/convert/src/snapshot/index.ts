@@ -12,12 +12,19 @@ export {
   parseSourceFilePath,
   snapshotExists,
 } from './lookup'
+export type { MarimoConsoleOutput, MarimoSessionCache, MarimoSessionCell, MarimoSessionOutput } from './marimo-outputs'
 // Marimo output extraction
 export {
+  convertMarimoConsoleToJupyter,
+  convertMarimoOutputToJupyter,
+  convertMarimoSessionCellToOutputs,
   exportMarimoToJupyter,
   extractOutputsFromMarimoExport,
+  findMarimoSessionCache,
   getMarimoOutputs,
+  getMarimoOutputsFromCache,
   isMarimoCliAvailable,
+  readMarimoSessionCache,
 } from './marimo-outputs'
 
 // Merge utilities
