@@ -82,6 +82,10 @@ export interface ConvertMarimoFilesToDeepnoteFileOptions {
   projectName: string
 }
 
+export interface ReadAndConvertMarimoFilesOptions {
+  projectName: string
+}
+
 export interface ConvertMarimoAppOptions {
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
@@ -455,6 +459,47 @@ export function convertMarimoAppsToDeepnoteFile(
 
 export interface MarimoAppWithOutputs extends MarimoAppInput {
   outputs?: Map<number, JupyterOutput[]>
+}
+
+/**
+ * Reads and converts multiple Marimo (.py) files into a DeepnoteFile.
+ * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ *
+ * @param inputFilePaths - Array of paths to Marimo .py files
+ * @param options - Conversion options including project name
+ * @returns A DeepnoteFile object
+ */
+export async function readAndConvertMarimoFiles(
+  inputFilePaths: string[],
+  options: ReadAndConvertMarimoFilesOptions
+): Promise<DeepnoteFile> {
+  const apps: MarimoAppWithOutputs[] = []
+
+  for (const filePath of inputFilePaths) {
+    try {
+      const content = await fs.readFile(filePath, 'utf-8')
+      const app = parseMarimoFormat(content)
+
+      // Try to load outputs from Marimo session cache
+      const outputs = await getMarimoOutputsFromCache(filePath)
+
+      apps.push({
+        filename: basename(filePath),
+        app,
+        outputs: outputs ?? undefined,
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      const errorStack = err instanceof Error ? err.stack : undefined
+      throw new Error(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
+        cause: errorStack ? { originalError: err, stack: errorStack } : err,
+      })
+    }
+  }
+
+  return convertMarimoAppsToDeepnoteFile(apps, {
+    projectName: options.projectName,
+  })
 }
 
 /**

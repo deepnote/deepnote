@@ -12,6 +12,10 @@ export interface ConvertIpynbFilesToDeepnoteFileOptions {
   projectName: string
 }
 
+export interface ReadAndConvertIpynbFilesOptions {
+  projectName: string
+}
+
 export interface ConvertJupyterNotebookOptions {
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
@@ -132,6 +136,33 @@ export function convertJupyterNotebooksToDeepnote(
   }
 
   return deepnoteFile
+}
+
+/**
+ * Reads and converts multiple Jupyter Notebook (.ipynb) files into a DeepnoteFile.
+ * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ *
+ * @param inputFilePaths - Array of paths to .ipynb files
+ * @param options - Conversion options including project name
+ * @returns A DeepnoteFile object
+ */
+export async function readAndConvertIpynbFiles(
+  inputFilePaths: string[],
+  options: ReadAndConvertIpynbFilesOptions
+): Promise<DeepnoteFile> {
+  const notebooks: JupyterNotebookInput[] = []
+
+  for (const filePath of inputFilePaths) {
+    const notebook = await parseIpynbFile(filePath)
+    notebooks.push({
+      filename: basename(filePath),
+      notebook,
+    })
+  }
+
+  return convertJupyterNotebooksToDeepnote(notebooks, {
+    projectName: options.projectName,
+  })
 }
 
 /**

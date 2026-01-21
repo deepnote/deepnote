@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, extname, resolve } from 'node:path'
+import type { DeepnoteFile } from '@deepnote/blocks'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import ora from 'ora'
@@ -10,21 +11,14 @@ import {
   convertDeepnoteFileToMarimoFiles,
   convertDeepnoteFileToPercentFiles,
   convertDeepnoteFileToQuartoFiles,
-  convertIpynbFilesToDeepnoteFile,
-  convertMarimoFilesToDeepnoteFile,
-  convertPercentFilesToDeepnoteFile,
-  convertQuartoFilesToDeepnoteFile,
 } from '.'
 import { isMarimoContent, isPercentContent } from './format-detection'
-import {
-  generateSnapshotFilename,
-  getSnapshotDir,
-  hasOutputs,
-  loadLatestSnapshot,
-  mergeSnapshotIntoSource,
-  slugifyProjectName,
-  splitDeepnoteFile,
-} from './snapshot'
+import { readAndConvertIpynbFiles } from './jupyter-to-deepnote'
+import { readAndConvertMarimoFiles } from './marimo-to-deepnote'
+import { readAndConvertPercentFiles } from './percent-to-deepnote'
+import { readAndConvertQuartoFiles } from './quarto-to-deepnote'
+import { loadLatestSnapshot, mergeSnapshotIntoSource } from './snapshot'
+import { writeDeepnoteFile } from './write-deepnote-file'
 
 interface ConvertOptions {
   cwd?: string
@@ -213,31 +207,35 @@ async function convertDirectory(options: ConvertDirectoryOptions): Promise<strin
 
     const inputFilePaths = files.map(file => resolve(dirPath, file))
 
+    // Read and convert files to DeepnoteFile (no file I/O yet)
+    let deepnoteFile: DeepnoteFile
     switch (format) {
       case 'jupyter':
-        await convertIpynbFilesToDeepnoteFile(inputFilePaths, { projectName, outputPath })
+        deepnoteFile = await readAndConvertIpynbFiles(inputFilePaths, { projectName })
         break
       case 'quarto':
-        await convertQuartoFilesToDeepnoteFile(inputFilePaths, { projectName, outputPath })
+        deepnoteFile = await readAndConvertQuartoFiles(inputFilePaths, { projectName })
         break
       case 'percent':
-        await convertPercentFilesToDeepnoteFile(inputFilePaths, { projectName, outputPath })
+        deepnoteFile = await readAndConvertPercentFiles(inputFilePaths, { projectName })
         break
       case 'marimo':
-        await convertMarimoFilesToDeepnoteFile(inputFilePaths, { projectName, outputPath })
+        deepnoteFile = await readAndConvertMarimoFiles(inputFilePaths, { projectName })
         break
     }
 
-    // Handle snapshot mode
-    if (!singleFile) {
-      const snapshotPath = await splitOutputsToSnapshot(outputPath, projectName)
-      if (snapshotPath) {
-        spinner.succeed(
-          `The Deepnote project has been saved to ${chalk.bold(outputPath)}\nSnapshot saved to ${chalk.bold(snapshotPath)}`
-        )
-      } else {
-        spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
-      }
+    // Write file (handles snapshot splitting in memory)
+    const { snapshotPath } = await writeDeepnoteFile({
+      file: deepnoteFile,
+      outputPath,
+      projectName,
+      singleFile,
+    })
+
+    if (snapshotPath) {
+      spinner.succeed(
+        `The Deepnote project has been saved to ${chalk.bold(outputPath)}\nSnapshot saved to ${chalk.bold(snapshotPath)}`
+      )
     } else {
       spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
     }
@@ -252,7 +250,7 @@ async function convertDirectory(options: ConvertDirectoryOptions): Promise<strin
 interface ConvertSingleFileOptions {
   absolutePath: string
   formatName: string
-  converter: (paths: string[], opts: { projectName: string; outputPath: string }) => Promise<void>
+  converter: (paths: string[], opts: { projectName: string }) => Promise<DeepnoteFile>
   resolveProjectName: (name?: string) => string
   resolveOutputPath: (filename: string) => Promise<string>
   singleFile: boolean
@@ -270,18 +268,21 @@ async function convertSingleFileToDeepnote(options: ConvertSingleFileOptions): P
     const outputFilename = `${filenameWithoutExtension}.deepnote`
     const outputPath = await resolveOutputPath(outputFilename)
 
-    await converter([absolutePath], { projectName, outputPath })
+    // Read and convert file to DeepnoteFile (no file I/O yet)
+    const deepnoteFile = await converter([absolutePath], { projectName })
 
-    // Handle snapshot mode
-    if (!singleFile) {
-      const snapshotPath = await splitOutputsToSnapshot(outputPath, projectName)
-      if (snapshotPath) {
-        spinner.succeed(
-          `The Deepnote project has been saved to ${chalk.bold(outputPath)}\nSnapshot saved to ${chalk.bold(snapshotPath)}`
-        )
-      } else {
-        spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
-      }
+    // Write file (handles snapshot splitting in memory)
+    const { snapshotPath } = await writeDeepnoteFile({
+      file: deepnoteFile,
+      outputPath,
+      projectName,
+      singleFile,
+    })
+
+    if (snapshotPath) {
+      spinner.succeed(
+        `The Deepnote project has been saved to ${chalk.bold(outputPath)}\nSnapshot saved to ${chalk.bold(snapshotPath)}`
+      )
     } else {
       spinner.succeed(`The Deepnote project has been saved to ${chalk.bold(outputPath)}`)
     }
@@ -304,7 +305,7 @@ function convertJupyterToDeepnote(options: ConvertToDeepnoteOptions): Promise<st
   return convertSingleFileToDeepnote({
     ...options,
     formatName: 'Jupyter Notebook',
-    converter: convertIpynbFilesToDeepnoteFile,
+    converter: readAndConvertIpynbFiles,
   })
 }
 
@@ -312,7 +313,7 @@ function convertQuartoToDeepnote(options: ConvertToDeepnoteOptions): Promise<str
   return convertSingleFileToDeepnote({
     ...options,
     formatName: 'Quarto document',
-    converter: convertQuartoFilesToDeepnoteFile,
+    converter: readAndConvertQuartoFiles,
   })
 }
 
@@ -320,7 +321,7 @@ function convertPercentToDeepnote(options: ConvertToDeepnoteOptions): Promise<st
   return convertSingleFileToDeepnote({
     ...options,
     formatName: 'percent format notebook',
-    converter: convertPercentFilesToDeepnoteFile,
+    converter: readAndConvertPercentFiles,
   })
 }
 
@@ -328,45 +329,8 @@ function convertMarimoToDeepnote(options: ConvertToDeepnoteOptions): Promise<str
   return convertSingleFileToDeepnote({
     ...options,
     formatName: 'Marimo notebook',
-    converter: convertMarimoFilesToDeepnoteFile,
+    converter: readAndConvertMarimoFiles,
   })
-}
-
-/**
- * Splits outputs from a converted .deepnote file into a separate snapshot file.
- * Returns the snapshot path if outputs were found, null otherwise.
- */
-async function splitOutputsToSnapshot(outputPath: string, projectName: string): Promise<string | null> {
-  // Read the converted file
-  const content = await fs.readFile(outputPath, 'utf-8')
-  const file = deserializeDeepnoteFile(content)
-
-  // Check if there are any outputs to split
-  if (!hasOutputs(file)) {
-    return null
-  }
-
-  // Split into source and snapshot
-  const { source, snapshot } = splitDeepnoteFile(file)
-
-  // Write the source file (overwrites the original with outputs stripped)
-  const sourceYaml = stringify(source)
-  await fs.writeFile(outputPath, sourceYaml, 'utf-8')
-
-  // Create snapshots directory
-  const snapshotDir = getSnapshotDir(outputPath)
-  await fs.mkdir(snapshotDir, { recursive: true })
-
-  // Generate snapshot filename
-  const slug = slugifyProjectName(projectName)
-  const snapshotFilename = generateSnapshotFilename(slug, file.project.id)
-  const snapshotPath = resolve(snapshotDir, snapshotFilename)
-
-  // Write snapshot file
-  const snapshotYaml = stringify(snapshot)
-  await fs.writeFile(snapshotPath, snapshotYaml, 'utf-8')
-
-  return snapshotPath
 }
 
 async function convertDeepnoteToFormat(
