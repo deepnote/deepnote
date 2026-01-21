@@ -97,10 +97,6 @@ describe('run command', () => {
       originalExitCode = process.exitCode
 
       vi.clearAllMocks()
-      mockStart.mockReset()
-      mockStop.mockReset()
-      mockRunFile.mockReset()
-      mockConstructor.mockReset()
 
       program = new Command()
       program.exitOverride()
