@@ -68,6 +68,9 @@ importers:
       '@deepnote/blocks':
         specifier: workspace:*
         version: link:../blocks
+      '@deepnote/convert':
+        specifier: workspace:*
+        version: link:../convert
       '@deepnote/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
@@ -77,6 +80,9 @@ importers:
       commander:
         specifier: ^14.0.2
         version: 14.0.2
+      ora:
+        specifier: ^9.0.0
+        version: 9.0.0
     devDependencies:
       tsx:
         specifier: ^4.20.6

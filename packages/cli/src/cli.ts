@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { createConvertAction } from './commands/convert'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
 import { ExitCode } from './exit-codes'
@@ -166,6 +167,60 @@ ${c.bold('Examples:')}
     })
     .action(createRunAction(program))
 
+  // Convert command - convert between notebook formats
+  program
+    .command('convert')
+    .description('Convert between notebook formats (.ipynb, .qmd, .py, .deepnote)')
+    .argument('<path>', 'Path to a file or directory to convert')
+    .option('-o, --output <path>', 'Output path (file or directory)')
+    .option('-n, --name <name>', 'Project name (for conversions to .deepnote)')
+    .option(
+      '-f, --format <format>',
+      'Output format when converting from .deepnote (jupyter, percent, quarto, marimo)',
+      'jupyter'
+    )
+    .option('--json', 'Output result in JSON format for scripting')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Supported Formats:')}
+  ${c.dim('.ipynb')}     Jupyter Notebook
+  ${c.dim('.qmd')}       Quarto document
+  ${c.dim('.py')}        Percent format (# %%) or Marimo (@app.cell)
+  ${c.dim('.deepnote')}  Deepnote project
+
+${c.bold('Conversion Directions:')}
+  ${c.dim('To Deepnote:')}   .ipynb, .qmd, .py → .deepnote
+  ${c.dim('From Deepnote:')} .deepnote → .ipynb, .qmd, .py (percent/marimo)
+
+${c.bold('Examples:')}
+  ${c.dim('# Convert Jupyter notebook to Deepnote')}
+  $ deepnote convert notebook.ipynb
+
+  ${c.dim('# Convert directory of notebooks')}
+  $ deepnote convert ./notebooks/
+
+  ${c.dim('# Convert with custom output path')}
+  $ deepnote convert notebook.ipynb -o my-project.deepnote
+
+  ${c.dim('# Convert with custom project name')}
+  $ deepnote convert notebook.ipynb -n "My Analysis"
+
+  ${c.dim('# Convert Deepnote to Jupyter')}
+  $ deepnote convert project.deepnote
+
+  ${c.dim('# Convert Deepnote to Quarto')}
+  $ deepnote convert project.deepnote -f quarto
+
+  ${c.dim('# Convert Deepnote to Marimo')}
+  $ deepnote convert project.deepnote -f marimo
+
+  ${c.dim('# Output result as JSON for CI/CD')}
+  $ deepnote convert notebook.ipynb --json
+`
+    })
+    .action(createConvertAction(program))
+
   // Completion command - generate shell completions
   program
     .command('completion')
@@ -255,6 +310,11 @@ _deepnote_completions() {
             COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             return 0
             ;;
+        convert)
+            # Complete notebook files and directories
+            COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
+            return 0
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
             return 0
@@ -283,6 +343,7 @@ _deepnote() {
     commands=(
         'inspect:Inspect and display metadata from a .deepnote file'
         'run:Run a .deepnote file'
+        'convert:Convert between notebook formats'
         'completion:Generate shell completion scripts'
         'help:Display help for command'
     )
@@ -323,6 +384,17 @@ _deepnote() {
                         '--json[Output results in JSON format]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
+                convert)
+                    _arguments \\
+                        '-o[Output path]:output path:_files' \\
+                        '--output[Output path]:output path:_files' \\
+                        '-n[Project name]:project name:' \\
+                        '--name[Project name]:project name:' \\
+                        '-f[Output format]:format:(jupyter percent quarto marimo)' \\
+                        '--format[Output format]:format:(jupyter percent quarto marimo)' \\
+                        '--json[Output result in JSON format]' \\
+                        '*:file or directory:_files'
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -355,6 +427,7 @@ complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
 # Commands
 complete -c deepnote -n __fish_use_subcommand -a inspect -d 'Inspect and display metadata from a .deepnote file'
 complete -c deepnote -n __fish_use_subcommand -a run -d 'Run a .deepnote file'
+complete -c deepnote -n __fish_use_subcommand -a convert -d 'Convert between notebook formats'
 complete -c deepnote -n __fish_use_subcommand -a completion -d 'Generate shell completion scripts'
 complete -c deepnote -n __fish_use_subcommand -a help -d 'Display help for command'
 
@@ -369,11 +442,18 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 
+# convert subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s o -l output -d 'Output path'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s n -l name -d 'Project name'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s f -l format -d 'Output format' -a 'jupyter percent quarto marimo'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -l json -d 'Output result in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -F
+
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 
 # help subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run completion'
+complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run convert completion'
 `
 }
 

@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import {
-  convertDeepnoteFileToJupyter,
+  convertDeepnoteFileToJupyterFiles,
   convertDeepnoteFileToMarimoFiles,
   convertDeepnoteFileToPercentFiles,
   convertDeepnoteFileToQuartoFiles,
@@ -322,7 +322,7 @@ async function convertDeepnoteToFormat(
 
     switch (outputFormat) {
       case 'jupyter':
-        await convertDeepnoteFileToJupyter(absolutePath, { outputDir })
+        await convertDeepnoteFileToJupyterFiles(absolutePath, { outputDir })
         break
       case 'percent':
         await convertDeepnoteFileToPercentFiles(absolutePath, { outputDir })
