@@ -29,7 +29,8 @@ export async function resolvePythonExecutable(venvPath: string): Promise<string>
 
   for (const candidate of candidates) {
     const pythonPath = join(binDir, candidate)
-    if (await fileExists(pythonPath)) {
+    const pythonStat = await stat(pythonPath).catch(() => null)
+    if (pythonStat?.isFile()) {
       return pythonPath
     }
   }
@@ -38,16 +39,4 @@ export async function resolvePythonExecutable(venvPath: string): Promise<string>
     `No Python executable found in virtual environment: ${venvPath}\n` +
       `Expected to find one of: ${candidates.map(c => join(binDir, c)).join(', ')}`
   )
-}
-
-/**
- * Check if a file exists.
- */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    const fileStat = await stat(filePath)
-    return fileStat.isFile()
-  } catch {
-    return false
-  }
 }
