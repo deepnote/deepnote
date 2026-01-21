@@ -50,10 +50,10 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
       if (options.json) {
         outputJson({ success: false, error: message })
-        process.exit(exitCode)
-      } else {
-        program.error(chalk.red(message), { exitCode })
+        process.exitCode = exitCode
+        return
       }
+      program.error(chalk.red(message), { exitCode })
     }
   }
 }
@@ -168,8 +168,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         blocks: blockResults,
       }
       outputJson(result)
-      await engine.stop()
-      process.exit(exitCode)
+      process.exitCode = exitCode
     } else {
       // Print summary
       console.log(chalk.dim('─'.repeat(50)))

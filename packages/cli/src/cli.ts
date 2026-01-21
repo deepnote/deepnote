@@ -318,6 +318,7 @@ _deepnote() {
                 run)
                     _arguments \\
                         '--python[Path to Python interpreter]:python path:_files' \\
+                        '--cwd[Working directory for execution]:cwd path:_files -/' \\
                         '--notebook[Run only the specified notebook]:notebook name:' \\
                         '--block[Run only the specified block]:block id:' \\
                         '--json[Output results in JSON format]' \\
@@ -364,6 +365,7 @@ complete -c deepnote -n '__fish_seen_subcommand_from inspect' -F -a '*.deepnote'
 
 # run subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l python -d 'Path to Python interpreter'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l cwd -d 'Working directory for execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run only the specified notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
