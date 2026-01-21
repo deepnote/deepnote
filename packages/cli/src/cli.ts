@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
+import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, setOutputConfig, shouldDisableColor } from './output'
 import { version } from './version'
 
@@ -203,7 +204,9 @@ ${c.bold('Examples:')}
       if (completionScript) {
         console.log(completionScript)
       } else {
-        program.error(`Unsupported shell: ${shell}. Supported shells: bash, zsh, fish`)
+        program.error(`Unsupported shell: ${shell}. Supported shells: bash, zsh, fish`, {
+          exitCode: ExitCode.InvalidUsage,
+        })
       }
     })
 }
