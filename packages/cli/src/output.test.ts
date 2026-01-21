@@ -12,16 +12,23 @@ import {
 } from './output'
 
 describe('output', () => {
+  let originalNoColor: string | undefined
+  let originalForceColor: string | undefined
+
   beforeEach(() => {
+    originalNoColor = process.env.NO_COLOR
+    originalForceColor = process.env.FORCE_COLOR
     resetOutputConfig()
     vi.restoreAllMocks()
   })
 
   afterEach(() => {
     resetOutputConfig()
-    // Clean up env vars
-    delete process.env.NO_COLOR
-    delete process.env.FORCE_COLOR
+    // Restore original env vars
+    if (originalNoColor === undefined) delete process.env.NO_COLOR
+    else process.env.NO_COLOR = originalNoColor
+    if (originalForceColor === undefined) delete process.env.FORCE_COLOR
+    else process.env.FORCE_COLOR = originalForceColor
   })
 
   describe('getOutputConfig', () => {

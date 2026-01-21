@@ -80,12 +80,13 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option              | Description                     | Default  |
-| ------------------- | ------------------------------- | -------- |
-| `--python <path>`   | Path to Python interpreter      | `python` |
-| `--notebook <name>` | Run only the specified notebook |          |
-| `--block <id>`      | Run only the specified block    |          |
-| `--json`            | Output results in JSON format   |          |
+| Option              | Description                                            | Default  |
+| ------------------- | ------------------------------------------------------ | -------- |
+| `--python <path>`   | Path to Python interpreter                             | `python` |
+| `--cwd <path>`      | Working directory for execution (defaults to file dir) |          |
+| `--notebook <name>` | Run only the specified notebook                        |          |
+| `--block <id>`      | Run only the specified block                           |          |
+| `--json`            | Output results in JSON format                          |          |
 
 **Examples:**
 
