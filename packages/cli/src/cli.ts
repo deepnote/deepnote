@@ -143,6 +143,16 @@ ${c.bold('Examples:')}
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
+    .option(
+      '-i, --input <key=value>',
+      'Set input variable value (can be repeated)',
+      (val, prev: string[]) => {
+        prev.push(val)
+        return prev
+      },
+      []
+    )
+    .option('--list-inputs', 'List all input variables in the notebook without running')
     .option('--json', 'Output results in JSON format for scripting')
     .addHelpText('after', () => {
       const c = getChalk()
@@ -160,8 +170,22 @@ ${c.bold('Examples:')}
   ${c.dim('# Run only a specific block')}
   $ deepnote run my-project.deepnote --block abc123
 
+  ${c.dim('# List input variables needed by the notebook')}
+  $ deepnote run my-project.deepnote --list-inputs
+
+  ${c.dim('# Set input values for input blocks')}
+  $ deepnote run my-project.deepnote --input name="Alice" --input count=42
+
+  ${c.dim('# Input values support JSON for complex types')}
+  $ deepnote run my-project.deepnote -i 'config={"debug": true}'
+
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote --json
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  Runtime error (code execution failed)
+  ${c.dim('2')}  Invalid usage (missing file, bad arguments, missing required inputs)
 `
     })
     .action(createRunAction(program))
@@ -321,6 +345,9 @@ _deepnote() {
                         '--cwd[Working directory for execution]:cwd path:_files -/' \\
                         '--notebook[Run only the specified notebook]:notebook name:' \\
                         '--block[Run only the specified block]:block id:' \\
+                        '*-i[Set input variable value]:input:' \\
+                        '*--input[Set input variable value]:input:' \\
+                        '--list-inputs[List input variables without running]' \\
                         '--json[Output results in JSON format]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
@@ -368,6 +395,8 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l python -d 'Path to 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l cwd -d 'Working directory for execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run only the specified notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (key=value)'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List input variables without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 
