@@ -6,7 +6,7 @@ import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
-const EXECUTABLE_BLOCK_TYPES: ExecutableBlock['type'][] = [
+const executableBlockTypes: ExecutableBlock['type'][] = [
   'code',
   'sql',
   'input-text',
@@ -22,7 +22,7 @@ const EXECUTABLE_BLOCK_TYPES: ExecutableBlock['type'][] = [
   'big-number',
 ]
 
-const EXECUTABLE_BLOCK_TYPE_SET: ReadonlySet<string> = new Set(EXECUTABLE_BLOCK_TYPES)
+const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
@@ -204,7 +204,7 @@ export class ExecutionEngine {
    * Check if a block is executable.
    */
   private isExecutableBlock(block: DeepnoteBlock): block is ExecutableBlock {
-    return EXECUTABLE_BLOCK_TYPE_SET.has(block.type)
+    return executableBlockTypeSet.has(block.type)
   }
 
   /**
