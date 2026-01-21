@@ -142,6 +142,13 @@ export class ExecutionEngine {
     }
 
     if (options.blockId && allExecutableBlocks.length === 0) {
+      // Check if the block exists but is not executable
+      for (const notebook of notebooks) {
+        const block = notebook.blocks.find(b => b.id === options.blockId)
+        if (block) {
+          throw new Error(`Block "${options.blockId}" is not executable (type: ${block.type}).`)
+        }
+      }
       throw new Error(`Block "${options.blockId}" not found in project`)
     }
 

@@ -462,13 +462,13 @@ describe('ExecutionEngine', () => {
         expect(mockKernelClient.execute).toHaveBeenCalledTimes(1)
       })
 
-      it('skips markdown blocks', async () => {
+      it('throws specific error for non-executable block', async () => {
         const markdownBlock = findBlockByType(BLOCKS_EXAMPLE, 'markdown')
 
         await engine.start()
-        // When filtering by a markdown block ID, it should find nothing executable
+        // When filtering by a markdown block ID, it should explain the block is not executable
         await expect(engine.runProject(BLOCKS_EXAMPLE, { blockId: markdownBlock.id })).rejects.toThrow(
-          `Block "${markdownBlock.id}" not found in project`
+          `Block "${markdownBlock.id}" is not executable (type: markdown).`
         )
       })
     })
