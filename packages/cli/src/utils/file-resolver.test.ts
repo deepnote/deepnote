@@ -33,7 +33,9 @@ describe('resolvePathToDeepnoteFile', () => {
     it('throws error when path is a directory', async () => {
       const absolutePath = resolve(process.cwd(), EXAMPLES_DIR)
 
-      await expect(resolvePathToDeepnoteFile(EXAMPLES_DIR)).rejects.toThrow(`File not found: ${absolutePath}`)
+      await expect(resolvePathToDeepnoteFile(EXAMPLES_DIR)).rejects.toThrow(
+        `Expected a file, but got a directory: ${absolutePath}`
+      )
     })
   })
 

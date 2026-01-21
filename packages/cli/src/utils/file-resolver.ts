@@ -16,6 +16,9 @@ export async function resolvePathToDeepnoteFile(path: string): Promise<ResolvedF
   const absolutePath = resolve(process.cwd(), path)
 
   const fileStat = await stat(absolutePath).catch(() => null)
+  if (fileStat?.isDirectory()) {
+    throw new Error(`Expected a file, but got a directory: ${absolutePath}`)
+  }
   if (!fileStat?.isFile()) {
     throw new Error(`File not found: ${absolutePath}`)
   }
