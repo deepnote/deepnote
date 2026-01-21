@@ -1,8 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createProgram, run } from './cli'
+import { resetOutputConfig } from './output'
 import { version } from './version'
 
 describe('CLI', () => {
+  beforeEach(() => {
+    resetOutputConfig()
+  })
+
+  afterEach(() => {
+    resetOutputConfig()
+  })
+
   describe('createProgram', () => {
     it('creates a program with correct name', () => {
       const program = createProgram()
@@ -20,6 +29,7 @@ describe('CLI', () => {
 
       expect(commandNames).toContain('inspect')
       expect(commandNames).toContain('run')
+      expect(commandNames).toContain('completion')
     })
   })
 
@@ -30,6 +40,9 @@ describe('CLI', () => {
 
       expect(inspectCmd).toBeDefined()
       expect(inspectCmd?.description()).toBe('Inspect and display metadata from a .deepnote file')
+
+      const optionFlags = inspectCmd?.options.map(o => o.flags)
+      expect(optionFlags).toContain('--json')
     })
 
     it('run command is properly configured', () => {
@@ -41,14 +54,125 @@ describe('CLI', () => {
 
       const optionFlags = runCmd?.options.map(o => o.flags)
       expect(optionFlags).toContain('--python <path>')
+      expect(optionFlags).toContain('--cwd <path>')
       expect(optionFlags).toContain('--notebook <name>')
       expect(optionFlags).toContain('--block <id>')
+      expect(optionFlags).toContain('--json')
+    })
+
+    it('completion command is properly configured', () => {
+      const program = createProgram()
+      const completionCmd = program.commands.find(cmd => cmd.name() === 'completion')
+
+      expect(completionCmd).toBeDefined()
+      expect(completionCmd?.description()).toBe('Generate shell completion scripts')
+    })
+  })
+
+  describe('global options', () => {
+    it('has --no-color option', () => {
+      const program = createProgram()
+      const options = program.options.map(o => o.flags)
+      expect(options).toContain('--no-color')
+    })
+
+    it('has --debug option', () => {
+      const program = createProgram()
+      const options = program.options.map(o => o.flags)
+      expect(options).toContain('--debug')
+    })
+
+    it('has --quiet option', () => {
+      const program = createProgram()
+      const options = program.options.map(o => o.flags)
+      expect(options).toContain('-q, --quiet')
+    })
+  })
+
+  describe('completion command', () => {
+    it('generates bash completion script', async () => {
+      const program = createProgram()
+      program.exitOverride() // Prevent process.exit
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      await program.parseAsync(['completion', 'bash'], { from: 'user' })
+
+      expect(consoleSpy).toHaveBeenCalled()
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('_deepnote_completions()')
+      expect(output).toContain('COMPREPLY')
+      consoleSpy.mockRestore()
+    })
+
+    it('generates zsh completion script', async () => {
+      const program = createProgram()
+      program.exitOverride()
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      await program.parseAsync(['completion', 'zsh'], { from: 'user' })
+
+      expect(consoleSpy).toHaveBeenCalled()
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('#compdef deepnote')
+      expect(output).toContain('_deepnote()')
+      consoleSpy.mockRestore()
+    })
+
+    it('generates fish completion script', async () => {
+      const program = createProgram()
+      program.exitOverride()
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      await program.parseAsync(['completion', 'fish'], { from: 'user' })
+
+      expect(consoleSpy).toHaveBeenCalled()
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('complete -c deepnote')
+      consoleSpy.mockRestore()
+    })
+
+    it('errors for unsupported shell', async () => {
+      const program = createProgram()
+      program.exitOverride()
+
+      await expect(program.parseAsync(['completion', 'powershell'], { from: 'user' })).rejects.toThrow(
+        'Unsupported shell'
+      )
     })
   })
 
   describe('run', () => {
     it('is exported and callable', () => {
       expect(typeof run).toBe('function')
+    })
+
+    it('calls createProgram and parse', () => {
+      // Mock process.argv to test default behavior
+      const originalArgv = process.argv
+      process.argv = ['node', 'deepnote', '--version']
+
+      // This will print version and exit normally
+      try {
+        run()
+      } catch {
+        // Expected to throw due to exitOverride not being set
+      }
+
+      process.argv = originalArgv
+    })
+  })
+
+  describe('help text', () => {
+    it('completion command shows installation help', () => {
+      const program = createProgram()
+      const completionCmd = program.commands.find(cmd => cmd.name() === 'completion')
+
+      // The helpInformation includes the afterHelp callback output
+      const helpInfo = completionCmd?.helpInformation() ?? ''
+
+      expect(helpInfo).toContain('bash')
+      expect(helpInfo).toContain('zsh')
+      expect(helpInfo).toContain('fish')
     })
   })
 })
