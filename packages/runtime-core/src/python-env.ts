@@ -14,9 +14,15 @@ export async function resolvePythonExecutable(venvPath: string): Promise<string>
     return venvPath
   }
 
-  const fileStat = await stat(venvPath).catch(() => null)
-  if (!fileStat) {
-    throw new Error(`Python environment path not found: ${venvPath}`)
+  let fileStat: Awaited<ReturnType<typeof stat>>
+  try {
+    fileStat = await stat(venvPath)
+  } catch (err) {
+    const error = err as NodeJS.ErrnoException
+    if (error.code === 'ENOENT') {
+      throw new Error(`Python environment path not found: ${venvPath}`)
+    }
+    throw new Error(`Failed to access Python environment path: ${venvPath} (${error.code}: ${error.message})`)
   }
 
   if (!fileStat.isDirectory()) {
@@ -29,7 +35,8 @@ export async function resolvePythonExecutable(venvPath: string): Promise<string>
 
   for (const candidate of candidates) {
     const pythonPath = join(binDir, candidate)
-    if (await fileExists(pythonPath)) {
+    const pythonStat = await stat(pythonPath).catch(() => null)
+    if (pythonStat?.isFile()) {
       return pythonPath
     }
   }
@@ -38,16 +45,4 @@ export async function resolvePythonExecutable(venvPath: string): Promise<string>
     `No Python executable found in virtual environment: ${venvPath}\n` +
       `Expected to find one of: ${candidates.map(c => join(binDir, c)).join(', ')}`
   )
-}
-
-/**
- * Check if a file exists.
- */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    const fileStat = await stat(filePath)
-    return fileStat.isFile()
-  } catch {
-    return false
-  }
 }
