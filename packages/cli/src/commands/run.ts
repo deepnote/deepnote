@@ -1,6 +1,12 @@
 import fs from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { type DeepnoteFile, decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import {
+  type DeepnoteBlock as BlocksDeepnoteBlock,
+  type DeepnoteFile,
+  decodeUtf8NoBom,
+  deserializeDeepnoteFile,
+} from '@deepnote/blocks'
+import { getBlockDependencies } from '@deepnote/reactivity'
 import { type BlockExecutionResult, type DeepnoteBlock, ExecutionEngine, type IOutput } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
@@ -21,6 +27,20 @@ export class MissingInputError extends Error {
     super(message)
     this.name = 'MissingInputError'
     this.missingInputs = missingInputs
+  }
+}
+
+/**
+ * Error thrown when required database integrations are not configured.
+ * This is a user error (exit code 2), not a runtime error.
+ */
+export class MissingIntegrationError extends Error {
+  readonly missingIntegrations: string[]
+
+  constructor(message: string, missingIntegrations: string[]) {
+    super(message)
+    this.name = 'MissingIntegrationError'
+    this.missingIntegrations = missingIntegrations
   }
 }
 
@@ -71,9 +91,11 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors and missing inputs (user errors)
+      // Use InvalidUsage for file resolution errors, missing inputs, and missing integrations (user errors)
       const exitCode =
-        error instanceof FileResolutionError || error instanceof MissingInputError
+        error instanceof FileResolutionError ||
+        error instanceof MissingInputError ||
+        error instanceof MissingIntegrationError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
       if (options.json) {
@@ -220,6 +242,140 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
   console.log(chalk.dim('Use --input <name>=<value> to set values before running.'))
 }
 
+/**
+ * Convert an integration ID to its environment variable name.
+ * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
+ */
+function getIntegrationEnvVarName(integrationId: string): string {
+  // Same logic as @deepnote/database-integrations getSqlEnvVarName
+  const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
+  const upperCased = notFirstDigit.toUpperCase()
+  const sanitized = upperCased.replace(/[^\w]/g, '_')
+  return `SQL_${sanitized}`
+}
+
+/**
+ * Validate that all required configuration is present before running.
+ * Checks for:
+ * - Missing input variables (used before defined, no --input provided)
+ * - Missing database integrations (SQL blocks without env vars)
+ *
+ * Throws MissingInputError or MissingIntegrationError (exit code 2) on failure.
+ */
+async function validateRequirements(
+  file: DeepnoteFile,
+  providedInputs: Record<string, unknown>,
+  pythonInterpreter: string,
+  notebookName?: string
+): Promise<void> {
+  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
+
+  // Collect all blocks with their sorting keys
+  const allBlocks: Array<BlocksDeepnoteBlock & { sortingKey: string }> = []
+  for (const notebook of notebooks) {
+    for (const block of notebook.blocks) {
+      allBlocks.push(block as BlocksDeepnoteBlock & { sortingKey: string })
+    }
+  }
+
+  // === Check for missing database integrations ===
+  // Built-in integrations that don't require external configuration
+  const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
+
+  const missingIntegrations: Array<{ id: string; envVar: string }> = []
+  for (const block of allBlocks) {
+    if (block.type === 'sql') {
+      const metadata = block.metadata as Record<string, unknown>
+      const integrationId = metadata.sql_integration_id as string | undefined
+      if (integrationId && !builtInIntegrations.has(integrationId)) {
+        const envVarName = getIntegrationEnvVarName(integrationId)
+        if (!process.env[envVarName]) {
+          // Check if we haven't already recorded this integration
+          if (!missingIntegrations.some(i => i.id === integrationId)) {
+            missingIntegrations.push({ id: integrationId, envVar: envVarName })
+          }
+        }
+      }
+    }
+  }
+
+  if (missingIntegrations.length > 0) {
+    const envVarList = missingIntegrations.map(i => `  ${i.envVar}`).join('\n')
+    throw new MissingIntegrationError(
+      `Missing database integration configuration.\n\n` +
+        `The following SQL blocks require database integrations that are not configured:\n` +
+        `${envVarList}\n\n` +
+        `Set the environment variables with your database connection details.\n` +
+        `See: https://docs.deepnote.com/integrations for integration configuration.`,
+      missingIntegrations.map(i => i.id)
+    )
+  }
+
+  // === Check for missing inputs ===
+  // Get dependency info for all blocks
+  let deps: Awaited<ReturnType<typeof getBlockDependencies>>
+  try {
+    deps = await getBlockDependencies(allBlocks, { pythonInterpreter })
+  } catch (e) {
+    // If AST analysis fails, skip input validation (will fail at runtime instead)
+    debug(`AST analysis failed: ${e instanceof Error ? e.message : String(e)}`)
+    return
+  }
+
+  // Build maps of block info
+  const blockDeps = new Map(deps.map(d => [d.id, d]))
+
+  // Find input blocks and their defined variables with sort order
+  const inputVariables = new Map<string, { sortingKey: string; blockId: string }>()
+  for (const block of allBlocks) {
+    if (block.type.startsWith('input-')) {
+      const metadata = block.metadata as Record<string, unknown>
+      const varName = metadata.deepnote_variable_name as string
+      if (varName) {
+        inputVariables.set(varName, { sortingKey: block.sortingKey, blockId: block.id })
+      }
+    }
+  }
+
+  // Find code blocks that use input variables before they're defined
+  const missingInputs = new Set<string>()
+
+  for (const block of allBlocks) {
+    if (block.type !== 'code') continue
+
+    const dep = blockDeps.get(block.id)
+    if (!dep) continue
+
+    for (const usedVar of dep.usedVariables) {
+      const inputInfo = inputVariables.get(usedVar)
+      if (!inputInfo) continue // Not an input variable
+
+      // Check if this code block runs before the input block (string comparison of sortingKey)
+      const codeBlockSortKey = block.sortingKey
+      const inputBlockSortKey = inputInfo.sortingKey
+
+      if (codeBlockSortKey < inputBlockSortKey) {
+        // Code block runs before input block - need --input flag
+        if (!(usedVar in providedInputs)) {
+          missingInputs.add(usedVar)
+        }
+      }
+    }
+  }
+
+  if (missingInputs.size > 0) {
+    const missing = Array.from(missingInputs).sort()
+    const inputFlags = missing.map(v => `--input ${v}=<value>`).join(' ')
+    throw new MissingInputError(
+      `Missing required inputs: ${missing.join(', ')}\n\n` +
+        `These input variables are used by code blocks before they are defined.\n` +
+        `Provide values using: ${inputFlags}\n\n` +
+        `Use --list-inputs to see all available input variables.`,
+      missing
+    )
+  }
+}
+
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
@@ -235,6 +391,14 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   if (!isJson) {
     console.log(chalk.dim(`Parsing ${absolutePath}...`))
   }
+
+  // Parse the file and validate inputs before starting the engine
+  const rawBytes = await fs.readFile(absolutePath)
+  const content = decodeUtf8NoBom(rawBytes)
+  const file = deserializeDeepnoteFile(content)
+
+  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
+  await validateRequirements(file, inputs, pythonEnv, options.notebook)
 
   // Create and start the execution engine
   const engine = new ExecutionEngine({
