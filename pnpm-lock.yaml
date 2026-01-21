@@ -6,6 +6,7 @@ settings:
 
 overrides:
   glob: '>=11.1.0'
+  diff: '>=8.0.3'
 
 importers:
 
@@ -1334,8 +1335,8 @@ packages:
     resolution: {integrity: sha512-qE3Veg1YXzGHQhlA6jzebZN2qVf6NX+A7m7qlhCGG30dJixrAQhYOsJjsnBjJkCSmuOPpCk30145fr8FV0bzog==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  diff@8.0.2:
-    resolution: {integrity: sha512-sSuxWU5j5SR9QQji/o2qMvqRNYRDOcBTgsJ/DeCf4iSN4gW+gNMXM7wFIP+fdXZxoNiAnHUTGjCr+TSWXdRDKg==}
+  diff@8.0.3:
+    resolution: {integrity: sha512-qejHi7bcSD4hQAZE0tNAawRK1ZtafHDmMTMkrrIGgSLl7hTnQHmKCeB45xAcbfTqK2zowkM3j3bHt/4b/ARbYQ==}
     engines: {node: '>=0.3.1'}
 
   dts-resolver@2.1.2:
@@ -3249,7 +3250,7 @@ snapshots:
 
   detect-newline@4.0.1: {}
 
-  diff@8.0.2: {}
+  diff@8.0.3: {}
 
   dts-resolver@2.1.2: {}
 
@@ -3932,7 +3933,7 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.3
       debug: 4.4.3
-      diff: 8.0.2
+      diff: 8.0.3
       empathic: 2.0.0
       hookable: 5.5.3
       rolldown: 1.0.0-beta.44
