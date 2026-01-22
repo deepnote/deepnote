@@ -36,7 +36,7 @@ export function createProgram(): Command {
     .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
     .option('--debug', 'Show debug information for troubleshooting')
     .option('-q, --quiet', 'Suppress non-essential output')
-    .hook('preAction', thisCommand => {
+    .hook('preAction', (thisCommand, actionCommand) => {
       const opts = thisCommand.opts<GlobalOptions>()
 
       // Configure output based on global options
@@ -49,6 +49,14 @@ export function createProgram(): Command {
       // Update chalk level if color is disabled
       if (!getOutputConfig().color) {
         chalk.level = 0
+      }
+
+      // Validate mutually exclusive output format options
+      const actionOpts = actionCommand.opts<{ json?: boolean; toon?: boolean }>()
+      if (actionOpts.json && actionOpts.toon) {
+        thisCommand.error('Options --json and --toon are mutually exclusive. Please use only one output format.', {
+          exitCode: ExitCode.InvalidUsage,
+        })
       }
     })
     .addHelpText('after', () => {

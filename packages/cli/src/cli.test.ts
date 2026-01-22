@@ -191,4 +191,24 @@ describe('CLI', () => {
       expect(helpInfo).toContain('fish')
     })
   })
+
+  describe('mutually exclusive options', () => {
+    it('errors when both --json and --toon are used with inspect', async () => {
+      const program = createProgram()
+      program.exitOverride()
+
+      await expect(
+        program.parseAsync(['inspect', 'test.deepnote', '--json', '--toon'], { from: 'user' })
+      ).rejects.toThrow('mutually exclusive')
+    })
+
+    it('errors when both --json and --toon are used with run', async () => {
+      const program = createProgram()
+      program.exitOverride()
+
+      await expect(program.parseAsync(['run', 'test.deepnote', '--json', '--toon'], { from: 'user' })).rejects.toThrow(
+        'mutually exclusive'
+      )
+    })
+  })
 })

@@ -344,6 +344,83 @@ describe('output', () => {
       expect(logSpy).toHaveBeenCalled()
       expect(errorSpy).not.toHaveBeenCalled()
     })
+
+    it('handles strings with newlines', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ note: 'line1\nline2' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('note')
+      expect(output).toContain('line1')
+      expect(output).toContain('line2')
+    })
+
+    it('handles strings with double quotes', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ quote: '"in quotes"' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('quote')
+      // TOON escapes double quotes within strings
+      expect(output).toContain('in quotes')
+    })
+
+    it('handles strings with single quotes', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ text: "it's fine" })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('text')
+      expect(output).toContain("it's fine")
+    })
+
+    it('handles strings with colons', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ colon: 'a: b' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('colon')
+      expect(output).toContain('a: b')
+    })
+
+    it('handles strings with backslashes', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ back: '\\path\\to\\file' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('back')
+      expect(output).toContain('\\path')
+    })
+
+    it('handles empty arrays', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ items: [] })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('items[0]')
+    })
+
+    it('handles null values', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ missing: null })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('missing')
+      expect(output).toContain('null')
+    })
+
+    it('handles mixed special characters', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({
+        note: 'line1\nline2',
+        quote: '"in quotes"',
+        colon: 'a: b',
+        back: '\\path',
+        items: [],
+        missing: null,
+      })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('note')
+      expect(output).toContain('quote')
+      expect(output).toContain('colon')
+      expect(output).toContain('back')
+      expect(output).toContain('items[0]')
+      expect(output).toContain('missing')
+      expect(output).toContain('null')
+    })
   })
 
   describe('analyzeToonEfficiency', () => {
