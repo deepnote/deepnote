@@ -8,6 +8,7 @@ describe('resolvePythonExecutable', () => {
   let tempDir: string
   let venvDir: string
   let binDir: string
+  let pythonPath: string
 
   beforeAll(async () => {
     tempDir = join(tmpdir(), `python-env-test-${Date.now()}`)
@@ -16,7 +17,7 @@ describe('resolvePythonExecutable', () => {
     await mkdir(binDir, { recursive: true })
 
     // Create mock python executable
-    const pythonPath = join(binDir, 'python')
+    pythonPath = join(binDir, 'python')
     await writeFile(pythonPath, '#!/bin/bash\necho "mock python"')
     await chmod(pythonPath, 0o755)
   })
@@ -37,14 +38,67 @@ describe('resolvePythonExecutable', () => {
     })
   })
 
-  describe('venv directory resolution', () => {
-    it('resolves python executable from venv directory', async () => {
+  describe('direct executable path', () => {
+    it('returns the executable path when passed directly', async () => {
+      const result = await resolvePythonExecutable(pythonPath)
+      expect(result).toBe(pythonPath)
+    })
+
+    it('accepts python3 executable path', async () => {
+      const python3Path = join(binDir, 'python3')
+      await writeFile(python3Path, '#!/bin/bash\necho "mock python3"')
+      await chmod(python3Path, 0o755)
+
+      const result = await resolvePythonExecutable(python3Path)
+      expect(result).toBe(python3Path)
+    })
+
+    it('throws error for non-python executable', async () => {
+      const otherExe = join(tempDir, 'node')
+      await writeFile(otherExe, '#!/bin/bash\necho "mock node"')
+      await chmod(otherExe, 0o755)
+
+      await expect(resolvePythonExecutable(otherExe)).rejects.toThrow(/doesn't appear to be a Python executable/)
+    })
+  })
+
+  describe('bin directory resolution', () => {
+    it('resolves python from bin directory passed directly', async () => {
+      const result = await resolvePythonExecutable(binDir)
+      expect(result).toBe(join(binDir, 'python'))
+    })
+
+    it('prefers python over python3 in bin directory', async () => {
+      // Ensure python3 exists
+      const python3Path = join(binDir, 'python3')
+      await writeFile(python3Path, '#!/bin/bash\necho "mock python3"')
+      await chmod(python3Path, 0o755)
+
+      const result = await resolvePythonExecutable(binDir)
+      expect(result).toBe(join(binDir, 'python'))
+    })
+
+    it('falls back to python3 when python does not exist in bin', async () => {
+      const python3OnlyBin = join(tempDir, 'python3-only-bin')
+      await mkdir(python3OnlyBin, { recursive: true })
+
+      const python3Path = join(python3OnlyBin, 'python3')
+      await writeFile(python3Path, '#!/bin/bash\necho "mock python3"')
+      await chmod(python3Path, 0o755)
+
+      const result = await resolvePythonExecutable(python3OnlyBin)
+      expect(result).toBe(python3Path)
+    })
+  })
+
+  describe('venv root directory resolution', () => {
+    it('resolves python executable from venv root directory', async () => {
       const result = await resolvePythonExecutable(venvDir)
       expect(result).toBe(join(binDir, 'python'))
     })
 
     it('prefers python over python3 when both exist', async () => {
-      // Create python3 as well
+      // Ensure python3 exists
       const python3Path = join(binDir, 'python3')
       await writeFile(python3Path, '#!/bin/bash\necho "mock python3"')
       await chmod(python3Path, 0o755)
@@ -71,37 +125,28 @@ describe('resolvePythonExecutable', () => {
   describe('error cases', () => {
     it('throws error for non-existent path', async () => {
       const nonExistent = join(tempDir, 'does-not-exist')
-      await expect(resolvePythonExecutable(nonExistent)).rejects.toThrow(
-        `Python environment path not found: ${nonExistent}`
-      )
+      await expect(resolvePythonExecutable(nonExistent)).rejects.toThrow(`Python path not found: ${nonExistent}`)
     })
 
-    it('throws error when path is a file instead of directory', async () => {
-      const filePath = join(tempDir, 'not-a-dir')
-      await writeFile(filePath, 'content')
+    it('throws error when no python in directory', async () => {
+      const emptyDir = join(tempDir, 'empty-dir')
+      await mkdir(emptyDir, { recursive: true })
 
-      await expect(resolvePythonExecutable(filePath)).rejects.toThrow(
-        `Python environment path is not a directory: ${filePath}`
-      )
+      await expect(resolvePythonExecutable(emptyDir)).rejects.toThrow(/No Python executable found at/)
     })
 
-    it('throws error when no python in venv bin directory', async () => {
-      const emptyVenv = join(tempDir, 'empty-venv')
-      const emptyBin = join(emptyVenv, 'bin')
-      await mkdir(emptyBin, { recursive: true })
-
-      await expect(resolvePythonExecutable(emptyVenv)).rejects.toThrow(
-        /No Python executable found in virtual environment/
-      )
-    })
-
-    it('throws error when venv has no bin directory', async () => {
+    it('throws error when venv has no bin directory and no python', async () => {
       const noBinVenv = join(tempDir, 'no-bin-venv')
       await mkdir(noBinVenv, { recursive: true })
 
-      await expect(resolvePythonExecutable(noBinVenv)).rejects.toThrow(
-        /No Python executable found in virtual environment/
-      )
+      await expect(resolvePythonExecutable(noBinVenv)).rejects.toThrow(/No Python executable found at/)
+    })
+
+    it('provides helpful error message with accepted formats', async () => {
+      const emptyDir = join(tempDir, 'helpful-error-test')
+      await mkdir(emptyDir, { recursive: true })
+
+      await expect(resolvePythonExecutable(emptyDir)).rejects.toThrow(/You can pass:/)
     })
   })
 })
