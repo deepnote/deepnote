@@ -440,6 +440,16 @@ export type InputBlock =
   | InputDateRangeBlock
   | InputFileBlock
 
+/** Union of all executable block types */
+export type ExecutableBlock =
+  | CodeBlock
+  | SqlBlock
+  | NotebookFunctionBlock
+  | VisualizationBlock
+  | ButtonBlock
+  | BigNumberBlock
+  | InputBlock
+
 /** Union of all text cell block types */
 export type TextCellBlock =
   | TextCellH1Block
