@@ -10,9 +10,9 @@ export function generateCompletionScript(shell: string, program: Command): strin
     case 'bash':
       return generateBashCompletion(commands)
     case 'zsh':
-      return generateZshCompletion()
+      return generateZshCompletion(commands)
     case 'fish':
-      return generateFishCompletion()
+      return generateFishCompletion(commands)
     default:
       return null
   }
@@ -62,7 +62,23 @@ complete -F _deepnote_completions deepnote
 `
 }
 
-function generateZshCompletion(): string {
+/** Command descriptions for zsh completions */
+const zshCommandDescriptions: Record<string, string> = {
+  inspect: 'Inspect and display metadata from a .deepnote file',
+  run: 'Run a .deepnote file',
+  completion: 'Generate shell completion scripts',
+}
+
+function generateZshCompletion(commands: string[]): string {
+  // Build the commands array for zsh
+  const commandEntries = commands
+    .map(cmd => `        '${cmd}:${zshCommandDescriptions[cmd] ?? cmd}'`)
+    .concat("        'help:Display help for command'")
+    .join('\n')
+
+  // Build the help subcommand completions
+  const helpCommands = commands.join(' ')
+
   return `#compdef deepnote
 # Zsh completion for deepnote CLI
 # Add this to ~/.zshrc
@@ -70,10 +86,7 @@ function generateZshCompletion(): string {
 _deepnote() {
     local -a commands
     commands=(
-        'inspect:Inspect and display metadata from a .deepnote file'
-        'run:Run a .deepnote file'
-        'completion:Generate shell completion scripts'
-        'help:Display help for command'
+${commandEntries}
     )
 
     local -a global_options
@@ -117,7 +130,7 @@ _deepnote() {
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
                 help)
-                    _describe -t commands 'commands' commands
+                    _arguments "1:command:(${helpCommands})"
                     ;;
             esac
             ;;
@@ -128,7 +141,23 @@ _deepnote
 `
 }
 
-function generateFishCompletion(): string {
+/** Command descriptions for fish completions */
+const fishCommandDescriptions: Record<string, string> = {
+  inspect: 'Inspect and display metadata from a .deepnote file',
+  run: 'Run a .deepnote file',
+  completion: 'Generate shell completion scripts',
+}
+
+function generateFishCompletion(commands: string[]): string {
+  // Build the command completions
+  const commandCompletions = commands
+    .map(cmd => `complete -c deepnote -n __fish_use_subcommand -a ${cmd} -d '${fishCommandDescriptions[cmd] ?? cmd}'`)
+    .concat("complete -c deepnote -n __fish_use_subcommand -a help -d 'Display help for command'")
+    .join('\n')
+
+  // Build the help subcommand completions
+  const helpCommands = commands.join(' ')
+
   return `# Fish completion for deepnote CLI
 # Save to ~/.config/fish/completions/deepnote.fish
 
@@ -143,10 +172,7 @@ complete -c deepnote -l debug -d 'Show debug information'
 complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
 
 # Commands
-complete -c deepnote -n __fish_use_subcommand -a inspect -d 'Inspect and display metadata from a .deepnote file'
-complete -c deepnote -n __fish_use_subcommand -a run -d 'Run a .deepnote file'
-complete -c deepnote -n __fish_use_subcommand -a completion -d 'Generate shell completion scripts'
-complete -c deepnote -n __fish_use_subcommand -a help -d 'Display help for command'
+${commandCompletions}
 
 # inspect subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from inspect' -l json -d 'Output in JSON format'
@@ -164,6 +190,6 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 
 # help subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run completion'
+complete -c deepnote -n '__fish_seen_subcommand_from help' -a '${helpCommands}'
 `
 }
