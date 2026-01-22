@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
+import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
@@ -69,6 +70,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
+
+  ${c.dim('# Open a .deepnote file in Deepnote')}
+  $ deepnote open my-project.deepnote
 
   ${c.dim('# Get help for a specific command')}
   $ deepnote help inspect
@@ -166,6 +170,37 @@ ${c.bold('Examples:')}
 `
     })
     .action(createRunAction(program))
+
+  // Open command - open a .deepnote file in deepnote.com
+  program
+    .command('open')
+    .description('Open a .deepnote file in Deepnote (uploads and opens in browser)')
+    .argument('<path>', 'Path to a .deepnote file to open')
+    .option('--domain <domain>', 'Deepnote domain (defaults to deepnote.com)')
+    .option('--json', 'Output in JSON format for scripting')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Uploads the .deepnote file to Deepnote and opens it in your default browser.
+  This is useful for quickly viewing or editing your local notebooks in Deepnote.
+
+${c.bold('Output:')}
+  On success, displays a confirmation message and the URL.
+  The URL can be shared with others to view the notebook.
+
+${c.bold('Examples:')}
+  ${c.dim('# Open a .deepnote file in Deepnote')}
+  $ deepnote open my-project.deepnote
+
+  ${c.dim('# Open with JSON output (for scripting)')}
+  $ deepnote open my-project.deepnote --json
+
+  ${c.dim('# Use a custom domain (e.g., enterprise)')}
+  $ deepnote open my-project.deepnote --domain enterprise.deepnote.com
+`
+    })
+    .action(createOpenAction(program))
 
   // Completion command - generate shell completions
   program
