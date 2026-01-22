@@ -465,5 +465,17 @@ describe('output', () => {
       expect(typeof result.savingsPercent).toBe('number')
       expect(typeof result.toonRecommended).toBe('boolean')
     })
+
+    it('handles zero jsonSize without division by zero', () => {
+      // While JSON.stringify never returns empty string for valid input,
+      // the guard protects against edge cases. We can't easily create a
+      // zero-length JSON, but we can verify savingsPercent is always finite.
+      const edgeCases = [null, '', 0, false, [], {}]
+      for (const data of edgeCases) {
+        const result = analyzeToonEfficiency(data)
+        expect(Number.isFinite(result.savingsPercent)).toBe(true)
+        expect(result.jsonSize).toBeGreaterThan(0) // JSON always has some length
+      }
+    })
   })
 })

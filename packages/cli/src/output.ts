@@ -156,7 +156,8 @@ export function analyzeToonEfficiency(
   const jsonSize = jsonOutput.length
 
   // Calculate savings (positive = TOON is smaller)
-  const savingsPercent = ((jsonSize - toonSize) / jsonSize) * 100
+  // Guard against division by zero when jsonSize is 0
+  const savingsPercent = jsonSize === 0 ? 0 : ((jsonSize - toonSize) / jsonSize) * 100
 
   // TOON is recommended if it provides at least 10% savings over minified JSON
   // Below this threshold, JSON might be preferred for compatibility
