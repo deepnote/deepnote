@@ -1,0 +1,379 @@
+import fs from 'node:fs/promises'
+import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import chalk from 'chalk'
+import type { Command } from 'commander'
+import { ExitCode } from '../exit-codes'
+import { debug, error as logError, output, outputJson } from '../output'
+import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+
+export interface DiffOptions {
+  json?: boolean
+  content?: boolean
+}
+
+interface NotebookDiff {
+  name: string
+  id: string
+  status: 'added' | 'removed' | 'modified' | 'unchanged'
+  blockCount?: number
+  blockDiffs?: BlockDiff[]
+}
+
+interface BlockDiff {
+  id: string
+  type: string
+  status: 'added' | 'removed' | 'modified' | 'unchanged'
+  contentDiff?: {
+    before: string | undefined
+    after: string | undefined
+  }
+}
+
+interface DiffResult {
+  file1: string
+  file2: string
+  notebooks: NotebookDiff[]
+  summary: {
+    notebooksAdded: number
+    notebooksRemoved: number
+    notebooksModified: number
+    notebooksUnchanged: number
+    blocksAdded: number
+    blocksRemoved: number
+    blocksModified: number
+    blocksUnchanged: number
+  }
+}
+
+export function createDiffAction(
+  _program: Command
+): (path1: string | undefined, path2: string | undefined, options: DiffOptions) => Promise<void> {
+  return async (path1, path2, options) => {
+    try {
+      debug(`Diffing files: ${path1} vs ${path2}`)
+      debug(`Options: ${JSON.stringify(options)}`)
+      await diffDeepnoteFiles(path1, path2, options)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      if (options.json) {
+        outputJson({ success: false, error: message })
+      } else {
+        logError(message)
+      }
+      process.exit(exitCode)
+    }
+  }
+}
+
+async function diffDeepnoteFiles(
+  path1: string | undefined,
+  path2: string | undefined,
+  options: DiffOptions
+): Promise<void> {
+  const { absolutePath: absolutePath1 } = await resolvePathToDeepnoteFile(path1)
+  const { absolutePath: absolutePath2 } = await resolvePathToDeepnoteFile(path2)
+
+  debug('Reading file 1...')
+  const rawBytes1 = await fs.readFile(absolutePath1)
+  const yamlContent1 = decodeUtf8NoBom(rawBytes1)
+  const file1 = deserializeDeepnoteFile(yamlContent1)
+
+  debug('Reading file 2...')
+  const rawBytes2 = await fs.readFile(absolutePath2)
+  const yamlContent2 = decodeUtf8NoBom(rawBytes2)
+  const file2 = deserializeDeepnoteFile(yamlContent2)
+
+  const diffResult = computeDiff(absolutePath1, absolutePath2, file1, file2, options)
+
+  if (options.json) {
+    outputDiffJson(diffResult)
+  } else {
+    printDiff(diffResult, options)
+  }
+}
+
+/**
+ * Compute the structural diff between two .deepnote files.
+ */
+function computeDiff(
+  path1: string,
+  path2: string,
+  file1: DeepnoteFile,
+  file2: DeepnoteFile,
+  options: DiffOptions
+): DiffResult {
+  const notebooks1 = new Map(file1.project.notebooks.map(nb => [nb.id, nb]))
+  const notebooks2 = new Map(file2.project.notebooks.map(nb => [nb.id, nb]))
+
+  const notebookDiffs: NotebookDiff[] = []
+  const summary = {
+    notebooksAdded: 0,
+    notebooksRemoved: 0,
+    notebooksModified: 0,
+    notebooksUnchanged: 0,
+    blocksAdded: 0,
+    blocksRemoved: 0,
+    blocksModified: 0,
+    blocksUnchanged: 0,
+  }
+
+  // Find removed and modified notebooks
+  for (const [id, nb1] of notebooks1) {
+    const nb2 = notebooks2.get(id)
+    if (!nb2) {
+      // Notebook removed
+      notebookDiffs.push({
+        name: nb1.name,
+        id,
+        status: 'removed',
+        blockCount: nb1.blocks.length,
+      })
+      summary.notebooksRemoved++
+      summary.blocksRemoved += nb1.blocks.length
+    } else {
+      // Notebook exists in both - compare blocks
+      const blockDiffs = computeBlockDiffs(nb1.blocks, nb2.blocks, options)
+      const hasChanges = blockDiffs.some(bd => bd.status !== 'unchanged')
+
+      if (hasChanges) {
+        notebookDiffs.push({
+          name: nb2.name,
+          id,
+          status: 'modified',
+          blockDiffs: blockDiffs.filter(bd => bd.status !== 'unchanged'),
+        })
+        summary.notebooksModified++
+      } else {
+        notebookDiffs.push({
+          name: nb2.name,
+          id,
+          status: 'unchanged',
+        })
+        summary.notebooksUnchanged++
+      }
+
+      // Count block changes
+      for (const bd of blockDiffs) {
+        if (bd.status === 'added') summary.blocksAdded++
+        else if (bd.status === 'removed') summary.blocksRemoved++
+        else if (bd.status === 'modified') summary.blocksModified++
+        else summary.blocksUnchanged++
+      }
+    }
+  }
+
+  // Find added notebooks
+  for (const [id, nb2] of notebooks2) {
+    if (!notebooks1.has(id)) {
+      notebookDiffs.push({
+        name: nb2.name,
+        id,
+        status: 'added',
+        blockCount: nb2.blocks.length,
+      })
+      summary.notebooksAdded++
+      summary.blocksAdded += nb2.blocks.length
+    }
+  }
+
+  // Sort by status: added, removed, modified, unchanged
+  const statusOrder = { added: 0, removed: 1, modified: 2, unchanged: 3 }
+  notebookDiffs.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+
+  return {
+    file1: path1,
+    file2: path2,
+    notebooks: notebookDiffs,
+    summary,
+  }
+}
+
+/**
+ * Compare blocks between two notebooks.
+ */
+function computeBlockDiffs(blocks1: DeepnoteBlock[], blocks2: DeepnoteBlock[], options: DiffOptions): BlockDiff[] {
+  const blocksMap1 = new Map(blocks1.map(b => [b.id, b]))
+  const blocksMap2 = new Map(blocks2.map(b => [b.id, b]))
+
+  const blockDiffs: BlockDiff[] = []
+
+  // Find removed and modified blocks
+  for (const [id, block1] of blocksMap1) {
+    const block2 = blocksMap2.get(id)
+    if (!block2) {
+      blockDiffs.push({
+        id,
+        type: block1.type,
+        status: 'removed',
+        ...(options.content && {
+          contentDiff: {
+            before: getBlockContent(block1),
+            after: undefined,
+          },
+        }),
+      })
+    } else {
+      const content1 = getBlockContent(block1)
+      const content2 = getBlockContent(block2)
+      const typeChanged = block1.type !== block2.type
+      const contentChanged = content1 !== content2
+
+      if (typeChanged || contentChanged) {
+        blockDiffs.push({
+          id,
+          type: block2.type,
+          status: 'modified',
+          ...(options.content && {
+            contentDiff: {
+              before: content1,
+              after: content2,
+            },
+          }),
+        })
+      } else {
+        blockDiffs.push({
+          id,
+          type: block2.type,
+          status: 'unchanged',
+        })
+      }
+    }
+  }
+
+  // Find added blocks
+  for (const [id, block2] of blocksMap2) {
+    if (!blocksMap1.has(id)) {
+      blockDiffs.push({
+        id,
+        type: block2.type,
+        status: 'added',
+        ...(options.content && {
+          contentDiff: {
+            before: undefined,
+            after: getBlockContent(block2),
+          },
+        }),
+      })
+    }
+  }
+
+  return blockDiffs
+}
+
+/**
+ * Get the content of a block for comparison.
+ */
+function getBlockContent(block: DeepnoteBlock): string | undefined {
+  if ('content' in block && typeof block.content === 'string') {
+    return block.content
+  }
+  return undefined
+}
+
+/**
+ * Output diff as JSON.
+ */
+function outputDiffJson(result: DiffResult): void {
+  outputJson({
+    success: true,
+    ...result,
+  })
+}
+
+/**
+ * Print diff in human-readable format.
+ */
+function printDiff(result: DiffResult, options: DiffOptions): void {
+  output(chalk.bold(`Comparing: ${result.file1}`))
+  output(chalk.bold(`     with: ${result.file2}`))
+  output('')
+
+  const hasChanges =
+    result.summary.notebooksAdded > 0 || result.summary.notebooksRemoved > 0 || result.summary.notebooksModified > 0
+
+  if (!hasChanges) {
+    output(chalk.green('No structural differences found.'))
+    return
+  }
+
+  output(chalk.bold('Notebooks:'))
+
+  for (const nb of result.notebooks) {
+    if (nb.status === 'unchanged') continue
+
+    const statusIcon = getStatusIcon(nb.status as 'added' | 'removed' | 'modified')
+    const statusColor = getStatusColor(nb.status as 'added' | 'removed' | 'modified')
+
+    if (nb.status === 'added') {
+      output(statusColor(`  ${statusIcon} Added: "${nb.name}" (${nb.blockCount} blocks)`))
+    } else if (nb.status === 'removed') {
+      output(statusColor(`  ${statusIcon} Removed: "${nb.name}" (${nb.blockCount} blocks)`))
+    } else if (nb.status === 'modified' && nb.blockDiffs) {
+      output(statusColor(`  ${statusIcon} Modified: "${nb.name}"`))
+
+      for (const bd of nb.blockDiffs) {
+        const blockStatusIcon = getStatusIcon(bd.status as 'added' | 'removed' | 'modified')
+        const blockStatusColor = getStatusColor(bd.status as 'added' | 'removed' | 'modified')
+        output(blockStatusColor(`      ${blockStatusIcon} ${bd.type} (${bd.id})`))
+
+        if (options.content && bd.contentDiff) {
+          printContentDiff(bd.contentDiff.before, bd.contentDiff.after)
+        }
+      }
+    }
+  }
+
+  output('')
+  output(chalk.bold('Summary:'))
+  if (result.summary.notebooksAdded > 0) {
+    output(chalk.green(`  + ${result.summary.notebooksAdded} notebook(s) added`))
+  }
+  if (result.summary.notebooksRemoved > 0) {
+    output(chalk.red(`  - ${result.summary.notebooksRemoved} notebook(s) removed`))
+  }
+  if (result.summary.notebooksModified > 0) {
+    output(chalk.yellow(`  ~ ${result.summary.notebooksModified} notebook(s) modified`))
+  }
+  if (result.summary.blocksAdded > 0) {
+    output(chalk.green(`  + ${result.summary.blocksAdded} block(s) added`))
+  }
+  if (result.summary.blocksRemoved > 0) {
+    output(chalk.red(`  - ${result.summary.blocksRemoved} block(s) removed`))
+  }
+  if (result.summary.blocksModified > 0) {
+    output(chalk.yellow(`  ~ ${result.summary.blocksModified} block(s) modified`))
+  }
+}
+
+/**
+ * Print content diff with before/after lines (preview only).
+ */
+function printContentDiff(before: string | undefined, after: string | undefined): void {
+  const maxLines = 3
+  if (before !== undefined) {
+    const lines = before.split('\n').slice(0, maxLines)
+    for (const line of lines) {
+      output(chalk.red(`        - ${line}`))
+    }
+  }
+  if (after !== undefined) {
+    const lines = after.split('\n').slice(0, maxLines)
+    for (const line of lines) {
+      output(chalk.green(`        + ${line}`))
+    }
+  }
+}
+
+function getStatusIcon(status: 'added' | 'removed' | 'modified'): string {
+  if (status === 'added') return '+'
+  if (status === 'removed') return '-'
+  return '~'
+}
+
+function getStatusColor(status: 'added' | 'removed' | 'modified'): typeof chalk {
+  if (status === 'added') return chalk.green
+  if (status === 'removed') return chalk.red
+  return chalk.yellow
+}

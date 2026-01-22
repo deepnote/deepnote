@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
 import { generateCompletionScript } from './completions'
@@ -66,6 +67,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Inspect with JSON output (for scripting)')}
   $ deepnote inspect my-project.deepnote --json
+
+  ${c.dim('# Compare two .deepnote files')}
+  $ deepnote diff file1.deepnote file2.deepnote
 
   ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
@@ -134,6 +138,39 @@ ${c.bold('Examples:')}
 `
     })
     .action(createInspectAction(program))
+
+  // Diff command - compare two .deepnote files
+  program
+    .command('diff')
+    .description('Compare two .deepnote files and show structural differences')
+    .argument('<path1>', 'Path to the first .deepnote file')
+    .argument('<path2>', 'Path to the second .deepnote file')
+    .option('--json', 'Output in JSON format for scripting')
+    .option('--content', 'Include content differences in output')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Shows structural differences between two .deepnote files:
+  - Added, removed, and modified notebooks
+  - Added, removed, and modified blocks within notebooks
+  - Summary of total changes
+
+${c.bold('Examples:')}
+  ${c.dim('# Compare two .deepnote files')}
+  $ deepnote diff original.deepnote modified.deepnote
+
+  ${c.dim('# Compare with content differences')}
+  $ deepnote diff file1.deepnote file2.deepnote --content
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote diff file1.deepnote file2.deepnote --json
+
+  ${c.dim('# Compare a file with a snapshot')}
+  $ deepnote diff current.deepnote backup.snapshot.deepnote
+`
+    })
+    .action(createDiffAction(program))
 
   // Run command - execute a .deepnote file
   program
