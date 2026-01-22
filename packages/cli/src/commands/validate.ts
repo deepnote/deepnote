@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deepnoteFileSchema, parseYaml } from '@deepnote/blocks'
 import type { Command } from 'commander'
+import type { ZodIssue } from 'zod'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -129,9 +130,7 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
 /**
  * Format Zod validation errors into a more readable structure.
  */
-function formatZodErrors(error: {
-  issues: Array<{ path: (string | number)[]; message: string; code: string }>
-}): ValidationIssue[] {
+function formatZodErrors(error: { issues: ZodIssue[] }): ValidationIssue[] {
   return error.issues.map(issue => ({
     path: issue.path.join('.'),
     message: issue.message,
