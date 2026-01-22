@@ -89,7 +89,17 @@ export function getChalk(): ChalkInstance {
 }
 
 /**
+/**
+ * Output a message to stdout (always shown, ignores quiet mode).
+ * Use this for essential command output that shouldn't be suppressed.
+ */
+export function output(message: string): void {
+  console.log(message)
+}
+
+/**
  * Log a message (respects quiet mode).
+ * Use this for status/progress messages that can be suppressed.
  */
 export function log(message: string): void {
   if (!currentConfig.quiet) {
