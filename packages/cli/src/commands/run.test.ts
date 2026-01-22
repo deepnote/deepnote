@@ -308,7 +308,6 @@ describe('run command', () => {
       // Should print outputs and blank line (in non-JSON mode)
       const output = getOutput(consoleLogSpy)
       expect(output).toContain('✓')
-      // The blank line is added after outputs
       expect(consoleLogSpy).toHaveBeenCalled()
     })
 
