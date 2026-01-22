@@ -13,7 +13,13 @@ import { debug, log, error as logError, output, outputJson } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
-import { displayMetrics, fetchMetrics } from '../utils/metrics'
+import {
+  type BlockProfile,
+  displayMetrics,
+  displayProfileSummary,
+  fetchMetrics,
+  formatMemoryDelta,
+} from '../utils/metrics'
 
 export interface RunOptions {
   python?: string
@@ -22,6 +28,7 @@ export interface RunOptions {
   block?: string
   json?: boolean
   top?: boolean
+  profile?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -112,6 +119,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track labels by block id for JSON output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
 
+  // Profiling: track memory before each block and collect profile data
+  const showProfile = options.profile && !isJson
+  const blockProfiles: BlockProfile[] = []
+  const memoryBefore = new Map<string, number>()
+
   // Set up metrics monitoring if --top is enabled
   const showTop = options.top && !isJson
   let metricsInterval: ReturnType<typeof setInterval> | null = null
@@ -142,16 +154,24 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       notebookName: options.notebook,
       blockId: options.block,
 
-      onBlockStart: (block: DeepnoteBlock, index: number, total: number) => {
+      onBlockStart: async (block: DeepnoteBlock, index: number, total: number) => {
         const label = getBlockLabel(block)
         blockLabels.set(block.id, label)
+
+        // Capture memory before block execution for profiling
+        if (showProfile && engine.serverPort) {
+          const metrics = await fetchMetrics(engine.serverPort)
+          if (metrics) {
+            memoryBefore.set(block.id, metrics.rss)
+          }
+        }
 
         if (!isJson) {
           process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
-      onBlockDone: (result: BlockExecutionResult) => {
+      onBlockDone: async (result: BlockExecutionResult) => {
         // Collect result for JSON output
         const label = blockLabels.get(result.blockId) ?? result.blockType
         blockLabels.delete(result.blockId) // Clean up to avoid memory growth
@@ -165,9 +185,31 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
           error: result.error?.message,
         })
 
+        // Capture memory after block and calculate delta for profiling
+        let memoryDeltaStr = ''
+        if (showProfile && engine.serverPort) {
+          const metrics = await fetchMetrics(engine.serverPort)
+          const before = memoryBefore.get(result.blockId) ?? 0
+          memoryBefore.delete(result.blockId) // Clean up
+
+          if (metrics) {
+            const delta = metrics.rss - before
+            memoryDeltaStr = `, ${formatMemoryDelta(delta)}`
+
+            blockProfiles.push({
+              id: result.blockId,
+              label,
+              durationMs: result.durationMs,
+              memoryBefore: before,
+              memoryAfter: metrics.rss,
+              memoryDelta: delta,
+            })
+          }
+        }
+
         if (!isJson) {
           if (result.success) {
-            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
+            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
           } else {
             output(chalk.red('✗'))
           }
@@ -217,6 +259,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
           output(chalk.bold('Final resource usage:'))
           displayMetrics(finalMetrics)
         }
+      }
+
+      // Show profile summary if --profile was enabled
+      if (showProfile && blockProfiles.length > 0) {
+        displayProfileSummary(blockProfiles)
       }
 
       if (summary.failedBlocks > 0) {

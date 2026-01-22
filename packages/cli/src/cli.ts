@@ -146,6 +146,7 @@ ${c.bold('Examples:')}
     .option('--block <id>', 'Run only the specified block')
     .option('--json', 'Output results in JSON format for scripting')
     .option('--top', 'Display resource usage (CPU, memory) during execution')
+    .option('--profile', 'Show per-block timing and memory usage')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -164,6 +165,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Monitor resource usage during execution')}
   $ deepnote run my-project.deepnote --top
+
+  ${c.dim('# Profile blocks to identify slow/memory-intensive operations')}
+  $ deepnote run my-project.deepnote --profile
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote --json
