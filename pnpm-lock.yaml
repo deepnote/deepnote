@@ -7,7 +7,7 @@ settings:
 overrides:
   diff: '>=8.0.3'
   glob: '>=11.1.0'
-  lodash@>=4,<4.17.23: '>=4.17.23'
+  lodash@>=4.0.0,<4.17.23: '>=4.17.23'
 
 importers:
 
