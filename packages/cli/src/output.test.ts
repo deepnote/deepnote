@@ -5,6 +5,7 @@ import {
   getChalk,
   getOutputConfig,
   log,
+  output,
   outputJson,
   resetOutputConfig,
   setOutputConfig,
@@ -139,6 +140,21 @@ describe('output', () => {
       const chalkInstance = getChalk()
       expect(chalkInstance).toBeDefined()
       expect(typeof chalkInstance.red).toBe('function')
+    })
+  })
+
+  describe('output', () => {
+    it('outputs message to stdout', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      output('test message')
+      expect(consoleSpy).toHaveBeenCalledWith('test message')
+    })
+
+    it('outputs even when quiet (essential output)', () => {
+      setOutputConfig({ quiet: true })
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      output('test message')
+      expect(consoleSpy).toHaveBeenCalledWith('test message')
     })
   })
 
