@@ -140,7 +140,7 @@ ${c.bold('Examples:')}
     .command('run')
     .description('Run a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file to run')
-    .option('--python <path>', 'Path to Python virtual environment directory (e.g., path/to/venv)', 'python')
+    .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
