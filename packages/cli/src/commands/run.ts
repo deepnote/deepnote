@@ -68,6 +68,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   const pythonEnv = options.python ?? detectDefaultPython()
   const isJson = options.json ?? false
 
+  // Collect block results for JSON output
   const blockResults: BlockResult[] = []
 
   if (!isJson) {
