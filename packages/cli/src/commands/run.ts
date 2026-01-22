@@ -1,9 +1,15 @@
 import { dirname } from 'node:path'
-import { type BlockExecutionResult, type DeepnoteBlock, ExecutionEngine, type IOutput } from '@deepnote/runtime-core'
+import {
+  type BlockExecutionResult,
+  type DeepnoteBlock,
+  ExecutionEngine,
+  type ExecutionSummary,
+  type IOutput,
+} from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, outputJson } from '../output'
+import { debug, log, error as logError, output, outputJson } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -27,14 +33,10 @@ interface BlockResult {
   error?: string | undefined
 }
 
-/** Overall run result for JSON output */
-interface RunResult {
+/** Overall run result for JSON output, extends ExecutionSummary */
+interface RunResult extends ExecutionSummary {
   success: boolean
   path: string
-  executedBlocks: number
-  totalBlocks: number
-  failedBlocks: number
-  totalDurationMs: number
   blocks: BlockResult[]
 }
 
@@ -68,7 +70,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   const blockResults: BlockResult[] = []
 
   if (!isJson) {
-    console.log(chalk.dim(`Parsing ${absolutePath}...`))
+    log(chalk.dim(`Parsing ${absolutePath}...`))
   }
 
   // Create and start the execution engine
@@ -78,7 +80,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   })
 
   if (!isJson) {
-    console.log(chalk.dim('Starting deepnote-toolkit server...'))
+    log(chalk.dim('Starting deepnote-toolkit server...'))
   }
 
   try {
@@ -92,7 +94,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     } catch (stopError) {
       const stopMessage = stopError instanceof Error ? stopError.message : String(stopError)
       if (!isJson) {
-        console.error(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
+        logError(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
       }
     }
 
@@ -102,11 +104,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   }
 
   if (!isJson) {
-    console.log(chalk.dim('Server ready. Executing blocks...\n'))
+    log(chalk.dim('Server ready. Executing blocks...\n'))
   }
 
-  // Track current block label for JSON output (onBlockDone doesn't receive the block)
-  let currentBlockLabel = ''
+  // Track labels by block id for JSON output (safer than single variable if callbacks interleave)
+  const blockLabels = new Map<string, string>()
 
   try {
     const summary = await engine.runFile(absolutePath, {
@@ -114,19 +116,22 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       blockId: options.block,
 
       onBlockStart: (block: DeepnoteBlock, index: number, total: number) => {
-        currentBlockLabel = getBlockLabel(block)
+        const label = getBlockLabel(block)
+        blockLabels.set(block.id, label)
 
         if (!isJson) {
-          process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${currentBlockLabel}`)} `)
+          process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
       onBlockDone: (result: BlockExecutionResult) => {
         // Collect result for JSON output
+        const label = blockLabels.get(result.blockId) ?? result.blockType
+        blockLabels.delete(result.blockId) // Clean up to avoid memory growth
         blockResults.push({
           id: result.blockId,
           type: result.blockType,
-          label: currentBlockLabel,
+          label,
           success: result.success,
           durationMs: result.durationMs,
           outputs: result.outputs,
@@ -135,19 +140,19 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
         if (!isJson) {
           if (result.success) {
-            console.log(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
+            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
           } else {
-            console.log(chalk.red('✗'))
+            output(chalk.red('✗'))
           }
 
           // Render outputs
-          for (const output of result.outputs) {
-            renderOutput(output)
+          for (const blockOutput of result.outputs) {
+            renderOutput(blockOutput)
           }
 
           // Add blank line between blocks for readability
           if (result.outputs.length > 0) {
-            console.log()
+            output('')
           }
         }
       },
@@ -171,17 +176,17 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       process.exitCode = exitCode
     } else {
       // Print summary
-      console.log(chalk.dim('─'.repeat(50)))
+      output(chalk.dim('─'.repeat(50)))
 
       if (summary.failedBlocks > 0) {
-        console.log(
+        output(
           chalk.red(
             `Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`
           )
         )
       } else {
         const duration = (summary.totalDurationMs / 1000).toFixed(1)
-        console.log(chalk.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
+        output(chalk.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
       }
 
       process.exitCode = exitCode

@@ -3,7 +3,7 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, outputJson } from '../output'
+import { debug, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface InspectOptions {
@@ -89,28 +89,28 @@ function printDeepnoteFileMetadata(
   const notebooks = project.notebooks
   const totalBlocks = notebooks.reduce((sum, notebook) => sum + notebook.blocks.length, 0)
 
-  console.log(`${chalk.dim('Path:')} ${absolutePath}`)
-  console.log(`${chalk.dim('Name:')} ${project.name}`)
-  console.log(`${chalk.dim('Project ID:')} ${project.id}`)
-  console.log(`${chalk.dim('Version:')} ${fileVersion}`)
-  console.log(`${chalk.dim('Created:')} ${metadata.createdAt}`)
+  output(`${chalk.dim('Path:')} ${absolutePath}`)
+  output(`${chalk.dim('Name:')} ${project.name}`)
+  output(`${chalk.dim('Project ID:')} ${project.id}`)
+  output(`${chalk.dim('Version:')} ${fileVersion}`)
+  output(`${chalk.dim('Created:')} ${metadata.createdAt}`)
 
   if (metadata.modifiedAt) {
-    console.log(`${chalk.dim('Modified:')} ${metadata.modifiedAt}`)
+    output(`${chalk.dim('Modified:')} ${metadata.modifiedAt}`)
   }
 
   if (metadata.exportedAt) {
-    console.log(`${chalk.dim('Exported:')} ${metadata.exportedAt}`)
+    output(`${chalk.dim('Exported:')} ${metadata.exportedAt}`)
   }
 
-  console.log(`${chalk.dim('Notebooks count:')} ${notebooks.length}`)
-  console.log(`${chalk.dim('Blocks:')} ${totalBlocks}`)
+  output(`${chalk.dim('Notebooks count:')} ${notebooks.length}`)
+  output(`${chalk.dim('Blocks:')} ${totalBlocks}`)
 
   if (notebooks.length > 0) {
-    console.log(`${chalk.dim('Notebooks:')}`)
+    output(`${chalk.dim('Notebooks:')}`)
     for (const notebook of notebooks) {
       const moduleSuffix = notebook.isModule ? ', module' : ''
-      console.log(`- ${notebook.name} (${notebook.blocks.length} blocks${moduleSuffix})`)
+      output(`- ${notebook.name} (${notebook.blocks.length} blocks${moduleSuffix})`)
     }
   }
 }
