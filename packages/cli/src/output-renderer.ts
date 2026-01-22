@@ -1,6 +1,7 @@
 import { stripVTControlCharacters } from 'node:util'
 import type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@deepnote/runtime-core'
 import chalk from 'chalk'
+import { error as logError, output } from './output'
 
 /**
  * Render a Jupyter output to the terminal.
@@ -41,42 +42,42 @@ function renderStreamOutput(output: IStream): void {
   }
 }
 
-function renderDataOutput(output: IDisplayData | IExecuteResult): void {
-  const data = output.data
+function renderDataOutput(dataOutput: IDisplayData | IExecuteResult): void {
+  const data = dataOutput.data
 
   // Prefer text/plain for terminal rendering
   if (data['text/plain']) {
     const text = Array.isArray(data['text/plain']) ? data['text/plain'].join('') : (data['text/plain'] as string)
-    console.log(text)
+    output(text)
     return
   }
 
   // Indicate non-renderable outputs
   if (data['text/html']) {
-    console.log(chalk.dim('[HTML output - not rendered in terminal]'))
+    output(chalk.dim('[HTML output - not rendered in terminal]'))
     return
   }
 
   if (data['image/png'] || data['image/jpeg'] || data['image/svg+xml']) {
-    console.log(chalk.dim('[Image output - not rendered in terminal]'))
+    output(chalk.dim('[Image output - not rendered in terminal]'))
     return
   }
 
   // Fallback: show available MIME types
   const mimeTypes = Object.keys(data)
   if (mimeTypes.length > 0) {
-    console.log(chalk.dim(`[Output with MIME types: ${mimeTypes.join(', ')}]`))
+    output(chalk.dim(`[Output with MIME types: ${mimeTypes.join(', ')}]`))
   }
 }
 
-function renderErrorOutput(output: IError): void {
-  console.error(chalk.red(`${output.ename}: ${output.evalue}`))
+function renderErrorOutput(errorOutput: IError): void {
+  logError(chalk.red(`${errorOutput.ename}: ${errorOutput.evalue}`))
 
-  if (output.traceback && output.traceback.length > 0) {
-    for (const line of output.traceback) {
+  if (errorOutput.traceback && errorOutput.traceback.length > 0) {
+    for (const line of errorOutput.traceback) {
       // Strip ANSI codes that might be in the traceback and apply our own styling
       const cleanLine = stripVTControlCharacters(line)
-      console.error(chalk.red(cleanLine))
+      logError(chalk.red(cleanLine))
     }
   }
 }

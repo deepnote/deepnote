@@ -157,6 +157,13 @@ Autograd
 JAXPR
 cuda
 
+# Shell Completion Scripts
+COMPREPLY
+CWORD
+compgen
+compdef
+esac
+
 # Programming/DevOps
 docstrings
 preconfigured
