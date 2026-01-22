@@ -3,11 +3,41 @@ export type NotebookFormat = 'jupyter' | 'deepnote' | 'marimo' | 'percent' | 'qu
 /** Check if file content is Marimo format */
 export function isMarimoContent(content: string): boolean {
   // Marimo notebooks have a marimo import at the file level and @app.cell decorators
-  // Skip shebangs and encoding comments to find the first significant line
+  // Skip shebangs, encoding comments, and module docstrings to find the first significant line
   const lines = content.split('\n')
+  let inDocstring = false
+  let docstringQuote = ''
+
   const firstSignificant = lines.find(line => {
     const t = line.trim()
-    return t.length > 0 && !t.startsWith('#!') && !/^#\s*(-\*-\s*)?(coding|encoding)[:=]/i.test(t)
+    if (t.length === 0) {
+      return false
+    }
+    if (t.startsWith('#!') || /^#\s*(-\*-\s*)?(coding|encoding)[:=]/i.test(t)) {
+      return false
+    }
+
+    // Track module docstring (similar to isPercentContent)
+    for (const q of ['"""', "'''"]) {
+      if (!inDocstring && t.startsWith(q)) {
+        // Check for single-line docstring (starts and ends with same quote)
+        if (t.length > 3 && t.endsWith(q)) {
+          // Single-line docstring, skip this line entirely
+          return false
+        }
+        inDocstring = true
+        docstringQuote = q
+        return false
+      }
+      if (inDocstring && docstringQuote === q && t.includes(q)) {
+        inDocstring = false
+        return false
+      }
+    }
+    if (inDocstring) {
+      return false
+    }
+    return true
   })
 
   // Accept both 'import marimo' and 'from marimo import ...'

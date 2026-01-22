@@ -1,9 +1,10 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { stringify } from 'yaml'
 import { getMarimoOutputsFromCache } from './snapshot'
+import { computeContentHash } from './snapshot/hash'
 import type { JupyterOutput } from './types/jupyter'
 import type { MarimoApp, MarimoCell } from './types/marimo'
 import { createSortingKey } from './utils'
@@ -13,10 +14,11 @@ import { createSortingKey } from './utils'
  * This matches how Marimo computes code_hash for the session cache.
  *
  * @param content - The cell's code content
- * @returns A SHA256 hash string
+ * @returns A SHA256 hash string (raw hex, without prefix)
  */
 function computeCodeHash(content: string): string {
-  return createHash('sha256').update(content, 'utf-8').digest('hex')
+  // Marimo cache uses raw hex without the 'sha256:' prefix
+  return computeContentHash(content).replace(/^sha256:/, '')
 }
 
 /**
@@ -359,6 +361,10 @@ export interface ConvertMarimoAppsToDeepnoteOptions {
   idGenerator?: () => string
 }
 
+export interface MarimoAppWithOutputs extends MarimoAppInput {
+  outputs?: Map<string, JupyterOutput[]>
+}
+
 /**
  * Creates a base DeepnoteFile structure with empty notebooks.
  * This is a helper to reduce duplication in conversion functions.
@@ -446,10 +452,6 @@ export function convertMarimoAppsToDeepnoteFile(
   }
 
   return deepnoteFile
-}
-
-export interface MarimoAppWithOutputs extends MarimoAppInput {
-  outputs?: Map<string, JupyterOutput[]>
 }
 
 /**
@@ -574,19 +576,16 @@ function convertCellToBlock(
     metadata.deepnote_variable_name = cell.exports[0]
   }
 
-  const block: DeepnoteBlock = {
+  const block = {
     blockGroup: idGenerator(),
     content: cell.content,
     id: idGenerator(),
     metadata: Object.keys(metadata).length > 0 ? metadata : {},
     sortingKey: createSortingKey(index),
     type: blockType,
-  }
-
-  // Add outputs if available (for code and SQL blocks)
-  if (outputs && outputs.length > 0 && (blockType === 'code' || blockType === 'sql')) {
-    ;(block as DeepnoteBlock & { outputs: JupyterOutput[] }).outputs = outputs
-  }
+    // Add outputs if available (for code and SQL blocks)
+    ...(outputs && outputs.length > 0 && (blockType === 'code' || blockType === 'sql') ? { outputs } : {}),
+  } as DeepnoteBlock
 
   return block
 }

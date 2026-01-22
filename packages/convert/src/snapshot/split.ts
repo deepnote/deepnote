@@ -63,7 +63,7 @@ function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
     return block
   }
 
-  // Create a copy without output fields
+  // Create a copy without output fields (underscore prefix suppresses unused warnings)
   const {
     executionCount: _executionCount,
     executionStartedAt: _executionStartedAt,
@@ -76,12 +76,6 @@ function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
     executionFinishedAt?: string
     outputs?: unknown[]
   }
-
-  // Suppress unused variable warnings
-  void _executionCount
-  void _executionStartedAt
-  void _executionFinishedAt
-  void _outputs
 
   return rest as DeepnoteBlock
 }

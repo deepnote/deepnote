@@ -64,7 +64,10 @@ export async function readMarimoSessionCache(sessionPath: string): Promise<Marim
   try {
     const content = await fs.readFile(sessionPath, 'utf-8')
     return JSON.parse(content) as MarimoSessionCache
-  } catch {
+  } catch (error) {
+    // Debug logging (uncomment for troubleshooting):
+    // console.debug('Failed to read Marimo session cache:', sessionPath, error)
+    void error
     return null
   }
 }

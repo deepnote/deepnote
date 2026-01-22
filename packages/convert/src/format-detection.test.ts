@@ -98,6 +98,71 @@ print("hello")
     expect(isMarimoContent(content)).toBe(false)
   })
 
+  it('detects Marimo content with module docstring before import', () => {
+    const content = `"""
+This is a module docstring.
+It can span multiple lines.
+"""
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
+  it('detects Marimo content with single-line module docstring', () => {
+    const content = `"""Module docstring."""
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
+  it('detects Marimo content with single-quoted module docstring', () => {
+    const content = `'''
+This is a module docstring with single quotes.
+'''
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
+  it('detects Marimo content with shebang, encoding, and docstring', () => {
+    const content = `#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Module docstring after shebang and encoding.
+"""
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
   it('returns false for percent format content', () => {
     const content = `# %%
 print("hello")
