@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { createCatAction } from './commands/cat'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
 import { generateCompletionScript } from './completions'
@@ -66,6 +67,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Inspect with JSON output (for scripting)')}
   $ deepnote inspect my-project.deepnote --json
+
+  ${c.dim('# Display block contents')}
+  $ deepnote cat my-project.deepnote
 
   ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
@@ -134,6 +138,47 @@ ${c.bold('Examples:')}
 `
     })
     .action(createInspectAction(program))
+
+  // Cat command - display block contents from a .deepnote file
+  program
+    .command('cat')
+    .description('Display block contents from a .deepnote file')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('--json', 'Output in JSON format for scripting')
+    .option('--notebook <name>', 'Show only blocks from the specified notebook')
+    .option('--type <type>', 'Filter blocks by type (code, sql, markdown, input, text)')
+    .option('--tree', 'Show structure only without block content')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Block Types:')}
+  ${c.dim('code')}        Python code blocks
+  ${c.dim('sql')}         SQL query blocks
+  ${c.dim('markdown')}    Markdown blocks
+  ${c.dim('text')}        All text cell blocks (h1, h2, h3, p, bullet, etc.)
+  ${c.dim('input')}       All input blocks (text, select, slider, etc.)
+
+${c.bold('Examples:')}
+  ${c.dim('# Display all blocks in a file')}
+  $ deepnote cat my-project.deepnote
+
+  ${c.dim('# Show only code blocks')}
+  $ deepnote cat my-project.deepnote --type code
+
+  ${c.dim('# Show blocks from a specific notebook')}
+  $ deepnote cat my-project.deepnote --notebook "Data Analysis"
+
+  ${c.dim('# Show structure without content (tree view)')}
+  $ deepnote cat my-project.deepnote --tree
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote cat my-project.deepnote --json
+
+  ${c.dim('# Combine filters')}
+  $ deepnote cat my-project.deepnote --notebook "Analysis" --type sql
+`
+    })
+    .action(createCatAction(program))
 
   // Run command - execute a .deepnote file
   program
