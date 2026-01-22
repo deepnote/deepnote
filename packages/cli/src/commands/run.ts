@@ -2,6 +2,7 @@ import { dirname } from 'node:path'
 import {
   type BlockExecutionResult,
   type DeepnoteBlock,
+  detectDefaultPython,
   ExecutionEngine,
   type ExecutionSummary,
   type IOutput,
@@ -63,7 +64,8 @@ export function createRunAction(program: Command): (path: string, options: RunOp
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
-  const pythonEnv = options.python ?? 'python'
+
+  const pythonEnv = options.python ?? detectDefaultPython()
   const isJson = options.json ?? false
 
   // Collect block results for JSON output
