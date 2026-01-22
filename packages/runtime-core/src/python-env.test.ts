@@ -1,8 +1,13 @@
+import { execSync } from 'node:child_process'
 import { chmod, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { resolvePythonExecutable } from './python-env'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { detectDefaultPython, resolvePythonExecutable } from './python-env'
+
+vi.mock('node:child_process', () => ({
+  execSync: vi.fn(),
+}))
 
 describe('resolvePythonExecutable', () => {
   let tempDir: string
@@ -148,5 +153,56 @@ describe('resolvePythonExecutable', () => {
 
       await expect(resolvePythonExecutable(emptyDir)).rejects.toThrow(/You can pass:/)
     })
+  })
+})
+
+describe('detectDefaultPython', () => {
+  const mockExecSync = vi.mocked(execSync)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns "python" when python is available', () => {
+    mockExecSync.mockImplementation(() => Buffer.from('Python 3.11.0'))
+
+    const result = detectDefaultPython()
+
+    expect(result).toBe('python')
+    expect(mockExecSync).toHaveBeenCalledWith('python --version', { stdio: 'ignore' })
+  })
+
+  it('returns "python3" when python is not available but python3 is', () => {
+    mockExecSync.mockImplementation((command: string) => {
+      if (command === 'python --version') {
+        throw new Error('command not found: python')
+      }
+      return Buffer.from('Python 3.11.0')
+    })
+
+    const result = detectDefaultPython()
+
+    expect(result).toBe('python3')
+    expect(mockExecSync).toHaveBeenCalledWith('python --version', { stdio: 'ignore' })
+    expect(mockExecSync).toHaveBeenCalledWith('python3 --version', { stdio: 'ignore' })
+  })
+
+  it('throws error when neither python nor python3 is available', () => {
+    mockExecSync.mockImplementation(() => {
+      throw new Error('command not found')
+    })
+
+    expect(() => detectDefaultPython()).toThrow('No Python executable found')
+    expect(() => detectDefaultPython()).toThrow('--python <path>')
+  })
+
+  it('only checks python3 if python check fails', () => {
+    mockExecSync.mockImplementation(() => Buffer.from('Python 3.11.0'))
+
+    detectDefaultPython()
+
+    // Should only call once for 'python' since it succeeds
+    expect(mockExecSync).toHaveBeenCalledTimes(1)
+    expect(mockExecSync).toHaveBeenCalledWith('python --version', { stdio: 'ignore' })
   })
 })
