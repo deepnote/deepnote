@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { FileResolutionError, resolvePathToDeepnoteFile } from './file-resolver'
 
 // Use example files from the repo (tests run from root)
@@ -39,17 +39,100 @@ describe('resolvePathToDeepnoteFile', () => {
     await rm(tempDir, { recursive: true, force: true })
   })
 
-  describe('missing path', () => {
-    it('throws FileResolutionError when path is undefined', async () => {
-      await expect(resolvePathToDeepnoteFile(undefined)).rejects.toThrow(FileResolutionError)
-      await expect(resolvePathToDeepnoteFile(undefined)).rejects.toThrow('Missing path to a .deepnote file')
+  describe('auto-discovery (no path provided)', () => {
+    let originalCwd: string
+    let testDir: string
+
+    beforeEach(async () => {
+      originalCwd = process.cwd()
+      testDir = join(tmpdir(), `file-resolver-auto-${Date.now()}`)
+      await mkdir(testDir, { recursive: true })
     })
 
-    it('uses custom error message when provided', async () => {
-      const customMessage = 'Custom error message'
-      await expect(resolvePathToDeepnoteFile(undefined, { missingPathMessage: customMessage })).rejects.toThrow(
+    afterEach(async () => {
+      process.chdir(originalCwd)
+      await rm(testDir, { recursive: true, force: true })
+    })
+
+    it('finds .deepnote file in current directory when no path provided', async () => {
+      await writeFile(join(testDir, 'project.deepnote'), 'content')
+      process.chdir(testDir)
+
+      const result = await resolvePathToDeepnoteFile(undefined)
+
+      expect(result.absolutePath).toContain('project.deepnote')
+    })
+
+    it('selects first .deepnote file alphabetically when multiple exist', async () => {
+      await writeFile(join(testDir, 'beta.deepnote'), 'content')
+      await writeFile(join(testDir, 'alpha.deepnote'), 'content')
+      await writeFile(join(testDir, 'gamma.deepnote'), 'content')
+      process.chdir(testDir)
+
+      const result = await resolvePathToDeepnoteFile(undefined)
+
+      expect(result.absolutePath).toContain('alpha.deepnote')
+    })
+
+    it('throws FileResolutionError when no .deepnote files in current directory', async () => {
+      await writeFile(join(testDir, 'not-a-notebook.txt'), 'content')
+      process.chdir(testDir)
+
+      await expect(resolvePathToDeepnoteFile(undefined)).rejects.toThrow(FileResolutionError)
+      await expect(resolvePathToDeepnoteFile(undefined)).rejects.toThrow('No .deepnote files found')
+    })
+
+    it('uses custom error message when provided and no files found', async () => {
+      process.chdir(testDir)
+      const customMessage = 'Custom no files message'
+
+      await expect(resolvePathToDeepnoteFile(undefined, { noFilesFoundMessage: customMessage })).rejects.toThrow(
         customMessage
       )
+    })
+  })
+
+  describe('directory path provided', () => {
+    let testDir: string
+
+    beforeEach(async () => {
+      testDir = join(tmpdir(), `file-resolver-dir-${Date.now()}`)
+      await mkdir(testDir, { recursive: true })
+    })
+
+    afterEach(async () => {
+      await rm(testDir, { recursive: true, force: true })
+    })
+
+    it('finds .deepnote file in specified directory', async () => {
+      await writeFile(join(testDir, 'notebook.deepnote'), 'content')
+
+      const result = await resolvePathToDeepnoteFile(testDir)
+
+      expect(result.absolutePath).toContain('notebook.deepnote')
+    })
+
+    it('selects first .deepnote file alphabetically in directory', async () => {
+      await writeFile(join(testDir, 'zebra.deepnote'), 'content')
+      await writeFile(join(testDir, 'aardvark.deepnote'), 'content')
+
+      const result = await resolvePathToDeepnoteFile(testDir)
+
+      expect(result.absolutePath).toContain('aardvark.deepnote')
+    })
+
+    it('throws FileResolutionError when directory has no .deepnote files', async () => {
+      await writeFile(join(testDir, 'other.txt'), 'content')
+
+      await expect(resolvePathToDeepnoteFile(testDir)).rejects.toThrow(FileResolutionError)
+      await expect(resolvePathToDeepnoteFile(testDir)).rejects.toThrow('No .deepnote files found')
+    })
+
+    it('works with examples directory from repo root', async () => {
+      const result = await resolvePathToDeepnoteFile(EXAMPLES_DIR)
+
+      // Should find first alphabetically (1_hello_world.deepnote)
+      expect(result.absolutePath).toContain('1_hello_world.deepnote')
     })
   })
 
@@ -60,13 +143,6 @@ describe('resolvePathToDeepnoteFile', () => {
 
       await expect(resolvePathToDeepnoteFile(nonExistentPath)).rejects.toThrow(FileResolutionError)
       await expect(resolvePathToDeepnoteFile(nonExistentPath)).rejects.toThrow(`File not found: ${absolutePath}`)
-    })
-
-    it('throws FileResolutionError when path is a directory', async () => {
-      const absolutePath = resolve(process.cwd(), EXAMPLES_DIR)
-
-      await expect(resolvePathToDeepnoteFile(EXAMPLES_DIR)).rejects.toThrow(FileResolutionError)
-      await expect(resolvePathToDeepnoteFile(EXAMPLES_DIR)).rejects.toThrow(`Not a file: ${absolutePath}`)
     })
 
     it('includes suggestion for similar files', async () => {
