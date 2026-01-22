@@ -135,15 +135,20 @@ export function outputJson(data: unknown): void {
  * TOON excels with uniform arrays of objects (30-60% savings typical).
  * Compares against minified JSON for a fair comparison.
  *
+ * @param data - The data to analyze
+ * @param encodedToon - Optional pre-encoded TOON string to avoid re-encoding
  * @returns Object with toon/json sizes and whether TOON is recommended
  */
-export function analyzeToonEfficiency(data: unknown): {
+export function analyzeToonEfficiency(
+  data: unknown,
+  encodedToon?: string
+): {
   toonSize: number
   jsonSize: number
   savingsPercent: number
   toonRecommended: boolean
 } {
-  const toonOutput = toonEncode(data)
+  const toonOutput = encodedToon ?? toonEncode(data)
   // Compare against minified JSON for fair comparison
   const jsonOutput = JSON.stringify(data)
 
@@ -176,7 +181,8 @@ export function outputToon(data: unknown, options?: { showEfficiencyHint?: boole
 
   // Show efficiency hint if enabled and not in quiet mode
   if (options?.showEfficiencyHint && !currentConfig.quiet) {
-    const { savingsPercent, toonRecommended } = analyzeToonEfficiency(data)
+    // Pass pre-encoded toonOutput to avoid re-encoding
+    const { savingsPercent, toonRecommended } = analyzeToonEfficiency(data, toonOutput)
 
     if (!toonRecommended) {
       const hint =
