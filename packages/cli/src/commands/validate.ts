@@ -1,9 +1,8 @@
 import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deepnoteFileSchema, parseYaml } from '@deepnote/blocks'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, outputJson } from '../output'
+import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface ValidateOptions {
@@ -98,7 +97,8 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
         issues: [],
       } satisfies ValidationResult)
     } else {
-      console.log(`${chalk.green('✓')} ${absolutePath} is valid`)
+      const chalk = getChalk()
+      output(`${chalk.green('✓')} ${absolutePath} is valid`)
     }
     return
   }
@@ -113,12 +113,13 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
       issues,
     } satisfies ValidationResult)
   } else {
-    console.log(`${chalk.red('✗')} ${absolutePath} is invalid`)
-    console.log()
-    console.log(`${chalk.bold('Validation errors:')}`)
+    const chalk = getChalk()
+    output(`${chalk.red('✗')} ${absolutePath} is invalid`)
+    output('')
+    output(`${chalk.bold('Validation errors:')}`)
     for (const issue of issues) {
       const pathStr = issue.path ? chalk.dim(`${issue.path}: `) : ''
-      console.log(`  ${chalk.red('•')} ${pathStr}${issue.message}`)
+      output(`  ${chalk.red('•')} ${pathStr}${issue.message}`)
     }
   }
 
