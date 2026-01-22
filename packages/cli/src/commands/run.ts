@@ -1,5 +1,10 @@
 import { dirname } from 'node:path'
-import { type BlockExecutionResult, type DeepnoteBlock, ExecutionEngine } from '@deepnote/runtime-core'
+import {
+  type BlockExecutionResult,
+  type DeepnoteBlock,
+  detectDefaultPython,
+  ExecutionEngine,
+} from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { renderOutput } from '../output-renderer'
@@ -27,7 +32,7 @@ export function createRunAction(program: Command): (path: string, options: RunOp
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
-  const pythonEnv = options.python ?? 'python'
+  const pythonEnv = options.python ?? detectDefaultPython()
 
   console.log(chalk.dim(`Parsing ${absolutePath}...`))
 

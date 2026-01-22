@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 
@@ -94,4 +95,39 @@ async function findPythonInDirectory(dir: string, candidates: string[]): Promise
     }
   }
   return null
+}
+
+/**
+ * Detects the default Python command available on the system.
+ * Tries 'python' first, then falls back to 'python3'.
+ *
+ * @returns 'python' or 'python3' depending on what's available
+ * @throws Error if neither python nor python3 is found
+ */
+export function detectDefaultPython(): string {
+  if (isPythonAvailable('python')) {
+    return 'python'
+  }
+
+  if (isPythonAvailable('python3')) {
+    return 'python3'
+  }
+
+  throw new Error(
+    'No Python executable found.\n\n' +
+      'Please ensure Python is installed and available in your PATH,\n' +
+      'or specify the path explicitly with --python <path>'
+  )
+}
+
+/**
+ * Checks if a Python command is available on the system.
+ */
+function isPythonAvailable(command: string): boolean {
+  try {
+    execSync(`${command} --version`, { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
 }

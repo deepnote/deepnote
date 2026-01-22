@@ -43,7 +43,7 @@ function registerCommands(program: Command): void {
     .command('run')
     .description('Run a .deepnote file')
     .argument('<path>', 'Path to .deepnote file')
-    .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)', 'python')
+    .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
