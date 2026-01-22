@@ -1,3 +1,4 @@
+import { encode as toonEncode } from '@toon-format/toon'
 import { Chalk, type ChalkInstance } from 'chalk'
 
 /**
@@ -127,4 +128,15 @@ export function error(message: string): void {
  */
 export function outputJson(data: unknown): void {
   console.log(JSON.stringify(data, null, 2))
+}
+
+/**
+ * Output data as TOON (Token-Oriented Object Notation).
+ * TOON is a compact, LLM-optimized format that reduces token usage by 30-60%
+ * compared to JSON while remaining human-readable.
+ *
+ * @see https://toonformat.dev/
+ */
+export function outputToon(data: unknown): void {
+  console.log(toonEncode(data))
 }

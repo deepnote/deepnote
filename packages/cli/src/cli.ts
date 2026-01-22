@@ -67,6 +67,9 @@ ${c.bold('Examples:')}
   ${c.dim('# Inspect with JSON output (for scripting)')}
   $ deepnote inspect my-project.deepnote --json
 
+  ${c.dim('# Run with TOON output (for LLMs)')}
+  $ deepnote run my-project.deepnote --toon
+
   ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
 
@@ -108,6 +111,7 @@ function registerCommands(program: Command): void {
     .description('Inspect and display metadata from a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file to inspect')
     .option('--json', 'Output in JSON format for scripting')
+    .option('--toon', 'Output in TOON format (LLM-optimized, reduced tokens)')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -129,6 +133,9 @@ ${c.bold('Examples:')}
   ${c.dim('# Output as JSON for scripting')}
   $ deepnote inspect my-project.deepnote --json
 
+  ${c.dim('# Output as TOON for LLM consumption (30-60% fewer tokens)')}
+  $ deepnote inspect my-project.deepnote --toon
+
   ${c.dim('# Use with jq for specific fields')}
   $ deepnote inspect my-project.deepnote --json | jq '.project.name'
 `
@@ -145,6 +152,7 @@ ${c.bold('Examples:')}
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
     .option('--json', 'Output results in JSON format for scripting')
+    .option('--toon', 'Output results in TOON format (LLM-optimized, reduced tokens)')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -163,6 +171,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote --json
+
+  ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
+  $ deepnote run my-project.deepnote --toon
 `
     })
     .action(createRunAction(program))

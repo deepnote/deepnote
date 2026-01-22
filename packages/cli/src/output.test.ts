@@ -7,6 +7,7 @@ import {
   log,
   output,
   outputJson,
+  outputToon,
   resetOutputConfig,
   setOutputConfig,
   shouldDisableColor,
@@ -224,6 +225,57 @@ describe('output', () => {
       const data = { nested: { array: [1, 2, 3] }, string: 'test' }
       outputJson(data)
       expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2))
+    })
+  })
+
+  describe('outputToon', () => {
+    it('outputs TOON format to console.log', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ key: 'value' })
+      expect(consoleSpy).toHaveBeenCalledWith('key: value')
+    })
+
+    it('handles nested objects with indentation', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ outer: { inner: 'test' } })
+      expect(consoleSpy).toHaveBeenCalledWith('outer:\n  inner: test')
+    })
+
+    it('handles arrays of uniform objects in tabular format', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const data = {
+        users: [
+          { id: 1, name: 'Alice' },
+          { id: 2, name: 'Bob' },
+        ],
+      }
+      outputToon(data)
+      const output = consoleSpy.mock.calls[0][0]
+      // TOON uses tabular format for uniform arrays
+      expect(output).toContain('users[2]')
+      expect(output).toContain('id')
+      expect(output).toContain('name')
+      expect(output).toContain('Alice')
+      expect(output).toContain('Bob')
+    })
+
+    it('handles simple arrays', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ items: ['a', 'b', 'c'] })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('items[3]')
+      expect(output).toContain('a')
+      expect(output).toContain('b')
+      expect(output).toContain('c')
+    })
+
+    it('handles booleans and numbers', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ active: true, count: 42, rate: 3.14 })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('active: true')
+      expect(output).toContain('count: 42')
+      expect(output).toContain('rate: 3.14')
     })
   })
 })
