@@ -291,6 +291,20 @@ describe('output', () => {
       expect(errorSpy.mock.calls[0][0]).toContain('Hint:')
     })
 
+    it('shows JSON-is-smaller hint when TOON is less efficient', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Empty array - TOON is actually larger than JSON
+      outputToon([], { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalled()
+      // Should show the "JSON would be smaller" hint
+      expect(errorSpy.mock.calls[0][0]).toContain('JSON would be')
+      expect(errorSpy.mock.calls[0][0]).toContain('smaller')
+    })
+
     it('does not show hint when TOON is efficient', () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

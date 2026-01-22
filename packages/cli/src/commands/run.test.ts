@@ -24,7 +24,7 @@ vi.mock('@deepnote/runtime-core', () => {
   }
 })
 
-import { createRunAction } from './run'
+import { createRunAction, type RunOptions } from './run'
 
 // Example files relative to project root
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -84,10 +84,7 @@ describe('run command', () => {
 
   describe('runDeepnoteProject via createRunAction', () => {
     let program: Command
-    let action: (
-      path: string,
-      options: { python?: string; cwd?: string; notebook?: string; block?: string }
-    ) => Promise<void>
+    let action: (path: string, options: RunOptions) => Promise<void>
     let consoleLogSpy: Mock
     let consoleErrorSpy: Mock
     let stdoutWriteSpy: Mock
@@ -319,6 +316,69 @@ describe('run command', () => {
       await expect(action(HELLO_WORLD_FILE, {})).rejects.toThrow('program.error called')
 
       expect(mockStop).toHaveBeenCalledTimes(1)
+    })
+
+    describe('--json option', () => {
+      it('outputs JSON result on success', async () => {
+        setupSuccessfulRun({ totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 200 })
+
+        await action(HELLO_WORLD_FILE, { json: true })
+
+        const output = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(true)
+        expect(parsed.executedBlocks).toBe(2)
+        expect(parsed.totalBlocks).toBe(2)
+        expect(parsed.failedBlocks).toBe(0)
+        expect(parsed.totalDurationMs).toBe(200)
+        expect(parsed.blocks).toEqual([])
+      })
+
+      it('outputs JSON error for non-existent file', async () => {
+        await action('non-existent-file.deepnote', { json: true })
+
+        const output = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(false)
+        expect(parsed.error).toContain('not found')
+        expect(process.exitCode).toBe(2) // InvalidUsage
+      })
+    })
+
+    describe('--toon option', () => {
+      it('outputs TOON result on success', async () => {
+        setupSuccessfulRun({ totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 200 })
+
+        await action(HELLO_WORLD_FILE, { toon: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('success: true')
+        expect(output).toContain('executedBlocks: 2')
+        expect(output).toContain('totalBlocks: 2')
+        expect(output).toContain('failedBlocks: 0')
+      })
+
+      it('outputs TOON error for non-existent file', async () => {
+        await action('non-existent-file.deepnote', { toon: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('success: false')
+        expect(output).toContain('error:')
+        expect(output).toContain('not found')
+        expect(process.exitCode).toBe(2) // InvalidUsage
+      })
+
+      it('suppresses interactive output with --toon', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { toon: true })
+
+        const output = getOutput(consoleLogSpy)
+        // Should NOT contain the interactive messages
+        expect(output).not.toContain('Parsing')
+        expect(output).not.toContain('Starting deepnote-toolkit')
+        expect(output).not.toContain('Done. Executed')
+      })
     })
   })
 })

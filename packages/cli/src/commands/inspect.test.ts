@@ -93,6 +93,22 @@ describe('inspect command', () => {
       expect(parsed.statistics.notebookCount).toBe(1)
       expect(parsed.statistics.totalBlocks).toBe(1)
     })
+
+    it('outputs TOON when --toon option is used', async () => {
+      const action = createInspectAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+      await action(filePath, { toon: true })
+
+      const output = getOutput(consoleSpy)
+      // TOON format uses key: value syntax without JSON quotes
+      expect(output).toContain('success: true')
+      expect(output).toContain('name: Hello world')
+      expect(output).toContain('id: 18aaab73-3599-4bb5-b2ab-c05ac09f597d')
+      expect(output).toContain('version: 1.0.0')
+      // TOON uses tabular format for arrays
+      expect(output).toContain('notebooks[1]')
+    })
   })
 
   describe('path resolution', () => {
@@ -131,6 +147,23 @@ describe('inspect command', () => {
       const parsed = JSON.parse(output)
       expect(parsed.success).toBe(false)
       expect(parsed.error).toContain('File not found')
+
+      exitSpy.mockRestore()
+    })
+
+    it('outputs TOON error and exits when --toon option is used', async () => {
+      const action = createInspectAction(program)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit called')
+      })
+
+      await expect(action('non-existent-file.deepnote', { toon: true })).rejects.toThrow('process.exit called')
+
+      const output = getOutput(consoleSpy)
+      // TOON format for error response
+      expect(output).toContain('success: false')
+      expect(output).toContain('error:')
+      expect(output).toContain('File not found')
 
       exitSpy.mockRestore()
     })
