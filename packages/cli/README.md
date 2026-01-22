@@ -84,7 +84,7 @@ deepnote run my-project.deepnote
 
 | Option              | Description                                            | Default  |
 | ------------------- | ------------------------------------------------------ | -------- |
-| `--python <path>`   | Path to Python virtual environment directory           | `python` |
+| `--python <path>`   | Path to Python interpreter or virtual environment      | `python` |
 | `--cwd <path>`      | Working directory for execution (defaults to file dir) |          |
 | `--notebook <name>` | Run only the specified notebook                        |          |
 | `--block <id>`      | Run only the specified block                           |          |
