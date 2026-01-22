@@ -1,10 +1,9 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { stringify } from 'yaml'
 import { getMarimoOutputsFromCache } from './snapshot'
-import { computeContentHash } from './snapshot/hash'
 import type { JupyterOutput } from './types/jupyter'
 import type { MarimoApp, MarimoCell } from './types/marimo'
 import { createSortingKey } from './utils'
@@ -14,11 +13,11 @@ import { createSortingKey } from './utils'
  * This matches how Marimo computes code_hash for the session cache.
  *
  * @param content - The cell's code content
- * @returns A SHA256 hash string (raw hex, without prefix)
+ * @returns An MD5 hash string (32 hex chars)
  */
 function computeCodeHash(content: string): string {
-  // Marimo cache uses raw hex without the 'sha256:' prefix
-  return computeContentHash(content).replace(/^sha256:/, '')
+  // Marimo uses MD5 for code_hash in session cache
+  return createHash('md5').update(content, 'utf-8').digest('hex')
 }
 
 /**
