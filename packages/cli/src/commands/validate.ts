@@ -17,9 +17,15 @@ export interface ValidationIssue {
 }
 
 export interface ValidationResult {
-  valid: boolean
+  success: true
   path: string
+  valid: boolean
   issues: ValidationIssue[]
+}
+
+export interface ValidationError {
+  success: false
+  error: string
 }
 
 /**
@@ -53,7 +59,7 @@ export function createValidateAction(
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
       if (options.json) {
-        outputJson({ success: false, error: message })
+        outputJson({ success: false, error: message } satisfies ValidationError)
       } else {
         logError(message)
       }
@@ -77,8 +83,9 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
     const message = error instanceof Error ? error.message : String(error)
     if (options.json) {
       outputJson({
-        valid: false,
+        success: true,
         path: absolutePath,
+        valid: false,
         issues: [{ path: '', message: `Invalid YAML: ${message}`, code: 'yaml_parse_error' }],
       } satisfies ValidationResult)
     } else {
@@ -93,8 +100,9 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
   if (result.success) {
     if (options.json) {
       outputJson({
-        valid: true,
+        success: true,
         path: absolutePath,
+        valid: true,
         issues: [],
       } satisfies ValidationResult)
     } else {
@@ -109,8 +117,9 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
 
   if (options.json) {
     outputJson({
-      valid: false,
+      success: true,
       path: absolutePath,
+      valid: false,
       issues,
     } satisfies ValidationResult)
   } else {
