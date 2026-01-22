@@ -25,6 +25,7 @@ vi.mock('@deepnote/runtime-core', () => {
         mockConstructor(config)
       }
     },
+    detectDefaultPython: () => 'python',
   }
 })
 
