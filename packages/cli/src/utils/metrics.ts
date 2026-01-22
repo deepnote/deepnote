@@ -1,0 +1,67 @@
+import chalk from 'chalk'
+import { output } from '../output'
+
+/** Raw response from jupyter_resource_usage API */
+export interface JupyterMetricsResponse {
+  rss: number // Memory used in bytes
+  limits: {
+    memory: {
+      rss: number // Memory limit in bytes (0 = no limit)
+    }
+  }
+  cpu_percent: number
+  cpu_count: number
+}
+
+/** Fetch resource metrics from the Jupyter server */
+export async function fetchMetrics(port: number): Promise<JupyterMetricsResponse | null> {
+  try {
+    const response = await fetch(`http://localhost:${port}/api/metrics/v1`)
+    if (!response.ok) return null
+    return (await response.json()) as JupyterMetricsResponse
+  } catch {
+    return null
+  }
+}
+
+/** Format bytes as human-readable string */
+export function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024)
+  if (mb >= 1024) {
+    return `${(mb / 1024).toFixed(1)}GB`
+  }
+  return `${mb.toFixed(0)}MB`
+}
+
+/** Create a progress bar */
+export function createProgressBar(percent: number, width: number): string {
+  const filled = Math.round((percent / 100) * width)
+  const empty = width - filled
+
+  let barColor = chalk.green
+  if (percent >= 80) {
+    barColor = chalk.red
+  } else if (percent >= 60) {
+    barColor = chalk.yellow
+  }
+
+  return `[${barColor('█'.repeat(filled))}${chalk.dim('░'.repeat(empty))}]`
+}
+
+/** Display resource metrics inline */
+export function displayMetrics(metrics: JupyterMetricsResponse): void {
+  const cpuBar = createProgressBar(metrics.cpu_percent, 15)
+  const memUsed = formatBytes(metrics.rss)
+
+  let memDisplay: string
+  if (metrics.limits.memory.rss > 0) {
+    const memLimit = formatBytes(metrics.limits.memory.rss)
+    const memPercent = (metrics.rss / metrics.limits.memory.rss) * 100
+    const memBar = createProgressBar(memPercent, 15)
+    memDisplay = `${memBar} ${memUsed}/${memLimit}`
+  } else {
+    memDisplay = memUsed
+  }
+
+  output(chalk.dim(`  CPU: ${cpuBar} ${metrics.cpu_percent.toFixed(1)}% | Memory: ${memDisplay}`))
+}

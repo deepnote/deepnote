@@ -13,6 +13,7 @@ import { debug, log, error as logError, output, outputJson } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { displayMetrics, fetchMetrics } from '../utils/metrics'
 
 export interface RunOptions {
   python?: string
@@ -20,6 +21,7 @@ export interface RunOptions {
   notebook?: string
   block?: string
   json?: boolean
+  top?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -110,6 +112,31 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track labels by block id for JSON output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
 
+  // Set up metrics monitoring if --top is enabled
+  const showTop = options.top && !isJson
+  let metricsInterval: ReturnType<typeof setInterval> | null = null
+
+  if (showTop && engine.serverPort) {
+    const port = engine.serverPort
+    // Show initial metrics
+    const initialMetrics = await fetchMetrics(port)
+    if (initialMetrics) {
+      displayMetrics(initialMetrics)
+      output('')
+    }
+
+    // Update metrics periodically during execution
+    metricsInterval = setInterval(async () => {
+      const metrics = await fetchMetrics(port)
+      if (metrics) {
+        // Move cursor up, clear line, display metrics, move back down
+        process.stdout.write('\x1b[s') // Save cursor position
+        displayMetrics(metrics)
+        process.stdout.write('\x1b[u') // Restore cursor position
+      }
+    }, 2000)
+  }
+
   try {
     const summary = await engine.runFile(absolutePath, {
       notebookName: options.notebook,
@@ -161,6 +188,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     // Determine exit code based on failures
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
+    // Stop metrics monitoring
+    if (metricsInterval) {
+      clearInterval(metricsInterval)
+    }
+
     if (isJson) {
       // Output JSON result and exit
       const result: RunResult = {
@@ -177,6 +209,15 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     } else {
       // Print summary
       output(chalk.dim('─'.repeat(50)))
+
+      // Show final resource usage if --top was enabled
+      if (showTop && engine.serverPort) {
+        const finalMetrics = await fetchMetrics(engine.serverPort)
+        if (finalMetrics) {
+          output(chalk.bold('Final resource usage:'))
+          displayMetrics(finalMetrics)
+        }
+      }
 
       if (summary.failedBlocks > 0) {
         output(
