@@ -93,9 +93,12 @@ export function splitDeepnoteFile(file: DeepnoteFile): SplitResult {
   // Compute snapshot hash before stripping outputs
   const snapshotHash = computeSnapshotHash(fileWithHashes)
 
-  // Create source file with outputs stripped
+  // Create source file with outputs stripped (exclude snapshotHash from source)
+  const { snapshotHash: _snapshotHash, ...sourceMetadata } =
+    fileWithHashes.metadata as typeof fileWithHashes.metadata & { snapshotHash?: string }
   const source: DeepnoteFile = {
     ...fileWithHashes,
+    metadata: sourceMetadata,
     project: {
       ...fileWithHashes.project,
       notebooks: fileWithHashes.project.notebooks.map(notebook => ({
@@ -128,6 +131,9 @@ export function splitDeepnoteFile(file: DeepnoteFile): SplitResult {
 export function hasOutputs(file: DeepnoteFile): boolean {
   for (const notebook of file.project.notebooks) {
     for (const block of notebook.blocks) {
+      if (!isExecutableBlock(block.type)) {
+        continue
+      }
       const execBlock = block as DeepnoteBlock & { outputs?: unknown[] }
       if (execBlock.outputs && execBlock.outputs.length > 0) {
         return true

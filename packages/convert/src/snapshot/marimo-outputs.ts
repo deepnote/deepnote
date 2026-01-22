@@ -137,7 +137,7 @@ export function convertMarimoSessionCellToOutputs(cell: MarimoSessionCell): Jupy
   const outputs: JupyterOutput[] = []
 
   // Add console outputs first (stdout/stderr)
-  outputs.push(...convertMarimoConsoleToJupyter(cell.console))
+  outputs.push(...convertMarimoConsoleToJupyter(cell.console ?? []))
 
   // Add data outputs
   for (const output of cell.outputs) {
@@ -174,9 +174,14 @@ export async function getMarimoOutputsFromCache(marimoFilePath: string): Promise
       // Filter out empty text/plain outputs
       const nonEmptyOutputs = outputs.filter(o => {
         if (o.output_type === 'execute_result' && o.data) {
-          const data = o.data as Record<string, string>
+          const data = o.data as Record<string, unknown>
           // Keep if it has non-empty content in any mime type
-          return Object.values(data).some(v => v && v.trim() !== '')
+          return Object.values(data).some(v => {
+            if (typeof v === 'string') {
+              return v.trim() !== ''
+            }
+            return v != null
+          })
         }
         return true
       })

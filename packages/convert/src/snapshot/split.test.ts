@@ -159,6 +159,36 @@ describe('splitDeepnoteFile', () => {
       finishedAt: '2025-01-01T00:01:00Z',
     })
   })
+
+  // Issue 3: Test that source does not have snapshotHash
+  it('should not include snapshotHash in source metadata', () => {
+    const file = createFileWithOutputs()
+    const { source, snapshot } = splitDeepnoteFile(file)
+
+    // Source should NOT have snapshotHash
+    expect(source.metadata).not.toHaveProperty('snapshotHash')
+    // Snapshot should have snapshotHash
+    expect(snapshot.metadata.snapshotHash).toMatch(/^sha256:/)
+  })
+
+  it('should strip existing snapshotHash from source when input already has one', () => {
+    const file = createFileWithOutputs()
+    // Simulate a file that already has snapshotHash (from previous split)
+    const fileWithExistingHash = {
+      ...file,
+      metadata: {
+        ...file.metadata,
+        snapshotHash: 'sha256:existinghash123',
+      },
+    }
+    const { source, snapshot } = splitDeepnoteFile(fileWithExistingHash as DeepnoteFile)
+
+    // Source should NOT have snapshotHash (even if input had one)
+    expect(source.metadata).not.toHaveProperty('snapshotHash')
+    // Snapshot should have a NEWLY computed snapshotHash
+    expect(snapshot.metadata.snapshotHash).toMatch(/^sha256:/)
+    expect(snapshot.metadata.snapshotHash).not.toBe('sha256:existinghash123')
+  })
 })
 
 describe('hasOutputs', () => {
@@ -249,5 +279,109 @@ describe('hasOutputs', () => {
     }
 
     expect(hasOutputs(file)).toBe(false)
+  })
+
+  // Issue 4: Test that hasOutputs ignores non-executable blocks
+  it('should return false if only non-executable blocks have outputs', () => {
+    // Testing runtime behavior where markdown blocks may have stray outputs
+    // Cast to unknown first since markdown blocks shouldn't have outputs in the type
+    const file = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-123',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'nb-1',
+            name: 'Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                type: 'markdown', // Non-executable
+                blockGroup: 'bg-1',
+                sortingKey: '0000',
+                content: '# Hello',
+                outputs: [{ output_type: 'stream', name: 'stdout', text: ['stray'] }],
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as DeepnoteFile
+
+    expect(hasOutputs(file)).toBe(false)
+  })
+
+  it('should return true for executable blocks with outputs', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-123',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'nb-1',
+            name: 'Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                type: 'sql', // Executable
+                blockGroup: 'bg-1',
+                sortingKey: '0000',
+                content: 'SELECT 1',
+                outputs: [{ output_type: 'execute_result', data: {} }],
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    }
+
+    expect(hasOutputs(file)).toBe(true)
+  })
+
+  it('should return true when mixed blocks and only executable has outputs', () => {
+    // Testing runtime behavior where markdown blocks may have stray outputs
+    // Cast to unknown first since markdown blocks shouldn't have outputs in the type
+    const file = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-123',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'nb-1',
+            name: 'Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                type: 'markdown', // Non-executable with stray outputs
+                blockGroup: 'bg-1',
+                sortingKey: '0000',
+                content: '# Title',
+                outputs: [{ output_type: 'stream', name: 'stdout', text: ['stray'] }],
+                metadata: {},
+              },
+              {
+                id: 'block-2',
+                type: 'code', // Executable with outputs
+                blockGroup: 'bg-2',
+                sortingKey: '0001',
+                content: 'print(1)',
+                outputs: [{ output_type: 'stream', name: 'stdout', text: ['1'] }],
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as DeepnoteFile
+
+    expect(hasOutputs(file)).toBe(true)
   })
 })

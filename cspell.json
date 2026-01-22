@@ -117,6 +117,8 @@
     "venv",
     "vscode",
     "windsurf",
-    "workflows"
+    "workflows",
+    "existinghash",
+    "encodeddata"
   ]
 }
