@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { JupyterStreamOutput } from '../types/jupyter'
 import {
   convertMarimoConsoleToJupyter,
   convertMarimoOutputToJupyter,
@@ -18,7 +19,7 @@ describe('convertMarimoConsoleToJupyter', () => {
 
   it('should convert stderr output', () => {
     const outputs = convertMarimoConsoleToJupyter([{ channel: 'stderr', data: 'Error message' }])
-    expect((outputs[0] as { name: string }).name).toBe('stderr')
+    expect((outputs[0] as JupyterStreamOutput).name).toBe('stderr')
   })
 
   it('should handle empty array', () => {
@@ -33,9 +34,9 @@ describe('convertMarimoConsoleToJupyter', () => {
       { channel: 'stdout', data: 'second' },
     ])
     expect(outputs).toHaveLength(3)
-    expect((outputs[0] as { name: string }).name).toBe('stdout')
-    expect((outputs[1] as { name: string }).name).toBe('stderr')
-    expect((outputs[2] as { name: string }).name).toBe('stdout')
+    expect((outputs[0] as JupyterStreamOutput).name).toBe('stdout')
+    expect((outputs[1] as JupyterStreamOutput).name).toBe('stderr')
+    expect((outputs[2] as JupyterStreamOutput).name).toBe('stdout')
   })
 })
 

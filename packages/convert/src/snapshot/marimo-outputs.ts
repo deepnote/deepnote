@@ -23,7 +23,7 @@ export interface MarimoSessionCell {
 
 export interface MarimoSessionOutput {
   type: 'data' | 'error'
-  data?: Record<string, string>
+  data?: Record<string, unknown>
   ename?: string
   evalue?: string
   traceback?: string[]
@@ -64,10 +64,9 @@ export async function readMarimoSessionCache(sessionPath: string): Promise<Marim
   try {
     const content = await fs.readFile(sessionPath, 'utf-8')
     return JSON.parse(content) as MarimoSessionCache
-  } catch (error) {
+  } catch (_error) {
     // Debug logging (uncomment for troubleshooting):
-    // console.debug('Failed to read Marimo session cache:', sessionPath, error)
-    void error
+    // console.debug('Failed to read Marimo session cache:', sessionPath, _error)
     return null
   }
 }
