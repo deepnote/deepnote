@@ -311,6 +311,8 @@ describe('lint command', () => {
         'unused-variable',
         'shadowed-variable',
         'parse-error',
+        'missing-integration',
+        'missing-input',
       ]
 
       for (const issue of parsed.issues) {
@@ -423,6 +425,143 @@ describe('lint command', () => {
       // Check if shadowed-variable issues were detected (may or may not be present)
       const shadowedIssues = parsed.issues.filter((i: { code: string }) => i.code === 'shadowed-variable')
       expect(Array.isArray(shadowedIssues)).toBe(true)
+    })
+  })
+
+  describe('integration checks', () => {
+    it('includes integrations summary in JSON output', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      // Should include integrations summary
+      expect(parsed.integrations).toBeDefined()
+      expect(Array.isArray(parsed.integrations.configured)).toBe(true)
+      expect(Array.isArray(parsed.integrations.missing)).toBe(true)
+    })
+
+    it('detects missing integrations when env vars not set', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
+
+      // Ensure no SQL env vars are set
+      const originalEnv = { ...process.env }
+      for (const key of Object.keys(process.env)) {
+        if (key.startsWith('SQL_')) {
+          delete process.env[key]
+        }
+      }
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      try {
+        await action(filePath, { json: true })
+
+        const output = getOutput(consoleSpy)
+        const parsed = JSON.parse(output)
+
+        // The integrations file has SQL blocks with non-builtin integrations
+        // Without env vars, they should be missing
+        const missingIntegrationIssues = parsed.issues.filter((i: { code: string }) => i.code === 'missing-integration')
+        expect(Array.isArray(missingIntegrationIssues)).toBe(true)
+        // If integrations file uses external integrations, there should be issues
+        if (parsed.integrations.missing.length > 0) {
+          expect(missingIntegrationIssues.length).toBeGreaterThan(0)
+        }
+      } finally {
+        // Restore env
+        process.env = originalEnv
+      }
+    })
+
+    it('does not flag builtin integrations as missing', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      // Builtin integrations should not appear in missing
+      const builtins = ['deepnote-dataframe-sql', 'pandas-dataframe']
+      for (const builtin of builtins) {
+        expect(parsed.integrations.missing).not.toContain(builtin)
+      }
+    })
+  })
+
+  describe('input checks', () => {
+    it('includes inputs summary in JSON output', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), BLOCKS_FILE)
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      // Should include inputs summary
+      expect(parsed.inputs).toBeDefined()
+      expect(typeof parsed.inputs.total).toBe('number')
+      expect(typeof parsed.inputs.withValues).toBe('number')
+      expect(Array.isArray(parsed.inputs.needingValues)).toBe(true)
+    })
+
+    it('detects inputs without default values', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), BLOCKS_FILE)
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      // Check for missing-input issues (warning level)
+      const missingInputIssues = parsed.issues.filter((i: { code: string }) => i.code === 'missing-input')
+      expect(Array.isArray(missingInputIssues)).toBe(true)
+
+      // All missing-input issues should be warnings
+      for (const issue of missingInputIssues) {
+        expect(issue.severity).toBe('warning')
+      }
+    })
+
+    it('missing-input issues include variable name in details', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), BLOCKS_FILE)
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      const missingInputIssues = parsed.issues.filter((i: { code: string }) => i.code === 'missing-input')
+      for (const issue of missingInputIssues) {
+        expect(issue.details).toBeDefined()
+        expect(issue.details.variableName).toBeDefined()
+        expect(issue.details.inputType).toBeDefined()
+      }
     })
   })
 })

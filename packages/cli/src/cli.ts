@@ -281,11 +281,18 @@ ${c.bold('Examples:')}
       const c = getChalk()
       return `
 ${c.bold('Checks:')}
+  ${c.underline('Variables')}
   - undefined-variable: Variables used but never defined
   - circular-dependency: Blocks with circular dependencies
   - unused-variable: Variables defined but never used
   - shadowed-variable: Variables that shadow previous definitions
   - parse-error: Blocks that failed to parse
+
+  ${c.underline('Integrations')}
+  - missing-integration: SQL blocks using integrations that are not configured
+
+  ${c.underline('Inputs')}
+  - missing-input: Input blocks without default values
 
 ${c.bold('Exit Codes:')}
   0  No errors found (warnings may be present)
