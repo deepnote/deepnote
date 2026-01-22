@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
@@ -388,6 +390,481 @@ describe('diff command', () => {
 
       const output = getOutput(consoleSpy)
       expect(output).toMatch(/notebook\(s\)/)
+    })
+  })
+
+  describe('modified blocks with content diff', () => {
+    let tempDir: string
+    let file1Path: string
+    let file2Path: string
+
+    const baseFile = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-01T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: block-1
+          id: block-1
+          type: code
+          content: |
+            print("original code")
+            x = 1
+            y = 2
+          sortingKey: a0
+        - blockGroup: block-2
+          id: block-2
+          type: markdown
+          content: "# Original Title"
+          sortingKey: a1
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    const modifiedFile = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-02T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: block-1
+          id: block-1
+          type: code
+          content: |
+            print("modified code")
+            x = 10
+            y = 20
+            z = 30
+          sortingKey: a0
+        - blockGroup: block-2
+          id: block-2
+          type: markdown
+          content: "# Modified Title"
+          sortingKey: a1
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'diff-test-'))
+      file1Path = join(tempDir, 'original.deepnote')
+      file2Path = join(tempDir, 'modified.deepnote')
+      await fs.writeFile(file1Path, baseFile)
+      await fs.writeFile(file2Path, modifiedFile)
+    })
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('detects modified blocks and shows modified status', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const errorOutput = getErrorOutput(consoleErrorSpy)
+      expect(errorOutput).toBe('')
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(true)
+      expect(parsed.summary.notebooksModified).toBe(1)
+      expect(parsed.summary.blocksModified).toBe(2)
+    })
+
+    it('shows modified blocks in text output', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Modified:')
+      expect(output).toContain('block(s) modified')
+    })
+
+    it('shows content diff with --content option', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { content: true })
+
+      const output = getOutput(consoleSpy)
+      // Should show before/after content lines
+      expect(output).toMatch(/- print\("original code"\)/)
+      expect(output).toMatch(/\+ print\("modified code"\)/)
+    })
+
+    it('includes contentDiff in JSON with --content option', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { json: true, content: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(true)
+
+      // Find the modified notebook
+      const modifiedNotebook = parsed.notebooks.find((nb: { status: string }) => nb.status === 'modified')
+      expect(modifiedNotebook).toBeDefined()
+      expect(modifiedNotebook.blockDiffs).toBeDefined()
+
+      // Check that contentDiff is included
+      const blockWithDiff = modifiedNotebook.blockDiffs.find(
+        (bd: { contentDiff?: unknown }) => bd.contentDiff !== undefined
+      )
+      expect(blockWithDiff).toBeDefined()
+      expect(blockWithDiff.contentDiff.before).toContain('original')
+      expect(blockWithDiff.contentDiff.after).toContain('modified')
+    })
+  })
+
+  describe('added and removed blocks within same notebook', () => {
+    let tempDir: string
+    let file1Path: string
+    let file2Path: string
+
+    const fileWithBlock = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-01T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: block-original
+          id: block-original
+          type: code
+          content: "print('original')"
+          sortingKey: a0
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    const fileWithDifferentBlock = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-02T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: block-new
+          id: block-new
+          type: code
+          content: "print('new')"
+          sortingKey: a0
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'diff-test-'))
+      file1Path = join(tempDir, 'file1.deepnote')
+      file2Path = join(tempDir, 'file2.deepnote')
+      await fs.writeFile(file1Path, fileWithBlock)
+      await fs.writeFile(file2Path, fileWithDifferentBlock)
+    })
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('detects added and removed blocks within same notebook', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(true)
+      expect(parsed.summary.blocksAdded).toBe(1)
+      expect(parsed.summary.blocksRemoved).toBe(1)
+    })
+
+    it('shows added block content diff with --content', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { content: true })
+
+      const output = getOutput(consoleSpy)
+      // Should show removed block with minus and added block with plus
+      expect(output).toContain('-')
+      expect(output).toContain('+')
+    })
+
+    it('includes contentDiff for added blocks in JSON', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { json: true, content: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      const modifiedNotebook = parsed.notebooks.find((nb: { status: string }) => nb.status === 'modified')
+      expect(modifiedNotebook).toBeDefined()
+
+      const addedBlock = modifiedNotebook.blockDiffs.find((bd: { status: string }) => bd.status === 'added')
+      expect(addedBlock).toBeDefined()
+      expect(addedBlock.contentDiff.before).toBeUndefined()
+      expect(addedBlock.contentDiff.after).toContain('new')
+
+      const removedBlock = modifiedNotebook.blockDiffs.find((bd: { status: string }) => bd.status === 'removed')
+      expect(removedBlock).toBeDefined()
+      expect(removedBlock.contentDiff.before).toContain('original')
+      expect(removedBlock.contentDiff.after).toBeUndefined()
+    })
+  })
+
+  describe('blocks without string content', () => {
+    let tempDir: string
+    let file1Path: string
+    let file2Path: string
+
+    // File with blocks that have no content field (image and separator blocks)
+    const fileWithImageBlock = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-01T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: image-block-1
+          id: image-block-1
+          type: image
+          url: https://example.com/image1.png
+          sortingKey: a0
+        - blockGroup: sep-block-1
+          id: sep-block-1
+          type: separator
+          sortingKey: a1
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    const fileWithModifiedImageBlock = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-02T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: image-block-1
+          id: image-block-1
+          type: image
+          url: https://example.com/image2.png
+          sortingKey: a0
+        - blockGroup: sep-block-1
+          id: sep-block-1
+          type: separator
+          sortingKey: a1
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'diff-test-'))
+      file1Path = join(tempDir, 'file1.deepnote')
+      file2Path = join(tempDir, 'file2.deepnote')
+      await fs.writeFile(file1Path, fileWithImageBlock)
+      await fs.writeFile(file2Path, fileWithModifiedImageBlock)
+    })
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('handles blocks without content field gracefully', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { json: true, content: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(true)
+      // Blocks without content field are treated as having undefined content
+      // Image blocks have different URLs but getBlockContent returns undefined for both
+      expect(parsed.summary.notebooksUnchanged).toBe(1)
+    })
+  })
+
+  describe('blocks with type change but no content', () => {
+    let tempDir: string
+    let file1Path: string
+    let file2Path: string
+
+    // File with an image block (no content field)
+    const fileWithImageBlock = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-01T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: block-1
+          id: block-1
+          type: image
+          url: https://example.com/image.png
+          sortingKey: a0
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    // Same block ID but different type (separator has no content either)
+    const fileWithSeparatorBlock = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-02T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: block-1
+          id: block-1
+          type: separator
+          sortingKey: a0
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'diff-test-'))
+      file1Path = join(tempDir, 'file1.deepnote')
+      file2Path = join(tempDir, 'file2.deepnote')
+      await fs.writeFile(file1Path, fileWithImageBlock)
+      await fs.writeFile(file2Path, fileWithSeparatorBlock)
+    })
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('detects type change even when blocks have no content', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { json: true, content: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(true)
+      // Type changed (image -> separator) so should be detected as modified
+      expect(parsed.summary.blocksModified).toBe(1)
+      expect(parsed.summary.notebooksModified).toBe(1)
+    })
+  })
+
+  describe('blocks with optional content not provided', () => {
+    let tempDir: string
+    let file1Path: string
+    let file2Path: string
+
+    // Big-number block without content field (content is optional in schema)
+    const fileWithBigNumber1 = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-01T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: bn-1
+          id: bn-1
+          type: big-number
+          sortingKey: a0
+          metadata:
+            deepnote_big_number_title: "Title 1"
+            deepnote_big_number_value: "100"
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    // Same ID but different metadata (triggers modified detection)
+    const fileWithBigNumber2 = `metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-02T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: bn-1
+          id: bn-1
+          type: big-number
+          sortingKey: a0
+          metadata:
+            deepnote_big_number_title: "Title 2"
+            deepnote_big_number_value: "200"
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
+`
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'diff-test-'))
+      file1Path = join(tempDir, 'file1.deepnote')
+      file2Path = join(tempDir, 'file2.deepnote')
+      await fs.writeFile(file1Path, fileWithBigNumber1)
+      await fs.writeFile(file2Path, fileWithBigNumber2)
+    })
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('handles blocks where content property is not present', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { json: true, content: true })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(true)
+      // Both blocks have same ID and neither has content, so contentDiff should have undefined values
+      // The blocks should be detected as unchanged since getBlockContent returns undefined for both
+      expect(parsed.summary.notebooksUnchanged).toBe(1)
     })
   })
 })
