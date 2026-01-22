@@ -120,7 +120,7 @@ function parseInputs(inputFlags: string[] | undefined): Record<string, unknown> 
     return {}
   }
 
-  const inputs: Record<string, unknown> = {}
+  const inputs: Record<string, unknown> = Object.create(null) as Record<string, unknown>
   for (const flag of inputFlags) {
     const eqIndex = flag.indexOf('=')
     if (eqIndex === -1) {
@@ -359,7 +359,7 @@ async function validateRequirements(
 
       if (codeBlockSortKey < inputBlockSortKey) {
         // Code block runs before input block - need --input flag
-        if (!(usedVar in providedInputs)) {
+        if (!Object.hasOwn(providedInputs, usedVar)) {
           missingInputs.add(usedVar)
         }
       }
