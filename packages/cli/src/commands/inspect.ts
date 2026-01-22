@@ -58,6 +58,7 @@ function outputInspectJson(absolutePath: string, deepnoteFile: ReturnType<typeof
   const totalBlocks = notebooks.reduce((sum, notebook) => sum + notebook.blocks.length, 0)
 
   outputJson({
+    success: true,
     path: absolutePath,
     project: {
       name: project.name,

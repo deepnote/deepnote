@@ -180,6 +180,7 @@ fi
 
 ```typescript
 interface InspectOutput {
+  success: true;
   path: string;
   project: {
     name: string;
@@ -200,6 +201,12 @@ interface InspectOutput {
     blockCount: number;
     isModule: boolean;
   }>;
+}
+
+// On error:
+interface InspectError {
+  success: false;
+  error: string;
 }
 ```
 
