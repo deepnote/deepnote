@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  analyzeToonEfficiency,
   debug,
   error,
   getChalk,
@@ -276,6 +277,102 @@ describe('output', () => {
       expect(output).toContain('active: true')
       expect(output).toContain('count: 42')
       expect(output).toContain('rate: 3.14')
+    })
+
+    it('shows efficiency hint when TOON provides minimal savings', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Raw primitive - TOON provides 0% savings over JSON
+      outputToon(42, { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalled()
+      expect(errorSpy.mock.calls[0][0]).toContain('Hint:')
+    })
+
+    it('does not show hint when TOON is efficient', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Uniform array of objects - TOON excels here
+      const data = {
+        users: Array.from({ length: 10 }, (_, i) => ({
+          id: i,
+          name: `User ${i}`,
+          email: `user${i}@example.com`,
+          active: true,
+        })),
+      }
+      outputToon(data, { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not show hint when showEfficiencyHint is false', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      outputToon({ key: 'value' }, { showEfficiencyHint: false })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not show hint in quiet mode', () => {
+      setOutputConfig({ quiet: true })
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      outputToon({ key: 'value' }, { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('analyzeToonEfficiency', () => {
+    it('returns positive savings for uniform arrays', () => {
+      const data = {
+        users: Array.from({ length: 10 }, (_, i) => ({
+          id: i,
+          name: `User ${i}`,
+          email: `user${i}@example.com`,
+        })),
+      }
+      const result = analyzeToonEfficiency(data)
+
+      expect(result.toonSize).toBeLessThan(result.jsonSize)
+      expect(result.savingsPercent).toBeGreaterThan(0)
+      expect(result.toonRecommended).toBe(true)
+    })
+
+    it('returns low or negative savings for primitives', () => {
+      // Raw number - same size in both formats
+      const result = analyzeToonEfficiency(42)
+
+      // Primitives don't benefit from TOON
+      expect(result.savingsPercent).toBeLessThan(10)
+      expect(result.toonRecommended).toBe(false)
+    })
+
+    it('returns negative savings for empty arrays', () => {
+      // Empty array is larger in TOON than JSON
+      const result = analyzeToonEfficiency([])
+
+      expect(result.savingsPercent).toBeLessThan(0)
+      expect(result.toonRecommended).toBe(false)
+    })
+
+    it('returns sizes and savings percentage', () => {
+      const data = { test: 'data' }
+      const result = analyzeToonEfficiency(data)
+
+      expect(typeof result.toonSize).toBe('number')
+      expect(typeof result.jsonSize).toBe('number')
+      expect(typeof result.savingsPercent).toBe('number')
+      expect(typeof result.toonRecommended).toBe('boolean')
     })
   })
 })

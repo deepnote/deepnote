@@ -182,7 +182,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         blocks: blockResults,
       }
       if (options.toon) {
-        outputToon(result)
+        outputToon(result, { showEfficiencyHint: true })
       } else {
         outputJson(result)
       }

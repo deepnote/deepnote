@@ -99,7 +99,7 @@ function outputInspectJson(absolutePath: string, deepnoteFile: ReturnType<typeof
  * TOON is optimized for LLM consumption with reduced token usage.
  */
 function outputInspectToon(absolutePath: string, deepnoteFile: ReturnType<typeof deserializeDeepnoteFile>): void {
-  outputToon(buildInspectResult(absolutePath, deepnoteFile))
+  outputToon(buildInspectResult(absolutePath, deepnoteFile), { showEfficiencyHint: true })
 }
 
 function printDeepnoteFileMetadata(

@@ -131,12 +131,62 @@ export function outputJson(data: unknown): void {
 }
 
 /**
+ * Analyze whether TOON format provides meaningful savings over JSON.
+ * TOON excels with uniform arrays of objects (30-60% savings typical).
+ * Compares against minified JSON for a fair comparison.
+ *
+ * @returns Object with toon/json sizes and whether TOON is recommended
+ */
+export function analyzeToonEfficiency(data: unknown): {
+  toonSize: number
+  jsonSize: number
+  savingsPercent: number
+  toonRecommended: boolean
+} {
+  const toonOutput = toonEncode(data)
+  // Compare against minified JSON for fair comparison
+  const jsonOutput = JSON.stringify(data)
+
+  const toonSize = toonOutput.length
+  const jsonSize = jsonOutput.length
+
+  // Calculate savings (positive = TOON is smaller)
+  const savingsPercent = ((jsonSize - toonSize) / jsonSize) * 100
+
+  // TOON is recommended if it provides at least 10% savings over minified JSON
+  // Below this threshold, JSON might be preferred for compatibility
+  const toonRecommended = savingsPercent >= 10
+
+  return { toonSize, jsonSize, savingsPercent, toonRecommended }
+}
+
+/**
  * Output data as TOON (Token-Oriented Object Notation).
  * TOON is a compact, LLM-optimized format that reduces token usage by 30-60%
  * compared to JSON while remaining human-readable.
  *
+ * Shows an efficiency hint when TOON provides minimal benefit over JSON,
+ * suggesting JSON might be preferred for compatibility.
+ *
  * @see https://toonformat.dev/
  */
-export function outputToon(data: unknown): void {
-  console.log(toonEncode(data))
+export function outputToon(data: unknown, options?: { showEfficiencyHint?: boolean }): void {
+  const toonOutput = toonEncode(data)
+  console.log(toonOutput)
+
+  // Show efficiency hint if enabled and not in quiet mode
+  if (options?.showEfficiencyHint && !currentConfig.quiet) {
+    const { savingsPercent, toonRecommended } = analyzeToonEfficiency(data)
+
+    if (!toonRecommended) {
+      const hint =
+        savingsPercent <= 0
+          ? `Hint: JSON would be ${Math.abs(savingsPercent).toFixed(0)}% smaller for this data. ` +
+            'Consider --json for better compatibility.'
+          : `Hint: TOON only saves ${savingsPercent.toFixed(0)}% over JSON for this data. ` +
+            'TOON works best with uniform arrays of objects (30-60% typical savings).'
+
+      console.error(cliChalk.dim(hint))
+    }
+  }
 }
