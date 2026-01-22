@@ -1,12 +1,16 @@
 {
-  "name": "@deepnote/blocks",
-  "version": "3.2.1",
-  "description": "",
-  "keywords": [],
+  "name": "@deepnote/runtime-core",
+  "version": "0.1.0",
+  "description": "Core runtime for executing Deepnote projects",
+  "keywords": [
+    "deepnote",
+    "runtime",
+    "notebook"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/deepnote/deepnote.git",
-    "directory": "packages/blocks"
+    "directory": "packages/runtime-core"
   },
   "license": "Apache-2.0",
   "type": "module",
@@ -27,18 +31,20 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown --format esm --format cjs --dts",
+    "build": "tsdown",
     "test": "vitest",
-    "watch": "tsdown --watch --format esm --format cjs --dts"
+    "watch": "tsdown --watch"
   },
   "dependencies": {
-    "ts-dedent": "^2.2.0",
-    "yaml": "^2.8.1",
-    "zod": "3.25.76"
+    "@deepnote/blocks": "workspace:*",
+    "@jupyterlab/nbformat": "^4.3.2",
+    "@jupyterlab/services": "^7.3.2",
+    "tcp-port-used": "^1.0.2",
+    "ws": "^8.18.0"
   },
-  "engines": {
-    "node": ">=22.14.0",
-    "pnpm": ">=10.17.1"
+  "devDependencies": {
+    "@types/tcp-port-used": "^1.0.4",
+    "@types/ws": "^8.5.13"
   },
   "publishConfig": {
     "access": "public",
