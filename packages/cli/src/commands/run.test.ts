@@ -497,6 +497,25 @@ describe('run command', () => {
 
         expect(process.exitCode).toBe(2)
       })
+
+      it('sets exit code 2 for MissingInputError', async () => {
+        // Mock getBlockDependencies to return that a code block (sortingKey: a1)
+        // uses input_textarea (defined at sortingKey: a2), triggering MissingInputError
+        mockGetBlockDependencies.mockResolvedValue([
+          {
+            id: '2665e1a332df6436b0ce30d662bfe1f1', // code block in "1. Text blocks" at sortingKey: a1
+            usedVariables: ['input_textarea'], // input block at sortingKey: a2
+            definedVariables: [],
+            imports: [],
+            importedModules: [],
+            builtins: [],
+          },
+        ])
+
+        await action(BLOCKS_FILE, { json: true })
+
+        expect(process.exitCode).toBe(2)
+      })
     })
 
     describe('validateRequirements', () => {
