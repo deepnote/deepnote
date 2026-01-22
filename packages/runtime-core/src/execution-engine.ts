@@ -63,6 +63,13 @@ export class ExecutionEngine {
   constructor(private readonly config: RuntimeConfig) {}
 
   /**
+   * Get the Jupyter server port (available after start() is called).
+   */
+  get serverPort(): number | null {
+    return this.server?.jupyterPort ?? null
+  }
+
+  /**
    * Start the deepnote-toolkit server and connect to the kernel.
    */
   async start(): Promise<void> {

@@ -145,6 +145,7 @@ ${c.bold('Examples:')}
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
     .option('--json', 'Output results in JSON format for scripting')
+    .option('--top', 'Display resource usage (CPU, memory) during execution')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -160,6 +161,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run only a specific block')}
   $ deepnote run my-project.deepnote --block abc123
+
+  ${c.dim('# Monitor resource usage during execution')}
+  $ deepnote run my-project.deepnote --top
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote --json
