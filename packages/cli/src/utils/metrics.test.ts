@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
-import { createProgressBar, displayMetrics, fetchMetrics, formatBytes, type JupyterMetricsResponse } from './metrics'
+import {
+  type BlockProfile,
+  createProgressBar,
+  displayMetrics,
+  displayProfileSummary,
+  fetchMetrics,
+  formatBytes,
+  formatMemoryDelta,
+  type JupyterMetricsResponse,
+} from './metrics'
 
 function getOutput(spy: Mock): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
@@ -209,6 +218,135 @@ describe('metrics utilities', () => {
       expect(output).toContain('200MB')
       // Should not contain a second memory value (no limit display)
       expect(output.match(/\d+MB/g)?.length).toBe(1)
+    })
+  })
+
+  describe('formatMemoryDelta', () => {
+    it('formats positive delta with plus sign', () => {
+      expect(formatMemoryDelta(104857600)).toBe('+100MB') // +100MB
+      expect(formatMemoryDelta(52428800)).toBe('+50MB') // +50MB
+    })
+
+    it('formats negative delta with minus sign', () => {
+      expect(formatMemoryDelta(-104857600)).toBe('-100MB') // -100MB
+      expect(formatMemoryDelta(-52428800)).toBe('-50MB') // -50MB
+    })
+
+    it('formats zero delta with plus sign', () => {
+      expect(formatMemoryDelta(0)).toBe('+0MB')
+    })
+
+    it('formats large positive delta in GB', () => {
+      expect(formatMemoryDelta(1073741824)).toBe('+1.0GB') // +1GB
+      expect(formatMemoryDelta(2147483648)).toBe('+2.0GB') // +2GB
+    })
+
+    it('formats large negative delta in GB', () => {
+      expect(formatMemoryDelta(-1073741824)).toBe('-1.0GB') // -1GB
+      expect(formatMemoryDelta(-2147483648)).toBe('-2.0GB') // -2GB
+    })
+  })
+
+  describe('displayProfileSummary', () => {
+    let consoleSpy: Mock
+
+    beforeEach(() => {
+      consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      resetOutputConfig()
+    })
+
+    afterEach(() => {
+      consoleSpy.mockRestore()
+    })
+
+    it('does nothing for empty profiles', () => {
+      displayProfileSummary([])
+
+      expect(consoleSpy).not.toHaveBeenCalled()
+    })
+
+    it('displays profile summary header', () => {
+      const profiles: BlockProfile[] = [
+        {
+          id: '1',
+          label: 'Code: test',
+          durationMs: 100,
+          memoryBefore: 0,
+          memoryAfter: 104857600,
+          memoryDelta: 104857600,
+        },
+      ]
+
+      displayProfileSummary(profiles)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Profile Summary:')
+    })
+
+    it('displays block profiles sorted by duration', () => {
+      const profiles: BlockProfile[] = [
+        { id: '1', label: 'Fast block', durationMs: 50, memoryBefore: 0, memoryAfter: 0, memoryDelta: 0 },
+        { id: '2', label: 'Slow block', durationMs: 500, memoryBefore: 0, memoryAfter: 0, memoryDelta: 0 },
+        { id: '3', label: 'Medium block', durationMs: 200, memoryBefore: 0, memoryAfter: 0, memoryDelta: 0 },
+      ]
+
+      displayProfileSummary(profiles)
+
+      const output = getOutput(consoleSpy)
+      // Slow block should appear before Fast block (sorted by duration desc)
+      const slowIndex = output.indexOf('Slow block')
+      const fastIndex = output.indexOf('Fast block')
+      expect(slowIndex).toBeLessThan(fastIndex)
+    })
+
+    it('displays memory delta for each block', () => {
+      const profiles: BlockProfile[] = [
+        { id: '1', label: 'Block A', durationMs: 100, memoryBefore: 0, memoryAfter: 104857600, memoryDelta: 104857600 },
+      ]
+
+      displayProfileSummary(profiles)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('+100MB')
+    })
+
+    it('displays total row', () => {
+      const profiles: BlockProfile[] = [
+        { id: '1', label: 'Block A', durationMs: 100, memoryBefore: 0, memoryAfter: 52428800, memoryDelta: 52428800 },
+        {
+          id: '2',
+          label: 'Block B',
+          durationMs: 200,
+          memoryBefore: 52428800,
+          memoryAfter: 104857600,
+          memoryDelta: 52428800,
+        },
+      ]
+
+      displayProfileSummary(profiles)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Total')
+      expect(output).toContain('300ms') // 100 + 200
+      expect(output).toContain('+100MB') // 50MB + 50MB
+    })
+
+    it('handles negative memory delta', () => {
+      const profiles: BlockProfile[] = [
+        {
+          id: '1',
+          label: 'Block A',
+          durationMs: 100,
+          memoryBefore: 104857600,
+          memoryAfter: 52428800,
+          memoryDelta: -52428800,
+        },
+      ]
+
+      displayProfileSummary(profiles)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('-50MB')
     })
   })
 })

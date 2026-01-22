@@ -13,6 +13,16 @@ export interface JupyterMetricsResponse {
   cpu_count: number
 }
 
+/** Profile data for a single block */
+export interface BlockProfile {
+  id: string
+  label: string
+  durationMs: number
+  memoryBefore: number
+  memoryAfter: number
+  memoryDelta: number
+}
+
 /** Fetch resource metrics from the Jupyter server */
 export async function fetchMetrics(port: number): Promise<JupyterMetricsResponse | null> {
   try {
@@ -64,4 +74,63 @@ export function displayMetrics(metrics: JupyterMetricsResponse): void {
   }
 
   output(chalk.dim(`  CPU: ${cpuBar} ${metrics.cpu_percent.toFixed(1)}% | Memory: ${memDisplay}`))
+}
+
+/** Format memory delta as human-readable string with sign */
+export function formatMemoryDelta(bytes: number): string {
+  const sign = bytes >= 0 ? '+' : ''
+  const mb = bytes / (1024 * 1024)
+  if (Math.abs(mb) >= 1024) {
+    return `${sign}${(mb / 1024).toFixed(1)}GB`
+  }
+  return `${sign}${mb.toFixed(0)}MB`
+}
+
+/** Display profile summary table */
+export function displayProfileSummary(profiles: BlockProfile[]): void {
+  if (profiles.length === 0) return
+
+  // Sort by duration descending (slowest first)
+  const sorted = [...profiles].sort((a, b) => b.durationMs - a.durationMs)
+
+  // Calculate totals
+  const totalDuration = profiles.reduce((sum, p) => sum + p.durationMs, 0)
+  const totalMemoryDelta = profiles.reduce((sum, p) => sum + p.memoryDelta, 0)
+
+  // Calculate column widths
+  const labelWidth = Math.max(5, ...sorted.map(p => p.label.length))
+  const durationWidth = Math.max(8, `${totalDuration}ms`.length)
+  const memoryWidth = Math.max(6, formatMemoryDelta(totalMemoryDelta).length)
+
+  output(chalk.bold('\nProfile Summary:'))
+
+  // Header
+  output(
+    chalk.dim(
+      `  ${'Block'.padEnd(labelWidth)}  ${'Duration'.padStart(durationWidth)}  ${'Memory'.padStart(memoryWidth)}`
+    )
+  )
+
+  // Rows sorted by duration
+  for (const profile of sorted) {
+    const duration = `${profile.durationMs}ms`
+    const memory = formatMemoryDelta(profile.memoryDelta)
+    const memColor = profile.memoryDelta > 0 ? chalk.yellow : chalk.green
+
+    output(
+      `  ${profile.label.padEnd(labelWidth)}  ${chalk.cyan(duration.padStart(durationWidth))}  ${memColor(memory.padStart(memoryWidth))}`
+    )
+  }
+
+  // Separator and totals
+  const totalWidth = labelWidth + durationWidth + memoryWidth + 6
+  output(chalk.dim(`  ${'─'.repeat(totalWidth)}`))
+
+  const totalDurationStr = `${totalDuration}ms`
+  const totalMemoryStr = formatMemoryDelta(totalMemoryDelta)
+  const totalMemColor = totalMemoryDelta > 0 ? chalk.yellow : chalk.green
+
+  output(
+    `  ${'Total'.padEnd(labelWidth)}  ${chalk.cyan(totalDurationStr.padStart(durationWidth))}  ${totalMemColor(totalMemoryStr.padStart(memoryWidth))}`
+  )
 }
