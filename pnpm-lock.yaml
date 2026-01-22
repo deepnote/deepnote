@@ -7,8 +7,8 @@ settings:
 overrides:
   diff: '>=8.0.3'
   glob: '>=11.1.0'
-  lodash@>=4.0.0,<4.17.23: '>=4.17.23'
-  lodash-es@>=4.0.0,<4.17.23: '>=4.17.23'
+  lodash@<4.17.23: ^4.17.23
+  lodash-es@<4.17.23: ^4.17.23
 
 importers:
 
@@ -1625,8 +1625,8 @@ packages:
     resolution: {integrity: sha512-1wd/kpAdKRLwv7/3OKC8zZ5U8e/fajCfWMxacUvB79S5nLrYGPtUI/8chMQhn3LQjsRVErTb9i1ECAwW0ZIHnQ==}
     engines: {node: '>=20.0.0'}
 
-  lodash-es@4.17.22:
-    resolution: {integrity: sha512-XEawp1t0gxSi9x01glktRZ5HDy0HXqrM0x5pXQM98EaI0NxO6jVM7omDOxsuEo5UIASAnm2bRp1Jt/e0a2XU8Q==}
+  lodash-es@4.17.23:
+    resolution: {integrity: sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg==}
 
   lodash.clonedeep@4.5.0:
     resolution: {integrity: sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==}
@@ -2819,7 +2819,7 @@ snapshots:
       json-schema-merge-allof: 0.8.1
       jsonpointer: 5.0.1
       lodash: 4.17.23
-      lodash-es: 4.17.22
+      lodash-es: 4.17.23
       react: 19.2.3
       react-is: 18.3.1
 
@@ -3542,7 +3542,7 @@ snapshots:
       rfdc: 1.4.1
       wrap-ansi: 9.0.2
 
-  lodash-es@4.17.22: {}
+  lodash-es@4.17.23: {}
 
   lodash.clonedeep@4.5.0: {}
 
