@@ -26,6 +26,12 @@ vi.mock('@deepnote/runtime-core', () => {
 
 import { createRunAction } from './run'
 
+// Helper to parse JSON from console output
+function getJsonOutput(spy: Mock): unknown {
+  const calls = spy.mock.calls.map(call => call.join(' ')).join('\n')
+  return JSON.parse(calls)
+}
+
 // Example files relative to project root
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
@@ -319,6 +325,157 @@ describe('run command', () => {
       await expect(action(HELLO_WORLD_FILE, {})).rejects.toThrow('program.error called')
 
       expect(mockStop).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('dry-run mode', () => {
+    let program: Command
+    let action: (
+      path: string,
+      options: { python?: string; cwd?: string; notebook?: string; block?: string; json?: boolean; dryRun?: boolean }
+    ) => Promise<void>
+    let consoleLogSpy: Mock
+    let consoleErrorSpy: Mock
+    let programErrorSpy: Mock
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+
+      program = new Command()
+      program.exitOverride()
+      action = createRunAction(program)
+
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      programErrorSpy = vi.spyOn(program, 'error').mockImplementation(() => {
+        throw new Error('program.error called')
+      })
+    })
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore()
+      consoleErrorSpy.mockRestore()
+      programErrorSpy.mockRestore()
+    })
+
+    it('does not start ExecutionEngine in dry-run mode', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      expect(mockConstructor).not.toHaveBeenCalled()
+      expect(mockStart).not.toHaveBeenCalled()
+      expect(mockStop).not.toHaveBeenCalled()
+    })
+
+    it('shows execution plan header', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toContain('Execution Plan (dry run)')
+    })
+
+    it('shows blocks that would be executed', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toContain('[1/')
+      expect(output).toContain('code')
+    })
+
+    it('shows total block count in summary', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toMatch(/Total: \d+ block\(s\) would be executed/)
+    })
+
+    it('outputs JSON format when --json flag is set', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true, json: true })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as {
+        dryRun: boolean
+        path: string
+        totalBlocks: number
+        blocks: Array<{ id: string; type: string; label: string; notebook: string }>
+      }
+
+      expect(jsonOutput.dryRun).toBe(true)
+      expect(jsonOutput.path).toContain('1_hello_world.deepnote')
+      expect(jsonOutput.totalBlocks).toBeGreaterThan(0)
+      expect(Array.isArray(jsonOutput.blocks)).toBe(true)
+      expect(jsonOutput.blocks[0]).toHaveProperty('id')
+      expect(jsonOutput.blocks[0]).toHaveProperty('type')
+      expect(jsonOutput.blocks[0]).toHaveProperty('label')
+      expect(jsonOutput.blocks[0]).toHaveProperty('notebook')
+    })
+
+    it('filters by notebook name', async () => {
+      await action(BLOCKS_FILE, { dryRun: true, notebook: '1. Text blocks', json: true })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as {
+        blocks: Array<{ notebook: string }>
+      }
+
+      // All blocks should be from the specified notebook
+      expect(jsonOutput.blocks.length).toBeGreaterThan(0)
+      for (const block of jsonOutput.blocks) {
+        expect(block.notebook).toBe('1. Text blocks')
+      }
+    })
+
+    it('filters by block id', async () => {
+      // First get all blocks to find a valid block id
+      await action(HELLO_WORLD_FILE, { dryRun: true, json: true })
+      const allBlocks = getJsonOutput(consoleLogSpy) as {
+        blocks: Array<{ id: string }>
+      }
+      const targetBlockId = allBlocks.blocks[0].id
+
+      // Clear and run again with block filter
+      consoleLogSpy.mockClear()
+      await action(HELLO_WORLD_FILE, { dryRun: true, block: targetBlockId, json: true })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as {
+        blocks: Array<{ id: string }>
+      }
+
+      expect(jsonOutput.blocks).toHaveLength(1)
+      expect(jsonOutput.blocks[0].id).toBe(targetBlockId)
+    })
+
+    it('throws error when notebook not found', async () => {
+      await expect(action(HELLO_WORLD_FILE, { dryRun: true, notebook: 'NonExistent' })).rejects.toThrow(
+        'program.error called'
+      )
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Notebook "NonExistent" not found')
+    })
+
+    it('throws error when block not found', async () => {
+      await expect(action(HELLO_WORLD_FILE, { dryRun: true, block: 'nonexistent-block-id' })).rejects.toThrow(
+        'program.error called'
+      )
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Block "nonexistent-block-id" not found')
+    })
+
+    it('returns JSON error when file not found with --json flag', async () => {
+      await action('nonexistent.deepnote', { dryRun: true, json: true })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as { success: boolean; error: string }
+      expect(jsonOutput.success).toBe(false)
+      expect(jsonOutput.error).toContain('not found')
+    })
+
+    it('throws error for non-existent file without --json flag', async () => {
+      await expect(action('nonexistent.deepnote', { dryRun: true })).rejects.toThrow('program.error called')
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('not found')
     })
   })
 })

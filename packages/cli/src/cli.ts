@@ -145,6 +145,7 @@ ${c.bold('Examples:')}
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
     .option('--json', 'Output results in JSON format for scripting')
+    .option('--dry-run', 'Show what would be executed without running')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -163,6 +164,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote --json
+
+  ${c.dim('# Preview what would be executed without running')}
+  $ deepnote run my-project.deepnote --dry-run
 `
     })
     .action(createRunAction(program))

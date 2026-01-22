@@ -1,11 +1,13 @@
+import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { type DeepnoteBlock, decodeUtf8NoBom, deserializeDeepnoteFile, type ExecutableBlock } from '@deepnote/blocks'
 import {
   type BlockExecutionResult,
-  type DeepnoteBlock,
   detectDefaultPython,
   ExecutionEngine,
   type ExecutionSummary,
   type IOutput,
+  type DeepnoteBlock as RuntimeDeepnoteBlock,
 } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
@@ -21,6 +23,7 @@ export interface RunOptions {
   notebook?: string
   block?: string
   json?: boolean
+  dryRun?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -41,12 +44,52 @@ interface RunResult extends ExecutionSummary {
   blocks: BlockResult[]
 }
 
+/** Info about a block in a dry run */
+interface DryRunBlockInfo {
+  id: string
+  type: string
+  label: string
+  notebook: string
+}
+
+/** Dry run result for JSON output */
+interface DryRunResult {
+  dryRun: true
+  path: string
+  totalBlocks: number
+  blocks: DryRunBlockInfo[]
+}
+
+/** Executable block types (must match ExecutionEngine) */
+const executableBlockTypes: ExecutableBlock['type'][] = [
+  'code',
+  'sql',
+  'input-text',
+  'input-textarea',
+  'input-checkbox',
+  'input-select',
+  'input-slider',
+  'input-date',
+  'input-date-range',
+  'input-file',
+  'visualization',
+  'button',
+  'big-number',
+]
+
+const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
+
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
       debug(`Running file: ${path}`)
       debug(`Options: ${JSON.stringify(options)}`)
-      await runDeepnoteProject(path, options)
+
+      if (options.dryRun) {
+        await dryRunDeepnoteProject(path, options)
+      } else {
+        await runDeepnoteProject(path, options)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
@@ -58,6 +101,92 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       }
       program.error(chalk.red(message), { exitCode })
     }
+  }
+}
+
+/**
+ * Perform a dry run: parse the file and show what would be executed without running.
+ */
+async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
+  const isJson = options.json ?? false
+
+  if (!isJson) {
+    log(chalk.dim(`Parsing ${absolutePath}...`))
+  }
+
+  // Parse the file
+  const rawBytes = await readFile(absolutePath)
+  const content = decodeUtf8NoBom(rawBytes)
+  const file = deserializeDeepnoteFile(content)
+
+  // Filter notebooks if specified
+  const notebooks = options.notebook
+    ? file.project.notebooks.filter(n => n.name === options.notebook)
+    : file.project.notebooks
+
+  if (options.notebook && notebooks.length === 0) {
+    throw new Error(`Notebook "${options.notebook}" not found in project`)
+  }
+
+  // Collect all executable blocks (same logic as ExecutionEngine)
+  const executableBlocks: DryRunBlockInfo[] = []
+  for (const notebook of notebooks) {
+    const sortedBlocks = [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+    for (const block of sortedBlocks) {
+      if (!executableBlockTypeSet.has(block.type)) {
+        continue
+      }
+      // Skip if filtering by blockId and this isn't the target
+      if (options.block && block.id !== options.block) {
+        continue
+      }
+      executableBlocks.push({
+        id: block.id,
+        type: block.type,
+        label: getBlockLabel(block as RuntimeDeepnoteBlock),
+        notebook: notebook.name,
+      })
+    }
+  }
+
+  if (options.block && executableBlocks.length === 0) {
+    // Check if the block exists but is not executable
+    for (const notebook of notebooks) {
+      const block = notebook.blocks.find(b => b.id === options.block)
+      if (block) {
+        throw new Error(`Block "${options.block}" is not executable (type: ${block.type}).`)
+      }
+    }
+    throw new Error(`Block "${options.block}" not found in project`)
+  }
+
+  if (isJson) {
+    const result: DryRunResult = {
+      dryRun: true,
+      path: absolutePath,
+      totalBlocks: executableBlocks.length,
+      blocks: executableBlocks,
+    }
+    outputJson(result)
+  } else {
+    output(chalk.bold('\nExecution Plan (dry run)'))
+    output(chalk.dim('─'.repeat(50)))
+
+    if (executableBlocks.length === 0) {
+      output(chalk.yellow('No executable blocks found.'))
+    } else {
+      for (let i = 0; i < executableBlocks.length; i++) {
+        const block = executableBlocks[i]
+        output(`${chalk.cyan(`[${i + 1}/${executableBlocks.length}]`)} ${block.label}`)
+        if (notebooks.length > 1) {
+          output(chalk.dim(`    Notebook: ${block.notebook}`))
+        }
+      }
+    }
+
+    output(chalk.dim('─'.repeat(50)))
+    output(chalk.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
   }
 }
 
