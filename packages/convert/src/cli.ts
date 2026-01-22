@@ -361,12 +361,12 @@ async function convertDeepnoteToFormat(
     // Try to load and merge snapshot
     const snapshot = await loadLatestSnapshot(absolutePath, deepnoteFile.project.id)
     if (snapshot) {
-      deepnoteFile = mergeSnapshotIntoSource(deepnoteFile, snapshot)
+      deepnoteFile = mergeSnapshotIntoSource(deepnoteFile, snapshot, { skipMismatched: true })
     }
 
-    // Write merged content to a temporary file for the converters
-    const tempDir = dirname(absolutePath)
-    const tempFilename = `.${filenameWithoutExtension}.merged.deepnote`
+    // Write merged content to a unique temporary directory for the converters
+    const tempDir = await fs.mkdtemp(resolve(dirname(absolutePath), '.deepnote-merge-'))
+    const tempFilename = `${filenameWithoutExtension}.merged.deepnote`
     const tempPath = resolve(tempDir, tempFilename)
 
     try {
@@ -388,8 +388,8 @@ async function convertDeepnoteToFormat(
           break
       }
     } finally {
-      // Clean up temp file
-      await fs.unlink(tempPath).catch(() => {})
+      // Clean up temp directory
+      await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {})
     }
 
     spinner.succeed(`${formatNames[outputFormat]} have been saved to ${chalk.bold(outputDir)}`)

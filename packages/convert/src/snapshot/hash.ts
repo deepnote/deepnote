@@ -53,18 +53,19 @@ export function computeSnapshotHash(file: DeepnoteFile): string {
 
 /**
  * Adds content hashes to all blocks in a DeepnoteFile that don't already have them.
- * Modifies the file in place and returns it for chaining.
+ * Returns a new DeepnoteFile with hashes added (does not mutate the input).
  *
  * @param file - The DeepnoteFile to add hashes to
- * @returns The modified DeepnoteFile
+ * @returns A new DeepnoteFile with content hashes added
  */
 export function addContentHashes(file: DeepnoteFile): DeepnoteFile {
-  for (const notebook of file.project.notebooks) {
+  const result = structuredClone(file)
+  for (const notebook of result.project.notebooks) {
     for (const block of notebook.blocks) {
       if (!block.contentHash && block.content) {
         ;(block as DeepnoteBlock & { contentHash?: string }).contentHash = computeContentHash(block.content)
       }
     }
   }
-  return file
+  return result
 }

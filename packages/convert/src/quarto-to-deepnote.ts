@@ -435,18 +435,7 @@ export async function convertQuartoFilesToDeepnoteFile(
   inputFilePaths: string[],
   options: ConvertQuartoFilesToDeepnoteFileOptions
 ): Promise<void> {
-  const documents: QuartoDocumentInput[] = []
-
-  for (const filePath of inputFilePaths) {
-    const content = await fs.readFile(filePath, 'utf-8')
-    const document = parseQuartoFormat(content)
-    documents.push({
-      filename: basename(filePath),
-      document,
-    })
-  }
-
-  const deepnoteFile = convertQuartoDocumentsToDeepnote(documents, {
+  const deepnoteFile = await readAndConvertQuartoFiles(inputFilePaths, {
     projectName: options.projectName,
   })
 

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
@@ -7,6 +7,17 @@ import { getMarimoOutputsFromCache } from './snapshot'
 import type { JupyterOutput } from './types/jupyter'
 import type { MarimoApp, MarimoCell } from './types/marimo'
 import { createSortingKey } from './utils'
+
+/**
+ * Computes a code hash for a cell's content.
+ * This matches how Marimo computes code_hash for the session cache.
+ *
+ * @param content - The cell's code content
+ * @returns A SHA256 hash string
+ */
+function computeCodeHash(content: string): string {
+  return createHash('sha256').update(content, 'utf-8').digest('hex')
+}
 
 /**
  * Splits a string on commas that are at the top level (not inside parentheses, brackets, braces, or string literals).
@@ -89,8 +100,8 @@ export interface ReadAndConvertMarimoFilesOptions {
 export interface ConvertMarimoAppOptions {
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
-  /** Outputs from Marimo session cache, keyed by cell index */
-  outputs?: Map<number, JupyterOutput[]>
+  /** Outputs from Marimo session cache, keyed by code_hash */
+  outputs?: Map<string, JupyterOutput[]>
 }
 
 export interface MarimoAppInput {
@@ -333,7 +344,12 @@ export function parseMarimoFormat(content: string): MarimoApp {
 export function convertMarimoAppToBlocks(app: MarimoApp, options?: ConvertMarimoAppOptions): DeepnoteBlock[] {
   const idGenerator = options?.idGenerator ?? randomUUID
   const outputs = options?.outputs
-  return app.cells.map((cell, index) => convertCellToBlock(cell, index, idGenerator, outputs?.get(index)))
+  return app.cells.map((cell, index) => {
+    // Compute code hash of cell content to match against session cache
+    const codeHash = computeCodeHash(cell.content)
+    const cellOutputs = outputs?.get(codeHash)
+    return convertCellToBlock(cell, index, idGenerator, cellOutputs)
+  })
 }
 
 export interface ConvertMarimoAppsToDeepnoteOptions {
@@ -341,6 +357,31 @@ export interface ConvertMarimoAppsToDeepnoteOptions {
   projectName: string
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
+}
+
+/**
+ * Creates a base DeepnoteFile structure with empty notebooks.
+ * This is a helper to reduce duplication in conversion functions.
+ */
+function createDeepnoteFileSkeleton(
+  projectName: string,
+  idGenerator: () => string,
+  firstNotebookId?: string
+): DeepnoteFile {
+  return {
+    metadata: {
+      createdAt: new Date().toISOString(),
+    },
+    project: {
+      id: idGenerator(),
+      initNotebookId: firstNotebookId,
+      integrations: [],
+      name: projectName,
+      notebooks: [],
+      settings: {},
+    },
+    version: '1.0.0',
+  }
 }
 
 /**
@@ -355,49 +396,12 @@ export function convertMarimoAppsToDeepnote(
   apps: MarimoAppInput[],
   options: ConvertMarimoAppsToDeepnoteOptions
 ): DeepnoteFile {
-  const idGenerator = options.idGenerator ?? randomUUID
-
-  // Generate the first notebook ID upfront so we can use it as the project entrypoint
-  const firstNotebookId = apps.length > 0 ? idGenerator() : undefined
-
-  const deepnoteFile: DeepnoteFile = {
-    metadata: {
-      createdAt: new Date().toISOString(),
-    },
-    project: {
-      id: idGenerator(),
-      initNotebookId: firstNotebookId,
-      integrations: [],
-      name: options.projectName,
-      notebooks: [],
-      settings: {},
-    },
-    version: '1.0.0',
-  }
-
-  for (let i = 0; i < apps.length; i++) {
-    const { filename, app } = apps[i]
-    const extension = extname(filename)
-    const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
-
-    // Use app title if available, otherwise use filename
-    const notebookName = app.title || filenameWithoutExt
-
-    const blocks = convertMarimoAppToBlocks(app, { idGenerator })
-
-    // Use pre-generated ID for the first notebook, generate new ones for the rest
-    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : idGenerator()
-
-    deepnoteFile.project.notebooks.push({
-      blocks,
-      executionMode: 'block',
-      id: notebookId,
-      isModule: false,
-      name: notebookName,
-    })
-  }
-
-  return deepnoteFile
+  // Convert to MarimoAppWithOutputs with undefined outputs for compatibility
+  const appsWithOutputs: MarimoAppWithOutputs[] = apps.map(app => ({
+    ...app,
+    outputs: undefined,
+  }))
+  return convertMarimoAppsToDeepnoteFile(appsWithOutputs, options)
 }
 
 /**
@@ -417,20 +421,7 @@ export function convertMarimoAppsToDeepnoteFile(
   // Generate the first notebook ID upfront so we can use it as the project entrypoint
   const firstNotebookId = apps.length > 0 ? idGenerator() : undefined
 
-  const deepnoteFile: DeepnoteFile = {
-    metadata: {
-      createdAt: new Date().toISOString(),
-    },
-    project: {
-      id: idGenerator(),
-      initNotebookId: firstNotebookId,
-      integrations: [],
-      name: options.projectName,
-      notebooks: [],
-      settings: {},
-    },
-    version: '1.0.0',
-  }
+  const deepnoteFile = createDeepnoteFileSkeleton(options.projectName, idGenerator, firstNotebookId)
 
   for (let i = 0; i < apps.length; i++) {
     const { filename, app, outputs } = apps[i]
@@ -458,7 +449,7 @@ export function convertMarimoAppsToDeepnoteFile(
 }
 
 export interface MarimoAppWithOutputs extends MarimoAppInput {
-  outputs?: Map<number, JupyterOutput[]>
+  outputs?: Map<string, JupyterOutput[]>
 }
 
 /**

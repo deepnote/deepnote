@@ -165,9 +165,9 @@ describe('addContentHashes', () => {
       },
     }
 
-    addContentHashes(file)
+    const result = addContentHashes(file)
 
-    const block = file.project.notebooks[0].blocks[0]
+    const block = result.project.notebooks[0].blocks[0]
     expect(block.contentHash).toMatch(/^sha256:[a-f0-9]{64}$/)
   })
 
@@ -199,12 +199,12 @@ describe('addContentHashes', () => {
       },
     }
 
-    addContentHashes(file)
+    const result = addContentHashes(file)
 
-    expect(file.project.notebooks[0].blocks[0].contentHash).toBe(existingHash)
+    expect(result.project.notebooks[0].blocks[0].contentHash).toBe(existingHash)
   })
 
-  it('should return the file for chaining', () => {
+  it('should return a new file (immutability)', () => {
     const file: DeepnoteFile = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z' },
@@ -216,7 +216,8 @@ describe('addContentHashes', () => {
     }
 
     const result = addContentHashes(file)
-    expect(result).toBe(file)
+    expect(result).not.toBe(file)
+    expect(result).toEqual(file)
   })
 
   it('should skip blocks without content', () => {
@@ -244,8 +245,8 @@ describe('addContentHashes', () => {
       },
     }
 
-    addContentHashes(file)
+    const result = addContentHashes(file)
 
-    expect(file.project.notebooks[0].blocks[0].contentHash).toBeUndefined()
+    expect(result.project.notebooks[0].blocks[0].contentHash).toBeUndefined()
   })
 })

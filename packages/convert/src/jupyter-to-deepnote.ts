@@ -172,26 +172,14 @@ export async function convertIpynbFilesToDeepnoteFile(
   inputFilePaths: string[],
   options: ConvertIpynbFilesToDeepnoteFileOptions
 ): Promise<void> {
-  const notebooks: JupyterNotebookInput[] = []
-
-  for (const filePath of inputFilePaths) {
-    const notebook = await parseIpynbFile(filePath)
-    notebooks.push({
-      filename: basename(filePath),
-      notebook,
-    })
-  }
-
-  const deepnoteFile = convertJupyterNotebooksToDeepnote(notebooks, {
+  const deepnoteFile = await readAndConvertIpynbFiles(inputFilePaths, {
     projectName: options.projectName,
   })
 
   const yamlContent = stringify(deepnoteFile)
 
   const parentDir = dirname(options.outputPath)
-
   await fs.mkdir(parentDir, { recursive: true })
-
   await fs.writeFile(options.outputPath, yamlContent, 'utf-8')
 }
 

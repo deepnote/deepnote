@@ -1,5 +1,3 @@
-// Types
-
 // Hash utilities
 export { addContentHashes, computeContentHash, computeSnapshotHash } from './hash'
 // Lookup utilities
@@ -18,12 +16,8 @@ export {
   convertMarimoConsoleToJupyter,
   convertMarimoOutputToJupyter,
   convertMarimoSessionCellToOutputs,
-  exportMarimoToJupyter,
-  extractOutputsFromMarimoExport,
   findMarimoSessionCache,
-  getMarimoOutputs,
   getMarimoOutputsFromCache,
-  isMarimoCliAvailable,
   readMarimoSessionCache,
 } from './marimo-outputs'
 

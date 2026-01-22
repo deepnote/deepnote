@@ -2,27 +2,51 @@ export type NotebookFormat = 'jupyter' | 'deepnote' | 'marimo' | 'percent' | 'qu
 
 /** Check if file content is Marimo format */
 export function isMarimoContent(content: string): boolean {
-  // Marimo notebooks always start with 'import marimo' at the file level
-  // Check if first non-empty line is the marimo import, and @app.cell decorator exists
+  // Marimo notebooks have a marimo import at the file level and @app.cell decorators
+  // Skip shebangs and encoding comments to find the first significant line
   const lines = content.split('\n')
-  const firstNonEmpty = lines.find(line => line.trim().length > 0)
+  const firstSignificant = lines.find(line => {
+    const t = line.trim()
+    return t.length > 0 && !t.startsWith('#!') && !/^#\s*(-\*-\s*)?(coding|encoding)[:=]/i.test(t)
+  })
 
-  return firstNonEmpty?.trim().startsWith('import marimo') === true && /@app\.cell\b/.test(content)
+  // Accept both 'import marimo' and 'from marimo import ...'
+  const firstLine = firstSignificant ?? ''
+  const isMarimoImport = /^import\s+marimo\b/.test(firstLine) || /^from\s+marimo\s+import\b/.test(firstLine)
+
+  return isMarimoImport && /@app\.cell\b/.test(content)
 }
 
 /** Check if file content is percent format */
 export function isPercentContent(content: string): boolean {
   // Percent format files have '# %%' cell markers at the start of lines
-  // Check that the first occurrence of '# %%' is not inside a triple-quoted string
-  // by verifying it appears before any triple quotes in the file
-  const cellMarkerIndex = content.search(/^# %%/m)
-  if (cellMarkerIndex === -1) {
-    return false
-  }
+  // We need to check that the marker is not inside a triple-quoted string
+  // (e.g., module docstrings at the beginning of the file)
+  const lines = content.split('\n')
+  let inTripleQuote = false
+  let quoteChar = ''
 
-  const tripleQuoteIndex = content.search(/['"]{3}/)
-  // If no triple quotes, or cell marker comes before them, it's percent format
-  return tripleQuoteIndex === -1 || cellMarkerIndex < tripleQuoteIndex
+  for (const line of lines) {
+    // Check for triple quote toggles
+    for (const q of ['"""', "'''"]) {
+      let idx = line.indexOf(q, 0)
+      while (idx !== -1) {
+        if (!inTripleQuote) {
+          inTripleQuote = true
+          quoteChar = q
+        } else if (quoteChar === q) {
+          inTripleQuote = false
+        }
+        idx = line.indexOf(q, idx + 3)
+      }
+    }
+
+    // Check for cell marker outside triple quotes
+    if (!inTripleQuote && /^# %%/.test(line)) {
+      return true
+    }
+  }
+  return false
 }
 
 /**

@@ -251,18 +251,7 @@ export async function convertPercentFilesToDeepnoteFile(
   inputFilePaths: string[],
   options: ConvertPercentFilesToDeepnoteFileOptions
 ): Promise<void> {
-  const notebooks: PercentNotebookInput[] = []
-
-  for (const filePath of inputFilePaths) {
-    const content = await fs.readFile(filePath, 'utf-8')
-    const notebook = parsePercentFormat(content)
-    notebooks.push({
-      filename: basename(filePath),
-      notebook,
-    })
-  }
-
-  const deepnoteFile = convertPercentNotebooksToDeepnote(notebooks, {
+  const deepnoteFile = await readAndConvertPercentFiles(inputFilePaths, {
     projectName: options.projectName,
   })
 

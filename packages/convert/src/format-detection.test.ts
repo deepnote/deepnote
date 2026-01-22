@@ -15,6 +15,62 @@ def __():
     expect(isMarimoContent(content)).toBe(true)
   })
 
+  it('detects Marimo content with shebang', () => {
+    const content = `#!/usr/bin/env python
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
+  it('detects Marimo content with encoding comment', () => {
+    const content = `# -*- coding: utf-8 -*-
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
+  it('detects Marimo content with shebang and encoding comment', () => {
+    const content = `#!/usr/bin/env python
+# coding: utf-8
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
+  it('detects Marimo content with from marimo import', () => {
+    const content = `from marimo import App, cell
+
+app = App()
+
+@app.cell
+def __():
+    print("hello")
+    return
+`
+    expect(isMarimoContent(content)).toBe(true)
+  })
+
   it('returns false for content without marimo import', () => {
     const content = `@app.cell
 def __():
@@ -61,6 +117,32 @@ x = 1
     expect(isPercentContent(content)).toBe(true)
   })
 
+  it('detects percent format with module docstring before marker', () => {
+    const content = `"""
+This is a module docstring.
+It can span multiple lines.
+"""
+
+# %%
+print("hello")
+
+# %%
+x = 1
+`
+    expect(isPercentContent(content)).toBe(true)
+  })
+
+  it('detects percent format with single-quoted module docstring', () => {
+    const content = `'''
+This is a module docstring with single quotes.
+'''
+
+# %%
+print("hello")
+`
+    expect(isPercentContent(content)).toBe(true)
+  })
+
   it('returns false for content without # %% marker', () => {
     const content = `print("hello")
 x = 1
@@ -74,6 +156,19 @@ x = 1
 Some docstring
 """
 print("hello")
+`
+    expect(isPercentContent(content)).toBe(false)
+  })
+
+  it('returns false when marker is only inside nested docstring', () => {
+    const content = `"""Module docs."""
+
+def foo():
+    """
+    # %%
+    Not a real cell marker
+    """
+    pass
 `
     expect(isPercentContent(content)).toBe(false)
   })

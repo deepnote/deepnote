@@ -93,18 +93,18 @@ function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
  * @returns Object containing source and snapshot files
  */
 export function splitDeepnoteFile(file: DeepnoteFile): SplitResult {
-  // First ensure all blocks have content hashes
-  addContentHashes(file)
+  // First ensure all blocks have content hashes (returns new file, doesn't mutate)
+  const fileWithHashes = addContentHashes(file)
 
   // Compute snapshot hash before stripping outputs
-  const snapshotHash = computeSnapshotHash(file)
+  const snapshotHash = computeSnapshotHash(fileWithHashes)
 
   // Create source file with outputs stripped
   const source: DeepnoteFile = {
-    ...file,
+    ...fileWithHashes,
     project: {
-      ...file.project,
-      notebooks: file.project.notebooks.map(notebook => ({
+      ...fileWithHashes.project,
+      notebooks: fileWithHashes.project.notebooks.map(notebook => ({
         ...notebook,
         blocks: notebook.blocks.map(stripOutputsFromBlock),
       })),
@@ -113,11 +113,11 @@ export function splitDeepnoteFile(file: DeepnoteFile): SplitResult {
 
   // Create snapshot file with all data plus snapshot metadata
   const snapshot: DeepnoteSnapshot = {
-    ...file,
-    environment: file.environment ?? {},
-    execution: file.execution ?? {},
+    ...fileWithHashes,
+    environment: fileWithHashes.environment ?? {},
+    execution: fileWithHashes.execution ?? {},
     metadata: {
-      ...file.metadata,
+      ...fileWithHashes.metadata,
       snapshotHash,
     },
   }

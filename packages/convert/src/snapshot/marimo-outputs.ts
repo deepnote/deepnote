@@ -1,8 +1,6 @@
-import { execSync, spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import type { JupyterNotebook, JupyterOutput } from '../types/jupyter'
+import type { JupyterOutput } from '../types/jupyter'
 
 /**
  * Marimo session cache file format.
@@ -34,111 +32,6 @@ export interface MarimoSessionOutput {
 export interface MarimoConsoleOutput {
   channel: 'stdout' | 'stderr'
   data: string
-}
-
-/**
- * Checks if the marimo CLI is available in the system PATH.
- *
- * @returns True if marimo CLI is available
- */
-export function isMarimoCliAvailable(): boolean {
-  try {
-    execSync('which marimo', { stdio: 'pipe' })
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
- * Exports a Marimo notebook to Jupyter format using the marimo CLI.
- * This includes outputs if they are available in the marimo cache.
- *
- * @param marimoFilePath - Path to the .py Marimo file
- * @returns The exported Jupyter notebook content, or null if export fails
- */
-export async function exportMarimoToJupyter(marimoFilePath: string): Promise<JupyterNotebook | null> {
-  if (!isMarimoCliAvailable()) {
-    return null
-  }
-
-  // Create a temp file for the output
-  const tempDir = tmpdir()
-  const tempFile = join(tempDir, `marimo-export-${Date.now()}.ipynb`)
-
-  try {
-    // Run marimo export with --include-outputs flag
-    await new Promise<void>((resolve, reject) => {
-      const proc = spawn('marimo', ['export', 'ipynb', marimoFilePath, '-o', tempFile, '--include-outputs'], {
-        stdio: 'pipe',
-      })
-
-      let stderr = ''
-      proc.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString()
-      })
-
-      proc.on('close', (code: number | null) => {
-        if (code === 0) {
-          resolve()
-        } else {
-          reject(new Error(`marimo export failed with code ${code}: ${stderr}`))
-        }
-      })
-
-      proc.on('error', (err: Error) => {
-        reject(err)
-      })
-    })
-
-    // Read and parse the exported notebook
-    const content = await fs.readFile(tempFile, 'utf-8')
-    return JSON.parse(content) as JupyterNotebook
-  } catch {
-    // Export failed, return null
-    return null
-  } finally {
-    // Clean up temp file
-    try {
-      await fs.unlink(tempFile)
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
-}
-
-/**
- * Extracts outputs from an exported Marimo Jupyter notebook.
- * Maps outputs by cell index for merging back into Deepnote blocks.
- *
- * @param notebook - The exported Jupyter notebook
- * @returns Map of cell index to outputs
- */
-export function extractOutputsFromMarimoExport(notebook: JupyterNotebook): Map<number, unknown[]> {
-  const outputMap = new Map<number, unknown[]>()
-
-  notebook.cells.forEach((cell, index) => {
-    if (cell.cell_type === 'code' && cell.outputs && cell.outputs.length > 0) {
-      outputMap.set(index, cell.outputs)
-    }
-  })
-
-  return outputMap
-}
-
-/**
- * Gets Marimo outputs for a file if the CLI is available.
- * This is a convenience function that combines the export and extraction steps.
- *
- * @param marimoFilePath - Path to the .py Marimo file
- * @returns Map of cell index to outputs, or null if marimo CLI is not available
- */
-export async function getMarimoOutputs(marimoFilePath: string): Promise<Map<number, unknown[]> | null> {
-  const notebook = await exportMarimoToJupyter(marimoFilePath)
-  if (!notebook) {
-    return null
-  }
-  return extractOutputsFromMarimoExport(notebook)
 }
 
 /**
@@ -220,11 +113,11 @@ export function convertMarimoOutputToJupyter(output: MarimoSessionOutput): Jupyt
 export function convertMarimoConsoleToJupyter(consoleOutputs: MarimoConsoleOutput[]): JupyterOutput[] {
   const outputs: JupyterOutput[] = []
 
-  for (const console of consoleOutputs) {
+  for (const consoleOutput of consoleOutputs) {
     outputs.push({
       output_type: 'stream',
-      name: console.channel,
-      text: console.data,
+      name: consoleOutput.channel,
+      text: consoleOutput.data,
     })
   }
 
@@ -254,11 +147,12 @@ export function convertMarimoSessionCellToOutputs(cell: MarimoSessionCell): Jupy
 /**
  * Gets outputs from the Marimo session cache file.
  * This is the preferred method as it doesn't require the marimo CLI.
+ * Outputs are keyed by code_hash for reliable matching even when cells are reordered.
  *
  * @param marimoFilePath - Path to the .py Marimo file
- * @returns Map of cell index to outputs, or null if session cache is not found
+ * @returns Map of code_hash to outputs, or null if session cache is not found
  */
-export async function getMarimoOutputsFromCache(marimoFilePath: string): Promise<Map<number, JupyterOutput[]> | null> {
+export async function getMarimoOutputsFromCache(marimoFilePath: string): Promise<Map<string, JupyterOutput[]> | null> {
   const sessionPath = await findMarimoSessionCache(marimoFilePath)
   if (!sessionPath) {
     return null
@@ -269,9 +163,9 @@ export async function getMarimoOutputsFromCache(marimoFilePath: string): Promise
     return null
   }
 
-  const outputMap = new Map<number, JupyterOutput[]>()
+  const outputMap = new Map<string, JupyterOutput[]>()
 
-  cache.cells.forEach((cell, index) => {
+  for (const cell of cache.cells) {
     const outputs = convertMarimoSessionCellToOutputs(cell)
     if (outputs.length > 0) {
       // Filter out empty text/plain outputs
@@ -284,10 +178,10 @@ export async function getMarimoOutputsFromCache(marimoFilePath: string): Promise
         return true
       })
       if (nonEmptyOutputs.length > 0) {
-        outputMap.set(index, nonEmptyOutputs)
+        outputMap.set(cell.code_hash, nonEmptyOutputs)
       }
     }
-  })
+  }
 
   return outputMap
 }
