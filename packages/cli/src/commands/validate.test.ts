@@ -87,6 +87,7 @@ describe('validate command', () => {
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
 
+      expect(parsed.success).toBe(true)
       expect(parsed.valid).toBe(true)
       expect(parsed.path).toBe(filePath)
       expect(parsed.issues).toEqual([])
@@ -191,6 +192,7 @@ version: "1.0.0"
 
         const output = getOutput(consoleSpy)
         const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(true)
         expect(parsed.valid).toBe(false)
         expect(parsed.issues).toHaveLength(1)
         expect(parsed.issues[0].code).toBe('yaml_parse_error')
@@ -385,9 +387,11 @@ version: "1.0.0"
       const parsed = JSON.parse(output)
 
       // Verify structure
+      expect(parsed).toHaveProperty('success')
       expect(parsed).toHaveProperty('valid')
       expect(parsed).toHaveProperty('path')
       expect(parsed).toHaveProperty('issues')
+      expect(parsed.success).toBe(true)
       expect(typeof parsed.valid).toBe('boolean')
       expect(typeof parsed.path).toBe('string')
       expect(Array.isArray(parsed.issues)).toBe(true)
@@ -414,9 +418,11 @@ version: "1.0.0"
         const parsed = JSON.parse(output)
 
         // Verify structure
+        expect(parsed).toHaveProperty('success')
         expect(parsed).toHaveProperty('valid')
         expect(parsed).toHaveProperty('path')
         expect(parsed).toHaveProperty('issues')
+        expect(parsed.success).toBe(true)
         expect(parsed.valid).toBe(false)
 
         // Verify issue structure
