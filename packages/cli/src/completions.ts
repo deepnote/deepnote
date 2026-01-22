@@ -53,6 +53,16 @@ _deepnote_completions() {
             COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             return 0
             ;;
+        stats)
+            # Complete .deepnote files
+            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            return 0
+            ;;
+        lint)
+            # Complete .deepnote files
+            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            return 0
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
             return 0
@@ -76,6 +86,8 @@ const zshCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   dag: 'Analyze block dependencies and variable flow',
+  stats: 'Show statistics about a .deepnote file',
+  lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
 }
 
@@ -161,6 +173,19 @@ ${commandEntries}
                             ;;
                     esac
                     ;;
+                stats)
+                    _arguments \\
+                        '--json[Output in JSON format]' \\
+                        '--notebook[Analyze only a specific notebook]:notebook name:' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                lint)
+                    _arguments \\
+                        '--json[Output in JSON format]' \\
+                        '--notebook[Lint only a specific notebook]:notebook name:' \\
+                        '--python[Path to Python interpreter]:python path:_files' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -181,6 +206,8 @@ const fishCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   dag: 'Analyze block dependencies and variable flow',
+  stats: 'Show statistics about a .deepnote file',
+  lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
 }
 
@@ -232,6 +259,17 @@ complete -c deepnote -n '__fish_seen_subcommand_from dag' -l notebook -d 'Analyz
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l python -d 'Path to Python interpreter'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l block -s b -d 'Block ID or label to analyze'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -F -a '*.deepnote'
+
+# stats subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from stats' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from stats' -l notebook -d 'Analyze only a specific notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from stats' -F -a '*.deepnote'
+
+# lint subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from lint' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from lint' -l notebook -d 'Lint only a specific notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from lint' -l python -d 'Path to Python interpreter'
+complete -c deepnote -n '__fish_seen_subcommand_from lint' -F -a '*.deepnote'
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

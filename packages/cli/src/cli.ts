@@ -2,7 +2,9 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createInspectAction } from './commands/inspect'
+import { createLintAction } from './commands/lint'
 import { createRunAction } from './commands/run'
+import { createStatsAction } from './commands/stats'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, output, setOutputConfig, shouldDisableColor } from './output'
@@ -70,6 +72,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
+
+  ${c.dim('# Check for issues')}
+  $ deepnote lint my-project.deepnote
+
+  ${c.dim('# Show project statistics')}
+  $ deepnote stats my-project.deepnote
 
   ${c.dim('# Get help for a specific command')}
   $ deepnote help inspect
@@ -230,6 +238,75 @@ ${c.bold('Examples:')}
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .action(createDagDownstreamAction(program))
+
+  // Stats command - show project statistics
+  program
+    .command('stats')
+    .description('Show statistics about a .deepnote file')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('--json', 'Output in JSON format for scripting')
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Displays statistics about the project including:
+  - Total notebooks, blocks, and lines of code
+  - Block types breakdown with counts
+  - Imported modules list
+  - Per-notebook breakdown
+
+${c.bold('Examples:')}
+  ${c.dim('# Show project statistics')}
+  $ deepnote stats my-project.deepnote
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote stats my-project.deepnote --json
+
+  ${c.dim('# Show stats for a specific notebook')}
+  $ deepnote stats my-project.deepnote --notebook "Data Analysis"
+`
+    })
+    .action(createStatsAction(program))
+
+  // Lint command - check for issues
+  program
+    .command('lint')
+    .description('Check a .deepnote file for issues')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('--json', 'Output in JSON format for scripting')
+    .option('--notebook <name>', 'Lint only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Checks:')}
+  - undefined-variable: Variables used but never defined
+  - circular-dependency: Blocks with circular dependencies
+  - unused-variable: Variables defined but never used
+  - shadowed-variable: Variables that shadow previous definitions
+  - parse-error: Blocks that failed to parse
+
+${c.bold('Exit Codes:')}
+  0  No errors found (warnings may be present)
+  1  One or more errors found
+  2  Invalid usage (bad arguments, file not found)
+
+${c.bold('Examples:')}
+  ${c.dim('# Lint a .deepnote file')}
+  $ deepnote lint my-project.deepnote
+
+  ${c.dim('# Output as JSON for CI/CD')}
+  $ deepnote lint my-project.deepnote --json
+
+  ${c.dim('# Lint only a specific notebook')}
+  $ deepnote lint my-project.deepnote --notebook "Analysis"
+
+  ${c.dim('# Use in CI pipeline')}
+  $ deepnote lint my-project.deepnote || exit 1
+`
+    })
+    .action(createLintAction(program))
 
   // Completion command - generate shell completions
   program

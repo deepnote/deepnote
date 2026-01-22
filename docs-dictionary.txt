@@ -113,6 +113,19 @@ visualisation
 spendings
 dashboarding
 
+# Python builtins (for lint.ts)
+isinstance
+hasattr
+getattr
+setattr
+delattr
+classmethod
+divmod
+frozenset
+memoryview
+repr
+staticmethod
+
 # Python packages
 figsize
 xlabel
