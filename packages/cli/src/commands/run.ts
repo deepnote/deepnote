@@ -106,12 +106,8 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   }
 
   if (!isJson) {
-    console.log(chalk.dim('Server ready. Executing blocks...\n'))
+    log(chalk.dim('Server ready. Executing blocks...\n'))
   }
-
-  // Track current block label for JSON output (onBlockDone doesn't receive the block)
-
-  log(chalk.dim('Server ready. Executing blocks...\n'))
 
   // Track labels by block id for JSON output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
