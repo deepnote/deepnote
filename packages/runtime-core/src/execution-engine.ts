@@ -6,7 +6,7 @@ import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
-const executableBlockTypes: ExecutableBlock['type'][] = [
+export const executableBlockTypes: ExecutableBlock['type'][] = [
   'code',
   'sql',
   'input-text',
@@ -22,7 +22,7 @@ const executableBlockTypes: ExecutableBlock['type'][] = [
   'big-number',
 ]
 
-const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
+export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */

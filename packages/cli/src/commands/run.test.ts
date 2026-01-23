@@ -10,8 +10,10 @@ const mockConstructor = vi.fn()
 const mockGetBlockDependencies = vi.fn()
 
 // Mock @deepnote/runtime-core before importing run
-vi.mock('@deepnote/runtime-core', () => {
+vi.mock('@deepnote/runtime-core', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/runtime-core')>()
   return {
+    ...actual,
     ExecutionEngine: class MockExecutionEngine {
       start = mockStart
       stop = mockStop

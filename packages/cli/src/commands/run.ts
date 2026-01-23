@@ -5,7 +5,6 @@ import {
   type DeepnoteFile,
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
-  type ExecutableBlock,
 } from '@deepnote/blocks'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
@@ -13,6 +12,7 @@ import {
   detectDefaultPython,
   ExecutionEngine,
   type ExecutionSummary,
+  executableBlockTypeSet,
   type IOutput,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
 } from '@deepnote/runtime-core'
@@ -96,25 +96,6 @@ interface DryRunResult {
   totalBlocks: number
   blocks: DryRunBlockInfo[]
 }
-
-/** Executable block types (must match ExecutionEngine) */
-const executableBlockTypes: ExecutableBlock['type'][] = [
-  'code',
-  'sql',
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-  'visualization',
-  'button',
-  'big-number',
-]
-
-const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
   return async (path, options) => {
