@@ -108,13 +108,13 @@ async function determineInputFormat(
   if (isDirectory) {
     // Check directory contents to determine format
     const entries = await fs.readdir(absolutePath, { withFileTypes: true })
-    const files = entries.filter(e => e.isFile()).map(e => e.name.toLowerCase())
+    const files = entries.filter(e => e.isFile()).map(e => e.name)
 
-    if (files.some(f => f.endsWith('.ipynb'))) return 'jupyter'
-    if (files.some(f => f.endsWith('.qmd'))) return 'quarto'
+    if (files.some(f => f.toLowerCase().endsWith('.ipynb'))) return 'jupyter'
+    if (files.some(f => f.toLowerCase().endsWith('.qmd'))) return 'quarto'
 
     // Check .py files for format
-    const pyFiles = files.filter(f => f.endsWith('.py'))
+    const pyFiles = files.filter(f => f.toLowerCase().endsWith('.py'))
     for (const pyFile of pyFiles) {
       const pyFilePath = resolve(absolutePath, pyFile)
       const content = await fs.readFile(pyFilePath, 'utf-8')
@@ -129,12 +129,26 @@ async function determineInputFormat(
   throw new Error('Unsupported file type. Please provide a .ipynb, .qmd, .py (percent/marimo), or .deepnote file.')
 }
 
+const VALID_OUTPUT_FORMATS = ['jupyter', 'percent', 'quarto', 'marimo'] as const
+type OutputFormat = (typeof VALID_OUTPUT_FORMATS)[number]
+
+function isValidOutputFormat(format: string): format is OutputFormat {
+  return VALID_OUTPUT_FORMATS.includes(format as OutputFormat)
+}
+
 async function convertFromDeepnote(
   absolutePath: string,
-  outputFormat: 'jupyter' | 'percent' | 'quarto' | 'marimo',
+  outputFormat: string,
   options: ConvertOptions
 ): Promise<ConvertResult> {
-  const formatNames: Record<string, string> = {
+  // Validate format at runtime since commander accepts any string
+  if (!isValidOutputFormat(outputFormat)) {
+    throw new Error(
+      `Invalid output format: "${outputFormat}". Supported formats are: ${VALID_OUTPUT_FORMATS.join(', ')}`
+    )
+  }
+
+  const formatNames: Record<OutputFormat, string> = {
     jupyter: 'Jupyter Notebooks',
     percent: 'percent format files',
     quarto: 'Quarto documents',
@@ -258,16 +272,13 @@ async function getFilesFromDirectory(
     .map(entry => resolve(dirPath, entry.name))
     .sort((a, b) => a.localeCompare(b))
 
-  // For .py files, filter by actual format
+  // For .py files, filter by actual format using parallel reads
   if (format === 'percent' || format === 'marimo') {
-    const filteredFiles: string[] = []
-    for (const file of files) {
-      const content = await fs.readFile(file, 'utf-8')
-      const detectedFormat = detectFormat(file, content)
-      if (detectedFormat === format) {
-        filteredFiles.push(file)
-      }
-    }
+    const fileContents = await Promise.all(files.map(file => fs.readFile(file, 'utf-8')))
+    const filteredFiles = files.filter((file, index) => {
+      const detectedFormat = detectFormat(file, fileContents[index])
+      return detectedFormat === format
+    })
     return filteredFiles
   }
 

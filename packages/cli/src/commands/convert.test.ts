@@ -500,6 +500,170 @@ version: "1.0.0"
     })
   })
 
+  describe('special characters in filenames', () => {
+    it('handles Unicode characters in notebook name', async () => {
+      const action = createConvertAction(program)
+
+      const notebookPath = join(tempDir, '日本語ノート.ipynb')
+      const notebook = {
+        cells: [{ cell_type: 'code', execution_count: 1, metadata: {}, outputs: [], source: 'x = 1' }],
+        metadata: {},
+        nbformat: 4,
+        nbformat_minor: 5,
+      }
+      await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+      const outputPath = join(tempDir, 'output.deepnote')
+      await action(notebookPath, { output: outputPath, json: true })
+
+      const output = getOutput(consoleSpy)
+      const result = JSON.parse(output)
+      expect(result.success).toBe(true)
+      expect(result.inputFormat).toBe('jupyter')
+    })
+
+    it('handles spaces in notebook name', async () => {
+      const action = createConvertAction(program)
+
+      const notebookPath = join(tempDir, 'my notebook with spaces.ipynb')
+      const notebook = {
+        cells: [{ cell_type: 'code', execution_count: 1, metadata: {}, outputs: [], source: 'x = 1' }],
+        metadata: {},
+        nbformat: 4,
+        nbformat_minor: 5,
+      }
+      await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+      const outputPath = join(tempDir, 'output.deepnote')
+      await action(notebookPath, { output: outputPath, json: true })
+
+      const output = getOutput(consoleSpy)
+      const result = JSON.parse(output)
+      expect(result.success).toBe(true)
+    })
+
+    it('handles emoji in project name', async () => {
+      const action = createConvertAction(program)
+
+      const notebookPath = join(tempDir, 'test.ipynb')
+      const notebook = {
+        cells: [{ cell_type: 'code', execution_count: 1, metadata: {}, outputs: [], source: 'x = 1' }],
+        metadata: {},
+        nbformat: 4,
+        nbformat_minor: 5,
+      }
+      await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
+
+      const outputPath = join(tempDir, 'output.deepnote')
+      await action(notebookPath, { output: outputPath, name: '🚀 My Project 📊', json: true })
+
+      const content = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(content)
+      expect(parsed.project.name).toBe('🚀 My Project 📊')
+    })
+
+    it('handles special characters in directory with mixed-case filenames', async () => {
+      const action = createConvertAction(program)
+
+      const notebooksDir = join(tempDir, "notebooks with 'quotes'")
+      await fs.mkdir(notebooksDir)
+
+      // Create files with different cases to test case-sensitivity fix
+      const notebook1 = {
+        cells: [{ cell_type: 'markdown', metadata: {}, source: '# Notebook 1' }],
+        metadata: {},
+        nbformat: 4,
+        nbformat_minor: 5,
+      }
+      const notebook2 = {
+        cells: [{ cell_type: 'markdown', metadata: {}, source: '# Notebook 2' }],
+        metadata: {},
+        nbformat: 4,
+        nbformat_minor: 5,
+      }
+
+      // Use mixed case filenames
+      await fs.writeFile(join(notebooksDir, 'MyNotebook.ipynb'), JSON.stringify(notebook1), 'utf-8')
+      await fs.writeFile(join(notebooksDir, 'AnotherNOTEBOOK.IPYNB'), JSON.stringify(notebook2), 'utf-8')
+
+      const outputPath = join(tempDir, 'output.deepnote')
+      await action(notebooksDir, { output: outputPath, json: true })
+
+      const output = getOutput(consoleSpy)
+      const result = JSON.parse(output)
+      expect(result.success).toBe(true)
+
+      const content = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(content)
+      expect(parsed.project.notebooks).toHaveLength(2)
+    })
+
+    it('handles mixed-case Python filenames on case-sensitive filesystems', async () => {
+      const action = createConvertAction(program)
+
+      const pyDir = join(tempDir, 'python-notebooks')
+      await fs.mkdir(pyDir)
+
+      // Create percent format files with mixed case
+      const content = `# %%
+x = 1
+`
+      await fs.writeFile(join(pyDir, 'MyNotebook.py'), content, 'utf-8')
+      await fs.writeFile(join(pyDir, 'AnotherNOTEBOOK.PY'), content, 'utf-8')
+
+      const outputPath = join(tempDir, 'output.deepnote')
+      await action(pyDir, { output: outputPath, json: true })
+
+      const output = getOutput(consoleSpy)
+      const result = JSON.parse(output)
+      expect(result.success).toBe(true)
+      expect(result.inputFormat).toBe('percent')
+    })
+  })
+
+  describe('format validation', () => {
+    it('rejects invalid output format', async () => {
+      const action = createConvertAction(program)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit called')
+      })
+
+      const deepnotePath = join(tempDir, 'project.deepnote')
+      const content = `metadata:
+  createdAt: "2025-01-01T00:00:00Z"
+project:
+  id: test-id
+  name: Test Project
+  notebooks:
+    - id: notebook-1
+      name: Test Notebook
+      blocks:
+        - id: block-1
+          type: code
+          content: "print('hello')"
+          blockGroup: group-1
+          sortingKey: a0
+          metadata: {}
+version: "1.0.0"
+`
+      await fs.writeFile(deepnotePath, content, 'utf-8')
+
+      // @ts-expect-error - Testing runtime validation with invalid format
+      await expect(action(deepnotePath, { format: 'invalid-format', json: true })).rejects.toThrow(
+        'process.exit called'
+      )
+
+      const output = getOutput(consoleSpy)
+      const result = JSON.parse(output)
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('Invalid output format')
+      expect(result.error).toContain('invalid-format')
+      expect(result.error).toContain('jupyter, percent, quarto, marimo')
+
+      exitSpy.mockRestore()
+    })
+  })
+
   describe('JSON output structure', () => {
     it('includes all required fields on success', async () => {
       const action = createConvertAction(program)
