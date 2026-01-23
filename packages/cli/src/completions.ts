@@ -40,8 +40,12 @@ _deepnote_completions() {
             return 0
             ;;
         run)
-            # Complete --json and .deepnote files
-            COMPREPLY=( $(compgen -W "--json" -- "\${cur}") $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs --json" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         validate)
@@ -129,6 +133,8 @@ ${commandEntries}
                         '--cwd[Working directory for execution]:cwd path:_files -/' \\
                         '--notebook[Run only the specified notebook]:notebook name:' \\
                         '--block[Run only the specified block]:block id:' \\
+                        '*'{-i,--input}'[Set input variable value]:key=value:' \\
+                        '--list-inputs[List all input variables without running]' \\
                         '--json[Output results in JSON format]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
@@ -195,6 +201,8 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l python -d 'Path to 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l cwd -d 'Working directory for execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run only the specified notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (can be repeated)'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List all input variables without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 

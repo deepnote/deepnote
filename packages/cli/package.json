@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
+    "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
     "chalk": "^5.4.1",
     "commander": "^14.0.2",
