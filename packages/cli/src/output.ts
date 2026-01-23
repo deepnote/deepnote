@@ -166,7 +166,7 @@ export function outputToon(data: unknown, options?: { showEfficiencyHint?: boole
       const hint =
         savingsPercent <= 0
           ? `Hint: JSON would be ${Math.abs(savingsPercent).toFixed(0)}% smaller for this data. ` +
-            'Consider --json for better compatibility.'
+            'Consider --output json for better compatibility.'
           : `Hint: TOON only saves ${savingsPercent.toFixed(0)}% over JSON for this data. ` +
             'TOON works best with uniform arrays of objects (30-60% typical savings).'
 
