@@ -946,10 +946,14 @@ describe('run command', () => {
     ) => Promise<void>
     let consoleLogSpy: Mock
     let programErrorSpy: Mock
-    const originalExitCode = process.exitCode
+    let originalExitCode: typeof process.exitCode
 
     beforeEach(() => {
+      originalExitCode = process.exitCode
       vi.clearAllMocks()
+
+      // Reset getBlockDependencies to return empty by default (no validation errors)
+      mockGetBlockDependencies.mockResolvedValue([])
 
       program = new Command()
       program.exitOverride()
