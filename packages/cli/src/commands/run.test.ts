@@ -939,6 +939,7 @@ describe('run command', () => {
         cwd?: string
         notebook?: string
         block?: string
+        input?: string[]
         output?: 'json' | 'toon'
         dryRun?: boolean
       }
@@ -1085,6 +1086,73 @@ describe('run command', () => {
       expect(programErrorSpy).toHaveBeenCalled()
       const errorArg = programErrorSpy.mock.calls[0][0]
       expect(errorArg).toContain('not found')
+    })
+
+    it('throws MissingInputError for missing inputs in dry-run mode', async () => {
+      mockGetBlockDependencies.mockResolvedValue([
+        {
+          id: '2665e1a332df6436b0ce30d662bfe1f1', // code block in "1. Text blocks" at sortingKey: a1
+          usedVariables: ['input_textarea'], // input block at sortingKey: a2
+          definedVariables: [],
+          imports: [],
+          importedModules: [],
+          builtins: [],
+        },
+      ])
+
+      await expect(action(BLOCKS_FILE, { dryRun: true })).rejects.toThrow('program.error called')
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Missing required inputs')
+    })
+
+    it('throws MissingIntegrationError for SQL blocks without env var in dry-run mode', async () => {
+      mockGetBlockDependencies.mockResolvedValue([])
+
+      await expect(action(INTEGRATIONS_FILE, { dryRun: true })).rejects.toThrow('program.error called')
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Missing database integration')
+    })
+
+    it('passes dry-run validation when inputs are provided via --input', async () => {
+      mockGetBlockDependencies.mockResolvedValue([
+        {
+          id: '2665e1a332df6436b0ce30d662bfe1f1',
+          usedVariables: ['input_textarea'],
+          definedVariables: [],
+          imports: [],
+          importedModules: [],
+          builtins: [],
+        },
+      ])
+
+      await action(BLOCKS_FILE, { dryRun: true, input: ['input_textarea=test value'] })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toContain('Execution Plan (dry run)')
+    })
+
+    it('returns JSON error for missing inputs in dry-run mode with -o json', async () => {
+      mockGetBlockDependencies.mockResolvedValue([
+        {
+          id: '2665e1a332df6436b0ce30d662bfe1f1',
+          usedVariables: ['input_textarea'],
+          definedVariables: [],
+          imports: [],
+          importedModules: [],
+          builtins: [],
+        },
+      ])
+
+      await action(BLOCKS_FILE, { dryRun: true, output: 'json' })
+
+      expect(process.exitCode).toBe(2)
+      const jsonOutput = getJsonOutput(consoleLogSpy) as { success: boolean; error: string }
+      expect(jsonOutput.success).toBe(false)
+      expect(jsonOutput.error).toContain('Missing required inputs')
     })
   })
 })

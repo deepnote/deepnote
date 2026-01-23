@@ -276,10 +276,13 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
 
 /**
  * Perform a dry run: parse the file and show what would be executed without running.
+ * Also validates that all requirements (inputs, integrations) are met.
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const isMachineOutput = options.output !== undefined
+  const pythonEnv = options.python ?? detectDefaultPython()
+  const inputs = parseInputs(options.input)
 
   if (!isMachineOutput) {
     log(chalk.dim(`Parsing ${absolutePath}...`))
@@ -289,6 +292,10 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
   const rawBytes = await fs.readFile(absolutePath)
   const content = decodeUtf8NoBom(rawBytes)
   const file = deserializeDeepnoteFile(content)
+
+  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
+  // This ensures dry-run enforces the same checks as the real run path
+  await validateRequirements(file, inputs, pythonEnv, options.notebook)
 
   // Filter notebooks if specified
   const notebooks = options.notebook
