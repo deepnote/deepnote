@@ -124,9 +124,7 @@ ${c.bold('Output:')}
   - Number of notebooks and total blocks
   - List of notebooks with their block counts
 
-${c.bold('Smart File Discovery:')}
-  If no path is provided, finds the first .deepnote file in the current directory.
-  If a directory is provided, finds the first .deepnote file in that directory.
+${getSmartFileDiscoveryHelp(c)}
 
 ${c.bold('Examples:')}
   ${c.dim('# Inspect first .deepnote file in current directory')}
@@ -173,9 +171,7 @@ ${c.bold('Examples:')}
     .addHelpText('after', () => {
       const c = getChalk()
       return `
-${c.bold('Smart File Discovery:')}
-  If no path is provided, finds the first .deepnote file in the current directory.
-  If a directory is provided, finds the first .deepnote file in that directory.
+${getSmartFileDiscoveryHelp(c)}
 
 ${c.bold('Examples:')}
   ${c.dim('# Run first .deepnote file in current directory')}
@@ -297,6 +293,16 @@ ${c.bold('Examples:')}
         })
       }
     })
+}
+
+/**
+ * Returns shared help text for Smart File Discovery.
+ */
+function getSmartFileDiscoveryHelp(c: ReturnType<typeof getChalk>): string {
+  return `${c.bold('Smart File Discovery:')}
+  If no path is provided, finds the first .deepnote file in the current directory.
+  If a directory is provided, finds the first .deepnote file in that directory.
+  If multiple .deepnote files are found, the CLI picks the first file in alphabetical order (by filename) to ensure deterministic behavior.`
 }
 
 /**
