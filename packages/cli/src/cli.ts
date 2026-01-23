@@ -5,15 +5,8 @@ import { createRunAction } from './commands/run'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
-import {
-  getChalk,
-  getOutputConfig,
-  OUTPUT_FORMATS,
-  type OutputFormat,
-  output,
-  setOutputConfig,
-  shouldDisableColor,
-} from './output'
+import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
+import { createFormatValidator } from './utils/format-validator'
 import { version } from './version'
 
 /**
@@ -119,12 +112,7 @@ function registerCommands(program: Command): void {
     .command('inspect')
     .description('Inspect and display metadata from a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file to inspect')
-    .option('-o, --output <format>', 'Output format: json, toon', (value: string): OutputFormat => {
-      if (!OUTPUT_FORMATS.includes(value as OutputFormat)) {
-        throw new Error(`Invalid output format: ${value}. Valid formats: ${OUTPUT_FORMATS.join(', ')}`)
-      }
-      return value as OutputFormat
-    })
+    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -174,12 +162,7 @@ ${c.bold('Examples:')}
       []
     )
     .option('--list-inputs', 'List all input variables in the notebook without running')
-    .option('-o, --output <format>', 'Output format: json, toon', (value: string): OutputFormat => {
-      if (!OUTPUT_FORMATS.includes(value as OutputFormat)) {
-        throw new Error(`Invalid output format: ${value}. Valid formats: ${OUTPUT_FORMATS.join(', ')}`)
-      }
-      return value as OutputFormat
-    })
+    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -224,13 +207,8 @@ ${c.bold('Exit Codes:')}
     .command('validate')
     .description('Validate a .deepnote file against the schema')
     .argument('<path>', 'Path to a .deepnote file to validate')
-    .option('-o, --output <format>', 'Output format: json', (value: string): OutputFormat => {
-      // Validate command only supports JSON output (no TOON)
-      if (value !== 'json') {
-        throw new Error(`Invalid output format: ${value}. Valid formats: json`)
-      }
-      return value as OutputFormat
-    })
+    // Validate command only supports JSON output (no TOON)
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
