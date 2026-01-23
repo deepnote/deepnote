@@ -78,8 +78,9 @@ describe('resolvePathToDeepnoteFile', () => {
       await writeFile(join(testDir, 'not-a-notebook.txt'), 'content')
       process.chdir(testDir)
 
-      await expect(resolvePathToDeepnoteFile(undefined)).rejects.toThrow(FileResolutionError)
-      await expect(resolvePathToDeepnoteFile(undefined)).rejects.toThrow('No .deepnote files found')
+      const promise = resolvePathToDeepnoteFile(undefined)
+      await expect(promise).rejects.toThrow(FileResolutionError)
+      await expect(promise).rejects.toThrow('No .deepnote files found')
     })
 
     it('uses custom error message when provided and no files found', async () => {
@@ -124,8 +125,9 @@ describe('resolvePathToDeepnoteFile', () => {
     it('throws FileResolutionError when directory has no .deepnote files', async () => {
       await writeFile(join(testDir, 'other.txt'), 'content')
 
-      await expect(resolvePathToDeepnoteFile(testDir)).rejects.toThrow(FileResolutionError)
-      await expect(resolvePathToDeepnoteFile(testDir)).rejects.toThrow('No .deepnote files found')
+      const promise = resolvePathToDeepnoteFile(testDir)
+      await expect(promise).rejects.toThrow(FileResolutionError)
+      await expect(promise).rejects.toThrow('No .deepnote files found')
     })
 
     it('works with examples directory from repo root', async () => {
@@ -141,8 +143,9 @@ describe('resolvePathToDeepnoteFile', () => {
       const nonExistentPath = join(EXAMPLES_DIR, 'does-not-exist.deepnote')
       const absolutePath = resolve(process.cwd(), nonExistentPath)
 
-      await expect(resolvePathToDeepnoteFile(nonExistentPath)).rejects.toThrow(FileResolutionError)
-      await expect(resolvePathToDeepnoteFile(nonExistentPath)).rejects.toThrow(`File not found: ${absolutePath}`)
+      const promise = resolvePathToDeepnoteFile(nonExistentPath)
+      await expect(promise).rejects.toThrow(FileResolutionError)
+      await expect(promise).rejects.toThrow(`File not found: ${absolutePath}`)
     })
 
     it('includes suggestion for similar files', async () => {
@@ -161,8 +164,9 @@ describe('resolvePathToDeepnoteFile', () => {
 
   describe('invalid file extension', () => {
     it('throws FileResolutionError for non-.deepnote file', async () => {
-      await expect(resolvePathToDeepnoteFile(IPYNB_FILE)).rejects.toThrow(FileResolutionError)
-      await expect(resolvePathToDeepnoteFile(IPYNB_FILE)).rejects.toThrow('Unsupported file type: .ipynb')
+      const promise = resolvePathToDeepnoteFile(IPYNB_FILE)
+      await expect(promise).rejects.toThrow(FileResolutionError)
+      await expect(promise).rejects.toThrow('Unsupported file type: .ipynb')
     })
 
     it('includes hint about converting ipynb files', async () => {
@@ -173,8 +177,9 @@ describe('resolvePathToDeepnoteFile', () => {
       const noExtFile = join(tempDir, 'noext')
       await writeFile(noExtFile, 'content')
 
-      await expect(resolvePathToDeepnoteFile(noExtFile)).rejects.toThrow(FileResolutionError)
-      await expect(resolvePathToDeepnoteFile(noExtFile)).rejects.toThrow('Expected a .deepnote file')
+      const promise = resolvePathToDeepnoteFile(noExtFile)
+      await expect(promise).rejects.toThrow(FileResolutionError)
+      await expect(promise).rejects.toThrow('Expected a .deepnote file')
     })
 
     it('shows hint for .json files', async () => {
