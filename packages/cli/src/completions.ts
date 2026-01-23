@@ -33,7 +33,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|run|validate|completion|help)
+            inspect|run|validate|convert|completion|help)
                 subcommand="\${word}"
                 break
                 ;;
@@ -52,6 +52,14 @@ _deepnote_completions() {
                 return 0
                 ;;
         esac
+    fi
+
+    # Handle -f/--format option completion for convert command
+    if [[ "\${prev}" == "-f" || "\${prev}" == "--format" ]]; then
+        if [[ "\${subcommand}" == "convert" ]]; then
+            COMPREPLY=( $(compgen -W "jupyter percent quarto marimo" -- "\${cur}") )
+            return 0
+        fi
     fi
 
     case "\${prev}" in
@@ -90,8 +98,6 @@ _deepnote_completions() {
             # Complete convert options and supported file types
             if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "-o --output -n --name -f --format --json" -- "\${cur}") )
-            elif [[ "\${prev}" == "-f" || "\${prev}" == "--format" ]]; then
-                COMPREPLY=( $(compgen -W "jupyter percent quarto marimo" -- "\${cur}") )
             elif [[ "\${prev}" == "-o" || "\${prev}" == "--output" || "\${prev}" == "-n" || "\${prev}" == "--name" ]]; then
                 COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
             else
@@ -192,9 +198,9 @@ ${commandEntries}
                     ;;
                 convert)
                     _arguments \\
-                        {-o,--output}'[Output file or directory]:output path:_files' \\
-                        {-n,--name}'[Project name for conversion]:project name:' \\
-                        {-f,--format}'[Output format (jupyter, percent, quarto, marimo)]:format:(jupyter percent quarto marimo)' \\
+                        '(-o --output)'{-o,--output}'[Output file or directory]:output path:_files' \\
+                        '(-n --name)'{-n,--name}'[Project name for conversion]:project name:' \\
+                        '(-f --format)'{-f,--format}'[Output format (jupyter, percent, quarto, marimo)]:format:(jupyter percent quarto marimo)' \\
                         '--json[Output in JSON format]' \\
                         '*:input file:_files -g "*.{deepnote,ipynb,qmd,py}"'
                     ;;
