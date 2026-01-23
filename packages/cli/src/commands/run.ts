@@ -97,6 +97,93 @@ interface DryRunResult {
   blocks: DryRunBlockInfo[]
 }
 
+interface ProjectSetup {
+  absolutePath: string
+  workingDirectory: string
+  file: DeepnoteFile
+  pythonEnv: string
+  inputs: Record<string, unknown>
+  isMachineOutput: boolean
+}
+
+/**
+ * Common project setup: resolve path, parse file, validate requirements.
+ * Shared by both runDeepnoteProject and dryRunDeepnoteProject.
+ */
+async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
+  const workingDirectory = options.cwd ?? dirname(absolutePath)
+  const pythonEnv = options.python ?? detectDefaultPython()
+  const isMachineOutput = options.output !== undefined
+  const inputs = parseInputs(options.input)
+
+  if (!isMachineOutput) {
+    log(chalk.dim(`Parsing ${absolutePath}...`))
+  }
+
+  const rawBytes = await fs.readFile(absolutePath)
+  const content = decodeUtf8NoBom(rawBytes)
+  const file = deserializeDeepnoteFile(content)
+
+  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
+  await validateRequirements(file, inputs, pythonEnv, options.notebook)
+
+  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput }
+}
+
+/**
+ * Collect executable blocks from a DeepnoteFile.
+ * Handles notebook and block filtering, and validates that requested blocks exist.
+ */
+function collectExecutableBlocks(
+  file: DeepnoteFile,
+  options: { notebook?: string; block?: string }
+): DryRunBlockInfo[] {
+  // Filter notebooks if specified
+  const notebooks = options.notebook
+    ? file.project.notebooks.filter(n => n.name === options.notebook)
+    : file.project.notebooks
+
+  if (options.notebook && notebooks.length === 0) {
+    throw new Error(`Notebook "${options.notebook}" not found in project`)
+  }
+
+  // Collect all executable blocks
+  const executableBlocks: DryRunBlockInfo[] = []
+  for (const notebook of notebooks) {
+    const sortedBlocks = [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+    for (const block of sortedBlocks) {
+      if (!executableBlockTypeSet.has(block.type)) {
+        continue
+      }
+      // Skip if filtering by blockId and this isn't the target
+      if (options.block && block.id !== options.block) {
+        continue
+      }
+      executableBlocks.push({
+        id: block.id,
+        type: block.type,
+        label: getBlockLabel(block as RuntimeDeepnoteBlock),
+        notebook: notebook.name,
+      })
+    }
+  }
+
+  // Handle case where requested block doesn't exist or isn't executable
+  if (options.block && executableBlocks.length === 0) {
+    // Check if the block exists but is not executable
+    for (const notebook of notebooks) {
+      const block = notebook.blocks.find(b => b.id === options.block)
+      if (block) {
+        throw new Error(`Block "${options.block}" is not executable (type: ${block.type}).`)
+      }
+    }
+    throw new Error(`Block "${options.block}" not found in project`)
+  }
+
+  return executableBlocks
+}
+
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
@@ -279,64 +366,10 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
  * Also validates that all requirements (inputs, integrations) are met.
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const isMachineOutput = options.output !== undefined
-  const pythonEnv = options.python ?? detectDefaultPython()
-  const inputs = parseInputs(options.input)
+  const { absolutePath, file, isMachineOutput } = await setupProject(path, options)
+  const executableBlocks = collectExecutableBlocks(file, options)
 
-  if (!isMachineOutput) {
-    log(chalk.dim(`Parsing ${absolutePath}...`))
-  }
-
-  // Parse the file
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
-
-  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  // This ensures dry-run enforces the same checks as the real run path
-  await validateRequirements(file, inputs, pythonEnv, options.notebook)
-
-  // Filter notebooks if specified
-  const notebooks = options.notebook
-    ? file.project.notebooks.filter(n => n.name === options.notebook)
-    : file.project.notebooks
-
-  if (options.notebook && notebooks.length === 0) {
-    throw new Error(`Notebook "${options.notebook}" not found in project`)
-  }
-
-  // Collect all executable blocks (same logic as ExecutionEngine)
-  const executableBlocks: DryRunBlockInfo[] = []
-  for (const notebook of notebooks) {
-    const sortedBlocks = [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
-    for (const block of sortedBlocks) {
-      if (!executableBlockTypeSet.has(block.type)) {
-        continue
-      }
-      // Skip if filtering by blockId and this isn't the target
-      if (options.block && block.id !== options.block) {
-        continue
-      }
-      executableBlocks.push({
-        id: block.id,
-        type: block.type,
-        label: getBlockLabel(block as RuntimeDeepnoteBlock),
-        notebook: notebook.name,
-      })
-    }
-  }
-
-  if (options.block && executableBlocks.length === 0) {
-    // Check if the block exists but is not executable
-    for (const notebook of notebooks) {
-      const block = notebook.blocks.find(b => b.id === options.block)
-      if (block) {
-        throw new Error(`Block "${options.block}" is not executable (type: ${block.type}).`)
-      }
-    }
-    throw new Error(`Block "${options.block}" not found in project`)
-  }
+  const notebookCount = options.notebook ? 1 : file.project.notebooks.length
 
   if (isMachineOutput) {
     const result: DryRunResult = {
@@ -360,7 +393,7 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
       for (let i = 0; i < executableBlocks.length; i++) {
         const block = executableBlocks[i]
         output(`${chalk.cyan(`[${i + 1}/${executableBlocks.length}]`)} ${block.label}`)
-        if (notebooks.length > 1) {
+        if (notebookCount > 1) {
           output(chalk.dim(`    Notebook: ${block.notebook}`))
         }
       }
@@ -506,30 +539,12 @@ async function validateRequirements(
 }
 
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const workingDirectory = options.cwd ?? dirname(absolutePath)
-
-  const pythonEnv = options.python ?? detectDefaultPython()
-  // Machine-readable output suppresses interactive messages
-  const isMachineOutput = options.output !== undefined
-  const inputs = parseInputs(options.input)
+  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput } = await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
   // Collect block results for machine-readable output
   const blockResults: BlockResult[] = []
-
-  if (!isMachineOutput) {
-    log(chalk.dim(`Parsing ${absolutePath}...`))
-  }
-
-  // Parse the file and validate inputs before starting the engine
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
-
-  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, options.notebook)
 
   // Create and start the execution engine
   const engine = new ExecutionEngine({
