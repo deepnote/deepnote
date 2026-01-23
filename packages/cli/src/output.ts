@@ -1,4 +1,18 @@
+import { encode as toonEncode } from '@toon-format/toon'
 import { Chalk, type ChalkInstance } from 'chalk'
+import { analyzeToonEfficiency } from './utils/toon-analysis'
+
+/**
+ * Available output formats for CLI commands.
+ * - json: Machine-readable JSON format for scripting
+ * - toon: Token-Oriented Object Notation, optimized for LLM consumption
+ */
+export type OutputFormat = 'json' | 'toon'
+
+/**
+ * Valid output format values for validation.
+ */
+export const OUTPUT_FORMATS: readonly OutputFormat[] = ['json', 'toon'] as const
 
 /**
  * Global output configuration for the CLI.
@@ -127,4 +141,36 @@ export function error(message: string): void {
  */
 export function outputJson(data: unknown): void {
   console.log(JSON.stringify(data, null, 2))
+}
+
+/**
+ * Output data as TOON (Token-Oriented Object Notation).
+ * TOON is a compact, LLM-optimized format that reduces token usage by 30-60%
+ * compared to JSON while remaining human-readable.
+ *
+ * Shows an efficiency hint when TOON provides minimal benefit over JSON,
+ * suggesting JSON might be preferred for compatibility.
+ *
+ * @see https://toonformat.dev/
+ */
+export function outputToon(data: unknown, options?: { showEfficiencyHint?: boolean }): void {
+  const toonOutput = toonEncode(data)
+  console.log(toonOutput)
+
+  // Show efficiency hint if enabled and not in quiet mode
+  if (options?.showEfficiencyHint && !currentConfig.quiet) {
+    // Pass pre-encoded toonOutput to avoid re-encoding
+    const { savingsPercent, toonRecommended } = analyzeToonEfficiency(data, toonOutput)
+
+    if (!toonRecommended) {
+      const hint =
+        savingsPercent <= 0
+          ? `Hint: JSON would be ${Math.abs(savingsPercent).toFixed(0)}% smaller for this data. ` +
+            'Consider --output json for better compatibility.'
+          : `Hint: TOON only saves ${savingsPercent.toFixed(0)}% over JSON for this data. ` +
+            'TOON works best with uniform arrays of objects (30-60% typical savings).'
+
+      console.error(cliChalk.dim(hint))
+    }
+  }
 }

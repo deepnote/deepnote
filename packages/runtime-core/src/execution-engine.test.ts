@@ -497,5 +497,226 @@ describe('ExecutionEngine', () => {
         expect(summary.totalDurationMs).toBeGreaterThanOrEqual(0)
       })
     })
+
+    describe('input injection', () => {
+      it('injects string inputs before execution', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { greeting: 'Hello' },
+        })
+
+        // First call should be the input injection
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain("greeting = 'Hello'")
+      })
+
+      it('injects multiple inputs', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { name: 'Alice', count: 42 },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain("name = 'Alice'")
+        expect(firstCall).toContain('count = 42')
+      })
+
+      it('injects numeric inputs correctly', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { integer: 123, float: 3.14, negative: -5 },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('integer = 123')
+        expect(firstCall).toContain('float = 3.14')
+        expect(firstCall).toContain('negative = -5')
+      })
+
+      it('injects boolean inputs as Python True/False', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { enabled: true, disabled: false },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('enabled = True')
+        expect(firstCall).toContain('disabled = False')
+      })
+
+      it('injects null/undefined as Python None', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { nothing: null, missing: undefined },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('nothing = None')
+        expect(firstCall).toContain('missing = None')
+      })
+
+      it('injects array inputs as Python lists', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { items: ['a', 'b', 'c'] },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain("items = ['a', 'b', 'c']")
+      })
+
+      it('injects nested arrays correctly', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: {
+            matrix: [
+              [1, 2],
+              [3, 4],
+            ],
+          },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('matrix = [[1, 2], [3, 4]]')
+      })
+
+      it('injects object inputs as Python dicts', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { config: { debug: true, level: 3 } },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        // Assert keys independently to avoid order dependency
+        expect(firstCall).toContain('config = ')
+        expect(firstCall).toMatch(/'debug': True/)
+        expect(firstCall).toMatch(/'level': 3/)
+      })
+
+      it('injects empty arrays correctly', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { items: [] },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('items = []')
+      })
+
+      it('injects empty objects correctly', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { obj: {} },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('obj = {}')
+      })
+
+      it('rejects invalid variable names', async () => {
+        await engine.start()
+
+        await expect(
+          engine.runProject(HELLO_WORLD, {
+            inputs: { 'invalid-name': 'value' },
+          })
+        ).rejects.toThrow('Invalid variable name')
+      })
+
+      it('rejects variable names starting with digits', async () => {
+        await engine.start()
+
+        await expect(
+          engine.runProject(HELLO_WORLD, {
+            inputs: { '123abc': 'value' },
+          })
+        ).rejects.toThrow('Invalid variable name')
+      })
+
+      it('rejects variable names with injection attempts', async () => {
+        await engine.start()
+
+        await expect(
+          engine.runProject(HELLO_WORLD, {
+            inputs: { 'x; import os': 'value' },
+          })
+        ).rejects.toThrow('Invalid variable name')
+      })
+
+      it('escapes special characters in strings', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { text: "Hello\nWorld\t'test'" },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain("text = 'Hello\\nWorld\\t\\'test\\''")
+      })
+
+      it('escapes null bytes and control characters', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { text: 'hello\x00world\x01\x1f' },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain("text = 'hello\\x00world\\x01\\x1f'")
+      })
+
+      it('does not inject when inputs is empty', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: {},
+        })
+
+        // First call should be the actual code block, not input injection
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain('print("Hello world!")')
+      })
+
+      it('does not inject when inputs is undefined', async () => {
+        await engine.start()
+        await engine.runProject(HELLO_WORLD)
+
+        // Only the block execution calls should happen
+        expect(mockKernelClient.execute).toHaveBeenCalledTimes(1)
+      })
+
+      it('throws error if input injection fails', async () => {
+        mockKernelClient.execute.mockResolvedValueOnce({
+          success: false,
+          outputs: [{ output_type: 'error', ename: 'SyntaxError', evalue: 'invalid syntax', traceback: [] }],
+          executionCount: 1,
+        })
+
+        await engine.start()
+        await expect(
+          engine.runProject(HELLO_WORLD, {
+            inputs: { bad: 'value' },
+          })
+        ).rejects.toThrow('Failed to set input values')
+      })
+
+      it('input injection runs before any blocks', async () => {
+        const executionOrder: string[] = []
+
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          if (code.includes('my_input =')) {
+            executionOrder.push('input')
+          } else {
+            executionOrder.push('block')
+          }
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        })
+
+        await engine.start()
+        await engine.runProject(HELLO_WORLD, {
+          inputs: { my_input: 'test' },
+        })
+
+        expect(executionOrder[0]).toBe('input')
+        expect(executionOrder[1]).toBe('block')
+      })
+    })
   })
 })
