@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
+import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, output, setOutputConfig, shouldDisableColor } from './output'
@@ -190,6 +191,40 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createRunAction(program))
+
+  // Validate command - validate a .deepnote file against the schema
+  program
+    .command('validate')
+    .description('Validate a .deepnote file against the schema')
+    .argument('<path>', 'Path to a .deepnote file to validate')
+    .option('--json', 'Output in JSON format for scripting')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Reports whether the .deepnote file is valid and lists any schema violations.
+  Uses the Zod schemas from @deepnote/blocks to validate the file structure.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  File is valid
+  ${c.dim('1')}  File is invalid (schema violations found)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file)
+
+${c.bold('Examples:')}
+  ${c.dim('# Validate a .deepnote file')}
+  $ deepnote validate my-project.deepnote
+
+  ${c.dim('# Validate with JSON output for CI/CD')}
+  $ deepnote validate my-project.deepnote --json
+
+  ${c.dim('# Validate and check exit code in scripts')}
+  $ deepnote validate my-project.deepnote && echo "Valid!"
+
+  ${c.dim('# Parse JSON output with jq')}
+  $ deepnote validate my-project.deepnote --json | jq '.valid'
+`
+    })
+    .action(createValidateAction(program))
 
   // Completion command - generate shell completions
   program

@@ -83,6 +83,9 @@ importers:
       commander:
         specifier: ^14.0.2
         version: 14.0.2
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       tsx:
         specifier: ^4.20.6
