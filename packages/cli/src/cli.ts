@@ -2,9 +2,11 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
+import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
-import { getChalk, getOutputConfig, output, setOutputConfig, shouldDisableColor } from './output'
+import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
+import { createFormatValidator } from './utils/format-validator'
 import { version } from './version'
 
 /**
@@ -36,7 +38,7 @@ export function createProgram(): Command {
     .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
     .option('--debug', 'Show debug information for troubleshooting')
     .option('-q, --quiet', 'Suppress non-essential output')
-    .hook('preAction', thisCommand => {
+    .hook('preAction', (thisCommand, _actionCommand) => {
       const opts = thisCommand.opts<GlobalOptions>()
 
       // Configure output based on global options
@@ -55,23 +57,23 @@ export function createProgram(): Command {
       const c = getChalk()
       return `
 ${c.bold('Examples:')}
-  ${c.dim('# Show this help message')}
-  $ deepnote --help
+  ${c.dim('# Run the first .deepnote file in current directory')}
+  $ deepnote run
 
-  ${c.dim('# Show version')}
-  $ deepnote --version
-
-  ${c.dim('# Inspect a .deepnote file')}
+  ${c.dim('# Inspect a specific .deepnote file')}
   $ deepnote inspect my-project.deepnote
 
-  ${c.dim('# Inspect with JSON output (for scripting)')}
-  $ deepnote inspect my-project.deepnote --json
+  ${c.dim('# Run the first .deepnote file in a subdirectory')}
+  $ deepnote run notebooks/
 
-  ${c.dim('# Run a .deepnote file')}
-  $ deepnote run my-project.deepnote
+  ${c.dim('# Inspect with JSON output (for scripting)')}
+  $ deepnote inspect my-project.deepnote -o json
+
+  ${c.dim('# Run with TOON output (for LLMs)')}
+  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Get help for a specific command')}
-  $ deepnote help inspect
+  $ deepnote help run
 
   ${c.dim('# Generate shell completions')}
   $ deepnote completion bash >> ~/.bashrc
@@ -106,8 +108,8 @@ function registerCommands(program: Command): void {
   program
     .command('inspect')
     .description('Inspect and display metadata from a .deepnote file')
-    .argument('<path>', 'Path to a .deepnote file to inspect')
-    .option('--json', 'Output in JSON format for scripting')
+    .argument('[path]', 'Path to a .deepnote file or directory (defaults to current directory)')
+    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -119,18 +121,26 @@ ${c.bold('Output:')}
   - Number of notebooks and total blocks
   - List of notebooks with their block counts
 
+${getSmartFileDiscoveryHelp(c)}
+
 ${c.bold('Examples:')}
-  ${c.dim('# Inspect a local .deepnote file')}
+  ${c.dim('# Inspect first .deepnote file in current directory')}
+  $ deepnote inspect
+
+  ${c.dim('# Inspect a specific .deepnote file')}
   $ deepnote inspect my-project.deepnote
 
-  ${c.dim('# Inspect a file in a subdirectory')}
-  $ deepnote inspect notebooks/analysis.deepnote
+  ${c.dim('# Inspect first .deepnote file in a subdirectory')}
+  $ deepnote inspect notebooks/
 
   ${c.dim('# Output as JSON for scripting')}
-  $ deepnote inspect my-project.deepnote --json
+  $ deepnote inspect my-project.deepnote -o json
+
+  ${c.dim('# Output as TOON for LLM consumption (30-60% fewer tokens)')}
+  $ deepnote inspect my-project.deepnote -o toon
 
   ${c.dim('# Use with jq for specific fields')}
-  $ deepnote inspect my-project.deepnote --json | jq '.project.name'
+  $ deepnote inspect my-project.deepnote -o json | jq '.project.name'
 `
     })
     .action(createInspectAction(program))
@@ -139,19 +149,37 @@ ${c.bold('Examples:')}
   program
     .command('run')
     .description('Run a .deepnote file')
-    .argument('<path>', 'Path to a .deepnote file to run')
+    .argument('[path]', 'Path to a .deepnote file or directory (defaults to current directory)')
     .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
-    .option('--json', 'Output results in JSON format for scripting')
+    .option(
+      '-i, --input <key=value>',
+      'Set input variable value (can be repeated)',
+      (val, prev: string[]) => {
+        prev.push(val)
+        return prev
+      },
+      []
+    )
+    .option('--list-inputs', 'List all input variables in the notebook without running')
+    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .option('--dry-run', 'Show what would be executed without running')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
+${getSmartFileDiscoveryHelp(c)}
+
 ${c.bold('Examples:')}
-  ${c.dim('# Run all notebooks in a .deepnote file')}
+  ${c.dim('# Run first .deepnote file in current directory')}
+  $ deepnote run
+
+  ${c.dim('# Run a specific .deepnote file')}
   $ deepnote run my-project.deepnote
+
+  ${c.dim('# Run first .deepnote file in a subdirectory')}
+  $ deepnote run notebooks/
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
@@ -162,14 +190,66 @@ ${c.bold('Examples:')}
   ${c.dim('# Run only a specific block')}
   $ deepnote run my-project.deepnote --block abc123
 
+  ${c.dim('# List input variables needed by the notebook')}
+  $ deepnote run my-project.deepnote --list-inputs
+
+  ${c.dim('# Set input values for input blocks')}
+  $ deepnote run my-project.deepnote --input name="Alice" --input count=42
+
+  ${c.dim('# Input values support JSON for complex types')}
+  $ deepnote run my-project.deepnote -i 'config={"debug": true}'
+
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
-  $ deepnote run my-project.deepnote --json
+  $ deepnote run my-project.deepnote -o json
+
+  ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
+  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Preview what would be executed without running')}
   $ deepnote run my-project.deepnote --dry-run
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  Runtime error (code execution failed)
+  ${c.dim('2')}  Invalid usage (missing file, bad arguments, missing required inputs)
 `
     })
     .action(createRunAction(program))
+
+  // Validate command - validate a .deepnote file against the schema
+  program
+    .command('validate')
+    .description('Validate a .deepnote file against the schema')
+    .argument('<path>', 'Path to a .deepnote file to validate')
+    // Validate command only supports JSON output (no TOON)
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Reports whether the .deepnote file is valid and lists any schema violations.
+  Uses the Zod schemas from @deepnote/blocks to validate the file structure.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  File is valid
+  ${c.dim('1')}  File is invalid (schema violations found)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file)
+
+${c.bold('Examples:')}
+  ${c.dim('# Validate a .deepnote file')}
+  $ deepnote validate my-project.deepnote
+
+  ${c.dim('# Validate with JSON output for CI/CD')}
+  $ deepnote validate my-project.deepnote -o json
+
+  ${c.dim('# Validate and check exit code in scripts')}
+  $ deepnote validate my-project.deepnote && echo "Valid!"
+
+  ${c.dim('# Parse JSON output with jq')}
+  $ deepnote validate my-project.deepnote -o json | jq '.valid'
+`
+    })
+    .action(createValidateAction(program))
 
   // Completion command - generate shell completions
   program
@@ -214,6 +294,16 @@ ${c.bold('Examples:')}
         })
       }
     })
+}
+
+/**
+ * Returns shared help text for Smart File Discovery.
+ */
+function getSmartFileDiscoveryHelp(c: ReturnType<typeof getChalk>): string {
+  return `${c.bold('Smart File Discovery:')}
+  If no path is provided, finds the first .deepnote file in the current directory.
+  If a directory is provided, finds the first .deepnote file in that directory.
+  If multiple .deepnote files are found, the CLI picks the first file in alphabetical order (by filename) to ensure deterministic behavior.`
 }
 
 /**

@@ -1,6 +1,13 @@
-import { readFile } from 'node:fs/promises'
+import fs from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { type DeepnoteBlock, decodeUtf8NoBom, deserializeDeepnoteFile, type ExecutableBlock } from '@deepnote/blocks'
+import {
+  type DeepnoteBlock as BlocksDeepnoteBlock,
+  type DeepnoteFile,
+  decodeUtf8NoBom,
+  deserializeDeepnoteFile,
+  type ExecutableBlock,
+} from '@deepnote/blocks'
+import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
   detectDefaultPython,
@@ -12,17 +19,47 @@ import {
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, log, error as logError, output, outputJson } from '../output'
+import { debug, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+
+/**
+ * Error thrown when required inputs are missing.
+ * This is a user error (exit code 2), not a runtime error.
+ */
+export class MissingInputError extends Error {
+  readonly missingInputs: string[]
+
+  constructor(message: string, missingInputs: string[]) {
+    super(message)
+    this.name = 'MissingInputError'
+    this.missingInputs = missingInputs
+  }
+}
+
+/**
+ * Error thrown when required database integrations are not configured.
+ * This is a user error (exit code 2), not a runtime error.
+ */
+export class MissingIntegrationError extends Error {
+  readonly missingIntegrations: string[]
+
+  constructor(message: string, missingIntegrations: string[]) {
+    super(message)
+    this.name = 'MissingIntegrationError'
+    this.missingIntegrations = missingIntegrations
+  }
+}
 
 export interface RunOptions {
   python?: string
   cwd?: string
   notebook?: string
   block?: string
-  json?: boolean
+  input?: string[]
+  listInputs?: boolean
+  output?: OutputFormat
   dryRun?: boolean
 }
 
@@ -85,17 +122,35 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       debug(`Running file: ${path}`)
       debug(`Options: ${JSON.stringify(options)}`)
 
+      // Handle --list-inputs
+      if (options.listInputs) {
+        await listInputs(path, options)
+        return
+      }
+
+      // Handle --dry-run
       if (options.dryRun) {
         await dryRunDeepnoteProject(path, options)
-      } else {
-        await runDeepnoteProject(path, options)
+        return
       }
+
+      await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
-      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.json) {
+      // Use InvalidUsage for file resolution errors, missing inputs, and missing integrations (user errors)
+      const exitCode =
+        error instanceof FileResolutionError ||
+        error instanceof MissingInputError ||
+        error instanceof MissingIntegrationError
+          ? ExitCode.InvalidUsage
+          : ExitCode.Error
+      if (options.output === 'json') {
         outputJson({ success: false, error: message })
+        process.exitCode = exitCode
+        return
+      }
+      if (options.output === 'toon') {
+        outputToon({ success: false, error: message })
         process.exitCode = exitCode
         return
       }
@@ -105,18 +160,152 @@ export function createRunAction(program: Command): (path: string, options: RunOp
 }
 
 /**
+ * Parse --input flags into a Record<string, unknown>.
+ * Supports: key=value, key=123 (number), key=true/false (boolean), key=null
+ */
+function parseInputs(inputFlags: string[] | undefined): Record<string, unknown> {
+  if (!inputFlags || inputFlags.length === 0) {
+    return {}
+  }
+
+  const inputs: Record<string, unknown> = Object.create(null) as Record<string, unknown>
+  for (const flag of inputFlags) {
+    const eqIndex = flag.indexOf('=')
+    if (eqIndex === -1) {
+      throw new Error(`Invalid input format: "${flag}". Expected key=value`)
+    }
+
+    const key = flag.slice(0, eqIndex).trim()
+    const rawValue = flag.slice(eqIndex + 1)
+
+    if (!key) {
+      throw new Error(`Invalid input: empty key in "${flag}"`)
+    }
+
+    // Try to parse as JSON for numbers, booleans, null, arrays, objects
+    // Fall back to string if not valid JSON
+    let value: unknown
+    try {
+      value = JSON.parse(rawValue)
+    } catch {
+      // Not valid JSON, treat as string
+      value = rawValue
+    }
+
+    inputs[key] = value
+  }
+
+  return inputs
+}
+
+/** Information about an input block */
+interface InputInfo {
+  variableName: string
+  type: string
+  label?: string
+  currentValue: unknown
+  hasValue: boolean
+}
+
+/**
+ * Extract input block information from a DeepnoteFile.
+ */
+function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputInfo[] {
+  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
+
+  const inputTypes = [
+    'input-text',
+    'input-textarea',
+    'input-checkbox',
+    'input-select',
+    'input-slider',
+    'input-date',
+    'input-date-range',
+    'input-file',
+  ]
+
+  const inputs: InputInfo[] = []
+  for (const notebook of notebooks) {
+    for (const block of notebook.blocks) {
+      if (inputTypes.includes(block.type)) {
+        const metadata = block.metadata as Record<string, unknown>
+        const variableName = metadata.deepnote_variable_name as string
+        const currentValue = metadata.deepnote_variable_value
+        const label = metadata.deepnote_input_label as string | undefined
+
+        // Check if input has a meaningful value
+        const hasValue = currentValue !== undefined && currentValue !== '' && currentValue !== null
+
+        inputs.push({
+          variableName,
+          type: block.type,
+          label,
+          currentValue,
+          hasValue,
+        })
+      }
+    }
+  }
+
+  return inputs
+}
+
+/**
+ * List all input blocks in a .deepnote file.
+ */
+async function listInputs(path: string, options: RunOptions): Promise<void> {
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
+  const rawBytes = await fs.readFile(absolutePath)
+  const content = decodeUtf8NoBom(rawBytes)
+  const file = deserializeDeepnoteFile(content)
+
+  const inputs = getInputBlocks(file, options.notebook)
+
+  if (options.output === 'json') {
+    outputJson({
+      path: absolutePath,
+      inputs: inputs.map(i => ({
+        variableName: i.variableName,
+        type: i.type,
+        label: i.label,
+        currentValue: i.currentValue,
+        hasValue: i.hasValue,
+      })),
+    })
+    return
+  }
+
+  if (inputs.length === 0) {
+    console.log(chalk.dim('No input blocks found.'))
+    return
+  }
+
+  console.log(chalk.bold('Input variables:'))
+  console.log()
+  for (const input of inputs) {
+    const typeLabel = chalk.dim(`(${input.type})`)
+    const valueStr = input.hasValue ? chalk.green(JSON.stringify(input.currentValue)) : chalk.yellow('(no value)')
+    const labelStr = input.label ? ` - ${input.label}` : ''
+    console.log(`  ${chalk.cyan(input.variableName)} ${typeLabel}${labelStr}`)
+    console.log(`    Current value: ${valueStr}`)
+  }
+  console.log()
+  console.log(chalk.dim('Use --input <name>=<value> to set values before running.'))
+}
+
+/**
  * Perform a dry run: parse the file and show what would be executed without running.
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const isJson = options.json ?? false
+  const isMachineOutput = options.output !== undefined
 
-  if (!isJson) {
+  if (!isMachineOutput) {
     log(chalk.dim(`Parsing ${absolutePath}...`))
   }
 
   // Parse the file
-  const rawBytes = await readFile(absolutePath)
+  const rawBytes = await fs.readFile(absolutePath)
   const content = decodeUtf8NoBom(rawBytes)
   const file = deserializeDeepnoteFile(content)
 
@@ -161,14 +350,18 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
     throw new Error(`Block "${options.block}" not found in project`)
   }
 
-  if (isJson) {
+  if (isMachineOutput) {
     const result: DryRunResult = {
       dryRun: true,
       path: absolutePath,
       totalBlocks: executableBlocks.length,
       blocks: executableBlocks,
     }
-    outputJson(result)
+    if (options.output === 'toon') {
+      outputToon(result)
+    } else {
+      outputJson(result)
+    }
   } else {
     output(chalk.bold('\nExecution Plan (dry run)'))
     output(chalk.dim('─'.repeat(50)))
@@ -190,19 +383,165 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
   }
 }
 
+/**
+ * Convert an integration ID to its environment variable name.
+ * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
+ */
+function getIntegrationEnvVarName(integrationId: string): string {
+  // Same logic as @deepnote/database-integrations getSqlEnvVarName
+  const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
+  const upperCased = notFirstDigit.toUpperCase()
+  const sanitized = upperCased.replace(/[^\w]/g, '_')
+  return `SQL_${sanitized}`
+}
+
+/**
+ * Validate that all required configuration is present before running.
+ * Checks for:
+ * - Missing input variables (used before defined, no --input provided)
+ * - Missing database integrations (SQL blocks without env vars)
+ *
+ * Throws MissingInputError or MissingIntegrationError (exit code 2) on failure.
+ */
+async function validateRequirements(
+  file: DeepnoteFile,
+  providedInputs: Record<string, unknown>,
+  pythonInterpreter: string,
+  notebookName?: string
+): Promise<void> {
+  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
+
+  // Collect all blocks with their sorting keys
+  const allBlocks: Array<BlocksDeepnoteBlock & { sortingKey: string }> = []
+  for (const notebook of notebooks) {
+    for (const block of notebook.blocks) {
+      allBlocks.push(block as BlocksDeepnoteBlock & { sortingKey: string })
+    }
+  }
+
+  // === Check for missing database integrations ===
+  // Built-in integrations that don't require external configuration
+  const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
+
+  const missingIntegrations: Array<{ id: string; envVar: string }> = []
+  for (const block of allBlocks) {
+    if (block.type === 'sql') {
+      const metadata = block.metadata as Record<string, unknown>
+      const integrationId = metadata.sql_integration_id as string | undefined
+      if (integrationId && !builtInIntegrations.has(integrationId)) {
+        const envVarName = getIntegrationEnvVarName(integrationId)
+        if (!process.env[envVarName]) {
+          // Check if we haven't already recorded this integration
+          if (!missingIntegrations.some(i => i.id === integrationId)) {
+            missingIntegrations.push({ id: integrationId, envVar: envVarName })
+          }
+        }
+      }
+    }
+  }
+
+  if (missingIntegrations.length > 0) {
+    const envVarList = missingIntegrations.map(i => `  ${i.envVar}`).join('\n')
+    throw new MissingIntegrationError(
+      `Missing database integration configuration.\n\n` +
+        `The following SQL blocks require database integrations that are not configured:\n` +
+        `${envVarList}\n\n` +
+        `Set the environment variables with your database connection details.\n` +
+        `See: https://docs.deepnote.com/integrations for integration configuration.`,
+      missingIntegrations.map(i => i.id)
+    )
+  }
+
+  // === Check for missing inputs ===
+  // Get dependency info for all blocks
+  let deps: Awaited<ReturnType<typeof getBlockDependencies>>
+  try {
+    deps = await getBlockDependencies(allBlocks, { pythonInterpreter })
+  } catch (e) {
+    // If AST analysis fails, skip input validation (will fail at runtime instead)
+    debug(`AST analysis failed: ${e instanceof Error ? e.message : String(e)}`)
+    return
+  }
+
+  // Build maps of block info
+  const blockDeps = new Map(deps.map(d => [d.id, d]))
+
+  // Find input blocks and their defined variables with sort order
+  const inputVariables = new Map<string, { sortingKey: string; blockId: string }>()
+  for (const block of allBlocks) {
+    if (block.type.startsWith('input-')) {
+      const metadata = block.metadata as Record<string, unknown>
+      const varName = metadata.deepnote_variable_name as string
+      if (varName) {
+        inputVariables.set(varName, { sortingKey: block.sortingKey, blockId: block.id })
+      }
+    }
+  }
+
+  // Find code blocks that use input variables before they're defined
+  const missingInputs = new Set<string>()
+
+  for (const block of allBlocks) {
+    if (block.type !== 'code') continue
+
+    const dep = blockDeps.get(block.id)
+    if (!dep) continue
+
+    for (const usedVar of dep.usedVariables) {
+      const inputInfo = inputVariables.get(usedVar)
+      if (!inputInfo) continue // Not an input variable
+
+      // Check if this code block runs before the input block (string comparison of sortingKey)
+      const codeBlockSortKey = block.sortingKey
+      const inputBlockSortKey = inputInfo.sortingKey
+
+      if (codeBlockSortKey < inputBlockSortKey) {
+        // Code block runs before input block - need --input flag
+        if (!Object.hasOwn(providedInputs, usedVar)) {
+          missingInputs.add(usedVar)
+        }
+      }
+    }
+  }
+
+  if (missingInputs.size > 0) {
+    const missing = Array.from(missingInputs).sort()
+    const inputFlags = missing.map(v => `--input ${v}=<value>`).join(' ')
+    throw new MissingInputError(
+      `Missing required inputs: ${missing.join(', ')}\n\n` +
+        `These input variables are used by code blocks before they are defined.\n` +
+        `Provide values using: ${inputFlags}\n\n` +
+        `Use --list-inputs to see all available input variables.`,
+      missing
+    )
+  }
+}
+
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
 
   const pythonEnv = options.python ?? detectDefaultPython()
-  const isJson = options.json ?? false
+  // Machine-readable output suppresses interactive messages
+  const isMachineOutput = options.output !== undefined
+  const inputs = parseInputs(options.input)
 
-  // Collect block results for JSON output
+  debug(`Inputs: ${JSON.stringify(inputs)}`)
+
+  // Collect block results for machine-readable output
   const blockResults: BlockResult[] = []
 
-  if (!isJson) {
+  if (!isMachineOutput) {
     log(chalk.dim(`Parsing ${absolutePath}...`))
   }
+
+  // Parse the file and validate inputs before starting the engine
+  const rawBytes = await fs.readFile(absolutePath)
+  const content = decodeUtf8NoBom(rawBytes)
+  const file = deserializeDeepnoteFile(content)
+
+  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
+  await validateRequirements(file, inputs, pythonEnv, options.notebook)
 
   // Create and start the execution engine
   const engine = new ExecutionEngine({
@@ -210,7 +549,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     workingDirectory,
   })
 
-  if (!isJson) {
+  if (!isMachineOutput) {
     log(chalk.dim('Starting deepnote-toolkit server...'))
   }
 
@@ -224,7 +563,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       await engine.stop()
     } catch (stopError) {
       const stopMessage = stopError instanceof Error ? stopError.message : String(stopError)
-      if (!isJson) {
+      if (!isMachineOutput) {
         logError(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
       }
     }
@@ -234,29 +573,30 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     )
   }
 
-  if (!isJson) {
+  if (!isMachineOutput) {
     log(chalk.dim('Server ready. Executing blocks...\n'))
   }
 
-  // Track labels by block id for JSON output (safer than single variable if callbacks interleave)
+  // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
 
   try {
     const summary = await engine.runFile(absolutePath, {
       notebookName: options.notebook,
       blockId: options.block,
+      inputs,
 
-      onBlockStart: (block: DeepnoteBlock, index: number, total: number) => {
+      onBlockStart: (block: RuntimeDeepnoteBlock, index: number, total: number) => {
         const label = getBlockLabel(block)
         blockLabels.set(block.id, label)
 
-        if (!isJson) {
+        if (!isMachineOutput) {
           process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
       onBlockDone: (result: BlockExecutionResult) => {
-        // Collect result for JSON output
+        // Collect result for machine-readable output
         const label = blockLabels.get(result.blockId) ?? result.blockType
         blockLabels.delete(result.blockId) // Clean up to avoid memory growth
         blockResults.push({
@@ -269,7 +609,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
           error: result.error?.message,
         })
 
-        if (!isJson) {
+        if (!isMachineOutput) {
           if (result.success) {
             output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
           } else {
@@ -292,8 +632,8 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     // Determine exit code based on failures
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
-    if (isJson) {
-      // Output JSON result and exit
+    if (isMachineOutput) {
+      // Output machine-readable result and exit
       const result: RunResult = {
         success: summary.failedBlocks === 0,
         path: absolutePath,
@@ -303,7 +643,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         totalDurationMs: summary.totalDurationMs,
         blocks: blockResults,
       }
-      outputJson(result)
+      if (options.output === 'toon') {
+        outputToon(result, { showEfficiencyHint: true })
+      } else {
+        outputJson(result)
+      }
       process.exitCode = exitCode
     } else {
       // Print summary
