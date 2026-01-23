@@ -35,13 +35,22 @@ _deepnote_completions() {
             return 0
             ;;
         inspect)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete --json and .deepnote files
+            COMPREPLY=( $(compgen -W "--json" -- "\${cur}") $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             return 0
             ;;
         run)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs --json" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        validate)
+            # Complete --json and .deepnote files
+            COMPREPLY=( $(compgen -W "--json" -- "\${cur}") $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             return 0
             ;;
         completion)
@@ -66,6 +75,7 @@ complete -F _deepnote_completions deepnote
 const zshCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
 
@@ -123,7 +133,14 @@ ${commandEntries}
                         '--cwd[Working directory for execution]:cwd path:_files -/' \\
                         '--notebook[Run only the specified notebook]:notebook name:' \\
                         '--block[Run only the specified block]:block id:' \\
+                        '*'{-i,--input}'[Set input variable value]:key=value:' \\
+                        '--list-inputs[List all input variables without running]' \\
                         '--json[Output results in JSON format]' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                validate)
+                    _arguments \\
+                        '--json[Output in JSON format]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 completion)
@@ -145,6 +162,7 @@ _deepnote
 const fishCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
 
@@ -183,8 +201,14 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l python -d 'Path to 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l cwd -d 'Working directory for execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run only the specified notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (can be repeated)'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List all input variables without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
+
+# validate subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote'
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

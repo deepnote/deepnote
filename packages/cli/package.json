@@ -42,10 +42,12 @@
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
+    "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
     "@toon-format/toon": "^2.1.0",
     "chalk": "^5.4.1",
-    "commander": "^14.0.2"
+    "commander": "^14.0.2",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "tsx": "^4.20.6"

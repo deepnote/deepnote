@@ -31,6 +31,9 @@ deepnote inspect path/to/file.deepnote
 # Inspect with JSON output (for scripting)
 deepnote inspect path/to/file.deepnote --json
 
+# Validate a .deepnote file
+deepnote validate path/to/file.deepnote
+
 # Run a .deepnote file
 deepnote run path/to/file.deepnote
 ```
@@ -104,6 +107,31 @@ deepnote run my-project.deepnote --notebook "Data Analysis"
 
 # Output results as JSON for CI/CD pipelines
 deepnote run my-project.deepnote --json
+```
+
+### `validate [path]`
+
+Validate a `.deepnote` file against the schema.
+
+```bash
+deepnote validate my-project.deepnote
+```
+
+**Options:**
+
+| Option   | Description                         |
+| -------- | ----------------------------------- |
+| `--json` | Output in JSON format for scripting |
+
+**Examples:**
+
+```bash
+# Validate a file
+deepnote validate my-project.deepnote
+
+# JSON output for CI/CD pipelines
+deepnote validate my-project.deepnote --json
+
 ```
 
 ### `completion <shell>`
@@ -248,6 +276,33 @@ interface RunError {
   error: string;
 }
 ```
+
+### `validate --json`
+
+```typescript
+// When validation runs (file found and readable):
+interface ValidationResult {
+  success: true;
+  path: string;
+  valid: boolean;
+  issues: Array<{
+    path: string; // JSON path to the invalid field (e.g., "notebooks.0.blocks.1")
+    message: string;
+    code: string; // Zod error code (e.g., "invalid_type", "unrecognized_keys")
+  }>;
+}
+
+// On error (file not found, resolution error, or runtime failure):
+interface ValidationError {
+  success: false;
+  error: string;
+}
+```
+
+The `success` field indicates whether the command completed:
+
+- `success: true` - validation ran, check `valid` for the result
+- `success: false` - operational error (file not found, etc.)
 
 ## Programmatic Usage
 

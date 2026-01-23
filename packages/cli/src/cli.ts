@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
+import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, output, setOutputConfig, shouldDisableColor } from './output'
@@ -159,6 +160,16 @@ ${c.bold('Examples:')}
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
+    .option(
+      '-i, --input <key=value>',
+      'Set input variable value (can be repeated)',
+      (val, prev: string[]) => {
+        prev.push(val)
+        return prev
+      },
+      []
+    )
+    .option('--list-inputs', 'List all input variables in the notebook without running')
     .option('--json', 'Output results in JSON format for scripting')
     .option('--toon', 'Output results in TOON format (LLM-optimized, reduced tokens)')
     .addHelpText('after', () => {
@@ -177,14 +188,62 @@ ${c.bold('Examples:')}
   ${c.dim('# Run only a specific block')}
   $ deepnote run my-project.deepnote --block abc123
 
+  ${c.dim('# List input variables needed by the notebook')}
+  $ deepnote run my-project.deepnote --list-inputs
+
+  ${c.dim('# Set input values for input blocks')}
+  $ deepnote run my-project.deepnote --input name="Alice" --input count=42
+
+  ${c.dim('# Input values support JSON for complex types')}
+  $ deepnote run my-project.deepnote -i 'config={"debug": true}'
+
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote --json
 
   ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
   $ deepnote run my-project.deepnote --toon
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  Runtime error (code execution failed)
+  ${c.dim('2')}  Invalid usage (missing file, bad arguments, missing required inputs)
 `
     })
     .action(createRunAction(program))
+
+  // Validate command - validate a .deepnote file against the schema
+  program
+    .command('validate')
+    .description('Validate a .deepnote file against the schema')
+    .argument('<path>', 'Path to a .deepnote file to validate')
+    .option('--json', 'Output in JSON format for scripting')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Reports whether the .deepnote file is valid and lists any schema violations.
+  Uses the Zod schemas from @deepnote/blocks to validate the file structure.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  File is valid
+  ${c.dim('1')}  File is invalid (schema violations found)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file)
+
+${c.bold('Examples:')}
+  ${c.dim('# Validate a .deepnote file')}
+  $ deepnote validate my-project.deepnote
+
+  ${c.dim('# Validate with JSON output for CI/CD')}
+  $ deepnote validate my-project.deepnote --json
+
+  ${c.dim('# Validate and check exit code in scripts')}
+  $ deepnote validate my-project.deepnote && echo "Valid!"
+
+  ${c.dim('# Parse JSON output with jq')}
+  $ deepnote validate my-project.deepnote --json | jq '.valid'
+`
+    })
+    .action(createValidateAction(program))
 
   // Completion command - generate shell completions
   program
