@@ -357,11 +357,11 @@ describe('run command', () => {
       expect(mockStop).toHaveBeenCalledTimes(1)
     })
 
-    describe('JSON output mode', () => {
+    describe('-o json output mode', () => {
       it('outputs JSON for successful run', async () => {
         setupSuccessfulRun({ totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 150 })
 
-        await action(HELLO_WORLD_FILE, { json: true })
+        await action(HELLO_WORLD_FILE, { output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)
@@ -389,7 +389,7 @@ describe('run command', () => {
         })
         mockStop.mockResolvedValue(undefined)
 
-        await action(HELLO_WORLD_FILE, { json: true })
+        await action(HELLO_WORLD_FILE, { output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)
@@ -418,7 +418,7 @@ describe('run command', () => {
         })
         mockStop.mockResolvedValue(undefined)
 
-        await action(HELLO_WORLD_FILE, { json: true })
+        await action(HELLO_WORLD_FILE, { output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)
@@ -430,7 +430,7 @@ describe('run command', () => {
       })
 
       it('outputs JSON error for file not found', async () => {
-        await action('non-existent.deepnote', { json: true })
+        await action('non-existent.deepnote', { output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)
@@ -442,7 +442,7 @@ describe('run command', () => {
       it('outputs JSON error when engine.start fails', async () => {
         setupStartFailure('Connection refused')
 
-        await action(HELLO_WORLD_FILE, { json: true })
+        await action(HELLO_WORLD_FILE, { output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)
@@ -452,11 +452,11 @@ describe('run command', () => {
       })
     })
 
-    describe('--toon option', () => {
+    describe('-o toon option', () => {
       it('outputs TOON result on success', async () => {
         setupSuccessfulRun({ totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 200 })
 
-        await action(HELLO_WORLD_FILE, { toon: true })
+        await action(HELLO_WORLD_FILE, { output: 'toon' })
 
         const output = getOutput(consoleLogSpy)
         expect(output).toContain('success: true')
@@ -466,7 +466,7 @@ describe('run command', () => {
       })
 
       it('outputs TOON error for non-existent file', async () => {
-        await action('non-existent-file.deepnote', { toon: true })
+        await action('non-existent-file.deepnote', { output: 'toon' })
 
         const output = getOutput(consoleLogSpy)
         expect(output).toContain('success: false')
@@ -475,10 +475,10 @@ describe('run command', () => {
         expect(process.exitCode).toBe(2) // InvalidUsage
       })
 
-      it('suppresses interactive output with --toon', async () => {
+      it('suppresses interactive output with -o toon', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { toon: true })
+        await action(HELLO_WORLD_FILE, { output: 'toon' })
 
         const output = getOutput(consoleLogSpy)
         // Should NOT contain the interactive messages
@@ -529,7 +529,7 @@ describe('run command', () => {
       })
 
       it('sets exit code 2 for file not found (InvalidUsage)', async () => {
-        await action('non-existent.deepnote', { json: true })
+        await action('non-existent.deepnote', { output: 'json' })
 
         expect(process.exitCode).toBe(2)
       })
@@ -548,7 +548,7 @@ describe('run command', () => {
           },
         ])
 
-        await action(BLOCKS_FILE, { json: true })
+        await action(BLOCKS_FILE, { output: 'json' })
 
         expect(process.exitCode).toBe(2)
       })
@@ -602,10 +602,10 @@ describe('run command', () => {
         expect(errorArg).toContain('SQL_')
       })
 
-      it('sets exit code 2 for missing integration (JSON mode)', async () => {
+      it('sets exit code 2 for missing integration (-o json mode)', async () => {
         mockGetBlockDependencies.mockResolvedValue([])
 
-        await action(INTEGRATIONS_FILE, { json: true })
+        await action(INTEGRATIONS_FILE, { output: 'json' })
 
         expect(process.exitCode).toBe(2)
         const output = getOutput(consoleLogSpy)
@@ -816,8 +816,8 @@ describe('run command', () => {
         expect(output).toContain('Current value')
       })
 
-      it('outputs JSON when --json flag is used', async () => {
-        await action(BLOCKS_FILE, { listInputs: true, json: true })
+      it('outputs JSON when -o json option is used', async () => {
+        await action(BLOCKS_FILE, { listInputs: true, output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)
@@ -827,7 +827,7 @@ describe('run command', () => {
       })
 
       it('JSON output includes input details', async () => {
-        await action(BLOCKS_FILE, { listInputs: true, json: true })
+        await action(BLOCKS_FILE, { listInputs: true, output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         const parsed = JSON.parse(output)

@@ -5,7 +5,15 @@ import { createRunAction } from './commands/run'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
-import { getChalk, getOutputConfig, output, setOutputConfig, shouldDisableColor } from './output'
+import {
+  getChalk,
+  getOutputConfig,
+  OUTPUT_FORMATS,
+  type OutputFormat,
+  output,
+  setOutputConfig,
+  shouldDisableColor,
+} from './output'
 import { version } from './version'
 
 /**
@@ -37,7 +45,7 @@ export function createProgram(): Command {
     .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
     .option('--debug', 'Show debug information for troubleshooting')
     .option('-q, --quiet', 'Suppress non-essential output')
-    .hook('preAction', (thisCommand, actionCommand) => {
+    .hook('preAction', (thisCommand, _actionCommand) => {
       const opts = thisCommand.opts<GlobalOptions>()
 
       // Configure output based on global options
@@ -50,14 +58,6 @@ export function createProgram(): Command {
       // Update chalk level if color is disabled
       if (!getOutputConfig().color) {
         chalk.level = 0
-      }
-
-      // Validate mutually exclusive output format options
-      const actionOpts = actionCommand.opts<{ json?: boolean; toon?: boolean }>()
-      if (actionOpts.json && actionOpts.toon) {
-        thisCommand.error('Options --json and --toon are mutually exclusive. Please use only one output format.', {
-          exitCode: ExitCode.InvalidUsage,
-        })
       }
     })
     .addHelpText('after', () => {
@@ -74,10 +74,10 @@ ${c.bold('Examples:')}
   $ deepnote inspect my-project.deepnote
 
   ${c.dim('# Inspect with JSON output (for scripting)')}
-  $ deepnote inspect my-project.deepnote --json
+  $ deepnote inspect my-project.deepnote -o json
 
   ${c.dim('# Run with TOON output (for LLMs)')}
-  $ deepnote run my-project.deepnote --toon
+  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
@@ -119,8 +119,12 @@ function registerCommands(program: Command): void {
     .command('inspect')
     .description('Inspect and display metadata from a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file to inspect')
-    .option('--json', 'Output in JSON format for scripting')
-    .option('--toon', 'Output in TOON format (LLM-optimized, reduced tokens)')
+    .option('-o, --output <format>', 'Output format: json, toon', (value: string): OutputFormat => {
+      if (!OUTPUT_FORMATS.includes(value as OutputFormat)) {
+        throw new Error(`Invalid output format: ${value}. Valid formats: ${OUTPUT_FORMATS.join(', ')}`)
+      }
+      return value as OutputFormat
+    })
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -140,13 +144,13 @@ ${c.bold('Examples:')}
   $ deepnote inspect notebooks/analysis.deepnote
 
   ${c.dim('# Output as JSON for scripting')}
-  $ deepnote inspect my-project.deepnote --json
+  $ deepnote inspect my-project.deepnote -o json
 
   ${c.dim('# Output as TOON for LLM consumption (30-60% fewer tokens)')}
-  $ deepnote inspect my-project.deepnote --toon
+  $ deepnote inspect my-project.deepnote -o toon
 
   ${c.dim('# Use with jq for specific fields')}
-  $ deepnote inspect my-project.deepnote --json | jq '.project.name'
+  $ deepnote inspect my-project.deepnote -o json | jq '.project.name'
 `
     })
     .action(createInspectAction(program))
@@ -170,8 +174,12 @@ ${c.bold('Examples:')}
       []
     )
     .option('--list-inputs', 'List all input variables in the notebook without running')
-    .option('--json', 'Output results in JSON format for scripting')
-    .option('--toon', 'Output results in TOON format (LLM-optimized, reduced tokens)')
+    .option('-o, --output <format>', 'Output format: json, toon', (value: string): OutputFormat => {
+      if (!OUTPUT_FORMATS.includes(value as OutputFormat)) {
+        throw new Error(`Invalid output format: ${value}. Valid formats: ${OUTPUT_FORMATS.join(', ')}`)
+      }
+      return value as OutputFormat
+    })
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -198,10 +206,10 @@ ${c.bold('Examples:')}
   $ deepnote run my-project.deepnote -i 'config={"debug": true}'
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
-  $ deepnote run my-project.deepnote --json
+  $ deepnote run my-project.deepnote -o json
 
   ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
-  $ deepnote run my-project.deepnote --toon
+  $ deepnote run my-project.deepnote -o toon
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
@@ -216,7 +224,13 @@ ${c.bold('Exit Codes:')}
     .command('validate')
     .description('Validate a .deepnote file against the schema')
     .argument('<path>', 'Path to a .deepnote file to validate')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json', (value: string): OutputFormat => {
+      // Validate command only supports JSON output (no TOON)
+      if (value !== 'json') {
+        throw new Error(`Invalid output format: ${value}. Valid formats: json`)
+      }
+      return value as OutputFormat
+    })
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -234,13 +248,13 @@ ${c.bold('Examples:')}
   $ deepnote validate my-project.deepnote
 
   ${c.dim('# Validate with JSON output for CI/CD')}
-  $ deepnote validate my-project.deepnote --json
+  $ deepnote validate my-project.deepnote -o json
 
   ${c.dim('# Validate and check exit code in scripts')}
   $ deepnote validate my-project.deepnote && echo "Valid!"
 
   ${c.dim('# Parse JSON output with jq')}
-  $ deepnote validate my-project.deepnote --json | jq '.valid'
+  $ deepnote validate my-project.deepnote -o json | jq '.valid'
 `
     })
     .action(createValidateAction(program))

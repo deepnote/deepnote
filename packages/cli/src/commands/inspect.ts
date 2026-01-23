@@ -3,12 +3,11 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, output, outputJson, outputToon } from '../output'
+import { debug, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface InspectOptions {
-  json?: boolean
-  toon?: boolean
+  output?: OutputFormat
 }
 
 export function createInspectAction(
@@ -23,9 +22,9 @@ export function createInspectAction(
       const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: message })
-      } else if (options.toon) {
+      } else if (options.output === 'toon') {
         outputToon({ success: false, error: message })
       } else {
         logError(message)
@@ -45,9 +44,9 @@ async function inspectDeepnoteFile(path: string | undefined, options: InspectOpt
   debug('Parsing .deepnote file...')
   const deepnoteFile = deserializeDeepnoteFile(yamlContent)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputInspectJson(absolutePath, deepnoteFile)
-  } else if (options.toon) {
+  } else if (options.output === 'toon') {
     outputInspectToon(absolutePath, deepnoteFile)
   } else {
     printDeepnoteFileMetadata(absolutePath, deepnoteFile)

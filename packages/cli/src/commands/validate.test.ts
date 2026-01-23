@@ -78,11 +78,11 @@ describe('validate command', () => {
       expect(output).toContain('is valid')
     })
 
-    it('outputs JSON when --json option is used for valid file', async () => {
+    it('outputs JSON when -o json option is used for valid file', async () => {
       const action = createValidateAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -118,13 +118,13 @@ describe('validate command', () => {
   })
 
   describe('error handling', () => {
-    it('outputs JSON error and exits when file not found with --json', async () => {
+    it('outputs JSON error and exits when file not found with -o json', async () => {
       const action = createValidateAction(program)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.deepnote', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent-file.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -134,7 +134,7 @@ describe('validate command', () => {
       exitSpy.mockRestore()
     })
 
-    it('exits with error when file not found without --json', async () => {
+    it('exits with error when file not found without -o json', async () => {
       const action = createValidateAction(program)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called')
@@ -163,7 +163,7 @@ version: "1.0.0"
       const filePath = await createTempFile(invalidContent)
 
       try {
-        await expect(action(filePath, { json: true })).rejects.toThrow('process.exit called')
+        await expect(action(filePath, { output: 'json' })).rejects.toThrow('process.exit called')
 
         const output = getOutput(consoleSpy)
         const parsed = JSON.parse(output)
@@ -188,7 +188,7 @@ version: "1.0.0"
       const filePath = await createTempFile(invalidContent)
 
       try {
-        await expect(action(filePath, { json: true })).rejects.toThrow('process.exit called')
+        await expect(action(filePath, { output: 'json' })).rejects.toThrow('process.exit called')
 
         const output = getOutput(consoleSpy)
         const parsed = JSON.parse(output)
@@ -279,7 +279,7 @@ version: "1.0.0"
       const filePath = await createTempFile(invalidContent)
 
       try {
-        await expect(action(filePath, { json: true })).rejects.toThrow('process.exit called')
+        await expect(action(filePath, { output: 'json' })).rejects.toThrow('process.exit called')
 
         const output = getOutput(consoleSpy)
         const parsed = JSON.parse(output)
@@ -355,7 +355,7 @@ version: "1.0.0"
       const action = createValidateAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -367,7 +367,7 @@ version: "1.0.0"
       const action = createValidateAction(program)
       const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -381,7 +381,7 @@ version: "1.0.0"
       const action = createValidateAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -412,7 +412,7 @@ version: "1.0.0"
       const filePath = await createTempFile(invalidContent)
 
       try {
-        await expect(action(filePath, { json: true })).rejects.toThrow('process.exit called')
+        await expect(action(filePath, { output: 'json' })).rejects.toThrow('process.exit called')
 
         const output = getOutput(consoleSpy)
         const parsed = JSON.parse(output)

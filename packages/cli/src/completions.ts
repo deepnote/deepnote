@@ -35,22 +35,36 @@ _deepnote_completions() {
             return 0
             ;;
         inspect)
-            # Complete --json and .deepnote files
-            COMPREPLY=( $(compgen -W "--json" -- "\${cur}") $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete -o/--output options and .deepnote files
+            if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
+                COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
+            elif [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         run)
             # Complete .deepnote files and flags
-            if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs --json" -- "\${cur}") )
+            if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
+                COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
+            elif [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
             return 0
             ;;
         validate)
-            # Complete --json and .deepnote files
-            COMPREPLY=( $(compgen -W "--json" -- "\${cur}") $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete -o/--output options and .deepnote files
+            if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
+                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
+            elif [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         completion)
@@ -124,7 +138,7 @@ ${commandEntries}
             case $words[1] in
                 inspect)
                     _arguments \\
-                        '--json[Output in JSON format]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 run)
@@ -135,12 +149,12 @@ ${commandEntries}
                         '--block[Run only the specified block]:block id:' \\
                         '*'{-i,--input}'[Set input variable value]:key=value:' \\
                         '--list-inputs[List all input variables without running]' \\
-                        '--json[Output results in JSON format]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 validate)
                     _arguments \\
-                        '--json[Output in JSON format]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 completion)
@@ -193,7 +207,7 @@ complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
 ${commandCompletions}
 
 # inspect subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from inspect' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from inspect' -s o -l output -d 'Output format' -xa 'json toon'
 complete -c deepnote -n '__fish_seen_subcommand_from inspect' -F -a '*.deepnote'
 
 # run subcommand
@@ -203,11 +217,11 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run on
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (can be repeated)'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List all input variables without running'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -s o -l output -d 'Output format' -xa 'json toon'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 
 # validate subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from validate' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json'
 complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote'
 
 # completion subcommand

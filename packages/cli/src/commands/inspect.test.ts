@@ -78,11 +78,11 @@ describe('inspect command', () => {
       expect(output).toContain('1 blocks')
     })
 
-    it('outputs JSON when --json option is used', async () => {
+    it('outputs JSON when -o json option is used', async () => {
       const action = createInspectAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -94,11 +94,11 @@ describe('inspect command', () => {
       expect(parsed.statistics.totalBlocks).toBe(1)
     })
 
-    it('outputs TOON when --toon option is used', async () => {
+    it('outputs TOON when -o toon option is used', async () => {
       const action = createInspectAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { toon: true })
+      await action(filePath, { output: 'toon' })
 
       const output = getOutput(consoleSpy)
       // TOON format uses key: value syntax without JSON quotes
@@ -135,13 +135,13 @@ describe('inspect command', () => {
   })
 
   describe('error handling', () => {
-    it('outputs JSON error and exits when --json option is used', async () => {
+    it('outputs JSON error and exits when -o json option is used', async () => {
       const action = createInspectAction(program)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.deepnote', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent-file.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -151,13 +151,13 @@ describe('inspect command', () => {
       exitSpy.mockRestore()
     })
 
-    it('outputs TOON error and exits when --toon option is used', async () => {
+    it('outputs TOON error and exits when -o toon option is used', async () => {
       const action = createInspectAction(program)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.deepnote', { toon: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent-file.deepnote', { output: 'toon' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       // TOON format for error response

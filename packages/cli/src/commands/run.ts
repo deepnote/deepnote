@@ -18,7 +18,7 @@ import {
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, log, error as logError, output, outputJson, outputToon } from '../output'
+import { debug, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -58,8 +58,7 @@ export interface RunOptions {
   block?: string
   input?: string[]
   listInputs?: boolean
-  json?: boolean
-  toon?: boolean
+  output?: OutputFormat
 }
 
 /** Result of a single block execution for JSON output */
@@ -102,12 +101,12 @@ export function createRunAction(program: Command): (path: string, options: RunOp
         error instanceof MissingIntegrationError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: message })
         process.exitCode = exitCode
         return
       }
-      if (options.toon) {
+      if (options.output === 'toon') {
         outputToon({ success: false, error: message })
         process.exitCode = exitCode
         return
@@ -219,7 +218,7 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
 
   const inputs = getInputBlocks(file, options.notebook)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({
       path: absolutePath,
       inputs: inputs.map(i => ({
@@ -391,7 +390,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
   const pythonEnv = options.python ?? detectDefaultPython()
   // Machine-readable output suppresses interactive messages
-  const isMachineOutput = options.json || options.toon
+  const isMachineOutput = options.output !== undefined
   const inputs = parseInputs(options.input)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
@@ -511,7 +510,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         totalDurationMs: summary.totalDurationMs,
         blocks: blockResults,
       }
-      if (options.toon) {
+      if (options.output === 'toon') {
         outputToon(result, { showEfficiencyHint: true })
       } else {
         outputJson(result)

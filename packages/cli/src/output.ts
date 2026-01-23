@@ -3,6 +3,18 @@ import { Chalk, type ChalkInstance } from 'chalk'
 import { analyzeToonEfficiency } from './utils/toon-analysis'
 
 /**
+ * Available output formats for CLI commands.
+ * - json: Machine-readable JSON format for scripting
+ * - toon: Token-Oriented Object Notation, optimized for LLM consumption
+ */
+export type OutputFormat = 'json' | 'toon'
+
+/**
+ * Valid output format values for validation.
+ */
+export const OUTPUT_FORMATS: readonly OutputFormat[] = ['json', 'toon'] as const
+
+/**
  * Global output configuration for the CLI.
  * Controls color output, verbosity, and quiet mode.
  */
