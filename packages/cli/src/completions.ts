@@ -23,11 +23,36 @@ function generateBashCompletion(commands: string[]): string {
 # Add this to ~/.bashrc or ~/.bash_profile
 
 _deepnote_completions() {
-    local cur prev commands
+    local cur prev commands subcommand word
     COMPREPLY=()
     cur="\${COMP_WORDS[COMP_CWORD]}"
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
     commands="${commands.join(' ')} help"
+
+    # Find the subcommand by scanning COMP_WORDS
+    subcommand=""
+    for word in "\${COMP_WORDS[@]:1}"; do
+        case "\${word}" in
+            inspect|run|validate|completion|help)
+                subcommand="\${word}"
+                break
+                ;;
+        esac
+    done
+
+    # Handle -o/--output option completion based on the subcommand
+    if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
+        case "\${subcommand}" in
+            inspect|run)
+                COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
+                return 0
+                ;;
+            validate)
+                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
+                return 0
+                ;;
+        esac
+    fi
 
     case "\${prev}" in
         deepnote)
@@ -36,9 +61,7 @@ _deepnote_completions() {
             ;;
         inspect)
             # Complete -o/--output options and .deepnote files
-            if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
-                COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
-            elif [[ "\${cur}" == -* ]]; then
+            if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "-o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
@@ -47,9 +70,7 @@ _deepnote_completions() {
             ;;
         run)
             # Complete .deepnote files and flags
-            if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
-                COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
-            elif [[ "\${cur}" == -* ]]; then
+            if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
@@ -58,9 +79,7 @@ _deepnote_completions() {
             ;;
         validate)
             # Complete -o/--output options and .deepnote files
-            if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
-                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
-            elif [[ "\${cur}" == -* ]]; then
+            if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "-o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
