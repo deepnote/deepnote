@@ -10,8 +10,10 @@ const mockConstructor = vi.fn()
 const mockGetBlockDependencies = vi.fn()
 
 // Mock @deepnote/runtime-core before importing run
-vi.mock('@deepnote/runtime-core', () => {
+vi.mock('@deepnote/runtime-core', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/runtime-core')>()
   return {
+    ...actual,
     ExecutionEngine: class MockExecutionEngine {
       start = mockStart
       stop = mockStop
@@ -33,6 +35,12 @@ vi.mock('@deepnote/reactivity', () => {
 })
 
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
+
+// Helper to parse JSON from console output
+function getJsonOutput(spy: Mock): unknown {
+  const calls = spy.mock.calls.map(call => call.join(' ')).join('\n')
+  return JSON.parse(calls)
+}
 
 // Example files relative to project root
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -919,6 +927,235 @@ describe('run command', () => {
       const error = new MissingIntegrationError('Multiple missing', integrations)
       expect(error.missingIntegrations).toHaveLength(4)
       expect(error.missingIntegrations).toEqual(integrations)
+    })
+  })
+
+  describe('dry-run mode', () => {
+    let program: Command
+    let action: (
+      path: string,
+      options: {
+        python?: string
+        cwd?: string
+        notebook?: string
+        block?: string
+        input?: string[]
+        output?: 'json' | 'toon'
+        dryRun?: boolean
+      }
+    ) => Promise<void>
+    let consoleLogSpy: Mock
+    let programErrorSpy: Mock
+    let originalExitCode: typeof process.exitCode
+
+    beforeEach(() => {
+      originalExitCode = process.exitCode
+      vi.clearAllMocks()
+
+      // Reset getBlockDependencies to return empty by default (no validation errors)
+      mockGetBlockDependencies.mockResolvedValue([])
+
+      program = new Command()
+      program.exitOverride()
+      action = createRunAction(program)
+
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      programErrorSpy = vi.spyOn(program, 'error').mockImplementation(() => {
+        throw new Error('program.error called')
+      })
+    })
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore()
+      programErrorSpy.mockRestore()
+      process.exitCode = originalExitCode
+    })
+
+    it('does not start ExecutionEngine in dry-run mode', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      expect(mockConstructor).not.toHaveBeenCalled()
+      expect(mockStart).not.toHaveBeenCalled()
+      expect(mockStop).not.toHaveBeenCalled()
+    })
+
+    it('shows execution plan header', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toContain('Execution Plan (dry run)')
+    })
+
+    it('shows blocks that would be executed', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toContain('[1/')
+      expect(output).toContain('code')
+    })
+
+    it('shows total block count in summary', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toMatch(/Total: \d+ block\(s\) would be executed/)
+    })
+
+    it('outputs JSON format when -o json is set', async () => {
+      await action(HELLO_WORLD_FILE, { dryRun: true, output: 'json' })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as {
+        dryRun: boolean
+        path: string
+        totalBlocks: number
+        blocks: Array<{ id: string; type: string; label: string; notebook: string }>
+      }
+
+      expect(jsonOutput.dryRun).toBe(true)
+      expect(jsonOutput.path).toContain('1_hello_world.deepnote')
+      expect(jsonOutput.totalBlocks).toBeGreaterThan(0)
+      expect(Array.isArray(jsonOutput.blocks)).toBe(true)
+      expect(jsonOutput.blocks[0]).toHaveProperty('id')
+      expect(jsonOutput.blocks[0]).toHaveProperty('type')
+      expect(jsonOutput.blocks[0]).toHaveProperty('label')
+      expect(jsonOutput.blocks[0]).toHaveProperty('notebook')
+    })
+
+    it('filters by notebook name', async () => {
+      await action(BLOCKS_FILE, { dryRun: true, notebook: '1. Text blocks', output: 'json' })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as {
+        blocks: Array<{ notebook: string }>
+      }
+
+      // All blocks should be from the specified notebook
+      expect(jsonOutput.blocks.length).toBeGreaterThan(0)
+      for (const block of jsonOutput.blocks) {
+        expect(block.notebook).toBe('1. Text blocks')
+      }
+    })
+
+    it('filters by block id', async () => {
+      // First get all blocks to find a valid block id
+      await action(HELLO_WORLD_FILE, { dryRun: true, output: 'json' })
+      const allBlocks = getJsonOutput(consoleLogSpy) as {
+        blocks: Array<{ id: string }>
+      }
+      const targetBlockId = allBlocks.blocks[0].id
+
+      // Clear and run again with block filter
+      consoleLogSpy.mockClear()
+      await action(HELLO_WORLD_FILE, { dryRun: true, block: targetBlockId, output: 'json' })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as {
+        blocks: Array<{ id: string }>
+      }
+
+      expect(jsonOutput.blocks).toHaveLength(1)
+      expect(jsonOutput.blocks[0].id).toBe(targetBlockId)
+    })
+
+    it('throws error when notebook not found', async () => {
+      await expect(action(HELLO_WORLD_FILE, { dryRun: true, notebook: 'NonExistent' })).rejects.toThrow(
+        'program.error called'
+      )
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Notebook "NonExistent" not found')
+    })
+
+    it('throws error when block not found', async () => {
+      await expect(action(HELLO_WORLD_FILE, { dryRun: true, block: 'nonexistent-block-id' })).rejects.toThrow(
+        'program.error called'
+      )
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Block "nonexistent-block-id" not found')
+    })
+
+    it('returns JSON error when file not found with -o json', async () => {
+      await action('nonexistent.deepnote', { dryRun: true, output: 'json' })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as { success: boolean; error: string }
+      expect(jsonOutput.success).toBe(false)
+      expect(jsonOutput.error).toContain('not found')
+    })
+
+    it('throws error for non-existent file without --json flag', async () => {
+      await expect(action('nonexistent.deepnote', { dryRun: true })).rejects.toThrow('program.error called')
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('not found')
+    })
+
+    it('throws MissingInputError for missing inputs in dry-run mode', async () => {
+      mockGetBlockDependencies.mockResolvedValue([
+        {
+          id: '2665e1a332df6436b0ce30d662bfe1f1', // code block in "1. Text blocks" at sortingKey: a1
+          usedVariables: ['input_textarea'], // input block at sortingKey: a2
+          definedVariables: [],
+          imports: [],
+          importedModules: [],
+          builtins: [],
+        },
+      ])
+
+      await expect(action(BLOCKS_FILE, { dryRun: true })).rejects.toThrow('program.error called')
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Missing required inputs')
+    })
+
+    it('throws MissingIntegrationError for SQL blocks without env var in dry-run mode', async () => {
+      mockGetBlockDependencies.mockResolvedValue([])
+
+      await expect(action(INTEGRATIONS_FILE, { dryRun: true })).rejects.toThrow('program.error called')
+
+      expect(programErrorSpy).toHaveBeenCalled()
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('Missing database integration')
+    })
+
+    it('passes dry-run validation when inputs are provided via --input', async () => {
+      mockGetBlockDependencies.mockResolvedValue([
+        {
+          id: '2665e1a332df6436b0ce30d662bfe1f1',
+          usedVariables: ['input_textarea'],
+          definedVariables: [],
+          imports: [],
+          importedModules: [],
+          builtins: [],
+        },
+      ])
+
+      await action(BLOCKS_FILE, { dryRun: true, input: ['input_textarea=test value'] })
+
+      const output = getOutput(consoleLogSpy)
+      expect(output).toContain('Execution Plan (dry run)')
+    })
+
+    it('returns JSON error for missing inputs in dry-run mode with -o json', async () => {
+      mockGetBlockDependencies.mockResolvedValue([
+        {
+          id: '2665e1a332df6436b0ce30d662bfe1f1',
+          usedVariables: ['input_textarea'],
+          definedVariables: [],
+          imports: [],
+          importedModules: [],
+          builtins: [],
+        },
+      ])
+
+      await action(BLOCKS_FILE, { dryRun: true, output: 'json' })
+
+      expect(process.exitCode).toBe(2)
+      const jsonOutput = getJsonOutput(consoleLogSpy) as { success: boolean; error: string }
+      expect(jsonOutput.success).toBe(false)
+      expect(jsonOutput.error).toContain('Missing required inputs')
     })
   })
 })
