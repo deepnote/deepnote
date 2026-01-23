@@ -72,9 +72,6 @@ ${c.bold('Examples:')}
   ${c.dim('# Run with TOON output (for LLMs)')}
   $ deepnote run my-project.deepnote -o toon
 
-  ${c.dim('# Inspect with JSON output (for scripting)')}
-  $ deepnote inspect my-project.deepnote -o json
-
   ${c.dim('# Get help for a specific command')}
   $ deepnote help run
 
