@@ -6,6 +6,8 @@ Command-line interface for running Deepnote projects locally and on Deepnote Clo
 
 ## Installation
 
+> **Note:** Installation via PyPI is planned for a future release and may deprecate these methods of installation.
+
 ```bash
 npm install -g @deepnote/cli
 # or
@@ -28,6 +30,9 @@ deepnote inspect path/to/file.deepnote
 
 # Inspect with JSON output (for scripting)
 deepnote inspect path/to/file.deepnote --json
+
+# Validate a .deepnote file
+deepnote validate path/to/file.deepnote
 
 # Run a .deepnote file
 deepnote run path/to/file.deepnote
@@ -82,7 +87,7 @@ deepnote run my-project.deepnote
 
 | Option              | Description                                            | Default  |
 | ------------------- | ------------------------------------------------------ | -------- |
-| `--python <path>`   | Path to Python interpreter                             | `python` |
+| `--python <path>`   | Path to Python interpreter or virtual environment      | `python` |
 | `--cwd <path>`      | Working directory for execution (defaults to file dir) |          |
 | `--notebook <name>` | Run only the specified notebook                        |          |
 | `--block <id>`      | Run only the specified block                           |          |
@@ -94,14 +99,39 @@ deepnote run my-project.deepnote
 # Run all notebooks
 deepnote run my-project.deepnote
 
-# Run with a specific Python interpreter
-deepnote run my-project.deepnote --python python3.11
+# Run with a specific Python virtual environment
+deepnote run my-project.deepnote --python path/to/venv
 
 # Run only a specific notebook
 deepnote run my-project.deepnote --notebook "Data Analysis"
 
 # Output results as JSON for CI/CD pipelines
 deepnote run my-project.deepnote --json
+```
+
+### `validate [path]`
+
+Validate a `.deepnote` file against the schema.
+
+```bash
+deepnote validate my-project.deepnote
+```
+
+**Options:**
+
+| Option   | Description                         |
+| -------- | ----------------------------------- |
+| `--json` | Output in JSON format for scripting |
+
+**Examples:**
+
+```bash
+# Validate a file
+deepnote validate my-project.deepnote
+
+# JSON output for CI/CD pipelines
+deepnote validate my-project.deepnote --json
+
 ```
 
 ### `completion <shell>`
@@ -178,6 +208,7 @@ fi
 
 ```typescript
 interface InspectOutput {
+  success: true;
   path: string;
   project: {
     name: string;
@@ -198,6 +229,12 @@ interface InspectOutput {
     blockCount: number;
     isModule: boolean;
   }>;
+}
+
+// On error:
+interface InspectError {
+  success: false;
+  error: string;
 }
 ```
 
@@ -239,6 +276,33 @@ interface RunError {
   error: string;
 }
 ```
+
+### `validate --json`
+
+```typescript
+// When validation runs (file found and readable):
+interface ValidationResult {
+  success: true;
+  path: string;
+  valid: boolean;
+  issues: Array<{
+    path: string; // JSON path to the invalid field (e.g., "notebooks.0.blocks.1")
+    message: string;
+    code: string; // Zod error code (e.g., "invalid_type", "unrecognized_keys")
+  }>;
+}
+
+// On error (file not found, resolution error, or runtime failure):
+interface ValidationError {
+  success: false;
+  error: string;
+}
+```
+
+The `success` field indicates whether the command completed:
+
+- `success: true` - validation ran, check `valid` for the result
+- `success: false` - operational error (file not found, etc.)
 
 ## Programmatic Usage
 

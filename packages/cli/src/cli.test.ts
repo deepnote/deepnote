@@ -30,6 +30,7 @@ describe('CLI', () => {
       expect(commandNames).toContain('inspect')
       expect(commandNames).toContain('run')
       expect(commandNames).toContain('convert')
+      expect(commandNames).toContain('validate')
       expect(commandNames).toContain('completion')
     })
   })
@@ -80,6 +81,17 @@ describe('CLI', () => {
       expect(optionFlags).toContain('-o, --output <path>')
       expect(optionFlags).toContain('-n, --name <name>')
       expect(optionFlags).toContain('-f, --format <format>')
+      expect(optionFlags).toContain('--json')
+    })
+
+    it('validate command is properly configured', () => {
+      const program = createProgram()
+      const validateCmd = program.commands.find(cmd => cmd.name() === 'validate')
+
+      expect(validateCmd).toBeDefined()
+      expect(validateCmd?.description()).toBe('Validate a .deepnote file against the schema')
+
+      const optionFlags = validateCmd?.options.map(o => o.flags)
       expect(optionFlags).toContain('--json')
     })
   })
@@ -153,19 +165,6 @@ describe('CLI', () => {
       await expect(program.parseAsync(['completion', 'powershell'], { from: 'user' })).rejects.toThrow(
         'Unsupported shell'
       )
-    })
-
-    it('run command is properly configured', () => {
-      const program = createProgram()
-      const runCmd = program.commands.find(cmd => cmd.name() === 'run')
-
-      expect(runCmd).toBeDefined()
-      expect(runCmd?.description()).toBe('Run a .deepnote file')
-
-      const optionFlags = runCmd?.options.map(o => o.flags)
-      expect(optionFlags).toContain('--python <path>')
-      expect(optionFlags).toContain('--notebook <name>')
-      expect(optionFlags).toContain('--block <id>')
     })
   })
 

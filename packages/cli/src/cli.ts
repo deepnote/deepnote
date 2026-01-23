@@ -3,8 +3,10 @@ import { Command } from 'commander'
 import { createConvertAction } from './commands/convert'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
+import { createValidateAction } from './commands/validate'
+import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
-import { getChalk, getOutputConfig, setOutputConfig, shouldDisableColor } from './output'
+import { getChalk, getOutputConfig, output, setOutputConfig, shouldDisableColor } from './output'
 import { version } from './version'
 
 /**
@@ -140,10 +142,20 @@ ${c.bold('Examples:')}
     .command('run')
     .description('Run a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file to run')
-    .option('--python <path>', 'Path to Python virtual environment directory', 'python')
+    .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
+    .option(
+      '-i, --input <key=value>',
+      'Set input variable value (can be repeated)',
+      (val, prev: string[]) => {
+        prev.push(val)
+        return prev
+      },
+      []
+    )
+    .option('--list-inputs', 'List all input variables in the notebook without running')
     .option('--json', 'Output results in JSON format for scripting')
     .addHelpText('after', () => {
       const c = getChalk()
@@ -152,8 +164,8 @@ ${c.bold('Examples:')}
   ${c.dim('# Run all notebooks in a .deepnote file')}
   $ deepnote run my-project.deepnote
 
-  ${c.dim('# Run with a specific Python interpreter')}
-  $ deepnote run my-project.deepnote --python python3.11
+  ${c.dim('# Run with a specific Python virtual environment')}
+  $ deepnote run my-project.deepnote --python path/to/venv
 
   ${c.dim('# Run only a specific notebook')}
   $ deepnote run my-project.deepnote --notebook "Data Analysis"
@@ -161,8 +173,22 @@ ${c.bold('Examples:')}
   ${c.dim('# Run only a specific block')}
   $ deepnote run my-project.deepnote --block abc123
 
+  ${c.dim('# List input variables needed by the notebook')}
+  $ deepnote run my-project.deepnote --list-inputs
+
+  ${c.dim('# Set input values for input blocks')}
+  $ deepnote run my-project.deepnote --input name="Alice" --input count=42
+
+  ${c.dim('# Input values support JSON for complex types')}
+  $ deepnote run my-project.deepnote -i 'config={"debug": true}'
+
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote --json
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  Runtime error (code execution failed)
+  ${c.dim('2')}  Invalid usage (missing file, bad arguments, missing required inputs)
 `
     })
     .action(createRunAction(program))
@@ -221,6 +247,40 @@ ${c.bold('Examples:')}
     })
     .action(createConvertAction(program))
 
+  // Validate command - validate a .deepnote file against the schema
+  program
+    .command('validate')
+    .description('Validate a .deepnote file against the schema')
+    .argument('<path>', 'Path to a .deepnote file to validate')
+    .option('--json', 'Output in JSON format for scripting')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Reports whether the .deepnote file is valid and lists any schema violations.
+  Uses the Zod schemas from @deepnote/blocks to validate the file structure.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  File is valid
+  ${c.dim('1')}  File is invalid (schema violations found)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file)
+
+${c.bold('Examples:')}
+  ${c.dim('# Validate a .deepnote file')}
+  $ deepnote validate my-project.deepnote
+
+  ${c.dim('# Validate with JSON output for CI/CD')}
+  $ deepnote validate my-project.deepnote --json
+
+  ${c.dim('# Validate and check exit code in scripts')}
+  $ deepnote validate my-project.deepnote && echo "Valid!"
+
+  ${c.dim('# Parse JSON output with jq')}
+  $ deepnote validate my-project.deepnote --json | jq '.valid'
+`
+    })
+    .action(createValidateAction(program))
+
   // Completion command - generate shell completions
   program
     .command('completion')
@@ -257,206 +317,13 @@ ${c.bold('Examples:')}
     .action((shell: string) => {
       const completionScript = generateCompletionScript(shell, program)
       if (completionScript) {
-        console.log(completionScript)
+        output(completionScript)
       } else {
         program.error(`Unsupported shell: ${shell}. Supported shells: bash, zsh, fish`, {
           exitCode: ExitCode.InvalidUsage,
         })
       }
     })
-}
-
-/**
- * Generate shell completion script for the given shell.
- */
-function generateCompletionScript(shell: string, program: Command): string | null {
-  const commands = program.commands.map(cmd => cmd.name()).filter(name => name !== 'help')
-
-  switch (shell.toLowerCase()) {
-    case 'bash':
-      return generateBashCompletion(commands)
-    case 'zsh':
-      return generateZshCompletion()
-    case 'fish':
-      return generateFishCompletion()
-    default:
-      return null
-  }
-}
-
-function generateBashCompletion(commands: string[]): string {
-  return `# Bash completion for deepnote CLI
-# Add this to ~/.bashrc or ~/.bash_profile
-
-_deepnote_completions() {
-    local cur prev commands
-    COMPREPLY=()
-    cur="\${COMP_WORDS[COMP_CWORD]}"
-    prev="\${COMP_WORDS[COMP_CWORD-1]}"
-    commands="${commands.join(' ')} help"
-
-    case "\${prev}" in
-        deepnote)
-            COMPREPLY=( $(compgen -W "\${commands} --help --version --no-color --debug --quiet" -- "\${cur}") )
-            return 0
-            ;;
-        inspect)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
-            return 0
-            ;;
-        run)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
-            return 0
-            ;;
-        convert)
-            # Complete notebook files and directories
-            COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
-            return 0
-            ;;
-        completion)
-            COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
-            return 0
-            ;;
-        help)
-            COMPREPLY=( $(compgen -W "\${commands}" -- "\${cur}") )
-            return 0
-            ;;
-    esac
-
-    # Default to file completion
-    COMPREPLY=( $(compgen -f -- "\${cur}") )
-}
-
-complete -F _deepnote_completions deepnote
-`
-}
-
-function generateZshCompletion(): string {
-  return `#compdef deepnote
-# Zsh completion for deepnote CLI
-# Add this to ~/.zshrc
-
-_deepnote() {
-    local -a commands
-    commands=(
-        'inspect:Inspect and display metadata from a .deepnote file'
-        'run:Run a .deepnote file'
-        'convert:Convert between notebook formats'
-        'completion:Generate shell completion scripts'
-        'help:Display help for command'
-    )
-
-    local -a global_options
-    global_options=(
-        '--help[Display help information]'
-        '-h[Display help information]'
-        '--version[Display the CLI version]'
-        '-v[Display the CLI version]'
-        '--no-color[Disable colored output]'
-        '--debug[Show debug information]'
-        '--quiet[Suppress non-essential output]'
-        '-q[Suppress non-essential output]'
-    )
-
-    _arguments -C \\
-        $global_options \\
-        '1: :->command' \\
-        '*:: :->args'
-
-    case $state in
-        command)
-            _describe -t commands 'deepnote commands' commands
-            ;;
-        args)
-            case $words[1] in
-                inspect)
-                    _arguments \\
-                        '--json[Output in JSON format]' \\
-                        '*:deepnote file:_files -g "*.deepnote"'
-                    ;;
-                run)
-                    _arguments \\
-                        '--python[Path to Python interpreter]:python path:_files' \\
-                        '--cwd[Working directory for execution]:cwd path:_files -/' \\
-                        '--notebook[Run only the specified notebook]:notebook name:' \\
-                        '--block[Run only the specified block]:block id:' \\
-                        '--json[Output results in JSON format]' \\
-                        '*:deepnote file:_files -g "*.deepnote"'
-                    ;;
-                convert)
-                    _arguments \\
-                        '-o[Output path]:output path:_files' \\
-                        '--output[Output path]:output path:_files' \\
-                        '-n[Project name]:project name:' \\
-                        '--name[Project name]:project name:' \\
-                        '-f[Output format]:format:(jupyter percent quarto marimo)' \\
-                        '--format[Output format]:format:(jupyter percent quarto marimo)' \\
-                        '--json[Output result in JSON format]' \\
-                        '*:file or directory:_files'
-                    ;;
-                completion)
-                    _arguments '1:shell:(bash zsh fish)'
-                    ;;
-                help)
-                    _describe -t commands 'commands' commands
-                    ;;
-            esac
-            ;;
-    esac
-}
-
-_deepnote
-`
-}
-
-function generateFishCompletion(): string {
-  return `# Fish completion for deepnote CLI
-# Save to ~/.config/fish/completions/deepnote.fish
-
-# Disable file completions by default
-complete -c deepnote -f
-
-# Global options
-complete -c deepnote -l help -s h -d 'Display help information'
-complete -c deepnote -l version -s v -d 'Display the CLI version'
-complete -c deepnote -l no-color -d 'Disable colored output'
-complete -c deepnote -l debug -d 'Show debug information'
-complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
-
-# Commands
-complete -c deepnote -n __fish_use_subcommand -a inspect -d 'Inspect and display metadata from a .deepnote file'
-complete -c deepnote -n __fish_use_subcommand -a run -d 'Run a .deepnote file'
-complete -c deepnote -n __fish_use_subcommand -a convert -d 'Convert between notebook formats'
-complete -c deepnote -n __fish_use_subcommand -a completion -d 'Generate shell completion scripts'
-complete -c deepnote -n __fish_use_subcommand -a help -d 'Display help for command'
-
-# inspect subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from inspect' -l json -d 'Output in JSON format'
-complete -c deepnote -n '__fish_seen_subcommand_from inspect' -F -a '*.deepnote'
-
-# run subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from run' -l python -d 'Path to Python interpreter'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -l cwd -d 'Working directory for execution'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run only the specified notebook'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
-
-# convert subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from convert' -s o -l output -d 'Output path'
-complete -c deepnote -n '__fish_seen_subcommand_from convert' -s n -l name -d 'Project name'
-complete -c deepnote -n '__fish_seen_subcommand_from convert' -s f -l format -d 'Output format' -a 'jupyter percent quarto marimo'
-complete -c deepnote -n '__fish_seen_subcommand_from convert' -l json -d 'Output result in JSON format'
-complete -c deepnote -n '__fish_seen_subcommand_from convert' -F
-
-# completion subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
-
-# help subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from help' -a 'inspect run convert completion'
-`
 }
 
 /**
