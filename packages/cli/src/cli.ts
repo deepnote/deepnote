@@ -137,13 +137,13 @@ ${c.bold('Examples:')}
   $ deepnote inspect notebooks/
 
   ${c.dim('# Output as JSON for scripting')}
-  $ deepnote inspect -o json
+  $ deepnote inspect my-project.deepnote -o json
 
   ${c.dim('# Output as TOON for LLM consumption (30-60% fewer tokens)')}
-  $ deepnote inspect -o toon
+  $ deepnote inspect my-project.deepnote -o toon
 
   ${c.dim('# Use with jq for specific fields')}
-  $ deepnote inspect -o json | jq '.project.name'
+  $ deepnote inspect my-project.deepnote -o json | jq '.project.name'
 `
     })
     .action(createInspectAction(program))
@@ -184,13 +184,13 @@ ${c.bold('Examples:')}
   $ deepnote run notebooks/
 
   ${c.dim('# Run with a specific Python virtual environment')}
-  $ deepnote run --python path/to/venv
+  $ deepnote run my-project.deepnote --python path/to/venv
 
   ${c.dim('# Run only a specific notebook')}
-  $ deepnote run --notebook "Data Analysis"
+  $ deepnote run my-project.deepnote --notebook "Data Analysis"
 
   ${c.dim('# Run only a specific block')}
-  $ deepnote run --block abc123
+  $ deepnote run my-project.deepnote --block abc123
 
   ${c.dim('# List input variables needed by the notebook')}
   $ deepnote run my-project.deepnote --list-inputs
@@ -202,10 +202,10 @@ ${c.bold('Examples:')}
   $ deepnote run my-project.deepnote -i 'config={"debug": true}'
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
-  $ deepnote run -o json
+  $ deepnote run my-project.deepnote -o json
 
   ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
-  $ deepnote run -o toon
+  $ deepnote run my-project.deepnote -o toon
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
