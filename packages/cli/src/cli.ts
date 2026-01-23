@@ -5,7 +5,8 @@ import { createRunAction } from './commands/run'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
-import { getChalk, getOutputConfig, output, setOutputConfig, shouldDisableColor } from './output'
+import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
+import { createFormatValidator } from './utils/format-validator'
 import { version } from './version'
 
 /**
@@ -37,7 +38,7 @@ export function createProgram(): Command {
     .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
     .option('--debug', 'Show debug information for troubleshooting')
     .option('-q, --quiet', 'Suppress non-essential output')
-    .hook('preAction', thisCommand => {
+    .hook('preAction', (thisCommand, _actionCommand) => {
       const opts = thisCommand.opts<GlobalOptions>()
 
       // Configure output based on global options
@@ -66,7 +67,10 @@ ${c.bold('Examples:')}
   $ deepnote inspect my-project.deepnote
 
   ${c.dim('# Inspect with JSON output (for scripting)')}
-  $ deepnote inspect my-project.deepnote --json
+  $ deepnote inspect my-project.deepnote -o json
+
+  ${c.dim('# Run with TOON output (for LLMs)')}
+  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
@@ -108,7 +112,7 @@ function registerCommands(program: Command): void {
     .command('inspect')
     .description('Inspect and display metadata from a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file to inspect')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -128,10 +132,13 @@ ${c.bold('Examples:')}
   $ deepnote inspect notebooks/analysis.deepnote
 
   ${c.dim('# Output as JSON for scripting')}
-  $ deepnote inspect my-project.deepnote --json
+  $ deepnote inspect my-project.deepnote -o json
+
+  ${c.dim('# Output as TOON for LLM consumption (30-60% fewer tokens)')}
+  $ deepnote inspect my-project.deepnote -o toon
 
   ${c.dim('# Use with jq for specific fields')}
-  $ deepnote inspect my-project.deepnote --json | jq '.project.name'
+  $ deepnote inspect my-project.deepnote -o json | jq '.project.name'
 `
     })
     .action(createInspectAction(program))
@@ -155,7 +162,7 @@ ${c.bold('Examples:')}
       []
     )
     .option('--list-inputs', 'List all input variables in the notebook without running')
-    .option('--json', 'Output results in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -182,7 +189,10 @@ ${c.bold('Examples:')}
   $ deepnote run my-project.deepnote -i 'config={"debug": true}'
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
-  $ deepnote run my-project.deepnote --json
+  $ deepnote run my-project.deepnote -o json
+
+  ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
+  $ deepnote run my-project.deepnote -o toon
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
@@ -197,7 +207,8 @@ ${c.bold('Exit Codes:')}
     .command('validate')
     .description('Validate a .deepnote file against the schema')
     .argument('<path>', 'Path to a .deepnote file to validate')
-    .option('--json', 'Output in JSON format for scripting')
+    // Validate command only supports JSON output (no TOON)
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -215,13 +226,13 @@ ${c.bold('Examples:')}
   $ deepnote validate my-project.deepnote
 
   ${c.dim('# Validate with JSON output for CI/CD')}
-  $ deepnote validate my-project.deepnote --json
+  $ deepnote validate my-project.deepnote -o json
 
   ${c.dim('# Validate and check exit code in scripts')}
   $ deepnote validate my-project.deepnote && echo "Valid!"
 
   ${c.dim('# Parse JSON output with jq')}
-  $ deepnote validate my-project.deepnote --json | jq '.valid'
+  $ deepnote validate my-project.deepnote -o json | jq '.valid'
 `
     })
     .action(createValidateAction(program))
