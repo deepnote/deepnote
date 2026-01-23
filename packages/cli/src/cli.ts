@@ -63,17 +63,17 @@ ${c.bold('Examples:')}
   ${c.dim('# Inspect a specific .deepnote file')}
   $ deepnote inspect my-project.deepnote
 
-  ${c.dim('# Run a .deepnote file in a subdirectory')}
+  ${c.dim('# Run the first .deepnote file in a subdirectory')}
   $ deepnote run notebooks/
 
   ${c.dim('# Inspect with JSON output (for scripting)')}
-  $ deepnote inspect -o json
+  $ deepnote inspect my-project.deepnote -o json
 
   ${c.dim('# Run with TOON output (for LLMs)')}
-  $ deepnote run -o toon
+  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Inspect with JSON output (for scripting)')}
-  $ deepnote inspect --json
+  $ deepnote inspect my-project.deepnote -o json
 
   ${c.dim('# Get help for a specific command')}
   $ deepnote help run
