@@ -163,7 +163,7 @@ function collectExecutableBlocks(
       executableBlocks.push({
         id: block.id,
         type: block.type,
-        label: getBlockLabel(block as RuntimeDeepnoteBlock),
+        label: getBlockLabel(block),
         notebook: notebook.name,
       })
     }
