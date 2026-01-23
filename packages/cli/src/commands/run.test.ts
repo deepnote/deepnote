@@ -945,8 +945,8 @@ describe('run command', () => {
       }
     ) => Promise<void>
     let consoleLogSpy: Mock
-    let consoleErrorSpy: Mock
     let programErrorSpy: Mock
+    const originalExitCode = process.exitCode
 
     beforeEach(() => {
       vi.clearAllMocks()
@@ -956,7 +956,6 @@ describe('run command', () => {
       action = createRunAction(program)
 
       consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       programErrorSpy = vi.spyOn(program, 'error').mockImplementation(() => {
         throw new Error('program.error called')
       })
@@ -964,8 +963,8 @@ describe('run command', () => {
 
     afterEach(() => {
       consoleLogSpy.mockRestore()
-      consoleErrorSpy.mockRestore()
       programErrorSpy.mockRestore()
+      process.exitCode = originalExitCode
     })
 
     it('does not start ExecutionEngine in dry-run mode', async () => {
