@@ -18,7 +18,7 @@ import {
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, log, error as logError, output, outputJson } from '../output'
+import { debug, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -58,7 +58,7 @@ export interface RunOptions {
   block?: string
   input?: string[]
   listInputs?: boolean
-  json?: boolean
+  output?: OutputFormat
 }
 
 /** Result of a single block execution for JSON output */
@@ -101,8 +101,13 @@ export function createRunAction(program: Command): (path: string, options: RunOp
         error instanceof MissingIntegrationError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: message })
+        process.exitCode = exitCode
+        return
+      }
+      if (options.output === 'toon') {
+        outputToon({ success: false, error: message })
         process.exitCode = exitCode
         return
       }
@@ -213,7 +218,7 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
 
   const inputs = getInputBlocks(file, options.notebook)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({
       path: absolutePath,
       inputs: inputs.map(i => ({
@@ -384,15 +389,16 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   const workingDirectory = options.cwd ?? dirname(absolutePath)
 
   const pythonEnv = options.python ?? detectDefaultPython()
-  const isJson = options.json ?? false
+  // Machine-readable output suppresses interactive messages
+  const isMachineOutput = options.output !== undefined
   const inputs = parseInputs(options.input)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
-  // Collect block results for JSON output
+  // Collect block results for machine-readable output
   const blockResults: BlockResult[] = []
 
-  if (!isJson) {
+  if (!isMachineOutput) {
     log(chalk.dim(`Parsing ${absolutePath}...`))
   }
 
@@ -410,7 +416,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     workingDirectory,
   })
 
-  if (!isJson) {
+  if (!isMachineOutput) {
     log(chalk.dim('Starting deepnote-toolkit server...'))
   }
 
@@ -424,7 +430,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       await engine.stop()
     } catch (stopError) {
       const stopMessage = stopError instanceof Error ? stopError.message : String(stopError)
-      if (!isJson) {
+      if (!isMachineOutput) {
         logError(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
       }
     }
@@ -434,11 +440,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     )
   }
 
-  if (!isJson) {
+  if (!isMachineOutput) {
     log(chalk.dim('Server ready. Executing blocks...\n'))
   }
 
-  // Track labels by block id for JSON output (safer than single variable if callbacks interleave)
+  // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
 
   try {
@@ -451,13 +457,13 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         const label = getBlockLabel(block)
         blockLabels.set(block.id, label)
 
-        if (!isJson) {
+        if (!isMachineOutput) {
           process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
       onBlockDone: (result: BlockExecutionResult) => {
-        // Collect result for JSON output
+        // Collect result for machine-readable output
         const label = blockLabels.get(result.blockId) ?? result.blockType
         blockLabels.delete(result.blockId) // Clean up to avoid memory growth
         blockResults.push({
@@ -470,7 +476,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
           error: result.error?.message,
         })
 
-        if (!isJson) {
+        if (!isMachineOutput) {
           if (result.success) {
             output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
           } else {
@@ -493,8 +499,8 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     // Determine exit code based on failures
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
-    if (isJson) {
-      // Output JSON result and exit
+    if (isMachineOutput) {
+      // Output machine-readable result and exit
       const result: RunResult = {
         success: summary.failedBlocks === 0,
         path: absolutePath,
@@ -504,7 +510,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         totalDurationMs: summary.totalDurationMs,
         blocks: blockResults,
       }
-      outputJson(result)
+      if (options.output === 'toon') {
+        outputToon(result, { showEfficiencyHint: true })
+      } else {
+        outputJson(result)
+      }
       process.exitCode = exitCode
     } else {
       // Print summary

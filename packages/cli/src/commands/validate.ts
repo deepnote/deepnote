@@ -3,11 +3,11 @@ import { decodeUtf8NoBom, deepnoteFileSchema, parseYaml } from '@deepnote/blocks
 import type { Command } from 'commander'
 import type { ZodIssue } from 'zod'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, error as logError, output, outputJson } from '../output'
+import { debug, getChalk, error as logError, type OutputFormat, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface ValidateOptions {
-  json?: boolean
+  output?: OutputFormat
 }
 
 export interface ValidationIssue {
@@ -58,7 +58,7 @@ export function createValidateAction(
       const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: message } satisfies ValidationError)
       } else {
         logError(message)
@@ -81,7 +81,7 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
     parsed = parseYaml(yamlContent)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    if (options.json) {
+    if (options.output === 'json') {
       outputJson({
         success: true,
         path: absolutePath,
@@ -98,7 +98,7 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
   const result = deepnoteFileSchema.safeParse(parsed)
 
   if (result.success) {
-    if (options.json) {
+    if (options.output === 'json') {
       outputJson({
         success: true,
         path: absolutePath,
@@ -115,7 +115,7 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
   // Validation failed - format the errors
   const issues = formatZodErrors(result.error)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({
       success: true,
       path: absolutePath,

@@ -80,6 +80,9 @@ importers:
       '@deepnote/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@toon-format/toon':
+        specifier: ^2.1.0
+        version: 2.1.0
       chalk:
         specifier: ^5.4.1
         version: 5.6.2
@@ -1077,6 +1080,9 @@ packages:
 
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
+  '@toon-format/toon@2.1.0':
+    resolution: {integrity: sha512-JwWptdF5eOA0HaQxbKAzkpQtR4wSWTEfDlEy/y3/4okmOAX1qwnpLZMmtEWr+ncAhTTY1raCKH0kteHhSXnQqg==}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -2948,6 +2954,8 @@ snapshots:
     optional: true
 
   '@standard-schema/spec@1.0.0': {}
+
+  '@toon-format/toon@2.1.0': {}
 
   '@tybys/wasm-util@0.10.1':
     dependencies:
