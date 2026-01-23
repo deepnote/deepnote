@@ -57,14 +57,14 @@ export function createProgram(): Command {
       const c = getChalk()
       return `
 ${c.bold('Examples:')}
-  ${c.dim('# Show this help message')}
-  $ deepnote --help
+  ${c.dim('# Run the first .deepnote file in current directory')}
+  $ deepnote run
 
-  ${c.dim('# Show version')}
-  $ deepnote --version
-
-  ${c.dim('# Inspect a .deepnote file')}
+  ${c.dim('# Inspect a specific .deepnote file')}
   $ deepnote inspect my-project.deepnote
+
+  ${c.dim('# Run the first .deepnote file in a subdirectory')}
+  $ deepnote run notebooks/
 
   ${c.dim('# Inspect with JSON output (for scripting)')}
   $ deepnote inspect my-project.deepnote -o json
@@ -72,11 +72,8 @@ ${c.bold('Examples:')}
   ${c.dim('# Run with TOON output (for LLMs)')}
   $ deepnote run my-project.deepnote -o toon
 
-  ${c.dim('# Run a .deepnote file')}
-  $ deepnote run my-project.deepnote
-
   ${c.dim('# Get help for a specific command')}
-  $ deepnote help inspect
+  $ deepnote help run
 
   ${c.dim('# Generate shell completions')}
   $ deepnote completion bash >> ~/.bashrc
@@ -111,7 +108,7 @@ function registerCommands(program: Command): void {
   program
     .command('inspect')
     .description('Inspect and display metadata from a .deepnote file')
-    .argument('<path>', 'Path to a .deepnote file to inspect')
+    .argument('[path]', 'Path to a .deepnote file or directory (defaults to current directory)')
     .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .addHelpText('after', () => {
       const c = getChalk()
@@ -124,12 +121,17 @@ ${c.bold('Output:')}
   - Number of notebooks and total blocks
   - List of notebooks with their block counts
 
+${getSmartFileDiscoveryHelp(c)}
+
 ${c.bold('Examples:')}
-  ${c.dim('# Inspect a local .deepnote file')}
+  ${c.dim('# Inspect first .deepnote file in current directory')}
+  $ deepnote inspect
+
+  ${c.dim('# Inspect a specific .deepnote file')}
   $ deepnote inspect my-project.deepnote
 
-  ${c.dim('# Inspect a file in a subdirectory')}
-  $ deepnote inspect notebooks/analysis.deepnote
+  ${c.dim('# Inspect first .deepnote file in a subdirectory')}
+  $ deepnote inspect notebooks/
 
   ${c.dim('# Output as JSON for scripting')}
   $ deepnote inspect my-project.deepnote -o json
@@ -147,7 +149,7 @@ ${c.bold('Examples:')}
   program
     .command('run')
     .description('Run a .deepnote file')
-    .argument('<path>', 'Path to a .deepnote file to run')
+    .argument('[path]', 'Path to a .deepnote file or directory (defaults to current directory)')
     .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
@@ -166,9 +168,17 @@ ${c.bold('Examples:')}
     .addHelpText('after', () => {
       const c = getChalk()
       return `
+${getSmartFileDiscoveryHelp(c)}
+
 ${c.bold('Examples:')}
-  ${c.dim('# Run all notebooks in a .deepnote file')}
+  ${c.dim('# Run first .deepnote file in current directory')}
+  $ deepnote run
+
+  ${c.dim('# Run a specific .deepnote file')}
   $ deepnote run my-project.deepnote
+
+  ${c.dim('# Run first .deepnote file in a subdirectory')}
+  $ deepnote run notebooks/
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
@@ -280,6 +290,16 @@ ${c.bold('Examples:')}
         })
       }
     })
+}
+
+/**
+ * Returns shared help text for Smart File Discovery.
+ */
+function getSmartFileDiscoveryHelp(c: ReturnType<typeof getChalk>): string {
+  return `${c.bold('Smart File Discovery:')}
+  If no path is provided, finds the first .deepnote file in the current directory.
+  If a directory is provided, finds the first .deepnote file in that directory.
+  If multiple .deepnote files are found, the CLI picks the first file in alphabetical order (by filename) to ensure deterministic behavior.`
 }
 
 /**
