@@ -47,10 +47,12 @@
     "@toon-format/toon": "^2.1.0",
     "chalk": "^5.4.1",
     "commander": "^14.0.2",
+    "yaml": "^2.8.1",
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "zod-to-json-schema": "^3.25.1"
   },
   "publishConfig": {
     "access": "public",
