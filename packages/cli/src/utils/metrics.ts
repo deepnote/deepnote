@@ -23,13 +23,26 @@ export interface BlockProfile {
   memoryDelta: number
 }
 
+/** Default timeout for metrics fetch in milliseconds */
+const METRICS_FETCH_TIMEOUT_MS = 5000
+
 /** Fetch resource metrics from the Jupyter server */
-export async function fetchMetrics(port: number): Promise<JupyterMetricsResponse | null> {
+export async function fetchMetrics(
+  port: number,
+  timeoutMs: number = METRICS_FETCH_TIMEOUT_MS
+): Promise<JupyterMetricsResponse | null> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
   try {
-    const response = await fetch(`http://localhost:${port}/api/metrics/v1`)
+    const response = await fetch(`http://localhost:${port}/api/metrics/v1`, {
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
     if (!response.ok) return null
     return (await response.json()) as JupyterMetricsResponse
   } catch {
+    clearTimeout(timeoutId)
     return null
   }
 }

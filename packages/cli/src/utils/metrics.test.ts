@@ -102,7 +102,10 @@ describe('metrics utilities', () => {
 
       await fetchMetrics(8888)
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8888/api/metrics/v1')
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8888/api/metrics/v1',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
     })
 
     it('returns metrics on success', async () => {
@@ -156,7 +159,10 @@ describe('metrics utilities', () => {
 
       await fetchMetrics(9000)
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:9000/api/metrics/v1')
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:9000/api/metrics/v1',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
     })
   })
 

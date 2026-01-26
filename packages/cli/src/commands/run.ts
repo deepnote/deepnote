@@ -662,22 +662,26 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         // Capture memory after block and calculate delta for profiling
         let memoryDeltaStr = ''
         if (showProfile && engine.serverPort) {
-          const metrics = await fetchMetrics(engine.serverPort)
-          const before = memoryBefore.get(result.blockId) ?? 0
+          const hasBefore = memoryBefore.has(result.blockId)
+          const before = memoryBefore.get(result.blockId)
           memoryBefore.delete(result.blockId) // Clean up
 
-          if (metrics) {
-            const delta = metrics.rss - before
-            memoryDeltaStr = `, ${formatMemoryDelta(delta)}`
+          // Only compute delta if we have both before and after measurements
+          if (hasBefore && before !== undefined) {
+            const metrics = await fetchMetrics(engine.serverPort)
+            if (metrics) {
+              const delta = metrics.rss - before
+              memoryDeltaStr = `, ${formatMemoryDelta(delta)}`
 
-            blockProfiles.push({
-              id: result.blockId,
-              label,
-              durationMs: result.durationMs,
-              memoryBefore: before,
-              memoryAfter: metrics.rss,
-              memoryDelta: delta,
-            })
+              blockProfiles.push({
+                id: result.blockId,
+                label,
+                durationMs: result.durationMs,
+                memoryBefore: before,
+                memoryAfter: metrics.rss,
+                memoryDelta: delta,
+              })
+            }
           }
         }
 
