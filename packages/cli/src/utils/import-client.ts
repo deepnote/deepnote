@@ -111,7 +111,8 @@ export async function uploadFile(uploadUrl: string, fileBuffer: Buffer): Promise
  * @returns The full URL to open in the browser
  */
 export function buildLaunchUrl(importId: string, domain: string = DEFAULT_DOMAIN): string {
-  return `https://${domain}/launch?importId=${importId}`
+  const params = new URLSearchParams({ importId })
+  return `https://${domain}/launch?${params.toString()}`
 }
 
 /**
