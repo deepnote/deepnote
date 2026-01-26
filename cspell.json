@@ -43,6 +43,7 @@
     "Braund",
     "CACERTIFICATENAME",
     "CACERTIFICATETEXT",
+    "chàracters",
     "cleye",
     "daed",
     "dataframe",
@@ -58,7 +59,6 @@
     "ggplot",
     "github",
     "groupby",
-    "héllo",
     "hotreload",
     "Instantiator",
     "iopub",
@@ -106,6 +106,7 @@
     "sklearn",
     "slugified",
     "soundcloud",
+    "spëcial",
     "Spyder",
     "sslmode",
     "sslrootcert",
@@ -118,7 +119,6 @@
     "vscode",
     "unstub",
     "windsurf",
-    "workflows",
-    "wörld"
+    "workflows"
   ]
 }
