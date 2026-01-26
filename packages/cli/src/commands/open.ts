@@ -10,7 +10,6 @@ import {
   buildLaunchUrl,
   DEFAULT_DOMAIN,
   getErrorMessage,
-  ImportError,
   initImport,
   uploadFile,
   validateFileSize,
@@ -29,8 +28,7 @@ export function createOpenAction(_program: Command): (path: string | undefined, 
       await openDeepnoteFile(path, options)
     } catch (error) {
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
-      const exitCode =
-        error instanceof FileResolutionError || error instanceof ImportError ? ExitCode.InvalidUsage : ExitCode.Error
+      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
       const errorMessage = getErrorMessage(error)
       if (options.output === 'json') {
         outputJson({ success: false, error: errorMessage })
