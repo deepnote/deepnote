@@ -22,7 +22,7 @@ npm install @deepnote/convert
 After installing the converter, you can convert a Jupyter Notebook to a .deepnote file by running this command:
 
 ```bash
-deepnote-convert ./examples/data_analysis.ipynb
+deepnote-convert ./data_analysis.ipynb
 ```
 
 ## Opening a Deepnote Project
