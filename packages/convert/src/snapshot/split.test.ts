@@ -110,6 +110,35 @@ describe('splitDeepnoteFile', () => {
     expect(snapshot).toBeDefined()
   })
 
+  it('should handle file with undefined metadata', () => {
+    const file = {
+      version: '1.0.0',
+      metadata: undefined,
+      project: {
+        id: 'proj-123',
+        name: 'Test Project',
+        notebooks: [
+          {
+            id: 'nb-1',
+            name: 'Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                type: 'code',
+                blockGroup: 'bg-1',
+                sortingKey: '0000',
+                content: 'x = 1',
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as DeepnoteFile
+
+    expect(() => splitDeepnoteFile(file)).not.toThrow()
+  })
+
   it('should remove outputs from source', () => {
     const file = createFileWithOutputs()
     const { source } = splitDeepnoteFile(file)

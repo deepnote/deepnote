@@ -73,10 +73,11 @@ export function splitDeepnoteFile(file: DeepnoteFile): SplitResult {
   const snapshotHash = computeSnapshotHash(fileWithHashes)
 
   // Create source file with outputs stripped (exclude snapshotHash from source)
-  const { snapshotHash: _snapshotHash, ...sourceMetadata } =
-    fileWithHashes.metadata as typeof fileWithHashes.metadata & {
-      snapshotHash?: string
-    }
+  const { snapshotHash: _snapshotHash, ...sourceMetadata } = (fileWithHashes.metadata ?? {}) as NonNullable<
+    typeof fileWithHashes.metadata
+  > & {
+    snapshotHash?: string
+  }
   const source: DeepnoteFile = {
     ...fileWithHashes,
     metadata: sourceMetadata,

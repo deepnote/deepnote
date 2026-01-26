@@ -1,16 +1,42 @@
 import { readFile } from 'node:fs/promises'
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
 import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlock } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
+// Re-export for backwards compatibility - these are now defined in @deepnote/blocks
+export const executableBlockTypes: ExecutableBlock['type'][] = [
+  'code',
+  'sql',
+  'notebook-function',
+  'visualization',
+  'button',
+  'big-number',
+  'input-text',
+  'input-textarea',
+  'input-checkbox',
+  'input-select',
+  'input-slider',
+  'input-date',
+  'input-date-range',
+  'input-file',
+]
+
+export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
+
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
   notebookName?: string
   /** Run only the specified block (by id) */
   blockId?: string
+  /**
+   * Input values to inject before execution.
+   * Keys are variable names, values are the values to assign.
+   * These will be set before any blocks are executed.
+   */
+  inputs?: Record<string, unknown>
   /** Callback functions */
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void
   onBlockDone?: (result: BlockExecutionResult) => void
@@ -93,6 +119,11 @@ export class ExecutionEngine {
   async runProject(file: DeepnoteFile, options: ExecutionOptions = {}): Promise<ExecutionSummary> {
     if (!this.kernel) {
       throw new Error('Engine not started. Call start() first.')
+    }
+
+    // Inject input values before execution
+    if (options.inputs && Object.keys(options.inputs).length > 0) {
+      await this.injectInputs(options.inputs)
     }
 
     const startTime = Date.now()
@@ -196,5 +227,85 @@ export class ExecutionEngine {
    */
   private sortBlocks(blocks: DeepnoteBlock[]): DeepnoteBlock[] {
     return [...blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+  }
+
+  /**
+   * Check if a string is a valid Python identifier.
+   * Python identifiers must start with a letter or underscore,
+   * followed by letters, digits, or underscores.
+   */
+  private isValidPythonIdentifier(name: string): boolean {
+    return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)
+  }
+
+  /**
+   * Inject input values into the kernel before execution.
+   * Converts values to Python literals and executes assignment statements.
+   */
+  private async injectInputs(inputs: Record<string, unknown>): Promise<void> {
+    if (!this.kernel) {
+      throw new Error('Engine not started. Call start() first.')
+    }
+
+    const assignments: string[] = []
+    for (const [name, value] of Object.entries(inputs)) {
+      // Validate variable name to prevent code injection
+      if (!this.isValidPythonIdentifier(name)) {
+        throw new Error(`Invalid variable name: "${name}". Must be a valid Python identifier.`)
+      }
+      const pythonValue = this.toPythonLiteral(value)
+      assignments.push(`${name} = ${pythonValue}`)
+    }
+
+    if (assignments.length > 0) {
+      const code = assignments.join('\n')
+      const result = await this.kernel.execute(code)
+      if (!result.success) {
+        const errorOutput = result.outputs.find(o => o.output_type === 'error')
+        const errorMsg = errorOutput && 'evalue' in errorOutput ? String(errorOutput.evalue) : 'Failed to inject inputs'
+        throw new Error(`Failed to set input values: ${errorMsg}`)
+      }
+    }
+  }
+
+  /**
+   * Convert a JavaScript value to a Python literal.
+   */
+  private toPythonLiteral(value: unknown): string {
+    if (value === null || value === undefined) {
+      return 'None'
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'True' : 'False'
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) {
+        throw new Error(`Cannot convert non-finite number to Python: ${value}`)
+      }
+      return String(value)
+    }
+    if (typeof value === 'string') {
+      // Escape for Python string literal
+      const escaped = value
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t')
+        .replace(/\0/g, '\\x00')
+        // Escape other control characters (code points < 0x20 except already handled, and DEL 0x7F)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally escaping control chars
+        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, char => `\\x${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+      return `'${escaped}'`
+    }
+    if (Array.isArray(value)) {
+      const elements = value.map(v => this.toPythonLiteral(v))
+      return `[${elements.join(', ')}]`
+    }
+    if (typeof value === 'object') {
+      const entries = Object.entries(value).map(([k, v]) => `${this.toPythonLiteral(k)}: ${this.toPythonLiteral(v)}`)
+      return `{${entries.join(', ')}}`
+    }
+    throw new Error(`Cannot convert value of type ${typeof value} to Python literal`)
   }
 }

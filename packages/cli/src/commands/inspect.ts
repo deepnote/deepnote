@@ -3,11 +3,11 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, output, outputJson } from '../output'
+import { debug, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface InspectOptions {
-  json?: boolean
+  output?: OutputFormat
 }
 
 export function createInspectAction(
@@ -22,8 +22,10 @@ export function createInspectAction(
       const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: message })
+      } else if (options.output === 'toon') {
+        outputToon({ success: false, error: message })
       } else {
         logError(message)
       }
@@ -42,22 +44,24 @@ async function inspectDeepnoteFile(path: string | undefined, options: InspectOpt
   debug('Parsing .deepnote file...')
   const deepnoteFile = deserializeDeepnoteFile(yamlContent)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputInspectJson(absolutePath, deepnoteFile)
+  } else if (options.output === 'toon') {
+    outputInspectToon(absolutePath, deepnoteFile)
   } else {
     printDeepnoteFileMetadata(absolutePath, deepnoteFile)
   }
 }
 
 /**
- * Output inspect results as JSON for scripting.
+ * Build inspect result data structure for machine-readable output.
  */
-function outputInspectJson(absolutePath: string, deepnoteFile: ReturnType<typeof deserializeDeepnoteFile>): void {
+function buildInspectResult(absolutePath: string, deepnoteFile: ReturnType<typeof deserializeDeepnoteFile>) {
   const { project, metadata, version: fileVersion } = deepnoteFile
   const notebooks = project.notebooks
   const totalBlocks = notebooks.reduce((sum, notebook) => sum + notebook.blocks.length, 0)
 
-  outputJson({
+  return {
     success: true,
     path: absolutePath,
     project: {
@@ -79,7 +83,22 @@ function outputInspectJson(absolutePath: string, deepnoteFile: ReturnType<typeof
       blockCount: notebook.blocks.length,
       isModule: notebook.isModule ?? false,
     })),
-  })
+  }
+}
+
+/**
+ * Output inspect results as JSON for scripting.
+ */
+function outputInspectJson(absolutePath: string, deepnoteFile: ReturnType<typeof deserializeDeepnoteFile>): void {
+  outputJson(buildInspectResult(absolutePath, deepnoteFile))
+}
+
+/**
+ * Output inspect results as TOON (Token-Oriented Object Notation).
+ * TOON is optimized for LLM consumption with reduced token usage.
+ */
+function outputInspectToon(absolutePath: string, deepnoteFile: ReturnType<typeof deserializeDeepnoteFile>): void {
+  outputToon(buildInspectResult(absolutePath, deepnoteFile), { showEfficiencyHint: true })
 }
 
 function printDeepnoteFileMetadata(
