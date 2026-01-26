@@ -28,14 +28,14 @@ export function createOpenAction(_program: Command): (path: string | undefined, 
       debug(`Options: ${JSON.stringify(options)}`)
       await openDeepnoteFile(path, options)
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
       const exitCode =
         error instanceof FileResolutionError || error instanceof ImportError ? ExitCode.InvalidUsage : ExitCode.Error
+      const errorMessage = getErrorMessage(error)
       if (options.output === 'json') {
-        outputJson({ success: false, error: getErrorMessage(error) })
+        outputJson({ success: false, error: errorMessage })
       } else {
-        logError(message)
+        logError(errorMessage)
       }
       process.exit(exitCode)
     }

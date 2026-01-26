@@ -1,25 +1,29 @@
-import type { ChildProcess, ExecException } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
 
 // Mock child_process before importing the module
 vi.mock('node:child_process', () => ({
-  exec: vi.fn(),
+  spawn: vi.fn(),
 }))
 
 // Import after mocking
-import { exec } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { openInBrowser } from './browser'
 
-const mockExec = vi.mocked(exec)
+const mockSpawn = vi.mocked(spawn)
 
-// Helper type for the exec callback
-type ExecCallback = (error: ExecException | null, stdout: string, stderr: string) => void
+// Helper to create a mock child process
+function createMockChildProcess(): ChildProcess & EventEmitter {
+  const emitter = new EventEmitter()
+  return emitter as ChildProcess & EventEmitter
+}
 
 describe('browser', () => {
   beforeEach(() => {
     resetOutputConfig()
-    mockExec.mockReset()
+    mockSpawn.mockReset()
   })
 
   afterEach(() => {
@@ -27,38 +31,54 @@ describe('browser', () => {
   })
 
   describe('openInBrowser', () => {
-    it('calls exec with the URL', async () => {
-      mockExec.mockImplementation((_cmd, callback) => {
-        ;(callback as ExecCallback)(null, '', '')
-        return {} as ChildProcess
-      })
+    it('calls spawn with the URL as an argument', async () => {
+      const mockChild = createMockChildProcess()
+      mockSpawn.mockReturnValue(mockChild)
 
-      await openInBrowser('https://deepnote.com/launch?importId=123')
+      const promise = openInBrowser('https://deepnote.com/launch?importId=123')
+      mockChild.emit('close', 0)
 
-      expect(mockExec).toHaveBeenCalledTimes(1)
-      const command = mockExec.mock.calls[0][0] as string
-      expect(command).toContain('https://deepnote.com/launch?importId=123')
+      await promise
+
+      expect(mockSpawn).toHaveBeenCalledTimes(1)
+      const [command, args] = mockSpawn.mock.calls[0]
+      expect(args).toContain('https://deepnote.com/launch?importId=123')
+      // Verify command is platform-appropriate (open, cmd, or xdg-open)
+      expect(['open', 'cmd', 'xdg-open']).toContain(command)
     })
 
-    it('rejects on exec error', async () => {
-      mockExec.mockImplementation((_cmd, callback) => {
-        ;(callback as ExecCallback)(new Error('Command failed') as ExecException, '', '')
-        return {} as ChildProcess
-      })
+    it('rejects on spawn error', async () => {
+      const mockChild = createMockChildProcess()
+      mockSpawn.mockReturnValue(mockChild)
 
-      await expect(openInBrowser('https://example.com')).rejects.toThrow('Failed to open browser')
+      const promise = openInBrowser('https://example.com')
+      mockChild.emit('error', new Error('Command failed'))
+
+      await expect(promise).rejects.toThrow('Failed to open browser')
     })
 
-    it('escapes double quotes in URL', async () => {
-      mockExec.mockImplementation((_cmd, callback) => {
-        ;(callback as ExecCallback)(null, '', '')
-        return {} as ChildProcess
-      })
+    it('rejects on non-zero exit code', async () => {
+      const mockChild = createMockChildProcess()
+      mockSpawn.mockReturnValue(mockChild)
 
-      await openInBrowser('https://example.com/path?param="value"')
+      const promise = openInBrowser('https://example.com')
+      mockChild.emit('close', 1)
 
-      const command = mockExec.mock.calls[0][0] as string
-      expect(command).toContain('\\"value\\"')
+      await expect(promise).rejects.toThrow('Failed to open browser')
+    })
+
+    it('passes URL as argument without shell escaping', async () => {
+      const mockChild = createMockChildProcess()
+      mockSpawn.mockReturnValue(mockChild)
+
+      const promise = openInBrowser('https://example.com/path?param="value"')
+      mockChild.emit('close', 0)
+
+      await promise
+
+      const [, args] = mockSpawn.mock.calls[0]
+      // URL should be passed as-is (no shell escaping needed with spawn)
+      expect(args).toContain('https://example.com/path?param="value"')
     })
   })
 })

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
 import {
   buildLaunchUrl,
@@ -33,6 +33,10 @@ describe('import-client', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  afterAll(() => {
+    vi.unstubAllGlobals()
   })
 
   describe('constants', () => {

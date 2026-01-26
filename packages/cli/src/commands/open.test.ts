@@ -1,4 +1,4 @@
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
@@ -26,8 +26,8 @@ vi.mock('../utils/import-client', async importOriginal => {
 import { openInBrowser } from '../utils/browser'
 import { initImport, uploadFile, validateFileSize } from '../utils/import-client'
 
-// Test file path relative to project root (tests are run from root)
-const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
+// Test file path as absolute path (tests are run from root)
+const HELLO_WORLD_FILE = resolve(process.cwd(), 'examples', '1_hello_world.deepnote')
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: OpenOptions = {}
@@ -85,9 +85,8 @@ describe('open command', () => {
   describe('opening valid .deepnote files', () => {
     it('opens hello world example without errors', async () => {
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, DEFAULT_OPTIONS)
+      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
 
       expect(consoleSpy).toHaveBeenCalled()
       const output = getOutput(consoleSpy)
@@ -97,36 +96,32 @@ describe('open command', () => {
 
     it('validates file size before uploading', async () => {
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, DEFAULT_OPTIONS)
+      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
 
-      expect(validateFileSize).toHaveBeenCalledWith(filePath)
+      expect(validateFileSize).toHaveBeenCalledWith(HELLO_WORLD_FILE)
     })
 
     it('initializes import with correct parameters', async () => {
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, DEFAULT_OPTIONS)
+      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
 
       expect(initImport).toHaveBeenCalledWith('1_hello_world.deepnote', 1000, 'deepnote.com')
     })
 
     it('uploads file to the presigned URL', async () => {
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, DEFAULT_OPTIONS)
+      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
 
       expect(uploadFile).toHaveBeenCalledWith('https://s3.example.com/upload', expect.any(Buffer))
     })
 
     it('opens the browser with the launch URL', async () => {
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, DEFAULT_OPTIONS)
+      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
 
       expect(openInBrowser).toHaveBeenCalledWith('https://deepnote.com/launch?importId=test-import-id')
     })
@@ -135,9 +130,8 @@ describe('open command', () => {
   describe('custom domain', () => {
     it('uses custom domain when provided', async () => {
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { domain: 'enterprise.deepnote.com' })
+      await action(HELLO_WORLD_FILE, { domain: 'enterprise.deepnote.com' })
 
       expect(initImport).toHaveBeenCalledWith('1_hello_world.deepnote', 1000, 'enterprise.deepnote.com')
       expect(openInBrowser).toHaveBeenCalledWith('https://enterprise.deepnote.com/launch?importId=test-import-id')
@@ -147,15 +141,14 @@ describe('open command', () => {
   describe('JSON output', () => {
     it('outputs JSON when -o json option is used', async () => {
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { output: 'json' })
+      await action(HELLO_WORLD_FILE, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
 
       expect(parsed.success).toBe(true)
-      expect(parsed.path).toBe(filePath)
+      expect(parsed.path).toBe(HELLO_WORLD_FILE)
       expect(parsed.url).toBe('https://deepnote.com/launch?importId=test-import-id')
       expect(parsed.importId).toBe('test-import-id')
     })
@@ -164,8 +157,10 @@ describe('open command', () => {
   describe('path resolution', () => {
     it('accepts relative paths', async () => {
       const action = createOpenAction(program)
+      // Use a relative path by providing a path relative to cwd
+      const relativePath = 'examples/1_hello_world.deepnote'
 
-      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
+      await action(relativePath, DEFAULT_OPTIONS)
 
       expect(consoleSpy).toHaveBeenCalled()
       const output = getOutput(consoleSpy)
@@ -174,9 +169,8 @@ describe('open command', () => {
 
     it('accepts absolute paths', async () => {
       const action = createOpenAction(program)
-      const absolutePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(absolutePath, DEFAULT_OPTIONS)
+      await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
 
       expect(consoleSpy).toHaveBeenCalled()
       const output = getOutput(consoleSpy)
@@ -192,6 +186,11 @@ describe('open command', () => {
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
       expect(output).toContain('No .deepnote files found')
+
+      // Verify later steps were not invoked
+      expect(initImport).not.toHaveBeenCalled()
+      expect(uploadFile).not.toHaveBeenCalled()
+      expect(openInBrowser).not.toHaveBeenCalled()
     })
 
     it('handles non-existent file', async () => {
@@ -201,6 +200,11 @@ describe('open command', () => {
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
       expect(output).toContain('File not found')
+
+      // Verify later steps were not invoked
+      expect(initImport).not.toHaveBeenCalled()
+      expect(uploadFile).not.toHaveBeenCalled()
+      expect(openInBrowser).not.toHaveBeenCalled()
     })
 
     it('handles non-.deepnote files', async () => {
@@ -210,6 +214,11 @@ describe('open command', () => {
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
       expect(output).toContain('Unsupported file type')
+
+      // Verify later steps were not invoked
+      expect(initImport).not.toHaveBeenCalled()
+      expect(uploadFile).not.toHaveBeenCalled()
+      expect(openInBrowser).not.toHaveBeenCalled()
     })
 
     it('handles file size validation error', async () => {
@@ -218,12 +227,16 @@ describe('open command', () => {
       )
 
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await expect(action(filePath, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+      await expect(action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
       expect(output).toContain('100MB limit')
+
+      // Verify later steps were not invoked
+      expect(initImport).not.toHaveBeenCalled()
+      expect(uploadFile).not.toHaveBeenCalled()
+      expect(openInBrowser).not.toHaveBeenCalled()
     })
 
     it('handles import initialization error', async () => {
@@ -232,12 +245,15 @@ describe('open command', () => {
       )
 
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await expect(action(filePath, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+      await expect(action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
       expect(output).toContain('Network error')
+
+      // Verify later steps were not invoked
+      expect(uploadFile).not.toHaveBeenCalled()
+      expect(openInBrowser).not.toHaveBeenCalled()
     })
 
     it('handles upload error', async () => {
@@ -246,24 +262,30 @@ describe('open command', () => {
       )
 
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await expect(action(filePath, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+      await expect(action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
       expect(output).toContain('Upload failed')
+
+      // Verify openInBrowser was not called (initImport and uploadFile may have been)
+      expect(openInBrowser).not.toHaveBeenCalled()
     })
 
     it('handles browser open error', async () => {
       vi.mocked(openInBrowser).mockRejectedValueOnce(new Error('Failed to open browser'))
 
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await expect(action(filePath, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+      await expect(action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
       expect(output).toContain('Failed to open browser')
+
+      // Verify all steps were called (and openInBrowser failed)
+      expect(initImport).toHaveBeenCalled()
+      expect(uploadFile).toHaveBeenCalled()
+      expect(openInBrowser).toHaveBeenCalled()
     })
 
     it('outputs JSON error when -o json option is used', async () => {
@@ -283,9 +305,8 @@ describe('open command', () => {
       )
 
       const action = createOpenAction(program)
-      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await expect(action(filePath, { output: 'json' })).rejects.toThrow('process.exit called')
+      await expect(action(HELLO_WORLD_FILE, { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
