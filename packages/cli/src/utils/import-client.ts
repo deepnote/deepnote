@@ -16,14 +16,6 @@ export interface InitImportResponse {
 }
 
 /**
- * API error with status code and message.
- */
-export interface ApiError {
-  message: string
-  statusCode: number
-}
-
-/**
  * Maximum file size for uploads (100MB).
  */
 export const MAX_FILE_SIZE = 100 * 1024 * 1024
