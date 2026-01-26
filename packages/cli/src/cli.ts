@@ -74,7 +74,7 @@ ${c.bold('Examples:')}
   ${c.dim('# Run with TOON output (for LLMs)')}
   $ deepnote run my-project.deepnote -o toon
 
-  ${c.dim('# Open a .deepnote file in Deepnote')}
+  ${c.dim('# Open a .deepnote file in Deepnote Cloud')}
   $ deepnote open my-project.deepnote
 
   ${c.dim('# Get help for a specific command')}
