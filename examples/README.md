@@ -97,5 +97,4 @@ You can have a look at the other examples in this folder:
 - `1_hello_world.deepnote` - Simple hello world example
 - `2_blocks.deepnote` - Examples of different block types
 - `3_integrations.deepnote` - Example with database integrations
-
-For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.
+- `housing_price_prediction.deepnote` - Real-world ML example with data analysis and model building
