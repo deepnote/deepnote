@@ -233,6 +233,7 @@ ${c.bold('Exit Codes:')}
 ${c.bold('Description:')}
   Uploads the .deepnote file to Deepnote and opens it in your default browser.
   This is useful for quickly viewing or editing your local notebooks in Deepnote.
+  Note: Files must be under 100 MB.
 
 ${c.bold('Output:')}
   On success, displays a confirmation message and the URL.
@@ -247,6 +248,11 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Use a custom domain (e.g., single-tenants)')}
   $ deepnote open my-project.deepnote --domain deepnote.example.com
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  Import error (upload or network failure)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file, file too large)
 `
     })
     .action(createOpenAction(program))
