@@ -2,8 +2,6 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { resetOutputConfig } from '../output'
 import {
   buildLaunchUrl,
-  DEFAULT_DOMAIN,
-  getApiEndpoint,
   getErrorMessage,
   ImportError,
   initImport,
@@ -42,20 +40,6 @@ describe('import-client', () => {
   describe('constants', () => {
     it('MAX_FILE_SIZE is 100MB', () => {
       expect(MAX_FILE_SIZE).toBe(100 * 1024 * 1024)
-    })
-
-    it('DEFAULT_DOMAIN is deepnote.com', () => {
-      expect(DEFAULT_DOMAIN).toBe('deepnote.com')
-    })
-  })
-
-  describe('getApiEndpoint', () => {
-    it('builds API endpoint for default domain', () => {
-      expect(getApiEndpoint('deepnote.com')).toBe('https://api.deepnote.com')
-    })
-
-    it('builds API endpoint for custom domain', () => {
-      expect(getApiEndpoint('enterprise.deepnote.com')).toBe('https://api.enterprise.deepnote.com')
     })
   })
 
@@ -139,6 +123,23 @@ describe('import-client', () => {
         expect((error as ImportError).statusCode).toBe(401)
       }
     })
+
+    it('parses JSON error response from API', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: 'fileName must end with .deepnote' }),
+      })
+
+      try {
+        await initImport('test.ipynb', 1000)
+        expect.fail('Should have thrown')
+      } catch (error) {
+        expect(error).toBeInstanceOf(ImportError)
+        expect((error as ImportError).message).toBe('fileName must end with .deepnote')
+        expect((error as ImportError).statusCode).toBe(400)
+      }
+    })
   })
 
   describe('uploadFile', () => {
@@ -197,6 +198,17 @@ describe('import-client', () => {
         expect((error as ImportError).message).toContain('exceeds 100MB limit')
       }
     })
+
+    it('throws ImportError for empty files', async () => {
+      mockStat.mockResolvedValueOnce({ size: 0 })
+      await expect(validateFileSize('empty.deepnote')).rejects.toThrow('File is empty')
+    })
+
+    it('throws ImportError for long filenames', async () => {
+      mockStat.mockResolvedValueOnce({ size: 1000 })
+      const longName = `${'a'.repeat(256)}.deepnote`
+      await expect(validateFileSize(longName)).rejects.toThrow('File name is too long')
+    })
   })
 
   describe('ImportError', () => {
@@ -217,9 +229,9 @@ describe('import-client', () => {
   })
 
   describe('getErrorMessage', () => {
-    it('returns rate limit message for 429 errors', () => {
-      const error = new ImportError('Rate limited', 429)
-      expect(getErrorMessage(error)).toBe('Too many requests. Please try again in a few minutes.')
+    it('returns original message for 429 errors', () => {
+      const error = new ImportError('Too many requests', 429)
+      expect(getErrorMessage(error)).toBe('Too many requests')
     })
 
     it('returns original message for other ImportErrors', () => {

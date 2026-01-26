@@ -307,7 +307,9 @@ describe('open command', () => {
     })
 
     it('outputs JSON error for rate limiting', async () => {
-      vi.mocked(initImport).mockRejectedValueOnce(new ImportError('Rate limited', 429))
+      vi.mocked(initImport).mockRejectedValueOnce(
+        new ImportError('Too many import requests from this IP, please try again after an hour.', 429)
+      )
 
       const action = createOpenAction(program)
 
@@ -316,7 +318,7 @@ describe('open command', () => {
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
       expect(parsed.success).toBe(false)
-      expect(parsed.error).toContain('Too many requests')
+      expect(parsed.error).toContain('Too many import requests')
     })
   })
 })

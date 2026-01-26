@@ -1,5 +1,10 @@
 import fs from 'node:fs/promises'
+import { basename } from 'node:path'
 import { debug } from '../output'
+import { DEFAULT_DOMAIN, getApiEndpoint, parseApiErrorMessage } from './deepnote-api'
+
+// Re-export for consumers that import from this module
+export { DEFAULT_DOMAIN } from './deepnote-api'
 
 /**
  * Response from the import initialization endpoint.
@@ -22,18 +27,6 @@ export interface ApiError {
  * Maximum file size for uploads (100MB).
  */
 export const MAX_FILE_SIZE = 100 * 1024 * 1024
-
-/**
- * Default Deepnote domain.
- */
-export const DEFAULT_DOMAIN = 'deepnote.com'
-
-/**
- * Gets the API endpoint for a given domain.
- */
-export function getApiEndpoint(domain: string): string {
-  return `https://api.${domain}`
-}
 
 /**
  * Initializes an import by requesting a presigned upload URL.
@@ -69,7 +62,8 @@ export async function initImport(
   if (!response.ok) {
     const responseBody = await response.text()
     debug(`Init import failed - Status: ${response.status}, Body: ${responseBody}`)
-    throw new ImportError(responseBody || 'Failed to initialize import', response.status)
+    const message = parseApiErrorMessage(responseBody, 'Failed to initialize import')
+    throw new ImportError(message, response.status)
   }
 
   return (await response.json()) as InitImportResponse
@@ -125,10 +119,21 @@ export function buildLaunchUrl(importId: string, domain: string = DEFAULT_DOMAIN
  */
 export async function validateFileSize(filePath: string): Promise<number> {
   const stats = await fs.stat(filePath)
+
+  if (stats.size <= 0) {
+    throw new ImportError('File is empty', 400)
+  }
+
   if (stats.size > MAX_FILE_SIZE) {
     const sizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024))
     throw new ImportError(`File exceeds ${sizeMB}MB limit`, 413)
   }
+
+  const fileName = basename(filePath)
+  if (fileName.length > 255) {
+    throw new ImportError('File name is too long (max 255 characters)', 400)
+  }
+
   return stats.size
 }
 
@@ -153,10 +158,6 @@ export class ImportError extends Error {
  */
 export function getErrorMessage(error: unknown): string {
   if (error instanceof ImportError) {
-    // Handle rate limiting specifically
-    if (error.statusCode === 429) {
-      return 'Too many requests. Please try again in a few minutes.'
-    }
     return error.message
   }
 
