@@ -1,28 +1,10 @@
 import { readFile } from 'node:fs/promises'
-import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
-import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlock } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
-
-const executableBlockTypes: ExecutableBlock['type'][] = [
-  'code',
-  'sql',
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-  'visualization',
-  'button',
-  'big-number',
-]
-
-const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
@@ -131,7 +113,7 @@ export class ExecutionEngine {
     for (const notebook of notebooks) {
       const sortedBlocks = this.sortBlocks(notebook.blocks)
       for (const block of sortedBlocks) {
-        if (this.isExecutableBlock(block)) {
+        if (isExecutableBlock(block)) {
           // Skip if filtering by blockId and this isn't the target
           if (options.blockId && block.id !== options.blockId) {
             continue
@@ -207,13 +189,6 @@ export class ExecutionEngine {
       failedBlocks,
       totalDurationMs: Date.now() - startTime,
     }
-  }
-
-  /**
-   * Check if a block is executable.
-   */
-  private isExecutableBlock(block: DeepnoteBlock): block is ExecutableBlock {
-    return executableBlockTypeSet.has(block.type)
   }
 
   /**

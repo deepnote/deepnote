@@ -1,31 +1,7 @@
 import type { DeepnoteBlock, DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
+import { isExecutableBlockType } from '@deepnote/blocks'
 import { addContentHashes, computeSnapshotHash } from './hash'
 import type { SplitResult } from './types'
-
-/** Block types that can have outputs */
-const EXECUTABLE_BLOCK_TYPES = new Set([
-  'code',
-  'sql',
-  'notebook-function',
-  'visualization',
-  'button',
-  'big-number',
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-])
-
-/**
- * Checks if a block type can have outputs
- */
-function isExecutableBlock(type: string): boolean {
-  return EXECUTABLE_BLOCK_TYPES.has(type)
-}
 
 /**
  * Creates a slug from a project name.
@@ -59,7 +35,7 @@ export function generateSnapshotFilename(slug: string, projectId: string, timest
  * Removes output-related fields from a block, returning a clean source block.
  */
 function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
-  if (!isExecutableBlock(block.type)) {
+  if (!isExecutableBlockType(block.type)) {
     return block
   }
 
@@ -133,7 +109,7 @@ export function splitDeepnoteFile(file: DeepnoteFile): SplitResult {
 export function hasOutputs(file: DeepnoteFile): boolean {
   for (const notebook of file.project.notebooks) {
     for (const block of notebook.blocks) {
-      if (!isExecutableBlock(block.type)) {
+      if (!isExecutableBlockType(block.type)) {
         continue
       }
       const execBlock = block as DeepnoteBlock & { outputs?: unknown[] }
