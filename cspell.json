@@ -115,6 +115,7 @@
     "typescript",
     "venv",
     "vscode",
+    "unstub",
     "windsurf",
     "workflows"
   ]
