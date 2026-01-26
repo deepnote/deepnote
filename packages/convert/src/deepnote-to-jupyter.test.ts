@@ -11,7 +11,7 @@ import {
 } from './deepnote-to-jupyter'
 import type { JupyterCell } from './types/jupyter'
 
-describe('convertDeepnoteFileToJupyter', () => {
+describe('convertDeepnoteFileToJupyterFiles', () => {
   const testFixturesDir = join(__dirname, '../test-fixtures')
   const testOutputDir = join(__dirname, '../test-output')
 

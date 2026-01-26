@@ -29,6 +29,7 @@ describe('CLI', () => {
 
       expect(commandNames).toContain('inspect')
       expect(commandNames).toContain('run')
+      expect(commandNames).toContain('convert')
       expect(commandNames).toContain('validate')
       expect(commandNames).toContain('completion')
     })
@@ -61,6 +62,27 @@ describe('CLI', () => {
       expect(optionFlags).toContain('-o, --output <format>')
     })
 
+    it('completion command is properly configured', () => {
+      const program = createProgram()
+      const completionCmd = program.commands.find(cmd => cmd.name() === 'completion')
+
+      expect(completionCmd).toBeDefined()
+      expect(completionCmd?.description()).toBe('Generate shell completion scripts')
+    })
+
+    it('convert command is properly configured', () => {
+      const program = createProgram()
+      const convertCmd = program.commands.find(cmd => cmd.name() === 'convert')
+
+      expect(convertCmd).toBeDefined()
+      expect(convertCmd?.description()).toBe('Convert between notebook formats (.ipynb, .qmd, .py, .deepnote)')
+
+      const optionFlags = convertCmd?.options.map(o => o.flags)
+      expect(optionFlags).toContain('-o, --output <path>')
+      expect(optionFlags).toContain('-n, --name <name>')
+      expect(optionFlags).toContain('-f, --format <format>')
+    })
+
     it('validate command is properly configured', () => {
       const program = createProgram()
       const validateCmd = program.commands.find(cmd => cmd.name() === 'validate')
@@ -70,14 +92,6 @@ describe('CLI', () => {
 
       const optionFlags = validateCmd?.options.map(o => o.flags)
       expect(optionFlags).toContain('-o, --output <format>')
-    })
-
-    it('completion command is properly configured', () => {
-      const program = createProgram()
-      const completionCmd = program.commands.find(cmd => cmd.name() === 'completion')
-
-      expect(completionCmd).toBeDefined()
-      expect(completionCmd?.description()).toBe('Generate shell completion scripts')
     })
   })
 

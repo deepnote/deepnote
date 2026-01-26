@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { createConvertAction } from './commands/convert'
 import { createInspectAction } from './commands/inspect'
 import { createRunAction } from './commands/run'
 import { createValidateAction } from './commands/validate'
@@ -215,6 +216,56 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createRunAction(program))
+
+  // Convert command - convert between notebook formats
+  program
+    .command('convert')
+    .description('Convert between notebook formats (.ipynb, .qmd, .py, .deepnote)')
+    .argument('<path>', 'Path to a file or directory to convert')
+    .option('-o, --output <path>', 'Output path (file or directory)')
+    .option('-n, --name <name>', 'Project name (for conversions to .deepnote)')
+    .option(
+      '-f, --format <format>',
+      'Output format when converting from .deepnote (jupyter, percent, quarto, marimo)',
+      'jupyter'
+    )
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Supported Formats:')}
+  ${c.dim('.ipynb')}     Jupyter Notebook
+  ${c.dim('.qmd')}       Quarto document
+  ${c.dim('.py')}        Percent format (# %%) or Marimo (@app.cell)
+  ${c.dim('.deepnote')}  Deepnote project
+
+${c.bold('Conversion Directions:')}
+  ${c.dim('To Deepnote:')}   .ipynb, .qmd, .py → .deepnote
+  ${c.dim('From Deepnote:')} .deepnote → .ipynb, .qmd, .py (percent/marimo)
+
+${c.bold('Examples:')}
+  ${c.dim('# Convert Jupyter notebook to Deepnote')}
+  $ deepnote convert notebook.ipynb
+
+  ${c.dim('# Convert directory of notebooks')}
+  $ deepnote convert ./notebooks/
+
+  ${c.dim('# Convert with custom output path')}
+  $ deepnote convert notebook.ipynb -o my-project.deepnote
+
+  ${c.dim('# Convert with custom project name')}
+  $ deepnote convert notebook.ipynb -n "My Analysis"
+
+  ${c.dim('# Convert Deepnote to Jupyter')}
+  $ deepnote convert project.deepnote
+
+  ${c.dim('# Convert Deepnote to Quarto')}
+  $ deepnote convert project.deepnote -f quarto
+
+  ${c.dim('# Convert Deepnote to Marimo')}
+  $ deepnote convert project.deepnote -f marimo
+`
+    })
+    .action(createConvertAction(program))
 
   // Validate command - validate a .deepnote file against the schema
   program

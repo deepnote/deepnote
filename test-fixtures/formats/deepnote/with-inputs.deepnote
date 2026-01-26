@@ -1,0 +1,36 @@
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+project:
+  name: Input Blocks Test
+  id: 00000000-0000-0000-0000-000000000001
+  notebooks:
+    - id: 00000000-0000-0000-0000-000000000002
+      name: Notebook with Inputs
+      blocks:
+        - blockGroup: "0"
+          id: 00000000-0000-0000-0000-000000000003
+          sortingKey: "0"
+          type: markdown
+          content: "# Input Widgets Demo"
+        - blockGroup: "1"
+          id: 00000000-0000-0000-0000-000000000004
+          sortingKey: "1"
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: user_name
+            deepnote_default_value: "John Doe"
+        - blockGroup: "2"
+          id: 00000000-0000-0000-0000-000000000005
+          sortingKey: "2"
+          type: input-checkbox
+          content: ""
+          metadata:
+            deepnote_variable_name: is_enabled
+            deepnote_default_value: "true"
+        - blockGroup: "3"
+          id: 00000000-0000-0000-0000-000000000006
+          sortingKey: "3"
+          type: code
+          content: 'print(f"Hello, {user_name}!")'
+version: 1.0.0

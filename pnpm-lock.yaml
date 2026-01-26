@@ -71,6 +71,9 @@ importers:
       '@deepnote/blocks':
         specifier: workspace:*
         version: link:../blocks
+      '@deepnote/convert':
+        specifier: workspace:*
+        version: link:../convert
       '@deepnote/reactivity':
         specifier: workspace:*
         version: link:../reactivity
@@ -86,6 +89,9 @@ importers:
       commander:
         specifier: ^14.0.2
         version: 14.0.2
+      ora:
+        specifier: ^9.0.0
+        version: 9.0.0
       zod:
         specifier: 3.25.76
         version: 3.25.76

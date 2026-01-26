@@ -17,6 +17,41 @@ export interface ResolvedFile {
   absolutePath: string
 }
 
+export interface ResolvedPath {
+  absolutePath: string
+  stat: import('node:fs').Stats
+  isDirectory: boolean
+  extension: string // lowercase, empty string for directories
+}
+
+/**
+ * General-purpose path resolution with proper error handling.
+ *
+ * @param inputPath - Path to resolve (relative or absolute)
+ * @returns The resolved path with stat info
+ * @throws FileResolutionError if the path doesn't exist
+ */
+export async function resolvePath(inputPath: string): Promise<ResolvedPath> {
+  const cwd = process.cwd()
+  const absolutePath = resolve(cwd, inputPath)
+
+  let fileStat: import('node:fs').Stats
+  try {
+    fileStat = await stat(absolutePath)
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      throw new FileResolutionError(`File or directory not found: ${inputPath}`)
+    }
+    throw err // Rethrow permission errors (EACCES), etc.
+  }
+
+  const isDirectory = fileStat.isDirectory()
+  const extension = isDirectory ? '' : extname(absolutePath).toLowerCase()
+
+  return { absolutePath, stat: fileStat, isDirectory, extension }
+}
+
 export interface ResolveDeepnoteFileOptions {
   /** Custom error message when no .deepnote files are found */
   noFilesFoundMessage?: string
