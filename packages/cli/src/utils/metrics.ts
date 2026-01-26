@@ -114,7 +114,11 @@ export function displayProfileSummary(profiles: BlockProfile[]): void {
   // Calculate column widths
   const labelWidth = Math.max(5, ...sorted.map(p => p.label.length))
   const durationWidth = Math.max(8, `${totalDuration}ms`.length)
-  const memoryWidth = Math.max(6, formatMemoryDelta(totalMemoryDelta).length)
+  const memoryWidth = Math.max(
+    6,
+    formatMemoryDelta(totalMemoryDelta).length,
+    ...sorted.map(p => formatMemoryDelta(p.memoryDelta).length)
+  )
 
   output(chalk.bold('\nProfile Summary:'))
 

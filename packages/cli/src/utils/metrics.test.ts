@@ -85,6 +85,7 @@ describe('metrics utilities', () => {
   describe('fetchMetrics', () => {
     afterEach(() => {
       vi.restoreAllMocks()
+      vi.unstubAllGlobals()
     })
 
     it('fetches metrics from correct URL', async () => {
