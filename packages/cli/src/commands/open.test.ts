@@ -30,7 +30,7 @@ import { ImportError, initImport, uploadFile, validateFileSize } from '../utils/
 const HELLO_WORLD_FILE = resolve(process.cwd(), 'examples', '1_hello_world.deepnote')
 
 // Test file with special characters (spaces and non-ASCII)
-const SPECIAL_CHARS_FILE = resolve(process.cwd(), 'examples', 'test héllo wörld.deepnote')
+const SPECIAL_CHARS_FILE = resolve(process.cwd(), 'test-fixtures', 'edge-cases', 'spëcial-chàracters.deepnote')
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: OpenOptions = {}
