@@ -559,8 +559,8 @@ x = 1
       await action(pyDir, { output: outputPath })
 
       // Verify file was created
-      const content2 = await fs.readFile(outputPath, 'utf-8')
-      const parsed = deserializeDeepnoteFile(content2)
+      const outputContent = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(outputContent)
       expect(parsed.project.notebooks).toHaveLength(2)
     })
   })

@@ -10,12 +10,14 @@ import {
   convertPercentFilesToDeepnoteFile,
   convertQuartoFilesToDeepnoteFile,
   detectFormat,
+  type NotebookFormat,
 } from '@deepnote/convert'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import ora from 'ora'
 import { ExitCode } from '../exit-codes'
 import { debug, getOutputConfig, error as logError } from '../output'
+import { resolvePath } from '../utils/file-resolver'
 
 export interface ConvertOptions {
   output?: string
@@ -46,17 +48,7 @@ export function createConvertAction(_program: Command): (inputPath: string, opti
 }
 
 async function convertFile(inputPath: string, options: ConvertOptions): Promise<ConvertResult> {
-  const cwd = process.cwd()
-  const absolutePath = resolve(cwd, inputPath)
-
-  // Check if path exists
-  const stat = await fs.stat(absolutePath).catch(() => null)
-  if (!stat) {
-    throw new Error(`File or directory not found: ${inputPath}`)
-  }
-
-  const isDirectory = stat.isDirectory()
-  const ext = isDirectory ? '' : extname(absolutePath).toLowerCase()
+  const { absolutePath, isDirectory, extension: ext } = await resolvePath(inputPath)
 
   // Determine input format
   const inputFormat = await determineInputFormat(absolutePath, isDirectory, ext)
@@ -69,11 +61,7 @@ async function convertFile(inputPath: string, options: ConvertOptions): Promise<
   return convertToDeepnote(absolutePath, inputFormat, isDirectory, options)
 }
 
-async function determineInputFormat(
-  absolutePath: string,
-  isDirectory: boolean,
-  ext: string
-): Promise<'jupyter' | 'quarto' | 'percent' | 'marimo' | 'deepnote'> {
+async function determineInputFormat(absolutePath: string, isDirectory: boolean, ext: string): Promise<NotebookFormat> {
   if (ext === '.deepnote') {
     return 'deepnote'
   }
@@ -188,7 +176,7 @@ async function convertFromDeepnote(
 
 async function convertToDeepnote(
   absolutePath: string,
-  inputFormat: 'jupyter' | 'quarto' | 'percent' | 'marimo',
+  inputFormat: Exclude<NotebookFormat, 'deepnote'>,
   isDirectory: boolean,
   options: ConvertOptions
 ): Promise<ConvertResult> {
@@ -245,10 +233,7 @@ async function convertToDeepnote(
   }
 }
 
-async function getFilesFromDirectory(
-  dirPath: string,
-  format: 'jupyter' | 'quarto' | 'percent' | 'marimo'
-): Promise<string[]> {
+async function getFilesFromDirectory(dirPath: string, format: Exclude<NotebookFormat, 'deepnote'>): Promise<string[]> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true })
   const extensionMap: Record<string, string> = {
     jupyter: '.ipynb',
