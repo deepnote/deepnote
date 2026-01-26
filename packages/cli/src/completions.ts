@@ -79,7 +79,7 @@ _deepnote_completions() {
         run)
             # Complete .deepnote files and flags
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
@@ -189,6 +189,9 @@ ${commandEntries}
                         '*'{-i,--input}'[Set input variable value]:key=value:' \\
                         '--list-inputs[List all input variables without running]' \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '--dry-run[Show what would be executed without running]' \\
+                        '--top[Display resource usage during execution]' \\
+                        '--profile[Show per-block timing and memory usage]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 validate)
@@ -266,6 +269,9 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (can be repeated)'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List all input variables without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -s o -l output -d 'Output format' -xa 'json toon'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l dry-run -d 'Show what would be executed without running'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l top -d 'Display resource usage during execution'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l profile -d 'Show per-block timing and memory usage'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
 
 # validate subcommand

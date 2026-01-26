@@ -7,6 +7,7 @@ const mockStart = vi.fn()
 const mockStop = vi.fn()
 const mockRunFile = vi.fn()
 const mockConstructor = vi.fn()
+let mockServerPort: number | null = 8888
 const mockGetBlockDependencies = vi.fn()
 
 // Mock @deepnote/runtime-core before importing run
@@ -18,6 +19,10 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
       start = mockStart
       stop = mockStop
       runFile = mockRunFile
+
+      get serverPort() {
+        return mockServerPort
+      }
 
       constructor(config: { pythonEnv: string; workingDirectory: string }) {
         mockConstructor(config)
@@ -136,6 +141,7 @@ describe('run command', () => {
       stdoutWriteSpy.mockRestore()
       programErrorSpy.mockRestore()
       process.exitCode = originalExitCode
+      mockServerPort = 8888
     })
 
     it('creates ExecutionEngine with correct config', async () => {
@@ -363,6 +369,400 @@ describe('run command', () => {
       await expect(action(HELLO_WORLD_FILE, {})).rejects.toThrow('program.error called')
 
       expect(mockStop).toHaveBeenCalledTimes(1)
+    })
+
+    describe('--top flag', () => {
+      const mockMetrics = {
+        rss: 104857600, // 100MB
+        limits: { memory: { rss: 0 } },
+        cpu_percent: 25.5,
+        cpu_count: 8,
+      }
+
+      beforeEach(() => {
+        mockServerPort = 8888
+      })
+
+      it('does not fetch metrics when --top is not set', async () => {
+        setupSuccessfulRun()
+        const fetchSpy = vi.spyOn(global, 'fetch')
+
+        await action(HELLO_WORLD_FILE, {})
+
+        expect(fetchSpy).not.toHaveBeenCalled()
+        fetchSpy.mockRestore()
+      })
+
+      it('fetches and displays initial metrics when --top is set', async () => {
+        setupSuccessfulRun()
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockMetrics),
+          })
+        )
+
+        await action(HELLO_WORLD_FILE, { top: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('CPU:')
+        expect(output).toContain('Memory:')
+        expect(output).toContain('100MB')
+      })
+
+      it('displays final resource usage in summary when --top is set', async () => {
+        setupSuccessfulRun()
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockMetrics),
+          })
+        )
+
+        await action(HELLO_WORLD_FILE, { top: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Final resource usage:')
+      })
+
+      it('does not show metrics when --json is set even with --top', async () => {
+        setupSuccessfulRun()
+        const fetchSpy = vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve(mockMetrics),
+        })
+        vi.stubGlobal('fetch', fetchSpy)
+
+        await action(HELLO_WORLD_FILE, { top: true, output: 'json' })
+
+        // Should not fetch metrics in JSON mode
+        expect(fetchSpy).not.toHaveBeenCalled()
+      })
+
+      it('handles fetch failure gracefully', async () => {
+        setupSuccessfulRun()
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Connection refused')))
+
+        // Should not throw, just skip metrics display
+        await action(HELLO_WORLD_FILE, { top: true })
+
+        const output = getOutput(consoleLogSpy)
+        // Should still complete successfully
+        expect(output).toContain('Done')
+      })
+
+      it('handles non-ok response gracefully', async () => {
+        setupSuccessfulRun()
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue({
+            ok: false,
+            status: 404,
+          })
+        )
+
+        await action(HELLO_WORLD_FILE, { top: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Done')
+      })
+
+      it('displays memory with limit when limit is set', async () => {
+        setupSuccessfulRun()
+        const metricsWithLimit = {
+          rss: 536870912, // 512MB
+          limits: { memory: { rss: 1073741824 } }, // 1GB limit
+          cpu_percent: 50.0,
+          cpu_count: 4,
+        }
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(metricsWithLimit),
+          })
+        )
+
+        await action(HELLO_WORLD_FILE, { top: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('512MB')
+        expect(output).toContain('1.0GB')
+      })
+
+      it('formats large memory values in GB', async () => {
+        setupSuccessfulRun()
+        const metricsWithGB = {
+          rss: 2147483648, // 2GB
+          limits: { memory: { rss: 0 } },
+          cpu_percent: 10.0,
+          cpu_count: 4,
+        }
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(metricsWithGB),
+          })
+        )
+
+        await action(HELLO_WORLD_FILE, { top: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('2.0GB')
+      })
+
+      it('does not show metrics when serverPort is null', async () => {
+        mockServerPort = null
+        setupSuccessfulRun()
+        const fetchSpy = vi.fn()
+        vi.stubGlobal('fetch', fetchSpy)
+
+        await action(HELLO_WORLD_FILE, { top: true })
+
+        expect(fetchSpy).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('--profile flag', () => {
+      const mockMetrics = {
+        rss: 104857600, // 100MB
+        limits: { memory: { rss: 0 } },
+        cpu_percent: 25.5,
+        cpu_count: 8,
+      }
+
+      beforeEach(() => {
+        mockServerPort = 8888
+      })
+
+      it('does not fetch metrics when --profile is not set', async () => {
+        setupSuccessfulRun()
+        const fetchSpy = vi.spyOn(global, 'fetch')
+
+        await action(HELLO_WORLD_FILE, {})
+
+        expect(fetchSpy).not.toHaveBeenCalled()
+        fetchSpy.mockRestore()
+      })
+
+      it('fetches metrics before and after each block when --profile is set', async () => {
+        const fetchSpy = vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve(mockMetrics),
+        })
+        vi.stubGlobal('fetch', fetchSpy)
+
+        mockStart.mockResolvedValue(undefined)
+        mockRunFile.mockImplementation(async (_path, options) => {
+          await options?.onBlockStart?.(
+            { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          await options?.onBlockDone?.({
+            blockId: 'block-1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, { profile: true })
+
+        // Should fetch metrics twice per block (before and after)
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
+      })
+
+      it('displays memory delta in block output when --profile is set', async () => {
+        // Set up with memory change
+        const metricsSequence = [
+          { rss: 52428800, limits: { memory: { rss: 0 } }, cpu_percent: 10, cpu_count: 4 }, // 50MB before
+          { rss: 157286400, limits: { memory: { rss: 0 } }, cpu_percent: 20, cpu_count: 4 }, // 150MB after (+100MB)
+        ]
+        let callCount = 0
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockImplementation(() => ({
+            ok: true,
+            json: () => Promise.resolve(metricsSequence[callCount++ % metricsSequence.length]),
+          }))
+        )
+
+        mockStart.mockResolvedValue(undefined)
+        mockRunFile.mockImplementation(async (_path, options) => {
+          await options?.onBlockStart?.(
+            { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          await options?.onBlockDone?.({
+            blockId: 'block-1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, { profile: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('+100MB')
+      })
+
+      it('displays profile summary when --profile is set', async () => {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockMetrics),
+          })
+        )
+
+        mockStart.mockResolvedValue(undefined)
+        mockRunFile.mockImplementation(async (_path, options) => {
+          await options?.onBlockStart?.(
+            { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          await options?.onBlockDone?.({
+            blockId: 'block-1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, { profile: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Profile Summary:')
+      })
+
+      it('does not show profile when --json is set even with --profile', async () => {
+        const fetchSpy = vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve(mockMetrics),
+        })
+        vi.stubGlobal('fetch', fetchSpy)
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { profile: true, output: 'json' })
+
+        // Should not fetch metrics in JSON mode
+        expect(fetchSpy).not.toHaveBeenCalled()
+      })
+
+      it('handles fetch failure gracefully during profiling', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Connection refused')))
+
+        mockStart.mockResolvedValue(undefined)
+        mockRunFile.mockImplementation(async (_path, options) => {
+          await options?.onBlockStart?.(
+            { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          await options?.onBlockDone?.({
+            blockId: 'block-1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        // Should not throw, just skip profiling data
+        await action(HELLO_WORLD_FILE, { profile: true })
+
+        const output = getOutput(consoleLogSpy)
+        // Should still complete successfully
+        expect(output).toContain('Done')
+      })
+
+      it('does not profile when serverPort is null', async () => {
+        mockServerPort = null
+
+        mockStart.mockResolvedValue(undefined)
+        mockRunFile.mockImplementation(async (_path, options) => {
+          await options?.onBlockStart?.(
+            { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          await options?.onBlockDone?.({
+            blockId: 'block-1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        const fetchSpy = vi.fn()
+        vi.stubGlobal('fetch', fetchSpy)
+
+        await action(HELLO_WORLD_FILE, { profile: true })
+
+        expect(fetchSpy).not.toHaveBeenCalled()
+      })
+
+      it('can use --top and --profile together', async () => {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockMetrics),
+          })
+        )
+
+        mockStart.mockResolvedValue(undefined)
+        mockRunFile.mockImplementation(async (_path, options) => {
+          await options?.onBlockStart?.(
+            { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          await options?.onBlockDone?.({
+            blockId: 'block-1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, { top: true, profile: true })
+
+        const output = getOutput(consoleLogSpy)
+        // Should show both --top output and profile summary
+        expect(output).toContain('Final resource usage:')
+        expect(output).toContain('Profile Summary:')
+      })
     })
 
     describe('-o json output mode', () => {
