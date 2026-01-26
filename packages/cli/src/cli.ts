@@ -224,7 +224,7 @@ ${c.bold('Exit Codes:')}
   // Open command - open a .deepnote file in deepnote.com
   program
     .command('open')
-    .description('Open a .deepnote file in Deepnote (uploads and opens in browser)')
+    .description('Open a .deepnote file in Deepnote Cloud')
     .argument('<path>', 'Path to a .deepnote file to open')
     .option('--domain <domain>', 'Deepnote domain (defaults to deepnote.com)')
     .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
