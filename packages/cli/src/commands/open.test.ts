@@ -24,7 +24,7 @@ vi.mock('../utils/import-client', async importOriginal => {
 })
 
 import { openInBrowser } from '../utils/browser'
-import { initImport, uploadFile, validateFileSize } from '../utils/import-client'
+import { ImportError, initImport, uploadFile, validateFileSize } from '../utils/import-client'
 
 // Test file path as absolute path (tests are run from root)
 const HELLO_WORLD_FILE = resolve(process.cwd(), 'examples', '1_hello_world.deepnote')
@@ -235,9 +235,7 @@ describe('open command', () => {
     })
 
     it('handles file size validation error', async () => {
-      vi.mocked(validateFileSize).mockRejectedValueOnce(
-        new (await import('../utils/import-client')).ImportError('File exceeds 100MB limit', 413)
-      )
+      vi.mocked(validateFileSize).mockRejectedValueOnce(new ImportError('File exceeds 100MB limit', 413))
 
       const action = createOpenAction(program)
 
