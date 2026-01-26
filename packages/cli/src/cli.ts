@@ -171,6 +171,8 @@ ${c.bold('Examples:')}
     .option('--list-inputs', 'List all input variables in the notebook without running')
     .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
     .option('--dry-run', 'Show what would be executed without running')
+    .option('--top', 'Display resource usage (CPU, memory) during execution')
+    .option('--profile', 'Show per-block timing and memory usage')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -203,6 +205,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Input values support JSON for complex types')}
   $ deepnote run my-project.deepnote -i 'config={"debug": true}'
+
+  ${c.dim('# Monitor resource usage during execution')}
+  $ deepnote run my-project.deepnote --top
+
+  ${c.dim('# Profile blocks to identify slow/memory-intensive operations')}
+  $ deepnote run my-project.deepnote --profile
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote -o json

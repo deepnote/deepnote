@@ -115,6 +115,7 @@
     "timedelta",
     "tolist",
     "typescript",
+    "unstub",
     "venv",
     "vscode",
     "unstub",
