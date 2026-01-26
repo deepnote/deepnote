@@ -113,6 +113,7 @@
     "timedelta",
     "tolist",
     "typescript",
+    "unstub",
     "venv",
     "vscode",
     "windsurf",
