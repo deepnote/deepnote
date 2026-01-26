@@ -45,13 +45,14 @@ export function formatBytes(bytes: number): string {
 
 /** Create a progress bar */
 export function createProgressBar(percent: number, width: number): string {
-  const filled = Math.round((percent / 100) * width)
-  const empty = width - filled
+  const p = Math.min(100, Math.max(0, percent))
+  const filled = Math.round((p / 100) * width)
+  const empty = Math.max(0, width - filled)
 
   let barColor = chalk.green
-  if (percent >= 80) {
+  if (p >= 80) {
     barColor = chalk.red
-  } else if (percent >= 60) {
+  } else if (p >= 60) {
     barColor = chalk.yellow
   }
 

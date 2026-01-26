@@ -704,11 +704,6 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     // Determine exit code based on failures
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
-    // Stop metrics monitoring
-    if (metricsInterval) {
-      clearInterval(metricsInterval)
-    }
-
     if (isMachineOutput) {
       // Output machine-readable result and exit
       const result: RunResult = {
@@ -758,6 +753,10 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       process.exitCode = exitCode
     }
   } finally {
+    if (metricsInterval) {
+      clearInterval(metricsInterval)
+      metricsInterval = null
+    }
     await engine.stop()
   }
 }
