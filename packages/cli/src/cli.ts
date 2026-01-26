@@ -245,8 +245,8 @@ ${c.bold('Examples:')}
   ${c.dim('# Open with JSON output (for scripting)')}
   $ deepnote open my-project.deepnote -o json
 
-  ${c.dim('# Use a custom domain for single-tenant support')}
-  $ deepnote open my-project.deepnote --domain enterprise.deepnote.com
+  ${c.dim('# Use a custom domain (e.g., single-tenants)')}
+  $ deepnote open my-project.deepnote --domain deepnote.example.com
 `
     })
     .action(createOpenAction(program))
