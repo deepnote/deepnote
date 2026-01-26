@@ -141,6 +141,7 @@ describe('run command', () => {
       stdoutWriteSpy.mockRestore()
       programErrorSpy.mockRestore()
       process.exitCode = originalExitCode
+      mockServerPort = 8888
     })
 
     it('creates ExecutionEngine with correct config', async () => {
@@ -522,7 +523,6 @@ describe('run command', () => {
         await action(HELLO_WORLD_FILE, { top: true })
 
         expect(fetchSpy).not.toHaveBeenCalled()
-        mockServerPort = 8888 // Reset for other tests
       })
     })
 
@@ -726,7 +726,6 @@ describe('run command', () => {
         await action(HELLO_WORLD_FILE, { profile: true })
 
         expect(fetchSpy).not.toHaveBeenCalled()
-        mockServerPort = 8888 // Reset for other tests
       })
 
       it('can use --top and --profile together', async () => {
