@@ -166,6 +166,7 @@ ${c.bold('Examples:')}
     )
     .option('--list-inputs', 'List all input variables in the notebook without running')
     .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
+    .option('--dry-run', 'Show what would be executed without running')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -204,6 +205,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
   $ deepnote run my-project.deepnote -o toon
+
+  ${c.dim('# Preview what would be executed without running')}
+  $ deepnote run my-project.deepnote --dry-run
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
