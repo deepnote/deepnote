@@ -251,9 +251,7 @@ describe('open command', () => {
     })
 
     it('handles import initialization error', async () => {
-      vi.mocked(initImport).mockRejectedValueOnce(
-        new (await import('../utils/import-client')).ImportError('Network error', 500)
-      )
+      vi.mocked(initImport).mockRejectedValueOnce(new ImportError('Network error', 500))
 
       const action = createOpenAction(program)
 
@@ -268,9 +266,7 @@ describe('open command', () => {
     })
 
     it('handles upload error', async () => {
-      vi.mocked(uploadFile).mockRejectedValueOnce(
-        new (await import('../utils/import-client')).ImportError('Upload failed', 403)
-      )
+      vi.mocked(uploadFile).mockRejectedValueOnce(new ImportError('Upload failed', 403))
 
       const action = createOpenAction(program)
 
@@ -311,9 +307,7 @@ describe('open command', () => {
     })
 
     it('outputs JSON error for rate limiting', async () => {
-      vi.mocked(initImport).mockRejectedValueOnce(
-        new (await import('../utils/import-client')).ImportError('Rate limited', 429)
-      )
+      vi.mocked(initImport).mockRejectedValueOnce(new ImportError('Rate limited', 429))
 
       const action = createOpenAction(program)
 
