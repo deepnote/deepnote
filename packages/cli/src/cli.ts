@@ -226,7 +226,7 @@ ${c.bold('Exit Codes:')}
     .description('Open a .deepnote file in Deepnote (uploads and opens in browser)')
     .argument('<path>', 'Path to a .deepnote file to open')
     .option('--domain <domain>', 'Deepnote domain (defaults to deepnote.com)')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -243,7 +243,7 @@ ${c.bold('Examples:')}
   $ deepnote open my-project.deepnote
 
   ${c.dim('# Open with JSON output (for scripting)')}
-  $ deepnote open my-project.deepnote --json
+  $ deepnote open my-project.deepnote -o json
 
   ${c.dim('# Use a custom domain (e.g., enterprise)')}
   $ deepnote open my-project.deepnote --domain enterprise.deepnote.com

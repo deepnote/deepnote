@@ -145,11 +145,11 @@ describe('open command', () => {
   })
 
   describe('JSON output', () => {
-    it('outputs JSON when --json option is used', async () => {
+    it('outputs JSON when -o json option is used', async () => {
       const action = createOpenAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -266,10 +266,10 @@ describe('open command', () => {
       expect(output).toContain('Failed to open browser')
     })
 
-    it('outputs JSON error when --json option is used', async () => {
+    it('outputs JSON error when -o json option is used', async () => {
       const action = createOpenAction(program)
 
-      await expect(action('non-existent-file.deepnote', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent-file.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -285,7 +285,7 @@ describe('open command', () => {
       const action = createOpenAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await expect(action(filePath, { json: true })).rejects.toThrow('process.exit called')
+      await expect(action(filePath, { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)

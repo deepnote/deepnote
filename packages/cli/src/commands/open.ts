@@ -18,7 +18,7 @@ import {
 
 export interface OpenOptions {
   domain?: string
-  json?: boolean
+  output?: string
 }
 
 export function createOpenAction(_program: Command): (path: string | undefined, options: OpenOptions) => Promise<void> {
@@ -32,7 +32,7 @@ export function createOpenAction(_program: Command): (path: string | undefined, 
       // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
       const exitCode =
         error instanceof FileResolutionError || error instanceof ImportError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: getErrorMessage(error) })
       } else {
         logError(message)
@@ -49,7 +49,7 @@ async function openDeepnoteFile(path: string | undefined, options: OpenOptions):
 
   // Helper to output progress (suppressed in JSON mode)
   const progress = (message: string) => {
-    if (!options.json) {
+    if (options.output !== 'json') {
       output(`${chalk.dim(message)}`)
     }
   }
@@ -79,7 +79,7 @@ async function openDeepnoteFile(path: string | undefined, options: OpenOptions):
   progress('Opening in browser...')
   await openInBrowser(launchUrl)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({
       success: true,
       path: absolutePath,
