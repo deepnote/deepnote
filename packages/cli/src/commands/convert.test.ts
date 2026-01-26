@@ -374,13 +374,15 @@ version: "1.0.0"
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.ipynb', {})).rejects.toThrow('process.exit called')
+      try {
+        await expect(action('non-existent-file.ipynb', {})).rejects.toThrow('process.exit called')
 
-      expect(consoleErrorSpy).toHaveBeenCalled()
-      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
-      expect(errorOutput).toContain('not found')
-
-      exitSpy.mockRestore()
+        expect(consoleErrorSpy).toHaveBeenCalled()
+        const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(errorOutput).toContain('not found')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
 
     it('reports error for unsupported file type', async () => {
@@ -389,16 +391,18 @@ version: "1.0.0"
         throw new Error('process.exit called')
       })
 
-      const unsupportedPath = join(tempDir, 'file.txt')
-      await fs.writeFile(unsupportedPath, 'content', 'utf-8')
+      try {
+        const unsupportedPath = join(tempDir, 'file.txt')
+        await fs.writeFile(unsupportedPath, 'content', 'utf-8')
 
-      await expect(action(unsupportedPath, {})).rejects.toThrow('process.exit called')
+        await expect(action(unsupportedPath, {})).rejects.toThrow('process.exit called')
 
-      expect(consoleErrorSpy).toHaveBeenCalled()
-      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
-      expect(errorOutput).toContain('Unsupported')
-
-      exitSpy.mockRestore()
+        expect(consoleErrorSpy).toHaveBeenCalled()
+        const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(errorOutput).toContain('Unsupported')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
 
     it('reports error for empty directory', async () => {
@@ -407,16 +411,18 @@ version: "1.0.0"
         throw new Error('process.exit called')
       })
 
-      const emptyDir = join(tempDir, 'empty')
-      await fs.mkdir(emptyDir)
+      try {
+        const emptyDir = join(tempDir, 'empty')
+        await fs.mkdir(emptyDir)
 
-      await expect(action(emptyDir, {})).rejects.toThrow('process.exit called')
+        await expect(action(emptyDir, {})).rejects.toThrow('process.exit called')
 
-      expect(consoleErrorSpy).toHaveBeenCalled()
-      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
-      expect(errorOutput).toContain('No supported notebook files')
-
-      exitSpy.mockRestore()
+        expect(consoleErrorSpy).toHaveBeenCalled()
+        const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(errorOutput).toContain('No supported notebook files')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
 
     it('reports error for unsupported Python file (not percent or marimo)', async () => {
@@ -425,17 +431,19 @@ version: "1.0.0"
         throw new Error('process.exit called')
       })
 
-      // Create a regular Python script that's not percent or marimo format
-      const pyPath = join(tempDir, 'script.py')
-      await fs.writeFile(pyPath, 'def hello():\n    print("hi")\n', 'utf-8')
+      try {
+        // Create a regular Python script that's not percent or marimo format
+        const pyPath = join(tempDir, 'script.py')
+        await fs.writeFile(pyPath, 'def hello():\n    print("hi")\n', 'utf-8')
 
-      await expect(action(pyPath, {})).rejects.toThrow('process.exit called')
+        await expect(action(pyPath, {})).rejects.toThrow('process.exit called')
 
-      expect(consoleErrorSpy).toHaveBeenCalled()
-      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
-      expect(errorOutput).toContain('Unsupported Python file format')
-
-      exitSpy.mockRestore()
+        expect(consoleErrorSpy).toHaveBeenCalled()
+        const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(errorOutput).toContain('Unsupported Python file format')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
   })
 
@@ -564,8 +572,9 @@ x = 1
         throw new Error('process.exit called')
       })
 
-      const deepnotePath = join(tempDir, 'project.deepnote')
-      const content = `metadata:
+      try {
+        const deepnotePath = join(tempDir, 'project.deepnote')
+        const content = `metadata:
   createdAt: "2025-01-01T00:00:00Z"
 project:
   id: test-id
@@ -582,18 +591,19 @@ project:
           metadata: {}
 version: "1.0.0"
 `
-      await fs.writeFile(deepnotePath, content, 'utf-8')
+        await fs.writeFile(deepnotePath, content, 'utf-8')
 
-      // @ts-expect-error - Testing runtime validation with invalid format
-      await expect(action(deepnotePath, { format: 'invalid-format' })).rejects.toThrow('process.exit called')
+        // @ts-expect-error - Testing runtime validation with invalid format
+        await expect(action(deepnotePath, { format: 'invalid-format' })).rejects.toThrow('process.exit called')
 
-      expect(consoleErrorSpy).toHaveBeenCalled()
-      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
-      expect(errorOutput).toContain('Invalid output format')
-      expect(errorOutput).toContain('invalid-format')
-      expect(errorOutput).toContain('jupyter, percent, quarto, marimo')
-
-      exitSpy.mockRestore()
+        expect(consoleErrorSpy).toHaveBeenCalled()
+        const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(errorOutput).toContain('Invalid output format')
+        expect(errorOutput).toContain('invalid-format')
+        expect(errorOutput).toContain('jupyter, percent, quarto, marimo')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
   })
 })
