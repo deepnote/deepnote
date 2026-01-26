@@ -225,7 +225,6 @@ ${c.bold('Exit Codes:')}
       'Output format when converting from .deepnote (jupyter, percent, quarto, marimo)',
       'jupyter'
     )
-    .option('--json', 'Output result in JSON format for scripting')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -260,9 +259,6 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Convert Deepnote to Marimo')}
   $ deepnote convert project.deepnote -f marimo
-
-  ${c.dim('# Output result as JSON for CI/CD')}
-  $ deepnote convert notebook.ipynb --json
 `
     })
     .action(createConvertAction(program))

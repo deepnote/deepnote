@@ -81,7 +81,6 @@ describe('CLI', () => {
       expect(optionFlags).toContain('-o, --output <path>')
       expect(optionFlags).toContain('-n, --name <name>')
       expect(optionFlags).toContain('-f, --format <format>')
-      expect(optionFlags).toContain('--json')
     })
 
     it('validate command is properly configured', () => {

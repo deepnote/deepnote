@@ -15,13 +15,12 @@ import chalk from 'chalk'
 import type { Command } from 'commander'
 import ora from 'ora'
 import { ExitCode } from '../exit-codes'
-import { debug, getOutputConfig, error as logError, outputJson } from '../output'
+import { debug, getOutputConfig, error as logError } from '../output'
 
 export interface ConvertOptions {
   output?: string
   name?: string
   format?: 'jupyter' | 'percent' | 'quarto' | 'marimo'
-  json?: boolean
 }
 
 export interface ConvertResult {
@@ -37,18 +36,10 @@ export function createConvertAction(_program: Command): (inputPath: string, opti
     try {
       debug(`Converting: ${inputPath}`)
       debug(`Options: ${JSON.stringify(options)}`)
-      const result = await convertFile(inputPath, options)
-
-      if (options.json) {
-        outputJson(result)
-      }
+      await convertFile(inputPath, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (options.json) {
-        outputJson({ success: false, error: message })
-      } else {
-        logError(message)
-      }
+      logError(message)
       process.exit(ExitCode.Error)
     }
   }
@@ -155,7 +146,7 @@ async function convertFromDeepnote(
     marimo: 'Marimo notebooks',
   }
 
-  const quiet = getOutputConfig().quiet || options.json
+  const quiet = getOutputConfig().quiet
   const spinner = quiet ? null : ora(`Converting Deepnote project to ${formatNames[outputFormat]}...`).start()
 
   try {
@@ -209,7 +200,7 @@ async function convertToDeepnote(
   }
 
   const formatName = isDirectory ? `${formatNames[inputFormat]}s` : formatNames[inputFormat]
-  const quiet = getOutputConfig().quiet || options.json
+  const quiet = getOutputConfig().quiet
   const spinner = quiet ? null : ora(`Converting ${formatName} to Deepnote project...`).start()
 
   try {

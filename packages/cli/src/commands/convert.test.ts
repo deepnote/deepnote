@@ -19,19 +19,13 @@ async function cleanupTempDir(dirPath: string): Promise<void> {
   }
 }
 
-function getOutput(spy: Mock<typeof console.log>): string {
-  return spy.mock.calls.map(call => call.join(' ')).join('\n')
-}
-
 describe('convert command', () => {
   let program: Command
-  let consoleSpy: Mock<typeof console.log>
   let consoleErrorSpy: Mock<typeof console.error>
   let tempDir: string
 
   beforeEach(async () => {
     program = new Command()
-    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     resetOutputConfig()
     // Suppress spinners in tests
@@ -40,7 +34,6 @@ describe('convert command', () => {
   })
 
   afterEach(async () => {
-    consoleSpy.mockRestore()
     consoleErrorSpy.mockRestore()
     await cleanupTempDir(tempDir)
   })
@@ -67,13 +60,7 @@ print(x)
       await fs.writeFile(percentPath, content, 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(percentPath, { output: outputPath, json: true })
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('percent')
-      expect(result.outputFormat).toBe('deepnote')
+      await action(percentPath, { output: outputPath })
 
       // Verify file was created
       const fileContent = await fs.readFile(outputPath, 'utf-8')
@@ -98,12 +85,12 @@ y = 2
       await fs.writeFile(join(percentDir, 'nb2.py'), content2, 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(percentDir, { output: outputPath, json: true })
+      await action(percentDir, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('percent')
+      // Verify file was created
+      const fileContent = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(fileContent)
+      expect(parsed.project.notebooks).toHaveLength(2)
     })
   })
 
@@ -127,13 +114,12 @@ if __name__ == "__main__":
       await fs.writeFile(marimoPath, content, 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(marimoPath, { output: outputPath, json: true })
+      await action(marimoPath, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('marimo')
-      expect(result.outputFormat).toBe('deepnote')
+      // Verify file was created
+      const fileContent = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(fileContent)
+      expect(parsed.project.notebooks).toHaveLength(1)
     })
 
     it('converts a directory of Marimo files', async () => {
@@ -157,12 +143,12 @@ if __name__ == "__main__":
       await fs.writeFile(join(marimoDir, 'nb1.py'), content, 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(marimoDir, { output: outputPath, json: true })
+      await action(marimoDir, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('marimo')
+      // Verify file was created
+      const fileContent = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(fileContent)
+      expect(parsed.project.notebooks).toHaveLength(1)
     })
   })
 
@@ -187,13 +173,12 @@ print(x)
       await fs.writeFile(quartoPath, content, 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(quartoPath, { output: outputPath, json: true })
+      await action(quartoPath, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('quarto')
-      expect(result.outputFormat).toBe('deepnote')
+      // Verify file was created
+      const fileContent = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(fileContent)
+      expect(parsed.project.notebooks).toHaveLength(1)
     })
 
     it('converts a directory of Quarto documents', async () => {
@@ -215,12 +200,12 @@ x = 1
       await fs.writeFile(join(quartoDir, 'nb2.qmd'), content, 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(quartoDir, { output: outputPath, json: true })
+      await action(quartoDir, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('quarto')
+      // Verify file was created
+      const fileContent = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(fileContent)
+      expect(parsed.project.notebooks).toHaveLength(2)
     })
   })
 
@@ -242,13 +227,7 @@ x = 1
       await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebookPath, { output: outputPath, json: true })
-
-      // Verify output
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.outputFormat).toBe('deepnote')
+      await action(notebookPath, { output: outputPath })
 
       // Verify file was created
       const content = await fs.readFile(outputPath, 'utf-8')
@@ -270,7 +249,7 @@ x = 1
       await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebookPath, { output: outputPath, name: 'My Custom Project', json: true })
+      await action(notebookPath, { output: outputPath, name: 'My Custom Project' })
 
       const content = await fs.readFile(outputPath, 'utf-8')
       const parsed = deserializeDeepnoteFile(content)
@@ -301,7 +280,7 @@ x = 1
       await fs.writeFile(join(notebooksDir, 'nb2.ipynb'), JSON.stringify(notebook2), 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebooksDir, { output: outputPath, json: true })
+      await action(notebooksDir, { output: outputPath })
 
       const content = await fs.readFile(outputPath, 'utf-8')
       const parsed = deserializeDeepnoteFile(content)
@@ -338,12 +317,7 @@ version: "1.0.0"
       await createTestDeepnoteFile(deepnotePath)
 
       const outputDir = join(tempDir, 'output')
-      await action(deepnotePath, { output: outputDir, json: true })
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.outputFormat).toBe('jupyter')
+      await action(deepnotePath, { output: outputDir })
 
       // Verify output directory was created with .ipynb files
       const files = await fs.readdir(outputDir)
@@ -357,12 +331,7 @@ version: "1.0.0"
       await createTestDeepnoteFile(deepnotePath)
 
       const outputDir = join(tempDir, 'output')
-      await action(deepnotePath, { output: outputDir, format: 'quarto', json: true })
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.outputFormat).toBe('quarto')
+      await action(deepnotePath, { output: outputDir, format: 'quarto' })
 
       // Verify output directory was created with .qmd files
       const files = await fs.readdir(outputDir)
@@ -376,12 +345,7 @@ version: "1.0.0"
       await createTestDeepnoteFile(deepnotePath)
 
       const outputDir = join(tempDir, 'output')
-      await action(deepnotePath, { output: outputDir, format: 'percent', json: true })
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.outputFormat).toBe('percent')
+      await action(deepnotePath, { output: outputDir, format: 'percent' })
 
       // Verify output directory was created with .py files
       const files = await fs.readdir(outputDir)
@@ -395,12 +359,7 @@ version: "1.0.0"
       await createTestDeepnoteFile(deepnotePath)
 
       const outputDir = join(tempDir, 'output')
-      await action(deepnotePath, { output: outputDir, format: 'marimo', json: true })
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.outputFormat).toBe('marimo')
+      await action(deepnotePath, { output: outputDir, format: 'marimo' })
 
       // Verify output directory was created with .py files
       const files = await fs.readdir(outputDir)
@@ -415,12 +374,11 @@ version: "1.0.0"
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.ipynb', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent-file.ipynb', {})).rejects.toThrow('process.exit called')
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('not found')
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      expect(errorOutput).toContain('not found')
 
       exitSpy.mockRestore()
     })
@@ -434,12 +392,11 @@ version: "1.0.0"
       const unsupportedPath = join(tempDir, 'file.txt')
       await fs.writeFile(unsupportedPath, 'content', 'utf-8')
 
-      await expect(action(unsupportedPath, { json: true })).rejects.toThrow('process.exit called')
+      await expect(action(unsupportedPath, {})).rejects.toThrow('process.exit called')
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('Unsupported')
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      expect(errorOutput).toContain('Unsupported')
 
       exitSpy.mockRestore()
     })
@@ -453,12 +410,11 @@ version: "1.0.0"
       const emptyDir = join(tempDir, 'empty')
       await fs.mkdir(emptyDir)
 
-      await expect(action(emptyDir, { json: true })).rejects.toThrow('process.exit called')
+      await expect(action(emptyDir, {})).rejects.toThrow('process.exit called')
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('No supported notebook files')
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      expect(errorOutput).toContain('No supported notebook files')
 
       exitSpy.mockRestore()
     })
@@ -473,28 +429,11 @@ version: "1.0.0"
       const pyPath = join(tempDir, 'script.py')
       await fs.writeFile(pyPath, 'def hello():\n    print("hi")\n', 'utf-8')
 
-      await expect(action(pyPath, { json: true })).rejects.toThrow('process.exit called')
+      await expect(action(pyPath, {})).rejects.toThrow('process.exit called')
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('Unsupported Python file format')
-
-      exitSpy.mockRestore()
-    })
-
-    it('reports error to stderr in non-JSON mode', async () => {
-      const action = createConvertAction(program)
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('process.exit called')
-      })
-
-      await expect(action('non-existent-file.ipynb', {})).rejects.toThrow('process.exit called')
-
-      // In non-JSON mode, error should be logged to stderr
       expect(consoleErrorSpy).toHaveBeenCalled()
       const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
-      expect(errorOutput).toContain('not found')
+      expect(errorOutput).toContain('Unsupported Python file format')
 
       exitSpy.mockRestore()
     })
@@ -514,12 +453,12 @@ version: "1.0.0"
       await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebookPath, { output: outputPath, json: true })
+      await action(notebookPath, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('jupyter')
+      // Verify file was created
+      const content = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(content)
+      expect(parsed.project.notebooks).toHaveLength(1)
     })
 
     it('handles spaces in notebook name', async () => {
@@ -535,11 +474,12 @@ version: "1.0.0"
       await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebookPath, { output: outputPath, json: true })
+      await action(notebookPath, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
+      // Verify file was created
+      const content = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(content)
+      expect(parsed.project.notebooks).toHaveLength(1)
     })
 
     it('handles emoji in project name', async () => {
@@ -555,7 +495,7 @@ version: "1.0.0"
       await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebookPath, { output: outputPath, name: '🚀 My Project 📊', json: true })
+      await action(notebookPath, { output: outputPath, name: '🚀 My Project 📊' })
 
       const content = await fs.readFile(outputPath, 'utf-8')
       const parsed = deserializeDeepnoteFile(content)
@@ -587,11 +527,7 @@ version: "1.0.0"
       await fs.writeFile(join(notebooksDir, 'AnotherNOTEBOOK.IPYNB'), JSON.stringify(notebook2), 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebooksDir, { output: outputPath, json: true })
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
+      await action(notebooksDir, { output: outputPath })
 
       const content = await fs.readFile(outputPath, 'utf-8')
       const parsed = deserializeDeepnoteFile(content)
@@ -612,12 +548,12 @@ x = 1
       await fs.writeFile(join(pyDir, 'AnotherNOTEBOOK.PY'), content, 'utf-8')
 
       const outputPath = join(tempDir, 'output.deepnote')
-      await action(pyDir, { output: outputPath, json: true })
+      await action(pyDir, { output: outputPath })
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('percent')
+      // Verify file was created
+      const content2 = await fs.readFile(outputPath, 'utf-8')
+      const parsed = deserializeDeepnoteFile(content2)
+      expect(parsed.project.notebooks).toHaveLength(2)
     })
   })
 
@@ -649,65 +585,13 @@ version: "1.0.0"
       await fs.writeFile(deepnotePath, content, 'utf-8')
 
       // @ts-expect-error - Testing runtime validation with invalid format
-      await expect(action(deepnotePath, { format: 'invalid-format', json: true })).rejects.toThrow(
-        'process.exit called'
-      )
+      await expect(action(deepnotePath, { format: 'invalid-format' })).rejects.toThrow('process.exit called')
 
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('Invalid output format')
-      expect(result.error).toContain('invalid-format')
-      expect(result.error).toContain('jupyter, percent, quarto, marimo')
-
-      exitSpy.mockRestore()
-    })
-  })
-
-  describe('JSON output structure', () => {
-    it('includes all required fields on success', async () => {
-      const action = createConvertAction(program)
-
-      const notebookPath = join(tempDir, 'test.ipynb')
-      const notebook = {
-        cells: [{ cell_type: 'code', execution_count: 1, metadata: {}, outputs: [], source: 'x = 1' }],
-        metadata: {},
-        nbformat: 4,
-        nbformat_minor: 5,
-      }
-      await fs.writeFile(notebookPath, JSON.stringify(notebook), 'utf-8')
-
-      const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebookPath, { output: outputPath, json: true })
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-
-      expect(result).toHaveProperty('success')
-      expect(result).toHaveProperty('inputPath')
-      expect(result).toHaveProperty('outputPath')
-      expect(result).toHaveProperty('inputFormat')
-      expect(result).toHaveProperty('outputFormat')
-      expect(result.success).toBe(true)
-      expect(result.inputFormat).toBe('jupyter')
-      expect(result.outputFormat).toBe('deepnote')
-    })
-
-    it('includes error field on failure', async () => {
-      const action = createConvertAction(program)
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('process.exit called')
-      })
-
-      await expect(action('non-existent.ipynb', { json: true })).rejects.toThrow('process.exit called')
-
-      const output = getOutput(consoleSpy)
-      const result = JSON.parse(output)
-
-      expect(result).toHaveProperty('success')
-      expect(result).toHaveProperty('error')
-      expect(result.success).toBe(false)
-      expect(typeof result.error).toBe('string')
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      expect(errorOutput).toContain('Invalid output format')
+      expect(errorOutput).toContain('invalid-format')
+      expect(errorOutput).toContain('jupyter, percent, quarto, marimo')
 
       exitSpy.mockRestore()
     })
