@@ -17,7 +17,7 @@ import {
 
 export interface OpenOptions {
   domain?: string
-  output?: string
+  output?: 'json'
 }
 
 export function createOpenAction(_program: Command): (path: string | undefined, options: OpenOptions) => Promise<void> {
