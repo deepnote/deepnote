@@ -7,7 +7,7 @@ import { FileResolutionError, resolvePathToDeepnoteFile } from './file-resolver'
 // Use example files from the repo (tests run from root)
 const EXAMPLES_DIR = 'examples'
 const HELLO_WORLD_FILE = join(EXAMPLES_DIR, '1_hello_world.deepnote')
-const IPYNB_FILE = join(EXAMPLES_DIR, '1_hello_world.ipynb')
+const IPYNB_FILE = 'test-fixtures/formats/jupyter/hello-world.ipynb'
 
 describe('FileResolutionError', () => {
   it('is an instance of Error', () => {
