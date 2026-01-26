@@ -11,7 +11,8 @@
     "noImplicitAny": true,
     "noImplicitThis": true,
     "paths": {
-      "@deepnote/*": ["packages/*/src/index.ts"]
+      "@deepnote/*": ["packages/*/src/index.ts"],
+      "@test-fixtures/*": ["test-fixtures/*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,

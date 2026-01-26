@@ -33,7 +33,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|run|open|validate|completion|help)
+            inspect|run|open|validate|convert|completion|help)
                 subcommand="\${word}"
                 break
                 ;;
@@ -52,6 +52,14 @@ _deepnote_completions() {
                 return 0
                 ;;
         esac
+    fi
+
+    # Handle -f/--format option completion for convert command
+    if [[ "\${prev}" == "-f" || "\${prev}" == "--format" ]]; then
+        if [[ "\${subcommand}" == "convert" ]]; then
+            COMPREPLY=( $(compgen -W "jupyter percent quarto marimo" -- "\${cur}") )
+            return 0
+        fi
     fi
 
     case "\${prev}" in
@@ -95,6 +103,17 @@ _deepnote_completions() {
             fi
             return 0
             ;;
+        convert)
+            # Complete convert options and supported file types
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output -n --name -f --format --json" -- "\${cur}") )
+            elif [[ "\${prev}" == "-o" || "\${prev}" == "--output" || "\${prev}" == "-n" || "\${prev}" == "--name" ]]; then
+                COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.@(deepnote|ipynb|qmd|py)' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
             return 0
@@ -115,6 +134,7 @@ complete -F _deepnote_completions deepnote
 
 /** Command descriptions for zsh completions */
 const zshCommandDescriptions: Record<string, string> = {
+  convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   open: 'Open a .deepnote file in Deepnote',
@@ -193,6 +213,14 @@ ${commandEntries}
                         '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
+                convert)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output file or directory]:output path:_files' \\
+                        '(-n --name)'{-n,--name}'[Project name for conversion]:project name:' \\
+                        '(-f --format)'{-f,--format}'[Output format (jupyter, percent, quarto, marimo)]:format:(jupyter percent quarto marimo)' \\
+                        '--json[Output in JSON format]' \\
+                        '*:input file:_files -g "*.{deepnote,ipynb,qmd,py}"'
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -210,6 +238,7 @@ _deepnote
 
 /** Command descriptions for fish completions */
 const fishCommandDescriptions: Record<string, string> = {
+  convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   open: 'Open a .deepnote file in Deepnote',
@@ -266,6 +295,13 @@ complete -c deepnote -n '__fish_seen_subcommand_from open' -F -a '*.deepnote'
 # validate subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json'
 complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote'
+
+# convert subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s o -l output -d 'Output file or directory'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s n -l name -d 'Project name for conversion'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s f -l format -d 'Output format' -xa 'jupyter percent quarto marimo'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

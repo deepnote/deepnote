@@ -2,7 +2,7 @@ export type { ConvertBlocksToJupyterOptions } from './deepnote-to-jupyter'
 export {
   convertBlocksToJupyterNotebook,
   convertBlockToJupyterCell,
-  convertDeepnoteFileToJupyterFiles as convertDeepnoteFileToJupyter,
+  convertDeepnoteFileToJupyterFiles,
   convertDeepnoteToJupyterNotebooks,
 } from './deepnote-to-jupyter'
 export type { ConvertDeepnoteFileToMarimoOptions } from './deepnote-to-marimo'
