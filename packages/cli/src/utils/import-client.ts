@@ -63,6 +63,7 @@ export async function initImport(
       fileName,
       fileSize,
     }),
+    signal: AbortSignal.timeout(30_000),
   })
 
   if (!response.ok) {
@@ -160,6 +161,9 @@ export function getErrorMessage(error: unknown): string {
   }
 
   if (error instanceof Error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      return 'Request timed out. Please try again.'
+    }
     if (error.message.includes('fetch') || error.message.includes('ENOTFOUND')) {
       return 'Failed to connect to Deepnote. Check your internet connection and try again.'
     }
