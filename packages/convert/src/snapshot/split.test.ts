@@ -23,8 +23,22 @@ describe('slugifyProjectName', () => {
     expect(slugifyProjectName('-my-project-')).toBe('my-project')
   })
 
-  it('should handle unicode characters', () => {
-    expect(slugifyProjectName('Café Project')).toBe('caf-project')
+  it('should normalize accented characters to ASCII equivalents', () => {
+    expect(slugifyProjectName('Café Project')).toBe('cafe-project')
+  })
+
+  it('should handle various accented characters', () => {
+    expect(slugifyProjectName('Ångström')).toBe('angstrom')
+    expect(slugifyProjectName('naïve')).toBe('naive')
+    expect(slugifyProjectName('résumé')).toBe('resume')
+    expect(slugifyProjectName('Zürich')).toBe('zurich')
+    expect(slugifyProjectName('São Paulo')).toBe('sao-paulo')
+  })
+
+  it('should handle characters that cannot be normalized to ASCII', () => {
+    // Characters like Chinese, Japanese, etc. should be stripped
+    expect(slugifyProjectName('Hello 世界')).toBe('hello')
+    expect(slugifyProjectName('日本語')).toBe('')
   })
 
   it('should handle empty string', () => {

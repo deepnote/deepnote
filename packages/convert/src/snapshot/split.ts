@@ -5,7 +5,8 @@ import type { SplitResult } from './types'
 
 /**
  * Creates a slug from a project name.
- * Converts to lowercase, replaces spaces and special chars with hyphens,
+ * Normalizes accented characters to ASCII equivalents (e.g., é → e),
+ * converts to lowercase, replaces spaces and special chars with hyphens,
  * removes consecutive hyphens, and trims leading/trailing hyphens.
  *
  * @param name - The project name to slugify
@@ -13,6 +14,8 @@ import type { SplitResult } from './types'
  */
 export function slugifyProjectName(name: string): string {
   return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
