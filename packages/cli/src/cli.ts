@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { createInspectAction } from './commands/inspect'
+import { createIntegrationsCommand } from './commands/integrations'
 import { createRunAction } from './commands/run'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
@@ -290,6 +291,9 @@ ${c.bold('Examples:')}
         })
       }
     })
+
+  // Integrations command group with subcommands
+  program.addCommand(createIntegrationsCommand(program))
 }
 
 /**
