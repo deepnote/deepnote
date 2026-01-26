@@ -46,7 +46,11 @@ export async function fetchMetrics(
     if (!response.ok) return null
     const json = await response.json()
     const result = JupyterMetricsResponseSchema.safeParse(json)
-    return result.success ? result.data : null
+    if (!result.success) {
+      debug(`Schema validation failed: ${result.error.message}`)
+      return null
+    }
+    return result.data
   } catch (error) {
     clearTimeout(timeoutId)
     debug(`Failed to fetch metrics: ${error instanceof Error ? error.message : String(error)}`)
