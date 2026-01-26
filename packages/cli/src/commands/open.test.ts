@@ -185,13 +185,13 @@ describe('open command', () => {
   })
 
   describe('error handling', () => {
-    it('handles missing path', async () => {
+    it('handles missing path when no .deepnote files exist', async () => {
       const action = createOpenAction(program)
 
       await expect(action(undefined, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
 
       const output = getAllOutput(consoleSpy, consoleErrorSpy)
-      expect(output).toContain('Missing path')
+      expect(output).toContain('No .deepnote files found')
     })
 
     it('handles non-existent file', async () => {
