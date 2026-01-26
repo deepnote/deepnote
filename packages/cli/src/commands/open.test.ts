@@ -29,6 +29,9 @@ import { initImport, uploadFile, validateFileSize } from '../utils/import-client
 // Test file path as absolute path (tests are run from root)
 const HELLO_WORLD_FILE = resolve(process.cwd(), 'examples', '1_hello_world.deepnote')
 
+// Test file with special characters (spaces and non-ASCII)
+const SPECIAL_CHARS_FILE = resolve(process.cwd(), 'examples', 'test héllo wörld.deepnote')
+
 /** Default options for testing */
 const DEFAULT_OPTIONS: OpenOptions = {}
 
@@ -171,6 +174,16 @@ describe('open command', () => {
       const action = createOpenAction(program)
 
       await action(HELLO_WORLD_FILE, DEFAULT_OPTIONS)
+
+      expect(consoleSpy).toHaveBeenCalled()
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Opened in Deepnote')
+    })
+
+    it('handles paths with special characters (spaces and non-ASCII)', async () => {
+      const action = createOpenAction(program)
+
+      await action(SPECIAL_CHARS_FILE, DEFAULT_OPTIONS)
 
       expect(consoleSpy).toHaveBeenCalled()
       const output = getOutput(consoleSpy)
