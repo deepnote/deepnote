@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { z } from 'zod'
-import { output } from '../output'
+import { debug, output } from '../output'
 
 /** Schema for jupyter_resource_usage API response */
 export const JupyterMetricsResponseSchema = z.object({
@@ -47,8 +47,9 @@ export async function fetchMetrics(
     const json = await response.json()
     const result = JupyterMetricsResponseSchema.safeParse(json)
     return result.success ? result.data : null
-  } catch {
+  } catch (error) {
     clearTimeout(timeoutId)
+    debug(`Failed to fetch metrics: ${error instanceof Error ? error.message : String(error)}`)
     return null
   }
 }
