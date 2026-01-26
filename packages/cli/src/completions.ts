@@ -33,7 +33,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|run|validate|completion|help)
+            inspect|run|open|validate|completion|help)
                 subcommand="\${word}"
                 break
                 ;;
@@ -47,7 +47,7 @@ _deepnote_completions() {
                 COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
                 return 0
                 ;;
-            validate)
+            open|validate)
                 COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
                 return 0
                 ;;
@@ -71,7 +71,16 @@ _deepnote_completions() {
         run)
             # Complete .deepnote files and flags
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        open)
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--domain -o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
@@ -108,6 +117,7 @@ complete -F _deepnote_completions deepnote
 const zshCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  open: 'Open a .deepnote file in Deepnote',
   validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
@@ -169,6 +179,13 @@ ${commandEntries}
                         '*'{-i,--input}'[Set input variable value]:key=value:' \\
                         '--list-inputs[List all input variables without running]' \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '--dry-run[Show what would be executed without running]' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                open)
+                    _arguments \\
+                        '--domain[Deepnote domain]:domain:' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 validate)
@@ -195,6 +212,7 @@ _deepnote
 const fishCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  open: 'Open a .deepnote file in Deepnote',
   validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
@@ -237,7 +255,13 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only 
 complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (can be repeated)'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List all input variables without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -s o -l output -d 'Output format' -xa 'json toon'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l dry-run -d 'Show what would be executed without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
+
+# open subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from open' -l domain -d 'Deepnote domain'
+complete -c deepnote -n '__fish_seen_subcommand_from open' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from open' -F -a '*.deepnote'
 
 # validate subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json'
