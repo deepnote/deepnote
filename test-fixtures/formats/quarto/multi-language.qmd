@@ -1,0 +1,16 @@
+---
+title: Multi-language
+---
+
+```{python}
+import pandas as pd
+```
+
+```{r}
+library(ggplot2)
+```
+
+```{python-repl}
+>>> print("hello")
+hello
+```
