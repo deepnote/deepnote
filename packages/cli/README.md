@@ -29,7 +29,13 @@ deepnote --version
 deepnote inspect path/to/file.deepnote
 
 # Inspect with JSON output (for scripting)
-deepnote inspect path/to/file.deepnote --json
+deepnote inspect path/to/file.deepnote --output json
+
+# Inspect with TOON output (for LLMs, 30-60% fewer tokens)
+deepnote inspect path/to/file.deepnote --output toon
+
+# Validate a .deepnote file
+deepnote validate path/to/file.deepnote
 
 # Run a .deepnote file
 deepnote run path/to/file.deepnote
@@ -55,9 +61,9 @@ deepnote inspect my-project.deepnote
 
 **Options:**
 
-| Option   | Description                         |
-| -------- | ----------------------------------- |
-| `--json` | Output in JSON format for scripting |
+| Option               | Description                                                 |
+| -------------------- | ----------------------------------------------------------- |
+| `-o, --output <fmt>` | Output format: `json` (scripting) or `toon` (LLM-optimized) |
 
 **Examples:**
 
@@ -66,10 +72,13 @@ deepnote inspect my-project.deepnote
 deepnote inspect my-project.deepnote
 
 # JSON output for scripting
-deepnote inspect my-project.deepnote --json
+deepnote inspect my-project.deepnote --output json
+
+# TOON output for LLM consumption (30-60% fewer tokens)
+deepnote inspect my-project.deepnote --output toon
 
 # Use with jq to extract specific fields
-deepnote inspect my-project.deepnote --json | jq '.project.name'
+deepnote inspect my-project.deepnote --output json | jq '.project.name'
 ```
 
 ### `run <path>`
@@ -82,13 +91,13 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option              | Description                                            | Default  |
-| ------------------- | ------------------------------------------------------ | -------- |
-| `--python <path>`   | Path to Python interpreter or virtual environment      | `python` |
-| `--cwd <path>`      | Working directory for execution (defaults to file dir) |          |
-| `--notebook <name>` | Run only the specified notebook                        |          |
-| `--block <id>`      | Run only the specified block                           |          |
-| `--json`            | Output results in JSON format                          |          |
+| Option               | Description                                                 | Default  |
+| -------------------- | ----------------------------------------------------------- | -------- |
+| `--python <path>`    | Path to Python interpreter or virtual environment           | `python` |
+| `--cwd <path>`       | Working directory for execution (defaults to file dir)      |          |
+| `--notebook <name>`  | Run only the specified notebook                             |          |
+| `--block <id>`       | Run only the specified block                                |          |
+| `-o, --output <fmt>` | Output format: `json` (scripting) or `toon` (LLM-optimized) |          |
 
 **Examples:**
 
@@ -103,7 +112,34 @@ deepnote run my-project.deepnote --python path/to/venv
 deepnote run my-project.deepnote --notebook "Data Analysis"
 
 # Output results as JSON for CI/CD pipelines
-deepnote run my-project.deepnote --json
+deepnote run my-project.deepnote --output json
+
+# Output results as TOON for LLM consumption
+deepnote run my-project.deepnote --output toon
+```
+
+### `validate [path]`
+
+Validate a `.deepnote` file against the schema.
+
+```bash
+deepnote validate my-project.deepnote
+```
+
+**Options:**
+
+| Option               | Description                         |
+| -------------------- | ----------------------------------- |
+| `-o, --output <fmt>` | Output format: `json` for scripting |
+
+**Examples:**
+
+```bash
+# Validate a file
+deepnote validate my-project.deepnote
+
+# JSON output for CI/CD pipelines
+deepnote validate my-project.deepnote --output json
 ```
 
 ### `completion <shell>`
@@ -162,7 +198,7 @@ The CLI uses standard exit codes for scripting:
 
 ```bash
 #!/bin/bash
-if deepnote inspect project.deepnote --json > /dev/null 2>&1; then
+if deepnote inspect project.deepnote --output json > /dev/null 2>&1; then
     echo "Valid .deepnote file"
 else
     exit_code=$?
@@ -174,9 +210,18 @@ else
 fi
 ```
 
+## Output Formats
+
+The CLI supports two output formats via the `-o, --output` option:
+
+| Format | Description                                                                 |
+| ------ | --------------------------------------------------------------------------- |
+| `json` | Standard JSON format for scripting and CI/CD pipelines                      |
+| `toon` | [TOON format](https://toonformat.dev/) - LLM-optimized, 30-60% fewer tokens |
+
 ## JSON Output Schema
 
-### `inspect --json`
+### `inspect --output json`
 
 ```typescript
 interface InspectOutput {
@@ -210,7 +255,7 @@ interface InspectError {
 }
 ```
 
-### `run --json`
+### `run --output json`
 
 ```typescript
 interface RunOutput {
@@ -249,6 +294,33 @@ interface RunError {
 }
 ```
 
+### `validate --output json`
+
+```typescript
+// When validation runs (file found and readable):
+interface ValidationResult {
+  success: true;
+  path: string;
+  valid: boolean;
+  issues: Array<{
+    path: string; // JSON path to the invalid field (e.g., "notebooks.0.blocks.1")
+    message: string;
+    code: string; // Zod error code (e.g., "invalid_type", "unrecognized_keys")
+  }>;
+}
+
+// On error (file not found, resolution error, or runtime failure):
+interface ValidationError {
+  success: false;
+  error: string;
+}
+```
+
+The `success` field indicates whether the command completed:
+
+- `success: true` - validation ran, check `valid` for the result
+- `success: false` - operational error (file not found, etc.)
+
 ## Programmatic Usage
 
 The CLI can also be used programmatically:
@@ -261,7 +333,14 @@ run(["node", "deepnote", "inspect", "project.deepnote"]);
 
 // Or create and configure the program manually
 const program = createProgram();
-program.parse(["node", "deepnote", "inspect", "project.deepnote", "--json"]);
+program.parse([
+  "node",
+  "deepnote",
+  "inspect",
+  "project.deepnote",
+  "--output",
+  "json",
+]);
 ```
 
 ## Error Messages

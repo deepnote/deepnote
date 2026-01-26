@@ -7,6 +7,7 @@ import {
   log,
   output,
   outputJson,
+  outputToon,
   resetOutputConfig,
   setOutputConfig,
   shouldDisableColor,
@@ -224,6 +225,200 @@ describe('output', () => {
       const data = { nested: { array: [1, 2, 3] }, string: 'test' }
       outputJson(data)
       expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify(data, null, 2))
+    })
+  })
+
+  describe('outputToon', () => {
+    it('outputs TOON format to console.log', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ key: 'value' })
+      expect(consoleSpy).toHaveBeenCalledWith('key: value')
+    })
+
+    it('handles nested objects with indentation', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ outer: { inner: 'test' } })
+      expect(consoleSpy).toHaveBeenCalledWith('outer:\n  inner: test')
+    })
+
+    it('handles arrays of uniform objects in tabular format', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const data = {
+        users: [
+          { id: 1, name: 'Alice' },
+          { id: 2, name: 'Bob' },
+        ],
+      }
+      outputToon(data)
+      const output = consoleSpy.mock.calls[0][0]
+      // TOON uses tabular format for uniform arrays
+      expect(output).toContain('users[2]')
+      expect(output).toContain('id')
+      expect(output).toContain('name')
+      expect(output).toContain('Alice')
+      expect(output).toContain('Bob')
+    })
+
+    it('handles simple arrays', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ items: ['a', 'b', 'c'] })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('items[3]')
+      expect(output).toContain('a')
+      expect(output).toContain('b')
+      expect(output).toContain('c')
+    })
+
+    it('handles booleans and numbers', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ active: true, count: 42, rate: 3.14 })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('active: true')
+      expect(output).toContain('count: 42')
+      expect(output).toContain('rate: 3.14')
+    })
+
+    it('shows efficiency hint when TOON provides minimal savings', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Raw primitive - TOON provides 0% savings over JSON
+      outputToon(42, { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalled()
+      expect(errorSpy.mock.calls[0][0]).toContain('Hint:')
+    })
+
+    it('shows JSON-is-smaller hint when TOON is less efficient', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Empty array - TOON is actually larger than JSON
+      outputToon([], { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalled()
+      // Should show the "JSON would be smaller" hint
+      expect(errorSpy.mock.calls[0][0]).toContain('JSON would be')
+      expect(errorSpy.mock.calls[0][0]).toContain('smaller')
+    })
+
+    it('does not show hint when TOON is efficient', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Uniform array of objects - TOON excels here
+      const data = {
+        users: Array.from({ length: 10 }, (_, i) => ({
+          id: i,
+          name: `User ${i}`,
+          email: `user${i}@example.com`,
+          active: true,
+        })),
+      }
+      outputToon(data, { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not show hint when showEfficiencyHint is false', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      outputToon({ key: 'value' }, { showEfficiencyHint: false })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not show hint in quiet mode', () => {
+      setOutputConfig({ quiet: true })
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      outputToon({ key: 'value' }, { showEfficiencyHint: true })
+
+      expect(logSpy).toHaveBeenCalled()
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+
+    it('handles strings with newlines', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ note: 'line1\nline2' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('note')
+      expect(output).toContain('line1')
+      expect(output).toContain('line2')
+    })
+
+    it('handles strings with double quotes', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ quote: '"in quotes"' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('quote')
+      // TOON escapes double quotes within strings
+      expect(output).toContain('in quotes')
+    })
+
+    it('handles strings with single quotes', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ text: "it's fine" })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('text')
+      expect(output).toContain("it's fine")
+    })
+
+    it('handles strings with colons', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ colon: 'a: b' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('colon')
+      expect(output).toContain('a: b')
+    })
+
+    it('handles strings with backslashes', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ back: '\\path\\to\\file' })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('back')
+      expect(output).toContain('\\path')
+    })
+
+    it('handles empty arrays', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ items: [] })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('items[0]')
+    })
+
+    it('handles null values', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({ missing: null })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('missing')
+      expect(output).toContain('null')
+    })
+
+    it('handles mixed special characters', () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      outputToon({
+        note: 'line1\nline2',
+        quote: '"in quotes"',
+        colon: 'a: b',
+        back: '\\path',
+        items: [],
+        missing: null,
+      })
+      const output = consoleSpy.mock.calls[0][0]
+      expect(output).toContain('note')
+      expect(output).toContain('quote')
+      expect(output).toContain('colon')
+      expect(output).toContain('back')
+      expect(output).toContain('items[0]')
+      expect(output).toContain('missing')
+      expect(output).toContain('null')
     })
   })
 })
