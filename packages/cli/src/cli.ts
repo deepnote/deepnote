@@ -245,7 +245,7 @@ ${c.bold('Examples:')}
   ${c.dim('# Open with JSON output (for scripting)')}
   $ deepnote open my-project.deepnote -o json
 
-  ${c.dim('# Use a custom domain (e.g., enterprise)')}
+  ${c.dim('# Use a custom domain for single-tenant support')}
   $ deepnote open my-project.deepnote --domain enterprise.deepnote.com
 `
     })
