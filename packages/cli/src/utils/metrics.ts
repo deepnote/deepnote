@@ -1,17 +1,21 @@
 import chalk from 'chalk'
+import { z } from 'zod'
 import { output } from '../output'
 
+/** Schema for jupyter_resource_usage API response */
+export const JupyterMetricsResponseSchema = z.object({
+  rss: z.number(), // Memory used in bytes
+  limits: z.object({
+    memory: z.object({
+      rss: z.number(), // Memory limit in bytes (0 = no limit)
+    }),
+  }),
+  cpu_percent: z.number(),
+  cpu_count: z.number(),
+})
+
 /** Raw response from jupyter_resource_usage API */
-export interface JupyterMetricsResponse {
-  rss: number // Memory used in bytes
-  limits: {
-    memory: {
-      rss: number // Memory limit in bytes (0 = no limit)
-    }
-  }
-  cpu_percent: number
-  cpu_count: number
-}
+export type JupyterMetricsResponse = z.infer<typeof JupyterMetricsResponseSchema>
 
 /** Profile data for a single block */
 export interface BlockProfile {
@@ -40,7 +44,9 @@ export async function fetchMetrics(
     })
     clearTimeout(timeoutId)
     if (!response.ok) return null
-    return (await response.json()) as JupyterMetricsResponse
+    const json = await response.json()
+    const result = JupyterMetricsResponseSchema.safeParse(json)
+    return result.success ? result.data : null
   } catch {
     clearTimeout(timeoutId)
     return null
