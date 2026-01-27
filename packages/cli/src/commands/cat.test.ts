@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import { stripVTControlCharacters } from 'node:util'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
@@ -13,7 +14,7 @@ const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
 const DEFAULT_OPTIONS: CatOptions = {}
 
 function getOutput(spy: Mock<typeof console.log>): string {
-  return spy.mock.calls.map(call => call.join(' ')).join('\n')
+  return stripVTControlCharacters(spy.mock.calls.map(call => call.join(' ')).join('\n'))
 }
 
 function getErrorOutput(spy: Mock<typeof console.error>): string {
