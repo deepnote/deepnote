@@ -70,7 +70,7 @@ async function catDeepnoteFile(path: string | undefined, options: CatOptions): P
   if (options.notebook) {
     notebooks = notebooks.filter(nb => nb.name === options.notebook)
     if (notebooks.length === 0) {
-      throw new FileResolutionError(`Notebook not found: ${options.notebook}`)
+      throw new Error(`Notebook "${options.notebook}" not found in project`)
     }
   }
 

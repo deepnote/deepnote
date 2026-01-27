@@ -148,7 +148,7 @@ describe('cat command', () => {
         await expect(action(filePath, { notebook: 'Non-existent' })).rejects.toThrow('process.exit called')
 
         const errorOutput = getErrorOutput(consoleErrorSpy)
-        expect(errorOutput).toContain('Notebook not found')
+        expect(errorOutput).toContain('Notebook "Non-existent" not found in project')
       } finally {
         exitSpy.mockRestore()
       }
