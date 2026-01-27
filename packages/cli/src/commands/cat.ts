@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { codeToANSI } from '@shikijs/cli'
 import chalk, { type ChalkInstance } from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
@@ -84,7 +85,7 @@ async function catDeepnoteFile(path: string | undefined, options: CatOptions): P
   if (options.json) {
     outputCatJson(absolutePath, deepnoteFile, notebooks, options)
   } else {
-    printBlocks(absolutePath, notebooks, options)
+    await printBlocks(absolutePath, notebooks, options)
   }
 }
 
@@ -156,7 +157,11 @@ function outputCatJson(
 /**
  * Print blocks to stdout with formatting.
  */
-function printBlocks(absolutePath: string, notebooks: DeepnoteFile['project']['notebooks'], options: CatOptions): void {
+async function printBlocks(
+  absolutePath: string,
+  notebooks: DeepnoteFile['project']['notebooks'],
+  options: CatOptions
+): Promise<void> {
   output(chalk.dim(`File: ${absolutePath}`))
   output('')
 
@@ -169,7 +174,7 @@ function printBlocks(absolutePath: string, notebooks: DeepnoteFile['project']['n
     output('')
 
     for (const block of filteredBlocks) {
-      printBlock(block, options)
+      await printBlock(block, options)
     }
   }
 }
@@ -177,7 +182,7 @@ function printBlocks(absolutePath: string, notebooks: DeepnoteFile['project']['n
 /**
  * Print a single block with formatting.
  */
-function printBlock(block: DeepnoteBlock, options: CatOptions): void {
+async function printBlock(block: DeepnoteBlock, options: CatOptions): Promise<void> {
   const typeColor = getTypeColor(block.type)
 
   output(`${chalk.dim('─'.repeat(60))}`)
@@ -196,10 +201,11 @@ function printBlock(block: DeepnoteBlock, options: CatOptions): void {
     const content = getBlockContent(block)
     if (content) {
       output('')
-      // Indent and syntax highlight based on type
-      const lines = content.split('\n')
+      const highlighted = await highlightContent(content, block.type)
+      // Indent each line
+      const lines = highlighted.split('\n')
       for (const line of lines) {
-        output(`  ${highlightLine(line, block.type)}`)
+        output(`  ${line}`)
       }
     } else if (content === '') {
       output(chalk.dim('  (empty)'))
@@ -259,60 +265,16 @@ function getTypeColor(type: string): ChalkInstance {
 }
 
 /**
- * Apply syntax highlighting to a line based on block type.
+ * Apply syntax highlighting to content based on block type using Shiki.
  */
-function highlightLine(line: string, type: string): string {
+async function highlightContent(content: string, type: string): Promise<string> {
   if (type === 'code') {
-    // Basic Python highlighting
-    return highlightPython(line)
+    return codeToANSI(content, 'python', 'nord')
   }
   if (type === 'sql') {
-    // Basic SQL highlighting
-    return highlightSql(line)
+    return codeToANSI(content, 'sql', 'nord')
   }
-  return line
-}
-
-/**
- * Basic Python syntax highlighting.
- */
-function highlightPython(line: string): string {
-  // Keywords
-  const keywords =
-    /\b(def|class|if|elif|else|for|while|return|import|from|as|try|except|finally|with|raise|pass|break|continue|and|or|not|in|is|None|True|False|lambda|yield|global|nonlocal|assert|del|async|await)\b/g
-  let result = line.replace(keywords, match => chalk.magenta(match))
-
-  // Strings (simple single/double quotes)
-  result = result.replace(/(["'])(?:(?!\1)[^\\]|\\.)*\1/g, match => chalk.green(match))
-
-  // Comments
-  result = result.replace(/#.*$/g, match => chalk.dim(match))
-
-  // Numbers
-  result = result.replace(/\b\d+\.?\d*\b/g, match => chalk.cyan(match))
-
-  return result
-}
-
-/**
- * Basic SQL syntax highlighting.
- */
-function highlightSql(line: string): string {
-  // Keywords (case insensitive)
-  const keywords =
-    /\b(SELECT|FROM|WHERE|AND|OR|NOT|IN|IS|NULL|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|DROP|ALTER|INDEX|PRIMARY|KEY|FOREIGN|REFERENCES|DISTINCT|COUNT|SUM|AVG|MIN|MAX|CASE|WHEN|THEN|ELSE|END|UNION|ALL|EXISTS|BETWEEN|LIKE|WITH|OVER|PARTITION|ROW_NUMBER|RANK|DENSE_RANK)\b/gi
-  let result = line.replace(keywords, match => chalk.blue(match.toUpperCase()))
-
-  // Strings
-  result = result.replace(/(["'])(?:(?!\1)[^\\]|\\.)*\1/g, match => chalk.green(match))
-
-  // Comments
-  result = result.replace(/--.*$/g, match => chalk.dim(match))
-
-  // Numbers
-  result = result.replace(/\b\d+\.?\d*\b/g, match => chalk.cyan(match))
-
-  return result
+  return content
 }
 
 export { FILTERABLE_BLOCK_TYPES }
