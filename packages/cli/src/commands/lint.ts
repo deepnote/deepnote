@@ -10,7 +10,7 @@ import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface LintOptions {
-  json?: boolean
+  output?: 'json'
   notebook?: string
   python?: string
 }
@@ -654,7 +654,7 @@ function isBuiltinOrGlobal(name: string): boolean {
 }
 
 function outputLintResult(result: LintResult, options: LintOptions): void {
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson(result)
     return
   }
@@ -711,7 +711,7 @@ function handleError(error: unknown, options: LintOptions): never {
   const message = error instanceof Error ? error.message : String(error)
   const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({ success: false, error: message })
   } else {
     logError(message)

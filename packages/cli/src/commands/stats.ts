@@ -8,7 +8,7 @@ import { debug, error as logError, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface StatsOptions {
-  json?: boolean
+  output?: 'json'
   notebook?: string
 }
 
@@ -221,7 +221,7 @@ function extractImports(block: DeepnoteBlock): string[] {
 }
 
 function outputStats(stats: ProjectStats, options: StatsOptions): void {
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson(stats)
     return
   }
@@ -270,7 +270,7 @@ function handleError(error: unknown, options: StatsOptions): never {
   const message = error instanceof Error ? error.message : String(error)
   const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({ success: false, error: message })
   } else {
     logError(message)

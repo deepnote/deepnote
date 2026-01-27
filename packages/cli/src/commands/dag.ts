@@ -14,8 +14,7 @@ import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface DagOptions {
-  json?: boolean
-  dot?: boolean
+  output?: 'json' | 'dot'
   notebook?: string
   python?: string
 }
@@ -152,12 +151,12 @@ function outputDagShow(
   blockMap: BlockMap,
   options: DagOptions
 ): void {
-  if (options.dot) {
+  if (options.output === 'dot') {
     outputDot(dag, blockMap)
     return
   }
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({
       nodes: dag.nodes.map(node => ({
         id: node.id,
@@ -224,7 +223,7 @@ function outputDagVars(
   blockMap: BlockMap,
   options: DagOptions
 ): void {
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({
       blocks: dag.nodes.map(node => ({
         id: node.id,
@@ -280,7 +279,7 @@ function outputDagDownstream(
   const blockId = findBlockId(options.block, dag.nodes, blockMap)
 
   if (!blockId) {
-    if (options.json) {
+    if (options.output === 'json') {
       outputJson({ success: false, error: `Block not found: ${options.block}` })
     } else {
       logError(`Block not found: ${options.block}`)
@@ -291,7 +290,7 @@ function outputDagDownstream(
   const downstreamIds = getDownstreamBlocksForBlocksIds(dag, [blockId])
   const sourceInfo = blockMap.get(blockId)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({
       source: {
         id: blockId,
@@ -398,7 +397,7 @@ function handleError(error: unknown, options: DagOptions): never {
   const message = error instanceof Error ? error.message : String(error)
   const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputJson({ success: false, error: message })
   } else {
     logError(message)

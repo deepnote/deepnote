@@ -373,8 +373,8 @@ ${c.bold('Subcommands:')}
   downstream  Show blocks that need re-run if a block changes
 
 ${c.bold('Output Formats:')}
-  --json      Output as JSON for scripting
-  --dot       Output as DOT format for Graphviz visualization
+  -o, --output json   Output as JSON for scripting
+  -o, --output dot    Output as DOT format for Graphviz visualization
 
 ${c.bold('Examples:')}
   ${c.dim('# Show the dependency graph')}
@@ -387,7 +387,7 @@ ${c.bold('Examples:')}
   $ deepnote dag downstream my-project.deepnote --block "Load Data"
 
   ${c.dim('# Generate Graphviz visualization')}
-  $ deepnote dag show my-project.deepnote --dot | dot -Tpng -o deps.png
+  $ deepnote dag show my-project.deepnote -o dot | dot -Tpng -o deps.png
 
   ${c.dim('# Analyze only a specific notebook')}
   $ deepnote dag show my-project.deepnote --notebook "Analysis"
@@ -398,8 +398,7 @@ ${c.bold('Examples:')}
     .command('show')
     .description('Show the dependency graph between blocks')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('--json', 'Output in JSON format for scripting')
-    .option('--dot', 'Output in DOT format for Graphviz')
+    .option('-o, --output <format>', 'Output format: json, dot', createFormatValidator(['json', 'dot']))
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .action(createDagShowAction(program))
@@ -408,7 +407,7 @@ ${c.bold('Examples:')}
     .command('vars')
     .description('List variables defined and used by each block')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .action(createDagVarsAction(program))
@@ -418,7 +417,7 @@ ${c.bold('Examples:')}
     .description('Show blocks that need re-run if a block changes')
     .argument('<path>', 'Path to a .deepnote file')
     .requiredOption('-b, --block <id>', 'Block ID or label to analyze')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .action(createDagDownstreamAction(program))
@@ -428,7 +427,7 @@ ${c.bold('Examples:')}
     .command('stats')
     .description('Show statistics about a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .addHelpText('after', () => {
       const c = getChalk()
@@ -445,7 +444,7 @@ ${c.bold('Examples:')}
   $ deepnote stats my-project.deepnote
 
   ${c.dim('# Output as JSON for scripting')}
-  $ deepnote stats my-project.deepnote --json
+  $ deepnote stats my-project.deepnote -o json
 
   ${c.dim('# Show stats for a specific notebook')}
   $ deepnote stats my-project.deepnote --notebook "Data Analysis"
@@ -458,7 +457,7 @@ ${c.bold('Examples:')}
     .command('lint')
     .description('Check a .deepnote file for issues')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .option('--notebook <name>', 'Lint only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .addHelpText('after', () => {
@@ -488,7 +487,7 @@ ${c.bold('Examples:')}
   $ deepnote lint my-project.deepnote
 
   ${c.dim('# Output as JSON for CI/CD')}
-  $ deepnote lint my-project.deepnote --json
+  $ deepnote lint my-project.deepnote -o json
 
   ${c.dim('# Lint only a specific notebook')}
   $ deepnote lint my-project.deepnote --notebook "Analysis"

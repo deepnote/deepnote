@@ -91,12 +91,12 @@ describe('stats command', () => {
     })
   })
 
-  describe('--json output', () => {
+  describe('-o json output', () => {
     it('outputs valid JSON', async () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -107,7 +107,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -127,7 +127,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -144,7 +144,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -161,7 +161,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true, notebook: '1. Text blocks' })
+      await action(filePath, { output: 'json', notebook: '1. Text blocks' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -174,7 +174,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true, notebook: '1. Text blocks' })
+      await action(filePath, { output: 'json', notebook: '1. Text blocks' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -222,13 +222,13 @@ describe('stats command', () => {
       exitSpy.mockRestore()
     })
 
-    it('outputs JSON error when --json is used', async () => {
+    it('outputs JSON error when -o json is used', async () => {
       const action = createStatsAction(program)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent.deepnote', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -244,7 +244,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -257,7 +257,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -273,7 +273,7 @@ describe('stats command', () => {
       const action = createStatsAction(program)
       const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)

@@ -51,11 +51,11 @@ describe('dag command', () => {
       expect(output).toContain('No dependencies')
     })
 
-    it('outputs JSON when --json flag is set', async () => {
+    it('outputs JSON when -o json flag is set', async () => {
       const action = createDagShowAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -65,11 +65,11 @@ describe('dag command', () => {
       expect(Array.isArray(result.edges)).toBe(true)
     })
 
-    it('outputs DOT format when --dot flag is set', async () => {
+    it('outputs DOT format when -o dot flag is set', async () => {
       const action = createDagShowAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { dot: true })
+      await action(filePath, { output: 'dot' })
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('digraph dependencies')
@@ -82,7 +82,7 @@ describe('dag command', () => {
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
       // BLOCKS_FILE has notebooks "1. Text blocks" and "2. Input blocks"
-      await action(filePath, { notebook: '1. Text blocks', json: true })
+      await action(filePath, { notebook: '1. Text blocks', output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -96,7 +96,7 @@ describe('dag command', () => {
       const action = createDagShowAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -112,7 +112,7 @@ describe('dag command', () => {
       const action = createDagShowAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -135,11 +135,11 @@ describe('dag command', () => {
       expect(output).toContain('Defines:')
     })
 
-    it('outputs JSON when --json flag is set', async () => {
+    it('outputs JSON when -o json flag is set', async () => {
       const action = createDagVarsAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -189,11 +189,11 @@ describe('dag command', () => {
       expect(output).toContain('Downstream Impact')
     })
 
-    it('outputs JSON when --json flag is set', async () => {
+    it('outputs JSON when -o json flag is set', async () => {
       const action = createDagDownstreamAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { block: RNG_BLOCK_ID, json: true })
+      await action(filePath, { block: RNG_BLOCK_ID, output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -209,7 +209,7 @@ describe('dag command', () => {
         throw new Error('process.exit called')
       })
 
-      await expect(action(filePath, { block: 'non-existent', json: true })).rejects.toThrow('process.exit called')
+      await expect(action(filePath, { block: 'non-existent', output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -234,7 +234,7 @@ describe('dag command', () => {
       const action = createDagDownstreamAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { block: RNG_BLOCK_ID, json: true })
+      await action(filePath, { block: RNG_BLOCK_ID, output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -261,7 +261,7 @@ describe('dag command', () => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent.deepnote', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -276,7 +276,7 @@ describe('dag command', () => {
     it('accepts relative paths', async () => {
       const action = createDagShowAction(program)
 
-      await action(HOUSING_FILE, { json: true })
+      await action(HOUSING_FILE, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -287,7 +287,7 @@ describe('dag command', () => {
       const action = createDagShowAction(program)
       const absolutePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(absolutePath, { json: true })
+      await action(absolutePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)

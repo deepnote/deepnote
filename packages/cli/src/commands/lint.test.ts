@@ -66,7 +66,7 @@ describe('lint command', () => {
     })
   })
 
-  describe('--json output', () => {
+  describe('-o json output', () => {
     it('outputs valid JSON', async () => {
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
@@ -75,7 +75,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -89,7 +89,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -110,7 +110,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -128,7 +128,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true, notebook: '1. Text blocks' })
+      await action(filePath, { output: 'json', notebook: '1. Text blocks' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -175,10 +175,10 @@ describe('lint command', () => {
       expect(errorOutput).toContain('File not found')
     })
 
-    it('outputs JSON error when --json is used', async () => {
+    it('outputs JSON error when -o json is used', async () => {
       const action = createLintAction(program)
 
-      await expect(action('non-existent.deepnote', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -195,7 +195,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -213,7 +213,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -235,7 +235,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -258,7 +258,7 @@ describe('lint command', () => {
         return undefined as never
       })
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -280,7 +280,7 @@ describe('lint command', () => {
         return undefined as never
       })
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -300,7 +300,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -383,7 +383,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -400,7 +400,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -417,7 +417,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -436,7 +436,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -463,7 +463,7 @@ describe('lint command', () => {
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
       try {
-        await action(filePath, { json: true })
+        await action(filePath, { output: 'json' })
 
         const output = getOutput(consoleSpy)
         const parsed = JSON.parse(output)
@@ -489,7 +489,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -510,7 +510,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -529,7 +529,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -551,7 +551,7 @@ describe('lint command', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)

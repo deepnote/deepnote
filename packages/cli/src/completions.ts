@@ -106,7 +106,7 @@ _deepnote_completions() {
         convert)
             # Complete convert options and supported file types
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "-o --output -n --name -f --format --json" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "-o --output -n --name -f --format" -- "\${cur}") )
             elif [[ "\${prev}" == "-o" || "\${prev}" == "--output" || "\${prev}" == "-n" || "\${prev}" == "--name" ]]; then
                 COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
             else
@@ -119,18 +119,30 @@ _deepnote_completions() {
             return 0
             ;;
         show|vars|downstream)
-            # Complete .deepnote files for dag subcommands
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete .deepnote files and flags for dag subcommands
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --notebook --python -b --block" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         stats)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --notebook" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         lint)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --notebook --python" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         completion)
@@ -242,7 +254,6 @@ ${commandEntries}
                         '(-o --output)'{-o,--output}'[Output file or directory]:output path:_files' \\
                         '(-n --name)'{-n,--name}'[Project name for conversion]:project name:' \\
                         '(-f --format)'{-f,--format}'[Output format (jupyter, percent, quarto, marimo)]:format:(jupyter percent quarto marimo)' \\
-                        '--json[Output in JSON format]' \\
                         '*:input file:_files -g "*.{deepnote,ipynb,qmd,py}"'
                     ;;
                 dag)
@@ -261,24 +272,23 @@ ${commandEntries}
                             ;;
                         args)
                             _arguments \\
-                                '--json[Output in JSON format]' \\
-                                '--dot[Output in DOT format for Graphviz]' \\
+                                '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
                                 '--notebook[Analyze only a specific notebook]:notebook name:' \\
                                 '--python[Path to Python interpreter]:python path:_files' \\
-                                '--block[Block ID or label to analyze]:block:' \\
+                                '(-b --block)'{-b,--block}'[Block ID or label to analyze]:block:' \\
                                 '*:deepnote file:_files -g "*.deepnote"'
                             ;;
                     esac
                     ;;
                 stats)
                     _arguments \\
-                        '--json[Output in JSON format]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '--notebook[Analyze only a specific notebook]:notebook name:' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 lint)
                     _arguments \\
-                        '--json[Output in JSON format]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '--notebook[Lint only a specific notebook]:notebook name:' \\
                         '--python[Path to Python interpreter]:python path:_files' \\
                         '*:deepnote file:_files -g "*.deepnote"'
@@ -367,27 +377,25 @@ complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -s o -l output -d 'Output file or directory'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -s n -l name -d 'Project name for conversion'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -s f -l format -d 'Output format' -xa 'jupyter percent quarto marimo'
-complete -c deepnote -n '__fish_seen_subcommand_from convert' -l json -d 'Output in JSON format'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'
 
 # dag subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -a show -d 'Show the dependency graph'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -a vars -d 'List variables defined and used by each block'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -a downstream -d 'Show blocks that need re-run if a block changes'
-complete -c deepnote -n '__fish_seen_subcommand_from dag' -l json -d 'Output in JSON format'
-complete -c deepnote -n '__fish_seen_subcommand_from dag' -l dot -d 'Output in DOT format for Graphviz'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -s o -l output -d 'Output format' -xa 'json dot'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l notebook -d 'Analyze only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l python -d 'Path to Python interpreter'
-complete -c deepnote -n '__fish_seen_subcommand_from dag' -l block -s b -d 'Block ID or label to analyze'
+complete -c deepnote -n '__fish_seen_subcommand_from dag' -s b -l block -d 'Block ID or label to analyze'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -F -a '*.deepnote'
 
 # stats subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from stats' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from stats' -s o -l output -d 'Output format' -xa 'json'
 complete -c deepnote -n '__fish_seen_subcommand_from stats' -l notebook -d 'Analyze only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from stats' -F -a '*.deepnote'
 
 # lint subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from lint' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from lint' -s o -l output -d 'Output format' -xa 'json'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l notebook -d 'Lint only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l python -d 'Path to Python interpreter'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -F -a '*.deepnote'
