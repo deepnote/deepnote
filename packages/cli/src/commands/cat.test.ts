@@ -191,25 +191,18 @@ describe('cat command', () => {
       expect(output).not.toContain('markdown')
     })
 
-    it('filters to text blocks with category filter', async () => {
+    it('filters to text blocks with category filter (text-cell-* only)', async () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
       await action(filePath, { type: 'text' })
 
       const output = getOutput(consoleSpy)
-      expect(output).toContain('markdown')
+      // 'text' filter returns only text-cell-* blocks, NOT markdown
+      // Since this file has no text-cell-* blocks, output should not contain markdown or other block types
+      expect(output).not.toContain('markdown')
       expect(output).not.toContain('input-text')
-    })
-
-    it('handles case-insensitive type filter', async () => {
-      const action = createCatAction(program)
-      const filePath = resolve(process.cwd(), BLOCKS_FILE)
-
-      await action(filePath, { type: 'CODE' })
-
-      const output = getOutput(consoleSpy)
-      expect(output).toContain('code')
+      expect(output).not.toContain('code')
     })
   })
 
@@ -327,7 +320,7 @@ describe('cat command', () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { type: 'input-text' })
+      await action(filePath, { type: 'input' })
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('Variable: input_text')

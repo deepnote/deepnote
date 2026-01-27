@@ -32,11 +32,11 @@ export function createBlockTypeValidator(): (value: string) => FilterableBlockTy
 export interface CatOptions {
   output?: OutputFormat
   notebook?: string
-  type?: string
+  type?: FilterableBlockType
   tree?: boolean
 }
 
-export function createCatAction(_program: Command): (path: string | undefined, options: CatOptions) => Promise<void> {
+export function createCatAction(_program: Command): (path: string, options: CatOptions) => Promise<void> {
   return async (path, options) => {
     try {
       debug(`Cat file: ${path}`)
@@ -55,7 +55,7 @@ export function createCatAction(_program: Command): (path: string | undefined, o
   }
 }
 
-async function catDeepnoteFile(path: string | undefined, options: CatOptions): Promise<void> {
+async function catDeepnoteFile(path: string, options: CatOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
 
   debug('Reading file contents...')
@@ -219,7 +219,7 @@ function filterBlocks(blocks: DeepnoteBlock[], options: CatOptions): DeepnoteBlo
 
   // Handle category filters
   if (typeFilter === 'text') {
-    return blocks.filter(b => b.type.startsWith('text-cell-') || b.type === 'markdown')
+    return blocks.filter(b => b.type.startsWith('text-cell-'))
   }
   if (typeFilter === 'input') {
     return blocks.filter(b => b.type.startsWith('input-'))
