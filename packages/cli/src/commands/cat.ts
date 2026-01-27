@@ -2,11 +2,11 @@ import fs from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { codeToANSI } from '@shikijs/cli'
-import chalk, { type ChalkInstance } from 'chalk'
+import type { ChalkInstance } from 'chalk'
 import type { Command } from 'commander'
 import wrapAnsi from 'wrap-ansi'
 import { ExitCode } from '../exit-codes'
-import { debug, getOutputConfig, error as logError, type OutputFormat, output, outputJson } from '../output'
+import { debug, getChalk, getOutputConfig, error as logError, type OutputFormat, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
@@ -155,6 +155,7 @@ async function printBlocks(
   notebooks: DeepnoteFile['project']['notebooks'],
   options: CatOptions
 ): Promise<void> {
+  const chalk = getChalk()
   output(chalk.dim(`File: ${absolutePath}`))
   output('')
 
@@ -184,6 +185,7 @@ async function printBlocks(
  * Print a single block with formatting.
  */
 async function printBlock(block: DeepnoteBlock, options: CatOptions): Promise<void> {
+  const chalk = getChalk()
   const typeColor = getTypeColor(block.type)
 
   output(`${chalk.dim('─'.repeat(60))}`)
@@ -261,6 +263,7 @@ function getBlockContent(block: DeepnoteBlock): string | undefined {
  * Get color function for block type.
  */
 function getTypeColor(type: DeepnoteBlock['type']): ChalkInstance {
+  const chalk = getChalk()
   if (type === 'code') return chalk.yellow
   if (type === 'sql') return chalk.blue
   if (type === 'markdown' || type.startsWith('text-cell-')) return chalk.green
