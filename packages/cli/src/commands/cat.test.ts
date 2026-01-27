@@ -2,7 +2,7 @@ import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
-import { type CatOptions, createCatAction, FILTERABLE_BLOCK_TYPES } from './cat'
+import { type CatOptions, createCatAction } from './cat'
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -396,16 +396,6 @@ describe('cat command', () => {
       const output = getOutput(consoleSpy)
       expect(output).toContain('sql')
       expect(output).toContain('SELECT')
-    })
-  })
-
-  describe('FILTERABLE_BLOCK_TYPES', () => {
-    it('includes all expected block types', () => {
-      expect(FILTERABLE_BLOCK_TYPES).toContain('code')
-      expect(FILTERABLE_BLOCK_TYPES).toContain('sql')
-      expect(FILTERABLE_BLOCK_TYPES).toContain('markdown')
-      expect(FILTERABLE_BLOCK_TYPES).toContain('input-text')
-      expect(FILTERABLE_BLOCK_TYPES).toContain('visualization')
     })
   })
 })

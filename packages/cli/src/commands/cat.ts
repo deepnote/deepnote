@@ -16,34 +16,6 @@ export interface CatOptions {
   tree?: boolean
 }
 
-/** Block types that can be filtered */
-const FILTERABLE_BLOCK_TYPES = [
-  'code',
-  'sql',
-  'markdown',
-  'text-cell-h1',
-  'text-cell-h2',
-  'text-cell-h3',
-  'text-cell-p',
-  'text-cell-bullet',
-  'text-cell-todo',
-  'text-cell-callout',
-  'image',
-  'separator',
-  'visualization',
-  'button',
-  'big-number',
-  'notebook-function',
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-] as const
-
 export function createCatAction(_program: Command): (path: string | undefined, options: CatOptions) => Promise<void> {
   return async (path, options) => {
     try {
@@ -276,5 +248,3 @@ async function highlightContent(content: string, type: string): Promise<string> 
   }
   return content
 }
-
-export { FILTERABLE_BLOCK_TYPES }
