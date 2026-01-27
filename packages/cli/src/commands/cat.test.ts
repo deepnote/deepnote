@@ -241,12 +241,12 @@ describe('cat command', () => {
     })
   })
 
-  describe('--json output', () => {
+  describe('-o json output', () => {
     it('outputs valid JSON', async () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -257,7 +257,7 @@ describe('cat command', () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -269,7 +269,7 @@ describe('cat command', () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true })
+      await action(filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -284,7 +284,7 @@ describe('cat command', () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, { json: true, tree: true })
+      await action(filePath, { output: 'json', tree: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -295,7 +295,7 @@ describe('cat command', () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true, notebook: '1. Text blocks' })
+      await action(filePath, { output: 'json', notebook: '1. Text blocks' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -307,7 +307,7 @@ describe('cat command', () => {
       const action = createCatAction(program)
       const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { json: true, type: 'code' })
+      await action(filePath, { output: 'json', type: 'code' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -369,13 +369,13 @@ describe('cat command', () => {
       exitSpy.mockRestore()
     })
 
-    it('outputs JSON error when --json is used', async () => {
+    it('outputs JSON error when -o json is used', async () => {
       const action = createCatAction(program)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.deepnote', { json: true })).rejects.toThrow('process.exit called')
+      await expect(action('non-existent-file.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)

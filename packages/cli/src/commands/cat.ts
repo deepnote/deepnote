@@ -5,12 +5,12 @@ import { codeToANSI } from '@shikijs/cli'
 import chalk, { type ChalkInstance } from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, output, outputJson } from '../output'
+import { debug, error as logError, type OutputFormat, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface CatOptions {
-  json?: boolean
+  output?: OutputFormat
   notebook?: string
   type?: string
   tree?: boolean
@@ -25,7 +25,7 @@ export function createCatAction(_program: Command): (path: string | undefined, o
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: message })
       } else {
         logError(message)
@@ -54,7 +54,7 @@ async function catDeepnoteFile(path: string | undefined, options: CatOptions): P
     }
   }
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputCatJson(absolutePath, deepnoteFile, notebooks, options)
   } else {
     await printBlocks(absolutePath, notebooks, options)
