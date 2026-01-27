@@ -4,10 +4,14 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { codeToANSI } from '@shikijs/cli'
 import chalk, { type ChalkInstance } from 'chalk'
 import type { Command } from 'commander'
+import wrapAnsi from 'wrap-ansi'
 import { ExitCode } from '../exit-codes'
 import { debug, getOutputConfig, error as logError, type OutputFormat, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+
+/** Maximum width for text content in markdown and text blocks. */
+const TEXT_BLOCK_MAX_WIDTH = 100
 
 /**
  * Block types that can be used with the --type filter in the cat command.
@@ -198,9 +202,12 @@ async function printBlock(block: DeepnoteBlock, options: CatOptions): Promise<vo
 
   // Show content unless --tree mode
   if (!options.tree) {
-    const content = getBlockContent(block)
+    let content = getBlockContent(block)
     if (content) {
       output('')
+      if (block.type === 'markdown' || block.type.startsWith('text-cell-')) {
+        content = wrapAnsi(content, TEXT_BLOCK_MAX_WIDTH, { hard: true })
+      }
       const highlighted = await highlightContent(content, block.type)
       // Indent each line
       const lines = highlighted.split('\n')

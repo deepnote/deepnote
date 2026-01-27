@@ -50,6 +50,7 @@
     "chalk": "^5.4.1",
     "commander": "^14.0.2",
     "ora": "^9.0.0",
+    "wrap-ansi": "^9.0.2",
     "zod": "3.25.76"
   },
   "devDependencies": {
