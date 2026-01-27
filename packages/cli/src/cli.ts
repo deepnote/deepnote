@@ -162,7 +162,7 @@ ${c.bold('Examples:')}
     .command('cat')
     .description('Display block contents from a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .option('--notebook <name>', 'Show only blocks from the specified notebook')
     .option('--type <type>', 'Filter blocks by type (code, sql, markdown, input, text)')
     .option('--tree', 'Show structure only without block content')
