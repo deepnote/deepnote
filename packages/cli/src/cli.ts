@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
-import { createCatAction } from './commands/cat'
+import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
 import { createConvertAction } from './commands/convert'
 import { createInspectAction } from './commands/inspect'
 import { createOpenAction } from './commands/open'
@@ -75,9 +75,6 @@ ${c.bold('Examples:')}
   ${c.dim('# Display block contents')}
   $ deepnote cat my-project.deepnote
 
-  ${c.dim('# Run a .deepnote file')}
-  $ deepnote run my-project.deepnote
-  
   ${c.dim('# Run with TOON output (for LLMs)')}
   $ deepnote run my-project.deepnote -o toon
 
@@ -164,7 +161,7 @@ ${c.bold('Examples:')}
     .argument('<path>', 'Path to a .deepnote file')
     .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .option('--notebook <name>', 'Show only blocks from the specified notebook')
-    .option('--type <type>', 'Filter blocks by type (code, sql, markdown, input, text)')
+    .option('--type <type>', `Filter blocks by type (${FILTERABLE_BLOCK_TYPES.join(', ')})`, createBlockTypeValidator())
     .option('--tree', 'Show structure only without block content')
     .addHelpText('after', () => {
       const c = getChalk()

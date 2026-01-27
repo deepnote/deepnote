@@ -9,6 +9,26 @@ import { debug, getOutputConfig, error as logError, type OutputFormat, output, o
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
+/**
+ * Block types that can be used with the --type filter in the cat command.
+ * These include both direct type matches and category filters.
+ */
+export const FILTERABLE_BLOCK_TYPES = ['code', 'sql', 'markdown', 'text', 'input'] as const
+export type FilterableBlockType = (typeof FILTERABLE_BLOCK_TYPES)[number]
+
+/**
+ * Creates a validator function for the --type option.
+ * @returns Validator function for Commander option parsing
+ */
+export function createBlockTypeValidator(): (value: string) => FilterableBlockType {
+  return (value: string): FilterableBlockType => {
+    if (!FILTERABLE_BLOCK_TYPES.includes(value as FilterableBlockType)) {
+      throw new Error(`Invalid block type: ${value}. Valid types: ${FILTERABLE_BLOCK_TYPES.join(', ')}`)
+    }
+    return value as FilterableBlockType
+  }
+}
+
 export interface CatOptions {
   output?: OutputFormat
   notebook?: string
