@@ -161,6 +161,8 @@ function analyzeNotebook(notebook: DeepnoteFile['project']['notebooks'][number])
 
 /**
  * Count lines of code in a block's content.
+ * - For Python code blocks: excludes # comments and lines inside triple-quoted strings
+ * - For SQL blocks: excludes -- comments only
  */
 function countLinesOfCode(block: DeepnoteBlock): number {
   if (!('content' in block) || typeof block.content !== 'string' || !block.content) {
@@ -172,13 +174,49 @@ function countLinesOfCode(block: DeepnoteBlock): number {
     return 0
   }
 
-  // For code/sql blocks, count non-empty, non-comment lines
-  if (block.type === 'code' || block.type === 'sql') {
+  // For SQL blocks, only use -- as comment marker
+  if (block.type === 'sql') {
     const lines = content.split('\n')
     let loc = 0
     for (const line of lines) {
       const trimmed = line.trim()
-      if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('--')) {
+      if (trimmed && !trimmed.startsWith('--')) {
+        loc++
+      }
+    }
+    return loc
+  }
+
+  // For Python code blocks, exclude # comments and triple-quoted strings/docstrings
+  if (block.type === 'code') {
+    const lines = content.split('\n')
+    let loc = 0
+    let inMultilineString = false
+    let multilineDelimiter = ''
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+
+      if (inMultilineString) {
+        if (trimmed.includes(multilineDelimiter)) {
+          inMultilineString = false
+          multilineDelimiter = ''
+        }
+        continue
+      }
+
+      if (trimmed.startsWith('"""') || trimmed.startsWith("'''")) {
+        const delimiter = trimmed.startsWith('"""') ? '"""' : "'''"
+        const afterOpening = trimmed.slice(3)
+        if (!afterOpening.includes(delimiter)) {
+          inMultilineString = true
+          multilineDelimiter = delimiter
+        }
+        continue
+      }
+
+      // Count non-empty, non-comment lines
+      if (trimmed && !trimmed.startsWith('#')) {
         loc++
       }
     }
@@ -191,6 +229,13 @@ function countLinesOfCode(block: DeepnoteBlock): number {
 
 /**
  * Extract imported module names from a code block.
+ * Handles:
+ * - import os
+ * - import os, sys
+ * - import pandas as pd
+ * - import os.path
+ * - from os import path
+ * - from os.path import join, exists
  */
 function extractImports(block: DeepnoteBlock): string[] {
   if (block.type !== 'code' || !('content' in block) || typeof block.content !== 'string') {
@@ -203,17 +248,30 @@ function extractImports(block: DeepnoteBlock): string[] {
   for (const line of lines) {
     const trimmed = line.trim()
 
-    // Match "import x" or "import x.y"
-    const importMatch = trimmed.match(/^import\s+(\w+)/)
+    // Match "import x", "import x, y", "import x as alias", "import x.y"
+    const importMatch = trimmed.match(/^import\s+(.+)$/)
     if (importMatch) {
-      imports.push(importMatch[1])
+      const importClause = importMatch[1]
+      const modules = importClause.split(',')
+      for (const mod of modules) {
+        const modTrimmed = mod.trim()
+        const withoutAlias = modTrimmed.split(/\s+as\s+/)[0].trim()
+        const baseModule = withoutAlias.split('.')[0]
+        if (baseModule && /^\w+$/.test(baseModule)) {
+          imports.push(baseModule)
+        }
+      }
       continue
     }
 
-    // Match "from x import ..."
-    const fromMatch = trimmed.match(/^from\s+(\w+)/)
+    // Match "from x import ..." or "from x.y import ..."
+    const fromMatch = trimmed.match(/^from\s+([\w.]+)/)
     if (fromMatch) {
-      imports.push(fromMatch[1])
+      // Get the base module (first part before any dots)
+      const baseModule = fromMatch[1].split('.')[0]
+      if (baseModule) {
+        imports.push(baseModule)
+      }
     }
   }
 
