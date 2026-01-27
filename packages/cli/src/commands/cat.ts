@@ -275,7 +275,7 @@ function getTypeColor(type: DeepnoteBlock['type']): ChalkInstance {
  * Apply syntax highlighting to content based on block type using Shiki.
  * Only applies highlighting when color output is enabled.
  */
-async function highlightContent(content: string, type: string): Promise<string> {
+async function highlightContent(content: string, type: DeepnoteBlock['type']): Promise<string> {
   const { color } = getOutputConfig()
 
   if (color) {
