@@ -33,7 +33,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|run|validate|convert|completion|help)
+            inspect|run|open|validate|convert|completion|help)
                 subcommand="\${word}"
                 break
                 ;;
@@ -47,7 +47,7 @@ _deepnote_completions() {
                 COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
                 return 0
                 ;;
-            validate)
+            open|validate)
                 COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
                 return 0
                 ;;
@@ -80,6 +80,15 @@ _deepnote_completions() {
             # Complete .deepnote files and flags
             if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        open)
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--domain -o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
@@ -128,6 +137,7 @@ const zshCommandDescriptions: Record<string, string> = {
   convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  open: 'Open a .deepnote file in Deepnote',
   validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
@@ -194,6 +204,12 @@ ${commandEntries}
                         '--profile[Show per-block timing and memory usage]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
+                open)
+                    _arguments \\
+                        '--domain[Deepnote domain]:domain:' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
                 validate)
                     _arguments \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
@@ -227,6 +243,7 @@ const fishCommandDescriptions: Record<string, string> = {
   convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  open: 'Open a .deepnote file in Deepnote',
   validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
@@ -273,6 +290,11 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l dry-run -d 'Show wh
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l top -d 'Display resource usage during execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l profile -d 'Show per-block timing and memory usage'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
+
+# open subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from open' -l domain -d 'Deepnote domain'
+complete -c deepnote -n '__fish_seen_subcommand_from open' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from open' -F -a '*.deepnote'
 
 # validate subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json'

@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createConvertAction } from './commands/convert'
 import { createInspectAction } from './commands/inspect'
+import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
@@ -72,6 +73,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run with TOON output (for LLMs)')}
   $ deepnote run my-project.deepnote -o toon
+
+  ${c.dim('# Open a .deepnote file in Deepnote Cloud')}
+  $ deepnote open my-project.deepnote
 
   ${c.dim('# Get help for a specific command')}
   $ deepnote help run
@@ -224,6 +228,43 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createRunAction(program))
+
+  // Open command - open a .deepnote file in deepnote.com
+  program
+    .command('open')
+    .description('Open a .deepnote file in Deepnote Cloud')
+    .argument('<path>', 'Path to a .deepnote file to open')
+    .option('--domain <domain>', 'Deepnote domain (defaults to deepnote.com)')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Uploads the .deepnote file to Deepnote and opens it in your default browser.
+  This is useful for quickly viewing or editing your local notebooks in Deepnote.
+  Note: Files must be under 100 MB.
+
+${c.bold('Output:')}
+  On success, displays a confirmation message and the URL.
+  The URL can be shared with others to view the notebook.
+
+${c.bold('Examples:')}
+  ${c.dim('# Open a .deepnote file in Deepnote')}
+  $ deepnote open my-project.deepnote
+
+  ${c.dim('# Open with JSON output (for scripting)')}
+  $ deepnote open my-project.deepnote -o json
+
+  ${c.dim('# Use a custom domain (e.g., single-tenants)')}
+  $ deepnote open my-project.deepnote --domain deepnote.example.com
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  Import error (upload or network failure)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file, file too large)
+`
+    })
+    .action(createOpenAction(program))
 
   // Convert command - convert between notebook formats
   program

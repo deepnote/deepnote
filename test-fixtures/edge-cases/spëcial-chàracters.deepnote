@@ -1,0 +1,23 @@
+metadata:
+  createdAt: 2026-01-26T00:00:00.000Z
+  modifiedAt: '2026-01-26T00:00:00.000Z'
+  snapshotHash: sha256:0000000000000000000000000000000000000000000000000000000000000000
+project:
+  id: test-special-chars
+  name: Test Special Characters
+  notebooks:
+    - blocks:
+        - blockGroup: test-block-group
+          content: print("Testing special chars!")
+          id: test-block
+          metadata: {}
+          sortingKey: a0
+          type: code
+          contentHash: sha256:0000000000000000000000000000000000000000000000000000000000000000
+          executionCount: 0
+      executionMode: block
+      id: test-notebook
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
