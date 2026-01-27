@@ -157,8 +157,16 @@ async function printBlocks(
   output(chalk.dim(`File: ${absolutePath}`))
   output('')
 
-  for (const notebook of notebooks) {
+  for (let i = 0; i < notebooks.length; i++) {
+    const notebook = notebooks[i]
     const filteredBlocks = filterBlocks(notebook.blocks, options)
+
+    // Add divider between notebooks (not before the first one)
+    if (i > 0) {
+      output('')
+      output(chalk.cyan('═'.repeat(60)))
+      output('')
+    }
 
     output(chalk.bold.cyan(`Notebook: ${notebook.name}`))
     output(chalk.dim(`  ID: ${notebook.id}`))
