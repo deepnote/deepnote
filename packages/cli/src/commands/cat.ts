@@ -277,10 +277,10 @@ async function highlightContent(content: string, type: string): Promise<string> 
 
   if (color) {
     if (type === 'code') {
-      return codeToANSI(content, 'python', 'nord')
+      return codeToANSI(content, 'python', 'catppuccin-macchiato')
     }
     if (type === 'sql') {
-      return codeToANSI(content, 'sql', 'nord')
+      return codeToANSI(content, 'sql', 'catppuccin-macchiato')
     }
   }
 
