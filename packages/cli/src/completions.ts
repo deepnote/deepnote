@@ -1,4 +1,5 @@
 import type { Command } from 'commander'
+import { FILTERABLE_BLOCK_TYPES } from './commands/cat'
 
 /**
  * Generate shell completion script for the given shell.
@@ -19,6 +20,8 @@ export function generateCompletionScript(shell: string, program: Command): strin
 }
 
 function generateBashCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   return `# Bash completion for deepnote CLI
 # Add this to ~/.bashrc or ~/.bash_profile
 
@@ -57,7 +60,7 @@ _deepnote_completions() {
     # Handle --type option completion for cat command
     if [[ "\${prev}" == "--type" ]]; then
         if [[ "\${subcommand}" == "cat" ]]; then
-            COMPREPLY=( $(compgen -W "code sql markdown text input" -- "\${cur}") )
+            COMPREPLY=( $(compgen -W "${blockTypes}" -- "\${cur}") )
             return 0
         fi
     fi
@@ -161,6 +164,8 @@ const zshCommandDescriptions: Record<string, string> = {
 }
 
 function generateZshCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   // Build the commands array for zsh
   const commandEntries = commands
     .map(cmd => `        '${cmd}:${zshCommandDescriptions[cmd] ?? cmd}'`)
@@ -212,7 +217,7 @@ ${commandEntries}
                     _arguments \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '--notebook[Show only blocks from specified notebook]:notebook name:' \\
-                        '--type[Filter blocks by type]:type:(code sql markdown text input)' \\
+                        '--type[Filter blocks by type]:type:(${blockTypes})' \\
                         '--tree[Show structure only without block content]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
@@ -276,6 +281,8 @@ const fishCommandDescriptions: Record<string, string> = {
 }
 
 function generateFishCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   // Build the command completions
   const commandCompletions = commands
     .map(cmd => `complete -c deepnote -n __fish_use_subcommand -a ${cmd} -d '${fishCommandDescriptions[cmd] ?? cmd}'`)
@@ -308,7 +315,7 @@ complete -c deepnote -n '__fish_seen_subcommand_from inspect' -F -a '*.deepnote'
 # cat subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from cat' -s o -l output -d 'Output format' -xa 'json'
 complete -c deepnote -n '__fish_seen_subcommand_from cat' -l notebook -d 'Show only blocks from specified notebook'
-complete -c deepnote -n '__fish_seen_subcommand_from cat' -l type -d 'Filter blocks by type' -xa 'code sql markdown text input'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -l type -d 'Filter blocks by type' -xa '${blockTypes}'
 complete -c deepnote -n '__fish_seen_subcommand_from cat' -l tree -d 'Show structure only without block content'
 complete -c deepnote -n '__fish_seen_subcommand_from cat' -F -a '*.deepnote'
 
