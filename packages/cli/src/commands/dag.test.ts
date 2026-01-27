@@ -1,128 +1,39 @@
-import fs from 'node:fs/promises'
-import os from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './dag'
 
-async function createTempDir(): Promise<string> {
-  return fs.mkdtemp(join(os.tmpdir(), 'deepnote-dag-test-'))
-}
-
-async function cleanupTempDir(dirPath: string): Promise<void> {
-  try {
-    await fs.rm(dirPath, { recursive: true, force: true })
-  } catch {
-    // Ignore cleanup errors
-  }
-}
+// Test file paths relative to project root (tests are run from root)
+const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
+const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
+const HOUSING_FILE = join('examples', 'housing_price_prediction.deepnote')
 
 function getOutput(spy: Mock<typeof console.log>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
 }
 
-// Simple deepnote file with dependencies
-const DEEPNOTE_FILE_WITH_DEPS = `metadata:
-  createdAt: '2025-01-01T00:00:00Z'
-project:
-  id: test-project-id
-  name: Test Project
-  notebooks:
-    - id: nb-1
-      name: Analysis
-      blocks:
-        - id: block-1
-          type: code
-          content: "x = 1\\ny = 2"
-          blockGroup: bg-1
-          sortingKey: a0
-          metadata: {}
-        - id: block-2
-          type: code
-          content: "z = x + y"
-          blockGroup: bg-2
-          sortingKey: a1
-          metadata: {}
-        - id: block-3
-          type: code
-          content: "result = z * 2"
-          blockGroup: bg-3
-          sortingKey: a2
-          metadata: {}
-version: "1.0.0"
-`
-
-const DEEPNOTE_FILE_NO_DEPS = `metadata:
-  createdAt: '2025-01-01T00:00:00Z'
-project:
-  id: test-project-id
-  name: Test Project
-  notebooks:
-    - id: nb-1
-      name: Analysis
-      blocks:
-        - id: block-1
-          type: code
-          content: "print('hello')"
-          blockGroup: bg-1
-          sortingKey: a0
-          metadata: {}
-version: "1.0.0"
-`
-
-const DEEPNOTE_FILE_MULTI_NOTEBOOK = `metadata:
-  createdAt: '2025-01-01T00:00:00Z'
-project:
-  id: test-project-id
-  name: Test Project
-  notebooks:
-    - id: nb-1
-      name: Analysis
-      blocks:
-        - id: block-1
-          type: code
-          content: "x = 1"
-          blockGroup: bg-1
-          sortingKey: a0
-          metadata: {}
-    - id: nb-2
-      name: Processing
-      blocks:
-        - id: block-2
-          type: code
-          content: "y = 2"
-          blockGroup: bg-2
-          sortingKey: a0
-          metadata: {}
-version: "1.0.0"
-`
-
 describe('dag command', () => {
   let program: Command
   let consoleSpy: Mock<typeof console.log>
   let consoleErrorSpy: Mock<typeof console.error>
-  let tempDir: string
 
-  beforeEach(async () => {
+  beforeEach(() => {
     program = new Command()
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     resetOutputConfig()
-    tempDir = await createTempDir()
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     consoleSpy.mockRestore()
     consoleErrorSpy.mockRestore()
-    await cleanupTempDir(tempDir)
   })
 
   describe('dag show', () => {
     it('shows dependency graph for file with dependencies', async () => {
       const action = createDagShowAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, {})
 
@@ -132,8 +43,7 @@ describe('dag command', () => {
 
     it('handles files with no dependencies', async () => {
       const action = createDagShowAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_NO_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
       await action(filePath, {})
 
@@ -143,8 +53,7 @@ describe('dag command', () => {
 
     it('outputs JSON when --json flag is set', async () => {
       const action = createDagShowAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, { json: true })
 
@@ -158,8 +67,7 @@ describe('dag command', () => {
 
     it('outputs DOT format when --dot flag is set', async () => {
       const action = createDagShowAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, { dot: true })
 
@@ -171,21 +79,22 @@ describe('dag command', () => {
 
     it('filters by notebook when --notebook is set', async () => {
       const action = createDagShowAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_MULTI_NOTEBOOK, 'utf-8')
+      const filePath = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(filePath, { notebook: 'Analysis', json: true })
+      // BLOCKS_FILE has notebooks "1. Text blocks" and "2. Input blocks"
+      await action(filePath, { notebook: '1. Text blocks', json: true })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
-      expect(result.nodes).toHaveLength(1)
-      expect(result.nodes[0].notebook).toBe('Analysis')
+      // All nodes should be from the filtered notebook
+      for (const node of result.nodes) {
+        expect(node.notebook).toBe('1. Text blocks')
+      }
     })
 
     it('includes node metadata in JSON output', async () => {
       const action = createDagShowAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, { json: true })
 
@@ -201,8 +110,7 @@ describe('dag command', () => {
 
     it('includes edge metadata in JSON output', async () => {
       const action = createDagShowAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, { json: true })
 
@@ -218,8 +126,7 @@ describe('dag command', () => {
   describe('dag vars', () => {
     it('lists variables for each block', async () => {
       const action = createDagVarsAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, {})
 
@@ -230,8 +137,7 @@ describe('dag command', () => {
 
     it('outputs JSON when --json flag is set', async () => {
       const action = createDagVarsAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, { json: true })
 
@@ -245,8 +151,7 @@ describe('dag command', () => {
 
     it('shows blocks with no variables', async () => {
       const action = createDagVarsAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_NO_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
       await action(filePath, {})
 
@@ -256,8 +161,7 @@ describe('dag command', () => {
 
     it('shows uses for blocks that consume variables', async () => {
       const action = createDagVarsAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
       await action(filePath, {})
 
@@ -267,12 +171,19 @@ describe('dag command', () => {
   })
 
   describe('dag downstream', () => {
+    // Block IDs from housing_price_prediction.deepnote:
+    // - 87cd42344c68449a9f48384507bd155f: defines rng - has downstream blocks using it
+    // - 37e66ec28ab74b84b8bb703b29e2509a: defines n - has downstream blocks using it
+    const RNG_BLOCK_ID = '87cd42344c68449a9f48384507bd155f'
+    const N_BLOCK_ID = '37e66ec28ab74b84b8bb703b29e2509a'
+    // Block ID from hello_world.deepnote (print only, no downstream)
+    const HELLO_WORLD_BLOCK_ID = '15bc86a3d6684d3aa0eaad3b0c42a1eb'
+
     it('shows downstream blocks for a given block', async () => {
       const action = createDagDownstreamAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { block: 'block-1' })
+      await action(filePath, { block: RNG_BLOCK_ID })
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('Downstream Impact')
@@ -280,10 +191,9 @@ describe('dag command', () => {
 
     it('outputs JSON when --json flag is set', async () => {
       const action = createDagDownstreamAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { block: 'block-1', json: true })
+      await action(filePath, { block: RNG_BLOCK_ID, json: true })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
@@ -294,8 +204,7 @@ describe('dag command', () => {
 
     it('reports error for non-existent block', async () => {
       const action = createDagDownstreamAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called')
       })
@@ -312,11 +221,10 @@ describe('dag command', () => {
 
     it('shows no downstream blocks when block has no dependents', async () => {
       const action = createDagDownstreamAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      // block-3 is the last block, nothing depends on it
-      await action(filePath, { block: 'block-3' })
+      // hello_world.deepnote has a single block with just print(), nothing depends on it
+      await action(filePath, { block: HELLO_WORLD_BLOCK_ID })
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('No downstream blocks')
@@ -324,26 +232,24 @@ describe('dag command', () => {
 
     it('includes downstream count in JSON output', async () => {
       const action = createDagDownstreamAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { block: 'block-1', json: true })
+      await action(filePath, { block: RNG_BLOCK_ID, json: true })
 
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
       expect(result.count).toBeGreaterThanOrEqual(0)
-      expect(result.source.id).toBe('block-1')
+      expect(result.source.id).toBe(RNG_BLOCK_ID)
     })
 
     it('lists blocks that will re-run', async () => {
       const action = createDagDownstreamAction(program)
-      const filePath = join(tempDir, 'test.deepnote')
-      await fs.writeFile(filePath, DEEPNOTE_FILE_WITH_DEPS, 'utf-8')
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
 
-      await action(filePath, { block: 'block-1' })
+      // Block n=300 defines 'n' which is used by downstream blocks
+      await action(filePath, { block: N_BLOCK_ID })
 
       const output = getOutput(consoleSpy)
-      // block-1 defines x,y which are used by block-2
       expect(output).toContain('will need to re-run')
     })
   })
@@ -363,6 +269,29 @@ describe('dag command', () => {
       expect(result.error).toBeDefined()
 
       exitSpy.mockRestore()
+    })
+  })
+
+  describe('path resolution', () => {
+    it('accepts relative paths', async () => {
+      const action = createDagShowAction(program)
+
+      await action(HOUSING_FILE, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const result = JSON.parse(output)
+      expect(result.nodes).toBeDefined()
+    })
+
+    it('accepts absolute paths', async () => {
+      const action = createDagShowAction(program)
+      const absolutePath = resolve(process.cwd(), HOUSING_FILE)
+
+      await action(absolutePath, { json: true })
+
+      const output = getOutput(consoleSpy)
+      const result = JSON.parse(output)
+      expect(result.nodes).toBeDefined()
     })
   })
 })
