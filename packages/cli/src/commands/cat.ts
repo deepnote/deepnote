@@ -5,7 +5,7 @@ import { codeToANSI } from '@shikijs/cli'
 import chalk, { type ChalkInstance } from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, type OutputFormat, output, outputJson } from '../output'
+import { debug, getOutputConfig, error as logError, type OutputFormat, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
@@ -238,13 +238,19 @@ function getTypeColor(type: string): ChalkInstance {
 
 /**
  * Apply syntax highlighting to content based on block type using Shiki.
+ * Only applies highlighting when color output is enabled.
  */
 async function highlightContent(content: string, type: string): Promise<string> {
-  if (type === 'code') {
-    return codeToANSI(content, 'python', 'nord')
+  const { color } = getOutputConfig()
+
+  if (color) {
+    if (type === 'code') {
+      return codeToANSI(content, 'python', 'nord')
+    }
+    if (type === 'sql') {
+      return codeToANSI(content, 'sql', 'nord')
+    }
   }
-  if (type === 'sql') {
-    return codeToANSI(content, 'sql', 'nord')
-  }
+
   return content
 }
