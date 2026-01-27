@@ -8,6 +8,7 @@ import { ExitCode } from '../exit-codes'
 import { debug, error as logError, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { isBuiltinOrGlobal } from '../utils/python-builtins'
 
 export interface LintOptions {
   output?: 'json'
@@ -89,7 +90,15 @@ export function createLintAction(_program: Command): (path: string | undefined, 
         process.exit(ExitCode.Error)
       }
     } catch (error) {
-      handleError(error, options)
+      const message = error instanceof Error ? error.message : String(error)
+      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+
+      if (options.output === 'json') {
+        outputJson({ success: false, error: message })
+      } else {
+        logError(message)
+      }
+      process.exit(exitCode)
     }
   }
 }
@@ -556,103 +565,6 @@ function checkMissingInputs(
   }
 }
 
-/**
- * Check if a variable is a Python builtin or common global.
- */
-function isBuiltinOrGlobal(name: string): boolean {
-  const builtins = new Set([
-    // Python builtins
-    'True',
-    'False',
-    'None',
-    'print',
-    'len',
-    'range',
-    'str',
-    'int',
-    'float',
-    'list',
-    'dict',
-    'set',
-    'tuple',
-    'type',
-    'isinstance',
-    'hasattr',
-    'getattr',
-    'setattr',
-    'delattr',
-    'open',
-    'input',
-    'abs',
-    'all',
-    'any',
-    'bin',
-    'bool',
-    'bytes',
-    'callable',
-    'chr',
-    'classmethod',
-    'compile',
-    'complex',
-    'delattr',
-    'dir',
-    'divmod',
-    'enumerate',
-    'eval',
-    'exec',
-    'filter',
-    'format',
-    'frozenset',
-    'globals',
-    'hash',
-    'help',
-    'hex',
-    'id',
-    'iter',
-    'locals',
-    'map',
-    'max',
-    'memoryview',
-    'min',
-    'next',
-    'object',
-    'oct',
-    'ord',
-    'pow',
-    'property',
-    'repr',
-    'reversed',
-    'round',
-    'slice',
-    'sorted',
-    'staticmethod',
-    'sum',
-    'super',
-    'vars',
-    'zip',
-    '__name__',
-    '__doc__',
-    '__file__',
-    '__package__',
-    // Common data science globals
-    'pd',
-    'np',
-    'plt',
-    'sns',
-    'tf',
-    'torch',
-    'sk',
-    'scipy',
-    'display',
-    'HTML',
-    'Image',
-    'DataFrame',
-    'Series',
-  ])
-
-  return builtins.has(name)
-}
-
 function outputLintResult(result: LintResult, options: LintOptions): void {
   if (options.output === 'json') {
     outputJson(result)
@@ -679,8 +591,8 @@ function outputLintResult(result: LintResult, options: LintOptions): void {
     console.log()
 
     for (const issue of issues) {
-      const icon = getSeverityIcon(issue.severity)
-      const color = getSeverityColor(issue.severity)
+      const icon = issue.severity === 'error' ? chalk.red('✖') : chalk.yellow('⚠')
+      const color = issue.severity === 'error' ? chalk.red : chalk.yellow
       console.log(`  ${icon} ${color(issue.code)}: ${issue.message}`)
       console.log(`    ${chalk.dim(`in ${issue.blockLabel}`)}`)
     }
@@ -697,24 +609,4 @@ function outputLintResult(result: LintResult, options: LintOptions): void {
   }
 
   console.log(`${chalk.bold('Summary:')} ${parts.join(', ')}`)
-}
-
-function getSeverityIcon(severity: IssueSeverity): string {
-  return severity === 'error' ? chalk.red('✖') : chalk.yellow('⚠')
-}
-
-function getSeverityColor(severity: IssueSeverity): typeof chalk {
-  return severity === 'error' ? chalk.red : chalk.yellow
-}
-
-function handleError(error: unknown, options: LintOptions): never {
-  const message = error instanceof Error ? error.message : String(error)
-  const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-
-  if (options.output === 'json') {
-    outputJson({ success: false, error: message })
-  } else {
-    logError(message)
-  }
-  process.exit(exitCode)
 }
