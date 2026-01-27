@@ -1,6 +1,11 @@
 # Documentation Dictionary
 # Technical terms, product names, and domain-specific vocabulary
 
+# Data Formats
+toon
+TOON
+Toon
+
 # Data & ML Tools
 wandb
 Wandb
