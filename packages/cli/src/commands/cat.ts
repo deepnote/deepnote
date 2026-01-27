@@ -85,6 +85,17 @@ async function catDeepnoteFile(path: string, options: CatOptions): Promise<void>
   }
 }
 
+type BlockSummary = Pick<DeepnoteBlock, 'id' | 'type'> & { label: string; content?: string }
+type NotebookSummary = Pick<DeepnoteFile['project']['notebooks'][number], 'name' | 'id'> & { blocks: BlockSummary[] }
+
+/** JSON output result for the cat command */
+export interface CatResult {
+  success: boolean
+  path: string
+  project: Pick<DeepnoteFile['project'], 'name' | 'id'>
+  notebooks: NotebookSummary[]
+}
+
 /**
  * Output cat results as JSON for scripting.
  */
@@ -94,21 +105,7 @@ function outputCatJson(
   notebooks: DeepnoteFile['project']['notebooks'],
   options: CatOptions
 ): void {
-  const result: {
-    success: boolean
-    path: string
-    project: { name: string; id: string }
-    notebooks: Array<{
-      name: string
-      id: string
-      blocks: Array<{
-        id: string
-        type: DeepnoteBlock['type']
-        label: string
-        content?: string
-      }>
-    }>
-  } = {
+  const result: CatResult = {
     success: true,
     path: absolutePath,
     project: {
@@ -120,14 +117,14 @@ function outputCatJson(
 
   for (const notebook of notebooks) {
     const filteredBlocks = filterBlocks(notebook.blocks, options)
-    const notebookResult: (typeof result.notebooks)[number] = {
+    const notebookResult: NotebookSummary = {
       name: notebook.name,
       id: notebook.id,
       blocks: [],
     }
 
     for (const block of filteredBlocks) {
-      const blockResult: (typeof notebookResult.blocks)[number] = {
+      const blockResult: BlockSummary = {
         id: block.id,
         type: block.type,
         label: getBlockLabel(block),
