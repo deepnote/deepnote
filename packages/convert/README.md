@@ -192,14 +192,14 @@ await convertMarimoFilesToDeepnoteFile(["notebook.py"], {
 
 ```typescript
 import {
-  convertDeepnoteFileToJupyter,
+  convertDeepnoteFileToJupyterFiles,
   convertDeepnoteFileToQuartoFiles,
   convertDeepnoteFileToPercentFiles,
   convertDeepnoteFileToMarimoFiles,
 } from "@deepnote/convert";
 
 // To Jupyter
-await convertDeepnoteFileToJupyter("project.deepnote", {
+await convertDeepnoteFileToJupyterFiles("project.deepnote", {
   outputDir: "./jupyter-notebooks",
 });
 
