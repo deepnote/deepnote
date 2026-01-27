@@ -1,7 +1,7 @@
 export type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 export type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@jupyterlab/nbformat'
 export type { ExecutionOptions } from './execution-engine'
-export { ExecutionEngine } from './execution-engine'
+export { ExecutionEngine, executableBlockTypeSet, executableBlockTypes } from './execution-engine'
 export type { ExecutionCallbacks, ExecutionResult } from './kernel-client'
 export { KernelClient } from './kernel-client'
 export { detectDefaultPython, resolvePythonExecutable } from './python-env'

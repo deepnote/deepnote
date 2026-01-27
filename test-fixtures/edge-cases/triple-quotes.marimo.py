@@ -1,0 +1,23 @@
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    import marimo as mo
+    return mo,
+
+@app.cell
+def __(mo):
+    mo.md(r"""
+    Example with triple quotes:
+    ```python
+    code = '''
+    Multiline
+    '''
+    ```
+    """)
+    return
+
+if __name__ == "__main__":
+    app.run()
