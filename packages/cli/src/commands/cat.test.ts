@@ -144,12 +144,14 @@ describe('cat command', () => {
         throw new Error('process.exit called')
       })
 
-      await expect(action(filePath, { notebook: 'Non-existent' })).rejects.toThrow('process.exit called')
+      try {
+        await expect(action(filePath, { notebook: 'Non-existent' })).rejects.toThrow('process.exit called')
 
-      const errorOutput = getErrorOutput(consoleErrorSpy)
-      expect(errorOutput).toContain('Notebook not found')
-
-      exitSpy.mockRestore()
+        const errorOutput = getErrorOutput(consoleErrorSpy)
+        expect(errorOutput).toContain('Notebook not found')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
   })
 
@@ -362,12 +364,14 @@ describe('cat command', () => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.deepnote', DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+      try {
+        await expect(action('non-existent-file.deepnote', DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
 
-      const errorOutput = getErrorOutput(consoleErrorSpy)
-      expect(errorOutput).toContain('File not found')
-
-      exitSpy.mockRestore()
+        const errorOutput = getErrorOutput(consoleErrorSpy)
+        expect(errorOutput).toContain('File not found')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
 
     it('outputs JSON error when -o json is used', async () => {
@@ -376,14 +380,16 @@ describe('cat command', () => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent-file.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
+      try {
+        await expect(action('non-existent-file.deepnote', { output: 'json' })).rejects.toThrow('process.exit called')
 
-      const output = getOutput(consoleSpy)
-      const parsed = JSON.parse(output)
-      expect(parsed.success).toBe(false)
-      expect(parsed.error).toContain('File not found')
-
-      exitSpy.mockRestore()
+        const output = getOutput(consoleSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(false)
+        expect(parsed.error).toContain('File not found')
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
   })
 
