@@ -1,4 +1,5 @@
 import type { Command } from 'commander'
+import { FILTERABLE_BLOCK_TYPES } from './commands/cat'
 
 /**
  * Generate shell completion script for the given shell.
@@ -19,6 +20,8 @@ export function generateCompletionScript(shell: string, program: Command): strin
 }
 
 function generateBashCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   return `# Bash completion for deepnote CLI
 # Add this to ~/.bashrc or ~/.bash_profile
 
@@ -33,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|run|open|validate|convert|completion|help)
+            inspect|cat|run|open|validate|convert|completion|help)
                 subcommand="\${word}"
                 break
                 ;;
@@ -47,11 +50,19 @@ _deepnote_completions() {
                 COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
                 return 0
                 ;;
-            open|validate)
+            cat|open|validate)
                 COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
                 return 0
                 ;;
         esac
+    fi
+
+    # Handle --type option completion for cat command
+    if [[ "\${prev}" == "--type" ]]; then
+        if [[ "\${subcommand}" == "cat" ]]; then
+            COMPREPLY=( $(compgen -W "${blockTypes}" -- "\${cur}") )
+            return 0
+        fi
     fi
 
     # Handle -f/--format option completion for convert command
@@ -71,6 +82,15 @@ _deepnote_completions() {
             # Complete -o/--output options and .deepnote files
             if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "-o --output" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        cat)
+            # Complete cat options and .deepnote files
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --notebook --type --tree" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
@@ -165,6 +185,7 @@ complete -F _deepnote_completions deepnote
 
 /** Command descriptions for zsh completions */
 const zshCommandDescriptions: Record<string, string> = {
+  cat: 'Display block contents from a .deepnote file',
   convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
@@ -177,6 +198,8 @@ const zshCommandDescriptions: Record<string, string> = {
 }
 
 function generateZshCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   // Build the commands array for zsh
   const commandEntries = commands
     .map(cmd => `        '${cmd}:${zshCommandDescriptions[cmd] ?? cmd}'`)
@@ -222,6 +245,14 @@ ${commandEntries}
                 inspect)
                     _arguments \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                cat)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '--notebook[Show only blocks from specified notebook]:notebook name:' \\
+                        '--type[Filter blocks by type]:type:(${blockTypes})' \\
+                        '--tree[Show structure only without block content]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 run)
@@ -310,6 +341,7 @@ _deepnote
 
 /** Command descriptions for fish completions */
 const fishCommandDescriptions: Record<string, string> = {
+  cat: 'Display block contents from a .deepnote file',
   convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
@@ -322,6 +354,8 @@ const fishCommandDescriptions: Record<string, string> = {
 }
 
 function generateFishCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   // Build the command completions
   const commandCompletions = commands
     .map(cmd => `complete -c deepnote -n __fish_use_subcommand -a ${cmd} -d '${fishCommandDescriptions[cmd] ?? cmd}'`)
@@ -350,6 +384,13 @@ ${commandCompletions}
 # inspect subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from inspect' -s o -l output -d 'Output format' -xa 'json toon'
 complete -c deepnote -n '__fish_seen_subcommand_from inspect' -F -a '*.deepnote'
+
+# cat subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -l notebook -d 'Show only blocks from specified notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -l type -d 'Filter blocks by type' -xa '${blockTypes}'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -l tree -d 'Show structure only without block content'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -F -a '*.deepnote'
 
 # run subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l python -d 'Path to Python interpreter'
