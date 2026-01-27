@@ -256,7 +256,7 @@ function getBlockContent(block: DeepnoteBlock): string | undefined {
 /**
  * Get color function for block type.
  */
-function getTypeColor(type: string): ChalkInstance {
+function getTypeColor(type: DeepnoteBlock['type']): ChalkInstance {
   if (type === 'code') return chalk.yellow
   if (type === 'sql') return chalk.blue
   if (type === 'markdown' || type.startsWith('text-cell-')) return chalk.green
