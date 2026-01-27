@@ -99,7 +99,7 @@ function outputCatJson(
       id: string
       blocks: Array<{
         id: string
-        type: string
+        type: DeepnoteBlock['type']
         label: string
         content?: string
       }>
