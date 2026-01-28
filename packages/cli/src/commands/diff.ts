@@ -66,10 +66,13 @@ export function createDiffAction(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.output === 'json') {
-        outputJson({ success: false, error: message })
-      } else {
-        logError(message)
+      switch (options.output) {
+        case 'json':
+          outputJson({ success: false, error: message })
+          break
+        case undefined:
+          logError(message)
+          break
       }
       process.exit(exitCode)
     }
@@ -96,10 +99,13 @@ async function diffDeepnoteFiles(
 
   const diffResult = computeDiff(absolutePath1, absolutePath2, file1, file2, options)
 
-  if (options.output === 'json') {
-    outputDiffJson(diffResult)
-  } else {
-    printDiff(diffResult, options)
+  switch (options.output) {
+    case 'json':
+      outputDiffJson(diffResult)
+      break
+    case undefined:
+      printDiff(diffResult, options)
+      break
   }
 }
 
