@@ -92,6 +92,9 @@ importers:
       commander:
         specifier: ^14.0.2
         version: 14.0.2
+      diff:
+        specifier: '>=8.0.3'
+        version: 8.0.3
       ora:
         specifier: ^9.0.0
         version: 9.0.0

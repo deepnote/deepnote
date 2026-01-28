@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|validate|convert|completion|help|dag|stats|lint|show|vars|downstream)
+            inspect|cat|run|open|validate|convert|completion|help|dag|stats|lint|show|vars|downstream|diff)
                 subcommand="\${word}"
                 break
                 ;;
@@ -58,7 +58,7 @@ _deepnote_completions() {
                 COMPREPLY=( $(compgen -W "json dot" -- "\${cur}") )
                 return 0
                 ;;
-            stats|lint)
+            stats|lint|diff)
                 COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
                 return 0
                 ;;
@@ -177,6 +177,15 @@ _deepnote_completions() {
             fi
             return 0
             ;;
+        diff)
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --content" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
             return 0
@@ -199,6 +208,7 @@ complete -F _deepnote_completions deepnote
 const zshCommandDescriptions: Record<string, string> = {
   cat: 'Display block contents from a .deepnote file',
   convert: 'Convert between notebook formats',
+  diff: 'Compare two .deepnote files and show differences',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   open: 'Open a .deepnote file in Deepnote',
@@ -347,6 +357,13 @@ ${commandEntries}
                         '--python[Path to Python interpreter]:python path:_files' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
+                diff)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '--content[Include content differences in output]' \\
+                        '1:first deepnote file:_files -g "*.deepnote"' \\
+                        '2:second deepnote file:_files -g "*.deepnote"'
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -366,6 +383,7 @@ _deepnote
 const fishCommandDescriptions: Record<string, string> = {
   cat: 'Display block contents from a .deepnote file',
   convert: 'Convert between notebook formats',
+  diff: 'Compare two .deepnote files and show differences',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   open: 'Open a .deepnote file in Deepnote',
@@ -463,6 +481,11 @@ complete -c deepnote -n '__fish_seen_subcommand_from lint' -s o -l output -d 'Ou
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l notebook -d 'Lint only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l python -d 'Path to Python interpreter'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -F -a '*.deepnote'
+
+# diff subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from diff' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from diff' -l content -d 'Include content differences in output'
+complete -c deepnote -n '__fish_seen_subcommand_from diff' -F -a '*.deepnote'
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
