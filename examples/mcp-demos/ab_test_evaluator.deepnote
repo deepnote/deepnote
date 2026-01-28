@@ -1,34 +1,35 @@
+version: "1.0"
 metadata:
-  createdAt: 2026-01-28T15:40:06.445Z
-  modifiedAt: 2026-01-28T15:40:06.446Z
+  createdAt: 2026-01-28T15:52:54.649Z
+  modifiedAt: 2026-01-28T15:52:54.650Z
 project:
-  id: f7ba8d71-062e-4a4f-9442-571ba44498cd
+  id: 8c7235ed-2c78-401f-af5b-0ba06fb90eb9
   name: A/B Test Evaluator
   notebooks:
-    - blocks:
-        - id: 4e512555-6719-4a51-9684-b1ae31a8470a
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+    - id: aaa52de5-e288-4d50-8f17-dcc37007048c
+      name: Notebook
+      blocks:
+        - id: 3e68fcfb-4320-46bb-9f0f-ddd3d01eb0c6
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
           sortingKey: "000000"
           type: text-cell-h1
           content: A/B Test Evaluator
           metadata: {}
-        - id: 7f0d0401-2bcd-4207-b0e2-db32e29a557b
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+        - id: 228748ee-36d2-4bae-83b9-f8a5096f688f
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
           sortingKey: "000001"
           type: markdown
           content: This notebook A/B test statistical analysis tool that takes experiment data with control and treatment groups, calculates sample sizes for statistical power, performs t-tests and chi-square tests, computes confidence intervals, visualizes conversion rates with error bars, and provides recommendations based on statistical significance.
           metadata: {}
-        - id: 703fc860-ee68-4a11-8438-0ab1865936c2
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+        - id: b6269838-4253-4fbb-8208-73f88ea2dfd7
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
           sortingKey: "000002"
           type: text-cell-h2
           content: Data Loading
           metadata: {}
-        - id: 8393b6c6-e90a-4549-b848-5dc136d3591a
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+        - id: 304e4eb1-f06d-4a0f-8fc0-0583d3b83467
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
           sortingKey: "000003"
-          executionCount: null
-          outputs: []
           type: code
           content: |-
             import pandas as pd
@@ -38,17 +39,17 @@ project:
             # df = pd.read_excel('your_file.xlsx')
             # df = pd.read_json('your_file.json')
           metadata: {}
-        - id: ce2a9d3d-4969-468f-ad66-f66acb33f82b
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          executionCount: null
+          outputs: []
+        - id: ed94214c-0e28-455c-92e0-b38907cedcec
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
           sortingKey: "000004"
           type: text-cell-h2
           content: Data Exploration
           metadata: {}
-        - id: 794830f1-c2bf-4a3c-aa40-05369ef8eaa9
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+        - id: b7a5cb04-1a2d-4d6e-8cd0-50977c2b6547
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
           sortingKey: "000005"
-          executionCount: null
-          outputs: []
           type: code
           content: |-
             # Basic info about the dataset
@@ -58,33 +59,27 @@ project:
             print("\nMissing values:")
             print(df.isnull().sum())
           metadata: {}
-        - id: c67463fe-30af-454b-85ff-a82d405d80d1
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
-          sortingKey: "000006"
-          type: markdown
-          content: "**Code block**"
-          metadata: {}
-        - id: b1deccee-6308-460e-ae98-18d1615efa83
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
-          sortingKey: "000007"
           executionCount: null
           outputs: []
+        - id: 0b1c0312-4231-4f39-95f6-ba17e7ea122b
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
+          sortingKey: "000006"
           type: code
           content: |-
             # Statistical summary
             df.describe()
           metadata: {}
-        - id: de21a9c7-9ccf-4224-bce3-38d9c82a4b2c
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
-          sortingKey: "000008"
+          executionCount: null
+          outputs: []
+        - id: e51feaca-cbcb-49b7-9809-251dcd9788ee
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
+          sortingKey: "000007"
           type: text-cell-h2
           content: Visualizations
           metadata: {}
-        - id: 04bf45b6-480d-4b7e-a568-435dcb21154a
-          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
-          sortingKey: "000009"
-          executionCount: null
-          outputs: []
+        - id: a797129b-0eaf-4dbc-85c1-9bb62eb54abf
+          blockGroup: 6d03d40b-5f8b-4aea-8948-c375d9ff21b6
+          sortingKey: "000008"
           type: code
           content: |-
             import matplotlib.pyplot as plt
@@ -103,6 +98,5 @@ project:
             plt.tight_layout()
             plt.show()
           metadata: {}
-      id: 8e45e528-a9ad-4dba-9a25-1f56e3a784b9
-      name: Notebook
-version: "1.0"
+          executionCount: null
+          outputs: []

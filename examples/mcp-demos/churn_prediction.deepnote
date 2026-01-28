@@ -1,34 +1,34 @@
 version: "1.0"
 metadata:
-  createdAt: 2026-01-28T15:39:52.826Z
-  modifiedAt: 2026-01-28T15:39:52.827Z
+  createdAt: 2026-01-28T15:52:50.066Z
+  modifiedAt: 2026-01-28T15:52:50.067Z
 project:
-  id: d40546bd-594c-47ef-9966-a704ab17914e
+  id: ceb2fcb0-c89f-4650-bc90-f6f77e371c4b
   name: Customer Churn Prediction
   notebooks:
-    - id: 00cf2f82-0828-4a3c-bb18-da822e8aa700
+    - id: aaacc0df-af18-43b0-b2b1-8038431d0ee9
       name: Notebook
       blocks:
-        - id: 72b286fc-0af5-44a0-8e53-dcd049d89066
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: d3cea65a-e79e-45b2-9fb9-e12d3b0e51ed
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000000"
           type: text-cell-h1
           content: Customer Churn Prediction
           metadata: {}
-        - id: 869905c8-ca89-412a-800a-eade8d586259
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 129bbc4d-f5f1-4941-877e-70b3c16bc0a6
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000001"
           type: markdown
           content: This notebook Customer churn prediction model that loads customer data, performs feature engineering on usage metrics, subscription history, and engagement data, trains a classification model with hyperparameter tuning, evaluates model performance with confusion matrix and ROC curve, and outputs churn probability scores.
           metadata: {}
-        - id: 26481198-4a72-4186-90fd-ac8c29fb4c6c
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: bb8e7648-f15c-4b1b-a65d-e61b1b0c825f
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000002"
           type: text-cell-h2
           content: Data Loading
           metadata: {}
-        - id: d8828603-83d3-43d1-a5eb-a791c96b6f74
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 93520efd-5b56-467a-b9d2-aa01721c76de
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000003"
           type: code
           content: |-
@@ -41,20 +41,20 @@ project:
           metadata: {}
           executionCount: null
           outputs: []
-        - id: 9eadb5c6-eab2-41bb-9492-95dfb060ed4d
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 5d0d1878-6ab7-4e31-ba2f-7246293e174e
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000004"
           type: text-cell-h2
           content: Model Training
           metadata: {}
-        - id: 8f4b14b2-206e-4b81-a9e9-0195c3a71652
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 94766be0-a5d7-4183-9afc-6733b3164ca1
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000005"
           type: markdown
           content: Now we'll prepare the data and train a model.
           metadata: {}
-        - id: e166ece4-3e46-43d8-a35e-84d4af622303
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 57730f3c-bd6a-42c3-ac09-0769f3314101
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000006"
           type: input-slider
           content: ""
@@ -65,10 +65,11 @@ project:
             deepnote_input_max: 0.5
             deepnote_input_step: 0.05
             deepnote_input_default: 0.2
+            deepnote_variable_value: "0.2"
           executionCount: null
           outputs: []
-        - id: 84650a59-ce6f-4899-8457-1f5be18b53f4
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: d8bf03fe-55f1-4c1b-a6fd-560203594875
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000007"
           type: code
           content: |-
@@ -89,8 +90,8 @@ project:
           metadata: {}
           executionCount: null
           outputs: []
-        - id: 2cf7794f-8296-46b1-8281-7ea34f814151
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 194d3cb5-7abf-43c9-b5ba-2f03e810886a
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000008"
           type: code
           content: |-
@@ -111,14 +112,14 @@ project:
           metadata: {}
           executionCount: null
           outputs: []
-        - id: 5c94586f-71c4-4176-9282-70da6661d983
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 701a5348-2175-4ecd-a881-e2092b52e6d4
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000009"
           type: text-cell-h2
           content: Model Evaluation
           metadata: {}
-        - id: cda0b042-a813-4b2e-972c-cb575e2a516a
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: bd86c98e-092e-41ed-882d-85e62c378fff
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000010"
           type: code
           content: |-
@@ -142,14 +143,14 @@ project:
           metadata: {}
           executionCount: null
           outputs: []
-        - id: 68adcf00-8e66-4d61-94d6-2242a1b2b37c
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 3a7ea58d-6869-4eba-b655-1a5598443237
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000011"
           type: text-cell-h2
           content: Dashboard
           metadata: {}
-        - id: 98327daf-6fcb-43df-bebb-c158b8bc378d
-          blockGroup: 86c44f5d-b0a3-4b5e-80fd-38f2233807c3
+        - id: 22795e85-d81e-4816-b3b3-174e03c8fe99
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
           sortingKey: "000012"
           type: big-number
           content: ""

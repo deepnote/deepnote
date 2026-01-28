@@ -1,19 +1,22 @@
+version: "1.0"
 metadata:
-  createdAt: 2026-01-28T15:40:19.012Z
-  modifiedAt: 2026-01-28T15:40:19.012Z
+  createdAt: 2026-01-28T15:52:55.376Z
+  modifiedAt: 2026-01-28T15:52:55.377Z
 project:
-  id: de886d48-6e58-41d2-9df1-a4a56a6b56f5
+  id: 4821a8f4-826b-44cb-b2f5-dc1c29ee2c69
   name: Financial Analytics Report
   notebooks:
-    - blocks:
-        - id: 9aa185a3-9f2f-4e73-b4da-7838e734f7a5
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+    - id: efedbf5e-9ff8-4db9-92d7-6ff7086fcee5
+      name: Notebook
+      blocks:
+        - id: 8e3a1bd9-2f91-47a1-a589-a3a7394761ca
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000000"
           type: text-cell-h1
           content: Analysis Report
           metadata: {}
-        - id: 5e7bee14-3223-4db0-bf19-61c0bd6385fa
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: c3f8145c-7c5d-4627-8aee-11edd9fd84c2
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000001"
           type: markdown
           content: |-
@@ -26,17 +29,15 @@ project:
 
             **Recommendation:** [Your recommendation here]
           metadata: {}
-        - id: e5e9a1f9-e140-47d2-b155-2f41fb5ae482
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: 74c25b04-d534-4718-a96a-3fbb8f3513d7
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000002"
           type: text-cell-h2
           content: Data Overview
           metadata: {}
-        - id: f9a8483e-3266-4d07-a0b2-2109038df31a
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: 443e4f8d-e986-4af4-9e8f-15e8ac99a95f
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000003"
-          executionCount: null
-          outputs: []
           type: code
           content: |-
             import pandas as pd
@@ -48,29 +49,29 @@ project:
             # print(f"Dataset: {len(df)} rows, {len(df.columns)} columns")
             # df.describe()
           metadata: {}
-        - id: 631e2093-ffce-4fac-b971-b0fa32d22a60
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+          executionCount: null
+          outputs: []
+        - id: 7eb81ac4-59d3-46df-93be-fbda222b3bcd
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000004"
           type: text-cell-h2
           content: Key Findings
           metadata: {}
-        - id: 2b451623-6528-469e-8ed8-0c78d77d8cac
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: 65043583-9056-4cfb-8c15-43bf5c03d599
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000005"
           type: text-cell-h3
           content: "Finding 1: [Title]"
           metadata: {}
-        - id: e387ff50-e637-4d0f-9955-b7684d3192ab
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: 75b3cfd7-b003-44b8-b016-b4276af85aa4
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000006"
           type: markdown
           content: Description of the first key finding and its implications.
           metadata: {}
-        - id: 85049dac-4ac0-4062-9ccf-6e4c74eecf22
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: 1bf84e1c-f537-42dd-82c8-f379a66bc40e
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000007"
-          executionCount: null
-          outputs: []
           type: code
           content: |-
             # Visualization or analysis supporting Finding 1
@@ -78,23 +79,23 @@ project:
             # ...
             # plt.show()
           metadata: {}
-        - id: 876fd6de-cc84-4f92-ac2b-d0cddd63c0a2
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+          executionCount: null
+          outputs: []
+        - id: 2024957d-486a-4343-a787-f1b7d9b2fb13
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000008"
           type: text-cell-h3
           content: "Finding 2: [Title]"
           metadata: {}
-        - id: 77f2a3ca-4dd8-4631-9625-c7d8dcca87f9
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: f6c6a2f2-f577-4395-bfff-5d755ee4dbd2
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000009"
           type: markdown
           content: Description of the second key finding and its implications.
           metadata: {}
-        - id: ec4dcbcf-0bd2-4ae8-92d9-d2ac8550d238
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: beea1315-f38c-4561-aef7-312058f92af1
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000010"
-          executionCount: null
-          outputs: []
           type: code
           content: |-
             # Visualization or analysis supporting Finding 2
@@ -102,14 +103,16 @@ project:
             # ...
             # plt.show()
           metadata: {}
-        - id: b70d546e-47e3-47ad-beb9-73f26a35f6cb
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+          executionCount: null
+          outputs: []
+        - id: 06f2ea04-0a77-4f27-b078-37e3563ee7fb
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000011"
           type: text-cell-h2
           content: Conclusions & Recommendations
           metadata: {}
-        - id: d58bbdcb-d516-48d1-be07-87a19b78522d
-          blockGroup: 7d76a4a2-6b97-4136-b6a6-0611db123c11
+        - id: ead084ef-8c42-44d2-a534-f77fd7d981a6
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
           sortingKey: "000012"
           type: markdown
           content: |-
@@ -130,6 +133,3 @@ project:
             - Next step 1
             - Next step 2
           metadata: {}
-      id: 06961305-d6ee-4d94-9c85-8298d4ae4138
-      name: Notebook
-version: "1.0"

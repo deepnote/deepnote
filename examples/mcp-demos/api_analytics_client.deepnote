@@ -1,34 +1,34 @@
 version: "1.0"
 metadata:
-  createdAt: 2026-01-28T15:40:40.391Z
-  modifiedAt: 2026-01-28T15:40:40.392Z
+  createdAt: 2026-01-28T15:52:57.173Z
+  modifiedAt: 2026-01-28T15:52:57.174Z
 project:
-  id: e229b7bf-2605-47a8-ba6d-83c673954623
+  id: 34754b56-5fcf-4a94-8113-cf3a3aa9374a
   name: API Analytics Client
   notebooks:
-    - id: 16166f08-4f3b-4407-ac88-fe11b5b8b323
+    - id: 11cf72a1-93c1-45c6-948b-6cf20f3dc4dd
       name: Notebook
       blocks:
-        - id: fdf039fd-7b04-415b-b32b-fa10b141f93a
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 8c52db39-04ad-4851-906c-5b77a5d8b075
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000000"
           type: text-cell-h1
           content: API Client
           metadata: {}
-        - id: 23b1ba14-190f-4713-8d66-fcc7a7873258
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 0ed09e73-4399-4979-afb9-1365bf236a84
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000001"
           type: markdown
           content: API integration with authentication, requests, and data processing.
           metadata: {}
-        - id: e2e96eed-4604-43ec-869d-710487c12218
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: d37772ce-6e21-405f-825a-46c3e96335e3
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000002"
           type: text-cell-h2
           content: Configuration
           metadata: {}
-        - id: bd6ff2af-2d0d-4467-b2d6-feac35578b95
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 734c4a67-6d6a-43af-b467-f5cae2fd8536
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000003"
           type: input-text
           content: ""
@@ -36,10 +36,11 @@ project:
             deepnote_variable_name: api_base_url
             deepnote_input_label: API Base URL
             deepnote_input_default: https://api.example.com
+            deepnote_variable_value: https://api.example.com
           executionCount: null
           outputs: []
-        - id: 38dce093-c59f-406b-b03a-3ef6495e9ee8
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 5538263e-f5c0-43d2-ae4b-9c1976c928ca
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000004"
           type: input-text
           content: ""
@@ -47,10 +48,11 @@ project:
             deepnote_variable_name: api_key
             deepnote_input_label: API Key
             deepnote_input_default: ""
+            deepnote_variable_value: ""
           executionCount: null
           outputs: []
-        - id: 3e99ee8e-d9c8-4d7e-a5c6-eea0b0405411
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 91f82887-c5fa-45ad-94b1-35f78c282c05
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000005"
           type: button
           content: ""
@@ -59,14 +61,14 @@ project:
             deepnote_button_label: Refresh Data
           executionCount: null
           outputs: []
-        - id: 12169b96-72e2-49e2-a135-71b39483df8f
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: e36d4af8-0557-49f9-ad1b-4ba763863eb2
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000006"
           type: text-cell-h2
           content: API Client Setup
           metadata: {}
-        - id: eb1739d9-4dfc-44b5-8a53-3df25a0889e2
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: b203c7d4-ae82-428a-aca2-fa252eeb81d7
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000007"
           type: code
           content: |-
@@ -103,14 +105,14 @@ project:
           metadata: {}
           executionCount: null
           outputs: []
-        - id: 1a783047-d807-47e9-8555-c091e197a4d7
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 60790343-7344-459d-ad8a-fb4b97ee5b5c
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000008"
           type: text-cell-h2
           content: Fetch Data
           metadata: {}
-        - id: 02e1d10d-2363-43ad-b6a3-4f272f185a14
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 694ca5fb-2a74-45dd-9bea-aff8e9e270b3
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000009"
           type: code
           content: |-
@@ -132,14 +134,14 @@ project:
           metadata: {}
           executionCount: null
           outputs: []
-        - id: 42fedbcf-b2a8-44be-89f7-583587d015e4
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 00ec5818-e35f-4ee0-8484-04d7cb428a65
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000010"
           type: text-cell-h2
           content: Process & Analyze
           metadata: {}
-        - id: 93ff676c-f2ef-4db8-9756-0ef943c23f84
-          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+        - id: 58025fb1-8e63-49c2-b60d-199430bf2532
+          blockGroup: 963e32bb-12c1-4f1b-87ef-b6ad6f4af3cf
           sortingKey: "000011"
           type: code
           content: |-
