@@ -4,7 +4,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { convertMarimoAppToBlocks, convertMarimoFilesToDeepnoteFile, parseMarimoFormat } from './marimo-to-deepnote'
+import {
+  convertMarimoAppToBlocks,
+  convertMarimoFilesToDeepnoteFile,
+  parseMarimoFormat,
+  readAndConvertMarimoFiles,
+} from './marimo-to-deepnote'
 
 // Mock crypto.randomUUID to generate predictable IDs for testing
 vi.mock('node:crypto', async () => {
@@ -920,5 +925,37 @@ describe('convertMarimoFilesToDeepnoteFile', () => {
     const result = deserializeDeepnoteFile(content)
 
     expect(result.project.notebooks[0].name).toBe('Data Analysis Example')
+  })
+
+  it('loads outputs from Marimo session cache', async () => {
+    const inputPath = path.join(testFixturesDir, 'marimo-with-session-cache/math.py')
+
+    const result = await readAndConvertMarimoFiles([inputPath], {
+      projectName: 'Math Test',
+    })
+
+    expect(result.project.notebooks).toHaveLength(1)
+    const notebook = result.project.notebooks[0]
+
+    // Find code blocks with outputs
+    const codeBlocks = notebook.blocks.filter(b => b.type === 'code')
+    const blocksWithOutputs = codeBlocks.filter(b => 'outputs' in b && Array.isArray(b.outputs) && b.outputs.length > 0)
+
+    // Should have loaded outputs from session cache
+    expect(blocksWithOutputs.length).toBeGreaterThan(0)
+
+    // Check that we have the expected output content
+    const markdownBlock = notebook.blocks.find(b => b.type === 'markdown')
+    expect(markdownBlock).toBeDefined()
+
+    // The cell with 'total = sum(14.99, 23.00)' should have output '37.99'
+    const outputBlock = blocksWithOutputs.find(b => {
+      if (!('outputs' in b) || !Array.isArray(b.outputs)) {
+        return false
+      }
+      const output = b.outputs[0] as { data?: Record<string, string> } | undefined
+      return output?.data?.['text/html']?.includes('37.99')
+    })
+    expect(outputBlock).toBeDefined()
   })
 })

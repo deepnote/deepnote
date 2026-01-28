@@ -103,6 +103,7 @@ export function getChalk(): ChalkInstance {
 }
 
 /**
+/**
  * Output a message to stdout (always shown, ignores quiet mode).
  * Use this for essential command output that shouldn't be suppressed.
  */

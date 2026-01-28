@@ -1,8 +1,15 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
+import { createConvertAction } from './commands/convert'
+import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
+import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
 import { createIntegrationsCommand } from './commands/integrations'
+import { createLintAction } from './commands/lint'
+import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
+import { createStatsAction } from './commands/stats'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
@@ -70,8 +77,23 @@ ${c.bold('Examples:')}
   ${c.dim('# Inspect with JSON output (for scripting)')}
   $ deepnote inspect my-project.deepnote -o json
 
+  ${c.dim('# Display block contents')}
+  $ deepnote cat my-project.deepnote
+
+  ${c.dim('# Compare two .deepnote files')}
+  $ deepnote diff file1.deepnote file2.deepnote
+
   ${c.dim('# Run with TOON output (for LLMs)')}
   $ deepnote run my-project.deepnote -o toon
+
+  ${c.dim('# Open a .deepnote file in Deepnote Cloud')}
+  $ deepnote open my-project.deepnote
+
+  ${c.dim('# Check for issues')}
+  $ deepnote lint my-project.deepnote
+
+  ${c.dim('# Show project statistics')}
+  $ deepnote stats my-project.deepnote
 
   ${c.dim('# Get help for a specific command')}
   $ deepnote help run
@@ -146,6 +168,80 @@ ${c.bold('Examples:')}
     })
     .action(createInspectAction(program))
 
+  // Cat command - display block contents from a .deepnote file
+  program
+    .command('cat')
+    .description('Display block contents from a .deepnote file')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Show only blocks from the specified notebook')
+    .option('--type <type>', `Filter blocks by type (${FILTERABLE_BLOCK_TYPES.join(', ')})`, createBlockTypeValidator())
+    .option('--tree', 'Show structure only without block content')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Block Types:')}
+  ${c.dim('code')}        Python code blocks
+  ${c.dim('sql')}         SQL query blocks
+  ${c.dim('markdown')}    Markdown blocks
+  ${c.dim('text')}        All text cell blocks (h1, h2, h3, p, bullet, etc.)
+  ${c.dim('input')}       All input blocks (text, select, slider, etc.)
+
+${c.bold('Examples:')}
+  ${c.dim('# Display all blocks in a file')}
+  $ deepnote cat my-project.deepnote
+
+  ${c.dim('# Show only code blocks')}
+  $ deepnote cat my-project.deepnote --type code
+
+  ${c.dim('# Show blocks from a specific notebook')}
+  $ deepnote cat my-project.deepnote --notebook "Data Analysis"
+
+  ${c.dim('# Show structure without content (tree view)')}
+  $ deepnote cat my-project.deepnote --tree
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote cat my-project.deepnote -o json
+
+  ${c.dim('# Combine filters')}
+  $ deepnote cat my-project.deepnote --notebook "Analysis" --type sql
+`
+    })
+    .action(createCatAction(program))
+
+  // Diff command - compare two .deepnote files
+  program
+    .command('diff')
+    .description('Compare two .deepnote files and show structural differences')
+    .argument('<path1>', 'Path to the first .deepnote file')
+    .argument('<path2>', 'Path to the second .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--content', 'Include content differences in output')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Shows structural differences between two .deepnote files:
+  - Added, removed, and modified notebooks
+  - Added, removed, and modified blocks within notebooks
+  - Summary of total changes
+
+${c.bold('Examples:')}
+  ${c.dim('# Compare two .deepnote files')}
+  $ deepnote diff original.deepnote modified.deepnote
+
+  ${c.dim('# Compare with content differences')}
+  $ deepnote diff file1.deepnote file2.deepnote --content
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote diff file1.deepnote file2.deepnote -o json
+
+  ${c.dim('# Compare a file with a snapshot')}
+  $ deepnote diff current.deepnote backup.snapshot.deepnote
+`
+    })
+    .action(createDiffAction(program))
+
   // Run command - execute a .deepnote file
   program
     .command('run')
@@ -166,6 +262,9 @@ ${c.bold('Examples:')}
     )
     .option('--list-inputs', 'List all input variables in the notebook without running')
     .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
+    .option('--dry-run', 'Show what would be executed without running')
+    .option('--top', 'Display resource usage (CPU, memory) during execution')
+    .option('--profile', 'Show per-block timing and memory usage')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -199,11 +298,20 @@ ${c.bold('Examples:')}
   ${c.dim('# Input values support JSON for complex types')}
   $ deepnote run my-project.deepnote -i 'config={"debug": true}'
 
+  ${c.dim('# Monitor resource usage during execution')}
+  $ deepnote run my-project.deepnote --top
+
+  ${c.dim('# Profile blocks to identify slow/memory-intensive operations')}
+  $ deepnote run my-project.deepnote --profile
+
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote -o json
 
   ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
   $ deepnote run my-project.deepnote -o toon
+
+  ${c.dim('# Preview what would be executed without running')}
+  $ deepnote run my-project.deepnote --dry-run
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
@@ -212,6 +320,93 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createRunAction(program))
+
+  // Open command - open a .deepnote file in deepnote.com
+  program
+    .command('open')
+    .description('Open a .deepnote file in Deepnote Cloud')
+    .argument('<path>', 'Path to a .deepnote file to open')
+    .option('--domain <domain>', 'Deepnote domain (defaults to deepnote.com)')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Uploads the .deepnote file to Deepnote and opens it in your default browser.
+  This is useful for quickly viewing or editing your local notebooks in Deepnote.
+  Note: Files must be under 100 MB.
+
+${c.bold('Output:')}
+  On success, displays a confirmation message and the URL.
+  The URL can be shared with others to view the notebook.
+
+${c.bold('Examples:')}
+  ${c.dim('# Open a .deepnote file in Deepnote')}
+  $ deepnote open my-project.deepnote
+
+  ${c.dim('# Open with JSON output (for scripting)')}
+  $ deepnote open my-project.deepnote -o json
+
+  ${c.dim('# Use a custom domain (e.g., single-tenants)')}
+  $ deepnote open my-project.deepnote --domain deepnote.example.com
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  Import error (upload or network failure)
+  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file, file too large)
+`
+    })
+    .action(createOpenAction(program))
+
+  // Convert command - convert between notebook formats
+  program
+    .command('convert')
+    .description('Convert between notebook formats (.ipynb, .qmd, .py, .deepnote)')
+    .argument('<path>', 'Path to a file or directory to convert')
+    .option('-o, --output <path>', 'Output path (file or directory)')
+    .option('-n, --name <name>', 'Project name (for conversions to .deepnote)')
+    .option(
+      '-f, --format <format>',
+      'Output format when converting from .deepnote (jupyter, percent, quarto, marimo)',
+      'jupyter'
+    )
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Supported Formats:')}
+  ${c.dim('.ipynb')}     Jupyter Notebook
+  ${c.dim('.qmd')}       Quarto document
+  ${c.dim('.py')}        Percent format (# %%) or Marimo (@app.cell)
+  ${c.dim('.deepnote')}  Deepnote project
+
+${c.bold('Conversion Directions:')}
+  ${c.dim('To Deepnote:')}   .ipynb, .qmd, .py → .deepnote
+  ${c.dim('From Deepnote:')} .deepnote → .ipynb, .qmd, .py (percent/marimo)
+
+${c.bold('Examples:')}
+  ${c.dim('# Convert Jupyter notebook to Deepnote')}
+  $ deepnote convert notebook.ipynb
+
+  ${c.dim('# Convert directory of notebooks')}
+  $ deepnote convert ./notebooks/
+
+  ${c.dim('# Convert with custom output path')}
+  $ deepnote convert notebook.ipynb -o my-project.deepnote
+
+  ${c.dim('# Convert with custom project name')}
+  $ deepnote convert notebook.ipynb -n "My Analysis"
+
+  ${c.dim('# Convert Deepnote to Jupyter')}
+  $ deepnote convert project.deepnote
+
+  ${c.dim('# Convert Deepnote to Quarto')}
+  $ deepnote convert project.deepnote -f quarto
+
+  ${c.dim('# Convert Deepnote to Marimo')}
+  $ deepnote convert project.deepnote -f marimo
+`
+    })
+    .action(createConvertAction(program))
 
   // Validate command - validate a .deepnote file against the schema
   program
@@ -247,6 +442,144 @@ ${c.bold('Examples:')}
 `
     })
     .action(createValidateAction(program))
+
+  // DAG command - analyze block dependencies
+  const dagCmd = program
+    .command('dag')
+    .description('Analyze block dependencies and variable flow')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Subcommands:')}
+  show        Show the dependency graph between blocks
+  vars        List variables defined and used by each block
+  downstream  Show blocks that need re-run if a block changes
+
+${c.bold('Output Formats:')}
+  -o, --output json   Output as JSON for scripting
+  -o, --output dot    Output as DOT format for Graphviz visualization
+
+${c.bold('Examples:')}
+  ${c.dim('# Show the dependency graph')}
+  $ deepnote dag show my-project.deepnote
+
+  ${c.dim('# List variables for each block')}
+  $ deepnote dag vars my-project.deepnote
+
+  ${c.dim('# Show what needs re-run if a block changes')}
+  $ deepnote dag downstream my-project.deepnote --block "Load Data"
+
+  ${c.dim('# Generate Graphviz visualization')}
+  $ deepnote dag show my-project.deepnote -o dot | dot -Tpng -o deps.png
+
+  ${c.dim('# Analyze only a specific notebook')}
+  $ deepnote dag show my-project.deepnote --notebook "Analysis"
+`
+    })
+
+  dagCmd
+    .command('show')
+    .description('Show the dependency graph between blocks')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json, dot', createFormatValidator(['json', 'dot']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagShowAction(program))
+
+  dagCmd
+    .command('vars')
+    .description('List variables defined and used by each block')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagVarsAction(program))
+
+  dagCmd
+    .command('downstream')
+    .description('Show blocks that need re-run if a block changes')
+    .argument('<path>', 'Path to a .deepnote file')
+    .requiredOption('-b, --block <id>', 'Block ID or label to analyze')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagDownstreamAction(program))
+
+  // Stats command - show project statistics
+  program
+    .command('stats')
+    .description('Show statistics about a .deepnote file')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Displays statistics about the project including:
+  - Total notebooks, blocks, and lines of code
+  - Block types breakdown with counts
+  - Imported modules list
+  - Per-notebook breakdown
+
+${c.bold('Examples:')}
+  ${c.dim('# Show project statistics')}
+  $ deepnote stats my-project.deepnote
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote stats my-project.deepnote -o json
+
+  ${c.dim('# Show stats for a specific notebook')}
+  $ deepnote stats my-project.deepnote --notebook "Data Analysis"
+`
+    })
+    .action(createStatsAction(program))
+
+  // Lint command - check for issues
+  program
+    .command('lint')
+    .description('Check a .deepnote file for issues')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Lint only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Checks:')}
+  ${c.underline('Variables')}
+  - undefined-variable: Variables used but never defined
+  - circular-dependency: Blocks with circular dependencies
+  - unused-variable: Variables defined but never used
+  - shadowed-variable: Variables that shadow previous definitions
+  - parse-error: Blocks that failed to parse
+
+  ${c.underline('Integrations')}
+  - missing-integration: SQL blocks using integrations that are not configured
+
+  ${c.underline('Inputs')}
+  - missing-input: Input blocks without default values
+
+${c.bold('Exit Codes:')}
+  0  No errors found (warnings may be present)
+  1  One or more errors found
+  2  Invalid usage (bad arguments, file not found)
+
+${c.bold('Examples:')}
+  ${c.dim('# Lint a .deepnote file')}
+  $ deepnote lint my-project.deepnote
+
+  ${c.dim('# Output as JSON for CI/CD')}
+  $ deepnote lint my-project.deepnote -o json
+
+  ${c.dim('# Lint only a specific notebook')}
+  $ deepnote lint my-project.deepnote --notebook "Analysis"
+
+  ${c.dim('# Use in CI pipeline')}
+  $ deepnote lint my-project.deepnote || exit 1
+`
+    })
+    .action(createLintAction(program))
 
   // Completion command - generate shell completions
   program

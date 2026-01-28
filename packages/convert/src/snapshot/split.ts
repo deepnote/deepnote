@@ -1,0 +1,126 @@
+import type { DeepnoteBlock, DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
+import { isExecutableBlockType } from '@deepnote/blocks'
+import { addContentHashes, computeSnapshotHash } from './hash'
+import type { SplitResult } from './types'
+
+/**
+ * Creates a slug from a project name.
+ * Normalizes accented characters to ASCII equivalents (e.g., é → e),
+ * converts to lowercase, replaces spaces and special chars with hyphens,
+ * removes consecutive hyphens, and trims leading/trailing hyphens.
+ *
+ * @param name - The project name to slugify
+ * @returns A URL-safe slug
+ */
+export function slugifyProjectName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+/**
+ * Generates a snapshot filename from project info.
+ *
+ * @param slug - The project name slug
+ * @param projectId - The project UUID
+ * @param timestamp - Timestamp string or 'latest'
+ * @returns Filename in format '{slug}_{projectId}_{timestamp}.snapshot.deepnote'
+ */
+export function generateSnapshotFilename(slug: string, projectId: string, timestamp: string = 'latest'): string {
+  return `${slug}_${projectId}_${timestamp}.snapshot.deepnote`
+}
+
+/**
+ * Removes output-related fields from a block, returning a clean source block.
+ */
+function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
+  if (!isExecutableBlockType(block.type)) {
+    return block
+  }
+
+  // Create a copy without output fields (underscore prefix suppresses unused warnings)
+  const {
+    executionCount: _executionCount,
+    executionStartedAt: _executionStartedAt,
+    executionFinishedAt: _executionFinishedAt,
+    outputs: _outputs,
+    ...rest
+  } = block as DeepnoteBlock & {
+    executionCount?: number | null
+    executionStartedAt?: string
+    executionFinishedAt?: string
+    outputs?: unknown[]
+  }
+
+  return rest as DeepnoteBlock
+}
+
+/**
+ * Splits a DeepnoteFile into a source file (no outputs) and a snapshot file (outputs only).
+ *
+ * @param file - The complete DeepnoteFile with outputs
+ * @returns Object containing source and snapshot files
+ */
+export function splitDeepnoteFile(file: DeepnoteFile): SplitResult {
+  // First ensure all blocks have content hashes (returns new file, doesn't mutate)
+  const fileWithHashes = addContentHashes(file)
+
+  // Compute snapshot hash before stripping outputs
+  const snapshotHash = computeSnapshotHash(fileWithHashes)
+
+  // Create source file with outputs stripped (exclude snapshotHash from source)
+  const { snapshotHash: _snapshotHash, ...sourceMetadata } = (fileWithHashes.metadata ?? {}) as NonNullable<
+    typeof fileWithHashes.metadata
+  > & {
+    snapshotHash?: string
+  }
+  const source: DeepnoteFile = {
+    ...fileWithHashes,
+    metadata: sourceMetadata,
+    project: {
+      ...fileWithHashes.project,
+      notebooks: fileWithHashes.project.notebooks.map(notebook => ({
+        ...notebook,
+        blocks: notebook.blocks.map(stripOutputsFromBlock),
+      })),
+    },
+  }
+
+  // Create snapshot file with all data plus snapshot metadata
+  const snapshot: DeepnoteSnapshot = {
+    ...fileWithHashes,
+    environment: fileWithHashes.environment ?? {},
+    execution: fileWithHashes.execution ?? {},
+    metadata: {
+      ...fileWithHashes.metadata,
+      snapshotHash,
+    },
+  }
+
+  return { source, snapshot }
+}
+
+/**
+ * Checks if a DeepnoteFile has any outputs.
+ *
+ * @param file - The DeepnoteFile to check
+ * @returns True if any block has outputs
+ */
+export function hasOutputs(file: DeepnoteFile): boolean {
+  for (const notebook of file.project.notebooks) {
+    for (const block of notebook.blocks) {
+      if (!isExecutableBlockType(block.type)) {
+        continue
+      }
+      const execBlock = block as DeepnoteBlock & { outputs?: unknown[] }
+      if (execBlock.outputs && execBlock.outputs.length > 0) {
+        return true
+      }
+    }
+  }
+  return false
+}

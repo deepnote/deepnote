@@ -1,14 +1,19 @@
 import { readFile } from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
-import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlock } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
-const executableBlockTypes: ExecutableBlock['type'][] = [
+// Re-export for backwards compatibility - these are now defined in @deepnote/blocks
+export const executableBlockTypes: ExecutableBlock['type'][] = [
   'code',
   'sql',
+  'notebook-function',
+  'visualization',
+  'button',
+  'big-number',
   'input-text',
   'input-textarea',
   'input-checkbox',
@@ -17,12 +22,9 @@ const executableBlockTypes: ExecutableBlock['type'][] = [
   'input-date',
   'input-date-range',
   'input-file',
-  'visualization',
-  'button',
-  'big-number',
 ]
 
-const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
+export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
@@ -35,9 +37,9 @@ export interface ExecutionOptions {
    * These will be set before any blocks are executed.
    */
   inputs?: Record<string, unknown>
-  /** Callback functions */
-  onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void
-  onBlockDone?: (result: BlockExecutionResult) => void
+  /** Callback functions (may be async) */
+  onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
+  onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
   onServerStarting?: () => void
   onServerReady?: () => void
@@ -67,6 +69,13 @@ export class ExecutionEngine {
   private kernel: KernelClient | null = null
 
   constructor(private readonly config: RuntimeConfig) {}
+
+  /**
+   * Get the Jupyter server port (available after start() is called).
+   */
+  get serverPort(): number | null {
+    return this.server?.jupyterPort ?? null
+  }
 
   /**
    * Start the deepnote-toolkit server and connect to the kernel.
@@ -142,7 +151,7 @@ export class ExecutionEngine {
     for (const notebook of notebooks) {
       const sortedBlocks = this.sortBlocks(notebook.blocks)
       for (const block of sortedBlocks) {
-        if (this.isExecutableBlock(block)) {
+        if (isExecutableBlock(block)) {
           // Skip if filtering by blockId and this isn't the target
           if (options.blockId && block.id !== options.blockId) {
             continue
@@ -170,7 +179,7 @@ export class ExecutionEngine {
       const { block } = allExecutableBlocks[i]
       const blockStart = Date.now()
 
-      options.onBlockStart?.(block, i, totalBlocks)
+      await options.onBlockStart?.(block, i, totalBlocks)
 
       try {
         const code = createPythonCode(block)
@@ -187,7 +196,7 @@ export class ExecutionEngine {
           durationMs: Date.now() - blockStart,
         }
 
-        options.onBlockDone?.(blockResult)
+        await options.onBlockDone?.(blockResult)
         executedBlocks++
 
         if (!result.success) {
@@ -207,7 +216,7 @@ export class ExecutionEngine {
           durationMs: Date.now() - blockStart,
           error: error instanceof Error ? error : new Error(String(error)),
         }
-        options.onBlockDone?.(blockResult)
+        await options.onBlockDone?.(blockResult)
         break
       }
     }
@@ -218,13 +227,6 @@ export class ExecutionEngine {
       failedBlocks,
       totalDurationMs: Date.now() - startTime,
     }
-  }
-
-  /**
-   * Check if a block is executable.
-   */
-  private isExecutableBlock(block: DeepnoteBlock): block is ExecutableBlock {
-    return executableBlockTypeSet.has(block.type)
   }
 
   /**
