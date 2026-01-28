@@ -257,15 +257,44 @@ describe('MCP tools definitions', () => {
     })
   })
 
+  describe('validate tool', () => {
+    it('exists in reading tools', () => {
+      const names = readingTools.map(t => t.name)
+      expect(names).toContain('deepnote_validate')
+    })
+
+    it('is read-only', () => {
+      const tool = readingTools.find(t => t.name === 'deepnote_validate')
+      expect(tool?.annotations?.readOnlyHint).toBe(true)
+    })
+  })
+
+  describe('open tool', () => {
+    it('exists in execution tools', () => {
+      const names = executionTools.map(t => t.name)
+      expect(names).toContain('deepnote_open')
+    })
+
+    it('has openWorldHint true (network access)', () => {
+      const tool = executionTools.find(t => t.name === 'deepnote_open')
+      expect(tool?.annotations?.openWorldHint).toBe(true)
+    })
+
+    it('is read-only (does not modify local files)', () => {
+      const tool = executionTools.find(t => t.name === 'deepnote_open')
+      expect(tool?.annotations?.readOnlyHint).toBe(true)
+    })
+  })
+
   describe('total tool count', () => {
     it('has correct number of tools', () => {
-      expect(readingTools.length).toBe(7)
+      expect(readingTools.length).toBe(8) // Added validate
       expect(writingTools.length).toBe(7)
       expect(conversionTools.length).toBe(3)
-      expect(executionTools.length).toBe(2)
+      expect(executionTools.length).toBe(3) // Added open
       expect(magicTools.length).toBe(10)
       expect(snapshotTools.length).toBe(4)
-      expect(allTools.length).toBe(33)
+      expect(allTools.length).toBe(35)
     })
   })
 })

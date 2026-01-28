@@ -1,9 +1,10 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deepnoteFileSchema, deserializeDeepnoteFile, parseYaml } from '@deepnote/blocks'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
+import type { ZodIssue } from 'zod'
 
 export const readingTools: Tool[] = [
   {
@@ -69,6 +70,34 @@ export const readingTools: Tool[] = [
     title: 'Lint Notebook',
     description:
       'Check a .deepnote file for issues: undefined variables, circular dependencies, unused variables, missing integrations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to the .deepnote file',
+        },
+      },
+      required: ['path'],
+    },
+    annotations: {
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: 'deepnote_validate',
+    title: 'Validate Notebook',
+    description: `Validate a .deepnote file against the schema.
+
+Unlike lint (which checks code issues like undefined variables), validate checks:
+- Valid YAML syntax
+- Correct file structure (project, notebooks, blocks)
+- Required fields are present
+- Field types are correct
+
+Returns detailed validation issues if the file is malformed.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -344,6 +373,95 @@ async function handleLint(args: Record<string, unknown>) {
 
   return {
     content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+  }
+}
+
+function formatZodIssue(issue: ZodIssue): { path: string; message: string; code: string } {
+  return {
+    path: issue.path.join('.'),
+    message: issue.message,
+    code: issue.code,
+  }
+}
+
+async function handleValidate(args: Record<string, unknown>) {
+  const filePath = args.path as string
+  const absolutePath = path.resolve(filePath)
+
+  // Read file
+  let rawBytes: Buffer
+  try {
+    rawBytes = await fs.readFile(absolutePath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ valid: false, error: `Cannot read file: ${message}` }),
+        },
+      ],
+    }
+  }
+
+  // Parse YAML
+  const yamlContent = decodeUtf8NoBom(rawBytes)
+  let parsed: unknown
+  try {
+    parsed = parseYaml(yamlContent)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            path: absolutePath,
+            valid: false,
+            issues: [{ path: '', message: `Invalid YAML: ${message}`, code: 'yaml_parse_error' }],
+          }),
+        },
+      ],
+    }
+  }
+
+  // Validate against schema
+  const result = deepnoteFileSchema.safeParse(parsed)
+
+  if (result.success) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            path: absolutePath,
+            valid: true,
+            issues: [],
+          }),
+        },
+      ],
+    }
+  }
+
+  // Format validation errors
+  const issues = result.error.issues.map(formatZodIssue)
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            path: absolutePath,
+            valid: false,
+            issueCount: issues.length,
+            issues,
+          },
+          null,
+          2
+        ),
+      },
+    ],
   }
 }
 
@@ -684,6 +802,8 @@ export async function handleReadingTool(name: string, args: Record<string, unkno
       return handleCat(safeArgs)
     case 'deepnote_lint':
       return handleLint(safeArgs)
+    case 'deepnote_validate':
+      return handleValidate(safeArgs)
     case 'deepnote_stats':
       return handleStats(safeArgs)
     case 'deepnote_analyze':

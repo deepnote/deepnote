@@ -5,6 +5,10 @@ import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 
+// Cloud upload constants
+const DEFAULT_DOMAIN = 'deepnote.com'
+const MAX_FILE_SIZE = 100 * 1024 * 1024
+
 export const executionTools: Tool[] = [
   {
     name: 'deepnote_run',
@@ -86,6 +90,36 @@ Returns outputs from all executed blocks. Requires Python to be installed.`,
         },
       },
       required: ['path', 'blockId'],
+    },
+  },
+  {
+    name: 'deepnote_open',
+    title: 'Open in Deepnote Cloud',
+    description: `Upload a .deepnote file to Deepnote Cloud and get a shareable URL.
+
+The notebook is uploaded anonymously (no account required) and can be opened
+in a browser to run in the cloud with full Python/data science environment.
+
+Returns the launch URL that can be shared with others.`,
+    annotations: {
+      readOnlyHint: true, // Doesn't modify local files
+      destructiveHint: false,
+      idempotentHint: false, // Creates new import each time
+      openWorldHint: true, // Network access
+    },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to the .deepnote file',
+        },
+        domain: {
+          type: 'string',
+          description: 'Deepnote domain (default: deepnote.com)',
+        },
+      },
+      required: ['path'],
     },
   },
 ]
@@ -294,6 +328,122 @@ async function handleRunBlock(args: Record<string, unknown>) {
   }
 }
 
+async function handleOpen(args: Record<string, unknown>) {
+  const filePath = args.path as string
+  const domain = (args.domain as string) || DEFAULT_DOMAIN
+
+  const absolutePath = path.resolve(filePath)
+  const fileName = path.basename(absolutePath)
+
+  // Validate file exists and check size
+  let fileSize: number
+  try {
+    const stats = await fs.stat(absolutePath)
+    fileSize = stats.size
+
+    if (fileSize <= 0) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: 'File is empty' }) }],
+        isError: true,
+      }
+    }
+
+    if (fileSize > MAX_FILE_SIZE) {
+      const sizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024))
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: `File exceeds ${sizeMB}MB limit` }) }],
+        isError: true,
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: `Cannot read file: ${message}` }) }],
+      isError: true,
+    }
+  }
+
+  // Read file contents
+  const fileBuffer = await fs.readFile(absolutePath)
+
+  // Initialize import
+  const apiEndpoint = `https://api.${domain}`
+  const initUrl = `${apiEndpoint}/v1/import/init`
+
+  let initResponse: { importId: string; uploadUrl: string }
+  try {
+    const response = await fetch(initUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName, fileSize }),
+      signal: AbortSignal.timeout(30_000),
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: `Failed to initialize import: ${text}` }) }],
+        isError: true,
+      }
+    }
+
+    initResponse = (await response.json()) as { importId: string; uploadUrl: string }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: `Network error: ${message}` }) }],
+      isError: true,
+    }
+  }
+
+  // Upload file
+  try {
+    const uploadResponse = await fetch(initResponse.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': fileBuffer.length.toString(),
+      },
+      body: fileBuffer,
+    })
+
+    if (!uploadResponse.ok) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: 'Upload failed' }) }],
+        isError: true,
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: `Upload failed: ${message}` }) }],
+      isError: true,
+    }
+  }
+
+  // Build launch URL
+  const launchUrl = `https://${domain}/launch?importId=${initResponse.importId}`
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            success: true,
+            path: absolutePath,
+            url: launchUrl,
+            importId: initResponse.importId,
+            hint: 'Share this URL to let others open the notebook in Deepnote Cloud',
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  }
+}
+
 export async function handleExecutionTool(name: string, args: Record<string, unknown> | undefined) {
   const safeArgs = args || {}
 
@@ -302,6 +452,8 @@ export async function handleExecutionTool(name: string, args: Record<string, unk
       return handleRun(safeArgs)
     case 'deepnote_run_block':
       return handleRunBlock(safeArgs)
+    case 'deepnote_open':
+      return handleOpen(safeArgs)
     default:
       return {
         content: [{ type: 'text', text: `Unknown execution tool: ${name}` }],

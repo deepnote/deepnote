@@ -80,15 +80,16 @@ Resources enable AI assistants to browse and understand notebooks without explic
 
 ### Reading Tools
 
-| Tool               | Description                                      |
-| ------------------ | ------------------------------------------------ |
-| `deepnote_inspect` | Get notebook metadata and structure              |
-| `deepnote_cat`     | Read block contents with filtering               |
-| `deepnote_lint`    | Check for issues (undefined vars, circular deps) |
-| `deepnote_stats`   | Get statistics (LOC, imports, block counts)      |
-| `deepnote_analyze` | Comprehensive analysis with quality score        |
-| `deepnote_dag`     | Show dependency graph between blocks             |
-| `deepnote_diff`    | Compare two .deepnote files                      |
+| Tool                | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| `deepnote_inspect`  | Get notebook metadata and structure              |
+| `deepnote_cat`      | Read block contents with filtering               |
+| `deepnote_lint`     | Check for issues (undefined vars, circular deps) |
+| `deepnote_validate` | Validate file structure against the schema       |
+| `deepnote_stats`    | Get statistics (LOC, imports, block counts)      |
+| `deepnote_analyze`  | Comprehensive analysis with quality score        |
+| `deepnote_dag`      | Show dependency graph between blocks             |
+| `deepnote_diff`     | Compare two .deepnote files                      |
 
 ### Writing Tools
 
@@ -118,6 +119,7 @@ A .deepnote project can contain multiple notebooks. Execution supports three lev
 | -------------------- | ---------------------------------------------------- |
 | `deepnote_run`       | Execute project (all notebooks) or a single notebook |
 | `deepnote_run_block` | Execute a specific block                             |
+| `deepnote_open`      | Upload to Deepnote Cloud and get shareable URL       |
 
 - **Project level** (default): `deepnote_run` runs ALL notebooks
 - **Notebook level**: `deepnote_run` with `notebook` param runs one notebook

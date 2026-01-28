@@ -108,6 +108,7 @@ export function createServer(): Server {
         name.startsWith('deepnote_inspect') ||
         name.startsWith('deepnote_cat') ||
         name.startsWith('deepnote_lint') ||
+        name.startsWith('deepnote_validate') ||
         name.startsWith('deepnote_stats') ||
         name.startsWith('deepnote_analyze') ||
         name.startsWith('deepnote_dag') ||
@@ -131,7 +132,7 @@ export function createServer(): Server {
         return await handleConversionTool(name, args)
       }
 
-      if (name.startsWith('deepnote_run')) {
+      if (name.startsWith('deepnote_run') || name.startsWith('deepnote_open')) {
         return await handleExecutionTool(name, args)
       }
 
