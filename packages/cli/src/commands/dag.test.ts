@@ -51,6 +51,77 @@ describe('dag command', () => {
       expect(output).toContain('No dependencies')
     })
 
+    it('shows tree connectors in output', async () => {
+      const action = createDagShowAction(program)
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+      await action(filePath, {})
+
+      const output = getOutput(consoleSpy)
+      // Tree connectors for root nodes
+      expect(output).toMatch(/[├└]──/)
+      // Arrow connectors for child nodes
+      expect(output).toMatch(/[├└]─►/)
+    })
+
+    it('shows defined variables for blocks', async () => {
+      const action = createDagShowAction(program)
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+      await action(filePath, {})
+
+      const output = getOutput(consoleSpy)
+      // Blocks should show what variables they define
+      expect(output).toContain('defines:')
+    })
+
+    it('shows variable flow between blocks', async () => {
+      const action = createDagShowAction(program)
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+      await action(filePath, {})
+
+      const output = getOutput(consoleSpy)
+      // Edges should show which variables connect blocks
+      expect(output).toContain('via')
+    })
+
+    it('marks duplicate nodes in DAG with asterisk', async () => {
+      const action = createDagShowAction(program)
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+      await action(filePath, {})
+
+      const output = getOutput(consoleSpy)
+      // DAG nodes that appear multiple times should be marked with *
+      // Housing file has blocks that are referenced from multiple parents
+      expect(output).toContain('*')
+    })
+
+    it('shows block type in brackets', async () => {
+      const action = createDagShowAction(program)
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+      await action(filePath, {})
+
+      const output = getOutput(consoleSpy)
+      // Block types should be shown in brackets
+      expect(output).toContain('[code]')
+    })
+
+    it('shows meaningful block labels instead of IDs', async () => {
+      const action = createDagShowAction(program)
+      const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+      await action(filePath, {})
+
+      const output = getOutput(consoleSpy)
+      // Labels should show code content preview (first comment), not block IDs
+      expect(output).toContain('# Importing libraries')
+      // Should not contain raw block IDs (32 hex chars)
+      expect(output).not.toMatch(/\b[a-f0-9]{32}\b/)
+    })
+
     it('outputs JSON when -o json flag is set', async () => {
       const action = createDagShowAction(program)
       const filePath = resolve(process.cwd(), HOUSING_FILE)
