@@ -306,12 +306,23 @@ ${commandEntries}
                             _describe -t subcommands 'dag subcommands' subcommands
                             ;;
                         args)
-                            _arguments \\
-                                '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
-                                '--notebook[Analyze only a specific notebook]:notebook name:' \\
-                                '--python[Path to Python interpreter]:python path:_files' \\
-                                '(-b --block)'{-b,--block}'[Block ID or label to analyze]:block:' \\
-                                '*:deepnote file:_files -g "*.deepnote"'
+                            case $words[1] in
+                                downstream)
+                                    _arguments \\
+                                        '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
+                                        '--notebook[Analyze only a specific notebook]:notebook name:' \\
+                                        '--python[Path to Python interpreter]:python path:_files' \\
+                                        '(-b --block)'{-b,--block}'[Block ID or label to analyze]:block:' \\
+                                        '*:deepnote file:_files -g "*.deepnote"'
+                                    ;;
+                                *)
+                                    _arguments \\
+                                        '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
+                                        '--notebook[Analyze only a specific notebook]:notebook name:' \\
+                                        '--python[Path to Python interpreter]:python path:_files' \\
+                                        '*:deepnote file:_files -g "*.deepnote"'
+                                    ;;
+                            esac
                             ;;
                     esac
                     ;;
@@ -431,7 +442,7 @@ complete -c deepnote -n '__fish_seen_subcommand_from dag' -a downstream -d 'Show
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -s o -l output -d 'Output format' -xa 'json dot'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l notebook -d 'Analyze only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l python -d 'Path to Python interpreter'
-complete -c deepnote -n '__fish_seen_subcommand_from dag' -s b -l block -d 'Block ID or label to analyze'
+complete -c deepnote -n '__fish_seen_subcommand_from dag; and __fish_seen_subcommand_from downstream' -s b -l block -d 'Block ID or label to analyze'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -F -a '*.deepnote'
 
 # stats subcommand
