@@ -567,6 +567,7 @@ describe('diff command', () => {
 
       // Type changed (image -> separator) so should be detected as modified
       const modifiedNotebook = parsed.notebooks.find((nb: { status: string }) => nb.status === 'modified')
+      expect(modifiedNotebook).toBeDefined()
       const typeChangeBlock = modifiedNotebook.blockDiffs.find((bd: { id: string }) => bd.id === 'type-change-block')
       expect(typeChangeBlock).toBeDefined()
       expect(typeChangeBlock.status).toBe('modified')
@@ -583,6 +584,7 @@ describe('diff command', () => {
 
       // Big-number block has no content field, so it should be unchanged
       const modifiedNotebook = parsed.notebooks.find((nb: { status: string }) => nb.status === 'modified')
+      expect(modifiedNotebook).toBeDefined()
       const bigNumberBlock = modifiedNotebook.blockDiffs.find((bd: { id: string }) => bd.id === 'bn-1')
       expect(bigNumberBlock).toBeUndefined() // unchanged blocks don't appear in blockDiffs
     })
