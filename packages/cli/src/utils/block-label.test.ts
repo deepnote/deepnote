@@ -170,7 +170,7 @@ describe('getBlockLabel', () => {
     it('returns fallback for input block without variable name', () => {
       // Use type assertion to test edge case where metadata is incomplete
       const block = {
-        id: 'abcd1234efgh',
+        id: 'abcd12345678abcd',
         type: 'input-text',
         content: '',
         metadata: {},
