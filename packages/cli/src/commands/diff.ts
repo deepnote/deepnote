@@ -3,6 +3,7 @@ import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import type { Command } from 'commander'
+import { diffLines } from 'diff'
 import { ExitCode } from '../exit-codes'
 import { debug, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -348,20 +349,29 @@ function printDiff(result: DiffResult, options: DiffOptions): void {
 }
 
 /**
- * Print content diff with before/after lines (preview only).
+ * Print content diff with line-by-line changes.
  */
 function printContentDiff(before: string | undefined, after: string | undefined): void {
-  const maxLines = 3
-  if (before !== undefined) {
-    const lines = before.split('\n').slice(0, maxLines)
-    for (const line of lines) {
-      output(chalk.red(`        - ${line}`))
+  const oldContent = before ?? ''
+  const newContent = after ?? ''
+
+  const changes = diffLines(oldContent, newContent)
+
+  for (const change of changes) {
+    // Split into lines and remove trailing empty line from the split
+    const lines = change.value.split('\n')
+    if (lines[lines.length - 1] === '') {
+      lines.pop()
     }
-  }
-  if (after !== undefined) {
-    const lines = after.split('\n').slice(0, maxLines)
+
     for (const line of lines) {
-      output(chalk.green(`        + ${line}`))
+      if (change.added) {
+        output(chalk.green(`        + ${line}`))
+      } else if (change.removed) {
+        output(chalk.red(`        - ${line}`))
+      } else {
+        output(chalk.gray(`          ${line}`))
+      }
     }
   }
 }
