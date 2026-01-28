@@ -12,11 +12,10 @@ import {
   detectFormat,
   type NotebookFormat,
 } from '@deepnote/convert'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import ora from 'ora'
 import { ExitCode } from '../exit-codes'
-import { debug, getOutputConfig, error as logError } from '../output'
+import { debug, getChalk, getOutputConfig, error as logError } from '../output'
 import { resolvePath } from '../utils/file-resolver'
 
 export interface ConvertOptions {
@@ -159,7 +158,7 @@ async function convertFromDeepnote(
         break
     }
 
-    spinner?.succeed(`${formatNames[outputFormat]} saved to ${chalk.bold(outputDir)}`)
+    spinner?.succeed(`${formatNames[outputFormat]} saved to ${getChalk().bold(outputDir)}`)
 
     return {
       success: true,
@@ -218,7 +217,7 @@ async function convertToDeepnote(
         break
     }
 
-    spinner?.succeed(`Deepnote project saved to ${chalk.bold(outputPath)}`)
+    spinner?.succeed(`Deepnote project saved to ${getChalk().bold(outputPath)}`)
 
     return {
       success: true,

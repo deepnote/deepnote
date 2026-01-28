@@ -63,3 +63,17 @@ export async function loadDeepnoteFixture(filename: string): Promise<string> {
 export async function loadEdgeCaseFixture(filename: string): Promise<string> {
   return loadFixture('edge-cases', filename)
 }
+
+/**
+ * Load a diff test fixture (.deepnote)
+ */
+export async function loadDiffFixture(filename: string): Promise<string> {
+  return loadFixture('diff', filename)
+}
+
+/**
+ * Get the absolute path to a diff test fixture
+ */
+export function getDiffFixturePath(filename: string): string {
+  return getFixturePath('diff', filename)
+}

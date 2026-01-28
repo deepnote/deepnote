@@ -1,7 +1,6 @@
 import { stripVTControlCharacters } from 'node:util'
 import type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@deepnote/runtime-core'
-import chalk from 'chalk'
-import { error as logError, output } from './output'
+import { getChalk, error as logError, output } from './output'
 
 /**
  * Render a Jupyter output to the terminal.
@@ -32,11 +31,11 @@ function isError(output: IOutput): output is IError {
   return output.output_type === 'error'
 }
 
-function renderStreamOutput(output: IStream): void {
-  const text = Array.isArray(output.text) ? output.text.join('') : output.text
+function renderStreamOutput(streamOutput: IStream): void {
+  const text = Array.isArray(streamOutput.text) ? streamOutput.text.join('') : streamOutput.text
 
-  if (output.name === 'stderr') {
-    process.stderr.write(chalk.yellow(text))
+  if (streamOutput.name === 'stderr') {
+    process.stderr.write(getChalk().yellow(text))
   } else {
     process.stdout.write(text)
   }
@@ -44,6 +43,7 @@ function renderStreamOutput(output: IStream): void {
 
 function renderDataOutput(dataOutput: IDisplayData | IExecuteResult): void {
   const data = dataOutput.data
+  const c = getChalk()
 
   // Prefer text/plain for terminal rendering
   if (data['text/plain']) {
@@ -54,30 +54,31 @@ function renderDataOutput(dataOutput: IDisplayData | IExecuteResult): void {
 
   // Indicate non-renderable outputs
   if (data['text/html']) {
-    output(chalk.dim('[HTML output - not rendered in terminal]'))
+    output(c.dim('[HTML output - not rendered in terminal]'))
     return
   }
 
   if (data['image/png'] || data['image/jpeg'] || data['image/svg+xml']) {
-    output(chalk.dim('[Image output - not rendered in terminal]'))
+    output(c.dim('[Image output - not rendered in terminal]'))
     return
   }
 
   // Fallback: show available MIME types
   const mimeTypes = Object.keys(data)
   if (mimeTypes.length > 0) {
-    output(chalk.dim(`[Output with MIME types: ${mimeTypes.join(', ')}]`))
+    output(c.dim(`[Output with MIME types: ${mimeTypes.join(', ')}]`))
   }
 }
 
 function renderErrorOutput(errorOutput: IError): void {
-  logError(chalk.red(`${errorOutput.ename}: ${errorOutput.evalue}`))
+  const c = getChalk()
+  logError(c.red(`${errorOutput.ename}: ${errorOutput.evalue}`))
 
   if (errorOutput.traceback && errorOutput.traceback.length > 0) {
     for (const line of errorOutput.traceback) {
       // Strip ANSI codes that might be in the traceback and apply our own styling
       const cleanLine = stripVTControlCharacters(line)
-      logError(chalk.red(cleanLine))
+      logError(c.red(cleanLine))
     }
   }
 }

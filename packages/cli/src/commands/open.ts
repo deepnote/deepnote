@@ -1,9 +1,8 @@
 import fs from 'node:fs/promises'
 import { basename } from 'node:path'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, output, outputJson } from '../output'
+import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { openInBrowser } from '../utils/browser'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import {
@@ -45,10 +44,12 @@ async function openDeepnoteFile(path: string | undefined, options: OpenOptions):
   const domain = options.domain ?? DEFAULT_DOMAIN
   const fileName = basename(absolutePath)
 
+  const c = getChalk()
+
   // Helper to output progress (suppressed in JSON mode)
   const progress = (message: string) => {
     if (options.output !== 'json') {
-      output(`${chalk.dim(message)}`)
+      output(`${c.dim(message)}`)
     }
   }
 
@@ -85,7 +86,7 @@ async function openDeepnoteFile(path: string | undefined, options: OpenOptions):
       importId: initResponse.importId,
     })
   } else {
-    output(`${chalk.green('✓')} Opened in Deepnote`)
-    output(`${chalk.dim('URL:')} ${launchUrl}`)
+    output(`${c.green('✓')} Opened in Deepnote`)
+    output(`${c.dim('URL:')} ${launchUrl}`)
   }
 }

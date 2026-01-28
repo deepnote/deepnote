@@ -1,0 +1,27 @@
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-01T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        - blockGroup: block-1
+          id: block-1
+          type: code
+          content: |
+            print("original code")
+            x = 1
+            y = 2
+          sortingKey: a0
+        - blockGroup: block-2
+          id: block-2
+          type: markdown
+          content: "# Original Title"
+          sortingKey: a1
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
