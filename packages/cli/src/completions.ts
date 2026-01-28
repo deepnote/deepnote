@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|validate|convert|completion|help)
+            inspect|cat|run|open|validate|convert|completion|help|dag|stats|lint|show|vars|downstream)
                 subcommand="\${word}"
                 break
                 ;;
@@ -51,6 +51,14 @@ _deepnote_completions() {
                 return 0
                 ;;
             cat|open|validate)
+                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
+                return 0
+                ;;
+            show|vars|downstream)
+                COMPREPLY=( $(compgen -W "json dot" -- "\${cur}") )
+                return 0
+                ;;
+            stats|lint)
                 COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
                 return 0
                 ;;
@@ -299,16 +307,16 @@ ${commandEntries}
                         'downstream:Show blocks that need re-run if a block changes'
                     )
                     _arguments \\
-                        '1: :->subcommand' \\
+                        '2: :->subcommand' \\
                         '*:: :->args'
                     case $state in
                         subcommand)
                             _describe -t subcommands 'dag subcommands' subcommands
                             ;;
                         args)
-                            case $words[1] in
+                            case $words[2] in
                                 downstream)
-                                    _arguments \\
+                                    _arguments -C \\
                                         '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
                                         '--notebook[Analyze only a specific notebook]:notebook name:' \\
                                         '--python[Path to Python interpreter]:python path:_files' \\
@@ -316,7 +324,7 @@ ${commandEntries}
                                         '*:deepnote file:_files -g "*.deepnote"'
                                     ;;
                                 *)
-                                    _arguments \\
+                                    _arguments -C \\
                                         '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
                                         '--notebook[Analyze only a specific notebook]:notebook name:' \\
                                         '--python[Path to Python interpreter]:python path:_files' \\
