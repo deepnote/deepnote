@@ -111,7 +111,7 @@ describe('diff command', () => {
       const action = createDiffAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, filePath, { json: true })
+      await action(filePath, filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -122,7 +122,7 @@ describe('diff command', () => {
       const action = createDiffAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, filePath, { json: true })
+      await action(filePath, filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -134,7 +134,7 @@ describe('diff command', () => {
       const action = createDiffAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, filePath, { json: true })
+      await action(filePath, filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -148,7 +148,7 @@ describe('diff command', () => {
       const action = createDiffAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
 
-      await action(filePath, filePath, { json: true })
+      await action(filePath, filePath, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -160,7 +160,7 @@ describe('diff command', () => {
       const file1 = resolve(process.cwd(), HELLO_WORLD_FILE)
       const file2 = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(file1, file2, { json: true })
+      await action(file1, file2, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -188,7 +188,7 @@ describe('diff command', () => {
       const file1 = resolve(process.cwd(), HELLO_WORLD_FILE)
       const file2 = resolve(process.cwd(), BLOCKS_FILE)
 
-      await action(file1, file2, { json: true, content: true })
+      await action(file1, file2, { output: 'json', content: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -267,7 +267,7 @@ describe('diff command', () => {
         throw new Error('process.exit called')
       })
 
-      await expect(action('non-existent.deepnote', HELLO_WORLD_FILE, { json: true })).rejects.toThrow(
+      await expect(action('non-existent.deepnote', HELLO_WORLD_FILE, { output: 'json' })).rejects.toThrow(
         'process.exit called'
       )
 
@@ -286,7 +286,7 @@ describe('diff command', () => {
       const file1 = resolve(process.cwd(), BLOCKS_FILE)
       const file2 = resolve(process.cwd(), INTEGRATIONS_FILE)
 
-      await action(file1, file2, { json: true })
+      await action(file1, file2, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -312,7 +312,7 @@ describe('diff command', () => {
         'examples/snapshots/hello-world_18aaab73-3599-4bb5-b2ab-c05ac09f597d_latest.snapshot.deepnote'
       )
 
-      await action(file1, file2, { json: true })
+      await action(file1, file2, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -472,7 +472,7 @@ version: 1.0.0
     it('detects modified blocks and shows modified status', async () => {
       const action = createDiffAction(program)
 
-      await action(file1Path, file2Path, { json: true })
+      await action(file1Path, file2Path, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const errorOutput = getErrorOutput(consoleErrorSpy)
@@ -507,7 +507,7 @@ version: 1.0.0
     it('includes contentDiff in JSON with --content option', async () => {
       const action = createDiffAction(program)
 
-      await action(file1Path, file2Path, { json: true, content: true })
+      await action(file1Path, file2Path, { output: 'json', content: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -590,7 +590,7 @@ version: 1.0.0
     it('detects added and removed blocks within same notebook', async () => {
       const action = createDiffAction(program)
 
-      await action(file1Path, file2Path, { json: true })
+      await action(file1Path, file2Path, { output: 'json' })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -613,7 +613,7 @@ version: 1.0.0
     it('includes contentDiff for added blocks in JSON', async () => {
       const action = createDiffAction(program)
 
-      await action(file1Path, file2Path, { json: true, content: true })
+      await action(file1Path, file2Path, { output: 'json', content: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -704,7 +704,7 @@ version: 1.0.0
     it('handles blocks without content field gracefully', async () => {
       const action = createDiffAction(program)
 
-      await action(file1Path, file2Path, { json: true, content: true })
+      await action(file1Path, file2Path, { output: 'json', content: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -778,7 +778,7 @@ version: 1.0.0
     it('detects type change even when blocks have no content', async () => {
       const action = createDiffAction(program)
 
-      await action(file1Path, file2Path, { json: true, content: true })
+      await action(file1Path, file2Path, { output: 'json', content: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
@@ -857,7 +857,7 @@ version: 1.0.0
     it('handles blocks where content property is not present', async () => {
       const action = createDiffAction(program)
 
-      await action(file1Path, file2Path, { json: true, content: true })
+      await action(file1Path, file2Path, { output: 'json', content: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)

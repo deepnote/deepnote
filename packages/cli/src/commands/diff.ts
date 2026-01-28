@@ -8,7 +8,7 @@ import { debug, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface DiffOptions {
-  json?: boolean
+  output?: string
   content?: boolean
 }
 
@@ -57,7 +57,7 @@ export function createDiffAction(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
-      if (options.json) {
+      if (options.output === 'json') {
         outputJson({ success: false, error: message })
       } else {
         logError(message)
@@ -87,7 +87,7 @@ async function diffDeepnoteFiles(
 
   const diffResult = computeDiff(absolutePath1, absolutePath2, file1, file2, options)
 
-  if (options.json) {
+  if (options.output === 'json') {
     outputDiffJson(diffResult)
   } else {
     printDiff(diffResult, options)

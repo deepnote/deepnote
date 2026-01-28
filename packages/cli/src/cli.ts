@@ -205,7 +205,7 @@ ${c.bold('Examples:')}
     .description('Compare two .deepnote files and show structural differences')
     .argument('<path1>', 'Path to the first .deepnote file')
     .argument('<path2>', 'Path to the second .deepnote file')
-    .option('--json', 'Output in JSON format for scripting')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .option('--content', 'Include content differences in output')
     .addHelpText('after', () => {
       const c = getChalk()
@@ -224,7 +224,7 @@ ${c.bold('Examples:')}
   $ deepnote diff file1.deepnote file2.deepnote --content
 
   ${c.dim('# Output as JSON for scripting')}
-  $ deepnote diff file1.deepnote file2.deepnote --json
+  $ deepnote diff file1.deepnote file2.deepnote -o json
 
   ${c.dim('# Compare a file with a snapshot')}
   $ deepnote diff current.deepnote backup.snapshot.deepnote
