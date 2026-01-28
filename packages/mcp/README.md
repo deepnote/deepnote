@@ -112,10 +112,29 @@ Resources enable AI assistants to browse and understand notebooks without explic
 
 ### Execution Tools
 
-| Tool                 | Description                |
-| -------------------- | -------------------------- |
-| `deepnote_run`       | Execute a notebook locally |
-| `deepnote_run_block` | Execute a specific block   |
+A .deepnote project can contain multiple notebooks. Execution supports three levels:
+
+| Tool                 | Description                                          |
+| -------------------- | ---------------------------------------------------- |
+| `deepnote_run`       | Execute project (all notebooks) or a single notebook |
+| `deepnote_run_block` | Execute a specific block                             |
+
+- **Project level** (default): `deepnote_run` runs ALL notebooks
+- **Notebook level**: `deepnote_run` with `notebook` param runs one notebook
+- **Block level**: `deepnote_run_block` runs a specific block
+
+### Snapshot Tools
+
+Snapshots separate execution outputs from source files for clean version control.
+
+| Tool                      | Description                                    |
+| ------------------------- | ---------------------------------------------- |
+| `deepnote_snapshot_list`  | List available snapshots for a project         |
+| `deepnote_snapshot_load`  | Load a snapshot to inspect outputs             |
+| `deepnote_snapshot_split` | Split notebook into source (clean) + snapshot  |
+| `deepnote_snapshot_merge` | Restore outputs from snapshot back into source |
+
+**Tip:** Snapshots are valid `.deepnote` files with outputs included. You can run them directly with `deepnote_run` to reproduce/debug previous results.
 
 ## Examples
 
@@ -148,6 +167,18 @@ Use deepnote_fix with:
 Use deepnote_template with:
 - template: "dashboard" (or ml_pipeline, etl, report, api_client)
 - outputPath: "my-dashboard.deepnote"
+```
+
+### Manage outputs with snapshots
+
+```
+# Split outputs for version control:
+Use deepnote_snapshot_split with path: "notebook.deepnote"
+# Outputs are saved to snapshots/, source file is cleaned
+
+# Later, restore outputs:
+Use deepnote_snapshot_merge with sourcePath: "notebook.deepnote"
+# Or specify snapshotPath to merge a specific snapshot
 ```
 
 ### Run a workflow pipeline

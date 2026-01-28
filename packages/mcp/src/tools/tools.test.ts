@@ -3,6 +3,7 @@ import { conversionTools } from './conversion'
 import { executionTools } from './execution'
 import { magicTools } from './magic'
 import { readingTools } from './reading'
+import { snapshotTools } from './snapshots'
 import { writingTools } from './writing'
 
 // Type helpers for testing schema properties
@@ -19,7 +20,14 @@ interface InputSchema {
 }
 
 describe('MCP tools definitions', () => {
-  const allTools = [...readingTools, ...writingTools, ...conversionTools, ...executionTools, ...magicTools]
+  const allTools = [
+    ...readingTools,
+    ...writingTools,
+    ...conversionTools,
+    ...executionTools,
+    ...magicTools,
+    ...snapshotTools,
+  ]
 
   describe('tool metadata', () => {
     it('all tools have unique names', () => {
@@ -214,6 +222,41 @@ describe('MCP tools definitions', () => {
     })
   })
 
+  describe('snapshot tools', () => {
+    it('has expected tools', () => {
+      const names = snapshotTools.map(t => t.name)
+      expect(names).toContain('deepnote_snapshot_list')
+      expect(names).toContain('deepnote_snapshot_load')
+      expect(names).toContain('deepnote_snapshot_split')
+      expect(names).toContain('deepnote_snapshot_merge')
+    })
+
+    it('list and load tools are read-only', () => {
+      const readOnlyTools = ['deepnote_snapshot_list', 'deepnote_snapshot_load']
+      for (const name of readOnlyTools) {
+        const tool = snapshotTools.find(t => t.name === name)
+        expect(tool?.annotations?.readOnlyHint).toBe(true)
+      }
+    })
+
+    it('split and merge tools are not read-only', () => {
+      const writeTools = ['deepnote_snapshot_split', 'deepnote_snapshot_merge']
+      for (const name of writeTools) {
+        const tool = snapshotTools.find(t => t.name === name)
+        expect(tool?.annotations?.readOnlyHint).toBe(false)
+      }
+    })
+
+    it('snapshot tools require path parameter', () => {
+      for (const tool of snapshotTools) {
+        const schema = tool.inputSchema as InputSchema
+        const required = schema?.required || []
+        // All snapshot tools require some path parameter
+        expect(required.some(r => r.includes('path') || r.includes('Path'))).toBe(true)
+      }
+    })
+  })
+
   describe('total tool count', () => {
     it('has correct number of tools', () => {
       expect(readingTools.length).toBe(7)
@@ -221,7 +264,8 @@ describe('MCP tools definitions', () => {
       expect(conversionTools.length).toBe(3)
       expect(executionTools.length).toBe(2)
       expect(magicTools.length).toBe(10)
-      expect(allTools.length).toBe(29)
+      expect(snapshotTools.length).toBe(4)
+      expect(allTools.length).toBe(33)
     })
   })
 })

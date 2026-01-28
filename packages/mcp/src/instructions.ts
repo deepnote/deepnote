@@ -69,6 +69,24 @@ When creating input blocks, use these metadata fields:
 2. \`deepnote_dag\` to view dependencies
 3. \`deepnote_explain\` to generate documentation
 
+**Managing outputs (snapshots):**
+1. \`deepnote_snapshot_split\` - Separate outputs from source for clean version control
+2. \`deepnote_snapshot_merge\` - Restore outputs back into a clean source
+3. \`deepnote_snapshot_list\` - Find available snapshots for a project
+4. \`deepnote_snapshot_load\` - Load and inspect a snapshot's outputs
+
+**Note:** Snapshots are valid .deepnote files with outputs included. You can run them directly with \`deepnote_run\` for debugging - this lets you re-execute and compare results.
+
+## Execution Levels
+
+A .deepnote project can contain multiple notebooks. Execution can be scoped to:
+
+1. **Project level** (default): \`deepnote_run\` runs ALL notebooks in order
+2. **Notebook level**: \`deepnote_run\` with \`notebook\` parameter runs a single notebook
+3. **Block level**: \`deepnote_run_block\` runs a specific block (and its dependencies)
+
+Use \`dryRun: true\` to preview execution plan without running.
+
 ## Best Practices
 
 - Start notebooks with a title (text-cell-h1) and introduction

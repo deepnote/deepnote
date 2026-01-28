@@ -16,11 +16,19 @@ import { conversionTools, handleConversionTool } from './tools/conversion'
 import { executionTools, handleExecutionTool } from './tools/execution'
 import { handleMagicTool, magicTools } from './tools/magic'
 import { handleReadingTool, readingTools } from './tools/reading'
+import { handleSnapshotTool, snapshotTools } from './tools/snapshots'
 import { handleWritingTool, writingTools } from './tools/writing'
 
 export type DeepnoteMcpServer = Server
 
-const allTools = [...magicTools, ...readingTools, ...writingTools, ...conversionTools, ...executionTools]
+const allTools = [
+  ...magicTools,
+  ...readingTools,
+  ...writingTools,
+  ...conversionTools,
+  ...executionTools,
+  ...snapshotTools,
+]
 
 // Get workspace root from environment or current directory
 const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
@@ -125,6 +133,10 @@ export function createServer(): Server {
 
       if (name.startsWith('deepnote_run')) {
         return await handleExecutionTool(name, args)
+      }
+
+      if (name.startsWith('deepnote_snapshot')) {
+        return await handleSnapshotTool(name, args)
       }
 
       return {

@@ -8,9 +8,17 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 export const executionTools: Tool[] = [
   {
     name: 'deepnote_run',
-    title: 'Run Notebook',
-    description:
-      'Execute a .deepnote notebook locally using Python. Returns outputs from all blocks. Requires Python to be installed.',
+    title: 'Run Project',
+    description: `Execute a .deepnote project locally using Python.
+
+Execution levels:
+- **Project level** (default): Runs ALL notebooks in order
+- **Notebook level**: Use 'notebook' param to run a single notebook
+- **Block level**: Use deepnote_run_block instead
+
+**Tip:** Snapshot files (.snapshot.deepnote) are also valid notebooks and can be run directly. This is useful for debugging - you can re-run a snapshot to reproduce previous results.
+
+Returns outputs from all executed blocks. Requires Python to be installed.`,
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -26,7 +34,7 @@ export const executionTools: Tool[] = [
         },
         notebook: {
           type: 'string',
-          description: 'Notebook name or ID to run (runs first notebook if not specified)',
+          description: 'Run only this notebook (by name or ID). If omitted, runs ALL notebooks.',
         },
         pythonPath: {
           type: 'string',
@@ -97,8 +105,8 @@ async function handleRun(args: Record<string, unknown>) {
 
   const file = await loadDeepnoteFile(filePath)
 
-  // Find the target notebook
-  let notebook = file.project.notebooks[0]
+  // Filter notebooks if specified, otherwise run all
+  let notebooks = file.project.notebooks
   if (notebookFilter) {
     const found = file.project.notebooks.find(n => n.name === notebookFilter || n.id === notebookFilter)
     if (!found) {
@@ -107,11 +115,21 @@ async function handleRun(args: Record<string, unknown>) {
         isError: true,
       }
     }
-    notebook = found
+    notebooks = [found]
   }
 
-  // Get executable blocks
-  const executableBlocks = notebook.blocks.filter(b => executableBlockTypeSet.has(b.type))
+  // Collect all executable blocks from target notebooks
+  const executableBlocks: Array<{ notebook: string; block: { id: string; type: string; content?: string } }> = []
+  for (const notebook of notebooks) {
+    for (const block of notebook.blocks) {
+      if (executableBlockTypeSet.has(block.type)) {
+        executableBlocks.push({
+          notebook: notebook.name,
+          block: { id: block.id, type: block.type, content: block.content },
+        })
+      }
+    }
+  }
 
   if (dryRun) {
     // Show execution plan
@@ -122,12 +140,14 @@ async function handleRun(args: Record<string, unknown>) {
           text: JSON.stringify(
             {
               dryRun: true,
-              notebook: notebook.name,
+              level: notebookFilter ? 'notebook' : 'project',
+              notebooks: notebooks.map(n => n.name),
               blocksToExecute: executableBlocks.length,
               executionOrder: executableBlocks.map(b => ({
-                id: b.id.slice(0, 8),
-                type: b.type,
-                contentPreview: b.content?.slice(0, 50) || '',
+                notebook: b.notebook,
+                id: b.block.id.slice(0, 8),
+                type: b.block.type,
+                contentPreview: b.block.content?.slice(0, 50) || '',
               })),
               inputs: inputs || {},
             },
@@ -139,14 +159,14 @@ async function handleRun(args: Record<string, unknown>) {
     }
   }
 
-  // Actually run the notebook
+  // Actually run the notebooks
   const workingDir = path.dirname(path.resolve(filePath))
   const engine = new ExecutionEngine({
     pythonEnv: pythonPath || 'python',
     workingDirectory: workingDir,
   })
 
-  const results: Array<{ blockId: string; type: string; success: boolean; error?: string }> = []
+  const results: Array<{ notebook: string; blockId: string; type: string; success: boolean; error?: string }> = []
 
   try {
     await engine.start()
@@ -155,7 +175,10 @@ async function handleRun(args: Record<string, unknown>) {
       notebookName: notebookFilter,
       inputs,
       onBlockDone: result => {
+        // Find which notebook this block belongs to
+        const notebookName = executableBlocks.find(b => b.block.id === result.blockId)?.notebook || 'unknown'
         results.push({
+          notebook: notebookName,
           blockId: result.blockId.slice(0, 8),
           type: result.blockType,
           success: result.success,
@@ -171,7 +194,8 @@ async function handleRun(args: Record<string, unknown>) {
           text: JSON.stringify(
             {
               success: true,
-              notebook: notebook.name,
+              level: notebookFilter ? 'notebook' : 'project',
+              notebooks: notebooks.map(n => n.name),
               executedBlocks: summary.executedBlocks,
               failedBlocks: summary.failedBlocks,
               totalBlocks: summary.totalBlocks,
