@@ -201,7 +201,7 @@ function outputDagShow(
   // Render each root and its subtree
   for (let i = 0; i < rootNodes.length; i++) {
     const isLast = i === rootNodes.length - 1
-    renderTreeNode(rootNodes[i], '', isLast, childrenMap, nodeMap, blockMap, rendered)
+    renderTreeNode(rootNodes[i], '', isLast, childrenMap, nodeMap, blockMap, rendered, c)
   }
 }
 
@@ -300,6 +300,7 @@ function renderTreeNode(
   nodeMap: Map<string, DagNode>,
   blockMap: BlockMap,
   rendered: Set<string>,
+  c: ReturnType<typeof getChalk>,
   varsDisplay = ''
 ): void {
   const info = blockMap.get(nodeId)
@@ -314,8 +315,6 @@ function renderTreeNode(
   // Check if this node was already rendered (DAG handling)
   const alreadyRendered = rendered.has(nodeId)
   rendered.add(nodeId)
-
-  const c = getChalk()
 
   // Render the node line
   const typeIndicator = c.dim(`[${info?.type ?? 'unknown'}]`)
@@ -347,6 +346,7 @@ function renderTreeNode(
       nodeMap,
       blockMap,
       rendered,
+      c,
       childVarsDisplay
     )
   }

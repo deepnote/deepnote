@@ -85,6 +85,7 @@ export function createProgressBar(percent: number, width: number): string {
 
 /** Display resource metrics inline */
 export function displayMetrics(metrics: JupyterMetricsResponse): void {
+  const c = getChalk()
   const cpuBar = createProgressBar(metrics.cpu_percent, 15)
   const memUsed = formatBytes(metrics.rss)
 
@@ -98,7 +99,7 @@ export function displayMetrics(metrics: JupyterMetricsResponse): void {
     memDisplay = memUsed
   }
 
-  output(getChalk().dim(`  CPU: ${cpuBar} ${metrics.cpu_percent.toFixed(1)}% | Memory: ${memDisplay}`))
+  output(c.dim(`  CPU: ${cpuBar} ${metrics.cpu_percent.toFixed(1)}% | Memory: ${memDisplay}`))
 }
 
 /** Format memory delta as human-readable string with sign */
