@@ -31,6 +31,8 @@ interface BlockDiff {
   }
 }
 
+type ChangedNotebookDiff = NotebookDiff & { status: 'added' | 'removed' | 'modified' }
+
 interface DiffResult {
   file1: string
   file2: string
@@ -301,11 +303,11 @@ function printDiff(result: DiffResult, options: DiffOptions): void {
 
   output(chalk.bold('Notebooks:'))
 
-  for (const nb of result.notebooks) {
-    if (nb.status === 'unchanged') continue
+  const changedNotebooks = result.notebooks.filter((nb): nb is ChangedNotebookDiff => nb.status !== 'unchanged')
 
-    const statusIcon = getStatusIcon(nb.status as 'added' | 'removed' | 'modified')
-    const statusColor = getStatusColor(nb.status as 'added' | 'removed' | 'modified')
+  for (const nb of changedNotebooks) {
+    const statusIcon = getStatusIcon(nb.status)
+    const statusColor = getStatusColor(nb.status)
 
     if (nb.status === 'added') {
       output(statusColor(`  ${statusIcon} Added: "${nb.name}" (${nb.blockCount} blocks)`))
