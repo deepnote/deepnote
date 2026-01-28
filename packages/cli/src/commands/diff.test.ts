@@ -173,25 +173,40 @@ describe('diff command', () => {
   describe('--content option', () => {
     it('includes content diffs when enabled', async () => {
       const action = createDiffAction(program)
-      const file1 = resolve(process.cwd(), HELLO_WORLD_FILE)
-      const file2 = resolve(process.cwd(), BLOCKS_FILE)
+      const file1 = getDiffFixturePath('base-modified-blocks.deepnote')
+      const file2 = getDiffFixturePath('modified-blocks.deepnote')
 
       await action(file1, file2, { content: true })
 
-      // Should run without error
       expect(consoleSpy).toHaveBeenCalled()
+      const output = getOutput(consoleSpy)
+      // Content diffs should show added/removed lines with + or - prefixes
+      expect(output).toMatch(/\s+[+-]\s+/)
+      // Should include actual content from the modified blocks
+      expect(output).toMatch(/print\("(original|modified)/)
     })
 
     it('includes content in JSON output when enabled', async () => {
       const action = createDiffAction(program)
-      const file1 = resolve(process.cwd(), HELLO_WORLD_FILE)
-      const file2 = resolve(process.cwd(), BLOCKS_FILE)
+      const file1 = getDiffFixturePath('base-modified-blocks.deepnote')
+      const file2 = getDiffFixturePath('modified-blocks.deepnote')
 
       await action(file1, file2, { output: 'json', content: true })
 
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
       expect(parsed.success).toBe(true)
+
+      // Find block diffs with contentDiff property
+      const blockDiffsWithContent = parsed.notebooks
+        .flatMap((nb: { blockDiffs?: Array<{ contentDiff?: unknown }> }) => nb.blockDiffs ?? [])
+        .filter((bd: { contentDiff?: unknown }) => bd.contentDiff !== undefined)
+
+      expect(blockDiffsWithContent.length).toBeGreaterThan(0)
+      // Verify contentDiff has the expected structure with before/after content
+      const firstContentDiff = blockDiffsWithContent[0].contentDiff
+      expect(firstContentDiff).toHaveProperty('before')
+      expect(firstContentDiff).toHaveProperty('after')
     })
   })
 
