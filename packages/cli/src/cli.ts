@@ -1,9 +1,10 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
-import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
 // Note: We keep 'chalk' import for:
 // 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
 // 2. Setting chalk.level in preAction hook for backward compatibility
+import { createAnalyzeAction } from './commands/analyze'
+import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
 import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'
@@ -268,6 +269,7 @@ ${c.bold('Examples:')}
     .option('--top', 'Display resource usage (CPU, memory) during execution')
     .option('--profile', 'Show per-block timing and memory usage')
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
+    .option('--context', 'Include analysis context (stats, lint issues, variable usage) in output')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -536,6 +538,37 @@ ${c.bold('Examples:')}
 `
     })
     .action(createStatsAction(program))
+
+  // Analyze command - comprehensive project analysis
+  program
+    .command('analyze')
+    .description('Analyze a .deepnote file for quality, structure, and dependencies')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Provides comprehensive analysis including:
+  - Quality score (0-100) based on errors and warnings
+  - Project structure (entry/exit points, longest chain)
+  - Dependency analysis (imports, missing integrations)
+  - Actionable suggestions for improvement
+
+${c.bold('Examples:')}
+  ${c.dim('# Analyze a project')}
+  $ deepnote analyze my-project.deepnote
+
+  ${c.dim('# Output for LLM consumption')}
+  $ deepnote analyze my-project.deepnote -o toon
+
+  ${c.dim('# Analyze only a specific notebook')}
+  $ deepnote analyze my-project.deepnote --notebook Main
+`
+    })
+    .action(createAnalyzeAction(program))
 
   // Lint command - check for issues
   program
