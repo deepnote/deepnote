@@ -32,6 +32,11 @@ interface BlockDiff {
 }
 
 type ChangedNotebookDiff = NotebookDiff & { status: 'added' | 'removed' | 'modified' }
+type ChangedBlockDiff = BlockDiff & { status: 'added' | 'removed' | 'modified' }
+
+function isChangedBlock(block: BlockDiff): block is ChangedBlockDiff {
+  return block.status !== 'unchanged'
+}
 
 interface DiffResult {
   file1: string
@@ -316,9 +321,9 @@ function printDiff(result: DiffResult, options: DiffOptions): void {
     } else if (nb.status === 'modified' && nb.blockDiffs) {
       output(statusColor(`  ${statusIcon} Modified: "${nb.name}"`))
 
-      for (const bd of nb.blockDiffs) {
-        const blockStatusIcon = getStatusIcon(bd.status as 'added' | 'removed' | 'modified')
-        const blockStatusColor = getStatusColor(bd.status as 'added' | 'removed' | 'modified')
+      for (const bd of nb.blockDiffs.filter(isChangedBlock)) {
+        const blockStatusIcon = getStatusIcon(bd.status)
+        const blockStatusColor = getStatusColor(bd.status)
         output(blockStatusColor(`      ${blockStatusIcon} ${bd.type} (${bd.id})`))
 
         if (options.content && bd.contentDiff) {
