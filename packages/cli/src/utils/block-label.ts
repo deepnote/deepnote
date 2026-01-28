@@ -60,9 +60,12 @@ function getCodeBlockLabel(content: string): string {
     }
   }
 
-  // No comment found, use first non-empty line
+  // No comment found, use first non-empty line (skip shebangs)
   for (const line of lines) {
     const trimmed = line.trim()
+    if (trimmed.startsWith('#!')) {
+      continue
+    }
     if (trimmed) {
       return truncate(trimmed, MAX_LABEL_LENGTH)
     }

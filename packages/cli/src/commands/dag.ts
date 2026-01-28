@@ -235,6 +235,7 @@ function buildNodeMap(dag: BlockDependencyDag): Map<string, DagNode> {
 /**
  * Find root nodes (nodes with no incoming edges).
  * Returns nodes sorted by their order in the DAG.
+ * If no roots exist (cycle-only graph), returns all nodes to ensure rendering.
  */
 function findRootNodes(dag: BlockDependencyDag): string[] {
   const hasIncoming = new Set<string>()
@@ -242,7 +243,12 @@ function findRootNodes(dag: BlockDependencyDag): string[] {
     hasIncoming.add(edge.to)
   }
 
-  const roots = dag.nodes.filter(node => !hasIncoming.has(node.id)).map(node => node.id)
+  let roots = dag.nodes.filter(node => !hasIncoming.has(node.id)).map(node => node.id)
+
+  // If no roots found (cycle-only graph), use all nodes as roots
+  if (roots.length === 0) {
+    roots = dag.nodes.map(node => node.id)
+  }
 
   // Sort by order
   const nodeMap = buildNodeMap(dag)

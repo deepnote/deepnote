@@ -74,7 +74,7 @@ describe('getBlockLabel', () => {
       expect(getBlockLabel(block)).toBe('code (empty)')
     })
 
-    it('skips shebang lines', () => {
+    it('skips shebang lines when comment follows', () => {
       const block: DeepnoteBlock = {
         id: 'test-id',
         type: 'code',
@@ -84,6 +84,19 @@ describe('getBlockLabel', () => {
         blockGroup: 'group',
       }
       expect(getBlockLabel(block)).toBe('# Actual comment')
+    })
+
+    it('skips shebang lines in fallback when no comment exists', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'code',
+        content: '#!/usr/bin/env python\nimport pandas as pd\ndf = pd.DataFrame()',
+        metadata: {},
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      // Should skip shebang and return first code line
+      expect(getBlockLabel(block)).toBe('import pandas as pd')
     })
   })
 
