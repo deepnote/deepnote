@@ -1,9 +1,8 @@
 import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
+import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface InspectOptions {
@@ -108,26 +107,27 @@ function printDeepnoteFileMetadata(
   const { project, metadata, version: fileVersion } = deepnoteFile
   const notebooks = project.notebooks
   const totalBlocks = notebooks.reduce((sum, notebook) => sum + notebook.blocks.length, 0)
+  const c = getChalk()
 
-  output(`${chalk.dim('Path:')} ${absolutePath}`)
-  output(`${chalk.dim('Name:')} ${project.name}`)
-  output(`${chalk.dim('Project ID:')} ${project.id}`)
-  output(`${chalk.dim('Version:')} ${fileVersion}`)
-  output(`${chalk.dim('Created:')} ${metadata.createdAt}`)
+  output(`${c.dim('Path:')} ${absolutePath}`)
+  output(`${c.dim('Name:')} ${project.name}`)
+  output(`${c.dim('Project ID:')} ${project.id}`)
+  output(`${c.dim('Version:')} ${fileVersion}`)
+  output(`${c.dim('Created:')} ${metadata.createdAt}`)
 
   if (metadata.modifiedAt) {
-    output(`${chalk.dim('Modified:')} ${metadata.modifiedAt}`)
+    output(`${c.dim('Modified:')} ${metadata.modifiedAt}`)
   }
 
   if (metadata.exportedAt) {
-    output(`${chalk.dim('Exported:')} ${metadata.exportedAt}`)
+    output(`${c.dim('Exported:')} ${metadata.exportedAt}`)
   }
 
-  output(`${chalk.dim('Notebooks count:')} ${notebooks.length}`)
-  output(`${chalk.dim('Blocks:')} ${totalBlocks}`)
+  output(`${c.dim('Notebooks count:')} ${notebooks.length}`)
+  output(`${c.dim('Blocks:')} ${totalBlocks}`)
 
   if (notebooks.length > 0) {
-    output(`${chalk.dim('Notebooks:')}`)
+    output(`${c.dim('Notebooks:')}`)
     for (const notebook of notebooks) {
       const moduleSuffix = notebook.isModule ? ', module' : ''
       output(`- ${notebook.name} (${notebook.blocks.length} blocks${moduleSuffix})`)

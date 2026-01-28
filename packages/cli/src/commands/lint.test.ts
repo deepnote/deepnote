@@ -1,7 +1,7 @@
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { resetOutputConfig } from '../output'
+import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
 
 // Test file paths relative to project root (tests are run from root)
@@ -562,6 +562,51 @@ describe('lint command', () => {
         expect(issue.details.variableName).toBeDefined()
         expect(issue.details.inputType).toBeDefined()
       }
+    })
+  })
+
+  describe('global options', () => {
+    describe('--no-color', () => {
+      it('produces output without ANSI escape codes when color is disabled', async () => {
+        setOutputConfig({ color: false })
+        const action = createLintAction(program)
+        const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+        await action(filePath, DEFAULT_OPTIONS)
+
+        const output = getOutput(consoleSpy)
+        // ANSI escape codes start with \x1b[ (ESC[)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: Testing for ANSI codes
+        expect(output).not.toMatch(/\x1b\[/)
+        // Should still have content (no issues found message)
+        expect(output).toContain('No issues found')
+      })
+    })
+
+    describe('--quiet', () => {
+      it('still outputs essential content in quiet mode', async () => {
+        setOutputConfig({ quiet: true })
+        const action = createLintAction(program)
+        const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+        await action(filePath, DEFAULT_OPTIONS)
+
+        // Essential output should still appear
+        const output = getOutput(consoleSpy)
+        expect(output).toContain('No issues found')
+      })
+
+      it('still outputs JSON in quiet mode', async () => {
+        setOutputConfig({ quiet: true })
+        const action = createLintAction(program)
+        const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+        await action(filePath, { output: 'json' })
+
+        const output = getOutput(consoleSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(true)
+      })
     })
   })
 })

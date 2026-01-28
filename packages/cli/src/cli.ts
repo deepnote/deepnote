@@ -1,6 +1,9 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
+// Note: We keep 'chalk' import for:
+// 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
+// 2. Setting chalk.level in preAction hook for backward compatibility
 import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'

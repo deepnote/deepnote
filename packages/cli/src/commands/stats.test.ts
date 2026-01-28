@@ -1,7 +1,7 @@
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { resetOutputConfig } from '../output'
+import { resetOutputConfig, setOutputConfig } from '../output'
 import { createStatsAction, type StatsOptions } from './stats'
 
 // Test file paths relative to project root (tests are run from root)
@@ -281,6 +281,52 @@ describe('stats command', () => {
 
       // imports should be an array (may be empty depending on file content)
       expect(Array.isArray(parsed.imports)).toBe(true)
+    })
+  })
+
+  describe('global options', () => {
+    describe('--no-color', () => {
+      it('produces output without ANSI escape codes when color is disabled', async () => {
+        setOutputConfig({ color: false })
+        const action = createStatsAction(program)
+        const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+        await action(filePath, DEFAULT_OPTIONS)
+
+        const output = getOutput(consoleSpy)
+        // ANSI escape codes start with \x1b[ (ESC[)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: Testing for ANSI codes
+        expect(output).not.toMatch(/\x1b\[/)
+        // Should still have content
+        expect(output).toContain('Summary')
+      })
+    })
+
+    describe('--quiet', () => {
+      it('still outputs essential content in quiet mode (text output is essential)', async () => {
+        setOutputConfig({ quiet: true })
+        const action = createStatsAction(program)
+        const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+        await action(filePath, DEFAULT_OPTIONS)
+
+        // Essential output should still appear - stats results are the command's primary output
+        const output = getOutput(consoleSpy)
+        expect(output).toContain('Summary')
+        expect(output).toContain('Notebooks:')
+      })
+
+      it('still outputs JSON in quiet mode', async () => {
+        setOutputConfig({ quiet: true })
+        const action = createStatsAction(program)
+        const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+
+        await action(filePath, { output: 'json' })
+
+        const output = getOutput(consoleSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed.projectName).toBe('Hello world')
+      })
     })
   })
 })

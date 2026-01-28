@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
-import chalk from 'chalk'
+import type { ChalkInstance } from 'chalk'
 import type { Command } from 'commander'
 import { diffLines } from 'diff'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, output, outputJson } from '../output'
+import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface DiffOptions {
@@ -304,25 +304,26 @@ function outputDiffJson(result: DiffResult): void {
  * Print diff in human-readable format.
  */
 function printDiff(result: DiffResult, options: DiffOptions): void {
-  output(chalk.bold(`Comparing: ${result.file1}`))
-  output(chalk.bold(`     with: ${result.file2}`))
+  const c = getChalk()
+  output(c.bold(`Comparing: ${result.file1}`))
+  output(c.bold(`     with: ${result.file2}`))
   output('')
 
   const hasChanges =
     result.summary.notebooksAdded > 0 || result.summary.notebooksRemoved > 0 || result.summary.notebooksModified > 0
 
   if (!hasChanges) {
-    output(chalk.green('No structural differences found.'))
+    output(c.green('No structural differences found.'))
     return
   }
 
-  output(chalk.bold('Notebooks:'))
+  output(c.bold('Notebooks:'))
 
   const changedNotebooks = result.notebooks.filter((nb): nb is ChangedNotebookDiff => nb.status !== 'unchanged')
 
   for (const nb of changedNotebooks) {
     const statusIcon = getStatusIcon(nb.status)
-    const statusColor = getStatusColor(nb.status)
+    const statusColor = getStatusColor(nb.status, c)
 
     if (nb.status === 'added') {
       output(statusColor(`  ${statusIcon} Added: "${nb.name}" (${nb.blockCount} blocks)`))
@@ -337,42 +338,42 @@ function printDiff(result: DiffResult, options: DiffOptions): void {
 
       for (const bd of (nb.blockDiffs ?? []).filter(isChangedBlock)) {
         const blockStatusIcon = getStatusIcon(bd.status)
-        const blockStatusColor = getStatusColor(bd.status)
+        const blockStatusColor = getStatusColor(bd.status, c)
         output(blockStatusColor(`      ${blockStatusIcon} ${bd.type} (${bd.id})`))
 
         if (options.content && bd.contentDiff) {
-          printContentDiff(bd.contentDiff.before, bd.contentDiff.after)
+          printContentDiff(bd.contentDiff.before, bd.contentDiff.after, c)
         }
       }
     }
   }
 
   output('')
-  output(chalk.bold('Summary:'))
+  output(c.bold('Summary:'))
   if (result.summary.notebooksAdded > 0) {
-    output(chalk.green(`  + ${result.summary.notebooksAdded} notebook(s) added`))
+    output(c.green(`  + ${result.summary.notebooksAdded} notebook(s) added`))
   }
   if (result.summary.notebooksRemoved > 0) {
-    output(chalk.red(`  - ${result.summary.notebooksRemoved} notebook(s) removed`))
+    output(c.red(`  - ${result.summary.notebooksRemoved} notebook(s) removed`))
   }
   if (result.summary.notebooksModified > 0) {
-    output(chalk.yellow(`  ~ ${result.summary.notebooksModified} notebook(s) modified`))
+    output(c.yellow(`  ~ ${result.summary.notebooksModified} notebook(s) modified`))
   }
   if (result.summary.blocksAdded > 0) {
-    output(chalk.green(`  + ${result.summary.blocksAdded} block(s) added`))
+    output(c.green(`  + ${result.summary.blocksAdded} block(s) added`))
   }
   if (result.summary.blocksRemoved > 0) {
-    output(chalk.red(`  - ${result.summary.blocksRemoved} block(s) removed`))
+    output(c.red(`  - ${result.summary.blocksRemoved} block(s) removed`))
   }
   if (result.summary.blocksModified > 0) {
-    output(chalk.yellow(`  ~ ${result.summary.blocksModified} block(s) modified`))
+    output(c.yellow(`  ~ ${result.summary.blocksModified} block(s) modified`))
   }
 }
 
 /**
  * Print content diff with line-by-line changes.
  */
-function printContentDiff(before: string | undefined, after: string | undefined): void {
+function printContentDiff(before: string | undefined, after: string | undefined, c: ChalkInstance): void {
   const oldContent = before ?? ''
   const newContent = after ?? ''
 
@@ -387,11 +388,11 @@ function printContentDiff(before: string | undefined, after: string | undefined)
 
     for (const line of lines) {
       if (change.added) {
-        output(chalk.green(`        + ${line}`))
+        output(c.green(`        + ${line}`))
       } else if (change.removed) {
-        output(chalk.red(`        - ${line}`))
+        output(c.red(`        - ${line}`))
       } else {
-        output(chalk.gray(`          ${line}`))
+        output(c.gray(`          ${line}`))
       }
     }
   }
@@ -403,8 +404,8 @@ function getStatusIcon(status: 'added' | 'removed' | 'modified'): string {
   return '~'
 }
 
-function getStatusColor(status: 'added' | 'removed' | 'modified'): typeof chalk {
-  if (status === 'added') return chalk.green
-  if (status === 'removed') return chalk.red
-  return chalk.yellow
+function getStatusColor(status: 'added' | 'removed' | 'modified', c: ChalkInstance): ChalkInstance {
+  if (status === 'added') return c.green
+  if (status === 'removed') return c.red
+  return c.yellow
 }
