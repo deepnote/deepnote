@@ -1,0 +1,198 @@
+version: "1.0"
+metadata:
+  createdAt: 2026-01-28T15:52:55.984Z
+  modifiedAt: 2026-01-28T15:52:55.984Z
+project:
+  id: 07a98f4c-8daa-4cc8-a7d8-baacbd6faa82
+  name: ETL Data Pipeline
+  notebooks:
+    - id: 63e39f8a-0a58-40b6-8dd3-6cb969ebb6d8
+      name: Notebook
+      blocks:
+        - id: 89fd4471-25b1-48b1-b909-d925c01d3f32
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000000"
+          type: text-cell-h1
+          content: ETL Pipeline
+          metadata: {}
+        - id: 5df892e3-d6a4-4014-a296-14c438cb3aad
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000001"
+          type: markdown
+          content: Extract-Transform-Load pipeline with validation and error handling.
+          metadata: {}
+        - id: d4e23708-b056-4775-9dab-237e07cf0801
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000002"
+          type: text-cell-h2
+          content: Configuration
+          metadata: {}
+        - id: bf7b3017-d28b-4e94-a38f-2a1c4b896d5b
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000003"
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: source_path
+            deepnote_input_label: Source File/URL
+            deepnote_input_default: input_data.csv
+            deepnote_variable_value: input_data.csv
+          executionCount: null
+          outputs: []
+        - id: 98a4334a-23ac-4863-ad67-0e56fb69318b
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000004"
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: output_path
+            deepnote_input_label: Output File
+            deepnote_input_default: output_data.csv
+            deepnote_variable_value: output_data.csv
+          executionCount: null
+          outputs: []
+        - id: 74917897-9b61-4ae8-b781-b126ce9a825c
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000005"
+          type: input-checkbox
+          content: ""
+          metadata:
+            deepnote_variable_name: validate_output
+            deepnote_input_label: Validate Output
+            deepnote_input_default: true
+            deepnote_variable_value: true
+          executionCount: null
+          outputs: []
+        - id: 6563018c-9c62-4bf2-889e-a26888179b8f
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000006"
+          type: text-cell-h2
+          content: Extract
+          metadata: {}
+        - id: ec09b5f4-4f34-45b3-b12d-6153c71b5268
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000007"
+          type: code
+          content: |-
+            import pandas as pd
+            from datetime import datetime
+
+            print(f"[{datetime.now()}] Starting extraction...")
+
+            # Extract data from source
+            try:
+                df_raw = pd.read_csv(source_path)
+                print(f"✓ Extracted {len(df_raw)} rows from {source_path}")
+            except Exception as e:
+                print(f"✗ Extraction failed: {e}")
+                raise
+
+            df_raw.head()
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: e977ff5a-57e7-4f95-aecd-e6427e42d20a
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000008"
+          type: text-cell-h2
+          content: Transform
+          metadata: {}
+        - id: d9de618c-3e0a-49e0-8921-a2ae2621db08
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000009"
+          type: code
+          content: |-
+            print(f"[{datetime.now()}] Starting transformation...")
+
+            def transform_data(df):
+                """Apply transformations to the data."""
+                df_transformed = df.copy()
+                
+                # Remove duplicates
+                initial_rows = len(df_transformed)
+                df_transformed = df_transformed.drop_duplicates()
+                print(f"  - Removed {initial_rows - len(df_transformed)} duplicates")
+                
+                # Handle missing values
+                missing_before = df_transformed.isnull().sum().sum()
+                df_transformed = df_transformed.fillna(method='ffill').fillna(method='bfill')
+                print(f"  - Handled {missing_before} missing values")
+                
+                # Add transformations here
+                # df_transformed['new_col'] = df_transformed['col'].apply(func)
+                
+                return df_transformed
+
+            df_transformed = transform_data(df_raw)
+            print(f"✓ Transformed {len(df_transformed)} rows")
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: b55dfc91-0d2b-43c4-a875-fdb5930adc3f
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000010"
+          type: text-cell-h2
+          content: Validate
+          metadata: {}
+        - id: 725b976c-fa6a-4ee7-bf63-fc3bda8243b2
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000011"
+          type: code
+          content: |-
+            print(f"[{datetime.now()}] Validating...")
+
+            def validate_data(df):
+                """Validate the transformed data."""
+                issues = []
+                
+                # Check for nulls
+                null_counts = df.isnull().sum()
+                if null_counts.any():
+                    issues.append(f"Found null values: {null_counts[null_counts > 0].to_dict()}")
+                
+                # Check for duplicates
+                if df.duplicated().any():
+                    issues.append(f"Found {df.duplicated().sum()} duplicate rows")
+                
+                # Add custom validations
+                # if df['column'].min() < 0:
+                #     issues.append("Negative values found in column")
+                
+                return issues
+
+            if validate_output:
+                issues = validate_data(df_transformed)
+                if issues:
+                    print("✗ Validation issues found:")
+                    for issue in issues:
+                        print(f"  - {issue}")
+                else:
+                    print("✓ Validation passed")
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 6a7cdaff-f369-4a9c-84de-e2b4ff94a72b
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000012"
+          type: text-cell-h2
+          content: Load
+          metadata: {}
+        - id: 54de795a-bcc4-4bac-9e44-719fc79a0f89
+          blockGroup: 34feb62b-b1df-4d40-aeaf-59f516086846
+          sortingKey: "000013"
+          type: code
+          content: |-
+            print(f"[{datetime.now()}] Loading to destination...")
+
+            # Save to output
+            try:
+                df_transformed.to_csv(output_path, index=False)
+                print(f"✓ Saved {len(df_transformed)} rows to {output_path}")
+            except Exception as e:
+                print(f"✗ Load failed: {e}")
+                raise
+
+            print(f"[{datetime.now()}] ETL pipeline complete!")
+          metadata: {}
+          executionCount: null
+          outputs: []
