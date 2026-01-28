@@ -284,4 +284,29 @@ describe('createPythonCodeForNotebookFunctionBlock', () => {
       )
     `)
   })
+
+  it('escapes special characters in notebook_id', () => {
+    const block: NotebookFunctionBlock = {
+      id: '123',
+      type: 'notebook-function',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        function_notebook_id: "notebook-with'quote",
+        function_notebook_inputs: {},
+        function_notebook_export_mappings: {
+          data: {
+            enabled: true,
+            variable_name: 'result',
+          },
+        },
+      },
+    }
+
+    const result = createPythonCodeForNotebookFunctionBlock(block)
+
+    // The single quote should be escaped in the Python string literal
+    expect(result).toContain("'notebook-with\\'quote'")
+  })
 })
