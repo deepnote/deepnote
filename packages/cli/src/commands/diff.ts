@@ -9,7 +9,7 @@ import { debug, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface DiffOptions {
-  output?: string
+  output?: 'json'
   content?: boolean
 }
 
