@@ -20,6 +20,11 @@ async function main() {
         description: 'The working directory to resolve paths relative to.',
         type: String,
       },
+      singleFile: {
+        description: 'Output a single file with outputs included (disables snapshot mode).',
+        type: Boolean,
+        default: false,
+      },
     },
   })
 
@@ -28,6 +33,7 @@ async function main() {
     projectName: argv.flags.projectName,
     outputPath: argv.flags.outputPath,
     cwd: argv.flags.cwd ?? process.cwd(),
+    singleFile: argv.flags.singleFile,
   })
 }
 

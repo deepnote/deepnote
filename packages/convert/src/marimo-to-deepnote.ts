@@ -1,10 +1,24 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { stringify } from 'yaml'
+import { getMarimoOutputsFromCache } from './snapshot'
+import type { JupyterOutput } from './types/jupyter'
 import type { MarimoApp, MarimoCell } from './types/marimo'
 import { createSortingKey } from './utils'
+
+/**
+ * Computes a code hash for a cell's content.
+ * This matches how Marimo computes code_hash for the session cache.
+ *
+ * @param content - The cell's code content
+ * @returns An MD5 hash string (32 hex chars)
+ */
+function computeCodeHash(content: string): string {
+  // Marimo uses MD5 for code_hash in session cache
+  return createHash('md5').update(content, 'utf-8').digest('hex')
+}
 
 /**
  * Splits a string on commas that are at the top level (not inside parentheses, brackets, braces, or string literals).
@@ -80,9 +94,15 @@ export interface ConvertMarimoFilesToDeepnoteFileOptions {
   projectName: string
 }
 
+export interface ReadAndConvertMarimoFilesOptions {
+  projectName: string
+}
+
 export interface ConvertMarimoAppOptions {
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
+  /** Outputs from Marimo session cache, keyed by code_hash */
+  outputs?: Map<string, JupyterOutput[]>
 }
 
 export interface MarimoAppInput {
@@ -125,24 +145,52 @@ export function parseMarimoFormat(content: string): MarimoApp {
   const titleMatch = /(?:marimo|mo)\.App\([^)]*title\s*=\s*["']([^"']+)["']/.exec(content)
   const title = titleMatch?.[1]
 
-  // Parse cells - look for @app.cell decorated functions
-  // This regex matches @app.cell (with optional parameters) followed by def
-  // Capture group 1: decorator arguments (if any)
-  // Capture group 2: function name
-  // Capture group 3: function parameters
-  // Capture group 4: function body
+  // Parse cells - look for @app.cell and @app.function decorated functions
+  // This regex matches @app.cell or @app.function (with optional parameters) followed by def
+  // Capture group 1: decorator type ('cell' or 'function')
+  // Capture group 2: decorator arguments (if any)
+  // Capture group 3: function name
+  // Capture group 4: function parameters
+  // Capture group 5: function body
   const cellRegex =
-    /@app\.cell(?:\(([^)]*)\))?\s*\n\s*def\s+(\w+)\s*\(([^)]*)\)\s*(?:->.*?)?\s*:\s*\n([\s\S]*?)(?=@app\.cell|if\s+__name__|$)/g
+    /@app\.(cell|function)(?:\(([^)]*)\))?\s*\n\s*def\s+(\w+)\s*\(([^)]*)\)\s*(?:->.*?)?\s*:\s*\n([\s\S]*?)(?=@app\.cell|@app\.function|if\s+__name__|$)/g
 
   let match: RegExpExecArray | null = cellRegex.exec(content)
 
   while (match !== null) {
-    const decoratorArgs = match[1] || ''
-    const functionName = match[2]
-    const params = match[3].trim()
-    let body = match[4]
+    const decoratorType = match[1] // 'cell' or 'function'
+    const decoratorArgs = match[2] || ''
+    const functionName = match[3]
+    const params = match[4].trim()
+    let body = match[5]
 
-    // Parse dependencies from parameters
+    // @app.function creates a reusable function, convert to code cell
+    const isAppFunction = decoratorType === 'function'
+
+    // For @app.function, reconstruct the full function definition
+    if (isAppFunction) {
+      // Get the return type if present (captured separately)
+      const returnTypeMatch = /@app\.function(?:\([^)]*\))?\s*\n\s*def\s+\w+\s*\([^)]*\)\s*(->.*?)?\s*:/.exec(
+        content.slice(match.index)
+      )
+      const returnType = returnTypeMatch?.[1] || ''
+
+      // Reconstruct the function definition
+      const funcDef = `def ${functionName}(${params})${returnType}:\n${body}`
+
+      cells.push({
+        cellType: 'code',
+        content: funcDef.trim(),
+        functionName,
+        hidden: /hide_code\s*=\s*True/.test(decoratorArgs),
+        disabled: /disabled\s*=\s*True/.test(decoratorArgs),
+      })
+
+      match = cellRegex.exec(content)
+      continue
+    }
+
+    // Parse dependencies from parameters (for @app.cell)
     const dependencies = params
       ? params
           .split(',')
@@ -291,12 +339,18 @@ export function parseMarimoFormat(content: string): MarimoApp {
  * This is the lowest-level conversion function.
  *
  * @param app - The Marimo app object to convert
- * @param options - Optional conversion options including custom ID generator
+ * @param options - Optional conversion options including custom ID generator and outputs
  * @returns Array of DeepnoteBlock objects
  */
 export function convertMarimoAppToBlocks(app: MarimoApp, options?: ConvertMarimoAppOptions): DeepnoteBlock[] {
   const idGenerator = options?.idGenerator ?? randomUUID
-  return app.cells.map((cell, index) => convertCellToBlock(cell, index, idGenerator))
+  const outputs = options?.outputs
+  return app.cells.map((cell, index) => {
+    // Compute code hash of cell content to match against session cache
+    const codeHash = computeCodeHash(cell.content)
+    const cellOutputs = outputs?.get(codeHash)
+    return convertCellToBlock(cell, index, idGenerator, cellOutputs)
+  })
 }
 
 export interface ConvertMarimoAppsToDeepnoteOptions {
@@ -304,6 +358,35 @@ export interface ConvertMarimoAppsToDeepnoteOptions {
   projectName: string
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
+}
+
+export interface MarimoAppWithOutputs extends MarimoAppInput {
+  outputs?: Map<string, JupyterOutput[]>
+}
+
+/**
+ * Creates a base DeepnoteFile structure with empty notebooks.
+ * This is a helper to reduce duplication in conversion functions.
+ */
+function createDeepnoteFileSkeleton(
+  projectName: string,
+  idGenerator: () => string,
+  firstNotebookId?: string
+): DeepnoteFile {
+  return {
+    metadata: {
+      createdAt: new Date().toISOString(),
+    },
+    project: {
+      id: idGenerator(),
+      initNotebookId: firstNotebookId,
+      integrations: [],
+      name: projectName,
+      notebooks: [],
+      settings: {},
+    },
+    version: '1.0.0',
+  }
 }
 
 /**
@@ -318,35 +401,42 @@ export function convertMarimoAppsToDeepnote(
   apps: MarimoAppInput[],
   options: ConvertMarimoAppsToDeepnoteOptions
 ): DeepnoteFile {
+  // Convert to MarimoAppWithOutputs with undefined outputs for compatibility
+  const appsWithOutputs: MarimoAppWithOutputs[] = apps.map(app => ({
+    ...app,
+    outputs: undefined,
+  }))
+  return convertMarimoAppsToDeepnoteFile(appsWithOutputs, options)
+}
+
+/**
+ * Converts Marimo app objects with outputs into a Deepnote project file.
+ * This variant includes outputs from the Marimo session cache.
+ *
+ * @param apps - Array of Marimo apps with filenames and optional outputs
+ * @param options - Conversion options including project name and optional ID generator
+ * @returns A DeepnoteFile object
+ */
+export function convertMarimoAppsToDeepnoteFile(
+  apps: MarimoAppWithOutputs[],
+  options: ConvertMarimoAppsToDeepnoteOptions
+): DeepnoteFile {
   const idGenerator = options.idGenerator ?? randomUUID
 
   // Generate the first notebook ID upfront so we can use it as the project entrypoint
   const firstNotebookId = apps.length > 0 ? idGenerator() : undefined
 
-  const deepnoteFile: DeepnoteFile = {
-    metadata: {
-      createdAt: new Date().toISOString(),
-    },
-    project: {
-      id: idGenerator(),
-      initNotebookId: firstNotebookId,
-      integrations: [],
-      name: options.projectName,
-      notebooks: [],
-      settings: {},
-    },
-    version: '1.0.0',
-  }
+  const deepnoteFile = createDeepnoteFileSkeleton(options.projectName, idGenerator, firstNotebookId)
 
   for (let i = 0; i < apps.length; i++) {
-    const { filename, app } = apps[i]
+    const { filename, app, outputs } = apps[i]
     const extension = extname(filename)
     const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
     // Use app title if available, otherwise use filename
     const notebookName = app.title || filenameWithoutExt
 
-    const blocks = convertMarimoAppToBlocks(app, { idGenerator })
+    const blocks = convertMarimoAppToBlocks(app, { idGenerator, outputs })
 
     // Use pre-generated ID for the first notebook, generate new ones for the rest
     const notebookId = i === 0 && firstNotebookId ? firstNotebookId : idGenerator()
@@ -364,21 +454,31 @@ export function convertMarimoAppsToDeepnote(
 }
 
 /**
- * Converts multiple Marimo (.py) files into a single Deepnote project file.
+ * Reads and converts multiple Marimo (.py) files into a DeepnoteFile.
+ * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ *
+ * @param inputFilePaths - Array of paths to Marimo .py files
+ * @param options - Conversion options including project name
+ * @returns A DeepnoteFile object
  */
-export async function convertMarimoFilesToDeepnoteFile(
+export async function readAndConvertMarimoFiles(
   inputFilePaths: string[],
-  options: ConvertMarimoFilesToDeepnoteFileOptions
-): Promise<void> {
-  const apps: MarimoAppInput[] = []
+  options: ReadAndConvertMarimoFilesOptions
+): Promise<DeepnoteFile> {
+  const apps: MarimoAppWithOutputs[] = []
 
   for (const filePath of inputFilePaths) {
     try {
       const content = await fs.readFile(filePath, 'utf-8')
       const app = parseMarimoFormat(content)
+
+      // Try to load outputs from Marimo session cache
+      const outputs = await getMarimoOutputsFromCache(filePath)
+
       apps.push({
         filename: basename(filePath),
         app,
+        outputs: outputs ?? undefined,
       })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -389,7 +489,43 @@ export async function convertMarimoFilesToDeepnoteFile(
     }
   }
 
-  const deepnoteFile = convertMarimoAppsToDeepnote(apps, {
+  return convertMarimoAppsToDeepnoteFile(apps, {
+    projectName: options.projectName,
+  })
+}
+
+/**
+ * Converts multiple Marimo (.py) files into a single Deepnote project file.
+ */
+export async function convertMarimoFilesToDeepnoteFile(
+  inputFilePaths: string[],
+  options: ConvertMarimoFilesToDeepnoteFileOptions
+): Promise<void> {
+  const apps: MarimoAppWithOutputs[] = []
+
+  for (const filePath of inputFilePaths) {
+    try {
+      const content = await fs.readFile(filePath, 'utf-8')
+      const app = parseMarimoFormat(content)
+
+      // Try to load outputs from Marimo session cache
+      const outputs = await getMarimoOutputsFromCache(filePath)
+
+      apps.push({
+        filename: basename(filePath),
+        app,
+        outputs: outputs ?? undefined,
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      const errorStack = err instanceof Error ? err.stack : undefined
+      throw new Error(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
+        cause: errorStack ? { originalError: err, stack: errorStack } : err,
+      })
+    }
+  }
+
+  const deepnoteFile = convertMarimoAppsToDeepnoteFile(apps, {
     projectName: options.projectName,
   })
 
@@ -400,7 +536,12 @@ export async function convertMarimoFilesToDeepnoteFile(
   await fs.writeFile(options.outputPath, yamlContent, 'utf-8')
 }
 
-function convertCellToBlock(cell: MarimoCell, index: number, idGenerator: () => string): DeepnoteBlock {
+function convertCellToBlock(
+  cell: MarimoCell,
+  index: number,
+  idGenerator: () => string,
+  outputs?: JupyterOutput[]
+): DeepnoteBlock {
   let blockType: 'code' | 'markdown' | 'sql'
   if (cell.cellType === 'markdown') {
     blockType = 'markdown'
@@ -434,12 +575,16 @@ function convertCellToBlock(cell: MarimoCell, index: number, idGenerator: () => 
     metadata.deepnote_variable_name = cell.exports[0]
   }
 
-  return {
+  const block = {
     blockGroup: idGenerator(),
     content: cell.content,
     id: idGenerator(),
     metadata: Object.keys(metadata).length > 0 ? metadata : {},
     sortingKey: createSortingKey(index),
     type: blockType,
-  }
+    // Add outputs if available (for code and SQL blocks)
+    ...(outputs && outputs.length > 0 && (blockType === 'code' || blockType === 'sql') ? { outputs } : {}),
+  } as DeepnoteBlock
+
+  return block
 }

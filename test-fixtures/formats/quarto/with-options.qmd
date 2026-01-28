@@ -1,0 +1,20 @@
+---
+title: Test
+---
+
+# Header
+
+```{python}
+#| label: my-chunk
+#| echo: false
+#| fig-cap: "My figure"
+print("hello")
+```
+
+Some text.
+
+```{python}
+#| fig-width: 8
+#| fig-height: 6
+plt.show()
+```

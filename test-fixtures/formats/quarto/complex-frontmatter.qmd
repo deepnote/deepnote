@@ -1,0 +1,28 @@
+---
+title: "Complex Document"
+format:
+  html:
+    theme: cosmo
+    toc: true
+  pdf:
+    output: file
+execute:
+  echo: false
+  warning: false
+authors:
+  - name: Alice
+    affiliation: University A
+  - name: Bob
+    affiliation: University B
+keywords:
+  - data science
+  - machine learning
+  - python
+tags: [tag1, tag2, tag3]
+---
+
+# Content here
+
+```{python}
+print("hello")
+```

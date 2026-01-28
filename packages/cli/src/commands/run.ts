@@ -9,11 +9,12 @@ import {
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
-  type DeepnoteBlock,
   detectDefaultPython,
   ExecutionEngine,
   type ExecutionSummary,
+  executableBlockTypeSet,
   type IOutput,
+  type DeepnoteBlock as RuntimeDeepnoteBlock,
 } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
@@ -22,6 +23,13 @@ import { debug, log, error as logError, type OutputFormat, output, outputJson, o
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import {
+  type BlockProfile,
+  displayMetrics,
+  displayProfileSummary,
+  fetchMetrics,
+  formatMemoryDelta,
+} from '../utils/metrics'
 
 /**
  * Error thrown when required inputs are missing.
@@ -59,6 +67,9 @@ export interface RunOptions {
   input?: string[]
   listInputs?: boolean
   output?: OutputFormat
+  dryRun?: boolean
+  top?: boolean
+  profile?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -79,6 +90,109 @@ interface RunResult extends ExecutionSummary {
   blocks: BlockResult[]
 }
 
+/** Info about a block in a dry run */
+interface DryRunBlockInfo {
+  id: string
+  type: string
+  label: string
+  notebook: string
+}
+
+/** Dry run result for JSON output */
+interface DryRunResult {
+  dryRun: true
+  path: string
+  totalBlocks: number
+  blocks: DryRunBlockInfo[]
+}
+
+interface ProjectSetup {
+  absolutePath: string
+  workingDirectory: string
+  file: DeepnoteFile
+  pythonEnv: string
+  inputs: Record<string, unknown>
+  isMachineOutput: boolean
+}
+
+/**
+ * Common project setup: resolve path, parse file, validate requirements.
+ * Shared by both runDeepnoteProject and dryRunDeepnoteProject.
+ */
+async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
+  const workingDirectory = options.cwd ?? dirname(absolutePath)
+  const pythonEnv = options.python ?? detectDefaultPython()
+  const isMachineOutput = options.output !== undefined
+  const inputs = parseInputs(options.input)
+
+  if (!isMachineOutput) {
+    log(chalk.dim(`Parsing ${absolutePath}...`))
+  }
+
+  const rawBytes = await fs.readFile(absolutePath)
+  const content = decodeUtf8NoBom(rawBytes)
+  const file = deserializeDeepnoteFile(content)
+
+  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
+  await validateRequirements(file, inputs, pythonEnv, options.notebook)
+
+  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput }
+}
+
+/**
+ * Collect executable blocks from a DeepnoteFile.
+ * Handles notebook and block filtering, and validates that requested blocks exist.
+ */
+function collectExecutableBlocks(
+  file: DeepnoteFile,
+  options: { notebook?: string; block?: string }
+): DryRunBlockInfo[] {
+  // Filter notebooks if specified
+  const notebooks = options.notebook
+    ? file.project.notebooks.filter(n => n.name === options.notebook)
+    : file.project.notebooks
+
+  if (options.notebook && notebooks.length === 0) {
+    throw new Error(`Notebook "${options.notebook}" not found in project`)
+  }
+
+  // Collect all executable blocks
+  const executableBlocks: DryRunBlockInfo[] = []
+  for (const notebook of notebooks) {
+    const sortedBlocks = [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+    for (const block of sortedBlocks) {
+      if (!executableBlockTypeSet.has(block.type)) {
+        continue
+      }
+      // Skip if filtering by blockId and this isn't the target
+      if (options.block && block.id !== options.block) {
+        continue
+      }
+      executableBlocks.push({
+        id: block.id,
+        type: block.type,
+        label: getBlockLabel(block),
+        notebook: notebook.name,
+      })
+    }
+  }
+
+  // Handle case where requested block doesn't exist or isn't executable
+  if (options.block && executableBlocks.length === 0) {
+    // Check if the block exists but is not executable
+    for (const notebook of notebooks) {
+      const block = notebook.blocks.find(b => b.id === options.block)
+      if (block) {
+        throw new Error(`Block "${options.block}" is not executable (type: ${block.type}).`)
+      }
+    }
+    throw new Error(`Block "${options.block}" not found in project`)
+  }
+
+  return executableBlocks
+}
+
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
@@ -88,6 +202,12 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       // Handle --list-inputs
       if (options.listInputs) {
         await listInputs(path, options)
+        return
+      }
+
+      // Handle --dry-run
+      if (options.dryRun) {
+        await dryRunDeepnoteProject(path, options)
         return
       }
 
@@ -251,6 +371,49 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
 }
 
 /**
+ * Perform a dry run: parse the file and show what would be executed without running.
+ * Also validates that all requirements (inputs, integrations) are met.
+ */
+async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
+  const { absolutePath, file, isMachineOutput } = await setupProject(path, options)
+  const executableBlocks = collectExecutableBlocks(file, options)
+
+  const notebookCount = options.notebook ? 1 : file.project.notebooks.length
+
+  if (isMachineOutput) {
+    const result: DryRunResult = {
+      dryRun: true,
+      path: absolutePath,
+      totalBlocks: executableBlocks.length,
+      blocks: executableBlocks,
+    }
+    if (options.output === 'toon') {
+      outputToon(result)
+    } else {
+      outputJson(result)
+    }
+  } else {
+    output(chalk.bold('\nExecution Plan (dry run)'))
+    output(chalk.dim('─'.repeat(50)))
+
+    if (executableBlocks.length === 0) {
+      output(chalk.yellow('No executable blocks found.'))
+    } else {
+      for (let i = 0; i < executableBlocks.length; i++) {
+        const block = executableBlocks[i]
+        output(`${chalk.cyan(`[${i + 1}/${executableBlocks.length}]`)} ${block.label}`)
+        if (notebookCount > 1) {
+          output(chalk.dim(`    Notebook: ${block.notebook}`))
+        }
+      }
+    }
+
+    output(chalk.dim('─'.repeat(50)))
+    output(chalk.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
+  }
+}
+
+/**
  * Convert an integration ID to its environment variable name.
  * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
  */
@@ -385,30 +548,12 @@ async function validateRequirements(
 }
 
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const workingDirectory = options.cwd ?? dirname(absolutePath)
-
-  const pythonEnv = options.python ?? detectDefaultPython()
-  // Machine-readable output suppresses interactive messages
-  const isMachineOutput = options.output !== undefined
-  const inputs = parseInputs(options.input)
+  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput } = await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
   // Collect block results for machine-readable output
   const blockResults: BlockResult[] = []
-
-  if (!isMachineOutput) {
-    log(chalk.dim(`Parsing ${absolutePath}...`))
-  }
-
-  // Parse the file and validate inputs before starting the engine
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
-
-  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, options.notebook)
 
   // Create and start the execution engine
   const engine = new ExecutionEngine({
@@ -447,22 +592,60 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
 
+  // Profiling: track memory before each block and collect profile data
+  const showProfile = options.profile && !isMachineOutput
+  const blockProfiles: BlockProfile[] = []
+  const memoryBefore = new Map<string, number>()
+
+  // Set up metrics monitoring if --top is enabled
+  const showTop = options.top && !isMachineOutput
+  let metricsInterval: ReturnType<typeof setInterval> | null = null
+
+  if (showTop && engine.serverPort) {
+    const port = engine.serverPort
+    // Show initial metrics
+    const initialMetrics = await fetchMetrics(port)
+    if (initialMetrics) {
+      displayMetrics(initialMetrics)
+      output('')
+    }
+
+    // Update metrics periodically during execution
+    metricsInterval = setInterval(async () => {
+      const metrics = await fetchMetrics(port)
+      if (metrics) {
+        // Move cursor up, clear line, display metrics, move back down
+        process.stdout.write('\x1b[s') // Save cursor position
+        displayMetrics(metrics)
+        process.stdout.write('\x1b[u') // Restore cursor position
+      }
+    }, 2000)
+  }
+
   try {
     const summary = await engine.runFile(absolutePath, {
       notebookName: options.notebook,
       blockId: options.block,
       inputs,
 
-      onBlockStart: (block: DeepnoteBlock, index: number, total: number) => {
+      onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
         const label = getBlockLabel(block)
         blockLabels.set(block.id, label)
+
+        // Capture memory before block execution for profiling
+        if (showProfile && engine.serverPort) {
+          const metrics = await fetchMetrics(engine.serverPort)
+          if (metrics) {
+            memoryBefore.set(block.id, metrics.rss)
+          }
+        }
 
         if (!isMachineOutput) {
           process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
-      onBlockDone: (result: BlockExecutionResult) => {
+      onBlockDone: async (result: BlockExecutionResult) => {
         // Collect result for machine-readable output
         const label = blockLabels.get(result.blockId) ?? result.blockType
         blockLabels.delete(result.blockId) // Clean up to avoid memory growth
@@ -476,9 +659,35 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
           error: result.error?.message,
         })
 
+        // Capture memory after block and calculate delta for profiling
+        let memoryDeltaStr = ''
+        if (showProfile && engine.serverPort) {
+          const hasBefore = memoryBefore.has(result.blockId)
+          const before = memoryBefore.get(result.blockId)
+          memoryBefore.delete(result.blockId) // Clean up
+
+          // Only compute delta if we have both before and after measurements
+          if (hasBefore && before !== undefined) {
+            const metrics = await fetchMetrics(engine.serverPort)
+            if (metrics) {
+              const delta = metrics.rss - before
+              memoryDeltaStr = `, ${formatMemoryDelta(delta)}`
+
+              blockProfiles.push({
+                id: result.blockId,
+                label,
+                durationMs: result.durationMs,
+                memoryBefore: before,
+                memoryAfter: metrics.rss,
+                memoryDelta: delta,
+              })
+            }
+          }
+        }
+
         if (!isMachineOutput) {
           if (result.success) {
-            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
+            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
           } else {
             output(chalk.red('✗'))
           }
@@ -520,6 +729,20 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       // Print summary
       output(chalk.dim('─'.repeat(50)))
 
+      // Show final resource usage if --top was enabled
+      if (showTop && engine.serverPort) {
+        const finalMetrics = await fetchMetrics(engine.serverPort)
+        if (finalMetrics) {
+          output(chalk.bold('Final resource usage:'))
+          displayMetrics(finalMetrics)
+        }
+      }
+
+      // Show profile summary if --profile was enabled
+      if (showProfile && blockProfiles.length > 0) {
+        displayProfileSummary(blockProfiles)
+      }
+
       if (summary.failedBlocks > 0) {
         output(
           chalk.red(
@@ -534,6 +757,10 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       process.exitCode = exitCode
     }
   } finally {
+    if (metricsInterval) {
+      clearInterval(metricsInterval)
+      metricsInterval = null
+    }
     await engine.stop()
   }
 }
