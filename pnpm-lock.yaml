@@ -74,6 +74,9 @@ importers:
       '@deepnote/convert':
         specifier: workspace:*
         version: link:../convert
+      '@deepnote/database-integrations':
+        specifier: workspace:*
+        version: link:../database-integrations
       '@deepnote/reactivity':
         specifier: workspace:*
         version: link:../reactivity

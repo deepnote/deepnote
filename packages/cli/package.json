@@ -43,6 +43,7 @@
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
     "@deepnote/convert": "workspace:*",
+    "@deepnote/database-integrations": "workspace:*",
     "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
     "@shikijs/cli": "^3.21.0",

@@ -5,6 +5,7 @@ import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
+import { createIntegrationsCommand } from './commands/integrations'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
@@ -623,6 +624,9 @@ ${c.bold('Examples:')}
         })
       }
     })
+
+  // Integrations command group with subcommands
+  program.addCommand(createIntegrationsCommand(program))
 }
 
 /**
