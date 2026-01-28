@@ -1,0 +1,108 @@
+metadata:
+  createdAt: 2026-01-28T15:40:06.445Z
+  modifiedAt: 2026-01-28T15:40:06.446Z
+project:
+  id: f7ba8d71-062e-4a4f-9442-571ba44498cd
+  name: A/B Test Evaluator
+  notebooks:
+    - blocks:
+        - id: 4e512555-6719-4a51-9684-b1ae31a8470a
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000000"
+          type: text-cell-h1
+          content: A/B Test Evaluator
+          metadata: {}
+        - id: 7f0d0401-2bcd-4207-b0e2-db32e29a557b
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000001"
+          type: markdown
+          content: This notebook A/B test statistical analysis tool that takes experiment data with control and treatment groups, calculates sample sizes for statistical power, performs t-tests and chi-square tests, computes confidence intervals, visualizes conversion rates with error bars, and provides recommendations based on statistical significance.
+          metadata: {}
+        - id: 703fc860-ee68-4a11-8438-0ab1865936c2
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000002"
+          type: text-cell-h2
+          content: Data Loading
+          metadata: {}
+        - id: 8393b6c6-e90a-4549-b848-5dc136d3591a
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000003"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            import pandas as pd
+
+            # Load your data here
+            # df = pd.read_csv('your_file.csv')
+            # df = pd.read_excel('your_file.xlsx')
+            # df = pd.read_json('your_file.json')
+          metadata: {}
+        - id: ce2a9d3d-4969-468f-ad66-f66acb33f82b
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000004"
+          type: text-cell-h2
+          content: Data Exploration
+          metadata: {}
+        - id: 794830f1-c2bf-4a3c-aa40-05369ef8eaa9
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000005"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            # Basic info about the dataset
+            print("Shape:", df.shape)
+            print("\nColumn types:")
+            print(df.dtypes)
+            print("\nMissing values:")
+            print(df.isnull().sum())
+          metadata: {}
+        - id: c67463fe-30af-454b-85ff-a82d405d80d1
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000006"
+          type: markdown
+          content: "**Code block**"
+          metadata: {}
+        - id: b1deccee-6308-460e-ae98-18d1615efa83
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000007"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            # Statistical summary
+            df.describe()
+          metadata: {}
+        - id: de21a9c7-9ccf-4224-bce3-38d9c82a4b2c
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000008"
+          type: text-cell-h2
+          content: Visualizations
+          metadata: {}
+        - id: 04bf45b6-480d-4b7e-a568-435dcb21154a
+          blockGroup: 44a6df36-00e2-4eac-9d06-0d86f7c31b51
+          sortingKey: "000009"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+
+            # Set style
+            sns.set_style("whitegrid")
+            plt.figure(figsize=(10, 6))
+
+            # Example: Distribution plot
+            # sns.histplot(data=df, x='column_name')
+
+            # Example: Correlation heatmap
+            # sns.heatmap(df.corr(), annot=True, cmap='coolwarm')
+
+            plt.tight_layout()
+            plt.show()
+          metadata: {}
+      id: 8e45e528-a9ad-4dba-9a25-1f56e3a784b9
+      name: Notebook
+version: "1.0"

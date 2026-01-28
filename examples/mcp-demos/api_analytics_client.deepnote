@@ -1,0 +1,154 @@
+version: "1.0"
+metadata:
+  createdAt: 2026-01-28T15:40:40.391Z
+  modifiedAt: 2026-01-28T15:40:40.392Z
+project:
+  id: e229b7bf-2605-47a8-ba6d-83c673954623
+  name: API Analytics Client
+  notebooks:
+    - id: 16166f08-4f3b-4407-ac88-fe11b5b8b323
+      name: Notebook
+      blocks:
+        - id: fdf039fd-7b04-415b-b32b-fa10b141f93a
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000000"
+          type: text-cell-h1
+          content: API Client
+          metadata: {}
+        - id: 23b1ba14-190f-4713-8d66-fcc7a7873258
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000001"
+          type: markdown
+          content: API integration with authentication, requests, and data processing.
+          metadata: {}
+        - id: e2e96eed-4604-43ec-869d-710487c12218
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000002"
+          type: text-cell-h2
+          content: Configuration
+          metadata: {}
+        - id: bd6ff2af-2d0d-4467-b2d6-feac35578b95
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000003"
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: api_base_url
+            deepnote_input_label: API Base URL
+            deepnote_input_default: https://api.example.com
+          executionCount: null
+          outputs: []
+        - id: 38dce093-c59f-406b-b03a-3ef6495e9ee8
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000004"
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: api_key
+            deepnote_input_label: API Key
+            deepnote_input_default: ""
+          executionCount: null
+          outputs: []
+        - id: 3e99ee8e-d9c8-4d7e-a5c6-eea0b0405411
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000005"
+          type: button
+          content: ""
+          metadata:
+            deepnote_variable_name: refresh_data
+            deepnote_button_label: Refresh Data
+          executionCount: null
+          outputs: []
+        - id: 12169b96-72e2-49e2-a135-71b39483df8f
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000006"
+          type: text-cell-h2
+          content: API Client Setup
+          metadata: {}
+        - id: eb1739d9-4dfc-44b5-8a53-3df25a0889e2
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000007"
+          type: code
+          content: |-
+            import requests
+            import pandas as pd
+            from datetime import datetime
+            import time
+
+            class APIClient:
+                def __init__(self, base_url, api_key):
+                    self.base_url = base_url.rstrip('/')
+                    self.session = requests.Session()
+                    self.session.headers.update({
+                        'Authorization': f'Bearer {api_key}',
+                        'Content-Type': 'application/json'
+                    })
+                
+                def get(self, endpoint, params=None, retries=3):
+                    """GET request with retry logic."""
+                    url = f"{self.base_url}/{endpoint.lstrip('/')}"
+                    for attempt in range(retries):
+                        try:
+                            response = self.session.get(url, params=params, timeout=30)
+                            response.raise_for_status()
+                            return response.json()
+                        except requests.RequestException as e:
+                            if attempt == retries - 1:
+                                raise
+                            time.sleep(2 ** attempt)  # Exponential backoff
+                    return None
+
+            client = APIClient(api_base_url, api_key)
+            print(f"✓ API client configured for {api_base_url}")
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 1a783047-d807-47e9-8555-c091e197a4d7
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000008"
+          type: text-cell-h2
+          content: Fetch Data
+          metadata: {}
+        - id: 02e1d10d-2363-43ad-b6a3-4f272f185a14
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000009"
+          type: code
+          content: |-
+            # Fetch data from API
+            print(f"[{datetime.now()}] Fetching data...")
+
+            try:
+                # Example: Fetch list of items
+                # data = client.get('/items', params={'limit': 100})
+                
+                # Example: Convert to DataFrame
+                # df = pd.DataFrame(data['items'])
+                # print(f"✓ Fetched {len(df)} records")
+                # df.head()
+                
+                print("Configure the API endpoint above and uncomment the code")
+            except Exception as e:
+                print(f"✗ API request failed: {e}")
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 42fedbcf-b2a8-44be-89f7-583587d015e4
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000010"
+          type: text-cell-h2
+          content: Process & Analyze
+          metadata: {}
+        - id: 93ff676c-f2ef-4db8-9756-0ef943c23f84
+          blockGroup: a3392ca2-fd4a-4f2b-b451-cac1820517f8
+          sortingKey: "000011"
+          type: code
+          content: |-
+            # Process the fetched data
+            # df['processed_column'] = df['raw_column'].apply(lambda x: x.upper())
+
+            # Display summary
+            # print(f"Data summary:")
+            # print(df.describe())
+          metadata: {}
+          executionCount: null
+          outputs: []

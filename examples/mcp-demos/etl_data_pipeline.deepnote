@@ -1,0 +1,246 @@
+metadata:
+  createdAt: 2026-01-28T15:40:30.551Z
+  modifiedAt: 2026-01-28T15:40:30.551Z
+project:
+  id: 7916956d-8e88-4b45-9652-6b66bd45948e
+  name: ETL Data Pipeline
+  notebooks:
+    - blocks:
+        - id: 6c14ef85-07d6-40bd-aef3-95cd52ad1c9e
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000000"
+          type: text-cell-h1
+          content: ETL Pipeline
+          metadata: {}
+        - id: f6d57368-d5bd-4122-a66a-dfc77b41435f
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000001"
+          type: markdown
+          content: Extract-Transform-Load pipeline with validation and error handling.
+          metadata: {}
+        - id: 63bd0b0e-1e4d-4086-b679-9455cf36b740
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000002"
+          type: text-cell-h2
+          content: Configuration
+          metadata: {}
+        - id: 917cdc7f-0cfb-44da-a0f9-0d43372e581b
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000003"
+          executionCount: null
+          outputs: []
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: source_path
+            deepnote_input_label: Source File/URL
+            deepnote_variable_value: ""
+            deepnote_input_default: input_data.csv
+        - id: 803866a7-d61c-49f9-a856-e5729c194f12
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000004"
+          executionCount: null
+          outputs: []
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: output_path
+            deepnote_input_label: Output File
+            deepnote_variable_value: ""
+            deepnote_input_default: output_data.csv
+        - id: 26623411-5eaf-4f9f-a197-4dff2a869e7a
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000005"
+          executionCount: null
+          outputs: []
+          type: input-checkbox
+          content: ""
+          metadata:
+            deepnote_variable_name: validate_output
+            deepnote_input_label: Validate Output
+            deepnote_variable_value: false
+            deepnote_input_default: true
+        - id: e5579184-4214-4866-a7d4-32478a339f5f
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000006"
+          type: text-cell-h2
+          content: Extract
+          metadata: {}
+        - id: 38aae89c-3dbf-43e1-8814-d66a53175864
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000007"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            import time
+            import tracemalloc
+
+            tracemalloc.start()
+            _start_time = time.perf_counter()
+
+            import pandas as pd
+            from datetime import datetime
+
+            print(f"[{datetime.now()}] Starting extraction...")
+
+            # Extract data from source
+            try:
+                df_raw = pd.read_csv(source_path)
+                print(f"✓ Extracted {len(df_raw)} rows from {source_path}")
+            except Exception as e:
+                print(f"✗ Extraction failed: {e}")
+                raise
+
+            df_raw.head()
+
+            _end_time = time.perf_counter()
+            _current, _peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            print(f"⏱ Execution time: {_end_time - _start_time:.4f}s")
+            print(f"📊 Memory: current={_current / 1024 / 1024:.2f}MB, peak={_peak / 1024 / 1024:.2f}MB")
+          metadata: {}
+        - id: 4beb2e48-b6a9-46e6-bfb3-a3e5c2d9454a
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000008"
+          type: text-cell-h2
+          content: Transform
+          metadata: {}
+        - id: ba460b7e-f2b4-4605-b6d0-7b0e6348112a
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000009"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            import time
+            import tracemalloc
+
+            tracemalloc.start()
+            _start_time = time.perf_counter()
+
+            print(f"[{datetime.now()}] Starting transformation...")
+
+            def transform_data(df):
+                """Apply transformations to the data."""
+                df_transformed = df.copy()
+                
+                # Remove duplicates
+                initial_rows = len(df_transformed)
+                df_transformed = df_transformed.drop_duplicates()
+                print(f"  - Removed {initial_rows - len(df_transformed)} duplicates")
+                
+                # Handle missing values
+                missing_before = df_transformed.isnull().sum().sum()
+                df_transformed = df_transformed.fillna(method='ffill').fillna(method='bfill')
+                print(f"  - Handled {missing_before} missing values")
+                
+                # Add transformations here
+                # df_transformed['new_col'] = df_transformed['col'].apply(func)
+                
+                return df_transformed
+
+            df_transformed = transform_data(df_raw)
+            print(f"✓ Transformed {len(df_transformed)} rows")
+
+            _end_time = time.perf_counter()
+            _current, _peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            print(f"⏱ Execution time: {_end_time - _start_time:.4f}s")
+            print(f"📊 Memory: current={_current / 1024 / 1024:.2f}MB, peak={_peak / 1024 / 1024:.2f}MB")
+          metadata: {}
+        - id: ef0cb787-b50d-4a74-a9b7-94c31cd3b2a4
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000010"
+          type: text-cell-h2
+          content: Validate
+          metadata: {}
+        - id: 80ad97f9-5587-4a08-b8e7-a9be61bbca06
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000011"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            import time
+            import tracemalloc
+
+            tracemalloc.start()
+            _start_time = time.perf_counter()
+
+            print(f"[{datetime.now()}] Validating...")
+
+            def validate_data(df):
+                """Validate the transformed data."""
+                issues = []
+                
+                # Check for nulls
+                null_counts = df.isnull().sum()
+                if null_counts.any():
+                    issues.append(f"Found null values: {null_counts[null_counts > 0].to_dict()}")
+                
+                # Check for duplicates
+                if df.duplicated().any():
+                    issues.append(f"Found {df.duplicated().sum()} duplicate rows")
+                
+                # Add custom validations
+                # if df['column'].min() < 0:
+                #     issues.append("Negative values found in column")
+                
+                return issues
+
+            if validate_output:
+                issues = validate_data(df_transformed)
+                if issues:
+                    print("✗ Validation issues found:")
+                    for issue in issues:
+                        print(f"  - {issue}")
+                else:
+                    print("✓ Validation passed")
+
+            _end_time = time.perf_counter()
+            _current, _peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            print(f"⏱ Execution time: {_end_time - _start_time:.4f}s")
+            print(f"📊 Memory: current={_current / 1024 / 1024:.2f}MB, peak={_peak / 1024 / 1024:.2f}MB")
+          metadata: {}
+        - id: 1a490383-f460-4a9d-a64b-3d64622d5300
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000012"
+          type: text-cell-h2
+          content: Load
+          metadata: {}
+        - id: 6bd29d84-0ccb-4876-a89c-7108bca56c68
+          blockGroup: edee2354-92b8-4fbb-a29b-e7e925ac39fd
+          sortingKey: "000013"
+          executionCount: null
+          outputs: []
+          type: code
+          content: |-
+            import time
+            import tracemalloc
+
+            tracemalloc.start()
+            _start_time = time.perf_counter()
+
+            print(f"[{datetime.now()}] Loading to destination...")
+
+            # Save to output
+            try:
+                df_transformed.to_csv(output_path, index=False)
+                print(f"✓ Saved {len(df_transformed)} rows to {output_path}")
+            except Exception as e:
+                print(f"✗ Load failed: {e}")
+                raise
+
+            print(f"[{datetime.now()}] ETL pipeline complete!")
+
+            _end_time = time.perf_counter()
+            _current, _peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            print(f"⏱ Execution time: {_end_time - _start_time:.4f}s")
+            print(f"📊 Memory: current={_current / 1024 / 1024:.2f}MB, peak={_peak / 1024 / 1024:.2f}MB")
+          metadata: {}
+      id: 45309fe8-0dcf-4ca7-b1d3-0a0cf596e35a
+      name: Notebook
+version: "1.0"
