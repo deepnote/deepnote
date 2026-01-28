@@ -98,6 +98,19 @@ describe('getBlockLabel', () => {
       // Should skip shebang and return first code line
       expect(getBlockLabel(block)).toBe('import pandas as pd')
     })
+
+    it('returns empty for shebang-only content', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'code',
+        content: '#!/usr/bin/env python\n',
+        metadata: {},
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      // Shebang-only should be treated as empty
+      expect(getBlockLabel(block)).toBe('code (empty)')
+    })
   })
 
   describe('sql blocks', () => {

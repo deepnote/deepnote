@@ -123,13 +123,6 @@ function getTextCellLabel(content: string, type: string): string {
   if (!trimmed) {
     return `${type} (empty)`
   }
-
-  // For headers, show the content directly
-  if (type.includes('-h1') || type.includes('-h2') || type.includes('-h3')) {
-    return truncate(trimmed, MAX_LABEL_LENGTH)
-  }
-
-  // For paragraphs and bullets, show content preview
   return truncate(trimmed, MAX_LABEL_LENGTH)
 }
 
