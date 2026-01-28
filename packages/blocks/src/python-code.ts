@@ -20,6 +20,7 @@ import {
   isInputTextareaBlock,
   isInputTextBlock,
 } from './blocks/input-blocks'
+import { createPythonCodeForNotebookFunctionBlock, isNotebookFunctionBlock } from './blocks/notebook-function-blocks'
 import { createPythonCodeForSqlBlock, isSqlBlock } from './blocks/sql-blocks'
 import { createPythonCodeForVisualizationBlock, isVisualizationBlock } from './blocks/visualization-blocks'
 import type { DeepnoteBlock } from './deserialize-file/deepnote-file-schema'
@@ -75,6 +76,10 @@ export function createPythonCode(block: DeepnoteBlock, executionContext?: Button
 
   if (isBigNumberBlock(block)) {
     return createPythonCodeForBigNumberBlock(block)
+  }
+
+  if (isNotebookFunctionBlock(block)) {
+    return createPythonCodeForNotebookFunctionBlock(block)
   }
 
   throw new UnsupportedBlockTypeError(`Creating python code from block type ${block.type} is not supported yet.`)

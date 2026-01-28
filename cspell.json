@@ -127,6 +127,8 @@
     "workflows",
     "existinghash",
     "encodeddata",
-    "résumé"
+    "résumé",
+    "kpis",
+    "unconfigured"
   ]
 }
