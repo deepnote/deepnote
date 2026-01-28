@@ -7,7 +7,8 @@
     "build/**",
     "coverage/**",
     "*.min.js",
-    "*.min.css"
+    "*.min.css",
+    "**/__marimo__/**"
   ],
   "language": "en",
   "dictionaries": ["docs"],
@@ -123,6 +124,9 @@
     "venv",
     "vscode",
     "windsurf",
-    "workflows"
+    "workflows",
+    "existinghash",
+    "encodeddata",
+    "résumé"
   ]
 }

@@ -11,6 +11,10 @@ export interface ConvertPercentFilesToDeepnoteFileOptions {
   projectName: string
 }
 
+export interface ReadAndConvertPercentFilesOptions {
+  projectName: string
+}
+
 export interface ConvertPercentNotebookOptions {
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
@@ -213,12 +217,17 @@ export function convertPercentNotebooksToDeepnote(
 }
 
 /**
- * Converts multiple percent format (.py) files into a single Deepnote project file.
+ * Reads and converts multiple percent format (.py) files into a DeepnoteFile.
+ * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ *
+ * @param inputFilePaths - Array of paths to percent format .py files
+ * @param options - Conversion options including project name
+ * @returns A DeepnoteFile object
  */
-export async function convertPercentFilesToDeepnoteFile(
+export async function readAndConvertPercentFiles(
   inputFilePaths: string[],
-  options: ConvertPercentFilesToDeepnoteFileOptions
-): Promise<void> {
+  options: ReadAndConvertPercentFilesOptions
+): Promise<DeepnoteFile> {
   const notebooks: PercentNotebookInput[] = []
 
   for (const filePath of inputFilePaths) {
@@ -230,7 +239,19 @@ export async function convertPercentFilesToDeepnoteFile(
     })
   }
 
-  const deepnoteFile = convertPercentNotebooksToDeepnote(notebooks, {
+  return convertPercentNotebooksToDeepnote(notebooks, {
+    projectName: options.projectName,
+  })
+}
+
+/**
+ * Converts multiple percent format (.py) files into a single Deepnote project file.
+ */
+export async function convertPercentFilesToDeepnoteFile(
+  inputFilePaths: string[],
+  options: ConvertPercentFilesToDeepnoteFileOptions
+): Promise<void> {
+  const deepnoteFile = await readAndConvertPercentFiles(inputFilePaths, {
     projectName: options.projectName,
   })
 

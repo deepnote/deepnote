@@ -12,6 +12,10 @@ export interface ConvertIpynbFilesToDeepnoteFileOptions {
   projectName: string
 }
 
+export interface ReadAndConvertIpynbFilesOptions {
+  projectName: string
+}
+
 export interface ConvertJupyterNotebookOptions {
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
@@ -135,12 +139,17 @@ export function convertJupyterNotebooksToDeepnote(
 }
 
 /**
- * Converts multiple Jupyter Notebook (.ipynb) files into a single Deepnote project file.
+ * Reads and converts multiple Jupyter Notebook (.ipynb) files into a DeepnoteFile.
+ * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ *
+ * @param inputFilePaths - Array of paths to .ipynb files
+ * @param options - Conversion options including project name
+ * @returns A DeepnoteFile object
  */
-export async function convertIpynbFilesToDeepnoteFile(
+export async function readAndConvertIpynbFiles(
   inputFilePaths: string[],
-  options: ConvertIpynbFilesToDeepnoteFileOptions
-): Promise<void> {
+  options: ReadAndConvertIpynbFilesOptions
+): Promise<DeepnoteFile> {
   const notebooks: JupyterNotebookInput[] = []
 
   for (const filePath of inputFilePaths) {
@@ -151,16 +160,26 @@ export async function convertIpynbFilesToDeepnoteFile(
     })
   }
 
-  const deepnoteFile = convertJupyterNotebooksToDeepnote(notebooks, {
+  return convertJupyterNotebooksToDeepnote(notebooks, {
+    projectName: options.projectName,
+  })
+}
+
+/**
+ * Converts multiple Jupyter Notebook (.ipynb) files into a single Deepnote project file.
+ */
+export async function convertIpynbFilesToDeepnoteFile(
+  inputFilePaths: string[],
+  options: ConvertIpynbFilesToDeepnoteFileOptions
+): Promise<void> {
+  const deepnoteFile = await readAndConvertIpynbFiles(inputFilePaths, {
     projectName: options.projectName,
   })
 
   const yamlContent = stringify(deepnoteFile)
 
   const parentDir = dirname(options.outputPath)
-
   await fs.mkdir(parentDir, { recursive: true })
-
   await fs.writeFile(options.outputPath, yamlContent, 'utf-8')
 }
 
