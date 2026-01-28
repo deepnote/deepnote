@@ -11,6 +11,10 @@ export interface ConvertQuartoFilesToDeepnoteFileOptions {
   projectName: string
 }
 
+export interface ReadAndConvertQuartoFilesOptions {
+  projectName: string
+}
+
 export interface ConvertQuartoDocumentOptions {
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
@@ -397,12 +401,17 @@ export function convertQuartoDocumentsToDeepnote(
 }
 
 /**
- * Converts multiple Quarto (.qmd) files into a single Deepnote project file.
+ * Reads and converts multiple Quarto (.qmd) files into a DeepnoteFile.
+ * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ *
+ * @param inputFilePaths - Array of paths to .qmd files
+ * @param options - Conversion options including project name
+ * @returns A DeepnoteFile object
  */
-export async function convertQuartoFilesToDeepnoteFile(
+export async function readAndConvertQuartoFiles(
   inputFilePaths: string[],
-  options: ConvertQuartoFilesToDeepnoteFileOptions
-): Promise<void> {
+  options: ReadAndConvertQuartoFilesOptions
+): Promise<DeepnoteFile> {
   const documents: QuartoDocumentInput[] = []
 
   for (const filePath of inputFilePaths) {
@@ -414,7 +423,19 @@ export async function convertQuartoFilesToDeepnoteFile(
     })
   }
 
-  const deepnoteFile = convertQuartoDocumentsToDeepnote(documents, {
+  return convertQuartoDocumentsToDeepnote(documents, {
+    projectName: options.projectName,
+  })
+}
+
+/**
+ * Converts multiple Quarto (.qmd) files into a single Deepnote project file.
+ */
+export async function convertQuartoFilesToDeepnoteFile(
+  inputFilePaths: string[],
+  options: ConvertQuartoFilesToDeepnoteFileOptions
+): Promise<void> {
+  const deepnoteFile = await readAndConvertQuartoFiles(inputFilePaths, {
     projectName: options.projectName,
   })
 
