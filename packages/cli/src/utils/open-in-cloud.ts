@@ -47,14 +47,26 @@ export async function openDeepnoteInCloud(
   progress('Reading file...')
   const fileBuffer = await fs.readFile(absolutePath)
 
-  // Initialize import
-  progress('Preparing upload...')
-  const initResponse = await initImport(fileName, fileSize, domain)
-  debug(`Import initialized: ${initResponse.importId}`)
+  // Initialize import and upload file
+  let initResponse: Awaited<ReturnType<typeof initImport>>
+  try {
+    progress('Preparing upload...')
+    initResponse = await initImport(fileName, fileSize, domain)
+    debug(`Import initialized: ${initResponse.importId}`)
 
-  // Upload file
-  progress('Uploading file...')
-  await uploadFile(initResponse.uploadUrl, fileBuffer)
+    progress('Uploading file...')
+    await uploadFile(initResponse.uploadUrl, fileBuffer)
+  } catch (error) {
+    const originalMessage = error instanceof Error ? error.message : String(error)
+    const originalStack = error instanceof Error ? error.stack : undefined
+    const contextualError = new Error(
+      `Failed to upload file "${fileName}" (size: ${fileSize} bytes, domain: ${domain}): ${originalMessage}`
+    )
+    if (originalStack) {
+      contextualError.stack = `${contextualError.message}\n${originalStack.split('\n').slice(1).join('\n')}`
+    }
+    throw contextualError
+  }
 
   // Build and open the launch URL
   const launchUrl = buildLaunchUrl(initResponse.importId, domain)

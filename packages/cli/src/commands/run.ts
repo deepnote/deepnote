@@ -779,7 +779,15 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       // If the file was converted, we need to write a temp .deepnote file to upload
       if (convertedFile.wasConverted) {
         const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-run-'))
-        tempFile = join(tempDir, `${file.project.name || 'project'}.deepnote`)
+        // Sanitize project name to prevent path traversal attacks
+        const rawName = file.project.name || 'project'
+        const safeName =
+          rawName
+            .replace(/[/\\]/g, '_') // Replace path separators
+            .replace(/\.\./g, '_') // Replace parent directory references
+            .replace(/^\.+/, '') || // Remove leading dots
+          'project' // Fallback if empty after sanitization
+        tempFile = join(tempDir, `${safeName}.deepnote`)
         const yamlContent = serializeToYaml(file)
         await fs.writeFile(tempFile, yamlContent, 'utf-8')
         fileToOpen = tempFile

@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import os from 'node:os'
 import { join } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
@@ -40,6 +42,12 @@ vi.mock('@deepnote/reactivity', () => {
     getBlockDependencies: (...args: unknown[]) => mockGetBlockDependencies(...args),
   }
 })
+
+// Mock openDeepnoteInCloud for --open flag tests
+const mockOpenDeepnoteInCloud = vi.fn()
+vi.mock('../utils/open-in-cloud', () => ({
+  openDeepnoteInCloud: (...args: unknown[]) => mockOpenDeepnoteInCloud(...args),
+}))
 
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
 
@@ -1687,12 +1695,23 @@ describe('run command', () => {
       })
 
       it('throws error for plain .py files without cell markers', async () => {
-        // Create a temp file path that doesn't exist but has .py extension
-        // This tests that we properly detect format issues
-        await expect(action('regular-script.py', { dryRun: true })).rejects.toThrow('program.error called')
+        // Create a real temp .py file with plain Python code (no cell markers)
+        const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'run-test-'))
+        const tempFile = join(tempDir, 'plain-script.py')
+        fs.writeFileSync(tempFile, 'print("hello world")\nx = 1 + 2\n')
 
-        const errorArg = programErrorSpy.mock.calls[0][0]
-        expect(errorArg).toContain('not found')
+        try {
+          await expect(action(tempFile, { dryRun: true })).rejects.toThrow('program.error called')
+
+          const errorArg = programErrorSpy.mock.calls[0][0]
+          // Should fail with format validation error, not "file not found"
+          expect(errorArg).toContain('Unsupported Python file format')
+          expect(errorArg).toContain('# %%')
+          expect(errorArg).toContain('@app.cell')
+        } finally {
+          // Clean up temp files
+          fs.rmSync(tempDir, { recursive: true })
+        }
       })
 
       it('returns JSON error for unsupported format', async () => {
@@ -1736,6 +1755,68 @@ describe('run command', () => {
         expect(mockRunProject).toHaveBeenCalled()
         const firstArg = mockRunProject.mock.calls[0][0]
         expect(firstArg).toHaveProperty('project')
+      })
+    })
+
+    describe('--open flag', () => {
+      beforeEach(() => {
+        mockOpenDeepnoteInCloud.mockReset()
+        mockOpenDeepnoteInCloud.mockResolvedValue({
+          url: 'https://deepnote.com/launch?importId=test-id',
+          importId: 'test-id',
+        })
+      })
+
+      it('opens in Deepnote Cloud after successful execution with native .deepnote file', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { open: true })
+
+        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
+        // Should be called with the original file path (or a path ending in .deepnote)
+        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        expect(calledPath).toContain('.deepnote')
+      })
+
+      it('opens in Deepnote Cloud after successful execution with converted .ipynb file', async () => {
+        setupSuccessfulRun()
+
+        await action(JUPYTER_FILE, { open: true })
+
+        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
+        // For converted files, a temp .deepnote file is created
+        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        expect(calledPath).toContain('.deepnote')
+      })
+
+      it('does not open in Deepnote Cloud when execution fails', async () => {
+        setupSuccessfulRun({ failedBlocks: 1 })
+
+        await action(HELLO_WORLD_FILE, { open: true })
+
+        expect(mockOpenDeepnoteInCloud).not.toHaveBeenCalled()
+      })
+
+      it('does not open when --open flag is not set', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, {})
+
+        expect(mockOpenDeepnoteInCloud).not.toHaveBeenCalled()
+      })
+
+      it('cleans up temp file after uploading converted file', async () => {
+        setupSuccessfulRun()
+
+        await action(JUPYTER_FILE, { open: true })
+
+        expect(mockOpenDeepnoteInCloud).toHaveBeenCalled()
+        // The temp file should be cleaned up (verify by checking the path no longer exists)
+        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        // If it was a temp file, it should have been in os.tmpdir()
+        if (calledPath.includes(os.tmpdir())) {
+          expect(fs.existsSync(calledPath)).toBe(false)
+        }
       })
     })
   })

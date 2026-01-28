@@ -1,18 +1,9 @@
-import fs from 'node:fs/promises'
-import { basename } from 'node:path'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
-import { openInBrowser } from '../utils/browser'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
-import {
-  buildLaunchUrl,
-  DEFAULT_DOMAIN,
-  getErrorMessage,
-  initImport,
-  uploadFile,
-  validateFileSize,
-} from '../utils/import-client'
+import { getErrorMessage } from '../utils/import-client'
+import { openDeepnoteInCloud } from '../utils/open-in-cloud'
 
 export interface OpenOptions {
   domain?: string
@@ -41,52 +32,23 @@ export function createOpenAction(_program: Command): (path: string | undefined, 
 
 async function openDeepnoteFile(path: string | undefined, options: OpenOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const domain = options.domain ?? DEFAULT_DOMAIN
-  const fileName = basename(absolutePath)
-
   const c = getChalk()
+  const isJsonOutput = options.output === 'json'
 
-  // Helper to output progress (suppressed in JSON mode)
-  const progress = (message: string) => {
-    if (options.output !== 'json') {
-      output(`${c.dim(message)}`)
-    }
-  }
+  const result = await openDeepnoteInCloud(absolutePath, {
+    domain: options.domain,
+    quiet: isJsonOutput,
+  })
 
-  // Validate file size
-  progress('Validating file...')
-  const fileSize = await validateFileSize(absolutePath)
-  debug(`File size: ${fileSize} bytes`)
-
-  // Read file contents
-  progress('Reading file...')
-  const fileBuffer = await fs.readFile(absolutePath)
-
-  // Initialize import
-  progress('Preparing upload...')
-  const initResponse = await initImport(fileName, fileSize, domain)
-  debug(`Import initialized: ${initResponse.importId}`)
-
-  // Upload file
-  progress('Uploading file...')
-  await uploadFile(initResponse.uploadUrl, fileBuffer)
-
-  // Build and open the launch URL
-  const launchUrl = buildLaunchUrl(initResponse.importId, domain)
-  debug(`Launch URL: ${launchUrl}`)
-
-  progress('Opening in browser...')
-  await openInBrowser(launchUrl)
-
-  if (options.output === 'json') {
+  if (isJsonOutput) {
     outputJson({
       success: true,
       path: absolutePath,
-      url: launchUrl,
-      importId: initResponse.importId,
+      url: result.url,
+      importId: result.importId,
     })
   } else {
     output(`${c.green('✓')} Opened in Deepnote`)
-    output(`${c.dim('URL:')} ${launchUrl}`)
+    output(`${c.dim('URL:')} ${result.url}`)
   }
 }

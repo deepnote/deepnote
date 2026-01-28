@@ -93,7 +93,17 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
   // Jupyter Notebook
   if (ext === '.ipynb') {
     debug(`Converting Jupyter notebook: ${absolutePath}`)
-    const notebook = JSON.parse(content) as JupyterNotebook
+
+    let notebook: JupyterNotebook
+    try {
+      notebook = JSON.parse(content) as JupyterNotebook
+    } catch (parseError) {
+      const message = parseError instanceof Error ? parseError.message : String(parseError)
+      throw new FileResolutionError(
+        `Invalid Jupyter notebook: ${absolutePath}\n\n` + `The file is not valid JSON. Parse error: ${message}`
+      )
+    }
+
     const file = convertJupyterNotebooksToDeepnote([{ filename, notebook }], { projectName })
     return {
       file,
@@ -118,7 +128,13 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
 
   // Python file - detect percent or marimo format
   if (ext === '.py') {
-    const detectedFormat = detectFormat(absolutePath, content)
+    let detectedFormat: ReturnType<typeof detectFormat>
+    try {
+      detectedFormat = detectFormat(absolutePath, content)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new FileResolutionError(`Could not detect Python notebook format for: ${absolutePath}\n\n${message}`)
+    }
 
     if (detectedFormat === 'marimo') {
       debug(`Converting Marimo notebook: ${absolutePath}`)

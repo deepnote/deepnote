@@ -52,7 +52,7 @@ export function createConvertAction(_program: Command): (inputPath: string, opti
         }
       } else if (options.open && result.outputFormat !== 'deepnote') {
         const c = getChalk()
-        logError(c.yellow('--open is only available when converting to .deepnote format'))
+        output(c.yellow('Warning: --open is only available when converting to .deepnote format'))
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

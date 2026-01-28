@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import os from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FileResolutionError } from './file-resolver'
@@ -10,6 +12,8 @@ const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const JUPYTER_FIXTURE = join('test-fixtures', 'formats', 'jupyter', 'basic.ipynb')
 const PERCENT_FIXTURE = join('test-fixtures', 'formats', 'percent', 'basic-cells.percent.py')
 const QUARTO_FIXTURE = join('test-fixtures', 'formats', 'quarto', 'basic.qmd')
+const MARIMO_FIXTURE = join('test-fixtures', 'formats', 'marimo', 'basic-app.marimo.py')
+const PLAIN_PY_FIXTURE = join('test-fixtures', 'formats', 'plain-python', 'script.py')
 
 describe('format-converter', () => {
   describe('RUNNABLE_EXTENSIONS', () => {
@@ -120,6 +124,18 @@ describe('format-converter', () => {
       })
     })
 
+    describe('with Marimo notebooks', () => {
+      it('converts marimo .py files to DeepnoteFile', async () => {
+        const result = await resolveAndConvertToDeepnote(MARIMO_FIXTURE)
+
+        expect(result.format).toBe('marimo')
+        expect(result.wasConverted).toBe(true)
+        expect(result.file).toBeDefined()
+        expect(result.file.project).toBeDefined()
+        expect(result.originalPath).toContain('.py')
+      })
+    })
+
     describe('error handling', () => {
       it('throws FileResolutionError for non-existent files', async () => {
         await expect(resolveAndConvertToDeepnote('non-existent.deepnote')).rejects.toThrow(FileResolutionError)
@@ -130,9 +146,28 @@ describe('format-converter', () => {
         await expect(resolveAndConvertToDeepnote('package.json')).rejects.toThrow('Unsupported file type')
       })
 
+      it('throws FileResolutionError for plain Python files without notebook format', async () => {
+        await expect(resolveAndConvertToDeepnote(PLAIN_PY_FIXTURE)).rejects.toThrow(FileResolutionError)
+      })
+
       it('throws FileResolutionError for directories', async () => {
         await expect(resolveAndConvertToDeepnote('examples')).rejects.toThrow(FileResolutionError)
         await expect(resolveAndConvertToDeepnote('examples')).rejects.toThrow('Directory paths are not supported')
+      })
+
+      it('throws user-friendly error for malformed .ipynb JSON', async () => {
+        // Create a temp .ipynb file with invalid JSON
+        const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'format-converter-test-'))
+        const tempFile = join(tempDir, 'malformed.ipynb')
+        fs.writeFileSync(tempFile, '{ invalid json content }')
+
+        try {
+          await expect(resolveAndConvertToDeepnote(tempFile)).rejects.toThrow(FileResolutionError)
+          await expect(resolveAndConvertToDeepnote(tempFile)).rejects.toThrow('Invalid Jupyter notebook')
+          await expect(resolveAndConvertToDeepnote(tempFile)).rejects.toThrow('not valid JSON')
+        } finally {
+          fs.rmSync(tempDir, { recursive: true })
+        }
       })
     })
   })
