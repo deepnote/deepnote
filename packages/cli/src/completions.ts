@@ -141,7 +141,11 @@ _deepnote_completions() {
         show|vars|downstream)
             # Complete .deepnote files and flags for dag subcommands
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "-o --output --notebook --python -b --block" -- "\${cur}") )
+                if [[ "\${prev}" == "downstream" ]]; then
+                    COMPREPLY=( $(compgen -W "-o --output --notebook --python -b --block" -- "\${cur}") )
+                else
+                    COMPREPLY=( $(compgen -W "-o --output --notebook --python" -- "\${cur}") )
+                fi
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
