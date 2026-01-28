@@ -1,3 +1,4 @@
+export { UnsupportedBlockTypeError } from './blocks'
 export { isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
 export type { TableState } from './blocks/table-state'
 export type {

@@ -23,6 +23,13 @@ import { debug, log, error as logError, type OutputFormat, output, outputJson, o
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import {
+  type BlockProfile,
+  displayMetrics,
+  displayProfileSummary,
+  fetchMetrics,
+  formatMemoryDelta,
+} from '../utils/metrics'
 
 /**
  * Error thrown when required inputs are missing.
@@ -61,6 +68,8 @@ export interface RunOptions {
   listInputs?: boolean
   output?: OutputFormat
   dryRun?: boolean
+  top?: boolean
+  profile?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -583,22 +592,60 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
 
+  // Profiling: track memory before each block and collect profile data
+  const showProfile = options.profile && !isMachineOutput
+  const blockProfiles: BlockProfile[] = []
+  const memoryBefore = new Map<string, number>()
+
+  // Set up metrics monitoring if --top is enabled
+  const showTop = options.top && !isMachineOutput
+  let metricsInterval: ReturnType<typeof setInterval> | null = null
+
+  if (showTop && engine.serverPort) {
+    const port = engine.serverPort
+    // Show initial metrics
+    const initialMetrics = await fetchMetrics(port)
+    if (initialMetrics) {
+      displayMetrics(initialMetrics)
+      output('')
+    }
+
+    // Update metrics periodically during execution
+    metricsInterval = setInterval(async () => {
+      const metrics = await fetchMetrics(port)
+      if (metrics) {
+        // Move cursor up, clear line, display metrics, move back down
+        process.stdout.write('\x1b[s') // Save cursor position
+        displayMetrics(metrics)
+        process.stdout.write('\x1b[u') // Restore cursor position
+      }
+    }, 2000)
+  }
+
   try {
     const summary = await engine.runFile(absolutePath, {
       notebookName: options.notebook,
       blockId: options.block,
       inputs,
 
-      onBlockStart: (block: RuntimeDeepnoteBlock, index: number, total: number) => {
+      onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
         const label = getBlockLabel(block)
         blockLabels.set(block.id, label)
+
+        // Capture memory before block execution for profiling
+        if (showProfile && engine.serverPort) {
+          const metrics = await fetchMetrics(engine.serverPort)
+          if (metrics) {
+            memoryBefore.set(block.id, metrics.rss)
+          }
+        }
 
         if (!isMachineOutput) {
           process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
-      onBlockDone: (result: BlockExecutionResult) => {
+      onBlockDone: async (result: BlockExecutionResult) => {
         // Collect result for machine-readable output
         const label = blockLabels.get(result.blockId) ?? result.blockType
         blockLabels.delete(result.blockId) // Clean up to avoid memory growth
@@ -612,9 +659,35 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
           error: result.error?.message,
         })
 
+        // Capture memory after block and calculate delta for profiling
+        let memoryDeltaStr = ''
+        if (showProfile && engine.serverPort) {
+          const hasBefore = memoryBefore.has(result.blockId)
+          const before = memoryBefore.get(result.blockId)
+          memoryBefore.delete(result.blockId) // Clean up
+
+          // Only compute delta if we have both before and after measurements
+          if (hasBefore && before !== undefined) {
+            const metrics = await fetchMetrics(engine.serverPort)
+            if (metrics) {
+              const delta = metrics.rss - before
+              memoryDeltaStr = `, ${formatMemoryDelta(delta)}`
+
+              blockProfiles.push({
+                id: result.blockId,
+                label,
+                durationMs: result.durationMs,
+                memoryBefore: before,
+                memoryAfter: metrics.rss,
+                memoryDelta: delta,
+              })
+            }
+          }
+        }
+
         if (!isMachineOutput) {
           if (result.success) {
-            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms)`))
+            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
           } else {
             output(chalk.red('✗'))
           }
@@ -656,6 +729,20 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       // Print summary
       output(chalk.dim('─'.repeat(50)))
 
+      // Show final resource usage if --top was enabled
+      if (showTop && engine.serverPort) {
+        const finalMetrics = await fetchMetrics(engine.serverPort)
+        if (finalMetrics) {
+          output(chalk.bold('Final resource usage:'))
+          displayMetrics(finalMetrics)
+        }
+      }
+
+      // Show profile summary if --profile was enabled
+      if (showProfile && blockProfiles.length > 0) {
+        displayProfileSummary(blockProfiles)
+      }
+
       if (summary.failedBlocks > 0) {
         output(
           chalk.red(
@@ -670,6 +757,10 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       process.exitCode = exitCode
     }
   } finally {
+    if (metricsInterval) {
+      clearInterval(metricsInterval)
+      metricsInterval = null
+    }
     await engine.stop()
   }
 }

@@ -7,7 +7,7 @@ import ora from 'ora'
 import { stringify } from 'yaml'
 
 import {
-  convertDeepnoteFileToJupyter,
+  convertDeepnoteFileToJupyterFiles,
   convertDeepnoteFileToMarimoFiles,
   convertDeepnoteFileToPercentFiles,
   convertDeepnoteFileToQuartoFiles,
@@ -375,7 +375,7 @@ async function convertDeepnoteToFormat(
 
       switch (outputFormat) {
         case 'jupyter':
-          await convertDeepnoteFileToJupyter(tempPath, { outputDir })
+          await convertDeepnoteFileToJupyterFiles(tempPath, { outputDir })
           break
         case 'percent':
           await convertDeepnoteFileToPercentFiles(tempPath, { outputDir })

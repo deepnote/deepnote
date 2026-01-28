@@ -1,0 +1,11 @@
+---
+title: "My Document"
+author: John Doe
+jupyter: python3
+---
+
+# Content here
+
+```{python}
+x = 1
+```

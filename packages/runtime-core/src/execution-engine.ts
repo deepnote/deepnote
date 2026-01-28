@@ -37,9 +37,9 @@ export interface ExecutionOptions {
    * These will be set before any blocks are executed.
    */
   inputs?: Record<string, unknown>
-  /** Callback functions */
-  onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void
-  onBlockDone?: (result: BlockExecutionResult) => void
+  /** Callback functions (may be async) */
+  onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
+  onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
   onServerStarting?: () => void
   onServerReady?: () => void
@@ -69,6 +69,13 @@ export class ExecutionEngine {
   private kernel: KernelClient | null = null
 
   constructor(private readonly config: RuntimeConfig) {}
+
+  /**
+   * Get the Jupyter server port (available after start() is called).
+   */
+  get serverPort(): number | null {
+    return this.server?.jupyterPort ?? null
+  }
 
   /**
    * Start the deepnote-toolkit server and connect to the kernel.
@@ -172,7 +179,7 @@ export class ExecutionEngine {
       const { block } = allExecutableBlocks[i]
       const blockStart = Date.now()
 
-      options.onBlockStart?.(block, i, totalBlocks)
+      await options.onBlockStart?.(block, i, totalBlocks)
 
       try {
         const code = createPythonCode(block)
@@ -189,7 +196,7 @@ export class ExecutionEngine {
           durationMs: Date.now() - blockStart,
         }
 
-        options.onBlockDone?.(blockResult)
+        await options.onBlockDone?.(blockResult)
         executedBlocks++
 
         if (!result.success) {
@@ -209,7 +216,7 @@ export class ExecutionEngine {
           durationMs: Date.now() - blockStart,
           error: error instanceof Error ? error : new Error(String(error)),
         }
-        options.onBlockDone?.(blockResult)
+        await options.onBlockDone?.(blockResult)
         break
       }
     }
