@@ -242,7 +242,11 @@ describe('run command', () => {
     it('calls onBlockStart callback with block info', async () => {
       mockStart.mockResolvedValue(undefined)
       mockRunFile.mockImplementation(async (_path, options) => {
-        options?.onBlockStart?.({ id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} }, 0, 2)
+        options?.onBlockStart?.(
+          { id: 'block-1', type: 'code', content: '# Test block', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+          0,
+          2
+        )
         return { totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 100 }
       })
       mockStop.mockResolvedValue(undefined)
@@ -250,9 +254,9 @@ describe('run command', () => {
       await action(HELLO_WORLD_FILE, {})
 
       const stdoutOutput = stdoutWriteSpy.mock.calls.map(call => call.join('')).join('')
+      // Block label now shows content preview (first comment line) instead of type + ID
       expect(stdoutOutput).toContain('[1/2]')
-      expect(stdoutOutput).toContain('code')
-      expect(stdoutOutput).toContain('block-1')
+      expect(stdoutOutput).toContain('# Test block')
     })
 
     it('calls onBlockDone callback and prints check mark for success', async () => {
@@ -1391,7 +1395,8 @@ describe('run command', () => {
 
       const output = getOutput(consoleLogSpy)
       expect(output).toContain('[1/')
-      expect(output).toContain('code')
+      // Block label shows content preview (first line of code)
+      expect(output).toContain('print("Hello world!")')
     })
 
     it('shows total block count in summary', async () => {

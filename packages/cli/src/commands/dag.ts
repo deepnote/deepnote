@@ -180,7 +180,7 @@ function outputDagShow(
     return
   }
 
-  // Text output
+  // Text output - tree style visualization
   console.log(
     `${chalk.bold('Dependency Graph')} ${chalk.dim(`(${dag.nodes.length} blocks, ${dag.edges.length} edges)`)}`
   )
@@ -191,29 +191,223 @@ function outputDagShow(
     return
   }
 
-  // Group edges by source block
-  const edgesBySource = new Map<string, typeof dag.edges>()
+  // Build adjacency structures
+  const childrenMap = buildChildrenMap(dag)
+  const nodeMap = buildNodeMap(dag)
+  const rootNodes = findRootNodes(dag)
+
+  // Track which nodes have been fully rendered
+  const rendered = new Set<string>()
+
+  // Render each root and its subtree
+  for (let i = 0; i < rootNodes.length; i++) {
+    const isLast = i === rootNodes.length - 1
+    renderTreeNode(rootNodes[i], '', isLast, childrenMap, nodeMap, blockMap, rendered)
+  }
+}
+
+/**
+ * Build a map of node ID -> child IDs (nodes that depend on this node).
+ */
+function buildChildrenMap(dag: BlockDependencyDag): Map<string, { id: string; variables: string[] }[]> {
+  const children = new Map<string, { id: string; variables: string[] }[]>()
+
   for (const edge of dag.edges) {
-    const existing = edgesBySource.get(edge.from) ?? []
-    existing.push(edge)
-    edgesBySource.set(edge.from, existing)
+    const existing = children.get(edge.from) ?? []
+    existing.push({ id: edge.to, variables: edge.inputVariables })
+    children.set(edge.from, existing)
   }
 
-  // Show dependencies
-  for (const [sourceId, edges] of edgesBySource) {
-    const sourceInfo = blockMap.get(sourceId)
-    const sourceLabel = sourceInfo?.label ?? sourceId
+  return children
+}
 
-    console.log(`${chalk.cyan(sourceLabel)} ${chalk.dim(`(${sourceInfo?.type ?? 'unknown'})`)}`)
+/**
+ * Build a map of node ID -> DagNode.
+ */
+function buildNodeMap(dag: BlockDependencyDag): Map<string, DagNode> {
+  const map = new Map<string, DagNode>()
+  for (const node of dag.nodes) {
+    map.set(node.id, node)
+  }
+  return map
+}
 
-    for (const edge of edges) {
-      const targetInfo = blockMap.get(edge.to)
-      const targetLabel = targetInfo?.label ?? edge.to
-      const vars = edge.inputVariables.join(', ')
+/**
+ * Find root nodes (nodes with no incoming edges).
+ * Returns nodes sorted by their order in the DAG.
+ */
+function findRootNodes(dag: BlockDependencyDag): string[] {
+  const hasIncoming = new Set<string>()
+  for (const edge of dag.edges) {
+    hasIncoming.add(edge.to)
+  }
 
-      console.log(`  ${chalk.dim('→')} ${targetLabel} ${chalk.dim(`via ${vars}`)}`)
-    }
-    console.log()
+  const roots = dag.nodes.filter(node => !hasIncoming.has(node.id)).map(node => node.id)
+
+  // Sort by order
+  const nodeMap = buildNodeMap(dag)
+  roots.sort((a, b) => (nodeMap.get(a)?.order ?? 0) - (nodeMap.get(b)?.order ?? 0))
+
+  return roots
+}
+
+/**
+ * Render a node and its subtree in tree format.
+ */
+function renderTreeNode(
+  nodeId: string,
+  prefix: string,
+  isLast: boolean,
+  childrenMap: Map<string, { id: string; variables: string[] }[]>,
+  nodeMap: Map<string, DagNode>,
+  blockMap: BlockMap,
+  rendered: Set<string>
+): void {
+  const info = blockMap.get(nodeId)
+  const node = nodeMap.get(nodeId)
+  const label = info?.label ?? nodeId
+
+  // Tree connectors
+  const connector = isLast ? '└── ' : '├── '
+  const childPrefix = isLast ? '    ' : '│   '
+
+  // Check if this node was already rendered (DAG handling)
+  const alreadyRendered = rendered.has(nodeId)
+  rendered.add(nodeId)
+
+  // Render the node line
+  const typeIndicator = chalk.dim(`[${info?.type ?? 'unknown'}]`)
+  if (alreadyRendered) {
+    console.log(`${prefix}${connector}${chalk.cyan(label)} ${typeIndicator} ${chalk.yellow('*')}`)
+    return
+  }
+
+  console.log(`${prefix}${connector}${chalk.cyan(label)} ${typeIndicator}`)
+
+  // Show defined variables if any
+  const outputVars = node?.outputVariables ?? []
+  if (outputVars.length > 0) {
+    const varsLine = `${prefix}${childPrefix}${chalk.dim('defines:')} ${chalk.green(outputVars.join(', '))}`
+    console.log(varsLine)
+  }
+
+  // Get children (downstream nodes) and deduplicate by target ID
+  // Merge edges to the same child (combine their variables)
+  const childrenRaw = childrenMap.get(nodeId) ?? []
+  const childrenById = new Map<string, string[]>()
+  for (const child of childrenRaw) {
+    const existing = childrenById.get(child.id) ?? []
+    existing.push(...child.variables)
+    childrenById.set(child.id, existing)
+  }
+  const children = Array.from(childrenById.entries()).map(([id, vars]) => ({
+    id,
+    variables: [...new Set(vars)], // deduplicate variables
+  }))
+
+  // Sort children by their order in the DAG
+  children.sort((a, b) => {
+    const orderA = nodeMap.get(a.id)?.order ?? 0
+    const orderB = nodeMap.get(b.id)?.order ?? 0
+    return orderA - orderB
+  })
+
+  // Render children
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i]
+    const isLastChild = i === children.length - 1
+    const varsDisplay = child.variables.length > 0 ? chalk.dim(` via ${child.variables.join(', ')}`) : ''
+
+    renderTreeNodeWithVars(
+      child.id,
+      prefix + childPrefix,
+      isLastChild,
+      varsDisplay,
+      childrenMap,
+      nodeMap,
+      blockMap,
+      rendered
+    )
+  }
+}
+
+/**
+ * Render a node with variable flow annotation.
+ */
+function renderTreeNodeWithVars(
+  nodeId: string,
+  prefix: string,
+  isLast: boolean,
+  varsDisplay: string,
+  childrenMap: Map<string, { id: string; variables: string[] }[]>,
+  nodeMap: Map<string, DagNode>,
+  blockMap: BlockMap,
+  rendered: Set<string>
+): void {
+  const info = blockMap.get(nodeId)
+  const node = nodeMap.get(nodeId)
+  const label = info?.label ?? nodeId
+
+  // Tree connectors
+  const connector = isLast ? '└─► ' : '├─► '
+  const childPrefix = isLast ? '    ' : '│   '
+
+  // Check if this node was already rendered (DAG handling)
+  const alreadyRendered = rendered.has(nodeId)
+  rendered.add(nodeId)
+
+  // Render the node line with variable flow
+  const typeIndicator = chalk.dim(`[${info?.type ?? 'unknown'}]`)
+  if (alreadyRendered) {
+    console.log(`${prefix}${connector}${chalk.cyan(label)} ${typeIndicator}${varsDisplay} ${chalk.yellow('*')}`)
+    return
+  }
+
+  console.log(`${prefix}${connector}${chalk.cyan(label)} ${typeIndicator}${varsDisplay}`)
+
+  // Show defined variables if any
+  const outputVars = node?.outputVariables ?? []
+  if (outputVars.length > 0) {
+    const varsLine = `${prefix}${childPrefix}${chalk.dim('defines:')} ${chalk.green(outputVars.join(', '))}`
+    console.log(varsLine)
+  }
+
+  // Get children (downstream nodes) and deduplicate by target ID
+  const childrenRaw = childrenMap.get(nodeId) ?? []
+  const childrenById = new Map<string, string[]>()
+  for (const child of childrenRaw) {
+    const existing = childrenById.get(child.id) ?? []
+    existing.push(...child.variables)
+    childrenById.set(child.id, existing)
+  }
+  const children = Array.from(childrenById.entries()).map(([id, vars]) => ({
+    id,
+    variables: [...new Set(vars)],
+  }))
+
+  // Sort children by their order in the DAG
+  children.sort((a, b) => {
+    const orderA = nodeMap.get(a.id)?.order ?? 0
+    const orderB = nodeMap.get(b.id)?.order ?? 0
+    return orderA - orderB
+  })
+
+  // Render children
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i]
+    const isLastChild = i === children.length - 1
+    const childVarsDisplay = child.variables.length > 0 ? chalk.dim(` via ${child.variables.join(', ')}`) : ''
+
+    renderTreeNodeWithVars(
+      child.id,
+      prefix + childPrefix,
+      isLastChild,
+      childVarsDisplay,
+      childrenMap,
+      nodeMap,
+      blockMap,
+      rendered
+    )
   }
 }
 
