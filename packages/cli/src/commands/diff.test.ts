@@ -365,8 +365,14 @@ describe('diff command', () => {
 
       await action(file1, file2, { content: true })
 
-      // Should run without error
+      // Should run without error and produce diff output with diff markers
       expect(consoleSpy).toHaveBeenCalled()
+      const output = getOutput(consoleSpy)
+      // Verify the output contains diff markers (lines with + or - prefixes for added/removed items)
+      // The output format has leading spaces before markers, e.g. "  + Added:" or "  - Removed:"
+      expect(output).toMatch(/^\s+[+-]\s+(Added|Removed):/m)
+      // Verify specific notebook names from the example files appear in the diff
+      expect(output).toMatch(/Hello World|Text blocks|Input blocks/)
     })
 
     it('shows summary with block counts', async () => {
@@ -605,9 +611,11 @@ version: 1.0.0
       await action(file1Path, file2Path, { content: true })
 
       const output = getOutput(consoleSpy)
-      // Should show removed block with minus and added block with plus
-      expect(output).toContain('-')
-      expect(output).toContain('+')
+      // Should show removed block content with minus prefix and added block content with plus prefix
+      // The original block has print('original') and the new block has print('new')
+      // Output format has leading whitespace before the diff markers: "        - print('original')"
+      expect(output).toMatch(/^\s+-\s.*print\('original'\)/m)
+      expect(output).toMatch(/^\s+\+\s.*print\('new'\)/m)
     })
 
     it('includes contentDiff for added blocks in JSON', async () => {
