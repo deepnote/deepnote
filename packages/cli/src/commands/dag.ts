@@ -316,6 +316,8 @@ function renderTreeNode(
   const alreadyRendered = rendered.has(nodeId)
   rendered.add(nodeId)
 
+  const c = getChalk()
+
   // Render the node line
   const typeIndicator = c.dim(`[${info?.type ?? 'unknown'}]`)
   if (alreadyRendered) {

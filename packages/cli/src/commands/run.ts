@@ -643,8 +643,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         }
 
         if (!isMachineOutput) {
-          const c = getChalk()
-          process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
+          process.stdout.write(`${getChalk().cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
