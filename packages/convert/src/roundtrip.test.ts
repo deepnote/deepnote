@@ -8,7 +8,7 @@ import { convertDeepnoteToJupyterNotebooks } from './deepnote-to-jupyter'
 import { convertJupyterNotebooksToDeepnote } from './jupyter-to-deepnote'
 import type { JupyterNotebook } from './types/jupyter'
 
-const testFixturesDir = join(__dirname, '../test-fixtures')
+const testFixturesDir = join(__dirname, '../../../test-fixtures')
 
 describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
   it('preserves notebook content', async () => {
@@ -324,6 +324,49 @@ describe('Jupyter → Deepnote → Jupyter roundtrip', () => {
         expect(roundtripped.cells[i].outputs).toEqual(original.cells[i].outputs)
       }
     }
+  })
+})
+
+describe('Notebook-function blocks roundtrip', () => {
+  it('preserves notebook-function blocks during Deepnote → Jupyter → Deepnote', async () => {
+    const inputPath = join(testFixturesDir, 'Dashboard-using-modules.deepnote')
+    const originalYaml = await fs.readFile(inputPath, 'utf-8')
+    const original = deserializeDeepnoteFile(originalYaml)
+
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
+    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+      projectName: original.project.name,
+    })
+
+    // Find the notebook-function block in the Dashboard notebook
+    const originalDashboard = original.project.notebooks.find(n => n.name === 'Dashboard')
+    const roundtrippedDashboard = roundtripped.project.notebooks.find(n => n.name === 'Dashboard')
+
+    expect(originalDashboard).toBeDefined()
+    expect(roundtrippedDashboard).toBeDefined()
+
+    const originalBlock = originalDashboard?.blocks.find(b => b.type === 'notebook-function')
+    const roundtrippedBlock = roundtrippedDashboard?.blocks.find(b => b.type === 'notebook-function')
+
+    expect(originalBlock).toBeDefined()
+    expect(roundtrippedBlock).toBeDefined()
+
+    // Verify block type is preserved
+    expect(roundtrippedBlock?.type).toBe('notebook-function')
+
+    // Verify block identifiers are preserved
+    expect(roundtrippedBlock?.id).toBe(originalBlock?.id)
+    expect(roundtrippedBlock?.sortingKey).toBe(originalBlock?.sortingKey)
+    expect(roundtrippedBlock?.blockGroup).toBe(originalBlock?.blockGroup)
+
+    // Verify notebook-function specific metadata is preserved
+    expect(roundtrippedBlock?.metadata.function_notebook_id).toBe(originalBlock?.metadata.function_notebook_id)
+    expect(roundtrippedBlock?.metadata.function_notebook_inputs).toEqual(
+      originalBlock?.metadata.function_notebook_inputs
+    )
+    expect(roundtrippedBlock?.metadata.function_notebook_export_mappings).toEqual(
+      originalBlock?.metadata.function_notebook_export_mappings
+    )
   })
 })
 

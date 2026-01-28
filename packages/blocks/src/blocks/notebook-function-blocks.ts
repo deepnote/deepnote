@@ -1,6 +1,7 @@
 import { dedent } from 'ts-dedent'
 
 import type { DeepnoteBlock, NotebookFunctionBlock } from '../deserialize-file/deepnote-file-schema'
+import { escapePythonString } from './python-utils'
 
 export function isNotebookFunctionBlock(block: DeepnoteBlock): block is NotebookFunctionBlock {
   return block.type === 'notebook-function'
@@ -16,7 +17,6 @@ export function createPythonCodeForNotebookFunctionBlock(block: NotebookFunction
   const inputs = block.metadata?.function_notebook_inputs ?? {}
   const exportMappings = (block.metadata?.function_notebook_export_mappings ?? {}) as Record<string, ExportMapping>
 
-  // Handle unconfigured blocks (no notebook_id set)
   if (!notebookId) {
     return dedent`
       # Notebook Function: Not configured
@@ -24,31 +24,32 @@ export function createPythonCodeForNotebookFunctionBlock(block: NotebookFunction
     `
   }
 
-  // Filter to only enabled exports
   const enabledExports = Object.entries(exportMappings).filter(([, mapping]) => mapping.enabled)
 
-  // Build the inputs dictionary string
-  const inputsStr = JSON.stringify(inputs)
+  const inputsAsString = JSON.stringify(inputs)
 
-  // Build the export_mappings dictionary string
   const exportMappingsDict: Record<string, string> = {}
+
   for (const [exportName, mapping] of enabledExports) {
     exportMappingsDict[exportName] = mapping.variable_name
   }
-  const exportMappingsStr = JSON.stringify(exportMappingsDict)
+
+  const exportMappingsAsString = JSON.stringify(exportMappingsDict)
 
   // Build comments showing inputs and exports
-  const inputsComment = `Inputs: ${inputsStr}`
+  const inputsComment = `Inputs: ${inputsAsString}`
   const exportsComment =
     enabledExports.length > 0
       ? `Exports: ${enabledExports.map(([name, mapping]) => `${name} -> ${mapping.variable_name}`).join(', ')}`
       : 'Exports: (none)'
 
+  const escapedNotebookId = escapePythonString(notebookId)
+
   const functionCall = dedent`
     _dntk.run_notebook_function(
-        '${notebookId}',
-        inputs=${inputsStr},
-        export_mappings=${exportMappingsStr}
+        ${escapedNotebookId},
+        inputs=${inputsAsString},
+        export_mappings=${exportMappingsAsString}
     )
   `
 
@@ -63,7 +64,8 @@ export function createPythonCodeForNotebookFunctionBlock(block: NotebookFunction
   }
 
   if (enabledExports.length === 1) {
-    const variableName = enabledExports[0][1].variable_name
+    const variableName = enabledExports[0][1]?.variable_name
+
     return dedent`
       # Notebook Function: ${notebookId}
       # ${inputsComment}
@@ -74,6 +76,7 @@ export function createPythonCodeForNotebookFunctionBlock(block: NotebookFunction
 
   // Multiple exports: use tuple unpacking
   const variableNames = enabledExports.map(([, mapping]) => mapping.variable_name).join(', ')
+
   return dedent`
     # Notebook Function: ${notebookId}
     # ${inputsComment}
