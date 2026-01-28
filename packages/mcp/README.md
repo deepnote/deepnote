@@ -49,17 +49,34 @@ The server exposes pre-built workflow templates via the MCP Prompts capability:
 
 Access prompts through your MCP client's prompt interface (e.g., slash commands in Cursor).
 
+## MCP Resources
+
+The server exposes notebook files as MCP Resources for easy discovery:
+
+| Resource URI           | Description                                   |
+| ---------------------- | --------------------------------------------- |
+| `deepnote://examples`  | List of built-in example notebooks            |
+| `deepnote://workspace` | All .deepnote files in the current workspace  |
+| `deepnote://file/...`  | Individual notebook files with structure info |
+
+Resources enable AI assistants to browse and understand notebooks without explicit file paths.
+
 ## Available Tools
 
 ### Magic Tools (high-level)
 
-| Tool                | Description                                                         |
-| ------------------- | ------------------------------------------------------------------- |
-| `deepnote_scaffold` | Create a complete notebook from a natural language description      |
-| `deepnote_enhance`  | Transform a basic notebook into an interactive, well-documented one |
-| `deepnote_fix`      | Auto-fix issues (missing imports, undefined variables)              |
-| `deepnote_explain`  | Generate documentation explaining what a notebook does              |
-| `deepnote_suggest`  | Get improvement suggestions for a notebook                          |
+| Tool                | Description                                                                  |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `deepnote_scaffold` | Create a complete notebook from a natural language description               |
+| `deepnote_template` | Apply a pre-built template (dashboard, ml_pipeline, etl, report, api_client) |
+| `deepnote_enhance`  | Transform a basic notebook into an interactive, well-documented one          |
+| `deepnote_fix`      | Auto-fix issues (missing imports, undefined variables)                       |
+| `deepnote_explain`  | Generate documentation explaining what a notebook does                       |
+| `deepnote_suggest`  | Get improvement suggestions for a notebook                                   |
+| `deepnote_refactor` | Extract reusable code into a module notebook                                 |
+| `deepnote_profile`  | Add execution timing and memory profiling to code blocks                     |
+| `deepnote_test`     | Generate test cells for functions and classes                                |
+| `deepnote_workflow` | Execute a sequence of tools as a workflow pipeline                           |
 
 ### Reading Tools
 
@@ -123,6 +140,31 @@ Use deepnote_scaffold with:
 Use deepnote_fix with:
 - path: "broken.deepnote"
 - dryRun: true (preview first)
+```
+
+### Use a template
+
+```
+Use deepnote_template with:
+- template: "dashboard" (or ml_pipeline, etl, report, api_client)
+- outputPath: "my-dashboard.deepnote"
+```
+
+### Run a workflow pipeline
+
+```
+Use deepnote_workflow with steps:
+1. template: Create ML pipeline
+2. enhance: Add interactivity
+3. suggest: Get improvement suggestions
+```
+
+### Generate tests for functions
+
+```
+Use deepnote_test with:
+- path: "notebook.deepnote"
+- testFramework: "pytest" (or unittest, assert)
 ```
 
 ## Development

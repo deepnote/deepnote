@@ -4,11 +4,14 @@ import {
   CallToolRequestSchema,
   GetPromptRequestSchema,
   ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 
 import { serverInstructions } from './instructions'
 import { getPrompt, prompts } from './prompts'
+import { listResources, readResource } from './resources'
 import { conversionTools, handleConversionTool } from './tools/conversion'
 import { executionTools, handleExecutionTool } from './tools/execution'
 import { handleMagicTool, magicTools } from './tools/magic'
@@ -18,6 +21,9 @@ import { handleWritingTool, writingTools } from './tools/writing'
 export type DeepnoteMcpServer = Server
 
 const allTools = [...magicTools, ...readingTools, ...writingTools, ...conversionTools, ...executionTools]
+
+// Get workspace root from environment or current directory
+const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
 
 export function createServer(): Server {
   const server = new Server(
@@ -29,6 +35,7 @@ export function createServer(): Server {
       capabilities: {
         tools: {},
         prompts: {},
+        resources: {},
       },
       instructions: serverInstructions,
     }
@@ -55,6 +62,19 @@ export function createServer(): Server {
     }
   })
 
+  // Register resource listing handler
+  server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    const resources = await listResources(workspaceRoot)
+    return { resources }
+  })
+
+  // Register resource reading handler
+  server.setRequestHandler(ReadResourceRequestSchema, async request => {
+    const { uri } = request.params
+    const contents = await readResource(uri, workspaceRoot)
+    return { contents }
+  })
+
   // Register tool execution handler
   server.setRequestHandler(CallToolRequestSchema, async request => {
     const { name, arguments: args } = request.params
@@ -66,7 +86,12 @@ export function createServer(): Server {
         name.startsWith('deepnote_enhance') ||
         name.startsWith('deepnote_fix') ||
         name.startsWith('deepnote_explain') ||
-        name.startsWith('deepnote_suggest')
+        name.startsWith('deepnote_suggest') ||
+        name.startsWith('deepnote_template') ||
+        name.startsWith('deepnote_refactor') ||
+        name.startsWith('deepnote_profile') ||
+        name.startsWith('deepnote_test') ||
+        name.startsWith('deepnote_workflow')
       ) {
         return await handleMagicTool(name, args)
       }
