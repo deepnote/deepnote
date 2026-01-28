@@ -39,6 +39,7 @@
     "build": "tsdown",
     "dev": "tsx src/bin.ts",
     "test": "vitest",
+    "test:tool": "node dist/test-tool.js",
     "watch": "tsdown --watch"
   },
   "dependencies": {
