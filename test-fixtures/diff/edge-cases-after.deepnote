@@ -1,0 +1,37 @@
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-02T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        # Blocks without string content - URL changed but no content diff
+        - blockGroup: image-block-1
+          id: image-block-1
+          type: image
+          url: https://example.com/image2.png
+          sortingKey: a0
+        - blockGroup: sep-block-1
+          id: sep-block-1
+          type: separator
+          sortingKey: a1
+        # Block type changed (image -> separator)
+        - blockGroup: type-change-block
+          id: type-change-block
+          type: separator
+          sortingKey: a2
+        # Big-number block with different metadata
+        - blockGroup: bn-1
+          id: bn-1
+          type: big-number
+          sortingKey: a3
+          metadata:
+            deepnote_big_number_title: "Title 2"
+            deepnote_big_number_value: "200"
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0
