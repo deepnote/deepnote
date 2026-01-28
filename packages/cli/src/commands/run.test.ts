@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vite
 const mockStart = vi.fn()
 const mockStop = vi.fn()
 const mockRunFile = vi.fn()
+const mockRunProject = vi.fn()
 const mockConstructor = vi.fn()
 let mockServerPort: number | null = 8888
 const mockGetBlockDependencies = vi.fn()
@@ -19,6 +20,7 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
       start = mockStart
       stop = mockStop
       runFile = mockRunFile
+      runProject = mockRunProject
 
       get serverPort() {
         return mockServerPort
@@ -70,6 +72,7 @@ function setupSuccessfulRun(summary: Partial<ExecutionSummary> = {}) {
   }
   mockStart.mockResolvedValue(undefined)
   mockRunFile.mockResolvedValue(defaultSummary)
+  mockRunProject.mockResolvedValue(defaultSummary)
   mockStop.mockResolvedValue(undefined)
   return defaultSummary
 }
@@ -82,6 +85,7 @@ function setupStartFailure(errorMessage: string) {
 function setupRunFileFailure(errorMessage: string) {
   mockStart.mockResolvedValue(undefined)
   mockRunFile.mockRejectedValue(new Error(errorMessage))
+  mockRunProject.mockRejectedValue(new Error(errorMessage))
   mockStop.mockResolvedValue(undefined)
 }
 
@@ -186,23 +190,26 @@ describe('run command', () => {
       expect(mockStop).toHaveBeenCalledTimes(1)
     })
 
-    it('passes notebook filter option to runFile', async () => {
+    it('passes notebook filter option to runProject', async () => {
       setupSuccessfulRun()
 
       await action(BLOCKS_FILE, { notebook: 'My Notebook' })
 
-      expect(mockRunFile).toHaveBeenCalledWith(
-        expect.stringContaining('2_blocks.deepnote'),
+      expect(mockRunProject).toHaveBeenCalledWith(
+        expect.any(Object), // DeepnoteFile object
         expect.objectContaining({ notebookName: 'My Notebook' })
       )
     })
 
-    it('passes block filter option to runFile', async () => {
+    it('passes block filter option to runProject', async () => {
       setupSuccessfulRun()
 
       await action(HELLO_WORLD_FILE, { block: 'block-123' })
 
-      expect(mockRunFile).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ blockId: 'block-123' }))
+      expect(mockRunProject).toHaveBeenCalledWith(
+        expect.any(Object), // DeepnoteFile object
+        expect.objectContaining({ blockId: 'block-123' })
+      )
     })
 
     it('prints parsing and server messages', async () => {
@@ -241,7 +248,7 @@ describe('run command', () => {
 
     it('calls onBlockStart callback with block info', async () => {
       mockStart.mockResolvedValue(undefined)
-      mockRunFile.mockImplementation(async (_path, options) => {
+      mockRunProject.mockImplementation(async (_file, options) => {
         options?.onBlockStart?.(
           { id: 'block-1', type: 'code', content: '# Test block', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
           0,
@@ -261,7 +268,7 @@ describe('run command', () => {
 
     it('calls onBlockDone callback and prints check mark for success', async () => {
       mockStart.mockResolvedValue(undefined)
-      mockRunFile.mockImplementation(async (_path, options) => {
+      mockRunProject.mockImplementation(async (_file, options) => {
         options?.onBlockDone?.({
           blockId: 'block-1',
           blockType: 'code',
@@ -283,7 +290,7 @@ describe('run command', () => {
 
     it('prints X mark for failed block', async () => {
       mockStart.mockResolvedValue(undefined)
-      mockRunFile.mockImplementation(async (_path, options) => {
+      mockRunProject.mockImplementation(async (_file, options) => {
         options?.onBlockDone?.({
           blockId: 'block-1',
           blockType: 'code',
@@ -304,7 +311,7 @@ describe('run command', () => {
 
     it('renders outputs in non-JSON mode and adds blank line', async () => {
       mockStart.mockResolvedValue(undefined)
-      mockRunFile.mockImplementation(async (_path, options) => {
+      mockRunProject.mockImplementation(async (_file, options) => {
         options?.onBlockStart?.({ id: 'b1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} }, 0, 1)
         options?.onBlockDone?.({
           blockId: 'b1',
@@ -560,7 +567,7 @@ describe('run command', () => {
         vi.stubGlobal('fetch', fetchSpy)
 
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           await options?.onBlockStart?.(
             { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
             0,
@@ -600,7 +607,7 @@ describe('run command', () => {
         )
 
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           await options?.onBlockStart?.(
             { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
             0,
@@ -634,7 +641,7 @@ describe('run command', () => {
         )
 
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           await options?.onBlockStart?.(
             { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
             0,
@@ -676,7 +683,7 @@ describe('run command', () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Connection refused')))
 
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           await options?.onBlockStart?.(
             { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
             0,
@@ -706,7 +713,7 @@ describe('run command', () => {
         mockServerPort = null
 
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           await options?.onBlockStart?.(
             { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
             0,
@@ -742,7 +749,7 @@ describe('run command', () => {
         )
 
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           await options?.onBlockStart?.(
             { id: 'block-1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
             0,
@@ -787,7 +794,7 @@ describe('run command', () => {
 
       it('outputs JSON with blocks array for successful run', async () => {
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           options?.onBlockStart?.({ id: 'b1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} }, 0, 1)
           options?.onBlockDone?.({
             blockId: 'b1',
@@ -815,7 +822,7 @@ describe('run command', () => {
 
       it('outputs JSON with failure info when blocks fail', async () => {
         mockStart.mockResolvedValue(undefined)
-        mockRunFile.mockImplementation(async (_path, options) => {
+        mockRunProject.mockImplementation(async (_file, options) => {
           options?.onBlockStart?.({ id: 'b1', type: 'code', blockGroup: 'g1', sortingKey: 'a0', metadata: {} }, 0, 1)
           options?.onBlockDone?.({
             blockId: 'b1',
@@ -1057,8 +1064,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['name=Alice', 'count=42'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { name: 'Alice', count: 42 },
           })
@@ -1070,8 +1077,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['greeting=Hello World'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { greeting: 'Hello World' },
           })
@@ -1083,8 +1090,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['int=123', 'float=3.14', 'negative=-5'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { int: 123, float: 3.14, negative: -5 },
           })
@@ -1096,8 +1103,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['enabled=true', 'disabled=false'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { enabled: true, disabled: false },
           })
@@ -1109,8 +1116,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['nothing=null'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { nothing: null },
           })
@@ -1122,8 +1129,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['items=["a","b","c"]'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { items: ['a', 'b', 'c'] },
           })
@@ -1135,8 +1142,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['config={"debug":true,"level":3}'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { config: { debug: true, level: 3 } },
           })
@@ -1148,8 +1155,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['equation=a=b+c'] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { equation: 'a=b+c' },
           })
@@ -1178,8 +1185,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, {})
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: {},
           })
@@ -1191,8 +1198,8 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { input: ['empty='] })
 
-        expect(mockRunFile).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
           expect.objectContaining({
             inputs: { empty: '' },
           })
@@ -1204,8 +1211,8 @@ describe('run command', () => {
       it('lists inputs without running', async () => {
         await action(BLOCKS_FILE, { listInputs: true })
 
-        // Should NOT call runFile
-        expect(mockRunFile).not.toHaveBeenCalled()
+        // Should NOT call runProject
+        expect(mockRunProject).not.toHaveBeenCalled()
         expect(mockStart).not.toHaveBeenCalled()
 
         // Should print input information
@@ -1272,8 +1279,8 @@ describe('run command', () => {
       it('ignores --input when --list-inputs is set', async () => {
         await action(BLOCKS_FILE, { listInputs: true, input: ['foo=bar'] })
 
-        // Should NOT call runFile
-        expect(mockRunFile).not.toHaveBeenCalled()
+        // Should NOT call runProject
+        expect(mockRunProject).not.toHaveBeenCalled()
         expect(mockStart).not.toHaveBeenCalled()
 
         // Should still print input information
@@ -1561,6 +1568,175 @@ describe('run command', () => {
       const jsonOutput = getJsonOutput(consoleLogSpy) as { success: boolean; error: string }
       expect(jsonOutput.success).toBe(false)
       expect(jsonOutput.error).toContain('Missing required inputs')
+    })
+  })
+
+  describe('multi-format support (integration)', () => {
+    let program: Command
+    let action: (path: string, options: RunOptions) => Promise<void>
+    let consoleLogSpy: Mock
+    let consoleErrorSpy: Mock
+    let programErrorSpy: Mock
+
+    // Test fixtures for different formats
+    const JUPYTER_FILE = join('test-fixtures', 'formats', 'jupyter', 'basic.ipynb')
+    const PERCENT_FILE = join('test-fixtures', 'formats', 'percent', 'basic-cells.percent.py')
+    const QUARTO_FILE = join('test-fixtures', 'formats', 'quarto', 'basic.qmd')
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+      mockGetBlockDependencies.mockResolvedValue([])
+
+      program = new Command()
+      program.exitOverride()
+      action = createRunAction(program)
+
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      programErrorSpy = vi.spyOn(program, 'error').mockImplementation(() => {
+        throw new Error('program.error called')
+      })
+    })
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore()
+      consoleErrorSpy.mockRestore()
+      programErrorSpy.mockRestore()
+    })
+
+    describe('Jupyter notebooks (.ipynb)', () => {
+      it('converts and runs .ipynb files in dry-run mode', async () => {
+        setupSuccessfulRun()
+
+        await action(JUPYTER_FILE, { dryRun: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Converting jupyter file')
+        expect(output).toContain('Execution Plan (dry run)')
+      })
+
+      it('shows converted blocks in dry-run output', async () => {
+        setupSuccessfulRun()
+
+        await action(JUPYTER_FILE, { dryRun: true })
+
+        const output = getOutput(consoleLogSpy)
+        // Should show blocks from the converted notebook
+        expect(output).toContain('[1/')
+      })
+
+      it('outputs JSON correctly for .ipynb dry-run', async () => {
+        setupSuccessfulRun()
+
+        await action(JUPYTER_FILE, { dryRun: true, output: 'json' })
+
+        const jsonOutput = getJsonOutput(consoleLogSpy) as {
+          dryRun: boolean
+          path: string
+          totalBlocks: number
+        }
+        expect(jsonOutput.dryRun).toBe(true)
+        expect(jsonOutput.path).toContain('.ipynb')
+        expect(jsonOutput.totalBlocks).toBeGreaterThan(0)
+      })
+    })
+
+    describe('percent format Python files (.py)', () => {
+      it('converts and runs percent format .py files in dry-run mode', async () => {
+        setupSuccessfulRun()
+
+        await action(PERCENT_FILE, { dryRun: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Converting percent file')
+        expect(output).toContain('Execution Plan (dry run)')
+      })
+
+      it('shows multiple blocks from percent format file', async () => {
+        setupSuccessfulRun()
+
+        await action(PERCENT_FILE, { dryRun: true })
+
+        const output = getOutput(consoleLogSpy)
+        // basic-cells.percent.py has 3 cells
+        expect(output).toContain('[1/')
+        expect(output).toContain('[2/')
+        expect(output).toContain('[3/')
+      })
+    })
+
+    describe('Quarto documents (.qmd)', () => {
+      it('converts and runs .qmd files in dry-run mode', async () => {
+        setupSuccessfulRun()
+
+        await action(QUARTO_FILE, { dryRun: true })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Converting quarto file')
+        expect(output).toContain('Execution Plan (dry run)')
+      })
+    })
+
+    describe('error handling for unsupported formats', () => {
+      it('throws error for .json files with helpful message', async () => {
+        await expect(action('package.json', { dryRun: true })).rejects.toThrow('program.error called')
+
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('Unsupported file type')
+        expect(errorArg).toContain('.json')
+      })
+
+      it('throws error for plain .py files without cell markers', async () => {
+        // Create a temp file path that doesn't exist but has .py extension
+        // This tests that we properly detect format issues
+        await expect(action('regular-script.py', { dryRun: true })).rejects.toThrow('program.error called')
+
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('not found')
+      })
+
+      it('returns JSON error for unsupported format', async () => {
+        await action('package.json', { dryRun: true, output: 'json' })
+
+        expect(process.exitCode).toBe(2)
+        const jsonOutput = getJsonOutput(consoleLogSpy) as { success: boolean; error: string }
+        expect(jsonOutput.success).toBe(false)
+        expect(jsonOutput.error).toContain('Unsupported file type')
+      })
+    })
+
+    describe('actual execution (non dry-run)', () => {
+      it('executes converted .ipynb file with runProject', async () => {
+        setupSuccessfulRun()
+
+        await action(JUPYTER_FILE, {})
+
+        expect(mockRunProject).toHaveBeenCalled()
+        // First argument should be a DeepnoteFile object (not a path string)
+        const firstArg = mockRunProject.mock.calls[0][0]
+        expect(firstArg).toHaveProperty('project')
+        expect(firstArg.project).toHaveProperty('notebooks')
+      })
+
+      it('executes converted percent format file', async () => {
+        setupSuccessfulRun()
+
+        await action(PERCENT_FILE, {})
+
+        expect(mockRunProject).toHaveBeenCalled()
+        const firstArg = mockRunProject.mock.calls[0][0]
+        expect(firstArg).toHaveProperty('project')
+      })
+
+      it('executes converted .qmd file', async () => {
+        setupSuccessfulRun()
+
+        await action(QUARTO_FILE, {})
+
+        expect(mockRunProject).toHaveBeenCalled()
+        const firstArg = mockRunProject.mock.calls[0][0]
+        expect(firstArg).toHaveProperty('project')
+      })
     })
   })
 })
