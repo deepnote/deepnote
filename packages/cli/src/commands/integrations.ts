@@ -1,12 +1,15 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseYaml } from '@deepnote/blocks'
+import { getSecretFieldPaths, isDatabaseIntegrationType } from '@deepnote/database-integrations'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { stringify } from 'yaml'
 import { z } from 'zod'
 import { ExitCode } from '../exit-codes'
 import { debug, log, output } from '../output'
+import { updateDotEnv } from '../utils/dotenv'
+import { createEnvVarRef, extractEnvVarName, generateEnvVarName } from '../utils/env-var-refs'
 
 /**
  * Environment variable name for the Deepnote API token.
@@ -22,6 +25,11 @@ const DEFAULT_API_URL = 'https://api.deepnote.com'
  * Default integrations file name.
  */
 const DEFAULT_INTEGRATIONS_FILE = '.deepnote.env.yaml'
+
+/**
+ * Default .env file name for storing secrets.
+ */
+const DEFAULT_ENV_FILE = '.env'
 
 const JSON_SCHEMA_URL =
   'https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json'
@@ -95,6 +103,7 @@ export interface IntegrationsPullOptions {
   url?: string
   token?: string
   file?: string
+  envFile?: string
 }
 
 // ============================================================================
@@ -245,6 +254,128 @@ function mergeIntegrations(existingEntries: unknown[], fetchedIntegrations: ApiI
 }
 
 /**
+ * Find existing env var reference for a specific integration field in existing entries.
+ * Returns the env var name if found, or null if not found or not a valid reference.
+ */
+function findExistingEnvVarRef(existingEntries: unknown[], integrationId: string, fieldPath: string): string | null {
+  for (const entry of existingEntries) {
+    const entryRecord = entry as Record<string, unknown>
+    if (entryRecord.id !== integrationId) continue
+
+    const metadata = entryRecord.metadata as Record<string, unknown> | undefined
+    if (!metadata) continue
+
+    const fieldValue = metadata[fieldPath]
+    const envVarName = extractEnvVarName(fieldValue)
+
+    // Only return if it's a valid, non-empty env var name
+    if (envVarName) {
+      return envVarName
+    }
+  }
+
+  return null
+}
+
+/**
+ * Extract secrets from integrations and replace them with env var references.
+ * Returns the secrets to store in .env file.
+ */
+function extractAndReplaceSecrets(
+  integrations: ApiIntegration[],
+  existingEntries: unknown[]
+): { processedIntegrations: LocalIntegration[]; secrets: Record<string, string> } {
+  const secrets: Record<string, string> = {}
+  const processedIntegrations: LocalIntegration[] = []
+
+  for (const integration of integrations) {
+    // Create a mutable copy of metadata
+    const metadata = { ...integration.metadata }
+
+    // Get secret field paths for this integration type
+    if (isDatabaseIntegrationType(integration.type)) {
+      const authMethod =
+        typeof metadata.authMethod === 'string' ? metadata.authMethod : (integration.federated_auth_method ?? undefined)
+
+      const secretPaths = getSecretFieldPaths(integration.type, authMethod)
+
+      for (const fieldPath of secretPaths) {
+        const secretValue = metadata[fieldPath]
+
+        // Skip if field is undefined or null
+        if (secretValue === undefined || secretValue === null) {
+          continue
+        }
+
+        // Check if existing YAML entry has a custom env var reference
+        const existingEnvVarName = findExistingEnvVarRef(existingEntries, integration.id, fieldPath)
+
+        // Use existing env var name or generate a new one
+        const envVarName = existingEnvVarName ?? generateEnvVarName(integration.id, fieldPath)
+
+        // Store the secret value
+        secrets[envVarName] = String(secretValue)
+
+        // Replace the secret with an env var reference
+        metadata[fieldPath] = createEnvVarRef(envVarName)
+      }
+    }
+
+    // Create local integration with updated metadata
+    const local: LocalIntegration = {
+      id: integration.id,
+      name: integration.name,
+      type: integration.type,
+      metadata,
+    }
+
+    if (integration.federated_auth_method !== null) {
+      local.federated_auth_method = integration.federated_auth_method
+    }
+
+    processedIntegrations.push(local)
+  }
+
+  return { processedIntegrations, secrets }
+}
+
+/**
+ * Merge processed integrations with existing file entries.
+ * Uses the processed integrations (with env var refs) instead of raw API data.
+ */
+function mergeProcessedIntegrations(existingEntries: unknown[], processedIntegrations: LocalIntegration[]): unknown[] {
+  // Create map of processed integrations by ID
+  const processedById = new Map<string, LocalIntegration>()
+  for (const integration of processedIntegrations) {
+    processedById.set(integration.id, integration)
+  }
+
+  // Track which IDs we've seen
+  const seenIds = new Set<string>()
+
+  // Update existing entries
+  const mergedEntries = existingEntries.map(entry => {
+    const entryRecord = entry as Record<string, unknown>
+    const entryId = typeof entryRecord.id === 'string' ? entryRecord.id : undefined
+
+    if (entryId && processedById.has(entryId)) {
+      seenIds.add(entryId)
+      return processedById.get(entryId) // Replace with processed version
+    }
+    return entry // Keep existing (possibly invalid) entry
+  })
+
+  // Append new integrations not in original file
+  for (const [id, integration] of processedById) {
+    if (!seenIds.has(id)) {
+      mergedEntries.push(integration)
+    }
+  }
+
+  return mergedEntries
+}
+
+/**
  * Write integrations to the YAML file.
  */
 async function writeIntegrationsFile(filePath: string, integrations: unknown[]): Promise<void> {
@@ -269,6 +400,7 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
   const token = resolveToken(options)
   const baseUrl = options.url ?? DEFAULT_API_URL
   const filePath = options.file ?? DEFAULT_INTEGRATIONS_FILE
+  const envFilePath = options.envFile ?? DEFAULT_ENV_FILE
 
   log(chalk.dim(`Fetching integrations from ${baseUrl}...`))
 
@@ -286,10 +418,23 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
   const existingEntries = await readRawIntegrations(filePath)
   debug(`Read ${existingEntries.length} existing entries from ${filePath}`)
 
-  // Merge integrations
-  const mergedEntries = mergeIntegrations(existingEntries, fetchedIntegrations)
+  // Extract secrets and replace with env var references
+  const { processedIntegrations, secrets } = extractAndReplaceSecrets(fetchedIntegrations, existingEntries)
+  const secretCount = Object.keys(secrets).length
+  if (secretCount > 0) {
+    debug(`Extracted ${secretCount} secret(s) to store in ${envFilePath}`)
+  }
 
-  // Write back to file
+  // Merge integrations (using processed versions with env var refs)
+  const mergedEntries = mergeProcessedIntegrations(existingEntries, processedIntegrations)
+
+  // Write secrets to .env file
+  if (secretCount > 0) {
+    await updateDotEnv(envFilePath, secrets)
+    log(chalk.dim(`Updated ${envFilePath} with ${secretCount} secret(s)`))
+  }
+
+  // Write YAML file (with secrets replaced by env var references)
   await writeIntegrationsFile(filePath, mergedEntries)
 
   // Report results
@@ -311,6 +456,9 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
       output(chalk.dim(`  Preserved ${preservedCount} local-only integration(s)`))
     }
   }
+  if (secretCount > 0) {
+    output(chalk.dim(`  Stored ${secretCount} secret(s) in ${envFilePath}`))
+  }
 }
 
 // ============================================================================
@@ -330,6 +478,7 @@ export function createIntegrationsCommand(program: Command): Command {
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for authentication (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
     .action(async (options: IntegrationsPullOptions) => {
       try {
         await pullIntegrations(options)

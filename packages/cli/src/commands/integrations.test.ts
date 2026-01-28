@@ -422,4 +422,241 @@ describe('integrations pull command', () => {
       expect(parsed.integrations).toEqual([])
     })
   })
+
+  describe('secret extraction', () => {
+    it('extracts password as secret for pgsql', async () => {
+      const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+      const paths = getSecretFieldPaths('pgsql')
+      expect(paths).toContain('password')
+    })
+
+    it('generates correct env var name format', async () => {
+      const { generateEnvVarName } = await import('../utils/env-var-refs')
+      const result = generateEnvVarName('85d8c83c-0a53-42a0-93e7-6f7808ef2081', 'password')
+      expect(result).toBe('85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD')
+    })
+
+    it('creates env var reference string', async () => {
+      const { createEnvVarRef } = await import('../utils/env-var-refs')
+      const ref = createEnvVarRef('MY_VAR')
+      expect(ref).toBe('env:MY_VAR')
+    })
+
+    it('parses env var reference', async () => {
+      const { parseEnvVarRef } = await import('../utils/env-var-refs')
+      const result = parseEnvVarRef('env:MY_VAR')
+      expect(result).toEqual({ prefix: 'env', varName: 'MY_VAR' })
+    })
+
+    it('returns null for non-reference', async () => {
+      const { parseEnvVarRef } = await import('../utils/env-var-refs')
+      expect(parseEnvVarRef('password123')).toBeNull()
+    })
+
+    it('extracts env var name from reference', async () => {
+      const { extractEnvVarName } = await import('../utils/env-var-refs')
+      expect(extractEnvVarName('env:MY_PASS')).toBe('MY_PASS')
+      expect(extractEnvVarName('plaintext')).toBeNull()
+    })
+  })
+
+  describe('dotenv file operations', () => {
+    it('creates .env file with secrets', async () => {
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const envPath = join(tempDir, 'secrets.env')
+
+      await updateDotEnv(envPath, { MY_SECRET: 'secret123' })
+      const result = await readDotEnv(envPath)
+      expect(result.MY_SECRET).toBe('secret123')
+    })
+
+    it('preserves existing .env variables', async () => {
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const envPath = join(tempDir, 'preserve.env')
+
+      await writeFile(envPath, 'EXISTING=keep\n')
+      await updateDotEnv(envPath, { NEW_VAR: 'new' })
+
+      const result = await readDotEnv(envPath)
+      expect(result.EXISTING).toBe('keep')
+      expect(result.NEW_VAR).toBe('new')
+    })
+
+    it('updates existing env var value', async () => {
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const envPath = join(tempDir, 'update.env')
+
+      await writeFile(envPath, 'MY_VAR=old\n')
+      await updateDotEnv(envPath, { MY_VAR: 'new' })
+
+      const result = await readDotEnv(envPath)
+      expect(result.MY_VAR).toBe('new')
+    })
+
+    it('handles special characters in values', async () => {
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const envPath = join(tempDir, 'special.env')
+
+      await updateDotEnv(envPath, { PASS: 'p$ss#word=123' })
+      const result = await readDotEnv(envPath)
+      expect(result.PASS).toBe('p$ss#word=123')
+    })
+  })
+
+  describe('auth method secret variants', () => {
+    it('handles snowflake password auth', async () => {
+      const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+      expect(getSecretFieldPaths('snowflake', 'password')).toEqual(['password'])
+    })
+
+    it('handles snowflake okta auth', async () => {
+      const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+      expect(getSecretFieldPaths('snowflake', 'okta')).toEqual(['clientSecret'])
+    })
+
+    it('handles bigquery service account', async () => {
+      const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+      expect(getSecretFieldPaths('big-query', 'service-account')).toContain('service_account')
+    })
+  })
+})
+
+describe('secret extraction', () => {
+  it('extracts password as secret for pgsql', async () => {
+    const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+    const paths = getSecretFieldPaths('pgsql')
+    expect(paths).toContain('password')
+  })
+
+  it('generates correct env var name format', async () => {
+    const { generateEnvVarName } = await import('../utils/env-var-refs')
+    const result = generateEnvVarName('85d8c83c-0a53-42a0-93e7-6f7808ef2081', 'password')
+    expect(result).toBe('85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD')
+  })
+
+  it('creates env var reference string', async () => {
+    const { createEnvVarRef } = await import('../utils/env-var-refs')
+    const ref = createEnvVarRef('MY_VAR')
+    expect(ref).toBe('env:MY_VAR')
+  })
+
+  it('parses env var reference', async () => {
+    const { parseEnvVarRef } = await import('../utils/env-var-refs')
+    const result = parseEnvVarRef('env:MY_VAR')
+    expect(result).toEqual({ prefix: 'env', varName: 'MY_VAR' })
+  })
+
+  it('returns null for non-reference', async () => {
+    const { parseEnvVarRef } = await import('../utils/env-var-refs')
+    expect(parseEnvVarRef('password123')).toBeNull()
+  })
+
+  it('extracts env var name from reference', async () => {
+    const { extractEnvVarName } = await import('../utils/env-var-refs')
+    expect(extractEnvVarName('env:MY_PASS')).toBe('MY_PASS')
+    expect(extractEnvVarName('plaintext')).toBeNull()
+  })
+})
+
+describe('custom env var preservation', () => {
+  it('preserves custom env var name from existing YAML', async () => {
+    const { extractEnvVarName, generateEnvVarName, createEnvVarRef } = await import('../utils/env-var-refs')
+
+    const existingRef = 'env:MY_CUSTOM_PASSWORD'
+    const existingEnvVarName = extractEnvVarName(existingRef)
+
+    expect(existingEnvVarName).toBe('MY_CUSTOM_PASSWORD')
+
+    const envVarName = existingEnvVarName ?? generateEnvVarName('uuid', 'password')
+    expect(envVarName).toBe('MY_CUSTOM_PASSWORD')
+
+    expect(createEnvVarRef(envVarName)).toBe('env:MY_CUSTOM_PASSWORD')
+  })
+
+  it('generates auto name when no existing reference', async () => {
+    const { extractEnvVarName, generateEnvVarName } = await import('../utils/env-var-refs')
+
+    const existingValue = 'plaintext_password'
+    const existingEnvVarName = extractEnvVarName(existingValue)
+
+    expect(existingEnvVarName).toBeNull()
+
+    const envVarName = existingEnvVarName ?? generateEnvVarName('85d8c83c-0a53-42a0-93e7-6f7808ef2081', 'password')
+    expect(envVarName).toBe('85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD')
+  })
+})
+
+describe('multiple integrations handling', () => {
+  it('generates unique env var names for different integrations', async () => {
+    const { generateEnvVarName } = await import('../utils/env-var-refs')
+
+    const id1 = '11111111-1111-1111-1111-111111111111'
+    const id2 = '22222222-2222-2222-2222-222222222222'
+
+    const name1 = generateEnvVarName(id1, 'password')
+    const name2 = generateEnvVarName(id2, 'password')
+
+    expect(name1).toBe('11111111_1111_1111_1111_111111111111__PASSWORD')
+    expect(name2).toBe('22222222_2222_2222_2222_222222222222__PASSWORD')
+    expect(name1).not.toBe(name2)
+  })
+})
+
+describe('edge cases', () => {
+  it('handles invalid env: reference', async () => {
+    const { extractEnvVarName, generateEnvVarName } = await import('../utils/env-var-refs')
+
+    const invalidRef = 'env:'
+    const result = extractEnvVarName(invalidRef)
+    expect(result).toBeNull()
+
+    const fallback = result ?? generateEnvVarName('abc-123', 'password')
+    expect(fallback).toBe('ABC_123__PASSWORD')
+  })
+
+  it('handles field paths with underscores', async () => {
+    const { generateEnvVarName } = await import('../utils/env-var-refs')
+    const name = generateEnvVarName('abc-123', 'secret_access_key')
+    expect(name).toBe('ABC_123__SECRET_ACCESS_KEY')
+  })
+
+  it('handles snowflake key pair auth with multiple secrets', async () => {
+    const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+    const paths = getSecretFieldPaths('snowflake', 'service-account-key-pair')
+    expect(paths).toContain('privateKey')
+    expect(paths).toContain('privateKeyPassphrase')
+  })
+
+  it('returns empty array for pandas-dataframe (no secrets)', async () => {
+    const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+    const paths = getSecretFieldPaths('pandas-dataframe')
+    expect(paths).toEqual([])
+  })
+})
+
+describe('more edge cases', () => {
+  it('handles multiple integrations with unique IDs', async () => {
+    const { generateEnvVarName } = await import('../utils/env-var-refs')
+    const name1 = generateEnvVarName('id1-abc', 'password')
+    const name2 = generateEnvVarName('id2-xyz', 'password')
+    expect(name1).not.toBe(name2)
+  })
+
+  it('handles field paths with camelCase', async () => {
+    const { generateEnvVarName } = await import('../utils/env-var-refs')
+    const name = generateEnvVarName('abc', 'clientSecret')
+    expect(name).toBe('ABC__CLIENTSECRET')
+  })
+
+  it('returns correct secrets for trino oauth', async () => {
+    const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+    const paths = getSecretFieldPaths('trino', 'trino-oauth')
+    expect(paths).toContain('clientSecret')
+  })
+
+  it('returns empty for snowflake key-pair (federated)', async () => {
+    const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
+    const paths = getSecretFieldPaths('snowflake', 'key-pair')
+    expect(paths).toEqual([])
+  })
 })
