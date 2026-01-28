@@ -260,7 +260,7 @@ describe('convertBlocksToPercentNotebook', () => {
 })
 
 describe('convertDeepnoteToPercentNotebooks', () => {
-  const testFixturesDir = path.join(__dirname, '../test-fixtures')
+  const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
   it('converts a Deepnote file to percent notebook objects', async () => {
     const inputPath = path.join(testFixturesDir, 'ChartExamples.deepnote')
@@ -293,7 +293,7 @@ describe('convertDeepnoteToPercentNotebooks', () => {
 
 describe('convertDeepnoteFileToPercentFiles', () => {
   let tempDir: string
-  const testFixturesDir = path.join(__dirname, '../test-fixtures')
+  const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
@@ -445,7 +445,7 @@ x = 1
 
   it('preserves Deepnote → Percent → Deepnote content', async () => {
     const { deserializeDeepnoteFile } = await import('@deepnote/blocks')
-    const testFixturesDir = path.join(__dirname, '../test-fixtures')
+    const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
     const inputPath = path.join(testFixturesDir, 'ChartExamples.deepnote')
     const yamlContent = await fs.readFile(inputPath, 'utf-8')
     const original = deserializeDeepnoteFile(yamlContent)

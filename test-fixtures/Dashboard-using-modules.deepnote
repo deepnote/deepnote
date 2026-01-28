@@ -1,0 +1,400 @@
+metadata:
+  createdAt: 2026-01-28T10:00:37.960Z
+  modifiedAt: 2026-01-28T10:18:18.994Z
+project:
+  id: bbf4245e-5dbd-486f-a790-de9002a9b5c1
+  name: Dashboard using modules
+  notebooks:
+    - blocks:
+        - id: 34826d2ebf864c1bbcbb72434c04dfa2
+          blockGroup: dbb5f7e8b6e6467b874fda1828cd56b7
+          sortingKey: O
+          type: text-cell-h1
+          content: Company Metrics Dashboard
+          metadata:
+            deepnote_app_block_visible: true
+            deepnote_app_block_group_id: null
+            deepnote_app_block_order: 0
+            formattedRanges: []
+        - id: 588e6591aee34a8d86ccfe1e5cfa7486
+          blockGroup: 4ab2ddc61281401d9a6de1291bb1dfc8
+          sortingKey: a
+          type: text-cell-p
+          content: Live KPIs for product and growth
+          metadata:
+            deepnote_app_block_visible: true
+            deepnote_app_block_group_id: null
+            deepnote_app_block_order: 1
+            formattedRanges:
+              - type: marks
+                marks:
+                  italic: true
+                toCodePoint: 32
+                fromCodePoint: 0
+        - id: c23ac512a569489fb866f124fbbe4700
+          blockGroup: 76267a09eb504afe8671c817bec379cb
+          sortingKey: m
+          contentHash: 39c7eec0
+          executionCount: 1
+          executionFinishedAt: 2026-01-28T10:11:50.826Z
+          executionStartedAt: 2026-01-28T10:11:47.490Z
+          outputs:
+            - output_type: display_data
+              data:
+                application/vnd.deepnote.notebook-function-run-metadata+json:
+                  notebook_function_run_id: 3a238175-02a3-4484-8e6d-0c81962ce5da
+                  executed_notebook_id: efceb59f45724c68b1e39b366bd30ff2
+                  executed_notebook_name: Data
+                  executed_notebook_inputs: {}
+                  executed_notebook_imports:
+                    kpis:
+                      enabled: true
+                      variable_name: kpis
+                  executed_notebook_errors: []
+              metadata: {}
+            - output_type: display_data
+              data:
+                application/vnd.deepnote.notebook-function-import-metadata+json:
+                  export_name: kpis
+                  export_data_type: null
+                  export_table_state: null
+                  variable_name: kpis
+              metadata: {}
+            - data:
+                text/plain: >-
+                  {'current_mrr': 125000.0,
+                   'current_arr': 1500000.0,
+                   'new_users_this_month': 7156,
+                   'prev_month_new_users': 7286,
+                   'mom_growth_rate_new_users': -0.01784243755146857,
+                   'last_week_projects_created': 313,
+                   'last_week_workspace_accepted_invites_count': 259,
+                   'projects_per_new_user_last_week': 0.15343137254901962,
+                   'accepted_invites_per_new_user_last_week': 0.12696078431372548,
+                   'latest_month': '2026-01'}
+              metadata: {}
+              output_type: display_data
+            - data:
+                text/plain: >-
+                  {'current_mrr': 125000.0,
+                   'current_arr': 1500000.0,
+                   'new_users_this_month': 7156,
+                   'prev_month_new_users': 7286,
+                   'mom_growth_rate_new_users': -0.01784243755146857,
+                   'last_week_projects_created': 313,
+                   'last_week_workspace_accepted_invites_count': 259,
+                   'projects_per_new_user_last_week': 0.15343137254901962,
+                   'accepted_invites_per_new_user_last_week': 0.12696078431372548,
+                   'latest_month': '2026-01'}
+              metadata: {}
+              output_type: display_data
+            - output_type: execute_result
+              execution_count: 1
+              data:
+                text/plain: >-
+                  {'cursors': {'kpis': {'current_mrr': 125000.0,
+                     'current_arr': 1500000.0,
+                     'new_users_this_month': 7156,
+                     'prev_month_new_users': 7286,
+                     'mom_growth_rate_new_users': -0.01784243755146857,
+                     'last_week_projects_created': 313,
+                     'last_week_workspace_accepted_invites_count': 259,
+                     'projects_per_new_user_last_week': 0.15343137254901962,
+                     'accepted_invites_per_new_user_last_week': 0.12696078431372548,
+                     'latest_month': '2026-01'}}}
+              metadata: {}
+          type: notebook-function
+          content: ""
+          metadata:
+            deepnote_app_is_code_hidden: true
+            deepnote_app_is_output_hidden: true
+            deepnote_app_block_visible: false
+            execution_start: 1769595107490
+            execution_millis: 3336
+            execution_context_id: 7fa4949f-35ab-4629-b181-0d0534da1e5b
+            last_executed_function_notebook_id: efceb59f45724c68b1e39b366bd30ff2
+            last_function_run_started_at: 1769595107610
+            function_notebook_id: efceb59f45724c68b1e39b366bd30ff2
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              kpis:
+                enabled: true
+                variable_name: kpis
+        - id: dcad206124124f94ac4d9f3c054ed15d
+          blockGroup: c87d8a12ae114199b79f6aa0bae7c110
+          sortingKey: p
+          contentHash: b34cbbee
+          executionCount: 2
+          executionFinishedAt: 2026-01-28T10:11:50.880Z
+          executionStartedAt: 2026-01-28T10:11:50.880Z
+          outputs: []
+          type: code
+          content: |-
+            new_users_this_month = kpis["new_users_this_month"]
+            prev_month_new_users = kpis["prev_month_new_users"]
+
+            current_mrr = kpis["current_mrr"]
+            current_arr = kpis["current_arr"]
+          metadata:
+            deepnote_app_is_code_hidden: true
+            deepnote_app_is_output_hidden: false
+            deepnote_app_block_visible: true
+            deepnote_app_block_group_id: null
+            deepnote_app_block_order: 3
+            execution_start: 1769595110880
+            execution_millis: 0
+            execution_context_id: 7fa4949f-35ab-4629-b181-0d0534da1e5b
+        - id: 855247ff1eaa4cb190a50ce386174cb9
+          blockGroup: ebdcad6e93f14a5cbd28c9edbae1d9a6
+          sortingKey: s
+          contentHash: e617ffbe
+          executionCount: 3
+          executionFinishedAt: 2026-01-28T10:11:50.960Z
+          executionStartedAt: 2026-01-28T10:11:50.960Z
+          outputs:
+            - output_type: execute_result
+              execution_count: 3
+              data:
+                text/plain: "'{\"comparisonTitle\": \"vs last month\", \"comparisonValue\":
+                  \"7286\", \"title\": \"New users\", \"value\": \"7156\"}'"
+              metadata: {}
+          type: big-number
+          content: ""
+          metadata:
+            deepnote_app_block_visible: true
+            deepnote_app_block_group_id: ebdcad6e93f14a5cbd28c9edbae1d9a6
+            deepnote_app_block_order: 4
+            execution_start: 1769595110960
+            execution_millis: 0
+            execution_context_id: 7fa4949f-35ab-4629-b181-0d0534da1e5b
+            deepnote_big_number_title: New users
+            deepnote_big_number_value: new_users_this_month
+            deepnote_big_number_format: number
+            deepnote_big_number_comparison_enabled: true
+            deepnote_big_number_comparison_title: vs last month
+            deepnote_big_number_comparison_value: prev_month_new_users
+            deepnote_big_number_comparison_type: ""
+            deepnote_big_number_comparison_format: ""
+        - id: aa49530ddfcf4336baba1e0f719bde19
+          blockGroup: ebdcad6e93f14a5cbd28c9edbae1d9a6
+          sortingKey: v
+          contentHash: ff1fdfea
+          executionCount: 4
+          executionFinishedAt: 2026-01-28T10:11:51.020Z
+          executionStartedAt: 2026-01-28T10:11:51.020Z
+          outputs:
+            - output_type: execute_result
+              execution_count: 4
+              data:
+                text/plain: "'{\"comparisonTitle\": \"\", \"comparisonValue\": \"\", \"title\":
+                  \"MRR\", \"value\": \"125000.0\"}'"
+              metadata: {}
+          type: big-number
+          content: ""
+          metadata:
+            deepnote_app_block_visible: true
+            deepnote_app_block_group_id: ebdcad6e93f14a5cbd28c9edbae1d9a6
+            deepnote_app_block_order: 5
+            execution_start: 1769595111020
+            execution_millis: 0
+            execution_context_id: 7fa4949f-35ab-4629-b181-0d0534da1e5b
+            deepnote_big_number_title: MRR
+            deepnote_big_number_value: current_mrr
+            deepnote_big_number_format: currency
+            deepnote_big_number_comparison_enabled: false
+            deepnote_big_number_comparison_title: ""
+            deepnote_big_number_comparison_value: ""
+            deepnote_big_number_comparison_type: ""
+            deepnote_big_number_comparison_format: ""
+        - id: 31c4205c6d1b42b19db54b185d9ead33
+          blockGroup: ebdcad6e93f14a5cbd28c9edbae1d9a6
+          sortingKey: x
+          contentHash: f25abe92
+          executionCount: 5
+          executionFinishedAt: 2026-01-28T10:11:51.070Z
+          executionStartedAt: 2026-01-28T10:11:51.070Z
+          outputs:
+            - output_type: execute_result
+              execution_count: 5
+              data:
+                text/plain: "'{\"comparisonTitle\": \"\", \"comparisonValue\": \"\", \"title\":
+                  \"ARR\", \"value\": \"1500000.0\"}'"
+              metadata: {}
+          type: big-number
+          content: ""
+          metadata:
+            deepnote_app_block_visible: true
+            deepnote_app_block_group_id: ebdcad6e93f14a5cbd28c9edbae1d9a6
+            deepnote_app_block_order: 6
+            allow_embed: false
+            execution_start: 1769595111070
+            execution_millis: 0
+            execution_context_id: 7fa4949f-35ab-4629-b181-0d0534da1e5b
+            deepnote_big_number_title: ARR
+            deepnote_big_number_value: current_arr
+            deepnote_big_number_format: currency
+            deepnote_big_number_comparison_enabled: false
+            deepnote_big_number_comparison_title: ""
+            deepnote_big_number_comparison_value: ""
+            deepnote_big_number_comparison_type: ""
+            deepnote_big_number_comparison_format: ""
+      executionMode: block
+      id: d8fd4cfe9ce04908a4ed611000d231e4
+      isModule: false
+      name: Dashboard
+    - blocks:
+        - id: 8dca1ef6e85449308080976183fadf2d
+          blockGroup: c0eaa37ca6a64f6799e6b92b857f7557
+          sortingKey: "4"
+          type: text-cell-h2
+          content: Business KPI variables for dashboard
+          metadata: {}
+        - id: 748da920a50242fb922552931052c82d
+          blockGroup: ae6d911a5eb04da4a7590870daf6ef18
+          sortingKey: "6"
+          type: text-cell-p
+          content: This section defines example business KPI variables used by a
+            dashboard. Where possible, we reuse existing notebook variables.
+            Otherwise, we fall back to sensible placeholder values. Each KPI
+            includes inline comments for clarity. At the end, all KPIs are
+            collected into a dictionary for easy consumption and printed to show
+            current values.
+          metadata: {}
+        - id: 58f6ef73b7224c4c9b09ddbb6d81a555
+          blockGroup: c1d8c4f7ce45482abc77c0a42d9893dd
+          sortingKey: "7"
+          contentHash: 3d01c8ea
+          executionCount: 1
+          executionFinishedAt: 2026-01-28T10:06:57.252Z
+          executionStartedAt: 2026-01-28T10:06:57.201Z
+          outputs:
+            - output_type: execute_result
+              execution_count: 1
+              data:
+                text/plain: >-
+                  {'current_mrr': 125000.0,
+                   'current_arr': 1500000.0,
+                   'new_users_this_month': 7156,
+                   'prev_month_new_users': 7286,
+                   'mom_growth_rate_new_users': -0.01784243755146857,
+                   'last_week_projects_created': 313,
+                   'last_week_workspace_accepted_invites_count': 259,
+                   'projects_per_new_user_last_week': 0.15343137254901962,
+                   'accepted_invites_per_new_user_last_week': 0.12696078431372548,
+                   'latest_month': '2026-01'}
+              metadata: {}
+          type: code
+          content: >-
+            # Define example business KPIs for the dashboard
+
+            # We try to reuse existing variables if they already exist in the
+            notebook's kernel.
+
+            from datetime import datetime
+
+
+            # Monthly Recurring Revenue (USD) - placeholder value
+
+            current_mrr = 125000.0
+
+
+            # Annual Recurring Revenue (USD) computed from MRR
+
+            current_arr = current_mrr * 12
+
+
+            # New users this month - reuse if available, else placeholder
+
+            try:
+                new_users_this_month = int(new_users_this_month)
+            except NameError:
+                new_users_this_month = 7156
+
+            # Previous month new users - reuse if available, else placeholder
+
+            try:
+                prev_month_new_users = int(prev_month_new_users)
+            except NameError:
+                prev_month_new_users = 7286
+
+            # Month-over-month growth rate in new users
+
+            # Defined as (current - previous) / previous; handle previous=0 to
+            avoid division by zero
+
+            if prev_month_new_users == 0:
+                mom_growth_rate_new_users = 0.0
+            else:
+                mom_growth_rate_new_users = (new_users_this_month - prev_month_new_users) / prev_month_new_users
+
+            # Last week projects created - reuse if available, else placeholder
+
+            try:
+                last_week_projects_created = int(last_week_projects_created)
+            except NameError:
+                last_week_projects_created = 313
+
+            # Last week workspace accepted invites count - reuse if available,
+            else placeholder
+
+            try:
+                last_week_workspace_accepted_invites_count = int(last_week_workspace_accepted_invites_count)
+            except NameError:
+                last_week_workspace_accepted_invites_count = 259
+
+            # Last week new users - reuse if available; if not present, set 2040
+            as a reasonable placeholder
+
+            try:
+                last_week_new_users = int(last_week_new_users)
+            except NameError:
+                last_week_new_users = 2040
+
+            # Projects per new user last week; handle division by zero
+
+            projects_per_new_user_last_week = (
+                last_week_projects_created / last_week_new_users if last_week_new_users != 0 else 0.0
+            )
+
+
+            # Accepted invites per new user last week; handle division by zero
+
+            accepted_invites_per_new_user_last_week = (
+                last_week_workspace_accepted_invites_count / last_week_new_users if last_week_new_users != 0 else 0.0
+            )
+
+
+            # Latest month string in YYYY-MM format - reuse if available else
+            compute current
+
+            try:
+                latest_month = str(latest_month)
+            except NameError:
+                latest_month = datetime.utcnow().strftime('%Y-%m')
+
+            kpis = {
+                'current_mrr': float(current_mrr),
+                'current_arr': float(current_arr),
+                'new_users_this_month': int(new_users_this_month),
+                'prev_month_new_users': int(prev_month_new_users),
+                'mom_growth_rate_new_users': float(mom_growth_rate_new_users),
+                'last_week_projects_created': int(last_week_projects_created),
+                'last_week_workspace_accepted_invites_count': int(last_week_workspace_accepted_invites_count),
+                'projects_per_new_user_last_week': float(projects_per_new_user_last_week),
+                'accepted_invites_per_new_user_last_week': float(accepted_invites_per_new_user_last_week),
+                'latest_month': str(latest_month),
+            }
+
+
+            kpis
+          metadata:
+            execution_start: 1769594817201
+            execution_millis: 51
+            execution_context_id: c0c74161-7421-41c1-9fd4-a53fd574f1f3
+            function_export_name: kpis
+      executionMode: block
+      id: efceb59f45724c68b1e39b366bd30ff2
+      isModule: true
+      name: Data
+  settings: {}
+version: 1.0.0
