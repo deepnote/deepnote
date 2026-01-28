@@ -1,0 +1,38 @@
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  modifiedAt: '2025-01-01T00:00:00.000Z'
+project:
+  id: test-project-id
+  name: Test Project
+  notebooks:
+    - blocks:
+        # Blocks without string content (image and separator)
+        - blockGroup: image-block-1
+          id: image-block-1
+          type: image
+          url: https://example.com/image1.png
+          sortingKey: a0
+        - blockGroup: sep-block-1
+          id: sep-block-1
+          type: separator
+          sortingKey: a1
+        # Block for type change test (image -> separator)
+        - blockGroup: type-change-block
+          id: type-change-block
+          type: image
+          url: https://example.com/image.png
+          sortingKey: a2
+        # Big-number block (optional content)
+        - blockGroup: bn-1
+          id: bn-1
+          type: big-number
+          sortingKey: a3
+          metadata:
+            deepnote_big_number_title: "Title 1"
+            deepnote_big_number_value: "100"
+      executionMode: block
+      id: notebook-1
+      isModule: false
+      name: Test Notebook
+  settings: {}
+version: 1.0.0

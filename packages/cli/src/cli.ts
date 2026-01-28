@@ -3,6 +3,7 @@ import { Command } from 'commander'
 import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
 import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
+import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
@@ -77,6 +78,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Display block contents')}
   $ deepnote cat my-project.deepnote
+
+  ${c.dim('# Compare two .deepnote files')}
+  $ deepnote diff file1.deepnote file2.deepnote
 
   ${c.dim('# Run with TOON output (for LLMs)')}
   $ deepnote run my-project.deepnote -o toon
@@ -203,6 +207,39 @@ ${c.bold('Examples:')}
 `
     })
     .action(createCatAction(program))
+
+  // Diff command - compare two .deepnote files
+  program
+    .command('diff')
+    .description('Compare two .deepnote files and show structural differences')
+    .argument('<path1>', 'Path to the first .deepnote file')
+    .argument('<path2>', 'Path to the second .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--content', 'Include content differences in output')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Shows structural differences between two .deepnote files:
+  - Added, removed, and modified notebooks
+  - Added, removed, and modified blocks within notebooks
+  - Summary of total changes
+
+${c.bold('Examples:')}
+  ${c.dim('# Compare two .deepnote files')}
+  $ deepnote diff original.deepnote modified.deepnote
+
+  ${c.dim('# Compare with content differences')}
+  $ deepnote diff file1.deepnote file2.deepnote --content
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote diff file1.deepnote file2.deepnote -o json
+
+  ${c.dim('# Compare a file with a snapshot')}
+  $ deepnote diff current.deepnote backup.snapshot.deepnote
+`
+    })
+    .action(createDiffAction(program))
 
   // Run command - execute a .deepnote file
   program
