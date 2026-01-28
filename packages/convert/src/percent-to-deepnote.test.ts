@@ -369,7 +369,7 @@ describe('convertPercentNotebookToBlocks', () => {
 
 describe('convertPercentFilesToDeepnoteFile', () => {
   let tempDir: string
-  const testFixturesDir = path.join(__dirname, '../test-fixtures')
+  const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
