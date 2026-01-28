@@ -136,8 +136,57 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   const content = decodeUtf8NoBom(rawBytes)
   const file = deserializeDeepnoteFile(content)
 
+  // Parse integrations file (if it exists)
+  const integrationsFilePath = getDefaultIntegrationsFilePath(workingDirectory)
+  const parsedIntegrations = await parseIntegrationsFile(integrationsFilePath)
+
+  // Show any integration parsing issues (non-fatal warnings)
+  if (parsedIntegrations.issues.length > 0) {
+    if (!isMachineOutput) {
+      log(chalk.yellow(`Warning: Some integrations in ${integrationsFilePath} could not be parsed:`))
+      for (const issue of parsedIntegrations.issues) {
+        const pathStr = issue.path ? chalk.dim(`${issue.path}: `) : ''
+        log(`  ${chalk.yellow('•')} ${pathStr}${issue.message}`)
+      }
+      log('') // Blank line after warnings
+    } else {
+      // In machine output mode, still log to debug for troubleshooting
+      for (const issue of parsedIntegrations.issues) {
+        debug(`Integration parsing issue: ${issue.path ? `${issue.path}: ` : ''}${issue.message}`)
+      }
+    }
+  }
+
+  debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
+
+  // Build lookup map for integration IDs (lowercase for case-insensitive matching)
+  const integrationsById = buildIntegrationsById(parsedIntegrations.integrations)
+
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, options.notebook)
+  await validateRequirements(file, inputs, pythonEnv, integrationsById, options.notebook)
+
+  // Inject integration environment variables into process.env
+  // This allows SQL blocks to access database connections
+  if (parsedIntegrations.integrations.length > 0) {
+    const { envVars, errors } = getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
+      projectRootDirectory: workingDirectory,
+    })
+
+    // Log any errors from env var generation
+    for (const error of errors) {
+      debug(`Integration env var error: ${error.message}`)
+    }
+
+    // Inject env vars into process.env
+    for (const { name, value } of envVars) {
+      process.env[name] = value
+    }
+
+    debug(`Injected ${envVars.length} environment variables for integrations`)
+  }
+
+  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
+  await validateRequirements(file, inputs, pythonEnv, integrationsById, options.notebook)
 
   return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput }
 }
@@ -566,60 +615,6 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
   if (!isMachineOutput) {
     log(chalk.dim(`Parsing ${absolutePath}...`))
-  }
-
-  // Parse integrations file (if it exists)
-  const integrationsFilePath = getDefaultIntegrationsFilePath(workingDirectory)
-  const parsedIntegrations = await parseIntegrationsFile(integrationsFilePath)
-
-  // Show any integration parsing issues (non-fatal warnings)
-  if (parsedIntegrations.issues.length > 0) {
-    if (!isMachineOutput) {
-      log(chalk.yellow(`Warning: Some integrations in ${integrationsFilePath} could not be parsed:`))
-      for (const issue of parsedIntegrations.issues) {
-        const pathStr = issue.path ? chalk.dim(`${issue.path}: `) : ''
-        log(`  ${chalk.yellow('•')} ${pathStr}${issue.message}`)
-      }
-      log('') // Blank line after warnings
-    } else {
-      // In machine output mode, still log to debug for troubleshooting
-      for (const issue of parsedIntegrations.issues) {
-        debug(`Integration parsing issue: ${issue.path ? `${issue.path}: ` : ''}${issue.message}`)
-      }
-    }
-  }
-
-  debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
-
-  // Parse the file and validate inputs before starting the engine
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
-
-  // Build lookup map for integration IDs (lowercase for case-insensitive matching)
-  const integrationsById = buildIntegrationsById(parsedIntegrations.integrations)
-
-  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, integrationsById, options.notebook)
-
-  // Inject integration environment variables into process.env
-  // This allows SQL blocks to access database connections
-  if (parsedIntegrations.integrations.length > 0) {
-    const { envVars, errors } = getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
-      projectRootDirectory: workingDirectory,
-    })
-
-    // Log any errors from env var generation
-    for (const error of errors) {
-      debug(`Integration env var error: ${error.message}`)
-    }
-
-    // Inject env vars into process.env
-    for (const { name, value } of envVars) {
-      process.env[name] = value
-    }
-
-    debug(`Injected ${envVars.length} environment variables for integrations`)
   }
 
   // Create and start the execution engine
