@@ -572,4 +572,59 @@ describe('diff command', () => {
       expect(bigNumberBlock).toBeUndefined() // unchanged blocks don't appear in blockDiffs
     })
   })
+
+  describe('notebook renaming detection', () => {
+    const file1Path = getDiffFixturePath('renamed-notebook-before.deepnote')
+    const file2Path = getDiffFixturePath('renamed-notebook-after.deepnote')
+
+    it('detects renamed notebook as modified even when blocks are unchanged', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { output: 'json' })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.success).toBe(true)
+      expect(parsed.summary.notebooksModified).toBe(1)
+      expect(parsed.summary.notebooksUnchanged).toBe(0)
+    })
+
+    it('includes oldName in JSON output for renamed notebook', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { output: 'json' })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+
+      const modifiedNotebook = parsed.notebooks.find((nb: { status: string }) => nb.status === 'modified')
+      expect(modifiedNotebook).toBeDefined()
+      expect(modifiedNotebook.name).toBe('New Name')
+      expect(modifiedNotebook.oldName).toBe('Original Name')
+    })
+
+    it('shows renamed notebook in text output with arrow notation', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Renamed:')
+      expect(output).toContain('Original Name')
+      expect(output).toContain('New Name')
+      expect(output).toContain('→')
+    })
+
+    it('reports no block changes when only name changed', async () => {
+      const action = createDiffAction(program)
+
+      await action(file1Path, file2Path, { output: 'json' })
+
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
+      expect(parsed.summary.blocksModified).toBe(0)
+      expect(parsed.summary.blocksAdded).toBe(0)
+      expect(parsed.summary.blocksRemoved).toBe(0)
+    })
+  })
 })

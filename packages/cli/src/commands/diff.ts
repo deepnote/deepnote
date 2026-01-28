@@ -15,6 +15,7 @@ export interface DiffOptions {
 
 interface NotebookDiff {
   name: string
+  oldName?: string // Present when notebook was renamed
   id: string
   status: 'added' | 'removed' | 'modified' | 'unchanged'
   blockCount?: number
@@ -141,13 +142,16 @@ function computeDiff(
       summary.notebooksRemoved++
       summary.blocksRemoved += nb1.blocks.length
     } else {
-      // Notebook exists in both - compare blocks
+      // Notebook exists in both - compare blocks and name
       const blockDiffs = computeBlockDiffs(nb1.blocks, nb2.blocks, options)
-      const hasChanges = blockDiffs.some(bd => bd.status !== 'unchanged')
+      const hasBlockChanges = blockDiffs.some(bd => bd.status !== 'unchanged')
+      const wasRenamed = nb1.name !== nb2.name
+      const hasChanges = hasBlockChanges || wasRenamed
 
       if (hasChanges) {
         notebookDiffs.push({
           name: nb2.name,
+          ...(wasRenamed && { oldName: nb1.name }),
           id,
           status: 'modified',
           blockDiffs: blockDiffs.filter(bd => bd.status !== 'unchanged'),
@@ -318,10 +322,14 @@ function printDiff(result: DiffResult, options: DiffOptions): void {
       output(statusColor(`  ${statusIcon} Added: "${nb.name}" (${nb.blockCount} blocks)`))
     } else if (nb.status === 'removed') {
       output(statusColor(`  ${statusIcon} Removed: "${nb.name}" (${nb.blockCount} blocks)`))
-    } else if (nb.status === 'modified' && nb.blockDiffs) {
-      output(statusColor(`  ${statusIcon} Modified: "${nb.name}"`))
+    } else if (nb.status === 'modified') {
+      if (nb.oldName) {
+        output(statusColor(`  ${statusIcon} Renamed: "${nb.oldName}" → "${nb.name}"`))
+      } else {
+        output(statusColor(`  ${statusIcon} Modified: "${nb.name}"`))
+      }
 
-      for (const bd of nb.blockDiffs.filter(isChangedBlock)) {
+      for (const bd of (nb.blockDiffs ?? []).filter(isChangedBlock)) {
         const blockStatusIcon = getStatusIcon(bd.status)
         const blockStatusColor = getStatusColor(bd.status)
         output(blockStatusColor(`      ${blockStatusIcon} ${bd.type} (${bd.id})`))
