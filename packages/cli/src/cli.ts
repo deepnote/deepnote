@@ -2,9 +2,12 @@ import chalk from 'chalk'
 import { Command } from 'commander'
 import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
 import { createConvertAction } from './commands/convert'
+import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createInspectAction } from './commands/inspect'
+import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
+import { createStatsAction } from './commands/stats'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
@@ -80,6 +83,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Open a .deepnote file in Deepnote Cloud')}
   $ deepnote open my-project.deepnote
+
+  ${c.dim('# Check for issues')}
+  $ deepnote lint my-project.deepnote
+
+  ${c.dim('# Show project statistics')}
+  $ deepnote stats my-project.deepnote
 
   ${c.dim('# Get help for a specific command')}
   $ deepnote help run
@@ -395,6 +404,144 @@ ${c.bold('Examples:')}
 `
     })
     .action(createValidateAction(program))
+
+  // DAG command - analyze block dependencies
+  const dagCmd = program
+    .command('dag')
+    .description('Analyze block dependencies and variable flow')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Subcommands:')}
+  show        Show the dependency graph between blocks
+  vars        List variables defined and used by each block
+  downstream  Show blocks that need re-run if a block changes
+
+${c.bold('Output Formats:')}
+  -o, --output json   Output as JSON for scripting
+  -o, --output dot    Output as DOT format for Graphviz visualization
+
+${c.bold('Examples:')}
+  ${c.dim('# Show the dependency graph')}
+  $ deepnote dag show my-project.deepnote
+
+  ${c.dim('# List variables for each block')}
+  $ deepnote dag vars my-project.deepnote
+
+  ${c.dim('# Show what needs re-run if a block changes')}
+  $ deepnote dag downstream my-project.deepnote --block "Load Data"
+
+  ${c.dim('# Generate Graphviz visualization')}
+  $ deepnote dag show my-project.deepnote -o dot | dot -Tpng -o deps.png
+
+  ${c.dim('# Analyze only a specific notebook')}
+  $ deepnote dag show my-project.deepnote --notebook "Analysis"
+`
+    })
+
+  dagCmd
+    .command('show')
+    .description('Show the dependency graph between blocks')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json, dot', createFormatValidator(['json', 'dot']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagShowAction(program))
+
+  dagCmd
+    .command('vars')
+    .description('List variables defined and used by each block')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagVarsAction(program))
+
+  dagCmd
+    .command('downstream')
+    .description('Show blocks that need re-run if a block changes')
+    .argument('<path>', 'Path to a .deepnote file')
+    .requiredOption('-b, --block <id>', 'Block ID or label to analyze')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .action(createDagDownstreamAction(program))
+
+  // Stats command - show project statistics
+  program
+    .command('stats')
+    .description('Show statistics about a .deepnote file')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Analyze only a specific notebook')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Output:')}
+  Displays statistics about the project including:
+  - Total notebooks, blocks, and lines of code
+  - Block types breakdown with counts
+  - Imported modules list
+  - Per-notebook breakdown
+
+${c.bold('Examples:')}
+  ${c.dim('# Show project statistics')}
+  $ deepnote stats my-project.deepnote
+
+  ${c.dim('# Output as JSON for scripting')}
+  $ deepnote stats my-project.deepnote -o json
+
+  ${c.dim('# Show stats for a specific notebook')}
+  $ deepnote stats my-project.deepnote --notebook "Data Analysis"
+`
+    })
+    .action(createStatsAction(program))
+
+  // Lint command - check for issues
+  program
+    .command('lint')
+    .description('Check a .deepnote file for issues')
+    .argument('<path>', 'Path to a .deepnote file')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('--notebook <name>', 'Lint only a specific notebook')
+    .option('--python <path>', 'Path to Python interpreter')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Checks:')}
+  ${c.underline('Variables')}
+  - undefined-variable: Variables used but never defined
+  - circular-dependency: Blocks with circular dependencies
+  - unused-variable: Variables defined but never used
+  - shadowed-variable: Variables that shadow previous definitions
+  - parse-error: Blocks that failed to parse
+
+  ${c.underline('Integrations')}
+  - missing-integration: SQL blocks using integrations that are not configured
+
+  ${c.underline('Inputs')}
+  - missing-input: Input blocks without default values
+
+${c.bold('Exit Codes:')}
+  0  No errors found (warnings may be present)
+  1  One or more errors found
+  2  Invalid usage (bad arguments, file not found)
+
+${c.bold('Examples:')}
+  ${c.dim('# Lint a .deepnote file')}
+  $ deepnote lint my-project.deepnote
+
+  ${c.dim('# Output as JSON for CI/CD')}
+  $ deepnote lint my-project.deepnote -o json
+
+  ${c.dim('# Lint only a specific notebook')}
+  $ deepnote lint my-project.deepnote --notebook "Analysis"
+
+  ${c.dim('# Use in CI pipeline')}
+  $ deepnote lint my-project.deepnote || exit 1
+`
+    })
+    .action(createLintAction(program))
 
   // Completion command - generate shell completions
   program
