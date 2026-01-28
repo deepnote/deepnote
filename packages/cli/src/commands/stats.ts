@@ -1,10 +1,9 @@
 import fs from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, outputJson } from '../output'
+import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface StatsOptions {
@@ -284,42 +283,44 @@ function outputStats(stats: ProjectStats, options: StatsOptions): void {
     return
   }
 
+  const c = getChalk()
+
   // Text output
-  console.log(chalk.bold.cyan(stats.projectName))
-  console.log(chalk.dim(`Project ID: ${stats.projectId}`))
-  console.log()
+  output(c.bold.cyan(stats.projectName))
+  output(c.dim(`Project ID: ${stats.projectId}`))
+  output('')
 
   // Summary
-  console.log(chalk.bold('Summary'))
-  console.log(`  ${chalk.dim('Notebooks:')} ${stats.notebookCount}`)
-  console.log(`  ${chalk.dim('Total Blocks:')} ${stats.totalBlocks}`)
-  console.log(`  ${chalk.dim('Lines of Code:')} ${stats.totalLinesOfCode}`)
-  console.log()
+  output(c.bold('Summary'))
+  output(`  ${c.dim('Notebooks:')} ${stats.notebookCount}`)
+  output(`  ${c.dim('Total Blocks:')} ${stats.totalBlocks}`)
+  output(`  ${c.dim('Lines of Code:')} ${stats.totalLinesOfCode}`)
+  output('')
 
   // Block types
   if (stats.blockTypesSummary.length > 0) {
-    console.log(chalk.bold('Block Types'))
+    output(c.bold('Block Types'))
     for (const bt of stats.blockTypesSummary) {
       const locStr = bt.linesOfCode > 0 ? ` (${bt.linesOfCode} LOC)` : ''
-      console.log(`  ${chalk.dim(`${bt.type}:`)} ${bt.count}${chalk.dim(locStr)}`)
+      output(`  ${c.dim(`${bt.type}:`)} ${bt.count}${c.dim(locStr)}`)
     }
-    console.log()
+    output('')
   }
 
   // Imports
   if (stats.imports.length > 0) {
-    console.log(chalk.bold('Imports'))
-    console.log(`  ${stats.imports.join(', ')}`)
-    console.log()
+    output(c.bold('Imports'))
+    output(`  ${stats.imports.join(', ')}`)
+    output('')
   }
 
   // Notebooks breakdown
   if (stats.notebooks.length > 1 || options.notebook) {
-    console.log(chalk.bold('Notebooks'))
+    output(c.bold('Notebooks'))
     for (const nb of stats.notebooks) {
-      console.log(`  ${chalk.cyan(nb.name)}`)
-      console.log(`    ${chalk.dim('Blocks:')} ${nb.blockCount}`)
-      console.log(`    ${chalk.dim('Lines of Code:')} ${nb.linesOfCode}`)
+      output(`  ${c.cyan(nb.name)}`)
+      output(`    ${c.dim('Blocks:')} ${nb.blockCount}`)
+      output(`    ${c.dim('Lines of Code:')} ${nb.linesOfCode}`)
     }
   }
 }

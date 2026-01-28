@@ -1,7 +1,7 @@
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { resetOutputConfig } from '../output'
+import { resetOutputConfig, setOutputConfig } from '../output'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './dag'
 
 // Test file paths relative to project root (tests are run from root)
@@ -363,6 +363,61 @@ describe('dag command', () => {
       const output = getOutput(consoleSpy)
       const result = JSON.parse(output)
       expect(result.nodes).toBeDefined()
+    })
+  })
+
+  describe('global options', () => {
+    describe('--no-color', () => {
+      it('dag show produces output without ANSI escape codes when color is disabled', async () => {
+        setOutputConfig({ color: false })
+        const action = createDagShowAction(program)
+        const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+        await action(filePath, {})
+
+        const output = getOutput(consoleSpy)
+        // ANSI escape codes start with \x1b[ (ESC[)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: Testing for ANSI codes
+        expect(output).not.toMatch(/\x1b\[/)
+        expect(output).toContain('Dependency Graph')
+      })
+
+      it('dag vars produces output without ANSI escape codes when color is disabled', async () => {
+        setOutputConfig({ color: false })
+        const action = createDagVarsAction(program)
+        const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+        await action(filePath, {})
+
+        const output = getOutput(consoleSpy)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: Testing for ANSI codes
+        expect(output).not.toMatch(/\x1b\[/)
+        expect(output).toContain('Variables by Block')
+      })
+    })
+
+    describe('--quiet', () => {
+      it('dag show still outputs essential content in quiet mode', async () => {
+        setOutputConfig({ quiet: true })
+        const action = createDagShowAction(program)
+        const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+        await action(filePath, {})
+
+        const output = getOutput(consoleSpy)
+        expect(output).toContain('Dependency Graph')
+      })
+
+      it('dag vars still outputs essential content in quiet mode', async () => {
+        setOutputConfig({ quiet: true })
+        const action = createDagVarsAction(program)
+        const filePath = resolve(process.cwd(), HOUSING_FILE)
+
+        await action(filePath, {})
+
+        const output = getOutput(consoleSpy)
+        expect(output).toContain('Variables by Block')
+      })
     })
   })
 })
