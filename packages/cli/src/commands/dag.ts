@@ -6,10 +6,9 @@ import {
   getDagForBlocks,
   getDownstreamBlocksForBlocksIds,
 } from '@deepnote/reactivity'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, outputJson } from '../output'
+import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
@@ -180,14 +179,14 @@ function outputDagShow(
     return
   }
 
+  const c = getChalk()
+
   // Text output - tree style visualization
-  console.log(
-    `${chalk.bold('Dependency Graph')} ${chalk.dim(`(${dag.nodes.length} blocks, ${dag.edges.length} edges)`)}`
-  )
-  console.log()
+  output(`${c.bold('Dependency Graph')} ${c.dim(`(${dag.nodes.length} blocks, ${dag.edges.length} edges)`)}`)
+  output('')
 
   if (dag.edges.length === 0) {
-    console.log(chalk.dim('No dependencies found between blocks.'))
+    output(c.dim('No dependencies found between blocks.'))
     return
   }
 
@@ -316,19 +315,21 @@ function renderTreeNode(
   const alreadyRendered = rendered.has(nodeId)
   rendered.add(nodeId)
 
+  const c = getChalk()
+
   // Render the node line
-  const typeIndicator = chalk.dim(`[${info?.type ?? 'unknown'}]`)
+  const typeIndicator = c.dim(`[${info?.type ?? 'unknown'}]`)
   if (alreadyRendered) {
-    console.log(`${prefix}${connector}${chalk.cyan(label)} ${typeIndicator}${varsDisplay} ${chalk.yellow('*')}`)
+    output(`${prefix}${connector}${c.cyan(label)} ${typeIndicator}${varsDisplay} ${c.yellow('*')}`)
     return
   }
 
-  console.log(`${prefix}${connector}${chalk.cyan(label)} ${typeIndicator}${varsDisplay}`)
+  output(`${prefix}${connector}${c.cyan(label)} ${typeIndicator}${varsDisplay}`)
 
   // Show defined variables if any
   const outputVars = node?.outputVariables ?? []
   if (outputVars.length > 0) {
-    console.log(`${prefix}${childPrefix}${chalk.dim('defines:')} ${chalk.green(outputVars.join(', '))}`)
+    output(`${prefix}${childPrefix}${c.dim('defines:')} ${c.green(outputVars.join(', '))}`)
   }
 
   // Get and render children
@@ -336,7 +337,7 @@ function renderTreeNode(
   for (let i = 0; i < children.length; i++) {
     const child = children[i]
     const isLastChild = i === children.length - 1
-    const childVarsDisplay = child.variables.length > 0 ? chalk.dim(` via ${child.variables.join(', ')}`) : ''
+    const childVarsDisplay = child.variables.length > 0 ? c.dim(` via ${child.variables.join(', ')}`) : ''
 
     renderTreeNode(
       child.id,
@@ -373,33 +374,35 @@ function outputDagVars(
     return
   }
 
+  const c = getChalk()
+
   // Text output
-  console.log(`${chalk.bold('Variables by Block')} ${chalk.dim(`(${dag.nodes.length} blocks)`)}`)
-  console.log()
+  output(`${c.bold('Variables by Block')} ${c.dim(`(${dag.nodes.length} blocks)`)}`)
+  output('')
 
   for (const node of dag.nodes) {
     const info = blockMap.get(node.id)
     const label = info?.label ?? node.id
 
-    console.log(`${chalk.cyan(label)} ${chalk.dim(`(${info?.type ?? 'unknown'})`)}`)
+    output(`${c.cyan(label)} ${c.dim(`(${info?.type ?? 'unknown'})`)}`)
 
     if (node.error) {
-      console.log(`  ${chalk.red('Error:')} ${node.error.message}`)
+      output(`  ${c.red('Error:')} ${node.error.message}`)
     } else {
       if (node.outputVariables.length > 0) {
-        console.log(`  ${chalk.green('Defines:')} ${node.outputVariables.join(', ')}`)
+        output(`  ${c.green('Defines:')} ${node.outputVariables.join(', ')}`)
       }
       if (node.inputVariables.length > 0) {
-        console.log(`  ${chalk.yellow('Uses:')} ${node.inputVariables.join(', ')}`)
+        output(`  ${c.yellow('Uses:')} ${node.inputVariables.join(', ')}`)
       }
       if (node.importedModules.length > 0) {
-        console.log(`  ${chalk.blue('Imports:')} ${node.importedModules.join(', ')}`)
+        output(`  ${c.blue('Imports:')} ${node.importedModules.join(', ')}`)
       }
       if (node.outputVariables.length === 0 && node.inputVariables.length === 0 && node.importedModules.length === 0) {
-        console.log(chalk.dim('  (no variables)'))
+        output(c.dim('  (no variables)'))
       }
     }
-    console.log()
+    output('')
   }
 }
 
@@ -446,25 +449,25 @@ function outputDagDownstream(
     return
   }
 
+  const c = getChalk()
+
   // Text output
   const sourceLabel = sourceInfo?.label ?? blockId
-  console.log(`${chalk.bold('Downstream Impact')} for ${chalk.cyan(sourceLabel)}`)
-  console.log()
+  output(`${c.bold('Downstream Impact')} for ${c.cyan(sourceLabel)}`)
+  output('')
 
   if (downstreamIds.length === 0) {
-    console.log(chalk.dim('No downstream blocks depend on this block.'))
+    output(c.dim('No downstream blocks depend on this block.'))
     return
   }
 
-  console.log(
-    `${chalk.yellow(downstreamIds.length)} block${downstreamIds.length === 1 ? '' : 's'} will need to re-run:`
-  )
-  console.log()
+  output(`${c.yellow(downstreamIds.length)} block${downstreamIds.length === 1 ? '' : 's'} will need to re-run:`)
+  output('')
 
   for (const id of downstreamIds) {
     const info = blockMap.get(id)
     const label = info?.label ?? id
-    console.log(`  ${chalk.dim('•')} ${label} ${chalk.dim(`(${info?.type ?? 'unknown'})`)}`)
+    output(`  ${c.dim('•')} ${label} ${c.dim(`(${info?.type ?? 'unknown'})`)}`)
   }
 }
 
@@ -520,7 +523,7 @@ function outputDot(dag: BlockDependencyDag, blockMap: BlockMap): void {
 
   lines.push('}')
 
-  console.log(lines.join('\n'))
+  output(lines.join('\n'))
 }
 
 function handleError(error: unknown, options: DagOptions): never {

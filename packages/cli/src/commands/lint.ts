@@ -2,10 +2,9 @@ import fs from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, error as logError, outputJson } from '../output'
+import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { isBuiltinOrGlobal } from '../utils/python-builtins'
@@ -571,9 +570,11 @@ function outputLintResult(result: LintResult, options: LintOptions): void {
     return
   }
 
+  const c = getChalk()
+
   // Text output
   if (result.issues.length === 0) {
-    console.log(chalk.green('✓ No issues found'))
+    output(c.green('✓ No issues found'))
     return
   }
 
@@ -587,26 +588,26 @@ function outputLintResult(result: LintResult, options: LintOptions): void {
 
   // Output issues
   for (const [notebookName, issues] of issuesByNotebook) {
-    console.log(chalk.bold(notebookName))
-    console.log()
+    output(c.bold(notebookName))
+    output('')
 
     for (const issue of issues) {
-      const icon = issue.severity === 'error' ? chalk.red('✖') : chalk.yellow('⚠')
-      const color = issue.severity === 'error' ? chalk.red : chalk.yellow
-      console.log(`  ${icon} ${color(issue.code)}: ${issue.message}`)
-      console.log(`    ${chalk.dim(`in ${issue.blockLabel}`)}`)
+      const icon = issue.severity === 'error' ? c.red('✖') : c.yellow('⚠')
+      const color = issue.severity === 'error' ? c.red : c.yellow
+      output(`  ${icon} ${color(issue.code)}: ${issue.message}`)
+      output(`    ${c.dim(`in ${issue.blockLabel}`)}`)
     }
-    console.log()
+    output('')
   }
 
   // Summary
   const parts: string[] = []
   if (result.issueCount.errors > 0) {
-    parts.push(chalk.red(`${result.issueCount.errors} error${result.issueCount.errors === 1 ? '' : 's'}`))
+    parts.push(c.red(`${result.issueCount.errors} error${result.issueCount.errors === 1 ? '' : 's'}`))
   }
   if (result.issueCount.warnings > 0) {
-    parts.push(chalk.yellow(`${result.issueCount.warnings} warning${result.issueCount.warnings === 1 ? '' : 's'}`))
+    parts.push(c.yellow(`${result.issueCount.warnings} warning${result.issueCount.warnings === 1 ? '' : 's'}`))
   }
 
-  console.log(`${chalk.bold('Summary:')} ${parts.join(', ')}`)
+  output(`${c.bold('Summary:')} ${parts.join(', ')}`)
 }

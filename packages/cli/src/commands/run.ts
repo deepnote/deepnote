@@ -16,10 +16,9 @@ import {
   type IOutput,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
 } from '@deepnote/runtime-core'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
+import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -127,7 +126,7 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   const inputs = parseInputs(options.input)
 
   if (!isMachineOutput) {
-    log(chalk.dim(`Parsing ${absolutePath}...`))
+    log(getChalk().dim(`Parsing ${absolutePath}...`))
   }
 
   const rawBytes = await fs.readFile(absolutePath)
@@ -231,7 +230,7 @@ export function createRunAction(program: Command): (path: string, options: RunOp
         process.exitCode = exitCode
         return
       }
-      program.error(chalk.red(message), { exitCode })
+      program.error(getChalk().red(message), { exitCode })
     }
   }
 }
@@ -352,22 +351,24 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
     return
   }
 
+  const c = getChalk()
+
   if (inputs.length === 0) {
-    console.log(chalk.dim('No input blocks found.'))
+    output(c.dim('No input blocks found.'))
     return
   }
 
-  console.log(chalk.bold('Input variables:'))
-  console.log()
+  output(c.bold('Input variables:'))
+  output('')
   for (const input of inputs) {
-    const typeLabel = chalk.dim(`(${input.type})`)
-    const valueStr = input.hasValue ? chalk.green(JSON.stringify(input.currentValue)) : chalk.yellow('(no value)')
+    const typeLabel = c.dim(`(${input.type})`)
+    const valueStr = input.hasValue ? c.green(JSON.stringify(input.currentValue)) : c.yellow('(no value)')
     const labelStr = input.label ? ` - ${input.label}` : ''
-    console.log(`  ${chalk.cyan(input.variableName)} ${typeLabel}${labelStr}`)
-    console.log(`    Current value: ${valueStr}`)
+    output(`  ${c.cyan(input.variableName)} ${typeLabel}${labelStr}`)
+    output(`    Current value: ${valueStr}`)
   }
-  console.log()
-  console.log(chalk.dim('Use --input <name>=<value> to set values before running.'))
+  output('')
+  output(c.dim('Use --input <name>=<value> to set values before running.'))
 }
 
 /**
@@ -393,23 +394,24 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
       outputJson(result)
     }
   } else {
-    output(chalk.bold('\nExecution Plan (dry run)'))
-    output(chalk.dim('─'.repeat(50)))
+    const c = getChalk()
+    output(c.bold('\nExecution Plan (dry run)'))
+    output(c.dim('─'.repeat(50)))
 
     if (executableBlocks.length === 0) {
-      output(chalk.yellow('No executable blocks found.'))
+      output(c.yellow('No executable blocks found.'))
     } else {
       for (let i = 0; i < executableBlocks.length; i++) {
         const block = executableBlocks[i]
-        output(`${chalk.cyan(`[${i + 1}/${executableBlocks.length}]`)} ${block.label}`)
+        output(`${c.cyan(`[${i + 1}/${executableBlocks.length}]`)} ${block.label}`)
         if (notebookCount > 1) {
-          output(chalk.dim(`    Notebook: ${block.notebook}`))
+          output(c.dim(`    Notebook: ${block.notebook}`))
         }
       }
     }
 
-    output(chalk.dim('─'.repeat(50)))
-    output(chalk.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
+    output(c.dim('─'.repeat(50)))
+    output(c.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
   }
 }
 
@@ -562,7 +564,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   })
 
   if (!isMachineOutput) {
-    log(chalk.dim('Starting deepnote-toolkit server...'))
+    log(getChalk().dim('Starting deepnote-toolkit server...'))
   }
 
   try {
@@ -576,7 +578,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     } catch (stopError) {
       const stopMessage = stopError instanceof Error ? stopError.message : String(stopError)
       if (!isMachineOutput) {
-        logError(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
+        logError(getChalk().dim(`Note: cleanup also failed: ${stopMessage}`))
       }
     }
 
@@ -586,7 +588,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   }
 
   if (!isMachineOutput) {
-    log(chalk.dim('Server ready. Executing blocks...\n'))
+    log(getChalk().dim('Server ready. Executing blocks...\n'))
   }
 
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
@@ -641,7 +643,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         }
 
         if (!isMachineOutput) {
-          process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
+          process.stdout.write(`${getChalk().cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
@@ -686,10 +688,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         }
 
         if (!isMachineOutput) {
+          const c = getChalk()
           if (result.success) {
-            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
+            output(c.green('✓') + c.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
           } else {
-            output(chalk.red('✗'))
+            output(c.red('✗'))
           }
 
           // Render outputs
@@ -726,14 +729,15 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       }
       process.exitCode = exitCode
     } else {
+      const c = getChalk()
       // Print summary
-      output(chalk.dim('─'.repeat(50)))
+      output(c.dim('─'.repeat(50)))
 
       // Show final resource usage if --top was enabled
       if (showTop && engine.serverPort) {
         const finalMetrics = await fetchMetrics(engine.serverPort)
         if (finalMetrics) {
-          output(chalk.bold('Final resource usage:'))
+          output(c.bold('Final resource usage:'))
           displayMetrics(finalMetrics)
         }
       }
@@ -745,13 +749,13 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
       if (summary.failedBlocks > 0) {
         output(
-          chalk.red(
+          c.red(
             `Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`
           )
         )
       } else {
         const duration = (summary.totalDurationMs / 1000).toFixed(1)
-        output(chalk.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
+        output(c.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
       }
 
       process.exitCode = exitCode
