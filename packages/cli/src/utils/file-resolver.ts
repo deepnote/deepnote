@@ -17,27 +17,67 @@ export interface ResolvedFile {
   absolutePath: string
 }
 
+export interface ResolvedPath {
+  absolutePath: string
+  stat: import('node:fs').Stats
+  isDirectory: boolean
+  extension: string // lowercase, empty string for directories
+}
+
+/**
+ * General-purpose path resolution with proper error handling.
+ *
+ * @param inputPath - Path to resolve (relative or absolute)
+ * @returns The resolved path with stat info
+ * @throws FileResolutionError if the path doesn't exist
+ */
+export async function resolvePath(inputPath: string): Promise<ResolvedPath> {
+  const cwd = process.cwd()
+  const absolutePath = resolve(cwd, inputPath)
+
+  let fileStat: import('node:fs').Stats
+  try {
+    fileStat = await stat(absolutePath)
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      throw new FileResolutionError(`File or directory not found: ${inputPath}`)
+    }
+    throw err // Rethrow permission errors (EACCES), etc.
+  }
+
+  const isDirectory = fileStat.isDirectory()
+  const extension = isDirectory ? '' : extname(absolutePath).toLowerCase()
+
+  return { absolutePath, stat: fileStat, isDirectory, extension }
+}
+
 export interface ResolveDeepnoteFileOptions {
-  /** Custom error message when path is missing */
-  missingPathMessage?: string
+  /** Custom error message when no .deepnote files are found */
+  noFilesFoundMessage?: string
 }
 
 /**
  * Resolves and validates a .deepnote file path.
  *
- * @param path - The path to the .deepnote file (relative or absolute)
+ * Smart resolution behavior:
+ * - No path: finds first .deepnote file in current directory
+ * - Directory path: finds first .deepnote file in that directory
+ * - File path: validates it's a .deepnote file
+ *
+ * @param path - Optional path to a .deepnote file or directory (relative or absolute)
  * @param options - Optional configuration
  * @returns The resolved absolute path
- * @throws FileResolutionError if the path is missing, file doesn't exist, or isn't a .deepnote file
+ * @throws FileResolutionError if no .deepnote file found or file is invalid
  */
 export async function resolvePathToDeepnoteFile(
   path: string | undefined,
   options: ResolveDeepnoteFileOptions = {}
 ): Promise<ResolvedFile> {
+  // If no path provided, search current directory
   if (!path) {
-    throw new FileResolutionError(
-      options.missingPathMessage ?? 'Missing path to a .deepnote file.\n\nUsage: deepnote <command> <path>'
-    )
+    debug('No path provided, searching current directory for .deepnote files')
+    return findDeepnoteFileInDirectory(process.cwd(), options)
   }
 
   const absolutePath = resolve(process.cwd(), path)
@@ -54,16 +94,54 @@ export async function resolvePathToDeepnoteFile(
     throw new FileResolutionError(`File not found: ${absolutePath}${suggestion}`)
   }
 
-  if (!fileStat.isFile()) {
-    throw new FileResolutionError(
-      `Not a file: ${absolutePath}\n\nHint: If this is a directory, specify a .deepnote file inside it.`
-    )
+  // If it's a directory, find first .deepnote file in it
+  if (fileStat.isDirectory()) {
+    debug(`Path is a directory, searching for .deepnote files in: ${absolutePath}`)
+    return findDeepnoteFileInDirectory(absolutePath, options)
   }
 
   const ext = extname(absolutePath).toLowerCase()
   if (ext !== '.deepnote') {
     const hint = getSupportedFileHint(ext)
     throw new FileResolutionError(`Unsupported file type: ${ext || '(no extension)'}\n\n${hint}`)
+  }
+
+  return { absolutePath }
+}
+
+/**
+ * Find the first .deepnote file in a directory (sorted alphabetically).
+ */
+async function findDeepnoteFileInDirectory(
+  dirPath: string,
+  options: ResolveDeepnoteFileOptions
+): Promise<ResolvedFile> {
+  const entries = await readdir(dirPath, { withFileTypes: true }).catch((err: unknown) => {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code
+    if (code === 'ENOENT') {
+      throw new FileResolutionError(`Directory not found: ${dirPath}`)
+    }
+    throw err
+  })
+
+  // Filter for actual files (not directories) with .deepnote extension
+  const deepnoteFiles = entries
+    .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.deepnote'))
+    .map(entry => entry.name)
+    .sort()
+
+  if (deepnoteFiles.length === 0) {
+    const defaultMessage = `No .deepnote files found in: ${dirPath}\n\nCreate a .deepnote file or specify a path to one.`
+    throw new FileResolutionError(options.noFilesFoundMessage ?? defaultMessage)
+  }
+
+  const selectedFile = deepnoteFiles[0]
+  const absolutePath = resolve(dirPath, selectedFile)
+
+  debug(`Auto-selected .deepnote file: ${absolutePath}`)
+
+  if (deepnoteFiles.length > 1) {
+    debug(`Note: ${deepnoteFiles.length} .deepnote files found, using first alphabetically: ${selectedFile}`)
   }
 
   return { absolutePath }

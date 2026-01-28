@@ -1,4 +1,5 @@
 import type { Command } from 'commander'
+import { FILTERABLE_BLOCK_TYPES } from './commands/cat'
 
 /**
  * Generate shell completion script for the given shell.
@@ -19,15 +20,58 @@ export function generateCompletionScript(shell: string, program: Command): strin
 }
 
 function generateBashCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   return `# Bash completion for deepnote CLI
 # Add this to ~/.bashrc or ~/.bash_profile
 
 _deepnote_completions() {
-    local cur prev commands
+    local cur prev commands subcommand word
     COMPREPLY=()
     cur="\${COMP_WORDS[COMP_CWORD]}"
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
     commands="${commands.join(' ')} help"
+
+    # Find the subcommand by scanning COMP_WORDS
+    subcommand=""
+    for word in "\${COMP_WORDS[@]:1}"; do
+        case "\${word}" in
+            inspect|cat|run|open|validate|convert|completion|help)
+                subcommand="\${word}"
+                break
+                ;;
+        esac
+    done
+
+    # Handle -o/--output option completion based on the subcommand
+    if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
+        case "\${subcommand}" in
+            inspect|run)
+                COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
+                return 0
+                ;;
+            cat|open|validate)
+                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
+                return 0
+                ;;
+        esac
+    fi
+
+    # Handle --type option completion for cat command
+    if [[ "\${prev}" == "--type" ]]; then
+        if [[ "\${subcommand}" == "cat" ]]; then
+            COMPREPLY=( $(compgen -W "${blockTypes}" -- "\${cur}") )
+            return 0
+        fi
+    fi
+
+    # Handle -f/--format option completion for convert command
+    if [[ "\${prev}" == "-f" || "\${prev}" == "--format" ]]; then
+        if [[ "\${subcommand}" == "convert" ]]; then
+            COMPREPLY=( $(compgen -W "jupyter percent quarto marimo" -- "\${cur}") )
+            return 0
+        fi
+    fi
 
     case "\${prev}" in
         deepnote)
@@ -35,13 +79,59 @@ _deepnote_completions() {
             return 0
             ;;
         inspect)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete -o/--output options and .deepnote files
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        cat)
+            # Complete cat options and .deepnote files
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --notebook --type --tree" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         run)
-            # Complete .deepnote files
-            COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        open)
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--domain -o --output" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        validate)
+            # Complete -o/--output options and .deepnote files
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        convert)
+            # Complete convert options and supported file types
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output -n --name -f --format --json" -- "\${cur}") )
+            elif [[ "\${prev}" == "-o" || "\${prev}" == "--output" || "\${prev}" == "-n" || "\${prev}" == "--name" ]]; then
+                COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.@(deepnote|ipynb|qmd|py)' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
             return 0
             ;;
         completion)
@@ -64,12 +154,18 @@ complete -F _deepnote_completions deepnote
 
 /** Command descriptions for zsh completions */
 const zshCommandDescriptions: Record<string, string> = {
+  cat: 'Display block contents from a .deepnote file',
+  convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  open: 'Open a .deepnote file in Deepnote',
+  validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
 
 function generateZshCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   // Build the commands array for zsh
   const commandEntries = commands
     .map(cmd => `        '${cmd}:${zshCommandDescriptions[cmd] ?? cmd}'`)
@@ -114,7 +210,15 @@ ${commandEntries}
             case $words[1] in
                 inspect)
                     _arguments \\
-                        '--json[Output in JSON format]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                cat)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '--notebook[Show only blocks from specified notebook]:notebook name:' \\
+                        '--type[Filter blocks by type]:type:(${blockTypes})' \\
+                        '--tree[Show structure only without block content]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 run)
@@ -123,8 +227,32 @@ ${commandEntries}
                         '--cwd[Working directory for execution]:cwd path:_files -/' \\
                         '--notebook[Run only the specified notebook]:notebook name:' \\
                         '--block[Run only the specified block]:block id:' \\
-                        '--json[Output results in JSON format]' \\
+                        '*'{-i,--input}'[Set input variable value]:key=value:' \\
+                        '--list-inputs[List all input variables without running]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '--dry-run[Show what would be executed without running]' \\
+                        '--top[Display resource usage during execution]' \\
+                        '--profile[Show per-block timing and memory usage]' \\
                         '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                open)
+                    _arguments \\
+                        '--domain[Deepnote domain]:domain:' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                validate)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                convert)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output file or directory]:output path:_files' \\
+                        '(-n --name)'{-n,--name}'[Project name for conversion]:project name:' \\
+                        '(-f --format)'{-f,--format}'[Output format (jupyter, percent, quarto, marimo)]:format:(jupyter percent quarto marimo)' \\
+                        '--json[Output in JSON format]' \\
+                        '*:input file:_files -g "*.{deepnote,ipynb,qmd,py}"'
                     ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
@@ -143,12 +271,18 @@ _deepnote
 
 /** Command descriptions for fish completions */
 const fishCommandDescriptions: Record<string, string> = {
+  cat: 'Display block contents from a .deepnote file',
+  convert: 'Convert between notebook formats',
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
+  open: 'Open a .deepnote file in Deepnote',
+  validate: 'Validate a .deepnote file against the schema',
   completion: 'Generate shell completion scripts',
 }
 
 function generateFishCompletion(commands: string[]): string {
+  const blockTypes = FILTERABLE_BLOCK_TYPES.join(' ')
+
   // Build the command completions
   const commandCompletions = commands
     .map(cmd => `complete -c deepnote -n __fish_use_subcommand -a ${cmd} -d '${fishCommandDescriptions[cmd] ?? cmd}'`)
@@ -175,16 +309,44 @@ complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
 ${commandCompletions}
 
 # inspect subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from inspect' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from inspect' -s o -l output -d 'Output format' -xa 'json toon'
 complete -c deepnote -n '__fish_seen_subcommand_from inspect' -F -a '*.deepnote'
+
+# cat subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -l notebook -d 'Show only blocks from specified notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -l type -d 'Filter blocks by type' -xa '${blockTypes}'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -l tree -d 'Show structure only without block content'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -F -a '*.deepnote'
 
 # run subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l python -d 'Path to Python interpreter'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l cwd -d 'Working directory for execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run only the specified notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -l json -d 'Output results in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (can be repeated)'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List all input variables without running'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -s o -l output -d 'Output format' -xa 'json toon'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l dry-run -d 'Show what would be executed without running'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l top -d 'Display resource usage during execution'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l profile -d 'Show per-block timing and memory usage'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
+
+# open subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from open' -l domain -d 'Deepnote domain'
+complete -c deepnote -n '__fish_seen_subcommand_from open' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from open' -F -a '*.deepnote'
+
+# validate subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote'
+
+# convert subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s o -l output -d 'Output file or directory'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s n -l name -d 'Project name for conversion'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -s f -l format -d 'Output format' -xa 'jupyter percent quarto marimo'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -l json -d 'Output in JSON format'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
