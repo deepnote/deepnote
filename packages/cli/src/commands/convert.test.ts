@@ -565,6 +565,45 @@ x = 1
     })
   })
 
+  describe('--open flag', () => {
+    it('warns when --open is used with non-deepnote output format', async () => {
+      const action = createConvertAction(program)
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      try {
+        const deepnotePath = join(tempDir, 'project.deepnote')
+        const content = `metadata:
+  createdAt: "2025-01-01T00:00:00Z"
+project:
+  id: test-id
+  name: Test Project
+  notebooks:
+    - id: notebook-1
+      name: Test Notebook
+      blocks:
+        - id: block-1
+          type: code
+          content: "print('hello')"
+          blockGroup: group-1
+          sortingKey: a0
+          metadata: {}
+version: "1.0.0"
+`
+        await fs.writeFile(deepnotePath, content, 'utf-8')
+
+        const outputDir = join(tempDir, 'output')
+        await action(deepnotePath, { output: outputDir, format: 'jupyter', open: true })
+
+        // Verify warning was shown
+        expect(consoleLogSpy).toHaveBeenCalled()
+        const logOutput = consoleLogSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(logOutput).toContain('--open is only available when converting to .deepnote format')
+      } finally {
+        consoleLogSpy.mockRestore()
+      }
+    })
+  })
+
   describe('format validation', () => {
     it('rejects invalid output format', async () => {
       const action = createConvertAction(program)
