@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { Resource } from '@modelcontextprotocol/sdk/types.js'
 
@@ -113,7 +114,9 @@ export async function readResource(uri: string, workspaceRoot?: string): Promise
 
   if (parsed.type === 'examples') {
     // Return list of example notebooks
-    const examplesDir = path.resolve(__dirname, '../../../examples')
+    // @ts-expect-error -- import.meta.url works at runtime (ESM bundle), but tsconfig uses commonjs for type-checking
+    const currentDir = path.dirname(fileURLToPath(import.meta.url))
+    const examplesDir = path.resolve(currentDir, '../../../examples')
     const files = await findDeepnoteFiles(examplesDir, 1)
 
     const examples = await Promise.all(

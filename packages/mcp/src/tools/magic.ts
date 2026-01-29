@@ -2534,11 +2534,21 @@ async function handleWorkflow(args: Record<string, unknown>) {
         }
       }
 
+      // Parse result - handle non-JSON outputs (like markdown from explain)
+      let parsedResult: unknown
+      if (resultText) {
+        try {
+          parsedResult = JSON.parse(resultText)
+        } catch {
+          parsedResult = resultText
+        }
+      }
+
       results.push({
         step: i + 1,
         tool: toolName,
         success: !result.isError,
-        result: resultText ? JSON.parse(resultText) : undefined,
+        result: parsedResult,
       })
 
       if (result.isError && stopOnError) {
