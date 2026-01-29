@@ -43,10 +43,10 @@ vi.mock('@deepnote/reactivity', () => {
   }
 })
 
-// Mock openDeepnoteInCloud for --open flag tests
-const mockOpenDeepnoteInCloud = vi.fn()
-vi.mock('../utils/open-in-cloud', () => ({
-  openDeepnoteInCloud: (...args: unknown[]) => mockOpenDeepnoteInCloud(...args),
+// Mock openDeepnoteFileInCloud for --open flag tests
+const mockOpenDeepnoteFileInCloud = vi.fn()
+vi.mock('../utils/open-file-in-cloud', () => ({
+  openDeepnoteFileInCloud: (...args: unknown[]) => mockOpenDeepnoteFileInCloud(...args),
 }))
 
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
@@ -1751,8 +1751,8 @@ describe('run command', () => {
 
     describe('--open flag', () => {
       beforeEach(() => {
-        mockOpenDeepnoteInCloud.mockReset()
-        mockOpenDeepnoteInCloud.mockResolvedValue({
+        mockOpenDeepnoteFileInCloud.mockReset()
+        mockOpenDeepnoteFileInCloud.mockResolvedValue({
           url: 'https://deepnote.com/launch?importId=test-id',
           importId: 'test-id',
         })
@@ -1763,9 +1763,9 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalledTimes(1)
         // Should be called with the original file path (or a path ending in .deepnote)
-        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        const calledPath = mockOpenDeepnoteFileInCloud.mock.calls[0][0]
         expect(calledPath).toContain('.deepnote')
       })
 
@@ -1774,9 +1774,9 @@ describe('run command', () => {
 
         await action(JUPYTER_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalledTimes(1)
         // For converted files, a temp .deepnote file is created
-        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        const calledPath = mockOpenDeepnoteFileInCloud.mock.calls[0][0]
         expect(calledPath).toContain('.deepnote')
       })
 
@@ -1785,7 +1785,7 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).not.toHaveBeenCalled()
+        expect(mockOpenDeepnoteFileInCloud).not.toHaveBeenCalled()
       })
 
       it('does not open when --open flag is not set', async () => {
@@ -1793,7 +1793,7 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, {})
 
-        expect(mockOpenDeepnoteInCloud).not.toHaveBeenCalled()
+        expect(mockOpenDeepnoteFileInCloud).not.toHaveBeenCalled()
       })
 
       it('cleans up temp file after uploading converted file', async () => {
@@ -1801,9 +1801,9 @@ describe('run command', () => {
 
         await action(JUPYTER_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalled()
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalled()
         // The temp file should be cleaned up (verify by checking the path no longer exists)
-        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        const calledPath = mockOpenDeepnoteFileInCloud.mock.calls[0][0]
         // If it was a temp file, it should have been in os.tmpdir()
         if (calledPath.includes(os.tmpdir())) {
           expect(fs.existsSync(calledPath)).toBe(false)

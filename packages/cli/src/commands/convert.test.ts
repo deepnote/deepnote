@@ -8,10 +8,10 @@ import { resetOutputConfig, setOutputConfig } from '../output'
 
 const SIMPLE_DEEPNOTE_FIXTURE = join('test-fixtures', 'simple.deepnote')
 
-// Mock openDeepnoteInCloud for --open flag tests
-const mockOpenDeepnoteInCloud = vi.fn()
-vi.mock('../utils/open-in-cloud', () => ({
-  openDeepnoteInCloud: (...args: unknown[]) => mockOpenDeepnoteInCloud(...args),
+// Mock openDeepnoteFileInCloud for --open flag tests
+const mockOpenDeepnoteFileInCloud = vi.fn()
+vi.mock('../utils/open-file-in-cloud', () => ({
+  openDeepnoteFileInCloud: (...args: unknown[]) => mockOpenDeepnoteFileInCloud(...args),
 }))
 
 import { createConvertAction } from './convert'
@@ -576,8 +576,8 @@ x = 1
 
   describe('--open flag', () => {
     beforeEach(() => {
-      mockOpenDeepnoteInCloud.mockReset()
-      mockOpenDeepnoteInCloud.mockResolvedValue({
+      mockOpenDeepnoteFileInCloud.mockReset()
+      mockOpenDeepnoteFileInCloud.mockResolvedValue({
         url: 'https://deepnote.com/launch?importId=test-id',
         importId: 'test-id',
       })
@@ -602,8 +602,8 @@ x = 1
         await action(ipynbPath, { output: outputPath, open: true })
 
         // Verify openDeepnoteInCloud was called with the output path
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledWith(outputPath, expect.any(Object))
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalledTimes(1)
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalledWith(outputPath, expect.any(Object))
 
         // Verify no warning was shown
         const logOutput = consoleLogSpy.mock.calls.map(call => call.join(' ')).join('\n')

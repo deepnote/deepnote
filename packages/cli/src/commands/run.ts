@@ -27,7 +27,7 @@ import {
   fetchMetrics,
   formatMemoryDelta,
 } from '../utils/metrics'
-import { openDeepnoteInCloud } from '../utils/open-in-cloud'
+import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 
 /**
  * Error thrown when required inputs are missing.
@@ -799,7 +799,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         if (!isMachineOutput) {
           output('')
         }
-        const result = await openDeepnoteInCloud(fileToOpen, { quiet: isMachineOutput })
+        const result = await openDeepnoteFileInCloud(fileToOpen, { quiet: isMachineOutput })
         if (!isMachineOutput) {
           output(`${c.green('✓')} Opened in Deepnote Cloud`)
           output(`${c.dim('URL:')} ${result.url}`)
