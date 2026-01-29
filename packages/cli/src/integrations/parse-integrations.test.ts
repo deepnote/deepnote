@@ -1,0 +1,318 @@
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { buildIntegrationsById, getDefaultIntegrationsFilePath, parseIntegrationsFile } from './parse-integrations'
+
+describe('parseIntegrationsFile', () => {
+  let tempDir: string
+
+  beforeAll(async () => {
+    tempDir = join(tmpdir(), `integrations-test-${Date.now()}`)
+    await mkdir(tempDir, { recursive: true })
+  })
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  describe('file not found', () => {
+    it('returns empty result when file does not exist', async () => {
+      const nonExistentPath = join(tempDir, 'does-not-exist.yaml')
+
+      const result = await parseIntegrationsFile(nonExistentPath)
+
+      expect(result.integrations).toEqual([])
+      expect(result.issues).toEqual([])
+    })
+  })
+
+  describe('invalid YAML', () => {
+    it('returns issue for invalid YAML syntax', async () => {
+      const filePath = join(tempDir, 'invalid-yaml.yaml')
+      await writeFile(filePath, 'integrations:\n  - id: "unclosed string')
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toEqual([])
+      expect(result.issues).toHaveLength(1)
+      expect(result.issues[0].code).toBe('yaml_parse_error')
+      expect(result.issues[0].message).toContain('Invalid YAML')
+    })
+  })
+
+  describe('invalid file structure', () => {
+    it('returns issue when integrations is not an array', async () => {
+      const filePath = join(tempDir, 'invalid-structure.yaml')
+      await writeFile(filePath, 'integrations: "not an array"')
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toEqual([])
+      expect(result.issues.length).toBeGreaterThan(0)
+    })
+
+    it('returns issue when integration entry is missing required fields', async () => {
+      const filePath = join(tempDir, 'missing-fields.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: test-id
+    # missing name, type, metadata`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toEqual([])
+      expect(result.issues.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('valid integrations', () => {
+    it('parses a valid pgsql integration', async () => {
+      const filePath = join(tempDir, 'valid-pgsql.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: my-postgres
+    name: My PostgreSQL
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: myuser
+      password: mypass`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].id).toBe('my-postgres')
+      expect(result.integrations[0].name).toBe('My PostgreSQL')
+      expect(result.integrations[0].type).toBe('pgsql')
+      expect(result.issues).toEqual([])
+    })
+
+    it('parses multiple valid integrations', async () => {
+      const filePath = join(tempDir, 'multiple-integrations.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-1
+    name: PostgreSQL 1
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: db1
+      user: user1
+      password: pass1
+  - id: postgres-2
+    name: PostgreSQL 2
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5433"
+      database: db2
+      user: user2
+      password: pass2`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(2)
+      expect(result.integrations[0].id).toBe('postgres-1')
+      expect(result.integrations[1].id).toBe('postgres-2')
+      expect(result.issues).toEqual([])
+    })
+
+    it('parses a valid mysql integration', async () => {
+      const filePath = join(tempDir, 'valid-mysql.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: my-mysql
+    name: My MySQL
+    type: mysql
+    metadata:
+      host: localhost
+      port: "3306"
+      database: mydb
+      user: myuser
+      password: mypass`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].type).toBe('mysql')
+      expect(result.issues).toEqual([])
+    })
+  })
+
+  describe('graceful parsing (mixed valid and invalid)', () => {
+    it('returns valid integrations and issues for invalid ones', async () => {
+      const filePath = join(tempDir, 'mixed-integrations.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: valid-postgres
+    name: Valid PostgreSQL
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: myuser
+      password: mypass
+  - id: invalid-integration
+    name: Invalid Integration
+    type: unknown-type
+    metadata:
+      some: value
+  - id: another-valid
+    name: Another Valid MySQL
+    type: mysql
+    metadata:
+      host: localhost
+      database: mydb
+      user: myuser
+      password: mypass`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      // Should have 2 valid integrations
+      expect(result.integrations).toHaveLength(2)
+      expect(result.integrations.some(i => i.id === 'valid-postgres')).toBe(true)
+      expect(result.integrations.some(i => i.id === 'another-valid')).toBe(true)
+      expect(result.integrations.some(i => i.id === 'invalid-integration')).toBe(false)
+
+      // Should have issues for the invalid one
+      expect(result.issues.length).toBeGreaterThan(0)
+      expect(result.issues.some(i => i.path.includes('integrations[1]'))).toBe(true)
+    })
+
+    it('includes integration name in error message for context', async () => {
+      const filePath = join(tempDir, 'invalid-with-name.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: my-bad-integration
+    name: My Bad Integration
+    type: invalid-db-type
+    metadata:
+      foo: bar`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.issues.length).toBeGreaterThan(0)
+      expect(result.issues[0].message).toContain('My Bad Integration')
+    })
+  })
+
+  describe('empty file', () => {
+    it('returns empty result for empty file', async () => {
+      const filePath = join(tempDir, 'empty.yaml')
+      await writeFile(filePath, '')
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toEqual([])
+      expect(result.issues).toEqual([])
+    })
+
+    it('returns empty result for file with empty integrations array', async () => {
+      const filePath = join(tempDir, 'empty-array.yaml')
+      await writeFile(filePath, 'integrations: []')
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toEqual([])
+      expect(result.issues).toEqual([])
+    })
+
+    it('returns empty result for file without integrations key', async () => {
+      const filePath = join(tempDir, 'no-integrations-key.yaml')
+      await writeFile(filePath, 'other_key: value')
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toEqual([])
+      expect(result.issues).toEqual([])
+    })
+  })
+
+  describe('integration with optional fields', () => {
+    it('parses integration with optional sslEnabled field', async () => {
+      const filePath = join(tempDir, 'with-ssl.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-ssl
+    name: PostgreSQL with SSL
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: myuser
+      password: mypass
+      sslEnabled: true`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].metadata).toHaveProperty('sslEnabled', true)
+      expect(result.issues).toEqual([])
+    })
+  })
+})
+
+describe('getDefaultIntegrationsFilePath', () => {
+  it('returns path with .deepnote.env.yaml in the given directory', () => {
+    const result = getDefaultIntegrationsFilePath('/path/to/project')
+
+    expect(result).toBe('/path/to/project/.deepnote.env.yaml')
+  })
+
+  it('handles trailing slash in directory', () => {
+    const result = getDefaultIntegrationsFilePath('/path/to/project/')
+
+    expect(result).toBe('/path/to/project//.deepnote.env.yaml')
+  })
+})
+
+describe('buildIntegrationsById', () => {
+  it('returns empty map for empty array', () => {
+    const result = buildIntegrationsById([])
+
+    expect(result.size).toBe(0)
+  })
+
+  it('builds map with lowercase IDs for case-insensitive matching', () => {
+    const integrations = [
+      { id: 'ABC-123', name: 'Test', type: 'pgsql', metadata: {} },
+      { id: 'def-456', name: 'Test2', type: 'mysql', metadata: {} },
+    ] as Parameters<typeof buildIntegrationsById>[0]
+
+    const result = buildIntegrationsById(integrations)
+
+    expect(result.size).toBe(2)
+    expect(result.has('abc-123')).toBe(true)
+    expect(result.has('ABC-123')).toBe(false) // Original case not in map
+    expect(result.has('def-456')).toBe(true)
+  })
+
+  it('returns the integration config as value', () => {
+    const integration = { id: 'My-ID', name: 'Test', type: 'pgsql', metadata: { host: 'localhost' } }
+    const integrations = [integration] as Parameters<typeof buildIntegrationsById>[0]
+
+    const result = buildIntegrationsById(integrations)
+
+    expect(result.get('my-id')).toEqual(integration)
+  })
+})
