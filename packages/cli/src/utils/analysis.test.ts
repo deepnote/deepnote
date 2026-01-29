@@ -115,18 +115,29 @@ describe('analysis utilities', () => {
     })
 
     it('detects missing integrations', async () => {
-      const file = createTestFile([
-        {
-          id: 'block1',
-          type: 'sql',
-          content: 'SELECT 1',
-          metadata: { sql_integration_id: 'my-database' },
-        },
-      ])
-      const { lint } = await checkForIssues(file)
+      // Isolate env vars to ensure deterministic test
+      const envVars = ['SQL_MY_DATABASE', 'SQL_MY_DB']
+      const saved = envVars.map(k => [k, process.env[k]] as const)
+      for (const k of envVars) delete process.env[k]
+      try {
+        const file = createTestFile([
+          {
+            id: 'block1',
+            type: 'sql',
+            content: 'SELECT 1',
+            metadata: { sql_integration_id: 'my-database' },
+          },
+        ])
+        const { lint } = await checkForIssues(file)
 
-      expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(true)
-      expect(lint.integrations?.missing).toContain('my-database')
+        expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(true)
+        expect(lint.integrations?.missing).toContain('my-database')
+      } finally {
+        for (const [k, v] of saved) {
+          if (v === undefined) delete process.env[k]
+          else process.env[k] = v
+        }
+      }
     })
 
     it('detects missing input values', async () => {
@@ -237,22 +248,33 @@ describe('analysis utilities', () => {
     })
 
     it('finds related lint issues', async () => {
-      // Use missing integration which is detected without AST analysis
-      const file = createTestFile([
-        {
-          id: 'block1',
-          type: 'sql',
-          content: 'SELECT 1',
-          metadata: { sql_integration_id: 'my-db' },
-        },
-      ])
-      const { lint, dag } = await checkForIssues(file)
-      const blockMap = buildBlockMap(file)
+      // Isolate env vars to ensure deterministic test
+      const envVars = ['SQL_MY_DB', 'SQL_MY_DATABASE']
+      const saved = envVars.map(k => [k, process.env[k]] as const)
+      for (const k of envVars) delete process.env[k]
+      try {
+        // Use missing integration which is detected without AST analysis
+        const file = createTestFile([
+          {
+            id: 'block1',
+            type: 'sql',
+            content: 'SELECT 1',
+            metadata: { sql_integration_id: 'my-db' },
+          },
+        ])
+        const { lint, dag } = await checkForIssues(file)
+        const blockMap = buildBlockMap(file)
 
-      const diagnosis = diagnoseBlockFailure('block1', dag, lint, blockMap)
+        const diagnosis = diagnoseBlockFailure('block1', dag, lint, blockMap)
 
-      expect(diagnosis.relatedIssues.length).toBeGreaterThan(0)
-      expect(diagnosis.relatedIssues[0].code).toBe('missing-integration')
+        expect(diagnosis.relatedIssues.length).toBeGreaterThan(0)
+        expect(diagnosis.relatedIssues[0].code).toBe('missing-integration')
+      } finally {
+        for (const [k, v] of saved) {
+          if (v === undefined) delete process.env[k]
+          else process.env[k] = v
+        }
+      }
     })
   })
 })

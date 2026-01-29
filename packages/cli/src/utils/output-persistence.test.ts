@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
@@ -163,7 +163,9 @@ describe('output-persistence', () => {
 
       const result = getSnapshotPath(sourcePath, file)
 
-      expect(result).toBe('/path/to/snapshots/test-project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      expect(result).toBe(
+        resolve('/path/to', 'snapshots', 'test-project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      )
     })
 
     it('handles project name with special characters', () => {
@@ -174,7 +176,7 @@ describe('output-persistence', () => {
       const result = getSnapshotPath(sourcePath, file)
 
       expect(result).toBe(
-        '/path/to/snapshots/my-project-draft-1_test-project-id-1234-5678-90ab_latest.snapshot.deepnote'
+        resolve('/path/to', 'snapshots', 'my-project-draft-1_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
       )
     })
 
@@ -185,7 +187,9 @@ describe('output-persistence', () => {
 
       const result = getSnapshotPath(sourcePath, file)
 
-      expect(result).toBe('/path/to/snapshots/project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      expect(result).toBe(
+        resolve('/path/to', 'snapshots', 'project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      )
     })
   })
 

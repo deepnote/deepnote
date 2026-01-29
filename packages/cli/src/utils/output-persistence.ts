@@ -59,13 +59,17 @@ export function mergeOutputsIntoFile(
           const result = outputsByBlockId.get(block.id)
           if (!result) return block
 
+          // Spread the block and then handle executionCount explicitly
+          // Cast to record to handle executionCount which may not exist on all block types
+          const blockRecord = block as Record<string, unknown>
+          const { executionCount: _prevExecutionCount, ...rest } = blockRecord
           // Merge outputs into the block
           return {
-            ...block,
+            ...rest,
             outputs: result.outputs,
             // Only include executionCount if it's defined
             ...(result.executionCount != null ? { executionCount: result.executionCount } : {}),
-          }
+          } as typeof block
         }),
       })),
     },

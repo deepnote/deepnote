@@ -338,16 +338,14 @@ function checkCircularDependencies(dag: BlockDependencyDag, blockMap: Map<string
   const recursionStack = new Set<string>()
   const cycleBlocks = new Set<string>()
 
-  function dfs(nodeId: string, path: string[]): boolean {
+  function dfs(nodeId: string, path: string[]): void {
     visited.add(nodeId)
     recursionStack.add(nodeId)
 
     const neighbors = graph.get(nodeId) ?? new Set()
     for (const neighbor of neighbors) {
       if (!visited.has(neighbor)) {
-        if (dfs(neighbor, [...path, nodeId])) {
-          return true
-        }
+        dfs(neighbor, [...path, nodeId])
       } else if (recursionStack.has(neighbor)) {
         // Found a cycle - mark all nodes in the cycle
         const cycleStart = path.indexOf(neighbor)
@@ -358,12 +356,10 @@ function checkCircularDependencies(dag: BlockDependencyDag, blockMap: Map<string
         }
         cycleBlocks.add(neighbor)
         cycleBlocks.add(nodeId)
-        return true
       }
     }
 
     recursionStack.delete(nodeId)
-    return false
   }
 
   for (const node of dag.nodes) {
