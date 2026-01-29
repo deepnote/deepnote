@@ -1615,8 +1615,6 @@ describe('run command', () => {
 
     describe('Jupyter notebooks (.ipynb)', () => {
       it('converts and runs .ipynb files in dry-run mode', async () => {
-        setupSuccessfulRun()
-
         await action(JUPYTER_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1625,8 +1623,6 @@ describe('run command', () => {
       })
 
       it('shows converted blocks in dry-run output', async () => {
-        setupSuccessfulRun()
-
         await action(JUPYTER_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1635,8 +1631,6 @@ describe('run command', () => {
       })
 
       it('outputs JSON correctly for .ipynb dry-run', async () => {
-        setupSuccessfulRun()
-
         await action(JUPYTER_FILE, { dryRun: true, output: 'json' })
 
         const jsonOutput = getJsonOutput(consoleLogSpy) as {
@@ -1652,8 +1646,6 @@ describe('run command', () => {
 
     describe('percent format Python files (.py)', () => {
       it('converts and runs percent format .py files in dry-run mode', async () => {
-        setupSuccessfulRun()
-
         await action(PERCENT_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1662,8 +1654,6 @@ describe('run command', () => {
       })
 
       it('shows multiple blocks from percent format file', async () => {
-        setupSuccessfulRun()
-
         await action(PERCENT_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1676,8 +1666,6 @@ describe('run command', () => {
 
     describe('Quarto documents (.qmd)', () => {
       it('converts and runs .qmd files in dry-run mode', async () => {
-        setupSuccessfulRun()
-
         await action(QUARTO_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
