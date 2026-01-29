@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
-import { getBlockDependencies } from '@deepnote/reactivity'
+import { buildDagFromBlocks, getBlockDependencies } from '@deepnote/reactivity'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
 
@@ -59,13 +59,13 @@ The tool generates a properly structured notebook with:
     title: 'Enhance Notebook',
     description: `Transform a basic notebook into an interactive, well-documented one.
 
-Enhancements include:
-- documentation: Add markdown sections explaining the code
-- inputs: Convert hardcoded values to input widgets (sliders, dropdowns, text)
-- visualizations: Add DataFrame displays and chart suggestions
-- structure: Add section headers and organize the flow
+Enhancements applied:
+- documentation: Add markdown blocks explaining code sections
+- inputs: Convert hardcoded values (test_size, threshold, n_estimators, etc.) to input-slider blocks
+- structure: Add section headers (h1, h2) to organize the notebook flow
+- visualizations: Suggest adding visualizations for DataFrame outputs (noted in changes, not auto-applied)
 
-You can specify which enhancements to apply or use "all" for everything.`,
+Use dryRun=true to preview changes before applying.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -100,13 +100,13 @@ You can specify which enhancements to apply or use "all" for everything.`,
     title: 'Auto-Fix Issues',
     description: `Auto-fix issues in a notebook without manual intervention.
 
-Fixes include:
-- Adding missing imports at the top of code blocks
-- Resolving undefined variables by adding definitions or flagging them
-- Breaking circular dependencies by reordering blocks
-- Adding missing integration references
+Fixes applied:
+- imports: Add missing imports (pandas, numpy, matplotlib, etc.) based on usage patterns
+- undefined: Flag undefined variables that aren't defined in earlier blocks
+- circular: Detect circular dependencies using DAG analysis and attempt to fix by reordering blocks
 
-Returns a summary of all fixes applied.`,
+Note: Requires Python for AST analysis of circular dependencies.
+Use dryRun=true to preview fixes before applying.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -261,13 +261,18 @@ Each template includes proper structure, input blocks, and documentation.`,
     title: 'Refactor to Module',
     description: `Extract reusable code from a notebook into a module notebook.
 
-Identifies functions, classes, and constants that can be extracted, creates a 
-module notebook, and updates the original to import from the module.
+This tool:
+1. Extracts functions and/or classes from specified blocks
+2. Creates a new module notebook with the extracted code
+3. Removes the extracted code from the source blocks
+4. Adds import statements to the source notebooks
 
 Useful for:
 - Creating shared utility functions
 - Separating data loading logic
-- Building reusable analysis components`,
+- Building reusable analysis components
+
+Use dryRun=true to preview what will be extracted.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -943,25 +948,83 @@ async function handleEnhance(args: Record<string, unknown>) {
         }
       }
 
-      // Detect hardcoded values for input conversion
+      // Detect hardcoded values for input conversion and apply them
       if ((enhanceAll || enhancements.includes('inputs')) && block.type === 'code') {
         const codeContent = block.content || ''
 
-        // Look for common patterns
-        const patterns = [
-          { regex: /test_size\s*=\s*([\d.]+)/, name: 'test_size', inputType: 'input-slider' },
-          { regex: /n_estimators\s*=\s*(\d+)/, name: 'n_estimators', inputType: 'input-slider' },
-          { regex: /threshold\s*=\s*([\d.]+)/, name: 'threshold', inputType: 'input-slider' },
-          { regex: /['"]([^'"]+\.csv)['"]/, name: 'file_path', inputType: 'input-text' },
+        // Look for common patterns with value extraction
+        const patterns: Array<{
+          regex: RegExp
+          name: string
+          inputType: string
+          getConfig: (match: RegExpMatchArray) => { defaultValue: unknown; min?: number; max?: number; step?: number }
+        }> = [
+          {
+            regex: /test_size\s*=\s*([\d.]+)/,
+            name: 'test_size',
+            inputType: 'input-slider',
+            getConfig: match => ({ defaultValue: Number.parseFloat(match[1]), min: 0.1, max: 0.5, step: 0.05 }),
+          },
+          {
+            regex: /n_estimators\s*=\s*(\d+)/,
+            name: 'n_estimators',
+            inputType: 'input-slider',
+            getConfig: match => ({ defaultValue: Number.parseInt(match[1], 10), min: 10, max: 500, step: 10 }),
+          },
+          {
+            regex: /threshold\s*=\s*([\d.]+)/,
+            name: 'threshold',
+            inputType: 'input-slider',
+            getConfig: match => ({ defaultValue: Number.parseFloat(match[1]), min: 0, max: 1, step: 0.05 }),
+          },
+          {
+            regex: /learning_rate\s*=\s*([\d.]+)/,
+            name: 'learning_rate',
+            inputType: 'input-slider',
+            getConfig: match => ({ defaultValue: Number.parseFloat(match[1]), min: 0.001, max: 1, step: 0.01 }),
+          },
+          {
+            regex: /max_depth\s*=\s*(\d+)/,
+            name: 'max_depth',
+            inputType: 'input-slider',
+            getConfig: match => ({ defaultValue: Number.parseInt(match[1], 10), min: 1, max: 20, step: 1 }),
+          },
         ]
 
         for (const pattern of patterns) {
-          if (pattern.regex.test(codeContent)) {
+          const match = codeContent.match(pattern.regex)
+          if (match) {
+            const config = pattern.getConfig(match)
             changes.push({
               type: 'inputs',
               description: `Convert hardcoded ${pattern.name} to ${pattern.inputType}`,
               blockId: block.id,
             })
+
+            if (!dryRun) {
+              // Create input block
+              const inputBlock = createBlock(
+                pattern.inputType,
+                '',
+                blocksToInsert.length,
+                notebook.blocks[0]?.blockGroup || randomUUID(),
+                {
+                  deepnote_variable_name: pattern.name,
+                  deepnote_input_label: pattern.name.replace(/_/g, ' '),
+                  deepnote_input_default: config.defaultValue,
+                  ...(config.min !== undefined ? { deepnote_input_min: config.min } : {}),
+                  ...(config.max !== undefined ? { deepnote_input_max: config.max } : {}),
+                  ...(config.step !== undefined ? { deepnote_input_step: config.step } : {}),
+                }
+              )
+              blocksToInsert.push({ index: i, block: inputBlock })
+
+              // Update the code to use the variable instead of hardcoded value
+              block.content = codeContent.replace(
+                pattern.regex,
+                `${pattern.name} = ${pattern.name}  # From input block`
+              )
+            }
           }
         }
       }
@@ -1011,6 +1074,57 @@ async function handleEnhance(args: Record<string, unknown>) {
           type: 'structure',
           description: 'Add section headers to organize notebook',
         })
+
+        if (!dryRun) {
+          // Add a title header at the beginning
+          const titleBlock = createBlock(
+            'text-cell-h1',
+            notebook.name || 'Notebook',
+            0,
+            notebook.blocks[0]?.blockGroup || randomUUID()
+          )
+          notebook.blocks.unshift(titleBlock)
+
+          // Find natural section breaks and add headers
+          for (let j = 1; j < notebook.blocks.length; j++) {
+            const block = notebook.blocks[j]
+            const prevBlock = notebook.blocks[j - 1]
+
+            // Add section header before code blocks that follow other code blocks
+            // and seem to be doing something different
+            if (block.type === 'code' && prevBlock?.type === 'code' && block.content && prevBlock.content) {
+              const prevHasImport = prevBlock.content.includes('import ')
+              const currHasImport = block.content.includes('import ')
+              const prevHasDef = prevBlock.content.includes('def ')
+              const currHasDef = block.content.includes('def ')
+              const prevHasPlot = prevBlock.content.includes('plt.') || prevBlock.content.includes('sns.')
+              const currHasPlot = block.content.includes('plt.') || block.content.includes('sns.')
+
+              // Detect section boundaries
+              if ((prevHasImport && !currHasImport) || (!prevHasDef && currHasDef) || (!prevHasPlot && currHasPlot)) {
+                let sectionName = 'Section'
+                if (currHasDef) sectionName = 'Functions'
+                else if (currHasPlot) sectionName = 'Visualization'
+                else if (block.content.includes('.fit(')) sectionName = 'Model Training'
+                else if (block.content.includes('pd.read_')) sectionName = 'Data Loading'
+
+                const headerBlock = createBlock(
+                  'text-cell-h2',
+                  sectionName,
+                  j,
+                  notebook.blocks[0]?.blockGroup || randomUUID()
+                )
+                notebook.blocks.splice(j, 0, headerBlock)
+                j++ // Skip the header we just inserted
+              }
+            }
+          }
+
+          // Update sorting keys
+          notebook.blocks.forEach((block, index) => {
+            block.sortingKey = generateSortingKey(index)
+          })
+        }
       }
     }
   }
@@ -1149,9 +1263,120 @@ async function handleFix(args: Record<string, unknown>) {
       }
     }
 
-    // Fix circular dependencies - simplified check
+    // Fix circular dependencies using DAG analysis
     if (fixAll || fixTypes.includes('circular')) {
-      // For now, just note that circular dependency detection requires deeper analysis
+      try {
+        // Get block dependencies
+        const blocksWithOrder = notebook.blocks
+          .filter(b => b.type === 'code' && b.content)
+          .map((b, index) => ({
+            id: b.id,
+            order: index,
+            content: b.content || '',
+          }))
+
+        // Get dependencies for each block
+        const blockDeps = await getBlockDependencies(
+          blocksWithOrder.map(b => ({ id: b.id, type: 'code', content: b.content }) as DeepnoteBlock)
+        )
+
+        // Build DAG
+        const dag = buildDagFromBlocks(blockDeps)
+
+        // Detect cycles using DFS
+        const visited = new Set<string>()
+        const inStack = new Set<string>()
+        const cycles: Array<{ nodes: string[]; variables: string[] }> = []
+
+        function detectCycle(nodeId: string, path: string[], pathVars: string[]): boolean {
+          if (inStack.has(nodeId)) {
+            // Found a cycle
+            const cycleStart = path.indexOf(nodeId)
+            cycles.push({
+              nodes: path.slice(cycleStart),
+              variables: pathVars.slice(cycleStart),
+            })
+            return true
+          }
+
+          if (visited.has(nodeId)) return false
+
+          visited.add(nodeId)
+          inStack.add(nodeId)
+
+          const outgoingEdges = dag.edges.filter(e => e.from === nodeId)
+          for (const edge of outgoingEdges) {
+            detectCycle(edge.to, [...path, nodeId], [...pathVars, edge.inputVariables.join(', ')])
+          }
+
+          inStack.delete(nodeId)
+          return false
+        }
+
+        // Run cycle detection from each node
+        for (const node of dag.nodes) {
+          if (!visited.has(node.id)) {
+            detectCycle(node.id, [], [])
+          }
+        }
+
+        if (cycles.length > 0) {
+          for (const cycle of cycles) {
+            // Find the block IDs involved
+            const blockIds = cycle.nodes.map(id => id.slice(0, 8))
+            fixes.push({
+              type: 'circular',
+              description: `Circular dependency detected: blocks ${blockIds.join(' -> ')} -> ${blockIds[0]} (via: ${cycle.variables.join(', ')})`,
+            })
+
+            if (!dryRun) {
+              // Try to fix by reordering: find if any block in the cycle can be moved
+              // to break the cycle (this is a simplified fix - may not always work)
+              const cycleBlocks = cycle.nodes.map(id => notebook.blocks.find(b => b.id === id)).filter(Boolean)
+
+              // For each block in cycle, check if moving it would break the cycle
+              let movedBlock = false
+              for (const block of cycleBlocks) {
+                if (!block || movedBlock) continue
+
+                // Find edges from this block
+                const outEdges = dag.edges.filter(e => e.from === block.id && cycle.nodes.includes(e.to))
+                const inEdges = dag.edges.filter(e => e.to === block.id && cycle.nodes.includes(e.from))
+
+                // If block has more outgoing than incoming within cycle, try moving it earlier
+                if (outEdges.length > inEdges.length) {
+                  const currentIndex = notebook.blocks.indexOf(block)
+                  if (currentIndex > 0) {
+                    // Move block earlier
+                    notebook.blocks.splice(currentIndex, 1)
+                    notebook.blocks.unshift(block)
+
+                    fixes.push({
+                      type: 'circular',
+                      description: `Moved block ${block.id.slice(0, 8)} to beginning to break cycle`,
+                      blockId: block.id,
+                    })
+                    movedBlock = true // Only move one block per cycle
+                  }
+                }
+              }
+            }
+          }
+
+          // Update sorting keys after any reordering
+          if (!dryRun) {
+            notebook.blocks.forEach((block, index) => {
+              block.sortingKey = generateSortingKey(index)
+            })
+          }
+        }
+      } catch {
+        // Skip circular dependency check if analysis fails
+        fixes.push({
+          type: 'circular',
+          description: 'Could not analyze dependencies (requires Python AST analysis)',
+        })
+      }
     }
   }
 
@@ -2246,6 +2471,95 @@ async function handleRefactor(args: Record<string, unknown>) {
       isModule: true,
     })
 
+    // Remove extracted code from source blocks and add import statement
+    const extractedNames = [...extractedFunctions.map(f => f.name), ...extractedClasses.map(c => c.name)]
+
+    // Group extractions by block
+    const extractionsByBlock = new Map<string, { functions: string[]; classes: string[] }>()
+    for (const func of extractedFunctions) {
+      const existing = extractionsByBlock.get(func.blockId) || { functions: [], classes: [] }
+      existing.functions.push(func.name)
+      extractionsByBlock.set(func.blockId, existing)
+    }
+    for (const cls of extractedClasses) {
+      const existing = extractionsByBlock.get(cls.blockId) || { functions: [], classes: [] }
+      existing.classes.push(cls.name)
+      extractionsByBlock.set(cls.blockId, existing)
+    }
+
+    // Remove extracted code from source blocks
+    for (const notebook of file.project.notebooks) {
+      if (notebook.id === moduleId) continue // Skip the new module
+
+      for (const block of notebook.blocks) {
+        if (block.type !== 'code' || !block.content) continue
+
+        const extractions = extractionsByBlock.get(block.id)
+        if (!extractions) continue
+
+        let newContent = block.content
+
+        // Remove function definitions
+        for (const funcName of extractions.functions) {
+          // Match function definition including body (indented lines following def)
+          const funcRegex = new RegExp(
+            `^def\\s+${funcName}\\s*\\([^)]*\\)\\s*(?:->\\s*[^:]+)?:\\s*\\n(?:(?:[ \\t]+[^\\n]*|\\s*)\\n)*`,
+            'gm'
+          )
+          newContent = newContent.replace(funcRegex, '')
+        }
+
+        // Remove class definitions
+        for (const className of extractions.classes) {
+          // Match class definition including body
+          const classRegex = new RegExp(
+            `^class\\s+${className}\\s*(?:\\([^)]*\\))?\\s*:\\s*\\n(?:(?:[ \\t]+[^\\n]*|\\s*)\\n)*`,
+            'gm'
+          )
+          newContent = newContent.replace(classRegex, '')
+        }
+
+        // Clean up empty lines left behind
+        newContent = newContent.replace(/\n{3,}/g, '\n\n').trim()
+
+        block.content = newContent
+      }
+
+      // Add import statement at the beginning of the first code block in each notebook
+      // or create a new import block if needed
+      const firstCodeBlockIndex = notebook.blocks.findIndex(b => b.type === 'code')
+      if (firstCodeBlockIndex >= 0 && extractedNames.length > 0) {
+        const importStatement = `from ${moduleName} import ${extractedNames.join(', ')}`
+        const firstCodeBlock = notebook.blocks[firstCodeBlockIndex]
+
+        // Check if imports already exist at the top of the first code block
+        if (firstCodeBlock.content && !firstCodeBlock.content.includes(`from ${moduleName} import`)) {
+          // Add import to existing imports section or create one
+          if (
+            firstCodeBlock.content.trim().startsWith('import ') ||
+            firstCodeBlock.content.trim().startsWith('from ')
+          ) {
+            // Prepend to existing imports
+            firstCodeBlock.content = `${importStatement}\n${firstCodeBlock.content}`
+          } else {
+            // Create a new import block before the first code block
+            const importBlock = createBlock(
+              'code',
+              importStatement,
+              firstCodeBlockIndex,
+              notebook.blocks[0]?.blockGroup || randomUUID()
+            )
+            notebook.blocks.splice(firstCodeBlockIndex, 0, importBlock)
+
+            // Update sorting keys
+            notebook.blocks.forEach((block, index) => {
+              block.sortingKey = generateSortingKey(index)
+            })
+          }
+        }
+      }
+    }
+
     await saveDeepnoteFile(filePath, file)
   }
 
@@ -2258,6 +2572,8 @@ async function handleRefactor(args: Record<string, unknown>) {
             ...result,
             success: true,
             moduleCreated: extractedFunctions.length > 0 || extractedClasses.length > 0,
+            sourceModified: extractedFunctions.length > 0 || extractedClasses.length > 0,
+            importAdded: extractedFunctions.length > 0 || extractedClasses.length > 0,
           },
           null,
           2
