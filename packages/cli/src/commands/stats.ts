@@ -3,7 +3,7 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
-import { computeProjectStats, type ProjectStats } from '../utils/analysis'
+import { analyzeProject, type ProjectStats } from '../utils/analysis'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface StatsOptions {
@@ -43,7 +43,8 @@ async function computeStats(path: string | undefined, options: StatsOptions): Pr
   debug('Parsing .deepnote file...')
   const deepnoteFile = deserializeDeepnoteFile(yamlContent)
 
-  const stats = computeProjectStats(deepnoteFile, { notebook: options.notebook })
+  debug('Analyzing project...')
+  const { stats } = await analyzeProject(deepnoteFile, { notebook: options.notebook })
 
   return {
     path: absolutePath,

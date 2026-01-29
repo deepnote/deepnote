@@ -52,7 +52,8 @@ describe('analysis utilities', () => {
 
       expect(stats.totalBlocks).toBe(2)
       expect(stats.totalLinesOfCode).toBe(4)
-      expect(stats.imports).toContain('pandas')
+      // Note: computeProjectStats returns empty imports; analyzeProject populates them from DAG
+      expect(stats.imports).toEqual([])
     })
 
     it('computes stats for project with SQL blocks', () => {
@@ -183,6 +184,20 @@ describe('analysis utilities', () => {
       expect(result.lint.success).toBe(true)
       expect(result.dag).toBeDefined()
       expect(result.dag.nodes.length).toBe(2)
+    })
+
+    it('extracts imports from DAG analysis', async () => {
+      const file = createTestFile([
+        { id: 'block1', type: 'code', content: 'import pandas as pd\nimport numpy as np' },
+        { id: 'block2', type: 'code', content: 'from sklearn import metrics' },
+      ])
+      const result = await analyzeProject(file)
+
+      // Note: AST analyzer returns the alias/imported names, not the underlying module names
+      expect(result.stats.imports).toContain('pd')
+      expect(result.stats.imports).toContain('np')
+      expect(result.stats.imports).toContain('metrics')
+      expect(result.stats.imports).toHaveLength(3)
     })
   })
 

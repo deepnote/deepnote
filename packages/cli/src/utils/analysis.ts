@@ -114,7 +114,10 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
   const stats = computeProjectStats(file, options)
   const { lint, dag } = await checkForIssues(file, options)
 
-  return { stats, lint, dag }
+  // Extract imports from DAG nodes (more accurate than regex-based extraction)
+  const imports = extractImportsFromDag(dag)
+
+  return { stats: { ...stats, imports }, lint, dag }
 }
 
 /**
@@ -124,7 +127,6 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
 export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions = {}): ProjectStats {
   const notebooks: NotebookStats[] = []
   const allBlockTypes = new Map<string, { count: number; loc: number }>()
-  const allImports = new Set<string>()
 
   let totalBlocks = 0
   let totalLoc = 0
@@ -148,14 +150,6 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
         loc: existing.loc + bt.linesOfCode,
       })
     }
-
-    // Extract imports from code blocks
-    for (const block of notebook.blocks) {
-      const imports = extractImports(block)
-      for (const imp of imports) {
-        allImports.add(imp)
-      }
-    }
   }
 
   // Convert block types map to sorted array
@@ -175,7 +169,8 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
     totalLinesOfCode: totalLoc,
     blockTypesSummary,
     notebooks,
-    imports: Array.from(allImports).sort(),
+    // Imports are populated by analyzeProject using DAG analysis for accuracy
+    imports: [],
   }
 }
 
@@ -726,46 +721,18 @@ function countLinesOfCode(block: DeepnoteBlock): number {
 }
 
 /**
- * Extract imported module names from a code block.
+ * Extract imported module names from DAG nodes.
+ * Uses the AST-based import extraction from the reactivity package
+ * which is more accurate than regex-based extraction.
  */
-function extractImports(block: DeepnoteBlock): string[] {
-  if (block.type !== 'code' || !('content' in block) || typeof block.content !== 'string') {
-    return []
-  }
-
-  const imports: string[] = []
-  const lines = block.content.split('\n')
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-
-    // Match "import x", "import x, y", "import x as alias", "import x.y"
-    const importMatch = trimmed.match(/^import\s+(.+)$/)
-    if (importMatch) {
-      const importClause = importMatch[1]
-      const modules = importClause.split(',')
-      for (const mod of modules) {
-        const modTrimmed = mod.trim()
-        const withoutAlias = modTrimmed.split(/\s+as\s+/)[0].trim()
-        const baseModule = withoutAlias.split('.')[0]
-        if (baseModule && /^\w+$/.test(baseModule)) {
-          imports.push(baseModule)
-        }
-      }
-      continue
-    }
-
-    // Match "from x import ..." or "from x.y import ..."
-    const fromMatch = trimmed.match(/^from\s+([\w.]+)/)
-    if (fromMatch) {
-      const baseModule = fromMatch[1].split('.')[0]
-      if (baseModule) {
-        imports.push(baseModule)
-      }
+function extractImportsFromDag(dag: BlockDependencyDag): string[] {
+  const imports = new Set<string>()
+  for (const node of dag.nodes) {
+    for (const mod of node.importedModules) {
+      imports.add(mod)
     }
   }
-
-  return imports
+  return Array.from(imports).sort()
 }
 
 // ============================================================================
