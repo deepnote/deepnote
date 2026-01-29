@@ -43,10 +43,10 @@ vi.mock('@deepnote/reactivity', () => {
   }
 })
 
-// Mock openDeepnoteInCloud for --open flag tests
-const mockOpenDeepnoteInCloud = vi.fn()
-vi.mock('../utils/open-in-cloud', () => ({
-  openDeepnoteInCloud: (...args: unknown[]) => mockOpenDeepnoteInCloud(...args),
+// Mock openDeepnoteFileInCloud for --open flag tests
+const mockOpenDeepnoteFileInCloud = vi.fn()
+vi.mock('../utils/open-file-in-cloud', () => ({
+  openDeepnoteFileInCloud: (...args: unknown[]) => mockOpenDeepnoteFileInCloud(...args),
 }))
 
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
@@ -154,6 +154,7 @@ describe('run command', () => {
       programErrorSpy.mockRestore()
       process.exitCode = originalExitCode
       mockServerPort = 8888
+      vi.unstubAllGlobals()
     })
 
     it('creates ExecutionEngine with correct config', async () => {
@@ -1594,6 +1595,7 @@ describe('run command', () => {
     beforeEach(() => {
       vi.clearAllMocks()
       mockGetBlockDependencies.mockResolvedValue([])
+      process.exitCode = 0
 
       program = new Command()
       program.exitOverride()
@@ -1610,12 +1612,11 @@ describe('run command', () => {
       consoleLogSpy.mockRestore()
       consoleErrorSpy.mockRestore()
       programErrorSpy.mockRestore()
+      process.exitCode = 0
     })
 
     describe('Jupyter notebooks (.ipynb)', () => {
       it('converts and runs .ipynb files in dry-run mode', async () => {
-        setupSuccessfulRun()
-
         await action(JUPYTER_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1624,8 +1625,6 @@ describe('run command', () => {
       })
 
       it('shows converted blocks in dry-run output', async () => {
-        setupSuccessfulRun()
-
         await action(JUPYTER_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1634,8 +1633,6 @@ describe('run command', () => {
       })
 
       it('outputs JSON correctly for .ipynb dry-run', async () => {
-        setupSuccessfulRun()
-
         await action(JUPYTER_FILE, { dryRun: true, output: 'json' })
 
         const jsonOutput = getJsonOutput(consoleLogSpy) as {
@@ -1651,8 +1648,6 @@ describe('run command', () => {
 
     describe('percent format Python files (.py)', () => {
       it('converts and runs percent format .py files in dry-run mode', async () => {
-        setupSuccessfulRun()
-
         await action(PERCENT_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1661,8 +1656,6 @@ describe('run command', () => {
       })
 
       it('shows multiple blocks from percent format file', async () => {
-        setupSuccessfulRun()
-
         await action(PERCENT_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1675,8 +1668,6 @@ describe('run command', () => {
 
     describe('Quarto documents (.qmd)', () => {
       it('converts and runs .qmd files in dry-run mode', async () => {
-        setupSuccessfulRun()
-
         await action(QUARTO_FILE, { dryRun: true })
 
         const output = getOutput(consoleLogSpy)
@@ -1760,8 +1751,8 @@ describe('run command', () => {
 
     describe('--open flag', () => {
       beforeEach(() => {
-        mockOpenDeepnoteInCloud.mockReset()
-        mockOpenDeepnoteInCloud.mockResolvedValue({
+        mockOpenDeepnoteFileInCloud.mockReset()
+        mockOpenDeepnoteFileInCloud.mockResolvedValue({
           url: 'https://deepnote.com/launch?importId=test-id',
           importId: 'test-id',
         })
@@ -1772,9 +1763,9 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalledTimes(1)
         // Should be called with the original file path (or a path ending in .deepnote)
-        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        const calledPath = mockOpenDeepnoteFileInCloud.mock.calls[0][0]
         expect(calledPath).toContain('.deepnote')
       })
 
@@ -1783,9 +1774,9 @@ describe('run command', () => {
 
         await action(JUPYTER_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalledTimes(1)
         // For converted files, a temp .deepnote file is created
-        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        const calledPath = mockOpenDeepnoteFileInCloud.mock.calls[0][0]
         expect(calledPath).toContain('.deepnote')
       })
 
@@ -1794,7 +1785,7 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).not.toHaveBeenCalled()
+        expect(mockOpenDeepnoteFileInCloud).not.toHaveBeenCalled()
       })
 
       it('does not open when --open flag is not set', async () => {
@@ -1802,7 +1793,7 @@ describe('run command', () => {
 
         await action(HELLO_WORLD_FILE, {})
 
-        expect(mockOpenDeepnoteInCloud).not.toHaveBeenCalled()
+        expect(mockOpenDeepnoteFileInCloud).not.toHaveBeenCalled()
       })
 
       it('cleans up temp file after uploading converted file', async () => {
@@ -1810,9 +1801,9 @@ describe('run command', () => {
 
         await action(JUPYTER_FILE, { open: true })
 
-        expect(mockOpenDeepnoteInCloud).toHaveBeenCalled()
+        expect(mockOpenDeepnoteFileInCloud).toHaveBeenCalled()
         // The temp file should be cleaned up (verify by checking the path no longer exists)
-        const calledPath = mockOpenDeepnoteInCloud.mock.calls[0][0]
+        const calledPath = mockOpenDeepnoteFileInCloud.mock.calls[0][0]
         // If it was a temp file, it should have been in os.tmpdir()
         if (calledPath.includes(os.tmpdir())) {
           expect(fs.existsSync(calledPath)).toBe(false)

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
-import { openDeepnoteInCloud } from './open-in-cloud'
+import { openDeepnoteFileInCloud } from './open-file-in-cloud'
 
 // Mock the browser module
 vi.mock('./browser', () => ({
@@ -27,7 +27,7 @@ vi.mock('./import-client', () => ({
   buildLaunchUrl: (importId: string, domain: string) => `https://${domain}/launch?importId=${importId}`,
 }))
 
-describe('open-in-cloud', () => {
+describe('open-file-in-cloud', () => {
   beforeEach(() => {
     resetOutputConfig()
     setOutputConfig({ quiet: true })
@@ -41,7 +41,7 @@ describe('open-in-cloud', () => {
     vi.restoreAllMocks()
   })
 
-  describe('openDeepnoteInCloud', () => {
+  describe('openDeepnoteFileInCloud', () => {
     it('uploads file and returns launch URL', async () => {
       const fileBuffer = Buffer.from('test content')
       mockValidateFileSize.mockResolvedValue(1000)
@@ -53,7 +53,7 @@ describe('open-in-cloud', () => {
       })
       mockUploadFile.mockResolvedValue(undefined)
 
-      const result = await openDeepnoteInCloud('/path/to/project.deepnote')
+      const result = await openDeepnoteFileInCloud('/path/to/project.deepnote')
 
       expect(result.url).toBe('https://deepnote.com/launch?importId=test-import-id')
       expect(result.importId).toBe('test-import-id')
@@ -73,7 +73,7 @@ describe('open-in-cloud', () => {
       })
       mockUploadFile.mockResolvedValue(undefined)
 
-      const result = await openDeepnoteInCloud('/path/to/file.deepnote', {
+      const result = await openDeepnoteFileInCloud('/path/to/file.deepnote', {
         domain: 'enterprise.deepnote.com',
       })
 
@@ -92,7 +92,7 @@ describe('open-in-cloud', () => {
       mockUploadFile.mockResolvedValue(undefined)
 
       // This should not throw even with quiet mode
-      await openDeepnoteInCloud('/path/to/test.deepnote', { quiet: true })
+      await openDeepnoteFileInCloud('/path/to/test.deepnote', { quiet: true })
 
       expect(mockValidateFileSize).toHaveBeenCalled()
     })
@@ -102,7 +102,7 @@ describe('open-in-cloud', () => {
       mockReadFile.mockResolvedValue(Buffer.from('content'))
       mockInitImport.mockRejectedValue(new Error('Network timeout'))
 
-      await expect(openDeepnoteInCloud('/path/to/my-project.deepnote')).rejects.toThrow(
+      await expect(openDeepnoteFileInCloud('/path/to/my-project.deepnote')).rejects.toThrow(
         'Failed to upload file "my-project.deepnote" (size: 2000 bytes, domain: deepnote.com): Network timeout'
       )
     })
@@ -117,7 +117,7 @@ describe('open-in-cloud', () => {
       })
       mockUploadFile.mockRejectedValue(new Error('Upload failed: 403 Forbidden'))
 
-      await expect(openDeepnoteInCloud('/path/to/upload-test.deepnote')).rejects.toThrow(
+      await expect(openDeepnoteFileInCloud('/path/to/upload-test.deepnote')).rejects.toThrow(
         'Failed to upload file "upload-test.deepnote" (size: 3000 bytes, domain: deepnote.com): Upload failed: 403 Forbidden'
       )
     })
@@ -129,7 +129,7 @@ describe('open-in-cloud', () => {
       mockInitImport.mockRejectedValue(originalError)
 
       try {
-        await openDeepnoteInCloud('/path/to/test.deepnote')
+        await openDeepnoteFileInCloud('/path/to/test.deepnote')
         expect.fail('Should have thrown')
       } catch (error) {
         expect(error).toBeInstanceOf(Error)
@@ -142,7 +142,7 @@ describe('open-in-cloud', () => {
       mockReadFile.mockResolvedValue(Buffer.from('test'))
       mockInitImport.mockRejectedValue('String error')
 
-      await expect(openDeepnoteInCloud('/path/to/test.deepnote')).rejects.toThrow(
+      await expect(openDeepnoteFileInCloud('/path/to/test.deepnote')).rejects.toThrow(
         'Failed to upload file "test.deepnote" (size: 100 bytes, domain: deepnote.com): String error'
       )
     })
@@ -157,7 +157,7 @@ describe('open-in-cloud', () => {
       })
       mockUploadFile.mockResolvedValue(undefined)
 
-      await openDeepnoteInCloud('/Users/user/projects/deeply/nested/my-file.deepnote')
+      await openDeepnoteFileInCloud('/Users/user/projects/deeply/nested/my-file.deepnote')
 
       expect(mockInitImport).toHaveBeenCalledWith('my-file.deepnote', 100, 'deepnote.com')
     })
