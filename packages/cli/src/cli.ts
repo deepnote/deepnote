@@ -298,6 +298,9 @@ ${c.bold('Examples:')}
   ${c.dim('# Run only a specific notebook')}
   $ deepnote run my-project.deepnote --notebook "Data Analysis"
 
+  ${c.dim('# Run only a specific block')}
+  $ deepnote run my-project.deepnote --block abc123
+
   ${c.dim('# List input variables needed by the notebook')}
   $ deepnote run my-project.deepnote --list-inputs
 
@@ -306,6 +309,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Monitor resource usage during execution')}
   $ deepnote run my-project.deepnote --top
+
+  ${c.dim('# Profile blocks to identify slow/memory-intensive operations')}
+  $ deepnote run my-project.deepnote --profile
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote -o json

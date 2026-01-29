@@ -23,7 +23,7 @@ export interface OpenInCloudResult {
  * @param options - Options for the upload
  * @returns The launch URL and import ID
  */
-export async function openDeepnoteInCloud(
+export async function openDeepnoteFileInCloud(
   absolutePath: string,
   options: OpenInCloudOptions = {}
 ): Promise<OpenInCloudResult> {

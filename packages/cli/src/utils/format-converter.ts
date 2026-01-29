@@ -76,9 +76,26 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
   // Native .deepnote file - no conversion needed
   if (ext === '.deepnote') {
     debug(`Loading native .deepnote file: ${absolutePath}`)
-    const rawBytes = await fs.readFile(absolutePath)
-    const content = decodeUtf8NoBom(rawBytes)
-    const file = deserializeDeepnoteFile(content)
+
+    // Read file bytes
+    let rawBytes: Buffer
+    try {
+      rawBytes = await fs.readFile(absolutePath)
+    } catch (readError) {
+      const message = readError instanceof Error ? readError.message : String(readError)
+      throw new FileResolutionError(`Failed to read .deepnote file: ${absolutePath}\n\n` + `Read error: ${message}`)
+    }
+
+    // Parse file content
+    let file: DeepnoteFile
+    try {
+      const content = decodeUtf8NoBom(rawBytes)
+      file = deserializeDeepnoteFile(content)
+    } catch (parseError) {
+      const message = parseError instanceof Error ? parseError.message : String(parseError)
+      throw new FileResolutionError(`Failed to parse .deepnote file: ${absolutePath}\n\n` + `Parse error: ${message}`)
+    }
+
     return {
       file,
       originalPath: absolutePath,
@@ -116,7 +133,13 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
   // Quarto document
   if (ext === '.qmd') {
     debug(`Converting Quarto document: ${absolutePath}`)
-    const document = parseQuartoFormat(content)
+    let document: ReturnType<typeof parseQuartoFormat>
+    try {
+      document = parseQuartoFormat(content)
+    } catch (parseError) {
+      const message = parseError instanceof Error ? parseError.message : String(parseError)
+      throw new FileResolutionError(`Failed to parse Quarto document: ${absolutePath}\n\n` + `Parse error: ${message}`)
+    }
     const file = convertQuartoDocumentsToDeepnote([{ filename, document }], { projectName })
     return {
       file,
@@ -138,7 +161,15 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
 
     if (detectedFormat === 'marimo') {
       debug(`Converting Marimo notebook: ${absolutePath}`)
-      const app = parseMarimoFormat(content)
+      let app: ReturnType<typeof parseMarimoFormat>
+      try {
+        app = parseMarimoFormat(content)
+      } catch (parseError) {
+        const message = parseError instanceof Error ? parseError.message : String(parseError)
+        throw new FileResolutionError(
+          `Failed to parse Marimo notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
+        )
+      }
       const file = convertMarimoAppsToDeepnote([{ filename, app }], { projectName })
       return {
         file,
@@ -150,7 +181,15 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
 
     if (detectedFormat === 'percent') {
       debug(`Converting percent format notebook: ${absolutePath}`)
-      const notebook = parsePercentFormat(content)
+      let notebook: ReturnType<typeof parsePercentFormat>
+      try {
+        notebook = parsePercentFormat(content)
+      } catch (parseError) {
+        const message = parseError instanceof Error ? parseError.message : String(parseError)
+        throw new FileResolutionError(
+          `Failed to parse percent format notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
+        )
+      }
       const file = convertPercentNotebooksToDeepnote([{ filename, notebook }], { projectName })
       return {
         file,

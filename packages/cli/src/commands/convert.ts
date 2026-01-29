@@ -17,7 +17,7 @@ import ora from 'ora'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, getOutputConfig, error as logError, output } from '../output'
 import { resolvePath } from '../utils/file-resolver'
-import { openDeepnoteInCloud } from '../utils/open-in-cloud'
+import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 
 export interface ConvertOptions {
   output?: string
@@ -45,7 +45,7 @@ export function createConvertAction(_program: Command): (inputPath: string, opti
       if (options.open && result.outputFormat === 'deepnote') {
         const c = getChalk()
         const quiet = getOutputConfig().quiet
-        const openResult = await openDeepnoteInCloud(result.outputPath, { quiet })
+        const openResult = await openDeepnoteFileInCloud(result.outputPath, { quiet })
         if (!quiet) {
           output(`${c.green('✓')} Opened in Deepnote Cloud`)
           output(`${c.dim('URL:')} ${openResult.url}`)

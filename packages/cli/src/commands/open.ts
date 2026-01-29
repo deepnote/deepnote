@@ -3,7 +3,7 @@ import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { getErrorMessage } from '../utils/import-client'
-import { openDeepnoteInCloud } from '../utils/open-in-cloud'
+import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 
 export interface OpenOptions {
   domain?: string
@@ -35,7 +35,7 @@ async function openDeepnoteFile(path: string | undefined, options: OpenOptions):
   const c = getChalk()
   const isJsonOutput = options.output === 'json'
 
-  const result = await openDeepnoteInCloud(absolutePath, {
+  const result = await openDeepnoteFileInCloud(absolutePath, {
     domain: options.domain,
     quiet: isJsonOutput,
   })
