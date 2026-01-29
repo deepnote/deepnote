@@ -109,7 +109,12 @@ _deepnote_completions() {
             if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile --open" -- "\${cur}") )
             else
+                # Enable extglob for pattern matching, restore original state after
+                local _extglob_was_off=0
+                shopt -q extglob || _extglob_was_off=1
+                shopt -s extglob
                 COMPREPLY=( $(compgen -f -X '!*.@(deepnote|ipynb|qmd|py)' -- "\${cur}") $(compgen -d -- "\${cur}") )
+                (( _extglob_was_off )) && shopt -u extglob
             fi
             return 0
             ;;
@@ -138,7 +143,12 @@ _deepnote_completions() {
             elif [[ "\${prev}" == "-o" || "\${prev}" == "--output" || "\${prev}" == "-n" || "\${prev}" == "--name" ]]; then
                 COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
             else
+                # Enable extglob for pattern matching, restore original state after
+                local _extglob_was_off=0
+                shopt -q extglob || _extglob_was_off=1
+                shopt -s extglob
                 COMPREPLY=( $(compgen -f -X '!*.@(deepnote|ipynb|qmd|py)' -- "\${cur}") $(compgen -d -- "\${cur}") )
+                (( _extglob_was_off )) && shopt -u extglob
             fi
             return 0
             ;;
