@@ -276,3 +276,30 @@ parameterised
 pytudes
 Botfather
 
+# MCP Server
+modelcontextprotocol
+toolsets
+pytest
+tracemalloc
+dtypes
+whitegrid
+histplot
+annot
+cmap
+coolwarm
+bplt
+fillna
+ffill
+bfill
+rstrip
+lstrip
+explor
+analys
+
+# Company names (Deepnote customers)
+Slido
+Homa
+foodpanda
+Shippit
+Webflow
+

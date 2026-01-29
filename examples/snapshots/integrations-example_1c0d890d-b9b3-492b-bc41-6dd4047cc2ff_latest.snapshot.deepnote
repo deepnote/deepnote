@@ -1,0 +1,95 @@
+metadata:
+  createdAt: 2025-11-04T05:25:00.936Z
+  modifiedAt: 2026-01-14T14:09:13.693Z
+  snapshotHash: sha256:cd61665e6954d6a5bc75581d7e3e59681483fe0cb9e8e89d0c6187fb5739ad72
+project:
+  id: 1c0d890d-b9b3-492b-bc41-6dd4047cc2ff
+  integrations:
+    - id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+      name: ClickHouse playground OSS
+      type: clickhouse
+  name: Integrations example
+  notebooks:
+    - blocks:
+        - id: 13db6a85530043f5aad25fdcc34f6329
+          blockGroup: c55d86401aca4829a7ad351dbfbbf38d
+          sortingKey: x
+          contentHash: sha256:80d4bb4ee11b1fb22b95004c2e01827e920a8cd07783ad1565330d75e3773978
+          type: sql
+          content: |-
+            SELECT
+              *
+            FROM
+              default.hackernews
+            WHERE
+              type = 'story'
+              AND url IS NOT NULL
+              AND url != ''
+            ORDER BY
+              time DESC
+            LIMIT 100000;
+          metadata:
+            deepnote_variable_name: stories
+            sql_integration_id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+        - id: 3d9000d7403f08ed8c829e0f1d13f09e
+          blockGroup: 0b85a9f7-5a1b-4025-bd37-0f34cc616e9d
+          sortingKey: a1
+          contentHash: sha256:ee6a08013f7a94f1645f512ea376aa705b9596be8128954e11a3d8203653d1ba
+          type: code
+          content: |-
+            import pandas as pd
+            from urllib.parse import urlparse
+
+            def extract_domain(url):
+                if pd.isna(url):
+                    return None
+                domain = urlparse(url).netloc.lower()
+                return domain.replace("www.", "")
+
+            stories["domain"] = stories["url"].apply(extract_domain)
+          metadata: {}
+        - id: bb630c895022ac3b01e2080364e50a20
+          blockGroup: b81f1b2e-0798-4947-a8cf-48b04be3e5c4
+          sortingKey: a2
+          contentHash: sha256:07094d2c2452afb054ae3512ac6c3398a2e5e4eafac6dfee230437e2e9633bc4
+          type: code
+          content: |-
+            domain_counts = (
+                stories["domain"]
+                .dropna()
+                .value_counts()
+            )
+
+            domain_counts.head(10)
+          metadata: {}
+        - id: 3544ef8a9113595f1e3c6f1d1b4d700f
+          blockGroup: e10542d3-3321-47b1-b449-96303d75c548
+          sortingKey: a3
+          contentHash: sha256:5e84f4b3ee6fb49c639a0f3c8f394882ea1c5f9843c104a4971665e7cfda59bc
+          type: code
+          content: |-
+            import matplotlib.pyplot as plt
+
+            TOP_N = 20
+
+            top_domains = domain_counts.head(TOP_N)
+
+            plt.figure(figsize=(10, 6))
+            top_domains.plot(kind="bar", logy=True)
+            plt.title(f"Top {TOP_N} Hacker News Domains (Log Scale)")
+            plt.xlabel("Domain")
+            plt.ylabel("Number of Posts (log)")
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            plt.show()
+          metadata: {}
+      executionMode: block
+      id: b641c8773e3b45759278d1b537ba1939
+      isModule: false
+      name: Integrations
+  settings: {}
+version: 1.0.0
+execution:
+  startedAt: 2026-01-29T11:16:31.480Z
+  finishedAt: 2026-01-29T11:16:31.481Z
+environment: {}
