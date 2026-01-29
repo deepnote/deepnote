@@ -25,6 +25,25 @@ When you run a notebook with \`deepnote_run\`:
 
 **Key point:** If you need to see what a notebook produced (output values, errors, charts), you MUST load the snapshot. The run response only contains summary info.
 
+## Structure: Projects, Notebooks, and Blocks
+
+A \`.deepnote\` file is a **project** containing one or more **notebooks**, each containing **blocks**.
+
+**Hierarchy (smallest to largest):**
+- **Block** - Single unit: code cell, markdown, input widget, SQL query
+- **Notebook** - Collection of blocks that execute together (like a Jupyter notebook)
+- **Project** - The \`.deepnote\` file containing all notebooks, settings, and integrations
+
+**Execution scopes (from focused to broad):**
+1. \`deepnote_run_block\` - Run ONE block (+ its dependencies)
+2. \`deepnote_run notebook=X\` - Run ONE notebook
+3. \`deepnote_run\` - Run ALL notebooks in project
+
+**Development tip:** Start small, verify, then expand:
+- Build block by block within a notebook
+- Once a notebook works, add the next notebook
+- Run at project level only when all pieces are verified
+
 ## Quick Start
 
 **Running and debugging notebooks:**
@@ -33,8 +52,8 @@ When you run a notebook with \`deepnote_run\`:
 - Use \`deepnote_snapshot_load\` to inspect results and debug
 
 **Creating notebooks:**
-- Use \`deepnote_scaffold\` to generate a complete notebook from a description
-- Use \`deepnote_create\` + \`deepnote_add_block\` for manual construction
+- Use \`deepnote_scaffold\` for simple, well-understood patterns
+- For complex/custom logic: build incrementally with \`deepnote_create\` → \`deepnote_add_block\` → \`deepnote_run_block\` → verify → repeat
 
 **Converting notebooks:**
 - Use \`deepnote_convert_from\` to import from Jupyter (.ipynb), Quarto (.qmd), or Python (.py)
@@ -82,6 +101,22 @@ When creating input blocks, use these metadata fields:
 2. \`deepnote_enhance\` to add inputs for parameters
 3. \`deepnote_suggest\` for improvement ideas
 
+**Building notebooks incrementally (RECOMMENDED for complex/custom logic):**
+1. \`deepnote_create\` to create empty project with one notebook
+2. \`deepnote_add_block\` to add first code block
+3. \`deepnote_run_block\` to execute just that block
+4. \`deepnote_snapshot_load\` to verify output is correct
+5. Repeat: add next block → run block → verify
+6. Once notebook is complete, run full notebook to confirm
+7. For multi-notebook projects: add next notebook, repeat process
+
+**Why incremental?** When blocks depend on each other (e.g., block 2 uses variables from block 1), building incrementally ensures each step works before adding the next. Debugging one block at a time is much easier than debugging a 10-block notebook with multiple failures.
+
+**Scope your execution:**
+- Developing a block? → \`deepnote_run_block\`
+- Testing a notebook? → \`deepnote_run notebook=name\`
+- Final verification? → \`deepnote_run\` (full project)
+
 **Import and improve existing notebook:**
 1. \`deepnote_convert_from\` to import
 2. \`deepnote_lint\` to check for issues
@@ -120,4 +155,7 @@ Use \`dryRun: true\` to preview execution plan without running.
 - Convert hardcoded values to input blocks for interactivity
 - Add markdown explanations before complex code
 - Use deepnote_lint to catch issues before running
+- For dependent blocks, build incrementally: add → run → verify → add next
+- Scope execution appropriately: block → notebook → project (smallest scope that tests what you need)
+- Prefer \`deepnote_run_block\` during development, \`deepnote_run\` for final verification
 `
