@@ -112,6 +112,8 @@ When creating input blocks, use these metadata fields:
 
 **Why incremental?** When blocks depend on each other (e.g., block 2 uses variables from block 1), building incrementally ensures each step works before adding the next. Debugging one block at a time is much easier than debugging a 10-block notebook with multiple failures.
 
+**Anti-pattern:** Adding multiple blocks without executing after each one. If you add 5 blocks then run, you'll have 5 potential failure points to debug at once.
+
 **Scope your execution:**
 - Developing a block? → \`deepnote_run_block\`
 - Testing a notebook? → \`deepnote_run notebook=name\`
