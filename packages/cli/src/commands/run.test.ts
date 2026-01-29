@@ -1595,6 +1595,7 @@ describe('run command', () => {
     beforeEach(() => {
       vi.clearAllMocks()
       mockGetBlockDependencies.mockResolvedValue([])
+      process.exitCode = 0
 
       program = new Command()
       program.exitOverride()
@@ -1611,6 +1612,7 @@ describe('run command', () => {
       consoleLogSpy.mockRestore()
       consoleErrorSpy.mockRestore()
       programErrorSpy.mockRestore()
+      process.exitCode = 0
     })
 
     describe('Jupyter notebooks (.ipynb)', () => {

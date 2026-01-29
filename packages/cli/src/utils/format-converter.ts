@@ -76,9 +76,15 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
   // Native .deepnote file - no conversion needed
   if (ext === '.deepnote') {
     debug(`Loading native .deepnote file: ${absolutePath}`)
-    const rawBytes = await fs.readFile(absolutePath)
-    const content = decodeUtf8NoBom(rawBytes)
-    const file = deserializeDeepnoteFile(content)
+    let file: DeepnoteFile
+    try {
+      const rawBytes = await fs.readFile(absolutePath)
+      const content = decodeUtf8NoBom(rawBytes)
+      file = deserializeDeepnoteFile(content)
+    } catch (parseError) {
+      const message = parseError instanceof Error ? parseError.message : String(parseError)
+      throw new FileResolutionError(`Invalid .deepnote file: ${absolutePath}\n\n` + `Failed to parse file: ${message}`)
+    }
     return {
       file,
       originalPath: absolutePath,

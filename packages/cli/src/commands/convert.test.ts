@@ -6,6 +6,8 @@ import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 
+const SIMPLE_DEEPNOTE_FIXTURE = join('test-fixtures', 'simple.deepnote')
+
 // Mock openDeepnoteInCloud for --open flag tests
 const mockOpenDeepnoteInCloud = vi.fn()
 vi.mock('../utils/open-in-cloud', () => ({
@@ -616,28 +618,8 @@ x = 1
       const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
       try {
-        const deepnotePath = join(tempDir, 'project.deepnote')
-        const content = `metadata:
-  createdAt: "2025-01-01T00:00:00Z"
-project:
-  id: test-id
-  name: Test Project
-  notebooks:
-    - id: notebook-1
-      name: Test Notebook
-      blocks:
-        - id: block-1
-          type: code
-          content: "print('hello')"
-          blockGroup: group-1
-          sortingKey: a0
-          metadata: {}
-version: "1.0.0"
-`
-        await fs.writeFile(deepnotePath, content, 'utf-8')
-
         const outputDir = join(tempDir, 'output')
-        await action(deepnotePath, { output: outputDir, format: 'jupyter', open: true })
+        await action(SIMPLE_DEEPNOTE_FIXTURE, { output: outputDir, format: 'jupyter', open: true })
 
         // Verify warning was shown
         expect(consoleLogSpy).toHaveBeenCalled()
@@ -657,28 +639,10 @@ version: "1.0.0"
       })
 
       try {
-        const deepnotePath = join(tempDir, 'project.deepnote')
-        const content = `metadata:
-  createdAt: "2025-01-01T00:00:00Z"
-project:
-  id: test-id
-  name: Test Project
-  notebooks:
-    - id: notebook-1
-      name: Test Notebook
-      blocks:
-        - id: block-1
-          type: code
-          content: "print('hello')"
-          blockGroup: group-1
-          sortingKey: a0
-          metadata: {}
-version: "1.0.0"
-`
-        await fs.writeFile(deepnotePath, content, 'utf-8')
-
         // @ts-expect-error - Testing runtime validation with invalid format
-        await expect(action(deepnotePath, { format: 'invalid-format' })).rejects.toThrow('process.exit called')
+        await expect(action(SIMPLE_DEEPNOTE_FIXTURE, { format: 'invalid-format' })).rejects.toThrow(
+          'process.exit called'
+        )
 
         expect(consoleErrorSpy).toHaveBeenCalled()
         const errorOutput = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
