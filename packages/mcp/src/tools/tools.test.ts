@@ -67,6 +67,7 @@ describe('MCP tools definitions', () => {
   describe('reading tools', () => {
     it('has expected tools', () => {
       const names = readingTools.map(t => t.name)
+      expect(names).toContain('deepnote_read')
       expect(names).toContain('deepnote_inspect')
       expect(names).toContain('deepnote_cat')
       expect(names).toContain('deepnote_lint')
@@ -84,6 +85,7 @@ describe('MCP tools definitions', () => {
 
     it('all reading tools require path parameter', () => {
       const pathRequiredTools = [
+        'deepnote_read',
         'deepnote_inspect',
         'deepnote_cat',
         'deepnote_lint',
@@ -97,6 +99,24 @@ describe('MCP tools definitions', () => {
         expect(schema?.properties?.path).toBeDefined()
         expect(schema?.required).toContain('path')
       }
+    })
+
+    it('deepnote_read supports include parameter', () => {
+      const tool = readingTools.find(t => t.name === 'deepnote_read')
+      const schema = tool?.inputSchema as InputSchema
+      expect(schema?.properties?.include).toBeDefined()
+      expect(schema?.properties?.include?.items?.enum).toContain('structure')
+      expect(schema?.properties?.include?.items?.enum).toContain('stats')
+      expect(schema?.properties?.include?.items?.enum).toContain('lint')
+      expect(schema?.properties?.include?.items?.enum).toContain('dag')
+      expect(schema?.properties?.include?.items?.enum).toContain('all')
+    })
+
+    it('deepnote_read supports compact parameter', () => {
+      const tool = readingTools.find(t => t.name === 'deepnote_read')
+      const schema = tool?.inputSchema as InputSchema
+      expect(schema?.properties?.compact).toBeDefined()
+      expect(schema?.properties?.compact?.type).toBe('boolean')
     })
   })
 
@@ -169,6 +189,20 @@ describe('MCP tools definitions', () => {
         expect(tool.annotations?.idempotentHint).toBe(false)
       }
     })
+
+    it('deepnote_run supports includeOutputSummary parameter', () => {
+      const tool = executionTools.find(t => t.name === 'deepnote_run')
+      const schema = tool?.inputSchema as InputSchema
+      expect(schema?.properties?.includeOutputSummary).toBeDefined()
+      expect(schema?.properties?.includeOutputSummary?.type).toBe('boolean')
+    })
+
+    it('deepnote_run supports compact parameter', () => {
+      const tool = executionTools.find(t => t.name === 'deepnote_run')
+      const schema = tool?.inputSchema as InputSchema
+      expect(schema?.properties?.compact).toBeDefined()
+      expect(schema?.properties?.compact?.type).toBe('boolean')
+    })
   })
 
   describe('magic tools', () => {
@@ -215,10 +249,30 @@ describe('MCP tools definitions', () => {
       expect(enhancements?.items?.enum).toContain('all')
     })
 
-    it('workflow tool requires steps parameter', () => {
+    it('workflow tool supports preset parameter', () => {
       const tool = magicTools.find(t => t.name === 'deepnote_workflow')
       const schema = tool?.inputSchema as InputSchema
-      expect(schema?.required).toContain('steps')
+      expect(schema?.properties?.preset).toBeDefined()
+      expect(schema?.properties?.preset?.enum).toContain('quickstart')
+      expect(schema?.properties?.preset?.enum).toContain('import')
+      expect(schema?.properties?.preset?.enum).toContain('polish')
+    })
+
+    it('workflow tool supports compact parameter', () => {
+      const tool = magicTools.find(t => t.name === 'deepnote_workflow')
+      const schema = tool?.inputSchema as InputSchema
+      expect(schema?.properties?.compact).toBeDefined()
+      expect(schema?.properties?.compact?.type).toBe('boolean')
+    })
+
+    it('magic tools with compact support have the parameter', () => {
+      const compactTools = ['deepnote_scaffold', 'deepnote_enhance', 'deepnote_fix', 'deepnote_suggest']
+      for (const name of compactTools) {
+        const tool = magicTools.find(t => t.name === name)
+        const schema = tool?.inputSchema as InputSchema
+        expect(schema?.properties?.compact).toBeDefined()
+        expect(schema?.properties?.compact?.type).toBe('boolean')
+      }
     })
   })
 
@@ -288,13 +342,13 @@ describe('MCP tools definitions', () => {
 
   describe('total tool count', () => {
     it('has correct number of tools', () => {
-      expect(readingTools.length).toBe(8) // Added validate
+      expect(readingTools.length).toBe(9) // Added validate and deepnote_read
       expect(writingTools.length).toBe(7)
       expect(conversionTools.length).toBe(3)
       expect(executionTools.length).toBe(3) // Added open
       expect(magicTools.length).toBe(10)
       expect(snapshotTools.length).toBe(4)
-      expect(allTools.length).toBe(35)
+      expect(allTools.length).toBe(36)
     })
   })
 })
