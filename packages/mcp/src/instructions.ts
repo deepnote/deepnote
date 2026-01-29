@@ -123,13 +123,13 @@ When creating input blocks, use these metadata fields:
 
 **Import and improve existing notebook:**
 1. \`deepnote_convert_from\` to import
-2. \`deepnote_lint\` to check for issues
+2. \`deepnote_read include=[lint]\` to check for issues (or use \`deepnote_workflow preset=import\`)
 3. \`deepnote_fix\` to auto-repair
 4. \`deepnote_enhance\` to add interactivity
 
 **Analyze notebook structure:**
-1. \`deepnote_inspect\` to see structure
-2. \`deepnote_dag\` to view dependencies
+1. \`deepnote_read include=[structure,stats,lint,dag]\` for comprehensive analysis in one call
+2. Or use individual tools: \`deepnote_inspect\`, \`deepnote_dag\` (requires full mode)
 3. \`deepnote_explain\` to generate documentation
 
 **Working with snapshots (execution outputs):**
@@ -153,6 +153,25 @@ A .deepnote project can contain multiple notebooks. Execution can be scoped to:
 3. **Block level**: \`deepnote_run_block\` runs a specific block (and its dependencies)
 
 Use \`dryRun: true\` to preview execution plan without running.
+
+## Performance Modes
+
+The server operates in two modes for optimal performance:
+
+**Compact mode (default):** Optimized for speed and token efficiency
+- Responses are minimal single-line JSON
+- Redundant tools hidden (use \`deepnote_read\` instead of inspect/stats/lint/dag)
+- Use \`deepnote_workflow\` with presets for multi-step operations
+- If an error occurs, the server automatically retries with verbose output
+
+**Full mode:** For debugging or when you need more detail
+- Call \`deepnote_mode mode=full\` to switch
+- All granular tools available (inspect, stats, lint, dag)
+- Verbose output with hints and suggestions
+
+**When you see "Escalated to verbose mode":** The operation encountered an issue and was retried with full output for debugging. After resolving, continue using compact mode.
+
+**Recommended:** Use \`deepnote_read\` with \`include=[structure,stats,lint,dag]\` to combine multiple analysis operations in one call.
 
 ## Best Practices
 

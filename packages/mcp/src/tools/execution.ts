@@ -147,7 +147,7 @@ export const executionTools: Tool[] = [
         },
         compact: {
           type: 'boolean',
-          description: 'Compact output - omit empty fields, minimal formatting',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -501,7 +501,7 @@ async function handleRun(args: Record<string, unknown>) {
       content: [
         {
           type: 'text',
-          text: formatOutput(responseData, compact || false),
+          text: formatOutput(responseData, compact !== false),
         },
       ],
     }

@@ -33,7 +33,7 @@ export const readingTools: Tool[] = [
         },
         compact: {
           type: 'boolean',
-          description: 'Compact output mode - omit empty fields, use single-line format',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -441,7 +441,7 @@ async function handleRead(args: Record<string, unknown>) {
   }
 
   return {
-    content: [{ type: 'text', text: formatOutput(result, compact || false) }],
+    content: [{ type: 'text', text: formatOutput(result, compact !== false) }],
   }
 }
 

@@ -21,7 +21,48 @@ import { handleWritingTool, writingTools } from './tools/writing'
 
 export type DeepnoteMcpServer = Server
 
+// Server mode: 'compact' (default) hides redundant tools, 'full' exposes all
+export type ServerMode = 'compact' | 'full'
+let serverMode: ServerMode = 'compact'
+
+/** Get current server mode */
+export function getServerMode(): ServerMode {
+  return serverMode
+}
+
+/** Reset server mode (for testing) */
+export function resetServerMode(): void {
+  serverMode = 'compact'
+}
+
+// Tools hidden in compact mode (use deepnote_read instead)
+const COMPACT_HIDDEN_TOOLS = ['deepnote_inspect', 'deepnote_stats', 'deepnote_lint', 'deepnote_dag']
+
+// Mode switching tool definition
+const modeToolDefinition = {
+  name: 'deepnote_mode',
+  title: 'Switch Server Mode',
+  description: 'Switch between compact (fast, fewer tools) and full (verbose, all tools) modes',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      mode: {
+        type: 'string',
+        enum: ['compact', 'full'],
+        description: 'compact: optimized for speed, fewer tools. full: all tools, verbose output',
+      },
+    },
+    required: ['mode'],
+  },
+  annotations: {
+    readOnlyHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+}
+
 const allTools = [
+  modeToolDefinition,
   ...magicTools,
   ...readingTools,
   ...writingTools,
@@ -29,6 +70,78 @@ const allTools = [
   ...executionTools,
   ...snapshotTools,
 ]
+
+/**
+ * Get tools filtered by current server mode
+ */
+function getFilteredTools() {
+  if (serverMode === 'compact') {
+    return allTools.filter(t => !COMPACT_HIDDEN_TOOLS.includes(t.name))
+  }
+  return allTools
+}
+
+/**
+ * Handle mode switching
+ */
+function handleModeSwitch(args: Record<string, unknown>) {
+  const newMode = args.mode as ServerMode
+  const oldMode = serverMode
+  serverMode = newMode
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          previousMode: oldMode,
+          currentMode: newMode,
+          toolsAvailable: getFilteredTools().length,
+          hint:
+            newMode === 'full'
+              ? 'Full mode enabled. Switch back to compact mode for faster responses.'
+              : 'Compact mode enabled. Use deepnote_read for inspect/stats/lint/dag.',
+        }),
+      },
+    ],
+  }
+}
+
+/**
+ * Execute a tool with auto-escalation: if compact mode fails, retry with verbose output
+ */
+async function executeWithEscalation(
+  handler: (
+    name: string,
+    args: Record<string, unknown> | undefined
+  ) => Promise<{
+    content: Array<{ type: string; text?: string }>
+    isError?: boolean
+  }>,
+  name: string,
+  args: Record<string, unknown> | undefined
+) {
+  const safeArgs = args || {}
+
+  // First attempt - uses default compact=true (since we changed defaults)
+  const result = await handler(name, safeArgs)
+
+  // If it failed and compact wasn't explicitly disabled, retry with verbose output
+  if (result.isError && safeArgs.compact !== false) {
+    const fullResult = await handler(name, { ...safeArgs, compact: false })
+
+    // Add de-escalation hint to the response
+    fullResult.content.push({
+      type: 'text',
+      text: '\n---\n[Escalated to verbose mode for debugging. Use compact=true or omit for faster responses.]',
+    })
+
+    return fullResult
+  }
+
+  return result
+}
 
 // Get workspace root from environment or current directory
 const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
@@ -51,7 +164,7 @@ export function createServer(): Server {
 
   // Register tool listing handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return { tools: allTools }
+    return { tools: getFilteredTools() }
   })
 
   // Register prompt listing handler
@@ -88,7 +201,12 @@ export function createServer(): Server {
     const { name, arguments: args } = request.params
 
     try {
-      // Route to appropriate handler based on tool name
+      // Handle mode switching
+      if (name === 'deepnote_mode') {
+        return handleModeSwitch(args || {})
+      }
+
+      // Route to appropriate handler based on tool name, with auto-escalation
       if (
         name.startsWith('deepnote_scaffold') ||
         name.startsWith('deepnote_enhance') ||
@@ -101,7 +219,7 @@ export function createServer(): Server {
         name.startsWith('deepnote_test') ||
         name.startsWith('deepnote_workflow')
       ) {
-        return await handleMagicTool(name, args)
+        return await executeWithEscalation(handleMagicTool, name, args)
       }
 
       if (
@@ -115,7 +233,7 @@ export function createServer(): Server {
         name.startsWith('deepnote_dag') ||
         name.startsWith('deepnote_diff')
       ) {
-        return await handleReadingTool(name, args)
+        return await executeWithEscalation(handleReadingTool, name, args)
       }
 
       if (
@@ -126,19 +244,19 @@ export function createServer(): Server {
         name.startsWith('deepnote_reorder') ||
         name.startsWith('deepnote_bulk_')
       ) {
-        return await handleWritingTool(name, args)
+        return await executeWithEscalation(handleWritingTool, name, args)
       }
 
       if (name.startsWith('deepnote_convert') || name.startsWith('deepnote_detect_')) {
-        return await handleConversionTool(name, args)
+        return await executeWithEscalation(handleConversionTool, name, args)
       }
 
       if (name.startsWith('deepnote_run') || name.startsWith('deepnote_open')) {
-        return await handleExecutionTool(name, args)
+        return await executeWithEscalation(handleExecutionTool, name, args)
       }
 
       if (name.startsWith('deepnote_snapshot')) {
-        return await handleSnapshotTool(name, args)
+        return await executeWithEscalation(handleSnapshotTool, name, args)
       }
 
       return {
