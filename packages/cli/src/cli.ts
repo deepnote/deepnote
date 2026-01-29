@@ -16,7 +16,7 @@ import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
-import { createFormatValidator } from './utils/format-validator'
+import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
 import { version } from './version'
 
 /**
@@ -134,7 +134,11 @@ function registerCommands(program: Command): void {
     .command('inspect')
     .description('Inspect and display metadata from a .deepnote file')
     .argument('[path]', 'Path to a .deepnote file or directory (defaults to current directory)')
-    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
+    .option(
+      '-o, --output <format>',
+      'Output format: json, toon, llm',
+      createFormatValidator(OUTPUT_FORMATS, TOON_LLM_RESOLUTION)
+    )
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -175,7 +179,7 @@ ${c.bold('Examples:')}
     .command('cat')
     .description('Display block contents from a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--notebook <name>', 'Show only blocks from the specified notebook')
     .option('--type <type>', `Filter blocks by type (${FILTERABLE_BLOCK_TYPES.join(', ')})`, createBlockTypeValidator())
     .option('--tree', 'Show structure only without block content')
@@ -217,7 +221,7 @@ ${c.bold('Examples:')}
     .description('Compare two .deepnote files and show structural differences')
     .argument('<path1>', 'Path to the first .deepnote file')
     .argument('<path2>', 'Path to the second .deepnote file')
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--content', 'Include content differences in output')
     .addHelpText('after', () => {
       const c = getChalk()
@@ -263,7 +267,11 @@ ${c.bold('Examples:')}
       []
     )
     .option('--list-inputs', 'List all input variables in the notebook without running')
-    .option('-o, --output <format>', 'Output format: json, toon', createFormatValidator(OUTPUT_FORMATS))
+    .option(
+      '-o, --output <format>',
+      'Output format: json, toon, llm',
+      createFormatValidator(OUTPUT_FORMATS, TOON_LLM_RESOLUTION)
+    )
     .option('--dry-run', 'Show what would be executed without running')
     .option('--top', 'Display resource usage (CPU, memory) during execution')
     .option('--profile', 'Show per-block timing and memory usage')
@@ -331,7 +339,7 @@ ${c.bold('Exit Codes:')}
     .description('Open a .deepnote file in Deepnote Cloud')
     .argument('<path>', 'Path to a .deepnote file to open')
     .option('--domain <domain>', 'Deepnote domain (defaults to deepnote.com)')
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -421,8 +429,7 @@ ${c.bold('Examples:')}
     .command('validate')
     .description('Validate a .deepnote file against the schema')
     .argument('<path>', 'Path to a .deepnote file to validate')
-    // Validate command only supports JSON output (no TOON)
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -489,7 +496,11 @@ ${c.bold('Examples:')}
     .command('show')
     .description('Show the dependency graph between blocks')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('-o, --output <format>', 'Output format: json, dot', createFormatValidator(['json', 'dot']))
+    .option(
+      '-o, --output <format>',
+      'Output format: json, dot, llm',
+      createFormatValidator(['json', 'dot'], JSON_LLM_RESOLUTION)
+    )
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .action(createDagShowAction(program))
@@ -498,7 +509,7 @@ ${c.bold('Examples:')}
     .command('vars')
     .description('List variables defined and used by each block')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .action(createDagVarsAction(program))
@@ -508,7 +519,7 @@ ${c.bold('Examples:')}
     .description('Show blocks that need re-run if a block changes')
     .argument('<path>', 'Path to a .deepnote file')
     .requiredOption('-b, --block <id>', 'Block ID or label to analyze')
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .action(createDagDownstreamAction(program))
@@ -518,7 +529,7 @@ ${c.bold('Examples:')}
     .command('stats')
     .description('Show statistics about a .deepnote file')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--notebook <name>', 'Analyze only a specific notebook')
     .addHelpText('after', () => {
       const c = getChalk()
@@ -548,7 +559,7 @@ ${c.bold('Examples:')}
     .command('lint')
     .description('Check a .deepnote file for issues')
     .argument('<path>', 'Path to a .deepnote file')
-    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--notebook <name>', 'Lint only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
     .addHelpText('after', () => {
