@@ -219,8 +219,10 @@ describe('magic tools handlers', () => {
         style: 'minimal',
       })
 
+      // Use compact: false to ensure suggestions array is included even if empty
       const response = await handleMagicTool('deepnote_suggest', {
         path: notebookPath,
+        compact: false,
       })
 
       const result = extractResult(response)

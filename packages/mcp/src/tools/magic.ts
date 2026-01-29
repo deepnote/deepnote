@@ -54,7 +54,7 @@ export const magicTools: Tool[] = [
         },
         compact: {
           type: 'boolean',
-          description: 'Compact output - omit empty fields, minimal formatting',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['description', 'outputPath'],
@@ -92,7 +92,7 @@ export const magicTools: Tool[] = [
         },
         compact: {
           type: 'boolean',
-          description: 'Compact output - omit empty fields, minimal formatting',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -130,7 +130,7 @@ export const magicTools: Tool[] = [
         },
         compact: {
           type: 'boolean',
-          description: 'Compact output - omit empty fields, minimal formatting',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -195,7 +195,7 @@ export const magicTools: Tool[] = [
         },
         compact: {
           type: 'boolean',
-          description: 'Compact output - omit empty fields, minimal formatting',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -405,7 +405,7 @@ Or provide custom steps to chain operations together.`,
         },
         compact: {
           type: 'boolean',
-          description: 'Compact output - omit empty fields, minimal formatting',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
     },
@@ -862,7 +862,7 @@ df_transformed.head()`,
     content: [
       {
         type: 'text',
-        text: formatOutput(responseData, compact || false),
+        text: formatOutput(responseData, compact !== false),
       },
     ],
   }
@@ -1117,7 +1117,7 @@ async function handleEnhance(args: Record<string, unknown>) {
       changes: compact && changes.length === 0 ? undefined : changes,
     }
     return {
-      content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
+      content: [{ type: 'text', text: formatOutput(responseData, compact !== false) }],
     }
   }
 
@@ -1130,7 +1130,7 @@ async function handleEnhance(args: Record<string, unknown>) {
     changes: compact && changes.length === 0 ? undefined : changes,
   }
   return {
-    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
+    content: [{ type: 'text', text: formatOutput(responseData, compact !== false) }],
   }
 }
 
@@ -1353,7 +1353,7 @@ async function handleFix(args: Record<string, unknown>) {
       fixes: compact && fixes.length === 0 ? undefined : fixes,
     }
     return {
-      content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
+      content: [{ type: 'text', text: formatOutput(responseData, compact !== false) }],
     }
   }
 
@@ -1367,7 +1367,7 @@ async function handleFix(args: Record<string, unknown>) {
     fixes: compact && fixes.length === 0 ? undefined : fixes,
   }
   return {
-    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
+    content: [{ type: 'text', text: formatOutput(responseData, compact !== false) }],
   }
 }
 
@@ -1729,7 +1729,7 @@ async function handleSuggest(args: Record<string, unknown>) {
         : `Found ${suggestions.length} suggestions for improvement`,
   }
   return {
-    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
+    content: [{ type: 'text', text: formatOutput(responseData, compact !== false) }],
   }
 }
 
@@ -2883,7 +2883,7 @@ async function handleWorkflow(args: Record<string, unknown>) {
   }
 
   return {
-    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
+    content: [{ type: 'text', text: formatOutput(responseData, compact !== false) }],
   }
 }
 

@@ -12,6 +12,24 @@ import {
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as serializeYaml } from 'yaml'
 
+/**
+ * Format output based on compact mode - omit null/empty, use single-line JSON
+ */
+function formatOutput(data: object, compact: boolean): string {
+  if (compact) {
+    const filtered = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => {
+        if (v == null) return false
+        if (Array.isArray(v) && v.length === 0) return false
+        if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return false
+        return true
+      })
+    )
+    return JSON.stringify(filtered)
+  }
+  return JSON.stringify(data, null, 2)
+}
+
 export const snapshotTools: Tool[] = [
   {
     name: 'deepnote_snapshot_list',
@@ -34,6 +52,10 @@ Returns all snapshots found in the specified directory.`,
         snapshotDir: {
           type: 'string',
           description: 'Directory to search for snapshots (default: "snapshots" in same directory as source)',
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -64,6 +86,10 @@ This is useful for debugging - re-run a snapshot to reproduce previous results.`
         snapshotDir: {
           type: 'string',
           description: 'Directory containing snapshots (default: "snapshots" in same directory)',
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -99,6 +125,10 @@ The source file is updated in place, snapshot is saved to snapshotDir.`,
         keepLatest: {
           type: 'boolean',
           description: 'Also create/update a "latest" symlink-style snapshot (default: true)',
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
         },
       },
       required: ['path'],
@@ -139,6 +169,10 @@ Options:
           type: 'boolean',
           description: 'Skip blocks where code has changed since snapshot (default: false)',
         },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output (default: true). Set false for verbose formatting.',
+        },
       },
       required: ['sourcePath'],
     },
@@ -154,6 +188,7 @@ Options:
 async function handleSnapshotList(args: Record<string, unknown>) {
   const filePath = args.path as string
   const snapshotDir = args.snapshotDir as string | undefined
+  const compact = args.compact !== false // default true
 
   if (!filePath) {
     return {
@@ -167,28 +202,21 @@ async function handleSnapshotList(args: Record<string, unknown>) {
 
     const snapshots = await findSnapshotsForProject(absolutePath, defaultSnapshotDir)
 
+    const responseData = {
+      sourcePath: absolutePath,
+      snapshotDir: compact ? undefined : defaultSnapshotDir,
+      snapshotsFound: snapshots.length,
+      snapshots: snapshots.map(s => ({
+        path: s.path,
+        slug: compact ? undefined : s.slug,
+        projectId: compact ? undefined : s.projectId,
+        timestamp: s.timestamp,
+        isLatest: s.timestamp === 'latest',
+      })),
+    }
+
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              sourcePath: absolutePath,
-              snapshotDir: defaultSnapshotDir,
-              snapshotsFound: snapshots.length,
-              snapshots: snapshots.map(s => ({
-                path: s.path,
-                slug: s.slug,
-                projectId: s.projectId,
-                timestamp: s.timestamp,
-                isLatest: s.timestamp === 'latest',
-              })),
-            },
-            null,
-            2
-          ),
-        },
-      ],
+      content: [{ type: 'text', text: formatOutput(responseData, compact) }],
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -201,6 +229,7 @@ async function handleSnapshotList(args: Record<string, unknown>) {
 async function handleSnapshotLoad(args: Record<string, unknown>) {
   const filePath = args.path as string
   const snapshotDir = args.snapshotDir as string | undefined
+  const compact = args.compact !== false // default true
 
   if (!filePath) {
     return {
@@ -226,26 +255,19 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
         }
       }
 
+      const responseData = {
+        path: absolutePath,
+        projectName: snapshot.project.name,
+        projectId: compact ? undefined : snapshot.project.id,
+        version: compact ? undefined : snapshot.version,
+        notebooks: snapshot.project.notebooks.length,
+        blocksWithOutputs: totalOutputs,
+        execution: compact ? undefined : snapshot.execution,
+        environment: compact ? undefined : snapshot.environment,
+      }
+
       return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                path: absolutePath,
-                projectName: snapshot.project.name,
-                projectId: snapshot.project.id,
-                version: snapshot.version,
-                notebooks: snapshot.project.notebooks.length,
-                blocksWithOutputs: totalOutputs,
-                execution: snapshot.execution,
-                environment: snapshot.environment,
-              },
-              null,
-              2
-            ),
-          },
-        ],
+        content: [{ type: 'text', text: formatOutput(responseData, compact) }],
       }
     }
 
@@ -262,7 +284,7 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
               error: 'No snapshot found',
               sourcePath: absolutePath,
               snapshotDir: defaultSnapshotDir,
-              hint: 'Use deepnote_snapshot_split to create a snapshot first',
+              hint: compact ? undefined : 'Use deepnote_snapshot_split to create a snapshot first',
             }),
           },
         ],
@@ -280,26 +302,19 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
       }
     }
 
+    const responseData = {
+      sourcePath: absolutePath,
+      projectName: snapshot.project.name,
+      projectId: compact ? undefined : snapshot.project.id,
+      version: compact ? undefined : snapshot.version,
+      notebooks: snapshot.project.notebooks.length,
+      blocksWithOutputs: totalOutputs,
+      execution: compact ? undefined : snapshot.execution,
+      environment: compact ? undefined : snapshot.environment,
+    }
+
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              sourcePath: absolutePath,
-              projectName: snapshot.project.name,
-              projectId: snapshot.project.id,
-              version: snapshot.version,
-              notebooks: snapshot.project.notebooks.length,
-              blocksWithOutputs: totalOutputs,
-              execution: snapshot.execution,
-              environment: snapshot.environment,
-            },
-            null,
-            2
-          ),
-        },
-      ],
+      content: [{ type: 'text', text: formatOutput(responseData, compact) }],
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -313,6 +328,7 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
   const filePath = args.path as string
   const snapshotDir = args.snapshotDir as string | undefined
   const keepLatest = args.keepLatest !== false // default true
+  const compact = args.compact !== false // default true
 
   if (!filePath) {
     return {
@@ -372,24 +388,17 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     const sourceContent = serializeYaml(source)
     await fs.writeFile(absolutePath, sourceContent, 'utf-8')
 
+    const responseData = {
+      success: true,
+      sourcePath: absolutePath,
+      snapshotPath,
+      latestPath,
+      outputsExtracted: outputCount,
+      hint: compact ? undefined : 'Source file updated without outputs. Use deepnote_snapshot_merge to restore.',
+    }
+
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              sourcePath: absolutePath,
-              snapshotPath,
-              latestPath,
-              outputsExtracted: outputCount,
-              hint: 'Source file updated without outputs. Use deepnote_snapshot_merge to restore.',
-            },
-            null,
-            2
-          ),
-        },
-      ],
+      content: [{ type: 'text', text: formatOutput(responseData, compact) }],
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -404,6 +413,7 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
   const snapshotPath = args.snapshotPath as string | undefined
   const outputPath = args.outputPath as string | undefined
   const skipMismatched = (args.skipMismatched as boolean) || false
+  const compact = args.compact !== false // default true
 
   if (!sourcePath) {
     return {
@@ -433,7 +443,7 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
               text: JSON.stringify({
                 error: 'No snapshot found',
                 sourcePath: absoluteSourcePath,
-                hint: 'Provide snapshotPath or run deepnote_snapshot_split first',
+                hint: compact ? undefined : 'Provide snapshotPath or run deepnote_snapshot_split first',
               }),
             },
           ],
@@ -460,22 +470,15 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
     const mergedContent = serializeYaml(merged)
     await fs.writeFile(finalPath, mergedContent, 'utf-8')
 
+    const responseData = {
+      success: true,
+      outputPath: finalPath,
+      blocksWithOutputs: outputCount,
+      skipMismatched: compact ? undefined : skipMismatched,
+    }
+
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              outputPath: finalPath,
-              blocksWithOutputs: outputCount,
-              skipMismatched,
-            },
-            null,
-            2
-          ),
-        },
-      ],
+      content: [{ type: 'text', text: formatOutput(responseData, compact) }],
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
