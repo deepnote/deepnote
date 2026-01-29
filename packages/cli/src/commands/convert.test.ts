@@ -5,6 +5,13 @@ import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
+
+// Mock openDeepnoteInCloud for --open flag tests
+const mockOpenDeepnoteInCloud = vi.fn()
+vi.mock('../utils/open-in-cloud', () => ({
+  openDeepnoteInCloud: (...args: unknown[]) => mockOpenDeepnoteInCloud(...args),
+}))
+
 import { createConvertAction } from './convert'
 
 async function createTempDir(): Promise<string> {
@@ -566,6 +573,44 @@ x = 1
   })
 
   describe('--open flag', () => {
+    beforeEach(() => {
+      mockOpenDeepnoteInCloud.mockReset()
+      mockOpenDeepnoteInCloud.mockResolvedValue({
+        url: 'https://deepnote.com/launch?importId=test-id',
+        importId: 'test-id',
+      })
+    })
+
+    it('calls openDeepnoteInCloud when converting to .deepnote format with --open', async () => {
+      const action = createConvertAction(program)
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      try {
+        // Create a .ipynb file to convert to .deepnote
+        const ipynbPath = join(tempDir, 'notebook.ipynb')
+        const ipynbContent = JSON.stringify({
+          cells: [{ cell_type: 'code', source: ["print('hello')"], metadata: {}, outputs: [], execution_count: null }],
+          metadata: { kernelspec: { display_name: 'Python 3', language: 'python', name: 'python3' } },
+          nbformat: 4,
+          nbformat_minor: 5,
+        })
+        await fs.writeFile(ipynbPath, ipynbContent, 'utf-8')
+
+        const outputPath = join(tempDir, 'output.deepnote')
+        await action(ipynbPath, { output: outputPath, open: true })
+
+        // Verify openDeepnoteInCloud was called with the output path
+        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledTimes(1)
+        expect(mockOpenDeepnoteInCloud).toHaveBeenCalledWith(outputPath, expect.any(Object))
+
+        // Verify no warning was shown
+        const logOutput = consoleLogSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(logOutput).not.toContain('--open is only available')
+      } finally {
+        consoleLogSpy.mockRestore()
+      }
+    })
+
     it('warns when --open is used with non-deepnote output format', async () => {
       const action = createConvertAction(program)
       const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
