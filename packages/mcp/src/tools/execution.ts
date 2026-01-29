@@ -1,28 +1,58 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import {
+  convertJupyterNotebooksToDeepnote,
+  convertMarimoAppsToDeepnote,
+  convertPercentNotebooksToDeepnote,
+  convertQuartoDocumentsToDeepnote,
+  detectFormat,
+  generateSnapshotFilename,
+  getSnapshotDir,
+  type JupyterNotebook,
+  parseMarimoFormat,
+  parsePercentFormat,
+  parseQuartoFormat,
+  slugifyProjectName,
+  splitDeepnoteFile,
+} from '@deepnote/convert'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
+import { stringify as yamlStringify } from 'yaml'
 
 // Cloud upload constants
 const DEFAULT_DOMAIN = 'deepnote.com'
 const MAX_FILE_SIZE = 100 * 1024 * 1024
 
+// Supported file extensions for running
+const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
+
+interface ConvertedFile {
+  file: DeepnoteFile
+  originalPath: string
+  format: 'deepnote' | 'jupyter' | 'percent' | 'marimo' | 'quarto'
+  wasConverted: boolean
+}
+
 export const executionTools: Tool[] = [
   {
     name: 'deepnote_run',
     title: 'Run Project',
-    description: `Execute a .deepnote project locally using Python.
+    description: `Execute a notebook locally using Python.
+
+**Outputs are saved to a snapshot file.** The response includes \`snapshotPath\` - use \`deepnote_snapshot_load\` to inspect results, errors, and debug information.
+
+Supported formats: .deepnote, .ipynb, .py (percent/marimo), .qmd
 
 Execution levels:
 - **Project level** (default): Runs ALL notebooks in order
 - **Notebook level**: Use 'notebook' param to run a single notebook
 - **Block level**: Use deepnote_run_block instead
 
-**Tip:** Snapshot files (.snapshot.deepnote) are also valid notebooks and can be run directly. This is useful for debugging - you can re-run a snapshot to reproduce previous results.
+**Debugging:** After running, use \`deepnote_snapshot_load path=<snapshotPath>\` to see all outputs (stdout, stderr, charts, errors, timing).
 
-Returns outputs from all executed blocks. Requires Python to be installed.`,
+Requires Python to be installed.`,
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -34,7 +64,7 @@ Returns outputs from all executed blocks. Requires Python to be installed.`,
       properties: {
         path: {
           type: 'string',
-          description: 'Path to the .deepnote file',
+          description: 'Path to notebook file (.deepnote, .ipynb, .py, .qmd)',
         },
         notebook: {
           type: 'string',
@@ -61,7 +91,8 @@ Returns outputs from all executed blocks. Requires Python to be installed.`,
   {
     name: 'deepnote_run_block',
     title: 'Run Single Block',
-    description: 'Execute a specific block from a .deepnote notebook. Shows execution plan.',
+    description:
+      'Execute a specific block from a notebook. Outputs are saved to a snapshot file - use deepnote_snapshot_load to inspect results.',
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -130,6 +161,132 @@ async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
   return deserializeDeepnoteFile(content)
 }
 
+/**
+ * Resolve and convert any supported notebook format to a DeepnoteFile.
+ */
+async function resolveAndConvertToDeepnote(filePath: string): Promise<ConvertedFile> {
+  const absolutePath = path.resolve(filePath)
+  const ext = path.extname(absolutePath).toLowerCase()
+  const filename = path.basename(absolutePath)
+  const projectName = path.basename(absolutePath, ext)
+
+  if (!RUNNABLE_EXTENSIONS.includes(ext as (typeof RUNNABLE_EXTENSIONS)[number])) {
+    throw new Error(
+      `Unsupported file type: ${ext || '(no extension)'}\n\n` +
+        `Supported formats:\n` +
+        `  .deepnote  - Deepnote project\n` +
+        `  .ipynb     - Jupyter Notebook\n` +
+        `  .py        - Percent format (# %%) or Marimo (@app.cell)\n` +
+        `  .qmd       - Quarto document`
+    )
+  }
+
+  // Native .deepnote file
+  if (ext === '.deepnote') {
+    const rawBytes = await fs.readFile(absolutePath)
+    const content = decodeUtf8NoBom(rawBytes)
+    const file = deserializeDeepnoteFile(content)
+    return { file, originalPath: absolutePath, format: 'deepnote', wasConverted: false }
+  }
+
+  const content = await fs.readFile(absolutePath, 'utf-8')
+
+  // Jupyter Notebook
+  if (ext === '.ipynb') {
+    const notebook = JSON.parse(content) as JupyterNotebook
+    const file = convertJupyterNotebooksToDeepnote([{ filename, notebook }], { projectName })
+    return { file, originalPath: absolutePath, format: 'jupyter', wasConverted: true }
+  }
+
+  // Quarto document
+  if (ext === '.qmd') {
+    const document = parseQuartoFormat(content)
+    const file = convertQuartoDocumentsToDeepnote([{ filename, document }], { projectName })
+    return { file, originalPath: absolutePath, format: 'quarto', wasConverted: true }
+  }
+
+  // Python file - detect percent or marimo
+  if (ext === '.py') {
+    const detectedFormat = detectFormat(absolutePath, content)
+
+    if (detectedFormat === 'marimo') {
+      const app = parseMarimoFormat(content)
+      const file = convertMarimoAppsToDeepnote([{ filename, app }], { projectName })
+      return { file, originalPath: absolutePath, format: 'marimo', wasConverted: true }
+    }
+
+    if (detectedFormat === 'percent') {
+      const notebook = parsePercentFormat(content)
+      const file = convertPercentNotebooksToDeepnote([{ filename, notebook }], { projectName })
+      return { file, originalPath: absolutePath, format: 'percent', wasConverted: true }
+    }
+
+    throw new Error(
+      `Could not detect Python notebook format for: ${absolutePath}\n\n` +
+        `The file must be either:\n` +
+        `  - Percent format: Use "# %%" cell markers\n` +
+        `  - Marimo format: Use @app.cell decorators`
+    )
+  }
+
+  throw new Error(`Unsupported file type: ${ext}`)
+}
+
+/**
+ * Save execution outputs to a snapshot file.
+ */
+async function saveExecutionSnapshot(
+  sourcePath: string,
+  file: DeepnoteFile,
+  blockOutputs: Array<{ id: string; outputs: unknown[]; executionCount?: number | null }>,
+  timing: { startedAt: string; finishedAt: string }
+): Promise<{ snapshotPath: string }> {
+  // Build a map of outputs by block ID
+  const outputsByBlockId = new Map(blockOutputs.map(r => [r.id, r]))
+
+  // Merge outputs into the file
+  const fileWithOutputs: DeepnoteFile = {
+    ...file,
+    execution: {
+      startedAt: timing.startedAt,
+      finishedAt: timing.finishedAt,
+    },
+    project: {
+      ...file.project,
+      notebooks: file.project.notebooks.map(notebook => ({
+        ...notebook,
+        blocks: notebook.blocks.map(block => {
+          const result = outputsByBlockId.get(block.id)
+          if (!result) return block
+          return {
+            ...block,
+            outputs: result.outputs,
+            ...(result.executionCount != null ? { executionCount: result.executionCount } : {}),
+          }
+        }),
+      })),
+    },
+  }
+
+  // Split into source and snapshot
+  const { snapshot } = splitDeepnoteFile(fileWithOutputs)
+
+  // Determine snapshot path
+  const snapshotDir = getSnapshotDir(sourcePath)
+  const slug = slugifyProjectName(file.project.name) || 'project'
+  const snapshotFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
+  const snapshotPath = path.resolve(snapshotDir, snapshotFilename)
+
+  // Create snapshot directory
+  await fs.mkdir(snapshotDir, { recursive: true })
+
+  // Write snapshot
+  const snapshotYaml = yamlStringify(snapshot)
+  await fs.writeFile(snapshotPath, snapshotYaml, 'utf-8')
+
+  return { snapshotPath }
+}
+
 async function handleRun(args: Record<string, unknown>) {
   const filePath = args.path as string
   const notebookFilter = args.notebook as string | undefined
@@ -137,7 +294,8 @@ async function handleRun(args: Record<string, unknown>) {
   const inputs = args.inputs as Record<string, unknown> | undefined
   const dryRun = args.dryRun as boolean | undefined
 
-  const file = await loadDeepnoteFile(filePath)
+  // Load file, auto-converting from other formats if needed
+  const { file, originalPath, format, wasConverted } = await resolveAndConvertToDeepnote(filePath)
 
   // Filter notebooks if specified, otherwise run all
   let notebooks = file.project.notebooks
@@ -194,18 +352,22 @@ async function handleRun(args: Record<string, unknown>) {
   }
 
   // Actually run the notebooks
-  const workingDir = path.dirname(path.resolve(filePath))
+  const workingDir = path.dirname(originalPath)
   const engine = new ExecutionEngine({
     pythonEnv: pythonPath || 'python',
     workingDirectory: workingDir,
   })
 
   const results: Array<{ notebook: string; blockId: string; type: string; success: boolean; error?: string }> = []
+  const blockOutputs: Array<{ id: string; outputs: unknown[]; executionCount?: number | null }> = []
+
+  // Track execution timing
+  const executionStartedAt = new Date().toISOString()
 
   try {
     await engine.start()
 
-    const summary = await engine.runFile(path.resolve(filePath), {
+    const summary = await engine.runProject(file, {
       notebookName: notebookFilter,
       inputs,
       onBlockDone: result => {
@@ -218,8 +380,31 @@ async function handleRun(args: Record<string, unknown>) {
           success: result.success,
           error: result.error?.message,
         })
+        // Collect outputs for snapshot
+        blockOutputs.push({
+          id: result.blockId,
+          outputs: result.outputs || [],
+          executionCount: result.executionCount,
+        })
       },
     })
+
+    const executionFinishedAt = new Date().toISOString()
+
+    // Save execution outputs to snapshot
+    // For converted files, use a path where the .deepnote equivalent would be
+    const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
+
+    let snapshotPath: string | undefined
+    try {
+      const snapshotResult = await saveExecutionSnapshot(snapshotSourcePath, file, blockOutputs, {
+        startedAt: executionStartedAt,
+        finishedAt: executionFinishedAt,
+      })
+      snapshotPath = snapshotResult.snapshotPath
+    } catch {
+      // Snapshot saving is best-effort
+    }
 
     return {
       content: [
@@ -234,7 +419,15 @@ async function handleRun(args: Record<string, unknown>) {
               failedBlocks: summary.failedBlocks,
               totalBlocks: summary.totalBlocks,
               durationMs: summary.totalDurationMs,
+              format,
+              wasConverted,
+              snapshotPath,
+              execution: {
+                startedAt: executionStartedAt,
+                finishedAt: executionFinishedAt,
+              },
               results,
+              hint: snapshotPath ? 'Use deepnote_snapshot_load to inspect outputs, errors, and debug info' : undefined,
             },
             null,
             2

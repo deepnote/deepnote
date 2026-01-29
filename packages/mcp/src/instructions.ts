@@ -6,7 +6,31 @@ export const serverInstructions = `# Deepnote MCP Server
 
 This server provides tools for creating, editing, running, and converting Deepnote notebooks (.deepnote files).
 
+## IMPORTANT: Understanding Execution Outputs
+
+**All execution outputs are saved to snapshot files (.snapshot.deepnote).**
+
+When you run a notebook with \`deepnote_run\`:
+1. The notebook executes locally
+2. All outputs (stdout, stderr, charts, errors, timing) are saved to a snapshot file
+3. The response includes \`snapshotPath\` - **this is where results live**
+4. Use \`deepnote_snapshot_load\` to inspect outputs and debug
+
+**Debugging workflow:**
+1. \`deepnote_run path=notebook.deepnote\` → runs and saves snapshot
+2. Check \`snapshotPath\` in the response
+3. \`deepnote_snapshot_load path=<snapshotPath>\` → load and inspect outputs
+4. Review block outputs, errors, execution timing
+5. Fix issues in source, re-run, compare results
+
+**Key point:** If you need to see what a notebook produced (output values, errors, charts), you MUST load the snapshot. The run response only contains summary info.
+
 ## Quick Start
+
+**Running and debugging notebooks:**
+- Use \`deepnote_run\` to execute (supports .deepnote, .ipynb, .py, .qmd)
+- Check \`snapshotPath\` in response for outputs
+- Use \`deepnote_snapshot_load\` to inspect results and debug
 
 **Creating notebooks:**
 - Use \`deepnote_scaffold\` to generate a complete notebook from a description
@@ -69,13 +93,15 @@ When creating input blocks, use these metadata fields:
 2. \`deepnote_dag\` to view dependencies
 3. \`deepnote_explain\` to generate documentation
 
-**Managing outputs (snapshots):**
-1. \`deepnote_snapshot_split\` - Separate outputs from source for clean version control
-2. \`deepnote_snapshot_merge\` - Restore outputs back into a clean source
-3. \`deepnote_snapshot_list\` - Find available snapshots for a project
-4. \`deepnote_snapshot_load\` - Load and inspect a snapshot's outputs
+**Working with snapshots (execution outputs):**
+1. \`deepnote_snapshot_load\` - **Load and inspect outputs** (stdout, errors, charts, timing)
+2. \`deepnote_snapshot_list\` - Find available snapshots for a project
+3. \`deepnote_snapshot_split\` - Separate outputs from source for clean version control
+4. \`deepnote_snapshot_merge\` - Restore outputs back into a clean source
 
-**Note:** Snapshots are valid .deepnote files with outputs included. You can run them directly with \`deepnote_run\` for debugging - this lets you re-execute and compare results.
+**Key:** After \`deepnote_run\`, always check \`snapshotPath\` and use \`deepnote_snapshot_load\` to see actual outputs. Snapshots contain everything: stdout, stderr, return values, charts, errors, and execution timing.
+
+**Tip:** Snapshots are valid .deepnote files. You can run them directly with \`deepnote_run\` for debugging - this lets you re-execute and compare results.
 
 ## Execution Levels
 

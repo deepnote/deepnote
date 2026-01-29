@@ -2,6 +2,18 @@ import type { GetPromptResult, Prompt } from '@modelcontextprotocol/sdk/types.js
 
 export const prompts: Prompt[] = [
   {
+    name: 'debug_execution',
+    description:
+      'How to debug notebook execution using snapshots. Shows workflow for running, inspecting outputs, and fixing issues.',
+    arguments: [
+      {
+        name: 'notebook_path',
+        description: 'Path to the notebook to debug',
+        required: true,
+      },
+    ],
+  },
+  {
     name: 'create_notebook',
     description:
       'Template for creating a new Deepnote notebook. Guides you through the scaffold tool with best practices.',
@@ -54,6 +66,8 @@ export const prompts: Prompt[] = [
 
 export function getPrompt(name: string, args: Record<string, string> | undefined): GetPromptResult {
   switch (name) {
+    case 'debug_execution':
+      return getDebugExecutionPrompt(args)
     case 'create_notebook':
       return getCreateNotebookPrompt(args)
     case 'convert_and_enhance':
@@ -66,6 +80,72 @@ export function getPrompt(name: string, args: Record<string, string> | undefined
       return getBestPracticesPrompt()
     default:
       throw new Error(`Unknown prompt: ${name}`)
+  }
+}
+
+function getDebugExecutionPrompt(args: Record<string, string> | undefined): GetPromptResult {
+  const notebookPath = args?.notebook_path || 'notebook.deepnote'
+
+  return {
+    description: 'Debug notebook execution using snapshots',
+    messages: [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `Debug the notebook execution for: ${notebookPath}
+
+## Understanding Outputs
+
+**All execution outputs are saved to snapshot files.** After running a notebook:
+1. The response includes \`snapshotPath\` - this is where all results live
+2. Use \`deepnote_snapshot_load\` to inspect outputs
+
+## Debugging Workflow
+
+### Step 1: Run the notebook
+\`\`\`
+deepnote_run path="${notebookPath}"
+\`\`\`
+
+The response will include:
+- \`snapshotPath\`: Path to saved outputs (e.g., "snapshots/notebook_uuid_latest.snapshot.deepnote")
+- \`executedBlocks\`, \`failedBlocks\`: Execution summary
+- \`results\`: Per-block success/failure info
+
+### Step 2: Inspect the snapshot
+\`\`\`
+deepnote_snapshot_load path="<snapshotPath from step 1>"
+\`\`\`
+
+The snapshot contains:
+- **Block outputs**: stdout, return values, charts
+- **Errors**: Full tracebacks for failed blocks
+- **Timing**: When execution started/finished
+- **Execution counts**: Order blocks ran
+
+### Step 3: Debug issues
+If blocks failed:
+1. Check error messages in the snapshot
+2. Use \`deepnote_cat path="${notebookPath}" blockId="<failed-block-id>"\` to see the code
+3. Fix the issue with \`deepnote_edit_block\`
+4. Re-run and compare snapshots
+
+### Step 4: Compare runs
+Each run creates a new snapshot. Use \`deepnote_snapshot_list\` to see history and compare outputs between runs.
+
+## Key Tools
+
+| Tool | Purpose |
+|------|---------|
+| deepnote_run | Execute notebook, save outputs to snapshot |
+| deepnote_snapshot_load | **Load outputs**, errors, timing from snapshot |
+| deepnote_snapshot_list | Find available snapshots |
+| deepnote_cat | View block source code |
+| deepnote_edit_block | Fix code issues |`,
+        },
+      },
+    ],
   }
 }
 
