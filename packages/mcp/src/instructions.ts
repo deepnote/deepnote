@@ -25,6 +25,8 @@ When you run a notebook with \`deepnote_run\`:
 
 **Key point:** If you need to see what a notebook produced (output values, errors, charts), you MUST load the snapshot. The run response only contains summary info.
 
+**Important:** Always use \`deepnote_snapshot_load\` to read snapshots - do NOT read .snapshot.deepnote files directly with file read tools. The snapshot loader parses and structures the outputs for you.
+
 ## Structure: Projects, Notebooks, and Blocks
 
 A \`.deepnote\` file is a **project** containing one or more **notebooks**, each containing **blocks**.
@@ -137,6 +139,8 @@ When creating input blocks, use these metadata fields:
 4. \`deepnote_snapshot_merge\` - Restore outputs back into a clean source
 
 **Key:** After \`deepnote_run\`, always check \`snapshotPath\` and use \`deepnote_snapshot_load\` to see actual outputs. Snapshots contain everything: stdout, stderr, return values, charts, errors, and execution timing.
+
+**Do NOT** read snapshot files directly with file read tools - always use \`deepnote_snapshot_load\` which parses and structures the data.
 
 **Tip:** Snapshots are valid .deepnote files. You can run them directly with \`deepnote_run\` for debugging - this lets you re-execute and compare results.
 
