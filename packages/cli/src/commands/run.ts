@@ -1,7 +1,11 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
-import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import {
+  type DeepnoteBlock as BlocksDeepnoteBlock,
+  convertToEnvironmentVariableName,
+  type DeepnoteFile,
+} from '@deepnote/blocks'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
@@ -479,12 +483,12 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
 /**
  * Convert an integration ID to its environment variable name.
  * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
+ * Note: This handles leading digits differently from @deepnote/blocks - we sanitize
+ * the integrationId first, then prepend SQL_. This maintains compatibility with
+ * existing env var names (e.g., "100abc" -> "SQL__100ABC" not "SQL_100ABC").
  */
 function getIntegrationEnvVarName(integrationId: string): string {
-  // Same logic as @deepnote/database-integrations getSqlEnvVarName
-  const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
-  const upperCased = notFirstDigit.toUpperCase()
-  const sanitized = upperCased.replace(/[^\w]/g, '_')
+  const sanitized = convertToEnvironmentVariableName(integrationId)
   return `SQL_${sanitized}`
 }
 

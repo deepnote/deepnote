@@ -1,12 +1,10 @@
 import type { DeepnoteBlock, ExecutableBlock } from '../deserialize-file/deepnote-file-schema'
 
-const executableBlockTypes = new Set([
-  'code',
-  'sql',
-  'notebook-function',
-  'visualization',
-  'button',
-  'big-number',
+/**
+ * Block types that represent user input widgets.
+ * These blocks capture user input and define variables.
+ */
+export const INPUT_BLOCK_TYPES = new Set([
   'input-text',
   'input-textarea',
   'input-checkbox',
@@ -15,6 +13,16 @@ const executableBlockTypes = new Set([
   'input-date',
   'input-date-range',
   'input-file',
+])
+
+const executableBlockTypes = new Set([
+  'code',
+  'sql',
+  'notebook-function',
+  'visualization',
+  'button',
+  'big-number',
+  ...INPUT_BLOCK_TYPES,
 ])
 
 /**

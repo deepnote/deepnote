@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|validate|convert|completion|help|dag|stats|lint|show|vars|downstream|diff)
+            inspect|cat|run|open|validate|convert|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff)
                 subcommand="\${word}"
                 break
                 ;;
@@ -46,7 +46,7 @@ _deepnote_completions() {
     # Handle -o/--output option completion based on the subcommand
     if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
         case "\${subcommand}" in
-            inspect|run)
+            inspect|run|analyze)
                 COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
                 return 0
                 ;;
@@ -187,6 +187,15 @@ _deepnote_completions() {
             fi
             return 0
             ;;
+        analyze)
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --notebook --python" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
         diff)
             # Complete .deepnote files and flags
             if [[ "\${cur}" == -* ]]; then
@@ -225,6 +234,7 @@ const zshCommandDescriptions: Record<string, string> = {
   validate: 'Validate a .deepnote file against the schema',
   dag: 'Analyze block dependencies and variable flow',
   stats: 'Show statistics about a .deepnote file',
+  analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
 }
@@ -369,6 +379,13 @@ ${commandEntries}
                         '--python[Path to Python interpreter]:python path:_files' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
+                analyze)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '--notebook[Analyze only a specific notebook]:notebook name:' \\
+                        '--python[Path to Python interpreter]:python path:_files' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
                 diff)
                     _arguments \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
@@ -402,6 +419,7 @@ const fishCommandDescriptions: Record<string, string> = {
   validate: 'Validate a .deepnote file against the schema',
   dag: 'Analyze block dependencies and variable flow',
   stats: 'Show statistics about a .deepnote file',
+  analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
 }
@@ -495,6 +513,12 @@ complete -c deepnote -n '__fish_seen_subcommand_from lint' -s o -l output -d 'Ou
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l notebook -d 'Lint only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l python -d 'Path to Python interpreter'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -F -a '*.deepnote'
+
+# analyze subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -s o -l output -d 'Output format' -xa 'json toon'
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -l notebook -d 'Analyze only a specific notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -l python -d 'Path to Python interpreter'
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -F -a '*.deepnote'
 
 # diff subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from diff' -s o -l output -d 'Output format' -xa 'json'

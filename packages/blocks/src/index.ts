@@ -1,5 +1,6 @@
 export { UnsupportedBlockTypeError } from './blocks'
-export { isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
+export { INPUT_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
+export { convertToEnvironmentVariableName, getSqlEnvVarName } from './blocks/sql-utils'
 export type { TableState } from './blocks/table-state'
 export type {
   DeepnoteBlock,

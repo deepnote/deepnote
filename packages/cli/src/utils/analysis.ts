@@ -4,7 +4,12 @@
  * by multiple commands (lint, stats, run --context, analyze).
  */
 
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import {
+  convertToEnvironmentVariableName,
+  type DeepnoteBlock,
+  type DeepnoteFile,
+  INPUT_BLOCK_TYPES,
+} from '@deepnote/blocks'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'
@@ -96,18 +101,6 @@ export interface AnalysisResult {
 
 /** Built-in integrations that don't require external configuration */
 const BUILTIN_INTEGRATIONS = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
-
-/** Input block types */
-const INPUT_BLOCK_TYPES = new Set([
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-])
 
 // ============================================================================
 // Main Analysis Functions
@@ -505,11 +498,12 @@ interface IntegrationCheckResult {
 
 /**
  * Convert an integration ID to its environment variable name.
+ * Note: This handles leading digits differently from @deepnote/blocks - we sanitize
+ * the integrationId first, then prepend SQL_. This maintains compatibility with
+ * existing env var names (e.g., "100abc" -> "SQL__100ABC" not "SQL_100ABC").
  */
 function getIntegrationEnvVarName(integrationId: string): string {
-  const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
-  const upperCased = notFirstDigit.toUpperCase()
-  const sanitized = upperCased.replace(/[^\w]/g, '_')
+  const sanitized = convertToEnvironmentVariableName(integrationId)
   return `SQL_${sanitized}`
 }
 
