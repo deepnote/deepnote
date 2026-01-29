@@ -1,0 +1,431 @@
+metadata:
+  createdAt: '2025-11-04T03:58:18.554Z'
+  modifiedAt: '2026-01-14T13:55:41.587Z'
+  snapshotHash: sha256:13a162d5bce256279b333af1008ed54c4d78017e73f37fd96bd1ed2628035635
+project:
+  id: d025b1dd-0ea7-49e8-8229-b571dd98d430
+  name: Deepnote blocks
+  notebooks:
+    - blocks:
+        - blockGroup: 00cb9c25-8938-454b-ab4c-fd5af04fa0ad
+          content: |-
+            # This is a markdown heading
+
+            This is a paragraph
+          id: 845fe223395c18ff5dcbb9b45a8cdb52
+          metadata: {}
+          sortingKey: a0
+          type: markdown
+          contentHash: sha256:eb9e62431ccf3c55d9ba38c18ff9156cc22d90f06a674dddaa43e7bbc68b3f91
+        - blockGroup: 51ce0ff4-65dc-42ca-b2c1-1bf0d37fab2a
+          content: print("Hello World!")
+          id: 2665e1a332df6436b0ce30d662bfe1f1
+          metadata: {}
+          sortingKey: a1
+          type: code
+          contentHash: sha256:866b5033009e3e3f3e40bef180e6924d937996a57fc8b5ce85090b5d14459f1f
+          executionCount: 0
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                Hello World!
+      executionMode: block
+      id: 921d82a6-7cb1-4fc6-a061-810ce23f803d
+      name: 1. Text blocks
+    - blocks:
+        - blockGroup: 8b8c6e4e-b2bf-4523-957d-98ac21a6d4ba
+          content: ''
+          id: 3691e962f28462a191f086357005afc6
+          metadata:
+            deepnote_variable_name: input_text
+            deepnote_input_label: ''
+            deepnote_variable_value: I am an input
+            deepnote_variable_default_value: null
+          sortingKey: a1
+          type: input-text
+        - blockGroup: 21a5c57f-e581-49de-9912-b0df8707236b
+          content: print(input_text)
+          id: dd89e10c880e6aea085862c8fa5d17c5
+          metadata: {}
+          sortingKey: a1
+          type: code
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                I am an input
+        - blockGroup: e4a83296-20fe-4271-858b-c2a9b18071bf
+          content: ''
+          id: 29442060bb84d58a6487159aeb37e884
+          metadata:
+            deepnote_variable_name: input_textarea
+            deepnote_input_label: ''
+            deepnote_variable_value: I am bigger and longer text that can be used for paragraphs.
+            deepnote_variable_default_value: ''
+          sortingKey: a2
+          type: input-textarea
+        - blockGroup: 182114da-ee2a-4623-a5dd-232f70f90d1a
+          content: print(input_textarea)
+          id: bf4cf42d11535deef20be90678d8f05c
+          metadata: {}
+          sortingKey: a3
+          type: code
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                I am bigger and longer text that can be used for paragraphs.
+        - blockGroup: b2bac41d-2531-47b9-b0e3-d19d7a04bb6f
+          content: ''
+          id: 5bce645711428cddc48c17fdfc89e256
+          metadata:
+            deepnote_variable_name: input_select
+            deepnote_input_label: ''
+            deepnote_variable_value: I am a first option
+            deepnote_variable_default_value: null
+            deepnote_variable_options:
+              - I am a first option
+              - I am a second option
+            deepnote_variable_custom_options:
+              - I am a first option
+              - I am a second option
+            deepnote_variable_selected_variable: ''
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+            deepnote_allow_empty_values: false
+          sortingKey: a3
+          type: input-select
+        - blockGroup: 7ae8d5e9-9376-4991-a2c8-02dff3978463
+          content: print(input_select)
+          id: f90f4d82fc94e6c1e03c7e7b6cd6b9bb
+          metadata: {}
+          sortingKey: a5
+          type: code
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                I am a first option
+        - blockGroup: aa20a8be-bf8b-4290-b81f-2e5d18b3e61f
+          content: ''
+          id: 0f1e8db6f47d382a671f61ce02cbdddc
+          metadata:
+            deepnote_variable_name: input_slider
+            deepnote_input_label: ''
+            deepnote_variable_value: '5'
+            deepnote_slider_min_value: 0
+            deepnote_slider_max_value: 10
+            deepnote_slider_step: 1
+            deepnote_variable_default_value: null
+          sortingKey: a4
+          type: input-slider
+        - blockGroup: 769271e7-9ed6-4c15-93e3-a1bbc308e3eb
+          content: print(input_slider)
+          id: 9142738dd482a14e7266750461926b49
+          metadata: {}
+          sortingKey: a7
+          type: code
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                5
+        - blockGroup: a5627d28-083d-42d8-8760-403d609559f7
+          content: ''
+          id: 0d0a0d7eee34ec96a913a66cc09c36e0
+          metadata:
+            deepnote_variable_name: input_checkbox
+            deepnote_input_label: ''
+            deepnote_variable_value: true
+            deepnote_variable_default_value: null
+          sortingKey: a5
+          type: input-checkbox
+        - blockGroup: 75c6f584-38f9-4e80-8dbd-f9af138e8b75
+          content: print(input_checkbox)
+          id: 11268833c36692f219a57d4a507803cf
+          metadata: {}
+          sortingKey: a9
+          type: code
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                True
+        - blockGroup: 24799545-e317-4771-9886-a2f79aac1903
+          content: ''
+          id: e60eba30eb2127a7c993c00a36750464
+          metadata:
+            deepnote_variable_name: input_date
+            deepnote_input_label: ''
+            deepnote_variable_value: '2025-11-03'
+            deepnote_variable_default_value: null
+            deepnote_input_date_version: 2
+          sortingKey: a6
+          type: input-date
+        - blockGroup: a333fba9-757d-412a-bed7-e341a09f226c
+          content: print(input_date)
+          id: 438b04a008725b83329fe066065e4539
+          metadata: {}
+          sortingKey: a11
+          type: code
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                2025-11-03
+        - blockGroup: ac828fc8-6631-458e-9c34-028664b5a6a9
+          content: ''
+          id: a0d6952ac8318e6a1a2ccd8feedbb1cd
+          metadata:
+            deepnote_variable_name: input_date_range
+            deepnote_input_label: ''
+            deepnote_variable_value:
+              - '2025-01-02'
+              - '2025-01-03'
+            deepnote_variable_default_value: null
+          sortingKey: a7
+          type: input-date-range
+        - blockGroup: fcc7d322-7e57-46d2-bbe2-187d33cb6863
+          content: print(input_date_range)
+          id: e9657f13e6d0bdf2dd54ef8363abf406
+          metadata: {}
+          sortingKey: a13
+          type: code
+          outputs:
+            - name: stdout
+              output_type: stream
+              text: |
+                [datetime.date(2025, 1, 2), datetime.date(2025, 1, 3)]
+      executionMode: block
+      id: cb38dd6a-da83-4319-b6db-067eb7730a68
+      name: 2. Input blocks
+version: 1.0.0
+execution:
+  finishedAt: '2026-01-14T13:55:41.542Z'
+  startedAt: '2026-01-14T13:55:41.519Z'
+  summary:
+    blocksExecuted: 1
+    blocksFailed: 0
+    blocksSucceeded: 1
+    totalDurationMs: 23
+  triggeredBy: user
+environment:
+  hash: sha256:1cfc8657751731c03e0937180f8190c8ecc2eef48c963ac5b752e8d618634135
+  packages:
+    alembic: 1.17.1
+    altair: 5.5.0
+    annotated-types: 0.7.0
+    anyio: 4.11.0
+    appnope: 0.1.4
+    argon2-cffi: 25.1.0
+    argon2-cffi-bindings: 25.1.0
+    arro3-core: 0.6.5
+    arrow: 1.4.0
+    asn1crypto: 1.5.1
+    asttokens: 3.0.0
+    asynch: 0.3.1
+    attrs: 25.4.0
+    bcrypt: 5.0.0
+    beautifulsoup4: 4.14.2
+    black: 25.11.0
+    bleach: 6.3.0
+    blinker: 1.9.0
+    boto3: 1.40.71
+    botocore: 1.40.71
+    cachetools: 6.2.1
+    certifi: 2025.11.12
+    cffi: 1.17.1
+    charset-normalizer: 3.4.4
+    ciso8601: 2.3.3
+    click: 8.3.0
+    clickhouse-driver: 0.2.10
+    clickhouse-sqlalchemy: 0.3.2
+    comm: 0.2.3
+    contourpy: 1.3.3
+    cryptography: 44.0.3
+    cycler: 0.12.1
+    datafusion: 49.0.0
+    db-dtypes: 1.3.1
+    debugpy: 1.8.17
+    decorator: 5.2.1
+    deepnote-python-lsp-server: 1.13.1rc2
+    deepnote-sqlalchemy-redshift: 0.8.17
+    deepnote-toolkit: 1.1.0
+    deepnote_vegafusion: 2.0.8
+    defusedxml: 0.7.1
+    dill: 0.4.0
+    dnspython: 2.8.0
+    docstring-to-markdown: '0.17'
+    docutils: 0.22.4
+    duckdb: 1.4.1
+    executing: 2.2.1
+    fastjsonschema: 2.21.2
+    filelock: 3.20.0
+    fonttools: 4.61.0
+    fqdn: 1.5.1
+    fsspec: 2025.10.0
+    gitdb: 4.0.12
+    gitpython: 3.1.45
+    google-api-core: 2.28.1
+    google-auth: 2.43.0
+    google-cloud-bigquery: 3.38.0
+    google-cloud-bigquery-storage: 2.34.0
+    google-cloud-core: 2.5.0
+    google-cloud-spanner: 3.59.0
+    google-crc32c: 1.7.1
+    google-resumable-media: 2.7.2
+    googleapis-common-protos: 1.72.0
+    greenlet: 3.2.4
+    grpc-google-iam-v1: 0.14.3
+    grpc-interceptor: 0.15.4
+    grpcio: 1.76.0
+    grpcio-status: 1.71.2
+    h11: 0.16.0
+    idna: '3.11'
+    importlib_metadata: 8.7.0
+    ipykernel: 7.1.0
+    ipython: 9.7.0
+    ipython_pygments_lexers: 1.1.1
+    ipywidgets: 8.1.8
+    isoduration: 20.11.0
+    itsdangerous: 2.2.0
+    jedi: 0.19.2
+    jinja2: 3.1.6
+    jmespath: 1.0.1
+    joblib: 1.5.3
+    jsonpointer: 3.0.0
+    jsonschema: 4.25.1
+    jsonschema-specifications: 2025.9.1
+    jupyter-events: 0.12.0
+    jupyter-resource-usage: 1.2.0
+    jupyter_client: 8.6.3
+    jupyter_core: 5.9.1
+    jupyter_server: 2.17.0
+    jupyter_server_terminals: 0.5.3
+    jupyterlab_pygments: 0.3.0
+    jupyterlab_widgets: 3.0.16
+    kiwisolver: 1.4.9
+    lark: 1.3.1
+    leb128: 1.0.8
+    loro: 1.10.3
+    lz4: 4.4.5
+    mako: 1.3.10
+    marimo: 0.18.4
+    markdown: '3.10'
+    markupsafe: 3.0.3
+    matplotlib: 3.10.7
+    matplotlib-inline: 0.2.1
+    mistune: 3.1.4
+    msgspec: 0.20.0
+    mypy_extensions: 1.1.0
+    narwhals: 2.11.0
+    nbclient: 0.10.2
+    nbconvert: 7.16.6
+    nbformat: 5.10.4
+    nest-asyncio: 1.6.0
+    numpy: 2.3.4
+    packaging: '25.0'
+    pandas: 2.2.3
+    pandocfilters: 1.5.1
+    paramiko: 3.5.1
+    parso: 0.8.5
+    pathspec: 0.12.1
+    pexpect: 4.9.0
+    pg8000: 1.31.5
+    pillow: 12.0.0
+    platformdirs: 4.5.0
+    plotly: 6.5.0
+    pluggy: 1.6.0
+    prometheus_client: 0.23.1
+    prompt_toolkit: 3.0.52
+    proto-plus: 1.26.1
+    protobuf: 5.29.5
+    psutil: 7.1.3
+    psycopg2-binary: 2.9.11
+    ptyprocess: 0.7.0
+    pure_eval: 0.2.3
+    pyarrow: 21.0.0
+    pyasn1: 0.6.1
+    pyasn1_modules: 0.4.2
+    pyathena: 3.9.0
+    pycparser: '2.23'
+    pydantic: 2.12.4
+    pydantic_core: 2.41.5
+    pydeck: 0.9.1
+    pygments: 2.19.2
+    pyjwt: 2.10.1
+    pymdown-extensions: 10.19.1
+    pymongo: 4.15.4
+    pymssql: 2.3.9
+    pymysql: 1.1.2
+    pynacl: 1.6.0
+    pyopenssl: 25.1.0
+    pyparsing: 3.2.5
+    python-dateutil: 2.9.0.post0
+    python-json-logger: 4.0.0
+    python-lsp-jsonrpc: 1.1.2
+    pytokens: 0.3.0
+    pytz: '2025.2'
+    pyyaml: 6.0.3
+    pyzmq: 27.1.0
+    referencing: 0.37.0
+    requests: 2.32.5
+    rfc3339-validator: 0.1.4
+    rfc3986-validator: 0.1.1
+    rfc3987-syntax: 1.1.0
+    rpds-py: 0.28.0
+    rsa: 4.9.1
+    s3transfer: 0.14.0
+    scikit-learn: 1.8.0
+    scipy: 1.16.3
+    scramp: 1.4.6
+    seaborn: 0.13.2
+    send2trash: 1.8.3
+    six: 1.17.0
+    smmap: 5.0.2
+    sniffio: 1.3.1
+    snowflake-connector-python: 3.18.0
+    snowflake-sqlalchemy: 1.7.7
+    sortedcontainers: 2.4.0
+    soupsieve: '2.8'
+    sqlalchemy: 2.0.44
+    sqlalchemy-bigquery: 1.16.0
+    sqlalchemy-spanner: 1.17.1
+    sqlalchemy_dremio: 3.0.4
+    sqlparse: 0.5.3
+    sshtunnel: 0.4.0
+    stack-data: 0.6.3
+    starlette: 0.50.0
+    streamlit: 1.51.0
+    tenacity: 9.1.2
+    terminado: 0.18.1
+    threadpoolctl: 3.6.0
+    tinycss2: 1.4.0
+    toml: 0.10.2
+    tomlkit: 0.13.3
+    tornado: 6.5.2
+    traitlets: 5.14.3
+    trino: 0.330.0
+    typing-inspection: 0.4.2
+    typing_extensions: 4.15.0
+    tzdata: '2025.2'
+    tzlocal: 5.3.1
+    ujson: 5.11.0
+    uri-template: 1.3.0
+    urllib3: 2.5.0
+    uvicorn: 0.40.0
+    vl-convert-python: 1.7.0
+    wcwidth: 0.2.14
+    webcolors: 25.10.0
+    webencodings: 0.5.1
+    websocket-client: 1.9.0
+    websockets: 15.0.1
+    widgetsnbextension: 4.0.15
+    wrapt: 2.0.1
+    zipp: 3.23.0
+    zstd: 1.5.7.2
+  platform: darwin-arm64
+  python:
+    environment: venv
+    version: 3.13.9
