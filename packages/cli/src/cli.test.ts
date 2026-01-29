@@ -52,7 +52,7 @@ describe('CLI', () => {
       const runCmd = program.commands.find(cmd => cmd.name() === 'run')
 
       expect(runCmd).toBeDefined()
-      expect(runCmd?.description()).toBe('Run a .deepnote file')
+      expect(runCmd?.description()).toBe('Run a notebook file (.deepnote, .ipynb, .py, .qmd)')
 
       const optionFlags = runCmd?.options.map(o => o.flags)
       expect(optionFlags).toContain('--python <path>')
@@ -60,6 +60,7 @@ describe('CLI', () => {
       expect(optionFlags).toContain('--notebook <name>')
       expect(optionFlags).toContain('--block <id>')
       expect(optionFlags).toContain('-o, --output <format>')
+      expect(optionFlags).toContain('--open')
     })
 
     it('completion command is properly configured', () => {
@@ -81,6 +82,7 @@ describe('CLI', () => {
       expect(optionFlags).toContain('-o, --output <path>')
       expect(optionFlags).toContain('-n, --name <name>')
       expect(optionFlags).toContain('-f, --format <format>')
+      expect(optionFlags).toContain('--open')
     })
 
     it('validate command is properly configured', () => {
