@@ -29,6 +29,7 @@ import {
   formatMemoryDelta,
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
+import { saveExecutionSnapshot } from '../utils/output-persistence'
 
 /**
  * Error thrown when required inputs are missing.
@@ -692,6 +693,9 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     }, 2000)
   }
 
+  // Track execution timing for snapshot
+  const executionStartedAt = new Date().toISOString()
+
   try {
     // Use runProject instead of runFile since we may have converted the file in memory
     const summary = await engine.runProject(file, {
@@ -777,6 +781,30 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         }
       },
     })
+
+    // Save execution outputs to snapshot
+    const executionFinishedAt = new Date().toISOString()
+    try {
+      // Determine the source path for the snapshot
+      // For converted files, use the path where a .deepnote file would be (same dir as original)
+      const snapshotSourcePath = convertedFile.wasConverted
+        ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
+        : absolutePath
+
+      const { snapshotPath } = await saveExecutionSnapshot(snapshotSourcePath, file, blockResults, {
+        startedAt: executionStartedAt,
+        finishedAt: executionFinishedAt,
+      })
+
+      if (!isMachineOutput) {
+        debug(`Snapshot saved to: ${snapshotPath}`)
+      }
+    } catch (snapshotError) {
+      // Snapshot saving is best-effort; don't fail the run if it fails
+      debug(
+        `Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`
+      )
+    }
 
     // Determine exit code based on failures
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
