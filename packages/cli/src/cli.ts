@@ -244,11 +244,11 @@ ${c.bold('Examples:')}
     })
     .action(createDiffAction(program))
 
-  // Run command - execute a .deepnote file
+  // Run command - execute notebook files
   program
     .command('run')
-    .description('Run a .deepnote file')
-    .argument('[path]', 'Path to a .deepnote file or directory (defaults to current directory)')
+    .description('Run a notebook file (.deepnote, .ipynb, .py, .qmd)')
+    .argument('[path]', 'Path to a notebook file (.deepnote, .ipynb, .py, .qmd)')
     .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
     .option('--notebook <name>', 'Run only the specified notebook')
@@ -267,20 +267,28 @@ ${c.bold('Examples:')}
     .option('--dry-run', 'Show what would be executed without running')
     .option('--top', 'Display resource usage (CPU, memory) during execution')
     .option('--profile', 'Show per-block timing and memory usage')
+    .option('--open', 'Open the project in Deepnote Cloud after successful execution')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
-${getSmartFileDiscoveryHelp(c)}
+${c.bold('Supported Formats:')}
+  ${c.dim('.deepnote')}  Deepnote project (native)
+  ${c.dim('.ipynb')}     Jupyter Notebook (auto-converted)
+  ${c.dim('.py')}        Percent format (# %%) or Marimo (@app.cell)
+  ${c.dim('.qmd')}       Quarto document (auto-converted)
 
 ${c.bold('Examples:')}
-  ${c.dim('# Run first .deepnote file in current directory')}
-  $ deepnote run
+  ${c.dim('# Run a Jupyter notebook directly (auto-converts)')}
+  $ deepnote run notebook.ipynb
 
-  ${c.dim('# Run a specific .deepnote file')}
+  ${c.dim('# Run a .deepnote file')}
   $ deepnote run my-project.deepnote
 
-  ${c.dim('# Run first .deepnote file in a subdirectory')}
-  $ deepnote run notebooks/
+  ${c.dim('# Run a percent format Python file')}
+  $ deepnote run analysis.py
+
+  ${c.dim('# Run and open in Deepnote Cloud after execution')}
+  $ deepnote run notebook.ipynb --open
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
@@ -297,9 +305,6 @@ ${c.bold('Examples:')}
   ${c.dim('# Set input values for input blocks')}
   $ deepnote run my-project.deepnote --input name="Alice" --input count=42
 
-  ${c.dim('# Input values support JSON for complex types')}
-  $ deepnote run my-project.deepnote -i 'config={"debug": true}'
-
   ${c.dim('# Monitor resource usage during execution')}
   $ deepnote run my-project.deepnote --top
 
@@ -308,9 +313,6 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Output results as JSON for CI/CD pipelines')}
   $ deepnote run my-project.deepnote -o json
-
-  ${c.dim('# Output results as TOON for LLM consumption (30-60% fewer tokens)')}
-  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Preview what would be executed without running')}
   $ deepnote run my-project.deepnote --dry-run
@@ -372,6 +374,7 @@ ${c.bold('Exit Codes:')}
       'Output format when converting from .deepnote (jupyter, percent, quarto, marimo)',
       'jupyter'
     )
+    .option('--open', 'Open the converted .deepnote file in Deepnote Cloud')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -388,6 +391,9 @@ ${c.bold('Conversion Directions:')}
 ${c.bold('Examples:')}
   ${c.dim('# Convert Jupyter notebook to Deepnote')}
   $ deepnote convert notebook.ipynb
+
+  ${c.dim('# Convert and open in Deepnote Cloud')}
+  $ deepnote convert notebook.ipynb --open
 
   ${c.dim('# Convert directory of notebooks')}
   $ deepnote convert ./notebooks/

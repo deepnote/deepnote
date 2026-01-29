@@ -1,11 +1,7 @@
 import fs from 'node:fs/promises'
-import { dirname } from 'node:path'
-import {
-  type DeepnoteBlock as BlocksDeepnoteBlock,
-  type DeepnoteFile,
-  decodeUtf8NoBom,
-  deserializeDeepnoteFile,
-} from '@deepnote/blocks'
+import os from 'node:os'
+import { dirname, join } from 'node:path'
+import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
@@ -17,11 +13,13 @@ import {
   type DeepnoteBlock as RuntimeDeepnoteBlock,
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
+import { stringify as serializeToYaml } from 'yaml'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
-import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { FileResolutionError } from '../utils/file-resolver'
+import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
 import {
   type BlockProfile,
   displayMetrics,
@@ -29,6 +27,7 @@ import {
   fetchMetrics,
   formatMemoryDelta,
 } from '../utils/metrics'
+import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 
 /**
  * Error thrown when required inputs are missing.
@@ -69,6 +68,7 @@ export interface RunOptions {
   dryRun?: boolean
   top?: boolean
   profile?: boolean
+  open?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -112,31 +112,40 @@ interface ProjectSetup {
   pythonEnv: string
   inputs: Record<string, unknown>
   isMachineOutput: boolean
+  convertedFile: ConvertedFile
 }
 
 /**
- * Common project setup: resolve path, parse file, validate requirements.
+ * Common project setup: resolve path, parse/convert file, validate requirements.
  * Shared by both runDeepnoteProject and dryRunDeepnoteProject.
+ *
+ * Supports multiple file formats:
+ * - .deepnote - Native format (no conversion)
+ * - .ipynb - Jupyter Notebook (auto-converted)
+ * - .py - Percent or Marimo format (auto-converted)
+ * - .qmd - Quarto document (auto-converted)
  */
 async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
-  const { absolutePath } = await resolvePathToDeepnoteFile(path)
+  const convertedFile = await resolveAndConvertToDeepnote(path)
+  const { file, originalPath: absolutePath, wasConverted, format } = convertedFile
+
   const workingDirectory = options.cwd ?? dirname(absolutePath)
   const pythonEnv = options.python ?? detectDefaultPython()
   const isMachineOutput = options.output !== undefined
   const inputs = parseInputs(options.input)
 
   if (!isMachineOutput) {
-    log(getChalk().dim(`Parsing ${absolutePath}...`))
+    if (wasConverted) {
+      log(getChalk().dim(`Converting ${format} file: ${absolutePath}...`))
+    } else {
+      log(getChalk().dim(`Parsing ${absolutePath}...`))
+    }
   }
-
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
 
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
   await validateRequirements(file, inputs, pythonEnv, options.notebook)
 
-  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput }
+  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
 }
 
 /**
@@ -327,13 +336,11 @@ function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputInfo[] 
 }
 
 /**
- * List all input blocks in a .deepnote file.
+ * List all input blocks in a notebook file.
+ * Supports .deepnote, .ipynb, .py, and .qmd formats.
  */
 async function listInputs(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
+  const { file, originalPath: absolutePath } = await resolveAndConvertToDeepnote(path)
 
   const inputs = getInputBlocks(file, options.notebook)
 
@@ -550,7 +557,8 @@ async function validateRequirements(
 }
 
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput } = await setupProject(path, options)
+  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file } =
+    await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
@@ -625,7 +633,8 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   }
 
   try {
-    const summary = await engine.runFile(absolutePath, {
+    // Use runProject instead of runFile since we may have converted the file in memory
+    const summary = await engine.runProject(file, {
       notebookName: options.notebook,
       blockId: options.block,
       inputs,
@@ -760,6 +769,55 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       }
 
       process.exitCode = exitCode
+    }
+
+    // Handle --open flag: open in Deepnote Cloud after successful execution
+    if (options.open && summary.failedBlocks === 0) {
+      let fileToOpen = absolutePath
+      let tempFile: string | null = null
+
+      // If the file was converted, we need to write a temp .deepnote file to upload
+      if (convertedFile.wasConverted) {
+        const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-run-'))
+        // Sanitize project name to prevent path traversal attacks
+        const rawName = file.project.name || 'project'
+        const safeName =
+          rawName
+            .replace(/[/\\]/g, '_') // Replace path separators
+            .replace(/\.\./g, '_') // Replace parent directory references
+            .replace(/^\.+/, '') || // Remove leading dots
+          'project' // Fallback if empty after sanitization
+        tempFile = join(tempDir, `${safeName}.deepnote`)
+        const yamlContent = serializeToYaml(file)
+        await fs.writeFile(tempFile, yamlContent, 'utf-8')
+        fileToOpen = tempFile
+        debug(`Created temp file for upload: ${tempFile}`)
+      }
+
+      try {
+        const c = getChalk()
+        if (!isMachineOutput) {
+          output('')
+        }
+        const result = await openDeepnoteFileInCloud(fileToOpen, { quiet: isMachineOutput })
+        if (!isMachineOutput) {
+          output(`${c.green('✓')} Opened in Deepnote Cloud`)
+          output(`${c.dim('URL:')} ${result.url}`)
+        }
+      } finally {
+        // Clean up temp file if created
+        if (tempFile) {
+          try {
+            await fs.rm(dirname(tempFile), { recursive: true })
+            debug(`Cleaned up temp directory: ${dirname(tempFile)}`)
+          } catch (cleanupError) {
+            // Log cleanup errors for debugging, but don't fail the operation
+            debug(
+              `Failed to clean up temp directory ${dirname(tempFile)}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            )
+          }
+        }
+      }
     }
   } finally {
     if (metricsInterval) {

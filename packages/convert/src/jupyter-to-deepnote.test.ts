@@ -1499,7 +1499,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves comments at the top of code cells', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1513,7 +1513,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves comments when source is array format', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1527,7 +1527,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves function definitions with docstrings', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1547,7 +1547,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves class definitions with docstrings and methods', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1567,7 +1567,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves module-level docstrings and encoding declarations', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1584,7 +1584,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves triple-quoted strings at cell top', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1601,7 +1601,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves comments with empty lines between them', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1615,7 +1615,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves non-Latin characters (Japanese, Chinese, Korean, Russian, Greek)', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1636,7 +1636,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves emoji characters in comments and strings', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1654,7 +1654,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves special characters and math symbols', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
@@ -1673,7 +1673,7 @@ describe('content preservation - comments, functions, and classes', () => {
   })
 
   it('preserves emoji in markdown cells', async () => {
-    const inputPath = path.join(__dirname, '__fixtures__', 'python-comprehensive.ipynb')
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
     await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })

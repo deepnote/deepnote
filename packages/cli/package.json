@@ -52,6 +52,7 @@
     "diff": "^8.0.3",
     "ora": "^9.0.0",
     "wrap-ansi": "^9.0.2",
+    "yaml": "^2.8.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
