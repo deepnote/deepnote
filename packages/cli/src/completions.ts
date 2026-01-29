@@ -105,11 +105,11 @@ _deepnote_completions() {
             return 0
             ;;
         run)
-            # Complete .deepnote files and flags
+            # Complete notebook files and flags
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile --open" -- "\${cur}") )
             else
-                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+                COMPREPLY=( $(compgen -f -X '!*.@(deepnote|ipynb|qmd|py)' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
             return 0
             ;;
@@ -134,7 +134,7 @@ _deepnote_completions() {
         convert)
             # Complete convert options and supported file types
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "-o --output -n --name -f --format" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "-o --output -n --name -f --format --open" -- "\${cur}") )
             elif [[ "\${prev}" == "-o" || "\${prev}" == "--output" || "\${prev}" == "-n" || "\${prev}" == "--name" ]]; then
                 COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
             else
@@ -289,7 +289,8 @@ ${commandEntries}
                         '--dry-run[Show what would be executed without running]' \\
                         '--top[Display resource usage during execution]' \\
                         '--profile[Show per-block timing and memory usage]' \\
-                        '*:deepnote file:_files -g "*.deepnote"'
+                        '--open[Open the project in Deepnote Cloud after successful execution]' \\
+                        '*:notebook file:_files -g "*.{deepnote,ipynb,qmd,py}"'
                     ;;
                 open)
                     _arguments \\
@@ -307,6 +308,7 @@ ${commandEntries}
                         '(-o --output)'{-o,--output}'[Output file or directory]:output path:_files' \\
                         '(-n --name)'{-n,--name}'[Project name for conversion]:project name:' \\
                         '(-f --format)'{-f,--format}'[Output format (jupyter, percent, quarto, marimo)]:format:(jupyter percent quarto marimo)' \\
+                        '--open[Open the converted .deepnote file in Deepnote Cloud]' \\
                         '*:input file:_files -g "*.{deepnote,ipynb,qmd,py}"'
                     ;;
                 dag)
@@ -444,7 +446,8 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -s o -l output -d 'Out
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l dry-run -d 'Show what would be executed without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l top -d 'Display resource usage during execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l profile -d 'Show per-block timing and memory usage'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l open -d 'Open the project in Deepnote Cloud after successful execution'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'
 
 # open subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from open' -l domain -d 'Deepnote domain'
@@ -459,6 +462,7 @@ complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -s o -l output -d 'Output file or directory'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -s n -l name -d 'Project name for conversion'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -s f -l format -d 'Output format' -xa 'jupyter percent quarto marimo'
+complete -c deepnote -n '__fish_seen_subcommand_from convert' -l open -d 'Open the converted .deepnote file in Deepnote Cloud'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'
 
 # dag subcommand
