@@ -154,6 +154,7 @@ describe('run command', () => {
       programErrorSpy.mockRestore()
       process.exitCode = originalExitCode
       mockServerPort = 8888
+      vi.unstubAllGlobals()
     })
 
     it('creates ExecutionEngine with correct config', async () => {

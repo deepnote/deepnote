@@ -810,8 +810,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
           try {
             await fs.rm(dirname(tempFile), { recursive: true })
             debug(`Cleaned up temp directory: ${dirname(tempFile)}`)
-          } catch {
-            // Ignore cleanup errors
+          } catch (cleanupError) {
+            // Log cleanup errors for debugging, but don't fail the operation
+            debug(
+              `Failed to clean up temp directory ${dirname(tempFile)}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            )
           }
         }
       }

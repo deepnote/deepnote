@@ -116,7 +116,13 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
   // Quarto document
   if (ext === '.qmd') {
     debug(`Converting Quarto document: ${absolutePath}`)
-    const document = parseQuartoFormat(content)
+    let document: ReturnType<typeof parseQuartoFormat>
+    try {
+      document = parseQuartoFormat(content)
+    } catch (parseError) {
+      const message = parseError instanceof Error ? parseError.message : String(parseError)
+      throw new FileResolutionError(`Failed to parse Quarto document: ${absolutePath}\n\n` + `Parse error: ${message}`)
+    }
     const file = convertQuartoDocumentsToDeepnote([{ filename, document }], { projectName })
     return {
       file,
@@ -138,7 +144,15 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
 
     if (detectedFormat === 'marimo') {
       debug(`Converting Marimo notebook: ${absolutePath}`)
-      const app = parseMarimoFormat(content)
+      let app: ReturnType<typeof parseMarimoFormat>
+      try {
+        app = parseMarimoFormat(content)
+      } catch (parseError) {
+        const message = parseError instanceof Error ? parseError.message : String(parseError)
+        throw new FileResolutionError(
+          `Failed to parse Marimo notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
+        )
+      }
       const file = convertMarimoAppsToDeepnote([{ filename, app }], { projectName })
       return {
         file,
@@ -150,7 +164,15 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
 
     if (detectedFormat === 'percent') {
       debug(`Converting percent format notebook: ${absolutePath}`)
-      const notebook = parsePercentFormat(content)
+      let notebook: ReturnType<typeof parsePercentFormat>
+      try {
+        notebook = parsePercentFormat(content)
+      } catch (parseError) {
+        const message = parseError instanceof Error ? parseError.message : String(parseError)
+        throw new FileResolutionError(
+          `Failed to parse percent format notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
+        )
+      }
       const file = convertPercentNotebooksToDeepnote([{ filename, notebook }], { projectName })
       return {
         file,
