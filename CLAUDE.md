@@ -156,8 +156,22 @@ Always run these checks before considering work complete:
 
 - Source code: `packages/*/src/`
 - Tests: Co-located with source as `*.test.ts`
+- Test fixtures: `test-fixtures/` (shared across all packages)
 - Types: Define inline or in separate `types.ts` files
 - Build output: `packages/*/dist/` (gitignored)
+
+### Test Fixtures
+
+Always place test fixtures in the shared `test-fixtures/` directory at the repository root, not in package-specific `__fixtures__` directories. This allows fixtures to be reused across packages.
+
+To reference fixtures from a test file:
+
+```typescript
+import path from "node:path";
+
+const testFixturesDir = path.join(__dirname, "../../../test-fixtures");
+const fixturePath = path.join(testFixturesDir, "my-fixture.ipynb");
+```
 
 ## Important Notes
 
