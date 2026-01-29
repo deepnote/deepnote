@@ -502,7 +502,7 @@ interface IntegrationCheckResult {
  * the integrationId first, then prepend SQL_. This maintains compatibility with
  * existing env var names (e.g., "100abc" -> "SQL__100ABC" not "SQL_100ABC").
  */
-function getIntegrationEnvVarName(integrationId: string): string {
+export function getIntegrationEnvVarName(integrationId: string): string {
   const sanitized = convertToEnvironmentVariableName(integrationId)
   return `SQL_${sanitized}`
 }

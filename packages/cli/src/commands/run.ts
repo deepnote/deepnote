@@ -1,11 +1,7 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
-import {
-  type DeepnoteBlock as BlocksDeepnoteBlock,
-  convertToEnvironmentVariableName,
-  type DeepnoteFile,
-} from '@deepnote/blocks'
+import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
@@ -21,7 +17,13 @@ import { stringify as serializeToYaml } from 'yaml'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
-import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import {
+  analyzeProject,
+  buildBlockMap,
+  diagnoseBlockFailure,
+  getIntegrationEnvVarName,
+  type ProjectStats,
+} from '../utils/analysis'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -478,18 +480,6 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
     output(c.dim('─'.repeat(50)))
     output(c.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
   }
-}
-
-/**
- * Convert an integration ID to its environment variable name.
- * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
- * Note: This handles leading digits differently from @deepnote/blocks - we sanitize
- * the integrationId first, then prepend SQL_. This maintains compatibility with
- * existing env var names (e.g., "100abc" -> "SQL__100ABC" not "SQL_100ABC").
- */
-function getIntegrationEnvVarName(integrationId: string): string {
-  const sanitized = convertToEnvironmentVariableName(integrationId)
-  return `SQL_${sanitized}`
 }
 
 /**
