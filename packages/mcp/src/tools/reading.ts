@@ -8,10 +8,46 @@ import type { ZodIssue } from 'zod'
 
 export const readingTools: Tool[] = [
   {
+    name: 'deepnote_read',
+    title: 'Read Notebook',
+    description: 'Read and analyze notebook. Use include=[structure,stats,lint,dag,all] to combine operations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to the .deepnote file',
+        },
+        include: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['structure', 'stats', 'lint', 'dag', 'all'],
+          },
+          description:
+            'What to include: structure (metadata), stats (lines/imports), lint (issues), dag (dependencies), all. Default: ["structure"]',
+        },
+        notebook: {
+          type: 'string',
+          description: 'Filter by notebook name or ID (for dag)',
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output mode - omit empty fields, use single-line format',
+        },
+      },
+      required: ['path'],
+    },
+    annotations: {
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
     name: 'deepnote_inspect',
     title: 'Inspect Notebook',
-    description:
-      'Get metadata and structure of a .deepnote file. Returns project name, notebook count, block counts by type, and timestamps.',
+    description: 'Get metadata and structure. Prefer deepnote_read for combined analysis.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -31,8 +67,7 @@ export const readingTools: Tool[] = [
   {
     name: 'deepnote_cat',
     title: 'View Block Contents',
-    description:
-      'Read and display block contents from a .deepnote file. Can filter by notebook, block ID, or block type.',
+    description: 'Display block contents. Filter by notebook, blockId, or blockType.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,8 +103,7 @@ export const readingTools: Tool[] = [
   {
     name: 'deepnote_lint',
     title: 'Lint Notebook',
-    description:
-      'Check a .deepnote file for issues: undefined variables, circular dependencies, unused variables, missing integrations.',
+    description: 'Check for issues: undefined variables, circular deps. Prefer deepnote_read with include=[lint].',
     inputSchema: {
       type: 'object',
       properties: {
@@ -89,15 +123,7 @@ export const readingTools: Tool[] = [
   {
     name: 'deepnote_validate',
     title: 'Validate Notebook',
-    description: `Validate a .deepnote file against the schema.
-
-Unlike lint (which checks code issues like undefined variables), validate checks:
-- Valid YAML syntax
-- Correct file structure (project, notebooks, blocks)
-- Required fields are present
-- Field types are correct
-
-Returns detailed validation issues if the file is malformed.`,
+    description: 'Validate YAML syntax and file structure against schema.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -117,7 +143,7 @@ Returns detailed validation issues if the file is malformed.`,
   {
     name: 'deepnote_stats',
     title: 'Notebook Statistics',
-    description: 'Get statistics about a .deepnote file: lines of code, import counts, block counts by type.',
+    description: 'Get lines of code, imports, block counts. Prefer deepnote_read with include=[stats].',
     inputSchema: {
       type: 'object',
       properties: {
@@ -137,7 +163,7 @@ Returns detailed validation issues if the file is malformed.`,
   {
     name: 'deepnote_analyze',
     title: 'Analyze Notebook Quality',
-    description: 'Comprehensive analysis of a .deepnote file with quality score and actionable suggestions.',
+    description: 'Quality score and improvement suggestions.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -157,7 +183,7 @@ Returns detailed validation issues if the file is malformed.`,
   {
     name: 'deepnote_dag',
     title: 'View Dependency Graph',
-    description: 'Show the dependency graph between blocks. Displays which blocks depend on which variables.',
+    description: 'Show block dependencies. Prefer deepnote_read with include=[dag].',
     inputSchema: {
       type: 'object',
       properties: {
@@ -186,7 +212,7 @@ Returns detailed validation issues if the file is malformed.`,
   {
     name: 'deepnote_diff',
     title: 'Compare Notebooks',
-    description: 'Compare two .deepnote files and show structural differences.',
+    description: 'Compare two files and show structural differences.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -213,6 +239,210 @@ async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
   const absolutePath = path.resolve(filePath)
   const content = await fs.readFile(absolutePath, 'utf-8')
   return deserializeDeepnoteFile(content)
+}
+
+/**
+ * Format output based on compact mode
+ */
+function formatOutput(data: object, compact: boolean): string {
+  if (compact) {
+    // Filter out null, undefined, and empty arrays/objects
+    const filtered = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => {
+        if (v == null) return false
+        if (Array.isArray(v) && v.length === 0) return false
+        if (typeof v === 'object' && Object.keys(v).length === 0) return false
+        return true
+      })
+    )
+    return JSON.stringify(filtered)
+  }
+  return JSON.stringify(data, null, 2)
+}
+
+/**
+ * Unified read handler that combines multiple reading operations
+ */
+async function handleRead(args: Record<string, unknown>) {
+  const filePath = args.path as string
+  const includeRaw = args.include as string[] | undefined
+  const notebookFilter = args.notebook as string | undefined
+  const compact = args.compact as boolean | undefined
+
+  // Default to structure only
+  const include = new Set(includeRaw || ['structure'])
+  const includeAll = include.has('all')
+
+  const file = await loadDeepnoteFile(filePath)
+  const result: Record<string, unknown> = { path: filePath }
+
+  // Structure (from inspect)
+  if (includeAll || include.has('structure')) {
+    const blockCounts: Record<string, number> = {}
+    let totalBlocks = 0
+
+    for (const notebook of file.project.notebooks) {
+      for (const block of notebook.blocks) {
+        blockCounts[block.type] = (blockCounts[block.type] || 0) + 1
+        totalBlocks++
+      }
+    }
+
+    result.structure = {
+      projectName: file.project.name,
+      projectId: file.project.id,
+      notebooks: file.project.notebooks.map(n => ({
+        name: n.name,
+        id: n.id,
+        blockCount: n.blocks.length,
+        isModule: n.isModule || false,
+      })),
+      totalBlocks,
+      blockCounts,
+      hasIntegrations: (file.project.integrations?.length || 0) > 0,
+    }
+  }
+
+  // Stats
+  if (includeAll || include.has('stats')) {
+    let totalLines = 0
+    const imports = new Set<string>()
+
+    for (const notebook of file.project.notebooks) {
+      for (const block of notebook.blocks) {
+        if (block.content) {
+          const lines = block.content.split('\n')
+          totalLines += lines.length
+
+          if (block.type === 'code') {
+            for (const line of lines) {
+              const importMatch = line.match(/^(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)/)
+              if (importMatch) {
+                imports.add(importMatch[1])
+              }
+            }
+          }
+        }
+      }
+    }
+
+    result.stats = {
+      totalLines,
+      uniqueImports: Array.from(imports).sort(),
+      importCount: imports.size,
+    }
+  }
+
+  // Lint
+  if (includeAll || include.has('lint')) {
+    const issues: Array<{
+      severity: 'error' | 'warning'
+      message: string
+      notebook?: string
+      blockId?: string
+    }> = []
+
+    for (const notebook of file.project.notebooks) {
+      try {
+        const blockDeps = await getBlockDependencies(notebook.blocks)
+
+        const definedVars = new Set<string>()
+        for (const block of blockDeps) {
+          for (const v of block.definedVariables) definedVars.add(v)
+          for (const m of block.importedModules || []) definedVars.add(m)
+        }
+
+        for (const block of blockDeps) {
+          if (block.error) {
+            issues.push({
+              severity: 'warning',
+              message: `Parse error: ${block.error.message}`,
+              notebook: notebook.name,
+              blockId: block.id.slice(0, 8),
+            })
+            continue
+          }
+
+          for (const varName of block.usedVariables) {
+            if (!definedVars.has(varName) && !isPythonBuiltin(varName)) {
+              issues.push({
+                severity: 'error',
+                message: `Undefined: ${varName}`,
+                notebook: notebook.name,
+                blockId: block.id.slice(0, 8),
+              })
+            }
+          }
+        }
+      } catch {
+        issues.push({
+          severity: 'warning',
+          message: 'Could not analyze dependencies',
+          notebook: notebook.name,
+        })
+      }
+    }
+
+    result.lint = {
+      issueCount: issues.length,
+      issues: compact && issues.length === 0 ? undefined : issues,
+    }
+  }
+
+  // DAG
+  if (includeAll || include.has('dag')) {
+    const dagInfo: Array<{
+      notebook: string
+      blocks: Array<{
+        id: string
+        defines: string[]
+        uses: string[]
+        dependsOn: string[]
+      }>
+    }> = []
+
+    for (const notebook of file.project.notebooks) {
+      if (notebookFilter && notebook.name !== notebookFilter && notebook.id !== notebookFilter) {
+        continue
+      }
+
+      try {
+        const blockDeps = await getBlockDependencies(notebook.blocks)
+        const varToBlock = new Map<string, string>()
+
+        for (const block of blockDeps) {
+          for (const v of block.definedVariables) varToBlock.set(v, block.id)
+          for (const m of block.importedModules || []) varToBlock.set(m, block.id)
+        }
+
+        const blocks = blockDeps.map(block => {
+          const deps = new Set<string>()
+          for (const usedVar of block.usedVariables) {
+            const definingBlock = varToBlock.get(usedVar)
+            if (definingBlock && definingBlock !== block.id) {
+              deps.add(definingBlock.slice(0, 8))
+            }
+          }
+          return {
+            id: block.id.slice(0, 8),
+            defines: block.definedVariables,
+            uses: block.usedVariables,
+            dependsOn: Array.from(deps),
+          }
+        })
+
+        dagInfo.push({ notebook: notebook.name, blocks })
+      } catch {
+        dagInfo.push({ notebook: notebook.name, blocks: [] })
+      }
+    }
+
+    result.dag = dagInfo
+  }
+
+  return {
+    content: [{ type: 'text', text: formatOutput(result, compact || false) }],
+  }
 }
 
 async function handleInspect(args: Record<string, unknown>) {
@@ -796,6 +1026,8 @@ export async function handleReadingTool(name: string, args: Record<string, unkno
   const safeArgs = args || {}
 
   switch (name) {
+    case 'deepnote_read':
+      return handleRead(safeArgs)
     case 'deepnote_inspect':
       return handleInspect(safeArgs)
     case 'deepnote_cat':

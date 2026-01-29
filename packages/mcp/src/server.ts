@@ -105,6 +105,7 @@ export function createServer(): Server {
       }
 
       if (
+        name === 'deepnote_read' ||
         name.startsWith('deepnote_inspect') ||
         name.startsWith('deepnote_cat') ||
         name.startsWith('deepnote_lint') ||

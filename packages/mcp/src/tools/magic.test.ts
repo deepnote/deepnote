@@ -260,6 +260,83 @@ describe('magic tools handlers', () => {
     })
   })
 
+  describe('deepnote_workflow presets', () => {
+    it('returns error for unknown preset', async () => {
+      const response = (await handleMagicTool('deepnote_workflow', {
+        preset: 'nonexistent',
+      })) as {
+        content: Array<{ type: string; text: string }>
+        isError?: boolean
+      }
+      expect(response.isError).toBe(true)
+      expect(response.content[0].text).toContain('Unknown preset')
+    })
+
+    it('executes quickstart preset', async () => {
+      const outputPath = path.join(tempDir, 'quickstart.deepnote')
+      const response = await handleMagicTool('deepnote_workflow', {
+        preset: 'quickstart',
+        description: 'Test notebook',
+        outputPath,
+      })
+
+      const result = extractResult(response)
+      expect(result.preset).toBe('quickstart')
+      expect(result.stepsCompleted).toBe(2) // scaffold + enhance
+    })
+
+    it('executes polish preset', async () => {
+      // First create a notebook to polish
+      const notebookPath = path.join(tempDir, 'to_polish.deepnote')
+      await handleMagicTool('deepnote_scaffold', {
+        description: 'Test notebook',
+        outputPath: notebookPath,
+      })
+
+      const response = await handleMagicTool('deepnote_workflow', {
+        preset: 'polish',
+        path: notebookPath,
+      })
+
+      const result = extractResult(response)
+      expect(result.preset).toBe('polish')
+      expect(result.stepsCompleted).toBe(4) // lint + fix + enhance + suggest
+    })
+  })
+
+  describe('compact mode', () => {
+    it('scaffold returns compact output', async () => {
+      const outputPath = path.join(tempDir, 'compact.deepnote')
+      const response = await handleMagicTool('deepnote_scaffold', {
+        description: 'Test',
+        outputPath,
+        compact: true,
+      })
+
+      // Compact mode should not have pretty-printed JSON (no newlines)
+      expect(response.content[0].text).not.toContain('\n')
+      const result = extractResult(response)
+      expect(result.success).toBe(true)
+      // Hint should be omitted in compact mode
+      expect(result.hint).toBeUndefined()
+    })
+
+    it('workflow returns compact output', async () => {
+      const outputPath = path.join(tempDir, 'compact_workflow.deepnote')
+      const response = await handleMagicTool('deepnote_workflow', {
+        preset: 'quickstart',
+        description: 'Test',
+        outputPath,
+        compact: true,
+      })
+
+      // Compact mode should not have pretty-printed JSON
+      expect(response.content[0].text).not.toContain('\n')
+      const result = extractResult(response)
+      expect(result.success).toBe(true)
+    })
+  })
+
   describe('error handling', () => {
     it('returns error for unknown tool', async () => {
       const response = (await handleMagicTool('deepnote_unknown', {})) as {
