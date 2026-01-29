@@ -402,8 +402,10 @@ async function handleRun(args: Record<string, unknown>) {
         finishedAt: executionFinishedAt,
       })
       snapshotPath = snapshotResult.snapshotPath
-    } catch {
-      // Snapshot saving is best-effort
+    } catch (error) {
+      // Snapshot saving is best-effort, but log for debugging
+      // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
+      console.error('[deepnote-mcp] Failed to save execution snapshot:', error instanceof Error ? error.message : error)
     }
 
     return {

@@ -42,8 +42,10 @@ async function findDeepnoteFiles(dir: string, maxDepth = 3, currentDepth = 0): P
         files.push(fullPath)
       }
     }
-  } catch {
-    // Directory not accessible, skip
+  } catch (error) {
+    // Directory not accessible, skip but log for debugging
+    // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
+    console.error(`[deepnote-mcp] Could not scan directory ${dir}:`, error instanceof Error ? error.message : error)
   }
 
   return files
