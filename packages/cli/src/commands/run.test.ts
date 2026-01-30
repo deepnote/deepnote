@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { Command } from 'commander'
-import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
+import type { saveExecutionSnapshot } from '../utils/output-persistence'
 
 // Create mock engine functions
 const mockStart = vi.fn()
@@ -50,12 +51,14 @@ vi.mock('../utils/open-file-in-cloud', () => ({
 }))
 
 // Mock saveExecutionSnapshot to prevent writing to real files during tests
-const mockSaveExecutionSnapshot = vi.fn().mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
+const mockSaveExecutionSnapshot: MockedFunction<typeof saveExecutionSnapshot> = vi
+  .fn()
+  .mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
 vi.mock('../utils/output-persistence', async importOriginal => {
   const actual = await importOriginal<typeof import('../utils/output-persistence')>()
   return {
     ...actual,
-    saveExecutionSnapshot: (...args: unknown[]) => mockSaveExecutionSnapshot(...args),
+    saveExecutionSnapshot: (...args: Parameters<typeof saveExecutionSnapshot>) => mockSaveExecutionSnapshot(...args),
   }
 })
 
