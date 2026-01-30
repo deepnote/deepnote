@@ -43,6 +43,7 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
+    "@deepnote/runtime-core": "workspace:*",
     "@types/node": "^22.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.0.0"

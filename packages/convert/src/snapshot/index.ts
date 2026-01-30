@@ -1,15 +1,10 @@
 // Hash utilities
 export { addContentHashes, computeContentHash, computeSnapshotHash } from './hash'
-// Lookup utilities
-export {
-  findSnapshotsForProject,
-  getSnapshotDir,
-  loadLatestSnapshot,
-  loadSnapshotFile,
-  parseSnapshotFilename,
-  parseSourceFilePath,
-  snapshotExists,
-} from './lookup'
+
+// Pure path utilities (kept for backwards compatibility)
+// Note: File I/O functions have been moved to @deepnote/runtime-core
+export { getSnapshotDir, parseSnapshotFilename, parseSourceFilePath } from './lookup'
+
 export type { MarimoConsoleOutput, MarimoSessionCache, MarimoSessionCell, MarimoSessionOutput } from './marimo-outputs'
 // Marimo output extraction
 export {

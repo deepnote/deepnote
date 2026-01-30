@@ -7,4 +7,24 @@ export { KernelClient } from './kernel-client'
 export { detectDefaultPython, resolvePythonExecutable } from './python-env'
 export type { ServerInfo, ServerOptions } from './server-starter'
 export { startServer, stopServer } from './server-starter'
+// Snapshot utilities (file I/O for reading/writing snapshots)
+export type {
+  BlockExecutionOutput,
+  ExecutionTiming,
+  SaveSnapshotResult,
+  SnapshotInfo,
+  SnapshotOptions,
+} from './snapshot'
+export {
+  findSnapshotsForProject,
+  getSnapshotDir,
+  getSnapshotPath,
+  loadLatestSnapshot,
+  loadSnapshotFile,
+  mergeOutputsIntoFile,
+  parseSnapshotFilename,
+  parseSourceFilePath,
+  saveExecutionSnapshot,
+  snapshotExists,
+} from './snapshot'
 export type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'

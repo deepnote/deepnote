@@ -2,10 +2,10 @@ import fs from 'node:fs/promises'
 import { basename, dirname, extname, resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { loadLatestSnapshot } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import ora from 'ora'
 import { stringify } from 'yaml'
-
 import {
   convertDeepnoteFileToJupyterFiles,
   convertDeepnoteFileToMarimoFiles,
@@ -17,7 +17,7 @@ import { readAndConvertIpynbFiles } from './jupyter-to-deepnote'
 import { readAndConvertMarimoFiles } from './marimo-to-deepnote'
 import { readAndConvertPercentFiles } from './percent-to-deepnote'
 import { readAndConvertQuartoFiles } from './quarto-to-deepnote'
-import { loadLatestSnapshot, mergeSnapshotIntoSource } from './snapshot'
+import { mergeSnapshotIntoSource } from './snapshot'
 import { writeDeepnoteFile } from './write-deepnote-file'
 
 interface ConvertOptions {

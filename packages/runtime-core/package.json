@@ -37,10 +37,12 @@
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
+    "@deepnote/convert": "workspace:*",
     "@jupyterlab/nbformat": "^4.3.2",
     "@jupyterlab/services": "^7.3.2",
     "tcp-port-used": "^1.0.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@types/tcp-port-used": "^1.0.4",

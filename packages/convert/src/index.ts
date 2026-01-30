@@ -79,7 +79,9 @@ export {
   parseQuartoFormat,
   readAndConvertQuartoFiles,
 } from './quarto-to-deepnote'
-// Snapshot utilities
+// Snapshot utilities (pure data transformations)
+// Note: File I/O functions (findSnapshotsForProject, loadLatestSnapshot, loadSnapshotFile,
+// snapshotExists, saveExecutionSnapshot) have been moved to @deepnote/runtime-core.
 export type {
   BlockOutput,
   MergeOptions,
@@ -92,17 +94,13 @@ export {
   computeContentHash,
   computeSnapshotHash,
   countBlocksWithOutputs,
-  findSnapshotsForProject,
   generateSnapshotFilename,
   getSnapshotDir,
   hasOutputs,
-  loadLatestSnapshot,
-  loadSnapshotFile,
   mergeSnapshotIntoSource,
   parseSnapshotFilename,
   parseSourceFilePath,
   slugifyProjectName,
-  snapshotExists,
   splitDeepnoteFile,
 } from './snapshot'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'
