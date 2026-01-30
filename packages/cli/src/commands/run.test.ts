@@ -49,6 +49,16 @@ vi.mock('../utils/open-file-in-cloud', () => ({
   openDeepnoteFileInCloud: (...args: unknown[]) => mockOpenDeepnoteFileInCloud(...args),
 }))
 
+// Mock saveExecutionSnapshot to prevent writing to real files during tests
+const mockSaveExecutionSnapshot = vi.fn().mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
+vi.mock('../utils/output-persistence', async importOriginal => {
+  const actual = await importOriginal<typeof import('../utils/output-persistence')>()
+  return {
+    ...actual,
+    saveExecutionSnapshot: (...args: unknown[]) => mockSaveExecutionSnapshot(...args),
+  }
+})
+
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
 
 // Helper to parse JSON from console output
@@ -132,6 +142,9 @@ describe('run command', () => {
 
       // Reset getBlockDependencies to return empty by default (no validation errors)
       mockGetBlockDependencies.mockResolvedValue([])
+
+      // Reset saveExecutionSnapshot mock
+      mockSaveExecutionSnapshot.mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
 
       program = new Command()
       program.exitOverride()
