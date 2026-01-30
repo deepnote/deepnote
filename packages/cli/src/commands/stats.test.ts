@@ -85,10 +85,10 @@ describe('stats command', () => {
 
       await action(filePath, DEFAULT_OPTIONS)
 
-      // Integrations file should have some imports (pandas, matplotlib, urllib)
+      // Integrations file should have some imports (alias names from AST analysis)
       const output = getOutput(consoleSpy)
       expect(output).toContain('Imports')
-      expect(output).toContain('pandas')
+      expect(output).toContain('pd')
     })
   })
 

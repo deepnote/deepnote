@@ -156,12 +156,12 @@ def sanitize_python_variable_name(name):
     """
     Python implementation of sanitizePythonVariableName from utils.ts
     """
-    sanitized = re.sub(r'\s+', '_', name)
-    sanitized = re.sub(r'[^0-9a-zA-Z_]', '', sanitized)
-    sanitized = re.sub(r'^[^a-zA-Z_]+', '', sanitized)
+    sanitized = re.sub(r"\s+", "_", name)
+    sanitized = re.sub(r"[^0-9a-zA-Z_]", "", sanitized)
+    sanitized = re.sub(r"^[^a-zA-Z_]+", "", sanitized)
 
-    if sanitized == '':
-        sanitized = 'input_1'
+    if sanitized == "":
+        sanitized = "input_1"
 
     return sanitized
 
@@ -181,20 +181,31 @@ def extract_jinja_variables(sql_code):
     # Look for table names after FROM, JOIN, etc. that could be variables
     sql_variables = set()
 
-    clean_sql = re.sub(r'\{\{.*?\}\}', '', sql_code)
-    clean_sql = re.sub(r'\{%.*?%\}', '', clean_sql, flags=re.DOTALL)
+    clean_sql = re.sub(r"\{\{.*?\}\}", "", sql_code)
+    clean_sql = re.sub(r"\{%.*?%\}", "", clean_sql, flags=re.DOTALL)
 
     table_patterns = [
-        r'\bFROM\s+([a-zA-Z_][a-zA-Z0-9_]*)',
-        r'\bJOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)',
-        r'\bINTO\s+([a-zA-Z_][a-zA-Z0-9_]*)',
-        r'\bUPDATE\s+([a-zA-Z_][a-zA-Z0-9_]*)'
+        r"\bFROM\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+        r"\bJOIN\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+        r"\bINTO\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+        r"\bUPDATE\s+([a-zA-Z_][a-zA-Z0-9_]*)",
     ]
 
     for pattern in table_patterns:
         matches = re.findall(pattern, clean_sql, re.IGNORECASE)
         for match in matches:
-            if match.lower() not in ['select', 'where', 'group', 'order', 'having', 'limit', 'offset', 'union', 'intersect', 'except']:
+            if match.lower() not in [
+                "select",
+                "where",
+                "group",
+                "order",
+                "having",
+                "limit",
+                "offset",
+                "union",
+                "intersect",
+                "except",
+            ]:
                 sql_variables.add(match)
 
     return jinja_variables.union(sql_variables)
@@ -214,11 +225,24 @@ def comment_out_jupyter_bash_commands(blocks):
     return blocks
 
 
+def count_lines_of_code(content):
+    """
+    Count lines of code in a block's content.
+    Returns the total number of lines (including empty lines and comments).
+    """
+    if not content:
+        return 0
+    return len(content.split("\n"))
+
+
 def analyze_blocks(blocks):
     analysis = []
 
     for block in blocks:
         try:
+            content = block.get("content", "")
+            loc = count_lines_of_code(content)
+
             if block.get("type") == "code" or block.get("type") is None:
                 block_defined, block_used, block_imported = get_defined_used_variables(
                     block
@@ -235,6 +259,7 @@ def analyze_blocks(blocks):
                         "definedVariables": block_defined_list,
                         "usedVariables": block_used_list,
                         "importedModules": block_imported_list,
+                        "linesOfCode": loc,
                     }
                 )
             elif block["type"] == "sql":
@@ -243,7 +268,11 @@ def analyze_blocks(blocks):
                 jinja_variables_list.sort()
 
                 output_variables = []
-                if "metadata" in block and block["metadata"] and "deepnote_variable_name" in block["metadata"]:
+                if (
+                    "metadata" in block
+                    and block["metadata"]
+                    and "deepnote_variable_name" in block["metadata"]
+                ):
                     output_variables = [block["metadata"]["deepnote_variable_name"]]
 
                 analysis.append(
@@ -252,11 +281,16 @@ def analyze_blocks(blocks):
                         "definedVariables": output_variables,
                         "usedVariables": jinja_variables_list,
                         "importedModules": [],
+                        "linesOfCode": loc,
                     }
                 )
             elif block["type"] == "button":
                 output_variables = []
-                if "metadata" in block and block["metadata"] and "deepnote_variable_name" in block["metadata"]:
+                if (
+                    "metadata" in block
+                    and block["metadata"]
+                    and "deepnote_variable_name" in block["metadata"]
+                ):
                     output_variables = [block["metadata"]["deepnote_variable_name"]]
 
                 analysis.append(
@@ -265,15 +299,20 @@ def analyze_blocks(blocks):
                         "definedVariables": output_variables,
                         "usedVariables": [],
                         "importedModules": [],
+                        "linesOfCode": loc,
                     }
                 )
             elif block["type"] == "big-number":
                 used_variables = []
                 if "metadata" in block and block["metadata"]:
                     if "deepnote_big_number_value" in block["metadata"]:
-                        used_variables.append(block["metadata"]["deepnote_big_number_value"])
+                        used_variables.append(
+                            block["metadata"]["deepnote_big_number_value"]
+                        )
                     if "deepnote_big_number_comparison_value" in block["metadata"]:
-                        used_variables.append(block["metadata"]["deepnote_big_number_comparison_value"])
+                        used_variables.append(
+                            block["metadata"]["deepnote_big_number_comparison_value"]
+                        )
 
                 used_variables = list(set(used_variables))
                 used_variables.sort()
@@ -284,6 +323,7 @@ def analyze_blocks(blocks):
                         "definedVariables": [],
                         "usedVariables": used_variables,
                         "importedModules": [],
+                        "linesOfCode": loc,
                     }
                 )
             elif block["type"] == "notebook-function":
@@ -292,15 +332,27 @@ def analyze_blocks(blocks):
 
                 if "metadata" in block and block["metadata"]:
                     if "function_notebook_inputs" in block["metadata"]:
-                        for _, input_config in block["metadata"]["function_notebook_inputs"].items():
-                            if input_config.get("custom_value") is None and input_config.get("variable_name"):
-                                sanitized_name = sanitize_python_variable_name(input_config["variable_name"])
+                        for _, input_config in block["metadata"][
+                            "function_notebook_inputs"
+                        ].items():
+                            if input_config.get(
+                                "custom_value"
+                            ) is None and input_config.get("variable_name"):
+                                sanitized_name = sanitize_python_variable_name(
+                                    input_config["variable_name"]
+                                )
                                 input_variables.append(sanitized_name)
 
                     if "function_notebook_export_mappings" in block["metadata"]:
-                        for _, output_config in block["metadata"]["function_notebook_export_mappings"].items():
-                            if output_config.get("enabled") is True and output_config.get("variable_name"):
-                                sanitized_name = sanitize_python_variable_name(output_config["variable_name"])
+                        for _, output_config in block["metadata"][
+                            "function_notebook_export_mappings"
+                        ].items():
+                            if output_config.get(
+                                "enabled"
+                            ) is True and output_config.get("variable_name"):
+                                sanitized_name = sanitize_python_variable_name(
+                                    output_config["variable_name"]
+                                )
                                 output_variables.append(sanitized_name)
 
                 input_variables.sort()
@@ -312,11 +364,27 @@ def analyze_blocks(blocks):
                         "definedVariables": output_variables,
                         "usedVariables": input_variables,
                         "importedModules": [],
+                        "linesOfCode": loc,
                     }
                 )
-            elif block["type"] in ["input-text", "input-textarea", "input-file", "input-select", "input-date", "input-date-range", "input-slider", "input-checkbox", "input-number", "input-dropdown"]:
+            elif block["type"] in [
+                "input-text",
+                "input-textarea",
+                "input-file",
+                "input-select",
+                "input-date",
+                "input-date-range",
+                "input-slider",
+                "input-checkbox",
+                "input-number",
+                "input-dropdown",
+            ]:
                 output_variables = []
-                if "metadata" in block and block["metadata"] and "deepnote_variable_name" in block["metadata"]:
+                if (
+                    "metadata" in block
+                    and block["metadata"]
+                    and "deepnote_variable_name" in block["metadata"]
+                ):
                     variable_name = block["metadata"]["deepnote_variable_name"]
                     if variable_name is not None:
                         sanitized_name = sanitize_python_variable_name(variable_name)
@@ -328,15 +396,19 @@ def analyze_blocks(blocks):
                         "definedVariables": output_variables,
                         "usedVariables": [],
                         "importedModules": [],
+                        "linesOfCode": loc,
                     }
                 )
         except Exception as e:
+            content = block.get("content", "")
+            loc = count_lines_of_code(content)
             analysis.append(
                 {
                     "id": block["id"],
                     "definedVariables": [],
                     "usedVariables": [],
                     "importedModules": [],
+                    "linesOfCode": loc,
                     "error": {
                         "type": e.__class__.__name__,
                         "message": str(e),
@@ -348,30 +420,28 @@ def analyze_blocks(blocks):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Analyze AST of Python and SQL blocks')
-    parser.add_argument('--input', required=True, help='JSON input file path')
-    parser.add_argument('--output', required=True, help='JSON output file path')
+    parser = argparse.ArgumentParser(description="Analyze AST of Python and SQL blocks")
+    parser.add_argument("--input", required=True, help="JSON input file path")
+    parser.add_argument("--output", required=True, help="JSON output file path")
 
     args = parser.parse_args()
 
     try:
         # Read input data from file
-        with open(args.input, 'r') as f:
+        with open(args.input, "r") as f:
             data = json.load(f)
 
         blocks = comment_out_jupyter_bash_commands(data["blocks"])
         result = analyze_blocks(blocks)
 
         # Write output data to file
-        with open(args.output, 'w') as f:
+        with open(args.output, "w") as f:
             json.dump(result, f)
 
     except Exception as e:
-        error_result = {
-            "errorMessage": f"{e.__class__.__name__}: {str(e)}"
-        }
+        error_result = {"errorMessage": f"{e.__class__.__name__}: {str(e)}"}
         # Write error to output file
-        with open(args.output, 'w') as f:
+        with open(args.output, "w") as f:
             json.dump(error_result, f)
         sys.exit(1)
 
