@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
-import { join } from 'node:path'
-import type { DeepnoteFile } from '@deepnote/blocks'
+import { join, resolve } from 'node:path'
+import { type DeepnoteFile, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
+import { loadRootFixture } from '../../../../test-fixtures/helpers/fixture-loader'
 import {
   type BlockExecutionOutput,
   getSnapshotPath,
@@ -12,50 +13,15 @@ import {
 } from './output-persistence'
 
 describe('output-persistence', () => {
-  const createTestFile = (): DeepnoteFile =>
-    ({
-      version: '1',
-      project: {
-        id: 'test-project-id-1234-5678-90ab',
-        name: 'Test Project',
-        notebooks: [
-          {
-            id: 'notebook-1',
-            name: 'Notebook 1',
-            blocks: [
-              {
-                id: 'block-1',
-                type: 'code',
-                content: 'print("hello")',
-                sortingKey: 'a0',
-                blockGroup: 'group-1',
-                metadata: {},
-              },
-              {
-                id: 'block-2',
-                type: 'code',
-                content: 'x = 42',
-                sortingKey: 'a1',
-                blockGroup: 'group-1',
-                metadata: {},
-              },
-              {
-                id: 'block-3',
-                type: 'markdown',
-                content: '# Header',
-                sortingKey: 'a2',
-                blockGroup: 'group-1',
-                metadata: {},
-              },
-            ],
-          },
-        ],
-      },
-    }) as DeepnoteFile
+  /** Load the test fixture and return a fresh copy */
+  const loadTestFile = async (): Promise<DeepnoteFile> => {
+    const content = await loadRootFixture('output-persistence-test.deepnote')
+    return deserializeDeepnoteFile(content)
+  }
 
   describe('mergeOutputsIntoFile', () => {
-    it('merges outputs into matching blocks', () => {
-      const file = createTestFile()
+    it('merges outputs into matching blocks', async () => {
+      const file = await loadTestFile()
       const outputs: BlockExecutionOutput[] = [
         {
           id: 'block-1',
@@ -92,8 +58,8 @@ describe('output-persistence', () => {
       expect(block3.outputs).toBeUndefined()
     })
 
-    it('leaves blocks without matching outputs unchanged', () => {
-      const file = createTestFile()
+    it('leaves blocks without matching outputs unchanged', async () => {
+      const file = await loadTestFile()
       const outputs: BlockExecutionOutput[] = [
         {
           id: 'block-1',
@@ -113,8 +79,8 @@ describe('output-persistence', () => {
       expect(block2.outputs).toBeUndefined()
     })
 
-    it('handles null executionCount', () => {
-      const file = createTestFile()
+    it('handles null executionCount', async () => {
+      const file = await loadTestFile()
       const outputs: BlockExecutionOutput[] = [
         {
           id: 'block-1',
@@ -134,8 +100,8 @@ describe('output-persistence', () => {
       expect(block1.executionCount).toBeUndefined()
     })
 
-    it('does not mutate original file', () => {
-      const file = createTestFile()
+    it('does not mutate original file', async () => {
+      const file = await loadTestFile()
       const originalBlock = file.project.notebooks[0].blocks[0]
       const outputs: BlockExecutionOutput[] = [
         {
@@ -157,35 +123,39 @@ describe('output-persistence', () => {
   })
 
   describe('getSnapshotPath', () => {
-    it('returns correct snapshot path', () => {
-      const file = createTestFile()
+    it('returns correct snapshot path', async () => {
+      const file = await loadTestFile()
       const sourcePath = '/path/to/project.deepnote'
 
       const result = getSnapshotPath(sourcePath, file)
 
-      expect(result).toBe('/path/to/snapshots/test-project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      expect(result).toBe(
+        resolve('/path/to', 'snapshots', 'test-project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      )
     })
 
-    it('handles project name with special characters', () => {
-      const file = createTestFile()
+    it('handles project name with special characters', async () => {
+      const file = await loadTestFile()
       file.project.name = 'My Project (Draft) #1'
       const sourcePath = '/path/to/project.deepnote'
 
       const result = getSnapshotPath(sourcePath, file)
 
       expect(result).toBe(
-        '/path/to/snapshots/my-project-draft-1_test-project-id-1234-5678-90ab_latest.snapshot.deepnote'
+        resolve('/path/to', 'snapshots', 'my-project-draft-1_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
       )
     })
 
-    it('uses "project" as fallback for empty name', () => {
-      const file = createTestFile()
+    it('uses "project" as fallback for empty name', async () => {
+      const file = await loadTestFile()
       file.project.name = ''
       const sourcePath = '/path/to/project.deepnote'
 
       const result = getSnapshotPath(sourcePath, file)
 
-      expect(result).toBe('/path/to/snapshots/project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      expect(result).toBe(
+        resolve('/path/to', 'snapshots', 'project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+      )
     })
   })
 
@@ -201,7 +171,7 @@ describe('output-persistence', () => {
     })
 
     it('creates snapshot directory and saves snapshot file', async () => {
-      const file = createTestFile()
+      const file = await loadTestFile()
       const sourcePath = join(tempDir, 'project.deepnote')
       const outputs: BlockExecutionOutput[] = [
         {
@@ -237,7 +207,7 @@ describe('output-persistence', () => {
     })
 
     it('overwrites existing snapshot', async () => {
-      const file = createTestFile()
+      const file = await loadTestFile()
       const sourcePath = join(tempDir, 'project.deepnote')
       const timing = {
         startedAt: '2024-01-01T00:00:00.000Z',

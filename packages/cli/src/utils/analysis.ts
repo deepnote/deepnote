@@ -4,7 +4,12 @@
  * by multiple commands (lint, stats, run --context, analyze).
  */
 
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import {
+  convertToEnvironmentVariableName,
+  type DeepnoteBlock,
+  type DeepnoteFile,
+  INPUT_BLOCK_TYPES,
+} from '@deepnote/blocks'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'
@@ -97,18 +102,6 @@ export interface AnalysisResult {
 /** Built-in integrations that don't require external configuration */
 const BUILTIN_INTEGRATIONS = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
 
-/** Input block types */
-const INPUT_BLOCK_TYPES = new Set([
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-])
-
 // ============================================================================
 // Main Analysis Functions
 // ============================================================================
@@ -121,7 +114,10 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
   const stats = computeProjectStats(file, options)
   const { lint, dag } = await checkForIssues(file, options)
 
-  return { stats, lint, dag }
+  // Extract imports from DAG nodes (more accurate than regex-based extraction)
+  const imports = extractImportsFromDag(dag)
+
+  return { stats: { ...stats, imports }, lint, dag }
 }
 
 /**
@@ -131,7 +127,6 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
 export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions = {}): ProjectStats {
   const notebooks: NotebookStats[] = []
   const allBlockTypes = new Map<string, { count: number; loc: number }>()
-  const allImports = new Set<string>()
 
   let totalBlocks = 0
   let totalLoc = 0
@@ -155,14 +150,6 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
         loc: existing.loc + bt.linesOfCode,
       })
     }
-
-    // Extract imports from code blocks
-    for (const block of notebook.blocks) {
-      const imports = extractImports(block)
-      for (const imp of imports) {
-        allImports.add(imp)
-      }
-    }
   }
 
   // Convert block types map to sorted array
@@ -182,7 +169,8 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
     totalLinesOfCode: totalLoc,
     blockTypesSummary,
     notebooks,
-    imports: Array.from(allImports).sort(),
+    // Imports are populated by analyzeProject using DAG analysis for accuracy
+    imports: [],
   }
 }
 
@@ -338,16 +326,14 @@ function checkCircularDependencies(dag: BlockDependencyDag, blockMap: Map<string
   const recursionStack = new Set<string>()
   const cycleBlocks = new Set<string>()
 
-  function dfs(nodeId: string, path: string[]): boolean {
+  function dfs(nodeId: string, path: string[]): void {
     visited.add(nodeId)
     recursionStack.add(nodeId)
 
     const neighbors = graph.get(nodeId) ?? new Set()
     for (const neighbor of neighbors) {
       if (!visited.has(neighbor)) {
-        if (dfs(neighbor, [...path, nodeId])) {
-          return true
-        }
+        dfs(neighbor, [...path, nodeId])
       } else if (recursionStack.has(neighbor)) {
         // Found a cycle - mark all nodes in the cycle
         const cycleStart = path.indexOf(neighbor)
@@ -358,12 +344,10 @@ function checkCircularDependencies(dag: BlockDependencyDag, blockMap: Map<string
         }
         cycleBlocks.add(neighbor)
         cycleBlocks.add(nodeId)
-        return true
       }
     }
 
     recursionStack.delete(nodeId)
-    return false
   }
 
   for (const node of dag.nodes) {
@@ -509,11 +493,12 @@ interface IntegrationCheckResult {
 
 /**
  * Convert an integration ID to its environment variable name.
+ * Note: This handles leading digits differently from @deepnote/blocks - we sanitize
+ * the integrationId first, then prepend SQL_. This maintains compatibility with
+ * existing env var names (e.g., "100abc" -> "SQL__100ABC" not "SQL_100ABC").
  */
-function getIntegrationEnvVarName(integrationId: string): string {
-  const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
-  const upperCased = notFirstDigit.toUpperCase()
-  const sanitized = upperCased.replace(/[^\w]/g, '_')
+export function getIntegrationEnvVarName(integrationId: string): string {
+  const sanitized = convertToEnvironmentVariableName(integrationId)
   return `SQL_${sanitized}`
 }
 
@@ -736,46 +721,18 @@ function countLinesOfCode(block: DeepnoteBlock): number {
 }
 
 /**
- * Extract imported module names from a code block.
+ * Extract imported module names from DAG nodes.
+ * Uses the AST-based import extraction from the reactivity package
+ * which is more accurate than regex-based extraction.
  */
-function extractImports(block: DeepnoteBlock): string[] {
-  if (block.type !== 'code' || !('content' in block) || typeof block.content !== 'string') {
-    return []
-  }
-
-  const imports: string[] = []
-  const lines = block.content.split('\n')
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-
-    // Match "import x", "import x, y", "import x as alias", "import x.y"
-    const importMatch = trimmed.match(/^import\s+(.+)$/)
-    if (importMatch) {
-      const importClause = importMatch[1]
-      const modules = importClause.split(',')
-      for (const mod of modules) {
-        const modTrimmed = mod.trim()
-        const withoutAlias = modTrimmed.split(/\s+as\s+/)[0].trim()
-        const baseModule = withoutAlias.split('.')[0]
-        if (baseModule && /^\w+$/.test(baseModule)) {
-          imports.push(baseModule)
-        }
-      }
-      continue
-    }
-
-    // Match "from x import ..." or "from x.y import ..."
-    const fromMatch = trimmed.match(/^from\s+([\w.]+)/)
-    if (fromMatch) {
-      const baseModule = fromMatch[1].split('.')[0]
-      if (baseModule) {
-        imports.push(baseModule)
-      }
+function extractImportsFromDag(dag: BlockDependencyDag): string[] {
+  const imports = new Set<string>()
+  for (const node of dag.nodes) {
+    for (const mod of node.importedModules) {
+      imports.add(mod)
     }
   }
-
-  return imports
+  return Array.from(imports).sort()
 }
 
 // ============================================================================

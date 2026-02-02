@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|validate|convert|completion|help|dag|stats|lint|show|vars|downstream|diff)
+            inspect|cat|run|open|validate|convert|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff)
                 subcommand="\${word}"
                 break
                 ;;
@@ -46,20 +46,20 @@ _deepnote_completions() {
     # Handle -o/--output option completion based on the subcommand
     if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
         case "\${subcommand}" in
-            inspect|run)
-                COMPREPLY=( $(compgen -W "json toon" -- "\${cur}") )
+            inspect|run|analyze)
+                COMPREPLY=( $(compgen -W "json toon llm" -- "\${cur}") )
                 return 0
                 ;;
-            cat|open|validate)
-                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
+            cat|open|validate|stats|lint|diff)
+                COMPREPLY=( $(compgen -W "json llm" -- "\${cur}") )
                 return 0
                 ;;
-            show|vars|downstream)
-                COMPREPLY=( $(compgen -W "json dot" -- "\${cur}") )
+            show)
+                COMPREPLY=( $(compgen -W "json dot llm" -- "\${cur}") )
                 return 0
                 ;;
-            stats|lint|diff)
-                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
+            vars|downstream)
+                COMPREPLY=( $(compgen -W "json llm" -- "\${cur}") )
                 return 0
                 ;;
         esac
@@ -187,6 +187,15 @@ _deepnote_completions() {
             fi
             return 0
             ;;
+        analyze)
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --notebook --python" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
         diff)
             # Complete .deepnote files and flags
             if [[ "\${cur}" == -* ]]; then
@@ -225,6 +234,7 @@ const zshCommandDescriptions: Record<string, string> = {
   validate: 'Validate a .deepnote file against the schema',
   dag: 'Analyze block dependencies and variable flow',
   stats: 'Show statistics about a .deepnote file',
+  analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
 }
@@ -276,12 +286,12 @@ ${commandEntries}
             case $words[1] in
                 inspect)
                     _arguments \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon llm)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 cat)
                     _arguments \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                         '--notebook[Show only blocks from specified notebook]:notebook name:' \\
                         '--type[Filter blocks by type]:type:(${blockTypes})' \\
                         '--tree[Show structure only without block content]' \\
@@ -295,7 +305,7 @@ ${commandEntries}
                         '--block[Run only the specified block]:block id:' \\
                         '*'{-i,--input}'[Set input variable value]:key=value:' \\
                         '--list-inputs[List all input variables without running]' \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon llm)' \\
                         '--dry-run[Show what would be executed without running]' \\
                         '--top[Display resource usage during execution]' \\
                         '--profile[Show per-block timing and memory usage]' \\
@@ -305,12 +315,12 @@ ${commandEntries}
                 open)
                     _arguments \\
                         '--domain[Deepnote domain]:domain:' \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 validate)
                     _arguments \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 convert)
@@ -337,9 +347,16 @@ ${commandEntries}
                             ;;
                         args)
                             case $words[2] in
+                                show)
+                                    _arguments -C \\
+                                        '(-o --output)'{-o,--output}'[Output format]:format:(json dot llm)' \\
+                                        '--notebook[Analyze only a specific notebook]:notebook name:' \\
+                                        '--python[Path to Python interpreter]:python path:_files' \\
+                                        '*:deepnote file:_files -g "*.deepnote"'
+                                    ;;
                                 downstream)
                                     _arguments -C \\
-                                        '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
+                                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                                         '--notebook[Analyze only a specific notebook]:notebook name:' \\
                                         '--python[Path to Python interpreter]:python path:_files' \\
                                         '(-b --block)'{-b,--block}'[Block ID or label to analyze]:block:' \\
@@ -347,7 +364,7 @@ ${commandEntries}
                                     ;;
                                 *)
                                     _arguments -C \\
-                                        '(-o --output)'{-o,--output}'[Output format]:format:(json dot)' \\
+                                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                                         '--notebook[Analyze only a specific notebook]:notebook name:' \\
                                         '--python[Path to Python interpreter]:python path:_files' \\
                                         '*:deepnote file:_files -g "*.deepnote"'
@@ -358,20 +375,27 @@ ${commandEntries}
                     ;;
                 stats)
                     _arguments \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                         '--notebook[Analyze only a specific notebook]:notebook name:' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 lint)
                     _arguments \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                         '--notebook[Lint only a specific notebook]:notebook name:' \\
+                        '--python[Path to Python interpreter]:python path:_files' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                analyze)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json toon llm)' \\
+                        '--notebook[Analyze only a specific notebook]:notebook name:' \\
                         '--python[Path to Python interpreter]:python path:_files' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 diff)
                     _arguments \\
-                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
                         '--content[Include content differences in output]' \\
                         '1:first deepnote file:_files -g "*.deepnote"' \\
                         '2:second deepnote file:_files -g "*.deepnote"'
@@ -402,6 +426,7 @@ const fishCommandDescriptions: Record<string, string> = {
   validate: 'Validate a .deepnote file against the schema',
   dag: 'Analyze block dependencies and variable flow',
   stats: 'Show statistics about a .deepnote file',
+  analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
 }
@@ -435,11 +460,11 @@ complete -c deepnote -l quiet -s q -d 'Suppress non-essential output'
 ${commandCompletions}
 
 # inspect subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from inspect' -s o -l output -d 'Output format' -xa 'json toon'
+complete -c deepnote -n '__fish_seen_subcommand_from inspect' -s o -l output -d 'Output format' -xa 'json toon llm'
 complete -c deepnote -n '__fish_seen_subcommand_from inspect' -F -a '*.deepnote'
 
 # cat subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from cat' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from cat' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from cat' -l notebook -d 'Show only blocks from specified notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from cat' -l type -d 'Filter blocks by type' -xa '${blockTypes}'
 complete -c deepnote -n '__fish_seen_subcommand_from cat' -l tree -d 'Show structure only without block content'
@@ -452,7 +477,7 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook -d 'Run on
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l block -d 'Run only the specified block'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -s i -l input -d 'Set input variable value (can be repeated)'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l list-inputs -d 'List all input variables without running'
-complete -c deepnote -n '__fish_seen_subcommand_from run' -s o -l output -d 'Output format' -xa 'json toon'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -s o -l output -d 'Output format' -xa 'json toon llm'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l dry-run -d 'Show what would be executed without running'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l top -d 'Display resource usage during execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l profile -d 'Show per-block timing and memory usage'
@@ -461,11 +486,11 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote' -a 
 
 # open subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from open' -l domain -d 'Deepnote domain'
-complete -c deepnote -n '__fish_seen_subcommand_from open' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from open' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from open' -F -a '*.deepnote'
 
 # validate subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from validate' -F -a '*.deepnote'
 
 # convert subcommand
@@ -479,25 +504,32 @@ complete -c deepnote -n '__fish_seen_subcommand_from convert' -F -a '*.deepnote'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -a show -d 'Show the dependency graph'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -a vars -d 'List variables defined and used by each block'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -a downstream -d 'Show blocks that need re-run if a block changes'
-complete -c deepnote -n '__fish_seen_subcommand_from dag' -s o -l output -d 'Output format' -xa 'json dot'
+complete -c deepnote -n '__fish_seen_subcommand_from dag; and __fish_seen_subcommand_from show' -s o -l output -d 'Output format' -xa 'json dot llm'
+complete -c deepnote -n '__fish_seen_subcommand_from dag; and not __fish_seen_subcommand_from show' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l notebook -d 'Analyze only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -l python -d 'Path to Python interpreter'
 complete -c deepnote -n '__fish_seen_subcommand_from dag; and __fish_seen_subcommand_from downstream' -s b -l block -d 'Block ID or label to analyze'
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -F -a '*.deepnote'
 
 # stats subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from stats' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from stats' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from stats' -l notebook -d 'Analyze only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from stats' -F -a '*.deepnote'
 
 # lint subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from lint' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from lint' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l notebook -d 'Lint only a specific notebook'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -l python -d 'Path to Python interpreter'
 complete -c deepnote -n '__fish_seen_subcommand_from lint' -F -a '*.deepnote'
 
+# analyze subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -s o -l output -d 'Output format' -xa 'json toon llm'
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -l notebook -d 'Analyze only a specific notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -l python -d 'Path to Python interpreter'
+complete -c deepnote -n '__fish_seen_subcommand_from analyze' -F -a '*.deepnote'
+
 # diff subcommand
-complete -c deepnote -n '__fish_seen_subcommand_from diff' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from diff' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from diff' -l content -d 'Include content differences in output'
 complete -c deepnote -n '__fish_seen_subcommand_from diff' -F -a '*.deepnote'
 
