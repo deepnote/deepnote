@@ -3,6 +3,8 @@ import { decodeUtf8NoBom, parseYaml } from '@deepnote/blocks'
 import { type DatabaseIntegrationConfig, databaseIntegrationConfigSchema } from '@deepnote/database-integrations'
 import { type ZodIssue, z } from 'zod'
 import type { ValidationIssue } from '../commands/validate'
+import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
+import { EnvVarResolutionError, resolveEnvVarRefs } from '../utils/env-var-refs'
 import { baseIntegrationsFileSchema } from './integrations-file-schemas'
 
 /**
@@ -14,20 +16,6 @@ export interface IntegrationsParseResult {
   integrations: DatabaseIntegrationConfig[]
   /** Validation issues encountered during parsing */
   issues: ValidationIssue[]
-}
-
-/**
- * Build a map of integration ID to config for quick lookups.
- * Keys are normalized to lowercase for case-insensitive UUID matching.
- */
-export function buildIntegrationsById(
-  integrations: DatabaseIntegrationConfig[]
-): Map<string, DatabaseIntegrationConfig> {
-  const map = new Map<string, DatabaseIntegrationConfig>()
-  for (const integration of integrations) {
-    map.set(integration.id.toLowerCase(), integration)
-  }
-  return map
 }
 
 /**
@@ -110,7 +98,26 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
     const entry = entries[i]
     const pathPrefix = `integrations[${i}]`
 
-    const result = databaseIntegrationConfigSchema.safeParse(entry)
+    // Resolve environment variable references
+    let resolvedEntry: unknown
+    try {
+      resolvedEntry = resolveEnvVarRefs(entry)
+    } catch (error) {
+      if (error instanceof EnvVarResolutionError) {
+        const entryId = z.string().safeParse(entry.id).data
+        const entryName = z.string().safeParse(entry.name).data
+        const context = entryName || entryId ? `Integration "${entryName || entryId}": ` : ''
+        issues.push({
+          path: error.path ? `${pathPrefix}.${error.path}` : pathPrefix,
+          message: `${context}${error.message}`,
+          code: 'env_var_not_defined',
+        })
+        continue
+      }
+      throw error
+    }
+
+    const result = databaseIntegrationConfigSchema.safeParse(resolvedEntry)
     if (result.success) {
       integrations.push(result.data)
     } else {
@@ -138,5 +145,5 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
  * @returns Path to the integrations file in the same directory
  */
 export function getDefaultIntegrationsFilePath(deepnoteFileDir: string): string {
-  return `${deepnoteFileDir}/.deepnote.env.yaml`
+  return `${deepnoteFileDir}/${DEFAULT_INTEGRATIONS_FILE}`
 }

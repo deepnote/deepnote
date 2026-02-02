@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import {
   type DeepnoteBlock as BlocksDeepnoteBlock,
   type DeepnoteFile,
@@ -19,8 +19,10 @@ import {
 } from '@deepnote/runtime-core'
 import chalk from 'chalk'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
+import { DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { buildIntegrationsById, getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations'
+import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations'
 import { debug, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { getBlockLabel } from '../utils/block-label'
@@ -122,10 +124,15 @@ interface ProjectSetup {
  * Shared by both runDeepnoteProject and dryRunDeepnoteProject.
  */
 async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
+  const isMachineOutput = options.output !== undefined
+
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const workingDirectory = options.cwd ?? dirname(absolutePath)
+
+  dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
+
   const pythonEnv = options.python ?? detectDefaultPython()
-  const isMachineOutput = options.output !== undefined
+
   const inputs = parseInputs(options.input)
 
   if (!isMachineOutput) {
@@ -159,11 +166,10 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
-  // Build lookup map for integration IDs (lowercase for case-insensitive matching)
-  const integrationsById = buildIntegrationsById(parsedIntegrations.integrations)
-
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, integrationsById, options.notebook)
+  await validateRequirements(file, inputs, pythonEnv, parsedIntegrations.integrations, options.notebook)
+
+  console.log(`integrations: ${JSON.stringify(parsedIntegrations.integrations)}`)
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
@@ -179,14 +185,12 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
     // Inject env vars into process.env
     for (const { name, value } of envVars) {
+      console.log(`Injecting environment variable: ${name} = ${value}`)
       process.env[name] = value
     }
 
     debug(`Injected ${envVars.length} environment variables for integrations`)
   }
-
-  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, integrationsById, options.notebook)
 
   return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput }
 }
@@ -465,21 +469,6 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
 }
 
 /**
- * Convert an integration ID to its environment variable name.
- * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
- *
- * @deprecated This function is kept for reference but is no longer used.
- * Integration configuration is now read from the integrations file.
- */
-// function getIntegrationEnvVarName(integrationId: string): string {
-//   // Same logic as @deepnote/database-integrations getSqlEnvVarName
-//   const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
-//   const upperCased = notFirstDigit.toUpperCase()
-//   const sanitized = upperCased.replace(/[^\w]/g, '_')
-//   return `SQL_${sanitized}`
-// }
-
-/**
  * Validate that all required configuration is present before running.
  * Checks for:
  * - Missing input variables (used before defined, no --input provided)
@@ -491,7 +480,7 @@ async function validateRequirements(
   file: DeepnoteFile,
   providedInputs: Record<string, unknown>,
   pythonInterpreter: string,
-  integrationsById: Map<string, DatabaseIntegrationConfig>,
+  integrations: DatabaseIntegrationConfig[],
   notebookName?: string
 ): Promise<void> {
   const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
@@ -518,7 +507,7 @@ async function validateRequirements(
         // Use lowercase for case-insensitive UUID matching
         // const envVarName = getIntegrationEnvVarName(integrationId)
         // if (!process.env[envVarName]) { ... }
-        if (!integrationsById.has(integrationId.toLowerCase())) {
+        if (!integrations.some(i => i.id.toLowerCase() === integrationId.toLowerCase())) {
           // Check if we haven't already recorded this integration
           if (!missingIntegrations.some(i => i.id === integrationId)) {
             missingIntegrations.push({ id: integrationId })
@@ -612,10 +601,6 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
   // Collect block results for machine-readable output
   const blockResults: BlockResult[] = []
-
-  if (!isMachineOutput) {
-    log(chalk.dim(`Parsing ${absolutePath}...`))
-  }
 
   // Create and start the execution engine
   const engine = new ExecutionEngine({

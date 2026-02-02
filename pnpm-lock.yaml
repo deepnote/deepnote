@@ -98,6 +98,9 @@ importers:
       diff:
         specifier: '>=8.0.3'
         version: 8.0.3
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
       ora:
         specifier: ^9.0.0
         version: 9.0.0
@@ -1429,6 +1432,10 @@ packages:
   diff@8.0.3:
     resolution: {integrity: sha512-qejHi7bcSD4hQAZE0tNAawRK1ZtafHDmMTMkrrIGgSLl7hTnQHmKCeB45xAcbfTqK2zowkM3j3bHt/4b/ARbYQ==}
     engines: {node: '>=0.3.1'}
+
+  dotenv@17.2.3:
+    resolution: {integrity: sha512-JVUnt+DUIzu87TABbhPmNfVdBDt18BLOWjMUFJMSi/Qqg7NTYtabbvSNJGOJ7afbRuv9D/lngizHtP7QyLQ+9w==}
+    engines: {node: '>=12'}
 
   dts-resolver@2.1.2:
     resolution: {integrity: sha512-xeXHBQkn2ISSXxbJWD828PFjtyg+/UrMDo7W4Ffcs7+YWCquxU8YjV1KoxuiL+eJ5pg3ll+bC6flVv61L3LKZg==}
@@ -3496,6 +3503,8 @@ snapshots:
       dequal: 2.0.3
 
   diff@8.0.3: {}
+
+  dotenv@17.2.3: {}
 
   dts-resolver@2.1.2: {}
 

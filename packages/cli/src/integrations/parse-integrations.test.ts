@@ -1,8 +1,8 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildIntegrationsById, getDefaultIntegrationsFilePath, parseIntegrationsFile } from './parse-integrations'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from './parse-integrations'
 
 describe('parseIntegrationsFile', () => {
   let tempDir: string
@@ -270,6 +270,196 @@ describe('parseIntegrationsFile', () => {
       expect(result.issues).toEqual([])
     })
   })
+
+  describe('environment variable resolution', () => {
+    const originalEnv = process.env
+
+    beforeEach(() => {
+      process.env = { ...originalEnv }
+    })
+
+    afterEach(() => {
+      process.env = originalEnv
+    })
+
+    it('resolves env var references in metadata fields', async () => {
+      process.env.TEST_DB_HOST = 'prod.db.example.com'
+      process.env.TEST_DB_PASSWORD = 'super-secret-password'
+
+      const filePath = join(tempDir, 'env-refs.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-with-env
+    name: PostgreSQL with Env Vars
+    type: pgsql
+    metadata:
+      host: "env:TEST_DB_HOST"
+      port: "5432"
+      database: mydb
+      user: myuser
+      password: "env:TEST_DB_PASSWORD"`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].metadata).toHaveProperty('host', 'prod.db.example.com')
+      expect(result.integrations[0].metadata).toHaveProperty('password', 'super-secret-password')
+      expect(result.issues).toEqual([])
+    })
+
+    it('resolves multiple env var references in same integration', async () => {
+      process.env.MULTI_HOST = 'multi.host.com'
+      process.env.MULTI_USER = 'admin'
+      process.env.MULTI_PASS = 'admin-pass'
+      process.env.MULTI_DB = 'production'
+
+      const filePath = join(tempDir, 'multi-env-refs.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-multi-env
+    name: PostgreSQL Multi Env
+    type: pgsql
+    metadata:
+      host: "env:MULTI_HOST"
+      port: "5432"
+      database: "env:MULTI_DB"
+      user: "env:MULTI_USER"
+      password: "env:MULTI_PASS"`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].metadata).toHaveProperty('host', 'multi.host.com')
+      expect(result.integrations[0].metadata).toHaveProperty('database', 'production')
+      expect(result.integrations[0].metadata).toHaveProperty('user', 'admin')
+      expect(result.integrations[0].metadata).toHaveProperty('password', 'admin-pass')
+      expect(result.issues).toEqual([])
+    })
+
+    it('reports error when env var is not found', async () => {
+      delete process.env.NON_EXISTENT_VAR
+
+      const filePath = join(tempDir, 'missing-env.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-missing-env
+    name: PostgreSQL Missing Env
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: myuser
+      password: "env:NON_EXISTENT_VAR"`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      // Integration should not be parsed due to missing env var
+      expect(result.integrations).toHaveLength(0)
+      expect(result.issues).toHaveLength(1)
+      expect(result.issues[0].code).toBe('env_var_not_defined')
+      expect(result.issues[0].message).toContain('NON_EXISTENT_VAR')
+      expect(result.issues[0].message).toContain('PostgreSQL Missing Env')
+      expect(result.issues[0].path).toContain('integrations[0]')
+    })
+
+    it('mixes env var references with plain values', async () => {
+      process.env.MIXED_PASSWORD = 'secret-from-env'
+
+      const filePath = join(tempDir, 'mixed-values.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-mixed
+    name: PostgreSQL Mixed Values
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: plainuser
+      password: "env:MIXED_PASSWORD"
+      sslEnabled: true`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].metadata).toHaveProperty('host', 'localhost')
+      expect(result.integrations[0].metadata).toHaveProperty('user', 'plainuser')
+      expect(result.integrations[0].metadata).toHaveProperty('password', 'secret-from-env')
+      expect(result.integrations[0].metadata).toHaveProperty('sslEnabled', true)
+      expect(result.issues).toEqual([])
+    })
+
+    it('resolves env vars in multiple integrations', async () => {
+      process.env.INT1_PASS = 'password-1'
+      process.env.INT2_PASS = 'password-2'
+
+      const filePath = join(tempDir, 'multi-integrations-env.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-1
+    name: PostgreSQL 1
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: db1
+      user: user1
+      password: "env:INT1_PASS"
+  - id: postgres-2
+    name: PostgreSQL 2
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5433"
+      database: db2
+      user: user2
+      password: "env:INT2_PASS"`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(2)
+      expect(result.integrations[0].metadata).toHaveProperty('password', 'password-1')
+      expect(result.integrations[1].metadata).toHaveProperty('password', 'password-2')
+      expect(result.issues).toEqual([])
+    })
+
+    it('handles UUID-based env var names', async () => {
+      const uuidVarName = '85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD'
+      process.env[uuidVarName] = 'uuid-based-secret'
+
+      const filePath = join(tempDir, 'uuid-env.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-uuid-env
+    name: PostgreSQL UUID Env
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: myuser
+      password: "env:${uuidVarName}"`
+      )
+
+      const result = await parseIntegrationsFile(filePath)
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].metadata).toHaveProperty('password', 'uuid-based-secret')
+      expect(result.issues).toEqual([])
+    })
+  })
 })
 
 describe('getDefaultIntegrationsFilePath', () => {
@@ -283,36 +473,5 @@ describe('getDefaultIntegrationsFilePath', () => {
     const result = getDefaultIntegrationsFilePath('/path/to/project/')
 
     expect(result).toBe('/path/to/project//.deepnote.env.yaml')
-  })
-})
-
-describe('buildIntegrationsById', () => {
-  it('returns empty map for empty array', () => {
-    const result = buildIntegrationsById([])
-
-    expect(result.size).toBe(0)
-  })
-
-  it('builds map with lowercase IDs for case-insensitive matching', () => {
-    const integrations = [
-      { id: 'ABC-123', name: 'Test', type: 'pgsql', metadata: {} },
-      { id: 'def-456', name: 'Test2', type: 'mysql', metadata: {} },
-    ] as Parameters<typeof buildIntegrationsById>[0]
-
-    const result = buildIntegrationsById(integrations)
-
-    expect(result.size).toBe(2)
-    expect(result.has('abc-123')).toBe(true)
-    expect(result.has('ABC-123')).toBe(false) // Original case not in map
-    expect(result.has('def-456')).toBe(true)
-  })
-
-  it('returns the integration config as value', () => {
-    const integration = { id: 'My-ID', name: 'Test', type: 'pgsql', metadata: { host: 'localhost' } }
-    const integrations = [integration] as Parameters<typeof buildIntegrationsById>[0]
-
-    const result = buildIntegrationsById(integrations)
-
-    expect(result.get('my-id')).toEqual(integration)
   })
 })

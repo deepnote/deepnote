@@ -2,6 +2,8 @@ import { join } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
+import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
+
 // Create mock engine functions
 const mockStart = vi.fn()
 const mockStop = vi.fn()
@@ -44,14 +46,7 @@ const mockParseIntegrationsFile = vi.fn()
 vi.mock('../integrations', () => {
   return {
     parseIntegrationsFile: (...args: unknown[]) => mockParseIntegrationsFile(...args),
-    getDefaultIntegrationsFilePath: (dir: string) => `${dir}/.deepnote.env.yaml`,
-    buildIntegrationsById: (integrations: Array<{ id: string }>) => {
-      const map = new Map()
-      for (const integration of integrations) {
-        map.set(integration.id.toLowerCase(), integration)
-      }
-      return map
-    },
+    getDefaultIntegrationsFilePath: (dir: string) => `${dir}/${DEFAULT_INTEGRATIONS_FILE}`,
   }
 })
 

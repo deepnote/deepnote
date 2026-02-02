@@ -25,13 +25,12 @@ export {
   type SqlIntegrationType,
   sqlIntegrationTypes,
 } from './database-integration-types'
+export {
+  getSecretFieldPaths,
+  type MetadataKey,
+} from './secret-field-paths'
 export { getSnowflakeFederatedAuthSqlAlchemyInput } from './snowflake-integration-env-vars'
 export type { SqlAlchemyInput } from './sql-alchemy-types'
-export {
-  getAllSecretFieldPaths,
-  getSecretFieldPaths,
-  isSecretField,
-} from './secret-field-paths'
 export {
   type AwsAuthMethod,
   AwsAuthMethods,

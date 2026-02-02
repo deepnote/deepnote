@@ -1,20 +1,31 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { parseYaml } from '@deepnote/blocks'
-import { getSecretFieldPaths, isDatabaseIntegrationType } from '@deepnote/database-integrations'
 import chalk from 'chalk'
 import { Command } from 'commander'
-import { stringify } from 'yaml'
-import { z } from 'zod'
+import { type Document, isSeq, parseDocument } from 'yaml'
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
+import { fetchIntegrations } from '../integrations/fetch-integrations'
+import { createNewDocument, mergeApiIntegrationsIntoDocument } from '../integrations/merge-integrations'
 import { debug, log, output } from '../output'
+import { ApiError } from '../utils/api'
+import { MissingTokenError } from '../utils/auth'
 import { updateDotEnv } from '../utils/dotenv'
-import { createEnvVarRef, extractEnvVarName, generateEnvVarName } from '../utils/env-var-refs'
+import { isErrnoENOENT } from '../utils/file-resolver'
 
-/**
- * Environment variable name for the Deepnote API token.
- */
-const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN'
+// Re-export merge logic functions for backward compatibility
+export {
+  addIntegrationToSeq,
+  createNewDocument,
+  getOrCreateIntegrationMetadata,
+  getOrCreateIntegrationsFromDocument,
+  InvalidIntegrationsTypeError,
+  type MergeResult,
+  mergeApiIntegrationsIntoDocument,
+  mergeProcessedIntegrations,
+  updateIntegrationInDocument,
+  updateIntegrationMetadataMap,
+} from '../integrations/merge-integrations'
 
 /**
  * Default API base URL.
@@ -22,78 +33,19 @@ const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN'
 const DEFAULT_API_URL = 'https://api.deepnote.com'
 
 /**
- * Default integrations file name.
+ * JSON schema URL for the integrations file.
+ * TODO - change to main branch when the schema is merged
  */
-const DEFAULT_INTEGRATIONS_FILE = '.deepnote.env.yaml'
-
-/**
- * Default .env file name for storing secrets.
- */
-const DEFAULT_ENV_FILE = '.env'
-
 const JSON_SCHEMA_URL =
   'https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json'
 
-// ============================================================================
-// API Response Schemas (Zod Validation)
-// ============================================================================
-
 /**
- * Schema for a single integration from the API.
+ * Schema comment for the YAML file.
  */
-const apiIntegrationSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  type: z.string(),
-  metadata: z.record(z.unknown()),
-  is_public: z.boolean(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  federated_auth_method: z.string().nullable(),
-})
+const SCHEMA_COMMENT = `yaml-language-server: $schema=${JSON_SCHEMA_URL}`
 
-/**
- * Schema for the full API response.
- */
-const apiResponseSchema = z.object({
-  integrations: z.array(apiIntegrationSchema),
-})
-
-export type ApiIntegration = z.infer<typeof apiIntegrationSchema>
-export type ApiResponse = z.infer<typeof apiResponseSchema>
-
-// ============================================================================
-// Error Classes
-// ============================================================================
-
-/**
- * Error thrown when authentication token is missing.
- */
-export class MissingTokenError extends Error {
-  constructor() {
-    super(
-      `Missing authentication token.\n\n` +
-        `Provide a token using one of these methods:\n` +
-        `  --token <token>           Pass token as command-line argument\n` +
-        `  ${DEEPNOTE_TOKEN_ENV}=<token>  Set environment variable\n\n` +
-        `Get your API token from: https://deepnote.com/workspace/settings/api-tokens`
-    )
-    this.name = 'MissingTokenError'
-  }
-}
-
-/**
- * Error thrown when API request fails.
- */
-export class ApiError extends Error {
-  readonly statusCode: number
-
-  constructor(statusCode: number, message: string) {
-    super(message)
-    this.name = 'ApiError'
-    this.statusCode = statusCode
-  }
-}
+// Re-export API types for backward compatibility
+export type { ApiIntegration, ApiResponse } from '../integrations/fetch-integrations'
 
 // ============================================================================
 // Options Interface
@@ -123,274 +75,47 @@ function resolveToken(options: IntegrationsPullOptions): string {
 }
 
 /**
- * Fetch integrations from the Deepnote API.
+ * Read existing integrations file as a YAML Document.
+ * Returns null if file doesn't exist or is empty.
+ * This preserves comments and formatting for later manipulation.
  */
-async function fetchIntegrations(baseUrl: string, token: string): Promise<ApiIntegration[]> {
-  const url = `${baseUrl}/v2/integrations`
-  debug(`Fetching integrations from ${url}`)
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  })
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new ApiError(401, 'Authentication failed. Please check your API token.')
-    }
-    if (response.status === 403) {
-      throw new ApiError(403, 'Access denied. You may not have permission to access integrations.')
-    }
-    throw new ApiError(response.status, `API request failed with status ${response.status}: ${response.statusText}`)
-  }
-
-  const json = await response.json()
-
-  const parseResult = apiResponseSchema.safeParse(json)
-  if (!parseResult.success) {
-    throw new Error(`Invalid API response: ${parseResult.error.message}`)
-  }
-
-  return parseResult.data.integrations
-}
-
-/**
- * Schema for integration entry in the YAML file (for writing).
- * Only includes fields we want to persist locally.
- */
-interface LocalIntegration {
-  id: string
-  name: string
-  type: string
-  metadata: Record<string, unknown>
-  federated_auth_method?: string | null
-}
-
-/**
- * Convert an API integration to local format (only fields we want to store).
- */
-function toLocalIntegration(api: ApiIntegration): LocalIntegration {
-  const local: LocalIntegration = {
-    id: api.id,
-    name: api.name,
-    type: api.type,
-    metadata: api.metadata,
-  }
-
-  // Only include federated_auth_method if it has a value
-  if (api.federated_auth_method !== null) {
-    local.federated_auth_method = api.federated_auth_method
-  }
-
-  return local
-}
-
-/**
- * Read existing integrations file, preserving raw entries.
- * Returns empty array if file doesn't exist.
- */
-async function readRawIntegrations(filePath: string): Promise<unknown[]> {
+export async function readIntegrationsDocument(filePath: string): Promise<Document | null> {
   try {
-    await fs.access(filePath)
-  } catch {
-    // File doesn't exist
-    return []
+    const content = await fs.readFile(filePath, 'utf-8')
+
+    // Handle empty file
+    if (!content.trim()) {
+      return null
+    }
+
+    const doc = parseDocument(content, {
+      strict: true,
+      version: '1.2',
+    })
+
+    return doc
+  } catch (error) {
+    if (isErrnoENOENT(error)) {
+      return null
+    }
+    throw error
   }
-
-  const content = await fs.readFile(filePath, 'utf-8')
-
-  // Handle empty file
-  if (!content.trim()) {
-    return []
-  }
-
-  const parsed = parseYaml(content) as { integrations?: unknown[] } | null
-
-  // Handle file without integrations key or null content
-  if (!parsed || !Array.isArray(parsed.integrations)) {
-    return []
-  }
-
-  return parsed.integrations
 }
 
 /**
- * Merge fetched integrations with existing file entries.
- * Preserves invalid/unparseable entries.
+ * Write integrations document to the YAML file.
+ * Uses doc.toString() to preserve comments and formatting.
  */
-function mergeIntegrations(existingEntries: unknown[], fetchedIntegrations: ApiIntegration[]): unknown[] {
-  // Create map of fetched integrations by ID
-  const fetchedById = new Map<string, LocalIntegration>()
-  for (const integration of fetchedIntegrations) {
-    fetchedById.set(integration.id, toLocalIntegration(integration))
-  }
-
-  // Track which IDs we've seen
-  const seenIds = new Set<string>()
-
-  // Update existing entries
-  const mergedEntries = existingEntries.map(entry => {
-    const entryRecord = entry as Record<string, unknown>
-    const entryId = typeof entryRecord.id === 'string' ? entryRecord.id : undefined
-
-    if (entryId && fetchedById.has(entryId)) {
-      seenIds.add(entryId)
-      return fetchedById.get(entryId) // Replace with fetched version
-    }
-    return entry // Keep existing (possibly invalid) entry
+export async function writeIntegrationsFile(filePath: string, doc: Document): Promise<void> {
+  const yamlContent = doc.toString({
+    lineWidth: 0, // Don't wrap long lines
   })
-
-  // Append new integrations not in original file
-  for (const [id, integration] of fetchedById) {
-    if (!seenIds.has(id)) {
-      mergedEntries.push(integration)
-    }
-  }
-
-  return mergedEntries
-}
-
-/**
- * Find existing env var reference for a specific integration field in existing entries.
- * Returns the env var name if found, or null if not found or not a valid reference.
- */
-function findExistingEnvVarRef(existingEntries: unknown[], integrationId: string, fieldPath: string): string | null {
-  for (const entry of existingEntries) {
-    const entryRecord = entry as Record<string, unknown>
-    if (entryRecord.id !== integrationId) continue
-
-    const metadata = entryRecord.metadata as Record<string, unknown> | undefined
-    if (!metadata) continue
-
-    const fieldValue = metadata[fieldPath]
-    const envVarName = extractEnvVarName(fieldValue)
-
-    // Only return if it's a valid, non-empty env var name
-    if (envVarName) {
-      return envVarName
-    }
-  }
-
-  return null
-}
-
-/**
- * Extract secrets from integrations and replace them with env var references.
- * Returns the secrets to store in .env file.
- */
-function extractAndReplaceSecrets(
-  integrations: ApiIntegration[],
-  existingEntries: unknown[]
-): { processedIntegrations: LocalIntegration[]; secrets: Record<string, string> } {
-  const secrets: Record<string, string> = {}
-  const processedIntegrations: LocalIntegration[] = []
-
-  for (const integration of integrations) {
-    // Create a mutable copy of metadata
-    const metadata = { ...integration.metadata }
-
-    // Get secret field paths for this integration type
-    if (isDatabaseIntegrationType(integration.type)) {
-      const authMethod =
-        typeof metadata.authMethod === 'string' ? metadata.authMethod : (integration.federated_auth_method ?? undefined)
-
-      const secretPaths = getSecretFieldPaths(integration.type, authMethod)
-
-      for (const fieldPath of secretPaths) {
-        const secretValue = metadata[fieldPath]
-
-        // Skip if field is undefined or null
-        if (secretValue === undefined || secretValue === null) {
-          continue
-        }
-
-        // Check if existing YAML entry has a custom env var reference
-        const existingEnvVarName = findExistingEnvVarRef(existingEntries, integration.id, fieldPath)
-
-        // Use existing env var name or generate a new one
-        const envVarName = existingEnvVarName ?? generateEnvVarName(integration.id, fieldPath)
-
-        // Store the secret value
-        secrets[envVarName] = String(secretValue)
-
-        // Replace the secret with an env var reference
-        metadata[fieldPath] = createEnvVarRef(envVarName)
-      }
-    }
-
-    // Create local integration with updated metadata
-    const local: LocalIntegration = {
-      id: integration.id,
-      name: integration.name,
-      type: integration.type,
-      metadata,
-    }
-
-    if (integration.federated_auth_method !== null) {
-      local.federated_auth_method = integration.federated_auth_method
-    }
-
-    processedIntegrations.push(local)
-  }
-
-  return { processedIntegrations, secrets }
-}
-
-/**
- * Merge processed integrations with existing file entries.
- * Uses the processed integrations (with env var refs) instead of raw API data.
- */
-function mergeProcessedIntegrations(existingEntries: unknown[], processedIntegrations: LocalIntegration[]): unknown[] {
-  // Create map of processed integrations by ID
-  const processedById = new Map<string, LocalIntegration>()
-  for (const integration of processedIntegrations) {
-    processedById.set(integration.id, integration)
-  }
-
-  // Track which IDs we've seen
-  const seenIds = new Set<string>()
-
-  // Update existing entries
-  const mergedEntries = existingEntries.map(entry => {
-    const entryRecord = entry as Record<string, unknown>
-    const entryId = typeof entryRecord.id === 'string' ? entryRecord.id : undefined
-
-    if (entryId && processedById.has(entryId)) {
-      seenIds.add(entryId)
-      return processedById.get(entryId) // Replace with processed version
-    }
-    return entry // Keep existing (possibly invalid) entry
-  })
-
-  // Append new integrations not in original file
-  for (const [id, integration] of processedById) {
-    if (!seenIds.has(id)) {
-      mergedEntries.push(integration)
-    }
-  }
-
-  return mergedEntries
-}
-
-/**
- * Write integrations to the YAML file.
- */
-async function writeIntegrationsFile(filePath: string, integrations: unknown[]): Promise<void> {
-  const yamlContent = stringify(
-    { integrations },
-    {
-      lineWidth: 0, // Don't wrap long lines
-    }
-  )
 
   // Ensure parent directory exists
   const dir = path.dirname(filePath)
   await fs.mkdir(dir, { recursive: true })
 
-  await fs.writeFile(filePath, `# yaml-language-server: $schema=${JSON_SCHEMA_URL}\n\n${yamlContent}`, 'utf-8')
+  await fs.writeFile(filePath, yamlContent, 'utf-8')
 }
 
 /**
@@ -414,19 +139,23 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
 
   log(chalk.dim(`Found ${fetchedIntegrations.length} integration(s).`))
 
-  // Read existing file (if any)
-  const existingEntries = await readRawIntegrations(filePath)
-  debug(`Read ${existingEntries.length} existing entries from ${filePath}`)
+  // Read existing document (if any) - preserves comments and formatting
+  const existingDoc = await readIntegrationsDocument(filePath)
+  debug(`Read existing document from ${filePath}: ${existingDoc ? 'found' : 'not found'}`)
+  const doc = existingDoc ?? createNewDocument()
 
-  // Extract secrets and replace with env var references
-  const { processedIntegrations, secrets } = extractAndReplaceSecrets(fetchedIntegrations, existingEntries)
+  // Merge API integrations into document and extract secrets
+  const { secrets, stats } = await mergeApiIntegrationsIntoDocument(doc, fetchedIntegrations)
+
+  // Ensure schema comment is set
+  if (doc.commentBefore == null || !doc.commentBefore.includes('yaml-language-server')) {
+    doc.commentBefore = SCHEMA_COMMENT
+  }
+
   const secretCount = Object.keys(secrets).length
   if (secretCount > 0) {
     debug(`Extracted ${secretCount} secret(s) to store in ${envFilePath}`)
   }
-
-  // Merge integrations (using processed versions with env var refs)
-  const mergedEntries = mergeProcessedIntegrations(existingEntries, processedIntegrations)
 
   // Write secrets to .env file
   if (secretCount > 0) {
@@ -434,24 +163,22 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
     log(chalk.dim(`Updated ${envFilePath} with ${secretCount} secret(s)`))
   }
 
-  // Write YAML file (with secrets replaced by env var references)
-  await writeIntegrationsFile(filePath, mergedEntries)
+  // Write YAML file (with comments and formatting preserved)
+  await writeIntegrationsFile(filePath, doc)
 
-  // Report results
-  const newCount = fetchedIntegrations.filter(
-    fetched => !existingEntries.some(existing => (existing as Record<string, unknown>).id === fetched.id)
-  ).length
-  const updatedCount = fetchedIntegrations.length - newCount
+  // Get final count of integrations in the document
+  const finalIntegrations = doc.get('integrations')
+  const finalCount = isSeq(finalIntegrations) ? finalIntegrations.items.length : 0
 
   output(chalk.green(`Successfully updated ${filePath}`))
-  if (newCount > 0) {
-    output(chalk.dim(`  Added ${newCount} new integration(s)`))
+  if (stats.newCount > 0) {
+    output(chalk.dim(`  Added ${stats.newCount} new integration(s)`))
   }
-  if (updatedCount > 0) {
-    output(chalk.dim(`  Updated ${updatedCount} existing integration(s)`))
+  if (stats.updatedCount > 0) {
+    output(chalk.dim(`  Updated ${stats.updatedCount} existing integration(s)`))
   }
-  if (existingEntries.length > fetchedIntegrations.length) {
-    const preservedCount = mergedEntries.length - fetchedIntegrations.length
+  if (stats.existingCount > fetchedIntegrations.length) {
+    const preservedCount = finalCount - fetchedIntegrations.length
     if (preservedCount > 0) {
       output(chalk.dim(`  Preserved ${preservedCount} local-only integration(s)`))
     }

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { hasDotEnvVariable, readDotEnv, readDotEnvRaw, updateDotEnv } from './dotenv'
+import { readDotEnv, updateDotEnv } from './dotenv'
 
 describe('dotenv utilities', () => {
   let tempDir: string
@@ -78,9 +78,10 @@ describe('dotenv utilities', () => {
     })
 
     it('handles escaped quotes in double-quoted values', async () => {
+      // Note: dotenv package preserves backslash-escaped quotes as-is
       await fs.writeFile(envFilePath, 'MY_VAR="hello \\"world\\""\n')
       const result = await readDotEnv(envFilePath)
-      expect(result).toEqual({ MY_VAR: 'hello "world"' })
+      expect(result).toEqual({ MY_VAR: 'hello \\"world\\"' })
     })
   })
 
@@ -115,14 +116,14 @@ describe('dotenv utilities', () => {
     it('preserves comments', async () => {
       await fs.writeFile(envFilePath, '# Database credentials\nDB_PASS=secret\n')
       await updateDotEnv(envFilePath, { DB_PASS: 'new_secret' })
-      const content = await readDotEnvRaw(envFilePath)
+      const content = await fs.readFile(envFilePath, 'utf-8')
       expect(content).toContain('# Database credentials')
     })
 
     it('preserves empty lines', async () => {
       await fs.writeFile(envFilePath, 'VAR1=value1\n\nVAR2=value2\n')
       await updateDotEnv(envFilePath, { VAR1: 'updated' })
-      const content = await readDotEnvRaw(envFilePath)
+      const content = await fs.readFile(envFilePath, 'utf-8')
       expect(content).toContain('\n\n')
     })
 
@@ -175,34 +176,6 @@ describe('dotenv utilities', () => {
       await updateDotEnv(envFilePath, { MY_VAR: 'value' })
       const result = await readDotEnv(envFilePath)
       expect(result).toEqual({ MY_VAR: 'value' })
-    })
-  })
-
-  describe('hasDotEnvVariable', () => {
-    it('returns true when variable exists', async () => {
-      await fs.writeFile(envFilePath, 'MY_VAR=hello\n')
-      expect(await hasDotEnvVariable(envFilePath, 'MY_VAR')).toBe(true)
-    })
-
-    it('returns false when variable does not exist', async () => {
-      await fs.writeFile(envFilePath, 'MY_VAR=hello\n')
-      expect(await hasDotEnvVariable(envFilePath, 'OTHER_VAR')).toBe(false)
-    })
-
-    it('returns false for missing file', async () => {
-      expect(await hasDotEnvVariable(path.join(tempDir, 'missing.env'), 'MY_VAR')).toBe(false)
-    })
-  })
-
-  describe('readDotEnvRaw', () => {
-    it('returns raw file content', async () => {
-      const content = '# Comment\nMY_VAR=hello\n'
-      await fs.writeFile(envFilePath, content)
-      expect(await readDotEnvRaw(envFilePath)).toBe(content)
-    })
-
-    it('returns empty string for missing file', async () => {
-      expect(await readDotEnvRaw(path.join(tempDir, 'missing.env'))).toBe('')
     })
   })
 })
