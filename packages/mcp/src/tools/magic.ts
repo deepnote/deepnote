@@ -7,22 +7,30 @@ import { buildDagFromBlocks, getBlockDependencies } from '@deepnote/reactivity'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
 
+/**
+ * Format output based on compact mode - omit null/empty, use single-line JSON
+ */
+function formatOutput(data: object, compact: boolean): string {
+  if (compact) {
+    const filtered = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => {
+        if (v == null) return false
+        if (Array.isArray(v) && v.length === 0) return false
+        if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return false
+        return true
+      })
+    )
+    return JSON.stringify(filtered)
+  }
+  return JSON.stringify(data, null, 2)
+}
+
 export const magicTools: Tool[] = [
   {
     name: 'deepnote_scaffold',
     title: 'Scaffold New Notebook',
-    description: `Create a complete, working notebook from a natural language description. 
-
-Examples of descriptions:
-- "Data analysis notebook that loads a CSV, explores with summary stats and visualizations, trains a random forest model"
-- "Dashboard that shows sales metrics with date range picker and category filter"
-- "ETL pipeline that reads from PostgreSQL, transforms data, and writes to S3"
-
-The tool generates a properly structured notebook with:
-- Markdown documentation explaining each section
-- Code blocks with working Python code
-- Input blocks for configurable parameters
-- Visualization suggestions where appropriate`,
+    description:
+      'Create notebook from natural language description. Generates code, docs, and input blocks. Style: minimal/documented/tutorial.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -44,6 +52,10 @@ The tool generates a properly structured notebook with:
           description:
             'Documentation style: minimal (code only), documented (with explanations), tutorial (step-by-step) (default: documented)',
         },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output - omit empty fields, minimal formatting',
+        },
       },
       required: ['description', 'outputPath'],
     },
@@ -57,15 +69,8 @@ The tool generates a properly structured notebook with:
   {
     name: 'deepnote_enhance',
     title: 'Enhance Notebook',
-    description: `Transform a basic notebook into an interactive, well-documented one.
-
-Enhancements applied:
-- documentation: Add markdown blocks explaining code sections
-- inputs: Convert hardcoded values (test_size, threshold, n_estimators, etc.) to input-slider blocks
-- structure: Add section headers (h1, h2) to organize the notebook flow
-- visualizations: Suggest adding visualizations for DataFrame outputs (noted in changes, not auto-applied)
-
-Use dryRun=true to preview changes before applying.`,
+    description:
+      'Add documentation, convert hardcoded values to inputs, organize with headers. Use enhancements=[documentation,inputs,structure,all].',
     inputSchema: {
       type: 'object',
       properties: {
@@ -85,6 +90,10 @@ Use dryRun=true to preview changes before applying.`,
           type: 'boolean',
           description: 'If true, return enhancement plan without modifying file (default: false)',
         },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output - omit empty fields, minimal formatting',
+        },
       },
       required: ['path'],
     },
@@ -98,15 +107,8 @@ Use dryRun=true to preview changes before applying.`,
   {
     name: 'deepnote_fix',
     title: 'Auto-Fix Issues',
-    description: `Auto-fix issues in a notebook without manual intervention.
-
-Fixes applied:
-- imports: Add missing imports (pandas, numpy, matplotlib, etc.) based on usage patterns
-- undefined: Flag undefined variables that aren't defined in earlier blocks
-- circular: Detect circular dependencies using DAG analysis and attempt to fix by reordering blocks
-
-Note: Requires Python for AST analysis of circular dependencies.
-Use dryRun=true to preview fixes before applying.`,
+    description:
+      'Auto-fix: add missing imports, flag undefined vars, fix circular deps. Use fixTypes=[imports,undefined,circular,all].',
     inputSchema: {
       type: 'object',
       properties: {
@@ -126,6 +128,10 @@ Use dryRun=true to preview fixes before applying.`,
           type: 'boolean',
           description: 'If true, return fix plan without modifying file (default: false)',
         },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output - omit empty fields, minimal formatting',
+        },
       },
       required: ['path'],
     },
@@ -139,16 +145,8 @@ Use dryRun=true to preview fixes before applying.`,
   {
     name: 'deepnote_explain',
     title: 'Explain Notebook',
-    description: `Generate comprehensive documentation for a notebook.
-
-Returns a markdown document explaining:
-- What the notebook does (high-level summary)
-- Data flow between blocks (which variables are passed where)
-- Key outputs and visualizations
-- Dependencies and requirements
-- How to run it
-
-Great for onboarding or creating README documentation.`,
+    description:
+      'Generate documentation: summary, data flow, requirements. Format: markdown/text/json. Detail: brief/standard/comprehensive.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -178,16 +176,8 @@ Great for onboarding or creating README documentation.`,
   {
     name: 'deepnote_suggest',
     title: 'Get Suggestions',
-    description: `Analyze a notebook and provide actionable improvement suggestions.
-
-Suggestions may include:
-- "Block 3 outputs a dataframe - consider adding a table display"
-- "The threshold value 0.5 on line 12 could be an input slider"
-- "Missing error handling for file loading in block 2"
-- "Consider adding a markdown section before the model training"
-- "Block 5 has no downstream dependents - is it needed?"
-
-Each suggestion includes the specific block, what to change, and why.`,
+    description:
+      'Get improvement suggestions. Categories: documentation, interactivity, visualization, code-quality, structure, all.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -203,6 +193,10 @@ Each suggestion includes the specific block, what to change, and why.`,
           },
           description: 'Categories of suggestions to include (default: ["all"])',
         },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output - omit empty fields, minimal formatting',
+        },
       },
       required: ['path'],
     },
@@ -215,16 +209,7 @@ Each suggestion includes the specific block, what to change, and why.`,
   {
     name: 'deepnote_template',
     title: 'Apply Template',
-    description: `Apply a pre-built template pattern to create a specialized notebook.
-
-Available templates:
-- dashboard: KPI displays, filters, date ranges, and charts layout
-- ml_pipeline: Data loading, preprocessing, training, evaluation sections
-- etl: Extract-Transform-Load pipeline with validation
-- report: Narrative structure with data, analysis, and conclusions
-- api_client: API integration with authentication, requests, and caching
-
-Each template includes proper structure, input blocks, and documentation.`,
+    description: 'Create from template: dashboard, ml_pipeline, etl, report, api_client.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -259,20 +244,7 @@ Each template includes proper structure, input blocks, and documentation.`,
   {
     name: 'deepnote_refactor',
     title: 'Refactor to Module',
-    description: `Extract reusable code from a notebook into a module notebook.
-
-This tool:
-1. Extracts functions and/or classes from specified blocks
-2. Creates a new module notebook with the extracted code
-3. Removes the extracted code from the source blocks
-4. Adds import statements to the source notebooks
-
-Useful for:
-- Creating shared utility functions
-- Separating data loading logic
-- Building reusable analysis components
-
-Use dryRun=true to preview what will be extracted.`,
+    description: 'Extract functions/classes into a module notebook. Pattern: functions, classes, all, selected.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -311,14 +283,7 @@ Use dryRun=true to preview what will be extracted.`,
   {
     name: 'deepnote_profile',
     title: 'Add Profiling',
-    description: `Add execution timing and profiling to code blocks.
-
-Wraps code blocks with timing decorators and adds summary blocks showing:
-- Execution time per block
-- Memory usage (if available)
-- Performance bottlenecks
-
-Useful for optimizing slow notebooks.`,
+    description: 'Add timing to code blocks. Optional memory profiling with includeMemory=true.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -352,14 +317,7 @@ Useful for optimizing slow notebooks.`,
   {
     name: 'deepnote_test',
     title: 'Generate Tests',
-    description: `Generate test cells for functions and classes in a notebook.
-
-Analyzes function signatures and docstrings to create:
-- Unit test cells using pytest or unittest
-- Example usage cells showing expected behavior
-- Edge case tests where applicable
-
-Adds tests as new code blocks after each function definition.`,
+    description: 'Generate test cells for functions. Framework: pytest, unittest, or assert.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -394,28 +352,31 @@ Adds tests as new code blocks after each function definition.`,
   {
     name: 'deepnote_workflow',
     title: 'Run Workflow',
-    description: `Execute a sequence of Deepnote tools as a workflow.
+    description: `Execute a sequence of Deepnote tools or a preset workflow.
 
-Chain multiple operations together:
-- Convert a Jupyter notebook to Deepnote
-- Lint and fix issues
-- Enhance with inputs and documentation
-- Generate tests
+Presets (use instead of steps):
+- quickstart: scaffold + enhance
+- import: convert_to + lint + fix  
+- polish: lint + fix + enhance + suggest
 
-Each step receives the output path from the previous step if applicable.`,
+Or provide custom steps to chain operations together.`,
     inputSchema: {
       type: 'object',
       properties: {
+        preset: {
+          type: 'string',
+          enum: ['quickstart', 'import', 'polish'],
+          description: 'Use a predefined workflow (alternative to steps)',
+        },
         steps: {
           type: 'array',
-          description: 'Sequence of tool operations to execute',
+          description: 'Custom sequence of tool operations (ignored if preset is set)',
           items: {
             type: 'object',
             properties: {
               tool: {
                 type: 'string',
-                description:
-                  'Tool name (without deepnote_ prefix): convert_to, lint, fix, enhance, suggest, explain, etc.',
+                description: 'Tool name (without deepnote_ prefix)',
               },
               args: {
                 type: 'object',
@@ -426,12 +387,27 @@ Each step receives the output path from the previous step if applicable.`,
             required: ['tool'],
           },
         },
+        path: {
+          type: 'string',
+          description: 'Input file path (required for import/polish presets)',
+        },
+        outputPath: {
+          type: 'string',
+          description: 'Output file path (required for quickstart preset)',
+        },
+        description: {
+          type: 'string',
+          description: 'Notebook description (required for quickstart preset)',
+        },
         stopOnError: {
           type: 'boolean',
           description: 'Stop workflow if a step fails (default: true)',
         },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output - omit empty fields, minimal formatting',
+        },
       },
-      required: ['steps'],
     },
     annotations: {
       readOnlyHint: false,
@@ -503,6 +479,7 @@ async function handleScaffold(args: Record<string, unknown>) {
   const outputPath = args.outputPath as string
   const projectName = args.projectName as string | undefined
   const style = (args.style as string) || 'documented'
+  const compact = args.compact as boolean | undefined
 
   // Parse the description to identify components
   const descLower = description.toLowerCase()
@@ -867,23 +844,25 @@ df_transformed.head()`,
 
   await saveDeepnoteFile(outputPath, file)
 
+  const responseData = {
+    success: true,
+    path: outputPath,
+    projectName: title,
+    style,
+    blocksCreated: blocks.length,
+    sections: compact
+      ? undefined
+      : blocks.filter(b => b.type.includes('h1') || b.type.includes('h2')).map(b => b.content),
+    hint: compact
+      ? undefined
+      : 'Review the generated code and customize variable names, file paths, and column names for your specific use case.',
+  }
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
-          {
-            success: true,
-            path: outputPath,
-            projectName: title,
-            style,
-            blocksCreated: blocks.length,
-            sections: blocks.filter(b => b.type.includes('h1') || b.type.includes('h2')).map(b => b.content),
-            hint: 'Review the generated code and customize variable names, file paths, and column names for your specific use case.',
-          },
-          null,
-          2
-        ),
+        text: formatOutput(responseData, compact || false),
       },
     ],
   }
@@ -902,6 +881,7 @@ async function handleEnhance(args: Record<string, unknown>) {
   const filePath = args.path as string
   const enhancements = (args.enhancements as string[]) || ['all']
   const dryRun = args.dryRun as boolean | undefined
+  const compact = args.compact as boolean | undefined
 
   const file = await loadDeepnoteFile(filePath)
   const enhanceAll = enhancements.includes('all')
@@ -1130,43 +1110,27 @@ async function handleEnhance(args: Record<string, unknown>) {
   }
 
   if (dryRun) {
+    const responseData = {
+      dryRun: true,
+      path: filePath,
+      proposedChanges: changes.length,
+      changes: compact && changes.length === 0 ? undefined : changes,
+    }
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              dryRun: true,
-              path: filePath,
-              proposedChanges: changes.length,
-              changes,
-            },
-            null,
-            2
-          ),
-        },
-      ],
+      content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
     }
   }
 
   await saveDeepnoteFile(filePath, file)
 
+  const responseData = {
+    success: true,
+    path: filePath,
+    changesApplied: changes.length,
+    changes: compact && changes.length === 0 ? undefined : changes,
+  }
   return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
-          {
-            success: true,
-            path: filePath,
-            changesApplied: changes.length,
-            changes,
-          },
-          null,
-          2
-        ),
-      },
-    ],
+    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
   }
 }
 
@@ -1174,6 +1138,7 @@ async function handleFix(args: Record<string, unknown>) {
   const filePath = args.path as string
   const fixTypes = (args.fixTypes as string[]) || ['all']
   const dryRun = args.dryRun as boolean | undefined
+  const compact = args.compact as boolean | undefined
 
   const file = await loadDeepnoteFile(filePath)
   const fixAll = fixTypes.includes('all')
@@ -1381,44 +1346,28 @@ async function handleFix(args: Record<string, unknown>) {
   }
 
   if (dryRun) {
+    const responseData = {
+      dryRun: true,
+      path: filePath,
+      issuesFound: fixes.length,
+      fixes: compact && fixes.length === 0 ? undefined : fixes,
+    }
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              dryRun: true,
-              path: filePath,
-              issuesFound: fixes.length,
-              fixes,
-            },
-            null,
-            2
-          ),
-        },
-      ],
+      content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
     }
   }
 
   await saveDeepnoteFile(filePath, file)
 
+  const responseData = {
+    success: true,
+    path: filePath,
+    fixesApplied: fixes.filter(f => f.type === 'imports').length,
+    issuesRemaining: fixes.filter(f => f.type !== 'imports').length,
+    fixes: compact && fixes.length === 0 ? undefined : fixes,
+  }
   return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
-          {
-            success: true,
-            path: filePath,
-            fixesApplied: fixes.filter(f => f.type === 'imports').length,
-            issuesRemaining: fixes.filter(f => f.type !== 'imports').length,
-            fixes,
-          },
-          null,
-          2
-        ),
-      },
-    ],
+    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
   }
 }
 
@@ -1590,6 +1539,7 @@ function describeCodeBlock(content: string): string {
 async function handleSuggest(args: Record<string, unknown>) {
   const filePath = args.path as string
   const categories = (args.categories as string[]) || ['all']
+  const compact = args.compact as boolean | undefined
 
   const file = await loadDeepnoteFile(filePath)
   const suggestAll = categories.includes('all')
@@ -1769,25 +1719,17 @@ async function handleSuggest(args: Record<string, unknown>) {
   const priorityOrder = { high: 0, medium: 1, low: 2 }
   suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
 
+  const responseData = {
+    path: filePath,
+    suggestionCount: suggestions.length,
+    suggestions: compact && suggestions.length === 0 ? undefined : suggestions,
+    summary:
+      suggestions.length === 0
+        ? 'No suggestions - notebook looks good!'
+        : `Found ${suggestions.length} suggestions for improvement`,
+  }
   return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
-          {
-            path: filePath,
-            suggestionCount: suggestions.length,
-            suggestions,
-            summary:
-              suggestions.length === 0
-                ? 'No suggestions - notebook looks good!'
-                : `Found ${suggestions.length} suggestions for improvement`,
-          },
-          null,
-          2
-        ),
-      },
-    ],
+    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
   }
 }
 
@@ -2765,14 +2707,51 @@ print(f"✓ ${funcName} tests passed")`
   }
 }
 
+// Workflow preset definitions
+const workflowPresets: Record<string, Array<{ tool: string; args?: Record<string, unknown> }>> = {
+  quickstart: [{ tool: 'scaffold' }, { tool: 'enhance' }],
+  import: [{ tool: 'convert_to' }, { tool: 'lint' }, { tool: 'fix' }],
+  polish: [{ tool: 'lint' }, { tool: 'fix' }, { tool: 'enhance' }, { tool: 'suggest' }],
+}
+
 async function handleWorkflow(args: Record<string, unknown>) {
-  const steps = args.steps as Array<{ tool: string; args?: Record<string, unknown> }>
+  const preset = args.preset as string | undefined
+  const compact = args.compact as boolean | undefined
   const stopOnError = args.stopOnError !== false // default true
 
-  if (!steps || steps.length === 0) {
-    return {
-      content: [{ type: 'text', text: 'No workflow steps provided' }],
-      isError: true,
+  // Expand preset into steps or use custom steps
+  let steps: Array<{ tool: string; args?: Record<string, unknown> }>
+
+  if (preset) {
+    const presetSteps = workflowPresets[preset]
+    if (!presetSteps) {
+      return {
+        content: [
+          { type: 'text', text: `Unknown preset: ${preset}. Available: ${Object.keys(workflowPresets).join(', ')}` },
+        ],
+        isError: true,
+      }
+    }
+
+    // Build steps from preset with provided args
+    steps = presetSteps.map(step => ({
+      tool: step.tool,
+      args: {
+        ...step.args,
+        // Pass through common args
+        ...(args.path ? { path: args.path, inputPath: args.path } : {}),
+        ...(args.outputPath ? { outputPath: args.outputPath } : {}),
+        ...(args.description ? { description: args.description } : {}),
+        ...(compact ? { compact } : {}),
+      },
+    }))
+  } else {
+    steps = args.steps as Array<{ tool: string; args?: Record<string, unknown> }>
+    if (!steps || steps.length === 0) {
+      return {
+        content: [{ type: 'text', text: 'Provide either a preset or custom steps' }],
+        isError: true,
+      }
     }
   }
 
@@ -2784,7 +2763,7 @@ async function handleWorkflow(args: Record<string, unknown>) {
     error?: string
   }> = []
 
-  let lastOutputPath: string | undefined
+  let lastOutputPath: string | undefined = args.path as string | undefined
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
@@ -2831,6 +2810,14 @@ async function handleWorkflow(args: Record<string, unknown>) {
         case 'test':
           result = await handleTest(toolArgs)
           break
+        case 'lint':
+          // Lint is a reading tool, import it
+          result = await import('./reading').then(m => m.handleReadingTool('deepnote_lint', toolArgs))
+          break
+        case 'convert_to':
+          // Convert is a conversion tool, import it
+          result = await import('./conversion').then(m => m.handleConversionTool('deepnote_convert_to', toolArgs))
+          break
         default:
           result = {
             content: [{ type: 'text', text: `Unknown tool: ${step.tool}` }],
@@ -2864,7 +2851,7 @@ async function handleWorkflow(args: Record<string, unknown>) {
         step: i + 1,
         tool: toolName,
         success: !result.isError,
-        result: parsedResult,
+        result: compact ? undefined : parsedResult,
       })
 
       if (result.isError && stopOnError) {
@@ -2887,22 +2874,16 @@ async function handleWorkflow(args: Record<string, unknown>) {
 
   const allSuccess = results.every(r => r.success)
 
+  const responseData = {
+    success: allSuccess,
+    preset: preset || undefined,
+    stepsCompleted: results.length,
+    totalSteps: steps.length,
+    results: compact ? results.map(r => ({ step: r.step, tool: r.tool, success: r.success, error: r.error })) : results,
+  }
+
   return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
-          {
-            success: allSuccess,
-            stepsCompleted: results.length,
-            totalSteps: steps.length,
-            results,
-          },
-          null,
-          2
-        ),
-      },
-    ],
+    content: [{ type: 'text', text: formatOutput(responseData, compact || false) }],
   }
 }
 

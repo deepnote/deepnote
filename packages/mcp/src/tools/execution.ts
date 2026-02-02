@@ -28,6 +28,75 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024
 // Supported file extensions for running
 const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
 
+// Output summary limits
+const MAX_OUTPUT_CHARS_PER_BLOCK = 500
+const MAX_BLOCKS_IN_SUMMARY = 5
+
+/**
+ * Format output based on compact mode - omit null/empty, use single-line JSON
+ */
+function formatOutput(data: object, compact: boolean): string {
+  if (compact) {
+    const filtered = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => {
+        if (v == null) return false
+        if (Array.isArray(v) && v.length === 0) return false
+        if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return false
+        return true
+      })
+    )
+    return JSON.stringify(filtered)
+  }
+  return JSON.stringify(data, null, 2)
+}
+
+/**
+ * Extract a text summary from block outputs for inline display.
+ */
+function summarizeBlockOutputs(
+  blockOutputs: Array<{ id: string; outputs: unknown[] }>,
+  maxBlocks = MAX_BLOCKS_IN_SUMMARY,
+  maxChars = MAX_OUTPUT_CHARS_PER_BLOCK
+): Array<{ blockId: string; outputSummary: string; truncated: boolean }> {
+  const summaries: Array<{ blockId: string; outputSummary: string; truncated: boolean }> = []
+
+  for (const block of blockOutputs.slice(0, maxBlocks)) {
+    if (!block.outputs || block.outputs.length === 0) continue
+
+    let outputText = ''
+    for (const output of block.outputs) {
+      const out = output as Record<string, unknown>
+
+      // Handle different output types
+      if (out.output_type === 'stream' && typeof out.text === 'string') {
+        outputText += out.text
+      } else if (out.output_type === 'execute_result' || out.output_type === 'display_data') {
+        const data = out.data as Record<string, unknown> | undefined
+        if (data?.['text/plain']) {
+          outputText += String(data['text/plain'])
+        } else if (data?.['text/html']) {
+          outputText += '[HTML output]'
+        } else if (data?.['image/png'] || data?.['image/jpeg']) {
+          outputText += '[Image output]'
+        }
+      } else if (out.output_type === 'error') {
+        const ename = out.ename || 'Error'
+        const evalue = out.evalue || ''
+        outputText += `${ename}: ${evalue}`
+      }
+    }
+
+    const truncated = outputText.length > maxChars
+    summaries.push({
+      blockId: block.id.slice(0, 8),
+      outputSummary: truncated ? `${outputText.slice(0, maxChars)}...` : outputText,
+      truncated,
+    })
+  }
+
+  return summaries
+}
+
 interface ConvertedFile {
   file: DeepnoteFile
   originalPath: string
@@ -39,20 +108,8 @@ export const executionTools: Tool[] = [
   {
     name: 'deepnote_run',
     title: 'Run Project',
-    description: `Execute a notebook locally using Python.
-
-**Outputs are saved to a snapshot file.** The response includes \`snapshotPath\` - use \`deepnote_snapshot_load\` to inspect results, errors, and debug information.
-
-Supported formats: .deepnote, .ipynb, .py (percent/marimo), .qmd
-
-Execution levels:
-- **Project level** (default): Runs ALL notebooks in order
-- **Notebook level**: Use 'notebook' param to run a single notebook
-- **Block level**: Use deepnote_run_block instead
-
-**Debugging:** After running, use \`deepnote_snapshot_load path=<snapshotPath>\` to see all outputs (stdout, stderr, charts, errors, timing).
-
-Requires Python to be installed.`,
+    description:
+      'Run notebook locally. Supports .deepnote, .ipynb, .py, .qmd. Returns outputs inline by default (includeOutputSummary=true).',
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -84,6 +141,14 @@ Requires Python to be installed.`,
           type: 'boolean',
           description: 'If true, show execution plan without running (default: false)',
         },
+        includeOutputSummary: {
+          type: 'boolean',
+          description: 'Include truncated output summary in response, avoiding need for snapshot_load (default: true)',
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Compact output - omit empty fields, minimal formatting',
+        },
       },
       required: ['path'],
     },
@@ -91,8 +156,7 @@ Requires Python to be installed.`,
   {
     name: 'deepnote_run_block',
     title: 'Run Single Block',
-    description:
-      'Execute a specific block from a notebook. Outputs are saved to a snapshot file - use deepnote_snapshot_load to inspect results.',
+    description: 'Run a specific block by ID. Includes dependencies.',
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -126,12 +190,7 @@ Requires Python to be installed.`,
   {
     name: 'deepnote_open',
     title: 'Open in Deepnote Cloud',
-    description: `Upload a .deepnote file to Deepnote Cloud and get a shareable URL.
-
-The notebook is uploaded anonymously (no account required) and can be opened
-in a browser to run in the cloud with full Python/data science environment.
-
-Returns the launch URL that can be shared with others.`,
+    description: 'Upload to Deepnote Cloud and get a shareable URL. No account required.',
     annotations: {
       readOnlyHint: true, // Doesn't modify local files
       destructiveHint: false,
@@ -293,6 +352,8 @@ async function handleRun(args: Record<string, unknown>) {
   const pythonPath = args.pythonPath as string | undefined
   const inputs = args.inputs as Record<string, unknown> | undefined
   const dryRun = args.dryRun as boolean | undefined
+  const includeOutputSummary = args.includeOutputSummary !== false // default true
+  const compact = args.compact as boolean | undefined
 
   // Load file, auto-converting from other formats if needed
   const { file, originalPath, format, wasConverted } = await resolveAndConvertToDeepnote(filePath)
@@ -408,32 +469,39 @@ async function handleRun(args: Record<string, unknown>) {
       console.error('[deepnote-mcp] Failed to save execution snapshot:', error instanceof Error ? error.message : error)
     }
 
+    // Generate output summaries if requested
+    const outputSummaries = includeOutputSummary ? summarizeBlockOutputs(blockOutputs) : undefined
+
+    const responseData = {
+      success: true,
+      level: notebookFilter ? 'notebook' : 'project',
+      notebooks: notebooks.map(n => n.name),
+      executedBlocks: summary.executedBlocks,
+      failedBlocks: summary.failedBlocks,
+      totalBlocks: summary.totalBlocks,
+      durationMs: summary.totalDurationMs,
+      format,
+      wasConverted,
+      snapshotPath,
+      execution: compact
+        ? undefined
+        : {
+            startedAt: executionStartedAt,
+            finishedAt: executionFinishedAt,
+          },
+      results: compact ? results.filter(r => !r.success || r.error) : results,
+      ...(outputSummaries && outputSummaries.length > 0 ? { outputSummaries } : {}),
+      hint:
+        snapshotPath && !includeOutputSummary
+          ? 'Use deepnote_snapshot_load to inspect outputs, errors, and debug info'
+          : undefined,
+    }
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              level: notebookFilter ? 'notebook' : 'project',
-              notebooks: notebooks.map(n => n.name),
-              executedBlocks: summary.executedBlocks,
-              failedBlocks: summary.failedBlocks,
-              totalBlocks: summary.totalBlocks,
-              durationMs: summary.totalDurationMs,
-              format,
-              wasConverted,
-              snapshotPath,
-              execution: {
-                startedAt: executionStartedAt,
-                finishedAt: executionFinishedAt,
-              },
-              results,
-              hint: snapshotPath ? 'Use deepnote_snapshot_load to inspect outputs, errors, and debug info' : undefined,
-            },
-            null,
-            2
-          ),
+          text: formatOutput(responseData, compact || false),
         },
       ],
     }
