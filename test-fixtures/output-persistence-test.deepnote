@@ -1,0 +1,29 @@
+metadata:
+  createdAt: 2024-01-01T00:00:00.000Z
+  modifiedAt: 2024-01-01T00:00:00.000Z
+version: "1"
+project:
+  id: test-project-id-1234-5678-90ab
+  name: Test Project
+  notebooks:
+    - id: notebook-1
+      name: Notebook 1
+      blocks:
+        - id: block-1
+          type: code
+          content: print("hello")
+          sortingKey: a0
+          blockGroup: group-1
+          metadata: {}
+        - id: block-2
+          type: code
+          content: x = 42
+          sortingKey: a1
+          blockGroup: group-1
+          metadata: {}
+        - id: block-3
+          type: markdown
+          content: "# Header"
+          sortingKey: a2
+          blockGroup: group-1
+          metadata: {}

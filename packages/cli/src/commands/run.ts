@@ -17,7 +17,13 @@ import { stringify as serializeToYaml } from 'yaml'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
-import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import {
+  analyzeProject,
+  buildBlockMap,
+  diagnoseBlockFailure,
+  getIntegrationEnvVarName,
+  type ProjectStats,
+} from '../utils/analysis'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -103,14 +109,7 @@ interface BlockDiagnosis {
 }
 
 /** Block info with context (for --context flag) */
-interface BlockWithContext {
-  id: string
-  type: string
-  label: string
-  success: boolean
-  durationMs: number
-  outputs: IOutput[]
-  error?: string
+interface BlockWithContext extends BlockResult {
   /** Variables defined by this block */
   defines?: string[]
   /** Variables used by this block */
@@ -484,18 +483,6 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
 }
 
 /**
- * Convert an integration ID to its environment variable name.
- * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
- */
-function getIntegrationEnvVarName(integrationId: string): string {
-  // Same logic as @deepnote/database-integrations getSqlEnvVarName
-  const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
-  const upperCased = notFirstDigit.toUpperCase()
-  const sanitized = upperCased.replace(/[^\w]/g, '_')
-  return `SQL_${sanitized}`
-}
-
-/**
  * Validate that all required configuration is present before running.
  * Checks for:
  * - Missing input variables (used before defined, no --input provided)
@@ -850,10 +837,19 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
               },
             }
 
+            // Pre-build lookups for O(n) mapping
+            const dagNodeMap = new Map(dag.nodes.map(n => [n.id, n]))
+            const issuesByBlock = new Map<string, typeof lint.issues>()
+            for (const issue of lint.issues) {
+              const arr = issuesByBlock.get(issue.blockId) ?? []
+              arr.push(issue)
+              issuesByBlock.set(issue.blockId, arr)
+            }
+
             // Enhance block results with context (defines, uses, issues)
             const blocksWithContext: BlockWithContext[] = blockResults.map(block => {
-              const node = dag.nodes.find(n => n.id === block.id)
-              const blockIssues = lint.issues.filter(i => i.blockId === block.id)
+              const node = dagNodeMap.get(block.id)
+              const blockIssues = issuesByBlock.get(block.id) ?? []
 
               return {
                 ...block,

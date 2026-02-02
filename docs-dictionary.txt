@@ -259,6 +259,13 @@ Paxc
 # Words with special characters/diacritics
 Snímek
 obrazovky
+éèêë
+
+# International test strings (used in conversion tests)
+Комментарий
+русском
+Σχόλιο
+ελληνικά
 
 # British English
 behaviour
