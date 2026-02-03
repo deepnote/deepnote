@@ -5,7 +5,7 @@ import { ApiError } from '../utils/api'
 /**
  * Schema for a single integration from the API.
  */
-const apiIntegrationSchema = z
+export const apiIntegrationSchema = z
   .object({
     id: z.string(),
     name: z.string(),

@@ -46,7 +46,7 @@ const mockParseIntegrationsFile = vi.fn()
 vi.mock('../integrations', () => {
   return {
     parseIntegrationsFile: (...args: unknown[]) => mockParseIntegrationsFile(...args),
-    getDefaultIntegrationsFilePath: (dir: string) => `${dir}/${DEFAULT_INTEGRATIONS_FILE}`,
+    getDefaultIntegrationsFilePath: (dir: string) => join(dir, DEFAULT_INTEGRATIONS_FILE),
   }
 })
 

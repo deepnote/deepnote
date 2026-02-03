@@ -59,9 +59,11 @@ describe('fetchIntegrations', () => {
       statusText: 'Unauthorized',
     } as Response)
 
-    await expect(fetchIntegrations(mockBaseUrl, mockToken)).rejects.toThrow(ApiError)
     await expect(fetchIntegrations(mockBaseUrl, mockToken)).rejects.toThrow(
-      'Authentication failed. Please check your API token.'
+      expect.objectContaining({
+        name: 'ApiError',
+        message: 'Authentication failed. Please check your API token.',
+      })
     )
   })
 

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import { decodeUtf8NoBom, parseYaml } from '@deepnote/blocks'
 import { type DatabaseIntegrationConfig, databaseIntegrationConfigSchema } from '@deepnote/database-integrations'
 import { type ZodIssue, z } from 'zod'
@@ -106,7 +107,7 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
       if (error instanceof EnvVarResolutionError) {
         const entryId = z.string().safeParse(entry.id).data
         const entryName = z.string().safeParse(entry.name).data
-        const context = entryName || entryId ? `Integration "${entryName || entryId}": ` : ''
+        const context = entryName || entryId ? `Integration "${entryName ?? entryId ?? 'Unknown'}": ` : ''
         issues.push({
           path: error.path ? `${pathPrefix}.${error.path}` : pathPrefix,
           message: `${context}${error.message}`,
@@ -145,5 +146,5 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
  * @returns Path to the integrations file in the same directory
  */
 export function getDefaultIntegrationsFilePath(deepnoteFileDir: string): string {
-  return `${deepnoteFileDir}/${DEFAULT_INTEGRATIONS_FILE}`
+  return path.join(deepnoteFileDir, DEFAULT_INTEGRATIONS_FILE)
 }

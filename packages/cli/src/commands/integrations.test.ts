@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { apiResponseSchema } from '../integrations'
 import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
 
@@ -116,23 +117,6 @@ describe('integrations command', () => {
     })
 
     it('rejects invalid API response', async () => {
-      const { z } = await import('zod')
-
-      const apiIntegrationSchema = z.object({
-        id: z.string(),
-        name: z.string(),
-        type: z.string(),
-        metadata: z.record(z.unknown()),
-        is_public: z.boolean(),
-        created_at: z.string(),
-        updated_at: z.string(),
-        federated_auth_method: z.string().nullable(),
-      })
-
-      const apiResponseSchema = z.object({
-        integrations: z.array(apiIntegrationSchema),
-      })
-
       const invalidResponse = {
         integrations: [
           {

@@ -101,14 +101,13 @@ export function updateIntegrationMetadataMap({
   const secrets: Record<string, string> = {}
 
   for (const [key, value] of Object.entries(integrationMetadata)) {
-    // Check if this is a secret field that needs special handling
-    if (!secretPaths.includes(key)) {
-      metadataMap.set(key, value)
+    // Skip if field is undefined
+    if (value === undefined) {
       continue
     }
 
-    // Skip if field is undefined
-    if (value === undefined) {
+    // Check if this is a secret field that needs special handling
+    if (!secretPaths.includes(key)) {
       metadataMap.set(key, value)
       continue
     }

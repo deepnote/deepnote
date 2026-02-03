@@ -185,7 +185,6 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
     // Inject env vars into process.env
     for (const { name, value } of envVars) {
-      console.log(`Injecting environment variable: ${name} = ${value}`)
       process.env[name] = value
     }
 
@@ -523,7 +522,7 @@ async function validateRequirements(
       `Missing database integration configuration.\n\n` +
         `The following SQL blocks require database integrations that are not configured:\n` +
         `${integrationList}\n\n` +
-        `Add the integration configuration to your .deepnote.env.yaml file.\n` +
+        `Add the integration configuration to your integrations file.\n` +
         `See: https://docs.deepnote.com/integrations for integration configuration.`,
       missingIntegrations.map(i => i.id)
     )
