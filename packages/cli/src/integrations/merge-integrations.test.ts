@@ -24,9 +24,9 @@ function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiI
     metadata: {
       host: 'localhost',
       port: '5432',
-      database: 'testdb',
-      user: 'testuser',
-      password: 'testpass',
+      database: 'test-database',
+      user: 'test-user',
+      password: 'test-password',
     },
     is_public: false,
     created_at: '2024-01-01T00:00:00Z',
@@ -59,15 +59,15 @@ describe('merge-integrations', () => {
           metadata: {
             host: 'localhost',
             port: '5432',
-            database: 'testdb',
-            user: 'testuser',
+            database: 'test-database',
+            user: 'test-user',
             password: 'secret123',
           },
         }),
       ]
 
       const doc = createNewDocument()
-      const { secrets } = await mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+      const { secrets } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
@@ -89,25 +89,25 @@ describe('merge-integrations', () => {
           metadata: {
             host: 'localhost',
             port: '5432',
-            database: 'testdb',
-            user: 'testuser',
-            password: 'mysecretpassword',
+            database: 'test-database',
+            user: 'test-user',
+            password: 'my-secret-password',
           },
         }),
       ]
 
       const doc = createNewDocument()
-      const { secrets } = await mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+      const { secrets } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
 
       // Password should be replaced with env var reference
       expect(content).toContain('env:')
-      expect(content).not.toContain('mysecretpassword')
+      expect(content).not.toContain('my-secret-password')
 
       // Secret should be extracted
-      expect(Object.values(secrets)).toContain('mysecretpassword')
+      expect(Object.values(secrets)).toContain('my-secret-password')
     })
 
     it('preserves custom env var names from existing file', async () => {
@@ -121,8 +121,8 @@ describe('merge-integrations', () => {
     metadata:
       host: localhost
       port: "5432"
-      database: testdb
-      user: testuser
+      database: test-database
+      user: test-user
       password: env:MY_CUSTOM_PASSWORD
 `
       await writeFile(filePath, initialContent, 'utf-8')
@@ -137,21 +137,21 @@ describe('merge-integrations', () => {
           metadata: {
             host: 'localhost',
             port: '5432',
-            database: 'testdb',
-            user: 'testuser',
-            password: 'newsecret',
+            database: 'test-database',
+            user: 'test-user',
+            password: 'new-secret',
           },
         }),
       ]
 
-      const { secrets } = await mergeApiIntegrationsIntoDocument(existingDoc, apiIntegrations)
+      const { secrets } = mergeApiIntegrationsIntoDocument(existingDoc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, existingDoc)
       const content = await readFile(filePath, 'utf-8')
 
       // Custom env var name should be preserved
       expect(content).toContain('env:MY_CUSTOM_PASSWORD')
-      expect(secrets.MY_CUSTOM_PASSWORD).toBe('newsecret')
+      expect(secrets.MY_CUSTOM_PASSWORD).toBe('new-secret')
     })
 
     it('merges with existing integrations preserving local-only entries', async () => {
@@ -169,7 +169,7 @@ describe('merge-integrations', () => {
     name: API Existing
     type: pgsql
     metadata:
-      host: oldhost
+      host: old-host
       password: env:API_EXISTING__PASSWORD
 `
       await writeFile(filePath, initialContent, 'utf-8')
@@ -182,25 +182,25 @@ describe('merge-integrations', () => {
           id: 'api-existing',
           name: 'API Existing Updated',
           metadata: {
-            host: 'newhost',
-            user: 'testuser',
-            password: 'newpassword',
-            database: 'testdb',
+            host: 'new-host',
+            user: 'test-user',
+            password: 'new-password',
+            database: 'test-database',
           },
         }),
         createMockApiIntegration({
           id: 'api-new',
           name: 'API New',
           metadata: {
-            host: 'newdb',
-            user: 'testuser',
+            host: 'new-database',
+            user: 'test-user',
             password: 'secret',
-            database: 'testdb',
+            database: 'test-database',
           },
         }),
       ]
 
-      await mergeApiIntegrationsIntoDocument(existingDoc, apiIntegrations)
+      mergeApiIntegrationsIntoDocument(existingDoc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, existingDoc)
       const content = await readFile(filePath, 'utf-8')
@@ -212,7 +212,7 @@ describe('merge-integrations', () => {
       // Existing API integration should be updated
       expect(content).toContain('api-existing')
       expect(content).toContain('API Existing Updated')
-      expect(content).toContain('newhost')
+      expect(content).toContain('new-host')
 
       // New API integration should be added
       expect(content).toContain('api-new')
@@ -229,28 +229,28 @@ describe('merge-integrations', () => {
           type: 'snowflake',
           federated_auth_method: 'service-account-key-pair',
           metadata: {
-            accountName: 'myaccount',
+            accountName: 'my-account',
             authMethod: 'service-account-key-pair',
-            username: 'myuser',
-            privateKey: 'myprivatekey',
-            privateKeyPassphrase: 'mypassphrase',
+            username: 'my-user',
+            privateKey: 'some-private-key',
+            privateKeyPassphrase: 'some-passphrase',
           },
         }),
       ]
 
       const doc = createNewDocument()
-      const { secrets } = await mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+      const { secrets } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
 
       // All secret fields should be replaced
-      expect(content).not.toContain('myprivatekey')
-      expect(content).not.toContain('mypassphrase')
+      expect(content).not.toContain('some-private-key')
+      expect(content).not.toContain('some-passphrase')
 
       // All secrets should be extracted
-      expect(Object.values(secrets)).toContain('myprivatekey')
-      expect(Object.values(secrets)).toContain('mypassphrase')
+      expect(Object.values(secrets)).toContain('some-private-key')
+      expect(Object.values(secrets)).toContain('some-passphrase')
     })
 
     it('handles integrations with no secrets', async () => {
@@ -268,7 +268,7 @@ describe('merge-integrations', () => {
       ]
 
       const doc = createNewDocument()
-      const { secrets } = await mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+      const { secrets } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
@@ -297,7 +297,7 @@ describe('merge-integrations', () => {
       ]
 
       const doc = createNewDocument()
-      await mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+      mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
@@ -379,9 +379,9 @@ integrations:
     metadata:
       host: localhost # local development only
       port: "5432"
-      user: testuser
-      password: testpass
-      database: testdb
+      user: test-user
+      password: test-password
+      database: test-database
 `
       await writeFile(filePath, initialContent, 'utf-8')
 
@@ -394,7 +394,13 @@ integrations:
           id: 'test-db',
           name: 'Test DB',
           type: 'pgsql',
-          metadata: { host: 'localhost', port: '5433', user: 'testuser', password: 'testpass', database: 'testdb' },
+          metadata: {
+            host: 'localhost',
+            port: '5433',
+            user: 'test-user',
+            password: 'test-password',
+            database: 'test-database',
+          },
         },
       ])
 
@@ -409,9 +415,9 @@ integrations:
             metadata:
               host: localhost # local development only
               port: "5433"
-              user: testuser
+              user: test-user
               password: env:TEST_DB__PASSWORD
-              database: testdb
+              database: test-database
         "
       `)
     })
@@ -442,21 +448,21 @@ integrations:
         createMockApiIntegration({
           id: 'dev-db',
           name: 'Updated Dev DB',
-          metadata: { host: 'dev.example.com', user: 'devuser', password: 'devpass', database: 'devdb' },
+          metadata: { host: 'dev.example.com', user: 'dev-user', password: 'dev-password', database: 'dev-database' },
         }),
         createMockApiIntegration({
           id: 'staging-db',
           name: 'Updated Staging DB',
           metadata: {
             host: 'staging.example.com',
-            user: 'staginguser',
-            password: 'stagingpass',
-            database: 'stagingdb',
+            user: 'staging-user',
+            password: 'staging-password',
+            database: 'staging-database',
           },
         }),
       ]
 
-      await mergeApiIntegrationsIntoDocument(existingDoc, apiIntegrations)
+      mergeApiIntegrationsIntoDocument(existingDoc, apiIntegrations)
 
       await writeIntegrationsFile(filePath, existingDoc)
       const result = await readFile(filePath, 'utf-8')
@@ -478,9 +484,9 @@ integrations:
       # Connection settings
       host: localhost
       port: "5432"
-      database: testdb
+      database: test-database
       # Authentication
-      user: testuser
+      user: test-user
       password: env:TEST_PASSWORD
 `
       await writeFile(filePath, initialContent, 'utf-8')
@@ -495,10 +501,10 @@ integrations:
           name: 'Test DB',
           type: 'pgsql',
           metadata: {
-            host: 'newhost.example.com',
+            host: 'database.example.com',
             port: '5432',
-            database: 'testdb',
-            user: 'testuser',
+            database: 'test-database',
+            user: 'test-user',
             password: 'env:TEST_PASSWORD',
           },
         },
@@ -514,11 +520,11 @@ integrations:
             type: pgsql
             metadata:
               # Connection settings
-              host: newhost.example.com
+              host: database.example.com
               port: "5432"
-              database: testdb
+              database: test-database
               # Authentication
-              user: testuser
+              user: test-user
               password: env:TEST_PASSWORD
         "
       `)
@@ -528,15 +534,15 @@ integrations:
       const filePath = join(tempDir, 'commented-out-lines.yaml')
       const initialContent = `integrations:
   - id: 85d8c83c-0a53-42a0-93e7-6f7808ef2081
-    name: rnacentral
+    name: Database Integration Name
     type: pgsql
     metadata:
       host: hh-pgsql-public.ebi.ac.uk
       port: "5432"
-      database: pfmegrnargs
+      database: database-name
       user: reader
       # password: env:85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD
-      password: env:RNACENTRAL_PASSWORD
+      password: env:DATABASE_PASSWORD
       sslEnabled: false
       sshEnabled: false
 `
@@ -549,14 +555,14 @@ integrations:
       mergeProcessedIntegrations(doc, integrationsSeq, [
         {
           id: '85d8c83c-0a53-42a0-93e7-6f7808ef2081',
-          name: 'rnacentral',
+          name: 'Database Integration Name',
           type: 'pgsql',
           metadata: {
             host: 'hh-pgsql-public.ebi.ac.uk',
             port: '5432',
-            database: 'pfmegrnargs',
+            database: 'database-name',
             user: 'reader',
-            password: 'env:RNACENTRAL_PASSWORD',
+            password: 'env:DATABASE_PASSWORD',
             sslEnabled: false,
             sshEnabled: false,
           },
@@ -569,15 +575,15 @@ integrations:
       expect(result).toMatchInlineSnapshot(`
         "integrations:
           - id: 85d8c83c-0a53-42a0-93e7-6f7808ef2081
-            name: rnacentral
+            name: Database Integration Name
             type: pgsql
             metadata:
               host: hh-pgsql-public.ebi.ac.uk
               port: "5432"
-              database: pfmegrnargs
+              database: database-name
               user: reader
               # password: env:85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD
-              password: env:RNACENTRAL_PASSWORD
+              password: env:DATABASE_PASSWORD
               sslEnabled: false
               sshEnabled: false
         "
@@ -592,7 +598,7 @@ integrations:
         id: 'new-integration',
         name: 'New Integration',
         type: 'pgsql',
-        metadata: { host: 'localhost', port: '5432', user: 'testuser', password: 'secret', database: 'testdb' },
+        metadata: { host: 'localhost', port: '5432', user: 'test-user', password: 'secret', database: 'test-database' },
       })
 
       const result = doc.toString({ lineWidth: 0 })
@@ -607,9 +613,9 @@ integrations:
             metadata:
               host: localhost
               port: "5432"
-              user: testuser
+              user: test-user
               password: env:NEW_INTEGRATION__PASSWORD
-              database: testdb
+              database: test-database
         "
       `)
     })

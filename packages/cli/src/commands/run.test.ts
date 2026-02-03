@@ -1056,9 +1056,9 @@ describe('run command', () => {
           metadata: {
             host: 'localhost',
             port: '5432',
-            database: 'testdb',
-            user: 'testuser',
-            password: 'testpass',
+            database: 'test-database',
+            user: 'test-user',
+            password: 'test-password',
           },
         }
         mockParseIntegrationsFile.mockResolvedValue({

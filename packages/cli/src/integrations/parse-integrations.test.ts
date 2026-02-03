@@ -81,8 +81,8 @@ describe('parseIntegrationsFile', () => {
       host: localhost
       port: "5432"
       database: mydb
-      user: myuser
-      password: mypass`
+      user: root
+      password: my-secret`
       )
 
       const result = await parseIntegrationsFile(filePath)
@@ -139,8 +139,8 @@ describe('parseIntegrationsFile', () => {
       host: localhost
       port: "3306"
       database: mydb
-      user: myuser
-      password: mypass`
+      user: root
+      password: my-secret`
       )
 
       const result = await parseIntegrationsFile(filePath)
@@ -164,8 +164,8 @@ describe('parseIntegrationsFile', () => {
       host: localhost
       port: "5432"
       database: mydb
-      user: myuser
-      password: mypass
+      user: root
+      password: my-secret
   - id: invalid-integration
     name: Invalid Integration
     type: unknown-type
@@ -177,8 +177,8 @@ describe('parseIntegrationsFile', () => {
     metadata:
       host: localhost
       database: mydb
-      user: myuser
-      password: mypass`
+      user: root
+      password: my-secret`
       )
 
       const result = await parseIntegrationsFile(filePath)
@@ -258,8 +258,8 @@ describe('parseIntegrationsFile', () => {
       host: localhost
       port: "5432"
       database: mydb
-      user: myuser
-      password: mypass
+      user: root
+      password: my-secret
       sslEnabled: true`
       )
 
@@ -297,7 +297,7 @@ describe('parseIntegrationsFile', () => {
       host: "env:TEST_DB_HOST"
       port: "5432"
       database: mydb
-      user: myuser
+      user: root
       password: "env:TEST_DB_PASSWORD"`
       )
 
@@ -354,7 +354,7 @@ describe('parseIntegrationsFile', () => {
       host: localhost
       port: "5432"
       database: mydb
-      user: myuser
+      user: root
       password: "env:NON_EXISTENT_VAR"`
       )
 
@@ -383,7 +383,7 @@ describe('parseIntegrationsFile', () => {
       host: localhost
       port: "5432"
       database: mydb
-      user: plainuser
+      user: plain-user
       password: "env:MIXED_PASSWORD"
       sslEnabled: true`
       )
@@ -392,7 +392,7 @@ describe('parseIntegrationsFile', () => {
 
       expect(result.integrations).toHaveLength(1)
       expect(result.integrations[0].metadata).toHaveProperty('host', 'localhost')
-      expect(result.integrations[0].metadata).toHaveProperty('user', 'plainuser')
+      expect(result.integrations[0].metadata).toHaveProperty('user', 'plain-user')
       expect(result.integrations[0].metadata).toHaveProperty('password', 'secret-from-env')
       expect(result.integrations[0].metadata).toHaveProperty('sslEnabled', true)
       expect(result.issues).toEqual([])
@@ -449,7 +449,7 @@ describe('parseIntegrationsFile', () => {
       host: localhost
       port: "5432"
       database: mydb
-      user: myuser
+      user: root
       password: "env:${uuidVarName}"`
       )
 
