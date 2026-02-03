@@ -339,8 +339,8 @@ describe('integrations command', () => {
         type: 'pgsql',
         metadata: {
           host: 'localhost',
-          database: 'testdb',
-          user: 'testuser',
+          database: 'test-database',
+          user: 'test-user',
           password: 'secret123',
         },
         is_public: false,
@@ -414,9 +414,9 @@ describe('integrations command', () => {
               federated_auth_method: null
               metadata:
                 host: localhost
-                user: testuser
+                user: test-user
                 password: env:TEST_ID_123__PASSWORD
-                database: testdb
+                database: test-database
           "
         `)
         expect(envContent).toMatchInlineSnapshot(`
@@ -476,9 +476,9 @@ integrations: null
               federated_auth_method: null
               metadata:
                 host: localhost
-                user: testuser
+                user: test-user
                 password: env:REMOTE_ID__PASSWORD
-                database: testdb
+                database: test-database
           "
         `)
         expect(envContent).toMatchInlineSnapshot(`
@@ -531,9 +531,9 @@ integrations:
               federated_auth_method: null
               metadata:
                 host: localhost
-                user: testuser
+                user: test-user
                 password: env:REMOTE_ID__PASSWORD
-                database: testdb
+                database: test-database
           "
         `)
         expect(envContent).toMatchInlineSnapshot(`
@@ -562,9 +562,9 @@ integrations:
           name: 'Updated Name',
           metadata: {
             host: 'new-host.example.com',
-            database: 'testdb',
-            user: 'testuser',
-            password: 'newpassword',
+            database: 'test-database',
+            user: 'test-user',
+            password: 'new-password',
           },
         })
         mockFetchIntegrations.mockResolvedValueOnce([mockIntegration])
@@ -583,14 +583,14 @@ integrations:
               type: pgsql
               metadata:
                 host: new-host.example.com
-                user: testuser
+                user: test-user
                 password: env:TEST_ID_123__PASSWORD
-                database: testdb
+                database: test-database
               federated_auth_method: null
           "
         `)
         expect(envContent).toMatchInlineSnapshot(`
-          "TEST_ID_123__PASSWORD=newpassword
+          "TEST_ID_123__PASSWORD=new-password
           "
         `)
       })
@@ -615,8 +615,8 @@ integrations:
         const mockIntegration = createMockIntegration({
           metadata: {
             host: 'localhost',
-            database: 'testdb',
-            user: 'testuser',
+            database: 'test-database',
+            user: 'test-user',
             password: 'updated-secret',
           },
         })
@@ -637,8 +637,8 @@ integrations:
               metadata:
                 host: localhost
                 password: env:MY_CUSTOM_PASSWORD
-                user: testuser
-                database: testdb
+                user: test-user
+                database: test-database
               federated_auth_method: null
           "
         `)
@@ -681,18 +681,18 @@ integrations:
               federated_auth_method: null
               metadata:
                 host: localhost
-                user: testuser
+                user: test-user
                 password: env:PG_1__PASSWORD
-                database: testdb
+                database: test-database
             - id: mysql-1
               name: MySQL DB
               type: mysql
               federated_auth_method: null
               metadata:
                 host: localhost
-                user: testuser
+                user: test-user
                 password: env:MYSQL_1__PASSWORD
-                database: testdb
+                database: test-database
           "
         `)
         expect(envContent).toMatchInlineSnapshot(`
@@ -725,9 +725,9 @@ integrations:
               federated_auth_method: null
               metadata:
                 host: localhost
-                user: testuser
+                user: test-user
                 password: env:TEST_ID_123__PASSWORD
-                database: testdb
+                database: test-database
           "
         `)
         expect(envContent).toMatchInlineSnapshot(`
@@ -790,9 +790,9 @@ integrations:
             federated_auth_method: null
             metadata:
               host: localhost
-              user: testuser
+              user: test-user
               password: env:TEST_ID_123__PASSWORD
-              database: testdb
+              database: test-database
         "
       `)
       expect(envContent).toMatchInlineSnapshot(`
