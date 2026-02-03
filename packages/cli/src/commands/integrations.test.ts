@@ -27,10 +27,16 @@ vi.mock('../output', () => ({
 }))
 
 import { existsSync } from 'node:fs'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 // Import after mocks are set up
 import { createIntegrationsCommand } from './integrations'
 
 describe('integrations command', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
+
   describe('Error classes', () => {
     describe('MissingTokenError', () => {
       it('provides helpful error message', () => {
@@ -378,10 +384,6 @@ describe('integrations command', () => {
     describe('with env token', () => {
       beforeEach(() => {
         vi.stubEnv('DEEPNOTE_TOKEN', 'test-token')
-      })
-
-      afterEach(() => {
-        vi.unstubAllEnvs()
       })
 
       it('creates integrations file with fetched integrations', async () => {
@@ -746,6 +748,8 @@ integrations:
     })
 
     it('throws MissingTokenError when no token provided', async () => {
+      vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
+
       const filePath = join(tempDir, 'test-no-token.yaml')
       const envFilePath = join(tempDir, 'test-no-token.env')
 
