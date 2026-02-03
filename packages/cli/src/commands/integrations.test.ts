@@ -64,18 +64,6 @@ describe('integrations command', () => {
 
       expect(token).toBe('flag-token')
     })
-
-    it('throws when neither token nor env var provided', () => {
-      delete process.env.DEEPNOTE_TOKEN
-      const options: { token?: string } = {}
-      const token = options.token ?? process.env.DEEPNOTE_TOKEN
-
-      if (!token) {
-        expect(() => {
-          throw new MissingTokenError()
-        }).toThrow(MissingTokenError)
-      }
-    })
   })
 
   describe('API response validation', () => {

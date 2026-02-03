@@ -74,9 +74,11 @@ describe('fetchIntegrations', () => {
       statusText: 'Forbidden',
     } as Response)
 
-    await expect(fetchIntegrations(mockBaseUrl, mockToken)).rejects.toThrow(ApiError)
     await expect(fetchIntegrations(mockBaseUrl, mockToken)).rejects.toThrow(
-      'Access denied. You may not have permission to access integrations.'
+      expect.objectContaining({
+        name: 'ApiError',
+        message: 'Access denied. You may not have permission to access integrations.',
+      })
     )
   })
 

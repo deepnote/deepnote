@@ -245,7 +245,6 @@ export function mergeProcessedIntegrations(
   for (const databaseIntegration of processedIntegrations) {
     const existingIntegration = integrationsSeq.items.find((item): item is YAMLMap => {
       if (!isMap(item)) {
-        error(`Skipping invalid integration entry: expected a map but got ${typeof item}`)
         return false
       }
       return item.get('id') === databaseIntegration.id
