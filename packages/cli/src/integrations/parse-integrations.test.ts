@@ -472,6 +472,6 @@ describe('getDefaultIntegrationsFilePath', () => {
   it('handles trailing slash in directory', () => {
     const result = getDefaultIntegrationsFilePath('/path/to/project/')
 
-    expect(result).toBe('/path/to/project//.deepnote.env.yaml')
+    expect(result).toBe('/path/to/project/.deepnote.env.yaml')
   })
 })
