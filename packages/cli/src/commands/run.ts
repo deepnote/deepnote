@@ -169,8 +169,6 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
   await validateRequirements(file, inputs, pythonEnv, parsedIntegrations.integrations, options.notebook)
 
-  console.log(`integrations: ${JSON.stringify(parsedIntegrations.integrations)}`)
-
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
   if (parsedIntegrations.integrations.length > 0) {
