@@ -1,10 +1,33 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { Command } from 'commander'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiResponseSchema } from '../integrations'
+import type { ApiIntegration } from '../integrations/fetch-integrations'
 import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
+
+// Mock fetchIntegrations before importing the command module
+const mockFetchIntegrations = vi.fn<(baseUrl: string, token: string) => Promise<ApiIntegration[]>>()
+vi.mock('../integrations/fetch-integrations', async importOriginal => {
+  const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
+  return {
+    ...actual,
+    fetchIntegrations: (baseUrl: string, token: string) => mockFetchIntegrations(baseUrl, token),
+  }
+})
+
+// Mock output functions to suppress console output during tests
+vi.mock('../output', () => ({
+  debug: vi.fn(),
+  log: vi.fn(),
+  output: vi.fn(),
+  error: vi.fn(),
+}))
+
+// Import after mocks are set up
+import { createIntegrationsCommand } from './integrations'
 
 describe('integrations command', () => {
   describe('Error classes', () => {
@@ -301,6 +324,481 @@ describe('integrations command', () => {
       await updateDotEnv(envPath, { PASS: 'p$ss#word=123' })
       const result = await readDotEnv(envPath)
       expect(result.PASS).toBe('p$ss#word=123')
+    })
+  })
+
+  describe('pullIntegrations', () => {
+    let tempDir: string
+    let program: Command
+
+    // Helper to create mock API integrations
+    function createMockIntegration(overrides: Partial<ApiIntegration> = {}): ApiIntegration {
+      return {
+        id: 'test-id-123',
+        name: 'Test Database',
+        type: 'pgsql',
+        metadata: {
+          host: 'localhost',
+          database: 'testdb',
+          user: 'testuser',
+          password: 'secret123',
+        },
+        is_public: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        federated_auth_method: null,
+        ...overrides,
+      }
+    }
+
+    // Helper to run the pull command
+    async function runPullCommand(args: string[] = []): Promise<void> {
+      const pullArgs = ['node', 'test', 'integrations', 'pull', ...args]
+      await program.parseAsync(pullArgs)
+    }
+
+    beforeEach(async () => {
+      vi.clearAllMocks()
+      vi.restoreAllMocks()
+
+      program = new Command()
+      program.exitOverride()
+      const integrationsCommand = createIntegrationsCommand(program)
+      program.addCommand(integrationsCommand)
+
+      tempDir = join(tmpdir(), `integrations-pull-test-${Date.now()}`)
+      await mkdir(tempDir, { recursive: true })
+    })
+
+    afterEach(async () => {
+      await rm(tempDir, { recursive: true, force: true })
+    })
+
+    // Helper to safely read file, returns empty string if not found
+    async function safeReadFile(path: string): Promise<string> {
+      try {
+        return await readFile(path, 'utf-8')
+      } catch {
+        return ''
+      }
+    }
+
+    describe('with env token', () => {
+      beforeEach(() => {
+        vi.stubEnv('DEEPNOTE_TOKEN', 'test-token')
+      })
+
+      afterEach(() => {
+        vi.unstubAllEnvs()
+      })
+
+      it('creates integrations file with fetched integrations', async () => {
+        const mockIntegration = createMockIntegration()
+        mockFetchIntegrations.mockResolvedValueOnce([mockIntegration])
+
+        const filePath = join(tempDir, 'test-integrations-1.yaml')
+        const envFilePath = join(tempDir, 'test-1.env')
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+        const envContent = await readFile(envFilePath, 'utf-8')
+
+        expect(yamlContent).toMatchInlineSnapshot(`
+          "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+          integrations:
+            - id: test-id-123
+              name: Test Database
+              type: pgsql
+              federated_auth_method: null
+              metadata:
+                host: localhost
+                user: testuser
+                password: env:TEST_ID_123__PASSWORD
+                database: testdb
+          "
+        `)
+        expect(envContent).toMatchInlineSnapshot(`
+          "TEST_ID_123__PASSWORD=secret123
+          "
+        `)
+      })
+
+      it('handles empty integrations response', async () => {
+        mockFetchIntegrations.mockResolvedValueOnce([])
+
+        const filePath = join(tempDir, 'test-integrations-empty.yaml')
+        const envFilePath = join(tempDir, 'test-empty.env')
+
+        // Should not throw
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        // Files should not be created when no integrations
+        const yamlContent = await safeReadFile(filePath)
+        const envContent = await safeReadFile(envFilePath)
+
+        expect(yamlContent).toMatchInlineSnapshot(`""`)
+        expect(envContent).toMatchInlineSnapshot(`""`)
+      })
+
+      it('handles file with null integrations', async () => {
+        const filePath = join(tempDir, 'test-integrations-merge.yaml')
+        const envFilePath = join(tempDir, 'test-merge.env')
+
+        // Create existing file with local-only integration
+        await writeFile(
+          filePath,
+          `# yaml-language-server: $schema=...
+integrations: null
+`
+        )
+
+        const mockIntegration = createMockIntegration({
+          id: 'remote-id',
+          name: 'Remote Database',
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([mockIntegration])
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+        const envContent = await readFile(envFilePath, 'utf-8')
+
+        expect(yamlContent).toMatchInlineSnapshot(`
+          "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+          # yaml-language-server: $schema=...
+          integrations:
+            - id: remote-id
+              name: Remote Database
+              type: pgsql
+              federated_auth_method: null
+              metadata:
+                host: localhost
+                user: testuser
+                password: env:REMOTE_ID__PASSWORD
+                database: testdb
+          "
+        `)
+        expect(envContent).toMatchInlineSnapshot(`
+          "REMOTE_ID__PASSWORD=secret123
+          "
+        `)
+      })
+
+      it('merges with existing integrations file', async () => {
+        const filePath = join(tempDir, 'test-integrations-merge.yaml')
+        const envFilePath = join(tempDir, 'test-merge.env')
+
+        // Create existing file with local-only integration
+        await writeFile(
+          filePath,
+          `# yaml-language-server: $schema=...
+integrations:
+  - id: local-only-id
+    name: Local Database
+    type: pgsql
+    metadata:
+      host: local.example.com
+`
+        )
+
+        const mockIntegration = createMockIntegration({
+          id: 'remote-id',
+          name: 'Remote Database',
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([mockIntegration])
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+        const envContent = await readFile(envFilePath, 'utf-8')
+
+        expect(yamlContent).toMatchInlineSnapshot(`
+          "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+          # yaml-language-server: $schema=...
+          integrations:
+            - id: local-only-id
+              name: Local Database
+              type: pgsql
+              metadata:
+                host: local.example.com
+            - id: remote-id
+              name: Remote Database
+              type: pgsql
+              federated_auth_method: null
+              metadata:
+                host: localhost
+                user: testuser
+                password: env:REMOTE_ID__PASSWORD
+                database: testdb
+          "
+        `)
+        expect(envContent).toMatchInlineSnapshot(`
+          "REMOTE_ID__PASSWORD=secret123
+          "
+        `)
+      })
+
+      it('updates existing integration when IDs match', async () => {
+        const filePath = join(tempDir, 'test-integrations-update.yaml')
+        const envFilePath = join(tempDir, 'test-update.env')
+
+        // Create existing file
+        await writeFile(
+          filePath,
+          `integrations:
+  - id: test-id-123
+    name: Old Name
+    type: pgsql
+    metadata:
+      host: old-host.example.com
+`
+        )
+
+        const mockIntegration = createMockIntegration({
+          name: 'Updated Name',
+          metadata: {
+            host: 'new-host.example.com',
+            database: 'testdb',
+            user: 'testuser',
+            password: 'newpassword',
+          },
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([mockIntegration])
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+        const envContent = await readFile(envFilePath, 'utf-8')
+
+        expect(yamlContent).toMatchInlineSnapshot(`
+          "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+          integrations:
+            - id: test-id-123
+              name: Updated Name
+              type: pgsql
+              metadata:
+                host: new-host.example.com
+                user: testuser
+                password: env:TEST_ID_123__PASSWORD
+                database: testdb
+              federated_auth_method: null
+          "
+        `)
+        expect(envContent).toMatchInlineSnapshot(`
+          "TEST_ID_123__PASSWORD=newpassword
+          "
+        `)
+      })
+
+      it('preserves custom env var names in existing YAML', async () => {
+        const filePath = join(tempDir, 'test-integrations-preserve.yaml')
+        const envFilePath = join(tempDir, 'test-preserve.env')
+
+        // Create existing file with custom env var name
+        await writeFile(
+          filePath,
+          `integrations:
+  - id: test-id-123
+    name: Test Database
+    type: pgsql
+    metadata:
+      host: localhost
+      password: env:MY_CUSTOM_PASSWORD
+`
+        )
+
+        const mockIntegration = createMockIntegration({
+          metadata: {
+            host: 'localhost',
+            database: 'testdb',
+            user: 'testuser',
+            password: 'updated-secret',
+          },
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([mockIntegration])
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+        const envContent = await readFile(envFilePath, 'utf-8')
+
+        expect(yamlContent).toMatchInlineSnapshot(`
+          "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+          integrations:
+            - id: test-id-123
+              name: Test Database
+              type: pgsql
+              metadata:
+                host: localhost
+                password: env:MY_CUSTOM_PASSWORD
+                user: testuser
+                database: testdb
+              federated_auth_method: null
+          "
+        `)
+        expect(envContent).toMatchInlineSnapshot(`
+          "MY_CUSTOM_PASSWORD=updated-secret
+          "
+        `)
+      })
+
+      it('handles multiple integrations', async () => {
+        const filePath = join(tempDir, 'test-integrations-multiple.yaml')
+        const envFilePath = join(tempDir, 'test-multiple.env')
+
+        const mockIntegrations = [
+          createMockIntegration({
+            id: 'pg-1',
+            name: 'PostgreSQL 1',
+            type: 'pgsql',
+          }),
+          createMockIntegration({
+            id: 'mysql-1',
+            name: 'MySQL DB',
+            type: 'mysql',
+          }),
+        ]
+        mockFetchIntegrations.mockResolvedValueOnce(mockIntegrations)
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+        const envContent = await readFile(envFilePath, 'utf-8')
+
+        expect(yamlContent).toMatchInlineSnapshot(`
+          "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+          integrations:
+            - id: pg-1
+              name: PostgreSQL 1
+              type: pgsql
+              federated_auth_method: null
+              metadata:
+                host: localhost
+                user: testuser
+                password: env:PG_1__PASSWORD
+                database: testdb
+            - id: mysql-1
+              name: MySQL DB
+              type: mysql
+              federated_auth_method: null
+              metadata:
+                host: localhost
+                user: testuser
+                password: env:MYSQL_1__PASSWORD
+                database: testdb
+          "
+        `)
+        expect(envContent).toMatchInlineSnapshot(`
+          "PG_1__PASSWORD=secret123
+          MYSQL_1__PASSWORD=secret123
+          "
+        `)
+      })
+
+      it('uses custom API URL from --url flag', async () => {
+        mockFetchIntegrations.mockResolvedValueOnce([createMockIntegration()])
+
+        const filePath = join(tempDir, 'test-custom-url.yaml')
+        const envFilePath = join(tempDir, 'test-custom-url.env')
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath, '--url', 'https://custom-api.example.com'])
+
+        expect(mockFetchIntegrations).toHaveBeenCalledWith('https://custom-api.example.com', 'test-token')
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+        const envContent = await readFile(envFilePath, 'utf-8')
+
+        expect(yamlContent).toMatchInlineSnapshot(`
+          "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+          integrations:
+            - id: test-id-123
+              name: Test Database
+              type: pgsql
+              federated_auth_method: null
+              metadata:
+                host: localhost
+                user: testuser
+                password: env:TEST_ID_123__PASSWORD
+                database: testdb
+          "
+        `)
+        expect(envContent).toMatchInlineSnapshot(`
+          "TEST_ID_123__PASSWORD=secret123
+          "
+        `)
+      })
+
+      it('handles API errors gracefully', async () => {
+        mockFetchIntegrations.mockRejectedValueOnce(new ApiError(401, 'Unauthorized'))
+
+        const filePath = join(tempDir, 'test-api-error.yaml')
+        const envFilePath = join(tempDir, 'test-api-error.env')
+
+        await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
+
+        // Files should not be created on error
+        const yamlContent = await safeReadFile(filePath)
+        const envContent = await safeReadFile(envFilePath)
+
+        expect(yamlContent).toMatchInlineSnapshot(`""`)
+        expect(envContent).toMatchInlineSnapshot(`""`)
+      })
+    })
+
+    it('throws MissingTokenError when no token provided', async () => {
+      const filePath = join(tempDir, 'test-no-token.yaml')
+      const envFilePath = join(tempDir, 'test-no-token.env')
+
+      await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
+
+      // Files should not be created on error
+      const yamlContent = await safeReadFile(filePath)
+      const envContent = await safeReadFile(envFilePath)
+
+      expect(yamlContent).toMatchInlineSnapshot(`""`)
+      expect(envContent).toMatchInlineSnapshot(`""`)
+    })
+
+    it('uses token from --token flag', async () => {
+      mockFetchIntegrations.mockResolvedValueOnce([createMockIntegration()])
+
+      const filePath = join(tempDir, 'test-token-flag.yaml')
+      const envFilePath = join(tempDir, 'test-token-flag.env')
+
+      await runPullCommand(['--file', filePath, '--env-file', envFilePath, '--token', 'my-custom-token'])
+
+      expect(mockFetchIntegrations).toHaveBeenCalledWith('https://api.deepnote.com', 'my-custom-token')
+
+      const yamlContent = await readFile(filePath, 'utf-8')
+      const envContent = await readFile(envFilePath, 'utf-8')
+
+      expect(yamlContent).toMatchInlineSnapshot(`
+        "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+        integrations:
+          - id: test-id-123
+            name: Test Database
+            type: pgsql
+            federated_auth_method: null
+            metadata:
+              host: localhost
+              user: testuser
+              password: env:TEST_ID_123__PASSWORD
+              database: testdb
+        "
+      `)
+      expect(envContent).toMatchInlineSnapshot(`
+        "TEST_ID_123__PASSWORD=secret123
+        "
+      `)
     })
   })
 })

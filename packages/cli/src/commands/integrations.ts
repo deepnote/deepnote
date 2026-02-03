@@ -145,7 +145,7 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
   const doc = existingDoc ?? createNewDocument()
 
   // Merge API integrations into document and extract secrets
-  const { secrets, stats } = await mergeApiIntegrationsIntoDocument(doc, fetchedIntegrations)
+  const { secrets, stats } = mergeApiIntegrationsIntoDocument(doc, fetchedIntegrations)
 
   // Ensure schema comment is set
   if (doc.commentBefore == null || !doc.commentBefore.includes('yaml-language-server')) {
