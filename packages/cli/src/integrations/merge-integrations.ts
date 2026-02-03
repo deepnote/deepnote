@@ -26,8 +26,8 @@ const SCHEMA_COMMENT = `yaml-language-server: $schema=${JSON_SCHEMA_URL}`
  * Error thrown when the integrations property has an invalid type.
  */
 export class InvalidIntegrationsTypeError extends Error {
-  constructor(actualType: string) {
-    super(`Invalid 'integrations' property: expected an array but got ${actualType}`)
+  constructor() {
+    super(`Invalid 'integrations' property: expected a list`)
     this.name = 'InvalidIntegrationsTypeError'
   }
 }
@@ -63,7 +63,7 @@ export function getOrCreateIntegrationsFromDocument(doc: Document): YAMLSeq<unkn
 
   // Property exists but is not a sequence
   if (!isSeq(integrations)) {
-    throw new InvalidIntegrationsTypeError(typeof integrations)
+    throw new InvalidIntegrationsTypeError()
   }
 
   return integrations

@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from './parse-integrations'
 
 describe('parseIntegrationsFile', () => {
@@ -272,19 +272,13 @@ describe('parseIntegrationsFile', () => {
   })
 
   describe('environment variable resolution', () => {
-    const originalEnv = process.env
-
-    beforeEach(() => {
-      process.env = { ...originalEnv }
-    })
-
     afterEach(() => {
-      process.env = originalEnv
+      vi.unstubAllEnvs()
     })
 
     it('resolves env var references in metadata fields', async () => {
-      process.env.TEST_DB_HOST = 'prod.db.example.com'
-      process.env.TEST_DB_PASSWORD = 'super-secret-password'
+      vi.stubEnv('TEST_DB_HOST', 'prod.db.example.com')
+      vi.stubEnv('TEST_DB_PASSWORD', 'super-secret-password')
 
       const filePath = join(tempDir, 'env-refs.yaml')
       await writeFile(
@@ -310,10 +304,10 @@ describe('parseIntegrationsFile', () => {
     })
 
     it('resolves multiple env var references in same integration', async () => {
-      process.env.MULTI_HOST = 'multi.host.com'
-      process.env.MULTI_USER = 'admin'
-      process.env.MULTI_PASS = 'admin-pass'
-      process.env.MULTI_DB = 'production'
+      vi.stubEnv('MULTI_HOST', 'multi.host.com')
+      vi.stubEnv('MULTI_USER', 'admin')
+      vi.stubEnv('MULTI_PASS', 'admin-pass')
+      vi.stubEnv('MULTI_DB', 'production')
 
       const filePath = join(tempDir, 'multi-env-refs.yaml')
       await writeFile(
@@ -341,7 +335,7 @@ describe('parseIntegrationsFile', () => {
     })
 
     it('reports error when env var is not found', async () => {
-      delete process.env.NON_EXISTENT_VAR
+      vi.stubEnv('NON_EXISTENT_VAR', undefined as unknown as string)
 
       const filePath = join(tempDir, 'missing-env.yaml')
       await writeFile(
@@ -370,7 +364,7 @@ describe('parseIntegrationsFile', () => {
     })
 
     it('mixes env var references with plain values', async () => {
-      process.env.MIXED_PASSWORD = 'secret-from-env'
+      vi.stubEnv('MIXED_PASSWORD', 'secret-from-env')
 
       const filePath = join(tempDir, 'mixed-values.yaml')
       await writeFile(
@@ -399,8 +393,8 @@ describe('parseIntegrationsFile', () => {
     })
 
     it('resolves env vars in multiple integrations', async () => {
-      process.env.INT1_PASS = 'password-1'
-      process.env.INT2_PASS = 'password-2'
+      vi.stubEnv('INT1_PASS', 'password-1')
+      vi.stubEnv('INT2_PASS', 'password-2')
 
       const filePath = join(tempDir, 'multi-integrations-env.yaml')
       await writeFile(
@@ -436,7 +430,7 @@ describe('parseIntegrationsFile', () => {
 
     it('handles UUID-based env var names', async () => {
       const uuidVarName = '85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD'
-      process.env[uuidVarName] = 'uuid-based-secret'
+      vi.stubEnv(uuidVarName, 'uuid-based-secret')
 
       const filePath = join(tempDir, 'uuid-env.yaml')
       await writeFile(

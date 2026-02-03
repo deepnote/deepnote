@@ -128,6 +128,7 @@ describe('run command', () => {
       originalExitCode = process.exitCode
 
       vi.clearAllMocks()
+      vi.restoreAllMocks()
 
       // Reset getBlockDependencies to return empty by default (no validation errors)
       mockGetBlockDependencies.mockResolvedValue([])

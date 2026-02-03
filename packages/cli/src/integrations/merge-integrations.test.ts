@@ -72,11 +72,23 @@ describe('merge-integrations', () => {
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
 
-      expect(content).toContain('new-id')
-      expect(content).toContain('New Integration')
-      expect(content).toContain('env:')
-      expect(content).not.toContain('secret123')
-      expect(Object.keys(secrets).length).toBeGreaterThan(0)
+      expect(content).toMatchInlineSnapshot(`
+        "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+        integrations:
+          - id: new-id
+            name: New Integration
+            type: pgsql
+            federated_auth_method: null
+            metadata:
+              host: localhost
+              user: test-user
+              password: env:NEW_ID__PASSWORD
+              database: test-database
+              port: "5432"
+        "
+      `)
+      expect(secrets).toEqual({ 'NEW_ID__PASSWORD': 'secret123' })
     })
 
     it('extracts secrets and replaces with env var references', async () => {
@@ -103,11 +115,53 @@ describe('merge-integrations', () => {
       const content = await readFile(filePath, 'utf-8')
 
       // Password should be replaced with env var reference
-      expect(content).toContain('env:')
-      expect(content).not.toContain('my-secret-password')
+      expect(content).toMatchInlineSnapshot(`
+        "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+        integrations:
+          - id: 85d8c83c-0a53-42a0-93e7-6f7808ef2081
+            name: Test DB
+            type: pgsql
+            federated_auth_method: null
+            metadata:
+              host: localhost
+              user: test-user
+              password: env:85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD
+              database: test-database
+              port: "5432"
+        "
+      `)
 
       // Secret should be extracted
-      expect(Object.values(secrets)).toContain('my-secret-password')
+      expect(secrets).toEqual({ '85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD': 'my-secret-password' })
+    })
+
+    it('extracts secrets with special characters', async () => {
+      const filePath = join(tempDir, 'special-chars.yaml')
+      const secret = 'p@$$:word\nline'
+
+      const apiIntegrations = [
+        createMockApiIntegration({
+          id: 'special-chars-id',
+          name: 'Special Chars',
+          metadata: {
+            host: 'localhost',
+            port: '5432',
+            database: 'test-database',
+            user: 'test-user',
+            password: secret,
+          },
+        }),
+      ]
+
+      const doc = createNewDocument()
+      const { secrets } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+
+      await writeIntegrationsFile(filePath, doc)
+      const content = await readFile(filePath, 'utf-8')
+
+      expect(content).not.toContain('p@$$:word')
+      expect(Object.values(secrets)).toContain(secret)
     })
 
     it('preserves custom env var names from existing file', async () => {
@@ -302,7 +356,21 @@ describe('merge-integrations', () => {
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
 
-      expect(content).toContain('federated_auth_method: google-oauth')
+      expect(content).toMatchInlineSnapshot(`
+        "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+        integrations:
+          - id: federated-id
+            name: Federated Auth BigQuery
+            type: big-query
+            federated_auth_method: google-oauth
+            metadata:
+              authMethod: google-oauth
+              project: my-project
+              clientId: my-client-id
+              clientSecret: env:FEDERATED_ID__CLIENTSECRET
+        "
+      `)
     })
   })
 
