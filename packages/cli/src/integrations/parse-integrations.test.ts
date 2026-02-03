@@ -335,8 +335,6 @@ describe('parseIntegrationsFile', () => {
     })
 
     it('reports error when env var is not found', async () => {
-      vi.stubEnv('NON_EXISTENT_VAR', undefined as unknown as string)
-
       const filePath = join(tempDir, 'missing-env.yaml')
       await writeFile(
         filePath,
