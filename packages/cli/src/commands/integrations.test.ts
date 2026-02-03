@@ -26,6 +26,7 @@ vi.mock('../output', () => ({
   error: vi.fn(),
 }))
 
+import { existsSync } from 'node:fs'
 // Import after mocks are set up
 import { createIntegrationsCommand } from './integrations'
 
@@ -374,15 +375,6 @@ describe('integrations command', () => {
       await rm(tempDir, { recursive: true, force: true })
     })
 
-    // Helper to safely read file, returns empty string if not found
-    async function safeReadFile(path: string): Promise<string> {
-      try {
-        return await readFile(path, 'utf-8')
-      } catch {
-        return ''
-      }
-    }
-
     describe('with env token', () => {
       beforeEach(() => {
         vi.stubEnv('DEEPNOTE_TOKEN', 'test-token')
@@ -435,11 +427,11 @@ describe('integrations command', () => {
         await runPullCommand(['--file', filePath, '--env-file', envFilePath])
 
         // Files should not be created when no integrations
-        const yamlContent = await safeReadFile(filePath)
-        const envContent = await safeReadFile(envFilePath)
+        const fileExists = existsSync(filePath)
+        expect(fileExists).toBe(false)
 
-        expect(yamlContent).toMatchInlineSnapshot(`""`)
-        expect(envContent).toMatchInlineSnapshot(`""`)
+        const envFileExists = existsSync(envFilePath)
+        expect(envFileExists).toBe(false)
       })
 
       it('handles file with null integrations', async () => {
@@ -745,11 +737,11 @@ integrations:
         await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
 
         // Files should not be created on error
-        const yamlContent = await safeReadFile(filePath)
-        const envContent = await safeReadFile(envFilePath)
+        const yamlContent = existsSync(filePath)
+        const envContent = existsSync(envFilePath)
 
-        expect(yamlContent).toMatchInlineSnapshot(`""`)
-        expect(envContent).toMatchInlineSnapshot(`""`)
+        expect(yamlContent).toBe(false)
+        expect(envContent).toBe(false)
       })
     })
 
@@ -760,11 +752,11 @@ integrations:
       await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
 
       // Files should not be created on error
-      const yamlContent = await safeReadFile(filePath)
-      const envContent = await safeReadFile(envFilePath)
+      const yamlContent = existsSync(filePath)
+      const envContent = existsSync(envFilePath)
 
-      expect(yamlContent).toMatchInlineSnapshot(`""`)
-      expect(envContent).toMatchInlineSnapshot(`""`)
+      expect(yamlContent).toBe(false)
+      expect(envContent).toBe(false)
     })
 
     it('uses token from --token flag', async () => {
