@@ -106,6 +106,11 @@ export function updateIntegrationMetadataMap({
       continue
     }
 
+    if (value === null) {
+      metadataMap.set(key, null)
+      continue
+    }
+
     // Check if this is a secret field that needs special handling
     if (!secretPaths.includes(key)) {
       metadataMap.set(key, value)
