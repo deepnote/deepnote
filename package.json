@@ -61,6 +61,7 @@
   },
   "pnpm": {
     "overrides": {
+      "@isaacs/brace-expansion": ">=5.0.1",
       "diff": ">=8.0.3",
       "glob": ">=11.1.0",
       "lodash@<4.17.23": "^4.17.23",
