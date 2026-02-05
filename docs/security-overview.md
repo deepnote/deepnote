@@ -53,7 +53,7 @@ Deepnote offers flexible deployment models to meet your team's needs — from se
 
 Deepnote leverages AWS for processing and storage, with security baked in at every layer. Data at rest — including database credentials, file uploads, and cached query results — is encrypted using AES 256-bit encryption. Data in transit is protected with TLS 1.2 or higher, securing network traffic between Deepnote's servers and your browser. Your data stays safe, wherever it moves.
 
-Additionally, encrypted temporary copy of users' workspace data can be stored on other compute providers' machines. AWS is used for long term data storage.
+Additionally, an encrypted temporary copy of users' workspace data can be stored on other compute providers' machines. AWS is used for long-term data storage.
 
 ### Does Deepnote use customer data to train, fine-tune, or otherwise improve any AI/ML models?
 
