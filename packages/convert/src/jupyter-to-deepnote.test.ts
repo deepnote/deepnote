@@ -4,7 +4,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { convertIpynbFilesToDeepnoteFile, convertJupyterNotebookToBlocks } from './jupyter-to-deepnote'
+import { FileReadError, JsonParseError } from './errors'
+import {
+  convertIpynbFilesToDeepnoteFile,
+  convertJupyterNotebookToBlocks,
+  readAndConvertIpynbFiles,
+} from './jupyter-to-deepnote'
 
 // Mock crypto.randomUUID to generate predictable IDs for testing
 vi.mock('node:crypto', async () => {
@@ -1690,5 +1695,29 @@ describe('content preservation - comments, functions, and classes', () => {
 
     // Block 9 (index 9) is markdown with emoji
     expect(blocks[9].content).toBe('## International Characters 🌍')
+  })
+})
+
+describe('error handling', () => {
+  it('throws FileReadError when ipynb file does not exist', async () => {
+    const nonExistentPath = '/tmp/does-not-exist-deepnote-test.ipynb'
+
+    await expect(readAndConvertIpynbFiles([nonExistentPath], { projectName: 'Test' })).rejects.toThrow(FileReadError)
+    await expect(readAndConvertIpynbFiles([nonExistentPath], { projectName: 'Test' })).rejects.toThrow(/Failed to read/)
+  })
+
+  it('throws JsonParseError when ipynb file contains invalid JSON', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
+    const invalidJsonPath = path.join(tempDir, 'invalid.ipynb')
+    await fs.writeFile(invalidJsonPath, 'not valid json {{{', 'utf-8')
+
+    try {
+      await expect(readAndConvertIpynbFiles([invalidJsonPath], { projectName: 'Test' })).rejects.toThrow(JsonParseError)
+      await expect(readAndConvertIpynbFiles([invalidJsonPath], { projectName: 'Test' })).rejects.toThrow(
+        /Failed to parse.*invalid JSON/
+      )
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    }
   })
 })
