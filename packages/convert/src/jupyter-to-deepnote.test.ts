@@ -1700,7 +1700,7 @@ describe('content preservation - comments, functions, and classes', () => {
 
 describe('error handling', () => {
   it('throws FileReadError when ipynb file does not exist', async () => {
-    const nonExistentPath = '/tmp/does-not-exist-deepnote-test.ipynb'
+    const nonExistentPath = path.join(os.tmpdir(), 'does-not-exist-deepnote-test.ipynb')
 
     await expect(readAndConvertIpynbFiles([nonExistentPath], { projectName: 'Test' })).rejects.toThrow(FileReadError)
     await expect(readAndConvertIpynbFiles([nonExistentPath], { projectName: 'Test' })).rejects.toThrow(/Failed to read/)
