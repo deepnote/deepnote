@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { handleMagicTool } from './magic'
 import { handleReadingTool } from './reading'
+import { handleWritingTool } from './writing'
 
 // Helper to extract result from MCP response
 function extractResult(response: { content: Array<{ type: string; text: string }> }): Record<string, unknown> {
@@ -17,11 +17,17 @@ describe('reading tools handlers', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcp-reading-test-'))
 
-    // Create a test notebook for reading tests
+    // Create a test notebook using the writing tool
     testNotebookPath = path.join(tempDir, 'test.deepnote')
-    await handleMagicTool('deepnote_scaffold', {
-      description: 'Test notebook with data analysis',
+    await handleWritingTool('deepnote_create', {
       outputPath: testNotebookPath,
+      projectName: 'Test Project',
+      notebooks: [
+        {
+          name: 'Notebook',
+          blocks: [{ type: 'code', content: 'import pandas as pd\ndf = pd.DataFrame({"a": [1,2,3]})\nprint(df)' }],
+        },
+      ],
     })
   })
 
@@ -131,44 +137,6 @@ describe('reading tools handlers', () => {
       expect(structure.notebooks).toBeDefined()
       expect(structure.totalBlocks).toBeDefined()
       expect(structure.blockCounts).toBeDefined()
-    })
-  })
-
-  describe('deepnote_inspect', () => {
-    it('returns notebook metadata', async () => {
-      const response = await handleReadingTool('deepnote_inspect', {
-        path: testNotebookPath,
-      })
-
-      const result = extractResult(response)
-      expect(result.projectName).toBeDefined()
-      expect(result.notebooks).toBeDefined()
-      expect(result.totalBlocks).toBeDefined()
-    })
-  })
-
-  describe('deepnote_lint', () => {
-    it('returns lint issues', async () => {
-      const response = await handleReadingTool('deepnote_lint', {
-        path: testNotebookPath,
-      })
-
-      const result = extractResult(response)
-      expect(result.issueCount).toBeDefined()
-      expect(Array.isArray(result.issues)).toBe(true)
-    })
-  })
-
-  describe('deepnote_stats', () => {
-    it('returns statistics', async () => {
-      const response = await handleReadingTool('deepnote_stats', {
-        path: testNotebookPath,
-      })
-
-      const result = extractResult(response)
-      expect(result.totalLines).toBeDefined()
-      expect(result.importCount).toBeDefined()
-      expect(Array.isArray(result.uniqueImports)).toBe(true)
     })
   })
 

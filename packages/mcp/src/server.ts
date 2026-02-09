@@ -14,21 +14,13 @@ import { getPrompt, prompts } from './prompts'
 import { listResources, readResource } from './resources'
 import { conversionTools, handleConversionTool } from './tools/conversion'
 import { executionTools, handleExecutionTool } from './tools/execution'
-import { handleMagicTool, magicTools } from './tools/magic'
 import { handleReadingTool, readingTools } from './tools/reading'
 import { handleSnapshotTool, snapshotTools } from './tools/snapshots'
 import { handleWritingTool, writingTools } from './tools/writing'
 
 export type DeepnoteMcpServer = Server
 
-const allTools = [
-  ...magicTools,
-  ...readingTools,
-  ...writingTools,
-  ...conversionTools,
-  ...executionTools,
-  ...snapshotTools,
-]
+const allTools = [...readingTools, ...writingTools, ...conversionTools, ...executionTools, ...snapshotTools]
 
 // Get workspace root from environment or current directory
 const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
@@ -90,50 +82,29 @@ export function createServer(): Server {
     try {
       // Route to appropriate handler based on tool name
       if (
-        name.startsWith('deepnote_scaffold') ||
-        name.startsWith('deepnote_enhance') ||
-        name.startsWith('deepnote_fix') ||
-        name.startsWith('deepnote_explain') ||
-        name.startsWith('deepnote_suggest') ||
-        name.startsWith('deepnote_template') ||
-        name.startsWith('deepnote_refactor') ||
-        name.startsWith('deepnote_profile') ||
-        name.startsWith('deepnote_test') ||
-        name.startsWith('deepnote_workflow')
-      ) {
-        return await handleMagicTool(name, args)
-      }
-
-      if (
         name === 'deepnote_read' ||
-        name.startsWith('deepnote_inspect') ||
-        name.startsWith('deepnote_cat') ||
-        name.startsWith('deepnote_lint') ||
-        name.startsWith('deepnote_validate') ||
-        name.startsWith('deepnote_stats') ||
-        name.startsWith('deepnote_analyze') ||
-        name.startsWith('deepnote_dag') ||
-        name.startsWith('deepnote_diff')
+        name === 'deepnote_cat' ||
+        name === 'deepnote_validate' ||
+        name === 'deepnote_diff'
       ) {
         return await handleReadingTool(name, args)
       }
 
       if (
-        name.startsWith('deepnote_create') ||
+        name === 'deepnote_create' ||
         name.startsWith('deepnote_add_') ||
         name.startsWith('deepnote_edit_') ||
         name.startsWith('deepnote_remove_') ||
-        name.startsWith('deepnote_reorder') ||
-        name.startsWith('deepnote_bulk_')
+        name === 'deepnote_reorder_blocks'
       ) {
         return await handleWritingTool(name, args)
       }
 
-      if (name.startsWith('deepnote_convert') || name.startsWith('deepnote_detect_')) {
+      if (name.startsWith('deepnote_convert')) {
         return await handleConversionTool(name, args)
       }
 
-      if (name.startsWith('deepnote_run') || name.startsWith('deepnote_open')) {
+      if (name === 'deepnote_run') {
         return await handleExecutionTool(name, args)
       }
 

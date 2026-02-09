@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { handleMagicTool } from './magic'
 import { handleSnapshotTool } from './snapshots'
+import { handleWritingTool } from './writing'
 
 function extractResult(response: { content: Array<{ type: string; text: string }> }): Record<string, unknown> {
   return JSON.parse(response.content[0].text)
@@ -17,9 +17,15 @@ describe('snapshot tools handlers', () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcp-snapshot-test-'))
 
     testNotebookPath = path.join(tempDir, 'test.deepnote')
-    await handleMagicTool('deepnote_scaffold', {
-      description: 'Hello world test',
+    await handleWritingTool('deepnote_create', {
       outputPath: testNotebookPath,
+      projectName: 'Test Project',
+      notebooks: [
+        {
+          name: 'Notebook',
+          blocks: [{ type: 'code', content: 'print("hello")' }],
+        },
+      ],
     })
   })
 
@@ -34,8 +40,9 @@ describe('snapshot tools handlers', () => {
       })
 
       const result = extractResult(response)
-      // When no snapshots directory exists, returns error
-      expect(result.error).toBeDefined()
+      // When no snapshots directory exists, returns empty list
+      expect(result.snapshotsFound).toBe(0)
+      expect(result.snapshots).toEqual([])
     })
 
     it('returns error when path is missing', async () => {

@@ -3,7 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { handleExecutionTool } from './execution'
-import { handleMagicTool } from './magic'
+import { handleWritingTool } from './writing'
 
 function extractResult(response: { content: Array<{ type: string; text: string }> }): Record<string, unknown> {
   return JSON.parse(response.content[0].text)
@@ -17,9 +17,15 @@ describe('execution tools handlers', () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcp-execution-test-'))
 
     testNotebookPath = path.join(tempDir, 'test.deepnote')
-    await handleMagicTool('deepnote_scaffold', {
-      description: 'Hello world test notebook',
+    await handleWritingTool('deepnote_create', {
       outputPath: testNotebookPath,
+      projectName: 'Test Project',
+      notebooks: [
+        {
+          name: 'Notebook',
+          blocks: [{ type: 'code', content: 'print("hello world")' }],
+        },
+      ],
     })
   })
 
@@ -63,17 +69,6 @@ describe('execution tools handlers', () => {
 
       expect(response.isError).toBe(true)
       expect(response.content[0].text).toContain('Notebook not found')
-    })
-  })
-
-  describe('deepnote_run_block', () => {
-    it('throws for nonexistent file', async () => {
-      await expect(
-        handleExecutionTool('deepnote_run_block', {
-          path: '/nonexistent/path.deepnote',
-          blockId: 'abc123',
-        })
-      ).rejects.toThrow()
     })
   })
 

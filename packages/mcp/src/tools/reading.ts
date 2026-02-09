@@ -212,26 +212,6 @@ export const readingTools: Tool[] = [
     },
   },
   {
-    name: 'deepnote_inspect',
-    title: 'Inspect Notebook',
-    description: 'Get metadata and structure. Prefer deepnote_read for combined analysis.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-      },
-      required: ['path'],
-    },
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-  },
-  {
     name: 'deepnote_cat',
     title: 'View Block Contents',
     description: 'Display block contents. Filter by notebook, blockId, or blockType.',
@@ -268,26 +248,6 @@ export const readingTools: Tool[] = [
     },
   },
   {
-    name: 'deepnote_lint',
-    title: 'Lint Notebook',
-    description: 'Check for issues: undefined variables, circular deps. Prefer deepnote_read with include=[lint].',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-      },
-      required: ['path'],
-    },
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-  },
-  {
     name: 'deepnote_validate',
     title: 'Validate Notebook',
     description: 'Validate YAML syntax and file structure against schema.',
@@ -297,75 +257,6 @@ export const readingTools: Tool[] = [
         path: {
           type: 'string',
           description: 'Path to the .deepnote file',
-        },
-      },
-      required: ['path'],
-    },
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-  },
-  {
-    name: 'deepnote_stats',
-    title: 'Notebook Statistics',
-    description: 'Get lines of code, imports, block counts. Prefer deepnote_read with include=[stats].',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-      },
-      required: ['path'],
-    },
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-  },
-  {
-    name: 'deepnote_analyze',
-    title: 'Analyze Notebook Quality',
-    description: 'Quality score and improvement suggestions.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-      },
-      required: ['path'],
-    },
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-  },
-  {
-    name: 'deepnote_dag',
-    title: 'View Dependency Graph',
-    description: 'Show block dependencies. Prefer deepnote_read with include=[dag].',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-        notebook: {
-          type: 'string',
-          description: 'Filter by notebook name or ID (optional)',
-        },
-        format: {
-          type: 'string',
-          enum: ['text', 'mermaid'],
-          description: 'Output format: text or mermaid diagram (default: text)',
         },
       },
       required: ['path'],
@@ -448,27 +339,6 @@ async function handleRead(args: Record<string, unknown>) {
   }
 }
 
-async function handleInspect(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const file = await loadDeepnoteFile(filePath)
-  const structure = computeStructure(file)
-
-  const result = {
-    ...structure,
-    version: file.version,
-    metadata: {
-      createdAt: file.metadata.createdAt,
-      modifiedAt: file.metadata.modifiedAt,
-      exportedAt: file.metadata.exportedAt,
-    },
-    hasEnvironment: !!file.environment,
-  }
-
-  return {
-    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-  }
-}
-
 async function handleCat(args: Record<string, unknown>) {
   const filePath = args.path as string
   const notebookFilter = args.notebook as string | undefined
@@ -488,7 +358,7 @@ async function handleCat(args: Record<string, unknown>) {
     output.push('')
 
     for (const block of notebook.blocks) {
-      if (blockIdFilter && block.id !== blockIdFilter) {
+      if (blockIdFilter && block.id !== blockIdFilter && !block.id.startsWith(blockIdFilter)) {
         continue
       }
       if (blockTypeFilter && block.type !== blockTypeFilter) {
@@ -516,23 +386,6 @@ async function handleCat(args: Record<string, unknown>) {
 
   return {
     content: [{ type: 'text', text: output.join('\n') }],
-  }
-}
-
-async function handleLint(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const file = await loadDeepnoteFile(filePath)
-  const issues = await computeLintIssues(file)
-
-  const result = {
-    path: filePath,
-    issueCount: issues.length,
-    issues,
-    summary: issues.length === 0 ? 'No issues found' : `Found ${issues.length} issue(s)`,
-  }
-
-  return {
-    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
   }
 }
 
@@ -625,184 +478,6 @@ async function handleValidate(args: Record<string, unknown>) {
   }
 }
 
-async function handleStats(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const file = await loadDeepnoteFile(filePath)
-  const stats = computeStats(file)
-
-  const result = {
-    path: filePath,
-    projectName: file.project.name,
-    notebookCount: file.project.notebooks.length,
-    totalBlocks: stats.totalBlocks,
-    blockCounts: stats.blockCounts,
-    totalLines: stats.totalLines,
-    uniqueImports: stats.uniqueImports,
-    importCount: stats.importCount,
-  }
-
-  return {
-    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-  }
-}
-
-async function handleAnalyze(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const file = await loadDeepnoteFile(filePath)
-
-  const suggestions: string[] = []
-  let qualityScore = 100
-
-  // Check for documentation
-  let hasMarkdown = false
-  let codeBlockCount = 0
-
-  for (const notebook of file.project.notebooks) {
-    for (const block of notebook.blocks) {
-      if (block.type === 'markdown' || block.type.startsWith('text-cell-')) {
-        hasMarkdown = true
-      }
-      if (block.type === 'code' || block.type === 'sql') {
-        codeBlockCount++
-      }
-    }
-  }
-
-  if (!hasMarkdown && codeBlockCount > 0) {
-    suggestions.push('Add markdown documentation to explain what the notebook does')
-    qualityScore -= 15
-  }
-
-  // Check for section headers
-  let hasHeaders = false
-  for (const notebook of file.project.notebooks) {
-    for (const block of notebook.blocks) {
-      if (block.type === 'text-cell-h1' || block.type === 'text-cell-h2' || block.type === 'text-cell-h3') {
-        hasHeaders = true
-        break
-      }
-    }
-  }
-
-  if (!hasHeaders && codeBlockCount > 3) {
-    suggestions.push('Add section headers to organize the notebook into logical sections')
-    qualityScore -= 10
-  }
-
-  // Check for input blocks
-  let hasInputs = false
-  for (const notebook of file.project.notebooks) {
-    for (const block of notebook.blocks) {
-      if (block.type.startsWith('input-')) {
-        hasInputs = true
-        break
-      }
-    }
-  }
-
-  if (!hasInputs && codeBlockCount > 5) {
-    suggestions.push('Consider adding input blocks (sliders, dropdowns) for configurable parameters')
-    qualityScore -= 5
-  }
-
-  const result = {
-    path: filePath,
-    projectName: file.project.name,
-    qualityScore: Math.max(0, qualityScore),
-    suggestions,
-    summary:
-      qualityScore >= 80
-        ? 'Good quality notebook'
-        : qualityScore >= 60
-          ? 'Notebook could use some improvements'
-          : 'Notebook needs significant improvements',
-  }
-
-  return {
-    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-  }
-}
-
-async function handleDag(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const notebookFilter = args.notebook as string | undefined
-  const format = (args.format as string) || 'text'
-
-  const file = await loadDeepnoteFile(filePath)
-  const output: string[] = []
-
-  for (const notebook of file.project.notebooks) {
-    if (notebookFilter && notebook.name !== notebookFilter && notebook.id !== notebookFilter) {
-      continue
-    }
-
-    const blockDeps = await getBlockDependencies(notebook.blocks)
-
-    // Build a simple dependency map
-    const blockDefines = new Map<string, string[]>()
-    const blockUses = new Map<string, string[]>()
-    const varToBlock = new Map<string, string>()
-
-    for (const block of blockDeps) {
-      blockDefines.set(block.id, block.definedVariables)
-      blockUses.set(block.id, block.usedVariables)
-      for (const v of block.definedVariables) {
-        varToBlock.set(v, block.id)
-      }
-      for (const m of block.importedModules || []) {
-        varToBlock.set(m, block.id)
-      }
-    }
-
-    if (format === 'mermaid') {
-      output.push('```mermaid')
-      output.push('flowchart TD')
-
-      for (const block of blockDeps) {
-        const shortId = block.id.slice(0, 8)
-        const defines = block.definedVariables.join(', ') || 'none'
-        output.push(`    ${shortId}["${shortId} - defines: ${defines}"]`)
-      }
-
-      for (const block of blockDeps) {
-        const shortId = block.id.slice(0, 8)
-        for (const usedVar of block.usedVariables) {
-          const definingBlock = varToBlock.get(usedVar)
-          if (definingBlock && definingBlock !== block.id) {
-            const depShortId = definingBlock.slice(0, 8)
-            output.push(`    ${depShortId} --> ${shortId}`)
-          }
-        }
-      }
-
-      output.push('```')
-    } else {
-      output.push(`## Notebook: ${notebook.name}`)
-      output.push('')
-
-      for (const block of blockDeps) {
-        output.push(`**Block ${block.id.slice(0, 8)}**`)
-        output.push(`  Defines: ${block.definedVariables.join(', ') || 'none'}`)
-        output.push(`  Uses: ${block.usedVariables.join(', ') || 'none'}`)
-
-        const deps: string[] = []
-        for (const usedVar of block.usedVariables) {
-          const definingBlock = varToBlock.get(usedVar)
-          if (definingBlock && definingBlock !== block.id) {
-            deps.push(definingBlock.slice(0, 8))
-          }
-        }
-        output.push(`  Depends on: ${[...new Set(deps)].join(', ') || 'none'}`)
-        output.push('')
-      }
-    }
-  }
-
-  return {
-    content: [{ type: 'text', text: output.join('\n') }],
-  }
-}
-
 async function handleDiff(args: Record<string, unknown>) {
   const path1 = args.path1 as string
   const path2 = args.path2 as string
@@ -855,28 +530,16 @@ async function handleDiff(args: Record<string, unknown>) {
   }
 }
 
-// Common Python builtins to exclude from undefined variable checks
-
 export async function handleReadingTool(name: string, args: Record<string, unknown> | undefined) {
   const safeArgs = args || {}
 
   switch (name) {
     case 'deepnote_read':
       return handleRead(safeArgs)
-    case 'deepnote_inspect':
-      return handleInspect(safeArgs)
     case 'deepnote_cat':
       return handleCat(safeArgs)
-    case 'deepnote_lint':
-      return handleLint(safeArgs)
     case 'deepnote_validate':
       return handleValidate(safeArgs)
-    case 'deepnote_stats':
-      return handleStats(safeArgs)
-    case 'deepnote_analyze':
-      return handleAnalyze(safeArgs)
-    case 'deepnote_dag':
-      return handleDag(safeArgs)
     case 'deepnote_diff':
       return handleDiff(safeArgs)
     default:
