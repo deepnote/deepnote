@@ -1,12 +1,14 @@
 import { parseDocument } from 'yaml'
 
+import { DeepnoteError, EncodingError, ParseError, ProhibitedYamlFeatureError, YamlParseError } from '../errors'
+
 /**
  * Validates UTF-8 encoding from raw bytes before decoding to string.
  * This is the proper way to validate UTF-8 - check BEFORE decoding.
  *
  * @param bytes - Raw file bytes as Uint8Array
  * @returns Decoded UTF-8 string without BOM
- * @throws Error if BOM detected or invalid UTF-8 encoding
+ * @throws EncodingError if BOM detected or invalid UTF-8 encoding
  *
  * @example
  * ```typescript
@@ -18,7 +20,7 @@ import { parseDocument } from 'yaml'
 export function decodeUtf8NoBom(bytes: Uint8Array): string {
   // Reject UTF-8 BOM (0xEF 0xBB 0xBF)
   if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    throw new Error('UTF-8 BOM detected in Deepnote file - files must be UTF-8 without BOM')
+    throw new EncodingError('UTF-8 BOM detected in Deepnote file - files must be UTF-8 without BOM')
   }
 
   // Validate UTF-8 by decoding with fatal=true
@@ -26,7 +28,7 @@ export function decodeUtf8NoBom(bytes: Uint8Array): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch {
-    throw new Error('Invalid UTF-8 encoding detected in Deepnote file')
+    throw new EncodingError('Invalid UTF-8 encoding detected in Deepnote file')
   }
 }
 
@@ -37,12 +39,12 @@ export function decodeUtf8NoBom(bytes: Uint8Array): string {
  * For proper UTF-8 validation, use decodeUtf8NoBom() on raw bytes before decoding.
  *
  * @param yamlContent - Already-decoded YAML string
- * @throws Error if BOM prefix detected
+ * @throws EncodingError if BOM prefix detected
  */
 function validateNoBomPrefix(yamlContent: string): void {
   // Check for UTF-8 BOM that was decoded as U+FEFF
   if (yamlContent.charCodeAt(0) === 0xfeff) {
-    throw new Error('UTF-8 BOM detected in Deepnote file - files must be UTF-8 without BOM')
+    throw new EncodingError('UTF-8 BOM detected in Deepnote file - files must be UTF-8 without BOM')
   }
 }
 
@@ -56,18 +58,20 @@ function validateYamlStructure(yamlContent: string): void {
   // Check for anchors - must appear as a value after : or - (not in URLs or other content)
   // Matches patterns like "key: &anchor" or "- &anchor"
   if (/(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)&\w+/.test(yamlContent)) {
-    throw new Error('YAML anchors (&) are not allowed in Deepnote files')
+    throw new ProhibitedYamlFeatureError('YAML anchors (&) are not allowed in Deepnote files', { feature: 'anchor' })
   }
 
   // Check for aliases - must appear as a value after : or - (not in Markdown like *bold*)
   // Matches patterns like "key: *alias" or "- *alias"
   if (/(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)\*\w+/.test(yamlContent)) {
-    throw new Error('YAML aliases (*) are not allowed in Deepnote files')
+    throw new ProhibitedYamlFeatureError('YAML aliases (*) are not allowed in Deepnote files', { feature: 'alias' })
   }
 
   // Check for merge keys
   if (/<<:/.test(yamlContent)) {
-    throw new Error('YAML merge keys (<<) are not allowed in Deepnote files')
+    throw new ProhibitedYamlFeatureError('YAML merge keys (<<) are not allowed in Deepnote files', {
+      feature: 'merge-key',
+    })
   }
 
   // Check for YAML tags (must appear after : or - at start of value, not inside strings)
@@ -79,7 +83,9 @@ function validateYamlStructure(yamlContent: string): void {
   if (matches) {
     const tags = matches.map(m => m.match(/(![\w/-]+)/)?.[1]).filter(Boolean)
     if (tags.length > 0) {
-      throw new Error(`YAML tags are not allowed in Deepnote files: ${tags.join(', ')}`)
+      throw new ProhibitedYamlFeatureError(`YAML tags are not allowed in Deepnote files: ${tags.join(', ')}`, {
+        feature: 'tag',
+      })
     }
   }
 }
@@ -98,9 +104,9 @@ function parseAndValidate(yamlContent: string): unknown {
   if (doc.errors.length > 0) {
     const duplicateKeyError = doc.errors.find(err => err.message.includes('duplicate') || err.message.includes('key'))
     if (duplicateKeyError) {
-      throw new Error(`Duplicate keys detected in Deepnote file: ${duplicateKeyError.message}`)
+      throw new YamlParseError(`Duplicate keys detected in Deepnote file: ${duplicateKeyError.message}`)
     }
-    throw new Error(`YAML parsing error: ${doc.errors[0].message}`)
+    throw new YamlParseError(`YAML parsing error: ${doc.errors[0].message}`)
   }
 
   return doc.toJS()
@@ -129,7 +135,10 @@ export function parseYaml(yamlContent: string): unknown {
 
     return parsed
   } catch (error) {
+    if (error instanceof DeepnoteError) {
+      throw error
+    }
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Failed to parse Deepnote file: ${message}`)
+    throw new ParseError(`Failed to parse Deepnote file: ${message}`, { cause: error })
   }
 }

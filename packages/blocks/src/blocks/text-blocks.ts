@@ -9,6 +9,7 @@ import type {
   TextCellPBlock,
   TextCellTodoBlock,
 } from '../deserialize-file/deepnote-file-schema'
+import { UnsupportedBlockTypeError } from '../errors'
 
 type TextBlock =
   | TextCellPBlock
@@ -123,7 +124,7 @@ export function createMarkdownForTextBlock(block: TextBlock): string {
     return escapeMarkdown(content)
   }
 
-  throw new Error('Unhandled block type.')
+  throw new UnsupportedBlockTypeError('Unhandled block type.')
 }
 
 export function stripMarkdownFromTextBlock(block: TextBlock): string {
@@ -158,7 +159,7 @@ export function stripMarkdownFromTextBlock(block: TextBlock): string {
     return content.trim()
   }
 
-  throw new Error('Unhandled block type.')
+  throw new UnsupportedBlockTypeError('Unhandled block type.')
 }
 
 export function createMarkdownForSeparatorBlock(_block: SeparatorBlock): string {
