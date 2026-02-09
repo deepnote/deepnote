@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getDownstreamBlocksForBlocksIds } from './dag-analyzer'
+import { getDownstreamBlocksForBlocksIds, getUpstreamBlocksForBlocksIds } from './dag-analyzer'
 import type { BlockDependencyDag } from './types'
 
 describe('getDownstreamBlocksForBlocksIds', () => {
@@ -361,5 +361,340 @@ describe('getDownstreamBlocksForBlocksIds', () => {
     const blocksToExecute = getDownstreamBlocksForBlocksIds(dag, ['1', 'non-existent'])
 
     expect(blocksToExecute).toEqual(['2'])
+  })
+})
+
+describe('getUpstreamBlocksForBlocksIds', () => {
+  it('should return all blocks that the target block depends on', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['b'],
+          inputVariables: ['a'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '3',
+          order: 3,
+          outputVariables: ['c'],
+          inputVariables: ['b'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '4',
+          order: 4,
+          outputVariables: ['d'],
+          inputVariables: ['c'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['4'])
+
+    expect(upstreamBlocks).toEqual(['3', '2', '1'])
+  })
+
+  it('should return empty array if block has no upstream dependencies', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['b'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['2'])
+
+    expect(upstreamBlocks).toEqual([])
+  })
+
+  it('should return only blocks that the target depends on', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['b'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '3',
+          order: 3,
+          outputVariables: ['c'],
+          inputVariables: ['a'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['3'])
+
+    expect(upstreamBlocks).toEqual(['1'])
+  })
+
+  it('should not return blocks defined after the target block', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['b'],
+          inputVariables: ['a'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '3',
+          order: 3,
+          outputVariables: ['c'],
+          inputVariables: ['b'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['2'])
+
+    expect(upstreamBlocks).toEqual(['1'])
+  })
+
+  it('should not get killed by cyclic dependency', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: ['b'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['b'],
+          inputVariables: ['a'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['2'])
+
+    expect(upstreamBlocks).toEqual(['1', '2'])
+  })
+
+  it('should return all upstream dependencies of all target blocks', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['x'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['y'],
+          inputVariables: ['x'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '3',
+          order: 3,
+          outputVariables: ['z'],
+          inputVariables: ['y'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '4',
+          order: 4,
+          outputVariables: ['w'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '5',
+          order: 5,
+          outputVariables: ['v'],
+          inputVariables: ['w'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '6',
+          order: 6,
+          outputVariables: ['u'],
+          inputVariables: ['z', 'v'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['6'])
+
+    expect(upstreamBlocks).toEqual(['3', '5', '2', '4', '1'])
+  })
+
+  it('should return empty array for empty blocksIds', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, [])
+
+    expect(upstreamBlocks).toEqual([])
+  })
+
+  it('should return empty array for non-existent blocksIds', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['non-existent'])
+
+    expect(upstreamBlocks).toEqual([])
+  })
+
+  it('should correctly handle mixed valid and non-existent blocksIds', () => {
+    const dag: BlockDependencyDag = {
+      nodes: [
+        {
+          id: '1',
+          order: 1,
+          outputVariables: ['a'],
+          inputVariables: [],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+        {
+          id: '2',
+          order: 2,
+          outputVariables: ['b'],
+          inputVariables: ['a'],
+          usedImportedModules: [],
+          importedModules: [],
+          error: null,
+        },
+      ],
+      edges: [],
+      modulesEdges: [],
+    }
+
+    const upstreamBlocks = getUpstreamBlocksForBlocksIds(dag, ['2', 'non-existent'])
+
+    expect(upstreamBlocks).toEqual(['1'])
   })
 })

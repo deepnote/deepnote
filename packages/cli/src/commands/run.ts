@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { getBlockDependencies } from '@deepnote/reactivity'
+import { getBlockDependencies, getDagForBlocks, getUpstreamBlocksForBlocksIds } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
   detectDefaultPython,
@@ -683,11 +683,33 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track execution timing for snapshot
   const executionStartedAt = new Date().toISOString()
 
+  // Resolve upstream dependencies when running a single block
+  let blockIds: string[] | undefined
+  if (options.block) {
+    try {
+      const allBlocks = file.project.notebooks
+        .filter(n => !options.notebook || n.name === options.notebook)
+        .flatMap(n => n.blocks)
+      const { dag } = await getDagForBlocks(allBlocks, {
+        acceptPartialDAG: true,
+        pythonInterpreter: pythonEnv,
+      })
+      const upstreamIds = getUpstreamBlocksForBlocksIds(dag, [options.block])
+      if (upstreamIds.length > 0) {
+        blockIds = [...upstreamIds, options.block]
+        debug(`Block ${options.block} has ${upstreamIds.length} upstream dependencies: ${upstreamIds.join(', ')}`)
+      }
+    } catch (e) {
+      debug(`DAG analysis failed, running single block without deps: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
   try {
     // Use runProject instead of runFile since we may have converted the file in memory
     const summary = await engine.runProject(file, {
       notebookName: options.notebook,
       blockId: options.block,
+      blockIds,
       inputs,
 
       onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
