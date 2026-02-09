@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { stringify } from 'yaml'
+import { FileReadError } from './errors'
 import { getMarimoOutputsFromCache } from './snapshot'
 import type { JupyterOutput } from './types/jupyter'
 import type { MarimoApp, MarimoCell } from './types/marimo'
@@ -483,8 +484,9 @@ export async function readAndConvertMarimoFiles(
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       const errorStack = err instanceof Error ? err.stack : undefined
-      throw new Error(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
+      throw new FileReadError(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
         cause: errorStack ? { originalError: err, stack: errorStack } : err,
+        filePath,
       })
     }
   }
@@ -519,8 +521,9 @@ export async function convertMarimoFilesToDeepnoteFile(
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       const errorStack = err instanceof Error ? err.stack : undefined
-      throw new Error(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
+      throw new FileReadError(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
         cause: errorStack ? { originalError: err, stack: errorStack } : err,
+        filePath,
       })
     }
   }

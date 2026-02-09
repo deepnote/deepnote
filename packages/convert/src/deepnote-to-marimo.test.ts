@@ -9,6 +9,7 @@ import {
   convertDeepnoteToMarimoApps,
   serializeMarimoFormat,
 } from './deepnote-to-marimo'
+import { FileWriteError } from './errors'
 import { parseMarimoFormat } from './marimo-to-deepnote'
 
 describe('serializeMarimoFormat', () => {
@@ -494,7 +495,7 @@ describe('convertDeepnoteFileToMarimoFiles error handling', () => {
       expect.fail('Expected function to throw an error')
     } catch (err) {
       // Verify the error message includes the filename
-      expect(err).toBeInstanceOf(Error)
+      expect(err).toBeInstanceOf(FileWriteError)
       const error = err as Error
       expect(error.message).toMatch(/Failed to write.*\.py/)
       // Verify it includes context about the original error

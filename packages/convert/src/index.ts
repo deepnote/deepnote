@@ -26,6 +26,7 @@ export {
   convertDeepnoteToQuartoDocuments,
   serializeQuartoFormat,
 } from './deepnote-to-quarto'
+export { FileReadError, FileWriteError, JsonParseError, UnsupportedFormatError } from './errors'
 export { detectFormat, type NotebookFormat } from './format-detection'
 export type {
   ConvertIpynbFilesToDeepnoteFileOptions,

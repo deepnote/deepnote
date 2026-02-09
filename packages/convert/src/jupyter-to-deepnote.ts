@@ -4,6 +4,7 @@ import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
 import { deepnoteBlockSchema, environmentSchema, executionSchema } from '@deepnote/blocks'
 import { stringify } from 'yaml'
+import { FileReadError, JsonParseError } from './errors'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
 import { createSortingKey, sortKeysAlphabetically } from './utils'
 
@@ -191,7 +192,7 @@ async function parseIpynbFile(filePath: string): Promise<JupyterNotebook> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
-    throw new Error(`Failed to read ${filePath}: ${message}`)
+    throw new FileReadError(`Failed to read ${filePath}: ${message}`, { cause: error, filePath })
   }
 
   try {
@@ -199,7 +200,7 @@ async function parseIpynbFile(filePath: string): Promise<JupyterNotebook> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
-    throw new Error(`Failed to parse ${filePath}: invalid JSON - ${message}`)
+    throw new JsonParseError(`Failed to parse ${filePath}: invalid JSON - ${message}`, { cause: error, filePath })
   }
 }
 

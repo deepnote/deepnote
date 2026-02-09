@@ -1,3 +1,5 @@
+import { UnsupportedFormatError } from './errors'
+
 export type NotebookFormat = 'jupyter' | 'deepnote' | 'marimo' | 'percent' | 'quarto'
 
 /** Check if file content is Marimo format */
@@ -92,12 +94,15 @@ export function detectFormat(filename: string, content?: string): NotebookFormat
 
   if (lowercaseFilename.endsWith('.py')) {
     if (!content) {
-      throw new Error('Content is required to detect format for .py files')
+      throw new UnsupportedFormatError('Content is required to detect format for .py files', { filename })
     }
     if (isMarimoContent(content)) return 'marimo'
     if (isPercentContent(content)) return 'percent'
-    throw new Error('Unsupported Python file format. File must be percent format (# %%) or Marimo (@app.cell).')
+    throw new UnsupportedFormatError(
+      'Unsupported Python file format. File must be percent format (# %%) or Marimo (@app.cell).',
+      { filename }
+    )
   }
 
-  throw new Error(`Unsupported file format: ${filename}`)
+  throw new UnsupportedFormatError(`Unsupported file format: ${filename}`, { filename })
 }
