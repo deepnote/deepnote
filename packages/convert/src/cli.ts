@@ -167,7 +167,8 @@ export async function convert(options: ConvertOptions): Promise<string> {
     }
 
     throw new UnsupportedFormatError(
-      'Unsupported Python file format. File must be a percent format (# %% markers) or Marimo notebook (@app.cell decorators).'
+      'Unsupported Python file format. File must be a percent format (# %% markers) or Marimo notebook (@app.cell decorators).',
+      { filename: absolutePath }
     )
   }
 
@@ -177,7 +178,8 @@ export async function convert(options: ConvertOptions): Promise<string> {
   }
 
   throw new UnsupportedFormatError(
-    'Unsupported file type. Please provide a .ipynb, .qmd, .py (percent/marimo), or .deepnote file.'
+    'Unsupported file type. Please provide a .ipynb, .qmd, .py (percent/marimo), or .deepnote file.',
+    { filename: absolutePath }
   )
 }
 
