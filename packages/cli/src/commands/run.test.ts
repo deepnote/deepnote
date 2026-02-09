@@ -47,7 +47,7 @@ vi.mock('@deepnote/reactivity', () => {
 
 // Mock integrations module for testing integration validation
 const mockParseIntegrationsFile = vi.fn()
-vi.mock('../integrations', () => {
+vi.mock('../integrations/parse-integrations', () => {
   return {
     parseIntegrationsFile: (...args: unknown[]) => mockParseIntegrationsFile(...args),
     getDefaultIntegrationsFilePath: (dir: string) => join(dir, DEFAULT_INTEGRATIONS_FILE),
