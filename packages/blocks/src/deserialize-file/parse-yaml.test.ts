@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { EncodingError, ProhibitedYamlFeatureError, YamlParseError } from '../errors'
 import { decodeUtf8NoBom, parseYaml } from './parse-yaml'
 
 describe('parseYaml', () => {
@@ -73,15 +74,13 @@ describe('parseYaml', () => {
         version: 1.0
       invalid:
     `
-      expect(() => parseYaml(yamlContent)).toThrow(Error)
-      expect(() => parseYaml(yamlContent)).toThrow(/Failed to parse Deepnote file/)
+      expect(() => parseYaml(yamlContent)).toThrow(YamlParseError)
     })
 
     it('throws an error with custom message when given invalid YAML', () => {
       // Invalid YAML: unmatched quote
       const yamlContent = 'key: "unclosed string'
-      expect(() => parseYaml(yamlContent)).toThrow(Error)
-      expect(() => parseYaml(yamlContent)).toThrow(/Failed to parse Deepnote file/)
+      expect(() => parseYaml(yamlContent)).toThrow(YamlParseError)
     })
   })
 
@@ -111,6 +110,7 @@ describe('parseYaml', () => {
       const bom = '\uFEFF'
       const yamlContent = `${bom}name: Deepnote\nversion: 1.0`
 
+      expect(() => parseYaml(yamlContent)).toThrow(EncodingError)
       expect(() => parseYaml(yamlContent)).toThrow(/BOM/)
     })
   })
@@ -131,7 +131,7 @@ describe('parseYaml', () => {
       // Prepend UTF-8 BOM (0xEF 0xBB 0xBF)
       const bytesWithBom = new Uint8Array([0xef, 0xbb, 0xbf, ...textBytes])
 
-      expect(() => decodeUtf8NoBom(bytesWithBom)).toThrow(/BOM/)
+      expect(() => decodeUtf8NoBom(bytesWithBom)).toThrow(EncodingError)
       expect(() => decodeUtf8NoBom(bytesWithBom)).toThrow(/UTF-8 without BOM/)
     })
 
@@ -149,6 +149,7 @@ describe('parseYaml', () => {
         0x82, // Invalid UTF-8 sequence
       ])
 
+      expect(() => decodeUtf8NoBom(invalidBytes)).toThrow(EncodingError)
       expect(() => decodeUtf8NoBom(invalidBytes)).toThrow(/Invalid UTF-8 encoding/)
     })
 
@@ -165,6 +166,7 @@ describe('parseYaml', () => {
         0xaf, // Overlong encoding (invalid)
       ])
 
+      expect(() => decodeUtf8NoBom(overlongBytes)).toThrow(EncodingError)
       expect(() => decodeUtf8NoBom(overlongBytes)).toThrow(/Invalid UTF-8 encoding/)
     })
 
@@ -184,6 +186,7 @@ describe('parseYaml', () => {
       version: 1.0
       name: Second
     `
+      expect(() => parseYaml(yamlContent)).toThrow(YamlParseError)
       expect(() => parseYaml(yamlContent)).toThrow(/duplicate/i)
     })
 
@@ -194,6 +197,7 @@ describe('parseYaml', () => {
         name: Test
         id: 456
     `
+      expect(() => parseYaml(yamlContent)).toThrow(YamlParseError)
       expect(() => parseYaml(yamlContent)).toThrow(/duplicate/i)
     })
 
@@ -220,6 +224,7 @@ describe('parseYaml', () => {
       production:
         <<: *defaults
     `
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/anchors.*not allowed/i)
     })
 
@@ -230,6 +235,7 @@ describe('parseYaml', () => {
       derived: *base
     `
       // Both anchor and alias are present, so either error is acceptable
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/anchor|alias/i)
     })
 
@@ -273,6 +279,7 @@ describe('parseYaml', () => {
         z: 3
     `
       // This YAML contains anchor, alias, and merge key - any of these should be rejected
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/anchor|alias|merge key/i)
     })
 
@@ -283,6 +290,7 @@ describe('parseYaml', () => {
         z: 3
     `
       // Even without valid anchor/alias, the <<: syntax should be rejected
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/merge keys.*not allowed/i)
     })
   })
@@ -292,6 +300,7 @@ describe('parseYaml', () => {
       const yamlContent = `
       value: !custom some value
     `
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
     })
 
@@ -300,6 +309,7 @@ describe('parseYaml', () => {
       value: !custom-type some value
       another: !my-custom-tag data
     `
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
       expect(() => parseYaml(yamlContent)).toThrow(/!custom-type/)
     })
@@ -308,6 +318,7 @@ describe('parseYaml', () => {
       const yamlContent = `
       date: !python/object/apply:datetime.date [2024, 1, 1]
     `
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
     })
 
@@ -315,6 +326,7 @@ describe('parseYaml', () => {
       const yamlContent = `
       string: !str "123"
     `
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
     })
   })

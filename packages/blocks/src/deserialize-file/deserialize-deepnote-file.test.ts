@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { SchemaValidationError } from '../errors'
 import { deepnoteBlockSchema, deepnoteFileSchema, deepnoteSnapshotSchema } from './deepnote-file-schema'
 import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
 import * as parseYamlModule from './parse-yaml'
@@ -227,25 +228,26 @@ describe('deserializeDeepnoteFile', () => {
       blocks: [{}],
     })
 
-    expect(() => deserializeDeepnoteFile('invalid schema')).toThrow(Error)
+    expect(() => deserializeDeepnoteFile('invalid schema')).toThrow(SchemaValidationError)
     expect(() => deserializeDeepnoteFile('invalid schema')).toThrow(/Failed to parse the Deepnote file:/)
   })
 
   it('throws generic error if schema validation issues array is empty', () => {
-    const safeParseSpy = vi.spyOn(deepnoteFileSchema, 'safeParse').mockReturnValueOnce({
+    const safeParseSpy = vi.spyOn(deepnoteFileSchema, 'safeParse').mockReturnValue({
       success: false,
       error: { issues: [] },
     } as unknown as ReturnType<typeof deepnoteFileSchema.safeParse>)
 
     parseYaml.mockReturnValue({})
 
+    expect(() => deserializeDeepnoteFile('invalid')).toThrow(SchemaValidationError)
     expect(() => deserializeDeepnoteFile('invalid')).toThrow('Invalid Deepnote file.')
 
     safeParseSpy.mockRestore()
   })
 
   it('formats schema validation message with path prefix if available', () => {
-    const safeParseSpy = vi.spyOn(deepnoteFileSchema, 'safeParse').mockReturnValueOnce({
+    const safeParseSpy = vi.spyOn(deepnoteFileSchema, 'safeParse').mockReturnValue({
       success: false,
       error: {
         issues: [
@@ -259,6 +261,7 @@ describe('deserializeDeepnoteFile', () => {
 
     parseYaml.mockReturnValue({})
 
+    expect(() => deserializeDeepnoteFile('bad')).toThrow(SchemaValidationError)
     expect(() => deserializeDeepnoteFile('bad')).toThrow('Failed to parse the Deepnote file: blocks.0.type: Required.')
 
     safeParseSpy.mockRestore()

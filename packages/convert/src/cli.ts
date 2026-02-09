@@ -12,6 +12,7 @@ import {
   convertDeepnoteFileToPercentFiles,
   convertDeepnoteFileToQuartoFiles,
 } from '.'
+import { UnsupportedFormatError } from './errors'
 import { isMarimoContent, isPercentContent } from './format-detection'
 import { readAndConvertIpynbFiles } from './jupyter-to-deepnote'
 import { readAndConvertMarimoFiles } from './marimo-to-deepnote'
@@ -135,7 +136,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
       return convertDirectory({ dirPath: absolutePath, files: percentFiles, format: 'percent', ...directoryOptions })
     }
 
-    throw new Error('No supported notebook files found in the specified directory (.ipynb, .qmd, .py)')
+    throw new UnsupportedFormatError('No supported notebook files found in the specified directory (.ipynb, .qmd, .py)')
   }
 
   const ext = extname(absolutePath).toLowerCase()
@@ -165,7 +166,7 @@ export async function convert(options: ConvertOptions): Promise<string> {
       return convertPercentToDeepnote(fileOptions)
     }
 
-    throw new Error(
+    throw new UnsupportedFormatError(
       'Unsupported Python file format. File must be a percent format (# %% markers) or Marimo notebook (@app.cell decorators).'
     )
   }
@@ -175,7 +176,9 @@ export async function convert(options: ConvertOptions): Promise<string> {
     return convertDeepnoteToFormat(absolutePath, outputFormat, customOutputPath, cwd)
   }
 
-  throw new Error('Unsupported file type. Please provide a .ipynb, .qmd, .py (percent/marimo), or .deepnote file.')
+  throw new UnsupportedFormatError(
+    'Unsupported file type. Please provide a .ipynb, .qmd, .py (percent/marimo), or .deepnote file.'
+  )
 }
 
 interface ConvertDirectoryOptions {

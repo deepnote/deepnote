@@ -1,3 +1,4 @@
+import { InvalidValueError } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { createSortingKey, isMarkdownBlockType, sortKeysAlphabetically } from './utils'
 
@@ -82,6 +83,7 @@ describe('createSortingKey', () => {
   })
 
   it('throws for negative indices', () => {
+    expect(() => createSortingKey(-1)).toThrow(InvalidValueError)
     expect(() => createSortingKey(-1)).toThrow('Index must be non-negative')
   })
 })

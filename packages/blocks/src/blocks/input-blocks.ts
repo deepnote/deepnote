@@ -12,6 +12,7 @@ import type {
   InputTextareaBlock,
   InputTextBlock,
 } from '../deserialize-file/deepnote-file-schema'
+import { InvalidValueError } from '../errors'
 import { pythonCode } from '../python-snippets'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
 
@@ -100,13 +101,16 @@ export function createPythonCodeForInputSliderBlock(block: InputSliderBlock): st
   // Allow integers, floats with optional sign and decimal point
   const numericPattern = /^-?\d+\.?\d*$|^-?\d*\.\d+$/
   if (!numericPattern.test(value)) {
-    throw new Error(`Invalid numeric value for slider input: "${value}". Expected a valid number (integer or float).`)
+    throw new InvalidValueError(
+      `Invalid numeric value for slider input: "${value}". Expected a valid number (integer or float).`,
+      { value }
+    )
   }
 
   // Parse and convert to number to ensure it's valid, then back to string for output
   const numericValue = Number(value)
   if (!Number.isFinite(numericValue)) {
-    throw new Error(`Invalid numeric value for slider input: "${value}". Value must be finite.`)
+    throw new InvalidValueError(`Invalid numeric value for slider input: "${value}". Value must be finite.`, { value })
   }
 
   return `${sanitizedPythonVariableName} = ${numericValue}`
@@ -161,8 +165,9 @@ export function createPythonCodeForInputDateRangeBlock(block: InputDateRangeBloc
   else if (isValidRelativeDateInterval(block.metadata.deepnote_variable_value)) {
     const range = DATE_RANGE_INPUT_RELATIVE_RANGES.find(range => range.value === block.metadata.deepnote_variable_value)
     if (!range) {
-      throw new Error(
-        `Invalid relative date interval: "${block.metadata.deepnote_variable_value}". Expected one of: ${DATE_RANGE_INPUT_RELATIVE_RANGES.map(r => r.value).join(', ')}.`
+      throw new InvalidValueError(
+        `Invalid relative date interval: "${block.metadata.deepnote_variable_value}". Expected one of: ${DATE_RANGE_INPUT_RELATIVE_RANGES.map(r => r.value).join(', ')}.`,
+        { value: block.metadata.deepnote_variable_value }
       )
     }
     return dedent`
