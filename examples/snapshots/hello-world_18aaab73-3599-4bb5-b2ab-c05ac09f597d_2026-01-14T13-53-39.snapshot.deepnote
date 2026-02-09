@@ -1,6 +1,6 @@
 metadata:
   createdAt: 2025-11-04T00:31:57.544Z
-  modifiedAt: '2026-01-14T13:54:10.245Z'
+  modifiedAt: '2026-01-14T13:53:39.602Z'
   snapshotHash: sha256:29de6eb7a0a8b89cd0cb020b22e784aaa3e347d02ce17653a23557d15fc26ae2
 project:
   id: 18aaab73-3599-4bb5-b2ab-c05ac09f597d
@@ -30,13 +30,13 @@ project:
   settings: {}
 version: 1.0.0
 execution:
-  finishedAt: '2026-01-14T13:54:10.191Z'
-  startedAt: '2026-01-14T13:54:10.175Z'
+  finishedAt: '2026-01-14T13:53:39.550Z'
+  startedAt: '2026-01-14T13:53:39.541Z'
   summary:
     blocksExecuted: 1
     blocksFailed: 0
     blocksSucceeded: 1
-    totalDurationMs: 16
+    totalDurationMs: 9
   triggeredBy: user
 environment:
   hash: sha256:1cfc8657751731c03e0937180f8190c8ecc2eef48c963ac5b752e8d618634135

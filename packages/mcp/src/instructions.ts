@@ -4,164 +4,63 @@
  */
 export const serverInstructions = `# Deepnote MCP Server
 
-This server provides tools for creating, editing, running, and converting Deepnote notebooks (.deepnote files).
+Tools for creating, editing, running, and converting Deepnote notebooks (.deepnote files).
 
-## IMPORTANT: Understanding Execution Outputs
+## IMPORTANT: Always work in .deepnote format
 
-**All execution outputs are saved to snapshot files (.snapshot.deepnote).**
+When something goes wrong, do NOT fall back to converting to .ipynb and working in Jupyter format. The .deepnote format has much better debugging tools (\`deepnote_lint\`, \`deepnote_read\`, \`deepnote_dag\`, \`deepnote_fix\`, \`deepnote_snapshot_load\`) that are not available for .ipynb files. Stay in .deepnote and use these tools to diagnose and fix issues. Only use \`deepnote_convert_to\` when the user explicitly asks for export.
 
-When you run a notebook with \`deepnote_run\`:
-1. The notebook executes locally
-2. All outputs (stdout, stderr, charts, errors, timing) are saved to a snapshot file
-3. The response includes \`snapshotPath\` - **this is where results live**
-4. Use \`deepnote_snapshot_load\` to inspect outputs and debug
+## Structure
 
-**Debugging workflow:**
-1. \`deepnote_run path=notebook.deepnote\` → runs and saves snapshot
-2. Check \`snapshotPath\` in the response
-3. \`deepnote_snapshot_load path=<snapshotPath>\` → load and inspect outputs
-4. Review block outputs, errors, execution timing
-5. Fix issues in source, re-run, compare results
+A \`.deepnote\` file is a **project** containing **notebooks**, each containing **blocks**.
+- **Block** - Code cell, markdown, input widget, SQL query
+- **Notebook** - Collection of blocks (like a Jupyter notebook)
+- **Project** - The \`.deepnote\` file with all notebooks, settings, and integrations
 
-**Key point:** If you need to see what a notebook produced (output values, errors, charts), you MUST load the snapshot. The run response only contains summary info.
+## Execution and Snapshots
 
-**Important:** Always use \`deepnote_snapshot_load\` to read snapshots - do NOT read .snapshot.deepnote files directly with file read tools. The snapshot loader parses and structures the outputs for you.
+Execution outputs are saved to snapshot files (.snapshot.deepnote). Use \`deepnote_snapshot_load\` to inspect them -- do NOT read snapshot files directly.
 
-## Structure: Projects, Notebooks, and Blocks
+**Execution scopes (smallest to largest):**
+1. \`deepnote_run_block\` - One block + dependencies (use during development)
+2. \`deepnote_run notebook=X\` - One notebook
+3. \`deepnote_run\` - All notebooks (use for final verification)
 
-A \`.deepnote\` file is a **project** containing one or more **notebooks**, each containing **blocks**.
-
-**Hierarchy (smallest to largest):**
-- **Block** - Single unit: code cell, markdown, input widget, SQL query
-- **Notebook** - Collection of blocks that execute together (like a Jupyter notebook)
-- **Project** - The \`.deepnote\` file containing all notebooks, settings, and integrations
-
-**Execution scopes (from focused to broad):**
-1. \`deepnote_run_block\` - Run ONE block (+ its dependencies)
-2. \`deepnote_run notebook=X\` - Run ONE notebook
-3. \`deepnote_run\` - Run ALL notebooks in project
-
-**Development tip:** Start small, verify, then expand:
-- Build block by block within a notebook
-- Once a notebook works, add the next notebook
-- Run at project level only when all pieces are verified
+Use \`dryRun: true\` to preview execution plan without running.
 
 ## Quick Start
 
-**Running and debugging notebooks:**
-- Use \`deepnote_run\` to execute (supports .deepnote, .ipynb, .py, .qmd)
-- Check \`snapshotPath\` in response for outputs
-- Use \`deepnote_snapshot_load\` to inspect results and debug
-
-**Creating notebooks:**
-- Use \`deepnote_scaffold\` for simple, well-understood patterns
-- For complex/custom logic: build incrementally with \`deepnote_create\` → \`deepnote_add_block\` → \`deepnote_run_block\` → verify → repeat
-
-**Converting notebooks:**
-- Use \`deepnote_convert_from\` to import from Jupyter (.ipynb), Quarto (.qmd), or Python (.py)
-- Use \`deepnote_convert_to\` to export to other formats
-
-**Improving notebooks:**
-- Use \`deepnote_enhance\` to add interactivity (inputs, better docs)
-- Use \`deepnote_fix\` to auto-fix issues (missing imports, undefined vars)
-- Use \`deepnote_suggest\` to get improvement recommendations
+**Create:** \`deepnote_scaffold\` for common patterns, or build incrementally with \`deepnote_create\` + \`deepnote_add_block\` + \`deepnote_run_block\`
+**Convert:** \`deepnote_convert_from\` to import (.ipynb, .qmd, .py), \`deepnote_convert_to\` to export
+**Improve:** \`deepnote_enhance\` (interactivity), \`deepnote_fix\` (auto-repair), \`deepnote_suggest\` (recommendations)
+**Analyze:** \`deepnote_read\` (unified), \`deepnote_dag\` (dependencies), \`deepnote_explain\` (documentation)
 
 ## Block Types
 
-Deepnote notebooks contain blocks. Key types:
+**Executable:** \`code\`, \`sql\`, \`input-text\`, \`input-slider\`, \`input-select\`, \`input-checkbox\`, \`input-date\`, \`input-date-range\`, \`button\`, \`big-number\`
+**Text:** \`markdown\`, \`text-cell-h1/h2/h3\`, \`text-cell-p\`, \`text-cell-bullet\`, \`text-cell-callout\`, \`separator\`, \`image\`
 
-**Executable blocks** (produce outputs):
-- \`code\` - Python code
-- \`sql\` - SQL queries (requires \`deepnote_variable_name\` metadata)
-- \`input-text\`, \`input-slider\`, \`input-select\`, \`input-checkbox\` - Interactive inputs
-- \`input-date\`, \`input-date-range\` - Date pickers
-- \`button\` - Clickable buttons
-- \`big-number\` - KPI displays
+## Input Block Metadata
 
-**Text blocks** (display only):
-- \`markdown\` - Rich markdown
-- \`text-cell-h1/h2/h3\` - Headers
-- \`text-cell-p\` - Paragraphs
-- \`text-cell-bullet\` - Bullet lists
-- \`text-cell-callout\` - Highlighted notes (info/warning/error)
-- \`separator\` - Horizontal divider
-- \`image\` - Embedded images
-
-## Key Metadata Fields
-
-When creating input blocks, use these metadata fields:
 - \`deepnote_variable_name\` - Variable name for the input's value
 - \`deepnote_input_label\` - Display label
 - \`deepnote_input_default\` - Default value
 - \`deepnote_input_min/max/step\` - For sliders
 - \`deepnote_input_options\` - For select dropdowns
 
-## Recommended Workflows
+## Incremental Development (recommended for complex logic)
 
-**New data analysis notebook:**
-1. \`deepnote_scaffold\` with detailed description
-2. \`deepnote_enhance\` to add inputs for parameters
-3. \`deepnote_suggest\` for improvement ideas
+1. \`deepnote_create\` → \`deepnote_add_block\` → \`deepnote_run_block\` → verify with \`deepnote_snapshot_load\`
+2. Repeat: add block → run → verify
+3. Once complete, \`deepnote_run\` full notebook/project
 
-**Building notebooks incrementally (RECOMMENDED for complex/custom logic):**
-1. \`deepnote_create\` to create empty project with one notebook
-2. \`deepnote_add_block\` to add first code block
-3. \`deepnote_run_block\` to execute just that block
-4. \`deepnote_snapshot_load\` to verify output is correct
-5. Repeat: add next block → run block → verify
-6. Once notebook is complete, run full notebook to confirm
-7. For multi-notebook projects: add next notebook, repeat process
-
-**Why incremental?** When blocks depend on each other (e.g., block 2 uses variables from block 1), building incrementally ensures each step works before adding the next. Debugging one block at a time is much easier than debugging a 10-block notebook with multiple failures.
-
-**Anti-pattern:** Adding multiple blocks without executing after each one. If you add 5 blocks then run, you'll have 5 potential failure points to debug at once.
-
-**Scope your execution:**
-- Developing a block? → \`deepnote_run_block\`
-- Testing a notebook? → \`deepnote_run notebook=name\`
-- Final verification? → \`deepnote_run\` (full project)
-
-**Import and improve existing notebook:**
-1. \`deepnote_convert_from\` to import
-2. \`deepnote_lint\` to check for issues
-3. \`deepnote_fix\` to auto-repair
-4. \`deepnote_enhance\` to add interactivity
-
-**Analyze notebook structure:**
-1. \`deepnote_inspect\` to see structure
-2. \`deepnote_dag\` to view dependencies
-3. \`deepnote_explain\` to generate documentation
-
-**Working with snapshots (execution outputs):**
-1. \`deepnote_snapshot_load\` - **Load and inspect outputs** (stdout, errors, charts, timing)
-2. \`deepnote_snapshot_list\` - Find available snapshots for a project
-3. \`deepnote_snapshot_split\` - Separate outputs from source for clean version control
-4. \`deepnote_snapshot_merge\` - Restore outputs back into a clean source
-
-**Key:** After \`deepnote_run\`, always check \`snapshotPath\` and use \`deepnote_snapshot_load\` to see actual outputs. Snapshots contain everything: stdout, stderr, return values, charts, errors, and execution timing.
-
-**Do NOT** read snapshot files directly with file read tools - always use \`deepnote_snapshot_load\` which parses and structures the data.
-
-**Tip:** Snapshots are valid .deepnote files. You can run them directly with \`deepnote_run\` for debugging - this lets you re-execute and compare results.
-
-## Execution Levels
-
-A .deepnote project can contain multiple notebooks. Execution can be scoped to:
-
-1. **Project level** (default): \`deepnote_run\` runs ALL notebooks in order
-2. **Notebook level**: \`deepnote_run\` with \`notebook\` parameter runs a single notebook
-3. **Block level**: \`deepnote_run_block\` runs a specific block (and its dependencies)
-
-Use \`dryRun: true\` to preview execution plan without running.
+Build block by block. Adding multiple blocks without testing after each one makes debugging harder.
 
 ## Best Practices
 
 - Start notebooks with a title (text-cell-h1) and introduction
 - Organize with section headers (text-cell-h2)
 - Convert hardcoded values to input blocks for interactivity
-- Add markdown explanations before complex code
-- Use deepnote_lint to catch issues before running
-- For dependent blocks, build incrementally: add → run → verify → add next
-- Scope execution appropriately: block → notebook → project (smallest scope that tests what you need)
-- Prefer \`deepnote_run_block\` during development, \`deepnote_run\` for final verification
+- Use \`deepnote_lint\` to catch issues before running
+- Scope execution to the smallest level needed
 `

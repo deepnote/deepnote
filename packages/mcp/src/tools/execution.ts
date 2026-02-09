@@ -20,6 +20,7 @@ import {
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
+import { formatOutput, loadDeepnoteFile } from '../utils.js'
 
 // Cloud upload constants
 const DEFAULT_DOMAIN = 'deepnote.com'
@@ -31,24 +32,6 @@ const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
 // Output summary limits
 const MAX_OUTPUT_CHARS_PER_BLOCK = 500
 const MAX_BLOCKS_IN_SUMMARY = 5
-
-/**
- * Format output based on compact mode - omit null/empty, use single-line JSON
- */
-function formatOutput(data: object, compact: boolean): string {
-  if (compact) {
-    const filtered = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => {
-        if (v == null) return false
-        if (Array.isArray(v) && v.length === 0) return false
-        if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return false
-        return true
-      })
-    )
-    return JSON.stringify(filtered)
-  }
-  return JSON.stringify(data, null, 2)
-}
 
 /**
  * Extract a text summary from block outputs for inline display.
@@ -213,12 +196,6 @@ export const executionTools: Tool[] = [
     },
   },
 ]
-
-async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
-  const absolutePath = path.resolve(filePath)
-  const content = await fs.readFile(absolutePath, 'utf-8')
-  return deserializeDeepnoteFile(content)
-}
 
 /**
  * Resolve and convert any supported notebook format to a DeepnoteFile.

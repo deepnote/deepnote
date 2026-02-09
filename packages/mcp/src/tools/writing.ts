@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
+import { generateSortingKey, loadDeepnoteFile, saveDeepnoteFile } from '../utils.js'
 
 export const writingTools: Tool[] = [
   {
@@ -353,11 +351,6 @@ export const writingTools: Tool[] = [
   },
 ]
 
-function generateSortingKey(index: number): string {
-  // Generate a sorting key that maintains order
-  return String(index).padStart(6, '0')
-}
-
 function createBlock(
   spec: { type: string; content?: string; metadata?: Record<string, unknown> },
   index: number,
@@ -387,22 +380,6 @@ function createBlock(
   }
 
   return base as DeepnoteBlock
-}
-
-async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
-  const absolutePath = path.resolve(filePath)
-  const content = await fs.readFile(absolutePath, 'utf-8')
-  return deserializeDeepnoteFile(content)
-}
-
-async function saveDeepnoteFile(filePath: string, file: DeepnoteFile): Promise<void> {
-  const absolutePath = path.resolve(filePath)
-  const content = yamlStringify(file, {
-    lineWidth: 0,
-    defaultStringType: 'PLAIN',
-    defaultKeyType: 'PLAIN',
-  })
-  await fs.writeFile(absolutePath, content, 'utf-8')
 }
 
 async function handleCreate(args: Record<string, unknown>) {
