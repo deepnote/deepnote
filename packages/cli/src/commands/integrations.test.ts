@@ -27,9 +27,9 @@ vi.mock('../output', () => ({
 }))
 
 import { existsSync } from 'node:fs'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../constants'
 // Import after mocks are set up
-import { createIntegrationsCommand } from './integrations'
+import { createIntegrationsPullAction, DEFAULT_API_URL } from './integrations'
 
 describe('integrations command', () => {
   beforeEach(() => {
@@ -370,8 +370,15 @@ describe('integrations command', () => {
 
       program = new Command()
       program.exitOverride()
-      const integrationsCommand = createIntegrationsCommand(program)
-      program.addCommand(integrationsCommand)
+      const integrationsCmd = program.command('integrations').description('Manage database integrations')
+      integrationsCmd
+        .command('pull')
+        .description('Pull integrations from Deepnote API and merge with local file')
+        .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+        .option('--token <token>', `Bearer token for authentication (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+        .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+        .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+        .action(createIntegrationsPullAction(program))
 
       tempDir = join(tmpdir(), `integrations-pull-test-${Date.now()}`)
       await mkdir(tempDir, { recursive: true })

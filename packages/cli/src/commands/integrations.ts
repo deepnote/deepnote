@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import chalk from 'chalk'
-import { Command } from 'commander'
+import type { Command } from 'commander'
 import { type Document, isSeq, parseDocument } from 'yaml'
 import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
@@ -30,7 +30,7 @@ export {
 /**
  * Default API base URL.
  */
-const DEFAULT_API_URL = 'https://api.deepnote.com'
+export const DEFAULT_API_URL = 'https://api.deepnote.com'
 
 /**
  * JSON schema URL for the integrations file.
@@ -189,33 +189,21 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
 }
 
 // ============================================================================
-// Command Registration
+// Action Creators
 // ============================================================================
 
 /**
- * Creates the integrations command with its subcommands.
+ * Creates the action handler for the `integrations pull` subcommand.
  */
-export function createIntegrationsCommand(program: Command): Command {
-  const integrations = new Command('integrations').description('Manage database integrations')
-
-  // Pull subcommand
-  integrations
-    .command('pull')
-    .description('Pull integrations from Deepnote API and merge with local file')
-    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
-    .option('--token <token>', `Bearer token for authentication (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
-    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
-    .action(async (options: IntegrationsPullOptions) => {
-      try {
-        await pullIntegrations(options)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        const exitCode =
-          error instanceof MissingTokenError || error instanceof ApiError ? ExitCode.InvalidUsage : ExitCode.Error
-        program.error(chalk.red(message), { exitCode })
-      }
-    })
-
-  return integrations
+export function createIntegrationsPullAction(program: Command): (options: IntegrationsPullOptions) => Promise<void> {
+  return async options => {
+    try {
+      await pullIntegrations(options)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const exitCode =
+        error instanceof MissingTokenError || error instanceof ApiError ? ExitCode.InvalidUsage : ExitCode.Error
+      program.error(chalk.red(message), { exitCode })
+    }
+  }
 }
