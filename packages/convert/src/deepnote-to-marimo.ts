@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { createMarkdown, createPythonCode, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { FileWriteError } from './errors'
 import type { MarimoApp, MarimoCell } from './types/marimo'
 import { isMarkdownBlockType, sanitizeFileName } from './utils'
 
@@ -202,8 +203,9 @@ export async function convertDeepnoteFileToMarimoFiles(
       await fs.writeFile(filePath, content, 'utf-8')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
-      throw new Error(`Failed to write ${filename}: ${errorMessage}`, {
+      throw new FileWriteError(`Failed to write ${filename}: ${errorMessage}`, {
         cause: err,
+        filePath: filePath,
       })
     }
   }

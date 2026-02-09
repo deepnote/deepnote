@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { UnsupportedFormatError } from './errors'
 import { detectFormat, isMarimoContent, isPercentContent } from './format-detection'
 
 describe('isMarimoContent', () => {
@@ -293,6 +294,7 @@ x = 1
     })
 
     it('throws error for .py file without content', () => {
+      expect(() => detectFormat('notebook.py')).toThrow(UnsupportedFormatError)
       expect(() => detectFormat('notebook.py')).toThrow('Content is required to detect format for .py files')
     })
 
@@ -300,6 +302,7 @@ x = 1
       const content = `print("hello")
 x = 1
 `
+      expect(() => detectFormat('notebook.py', content)).toThrow(UnsupportedFormatError)
       expect(() => detectFormat('notebook.py', content)).toThrow(
         'Unsupported Python file format. File must be percent format (# %%) or Marimo (@app.cell).'
       )
@@ -308,8 +311,11 @@ x = 1
 
   describe('unsupported formats', () => {
     it('throws error for unsupported file extensions', () => {
+      expect(() => detectFormat('file.txt')).toThrow(UnsupportedFormatError)
       expect(() => detectFormat('file.txt')).toThrow('Unsupported file format: file.txt')
+      expect(() => detectFormat('file.js')).toThrow(UnsupportedFormatError)
       expect(() => detectFormat('file.js')).toThrow('Unsupported file format: file.js')
+      expect(() => detectFormat('file.json')).toThrow(UnsupportedFormatError)
       expect(() => detectFormat('file.json')).toThrow('Unsupported file format: file.json')
     })
   })

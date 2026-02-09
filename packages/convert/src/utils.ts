@@ -1,3 +1,5 @@
+import { InvalidValueError } from '@deepnote/blocks'
+
 /**
  * Creates a sorting key for Deepnote blocks.
  * Uses a base-36 encoding to generate compact, sortable keys.
@@ -11,7 +13,7 @@ export function createSortingKey(index: number): string {
   const base = chars.length
 
   if (index < 0) {
-    throw new Error('Index must be non-negative')
+    throw new InvalidValueError('Index must be non-negative', { value: index })
   }
 
   let result = ''
@@ -26,7 +28,7 @@ export function createSortingKey(index: number): string {
   }
 
   if (num > 0) {
-    throw new Error(`Index ${index} exceeds maximum key length of ${maxLength}`)
+    throw new InvalidValueError(`Index ${index} exceeds maximum key length of ${maxLength}`, { value: index })
   }
 
   return result

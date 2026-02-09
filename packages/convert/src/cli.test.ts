@@ -3,8 +3,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-
 import { convert } from './cli'
+import { UnsupportedFormatError } from './errors'
 import { parseMarimoFormat } from './marimo-to-deepnote'
 import { parsePercentFormat } from './percent-to-deepnote'
 import { parseQuartoFormat } from './quarto-to-deepnote'
@@ -202,6 +202,12 @@ describe('CLI convert function', () => {
         inputPath: emptyDir,
         cwd: tempDir,
       })
+    ).rejects.toThrow(UnsupportedFormatError)
+    await expect(
+      convert({
+        inputPath: emptyDir,
+        cwd: tempDir,
+      })
     ).rejects.toThrow('No supported notebook files found')
   })
 
@@ -210,6 +216,12 @@ describe('CLI convert function', () => {
     await fs.writeFile(txtPath, 'not a notebook', 'utf-8')
 
     // Should throw error
+    await expect(
+      convert({
+        inputPath: txtPath,
+        cwd: tempDir,
+      })
+    ).rejects.toThrow(UnsupportedFormatError)
     await expect(
       convert({
         inputPath: txtPath,
@@ -794,7 +806,7 @@ version: "1.0.0"`
         inputPath: pyPath,
         cwd: tempDir,
       })
-    ).rejects.toThrow('Unsupported Python file format')
+    ).rejects.toThrow(UnsupportedFormatError)
   })
 
   it('throws error for Python files with marimo/percent in comments', async () => {
@@ -811,7 +823,7 @@ print("regular python file")
         inputPath: pyPath,
         cwd: tempDir,
       })
-    ).rejects.toThrow('Unsupported Python file format')
+    ).rejects.toThrow(UnsupportedFormatError)
   })
 
   it('throws error for Python files with marimo markers in string literals', async () => {
@@ -829,7 +841,7 @@ print("regular python file")
         inputPath: pyPath,
         cwd: tempDir,
       })
-    ).rejects.toThrow('Unsupported Python file format')
+    ).rejects.toThrow(UnsupportedFormatError)
   })
 
   it('throws error for Python files with percent markers in string literals', async () => {
@@ -847,7 +859,7 @@ print("regular python file")
         inputPath: pyPath,
         cwd: tempDir,
       })
-    ).rejects.toThrow('Unsupported Python file format')
+    ).rejects.toThrow(UnsupportedFormatError)
   })
 
   it('creates parent directories when outputPath has non-existent parent dirs', async () => {
