@@ -1,0 +1,2 @@
+# Ignore snapshot directories created by tests
+**/snapshots/

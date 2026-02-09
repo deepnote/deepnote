@@ -1390,7 +1390,7 @@ describe('convertJupyterNotebookToBlocks', () => {
     expect(blocks[0].id).toBe('test-uuid-002')
   })
 
-  it('preserves Deepnote metadata from previous conversion', () => {
+  it('preserves Deepnote metadata from previous conversion when source is unchanged', () => {
     const notebook = {
       cells: [
         {
@@ -1403,7 +1403,7 @@ describe('convertJupyterNotebookToBlocks', () => {
             deepnote_source: 'SELECT * FROM table',
           },
           outputs: [],
-          source: 'transformed code that should be ignored',
+          source: 'SELECT * FROM table',
         },
       ],
       metadata: {},
@@ -1416,8 +1416,50 @@ describe('convertJupyterNotebookToBlocks', () => {
     expect(blocks[0].blockGroup).toBe('original-block-group')
     expect(blocks[0].sortingKey).toBe('abc')
     expect(blocks[0].type).toBe('sql')
-    // Should restore original content from deepnote_source
+    // Should restore original content from deepnote_source when unchanged
     expect(blocks[0].content).toBe('SELECT * FROM table')
+  })
+
+  it('uses actual source when deepnote_source differs from source (user edited cell)', () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'code' as const,
+          metadata: {
+            deepnote_source: 'original code without comment',
+          },
+          outputs: [],
+          source: '# User added this comment\noriginal code without comment',
+        },
+      ],
+      metadata: {},
+    }
+
+    const blocks = convertJupyterNotebookToBlocks(notebook)
+
+    expect(blocks[0].content).toBe('# User added this comment\noriginal code without comment')
+  })
+
+  it('uses deepnote_source when it matches source (unchanged cell)', () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'code' as const,
+          metadata: {
+            deepnote_source: 'SELECT * FROM table',
+            deepnote_cell_type: 'sql',
+          },
+          outputs: [],
+          source: 'SELECT * FROM table',
+        },
+      ],
+      metadata: {},
+    }
+
+    const blocks = convertJupyterNotebookToBlocks(notebook)
+
+    expect(blocks[0].content).toBe('SELECT * FROM table')
+    expect(blocks[0].type).toBe('sql')
   })
 
   it('handles array source format', () => {
@@ -1436,5 +1478,217 @@ describe('convertJupyterNotebookToBlocks', () => {
     const blocks = convertJupyterNotebookToBlocks(notebook)
 
     expect(blocks[0].content).toBe('import numpy as np\nimport pandas as pd')
+  })
+})
+
+describe('content preservation - comments, functions, and classes', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
+    const mockedRandomUUID = getMockedRandomUUID()
+    mockedRandomUUID.mockClear()
+    mockedRandomUUID.__resetCounter()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-01-15T10:30:00.000Z'))
+  })
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true })
+    vi.useRealTimers()
+  })
+
+  it('preserves comments at the top of code cells', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 1 (index 1) should have comments at the top
+    expect(blocks[1].content).toBe('# Comment at top\n# Second comment line\n\nimport pandas as pd')
+  })
+
+  it('preserves comments when source is array format', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 2 (index 2) has source as array
+    expect(blocks[2].content).toBe('# Comment at top (array format)\nx = 10\n# Middle comment\ny = 20')
+  })
+
+  it('preserves function definitions with docstrings', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 3 (index 3) should have the function with docstring
+    const functionBlock = blocks[3]
+    expect(functionBlock.content).toContain('def calculate_sum(a, b):')
+    expect(functionBlock.content).toContain('"""Calculate the sum of two numbers.')
+    expect(functionBlock.content).toContain('Args:')
+    expect(functionBlock.content).toContain('Returns:')
+    expect(functionBlock.content).toContain('# Add the numbers together')
+    expect(functionBlock.content).toContain('return result')
+  })
+
+  it('preserves class definitions with docstrings and methods', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 4 (index 4) should have the class definition
+    const classBlock = blocks[4]
+    expect(classBlock.content).toContain('class DataProcessor:')
+    expect(classBlock.content).toContain('"""Process data with various transformations.')
+    expect(classBlock.content).toContain('def __init__(self, data):')
+    expect(classBlock.content).toContain('# Store the input data')
+    expect(classBlock.content).toContain('def process(self):')
+    expect(classBlock.content).toContain('"""Process the stored data."""')
+  })
+
+  it('preserves module-level docstrings and encoding declarations', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 6 (index 6) should have encoding declaration and module docstring
+    const moduleBlock = blocks[6]
+    expect(moduleBlock.content).toContain('# -*- coding: utf-8 -*-')
+    expect(moduleBlock.content).toContain('"""Module-level docstring.')
+    expect(moduleBlock.content).toContain("VERSION = '1.0.0'")
+  })
+
+  it('preserves triple-quoted strings at cell top', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 7 (index 7) should have triple-quoted string at top
+    const tripleQuoteBlock = blocks[7]
+    expect(tripleQuoteBlock.content).toContain("'''")
+    expect(tripleQuoteBlock.content).toContain('Triple-quoted string at the top of cell.')
+    expect(tripleQuoteBlock.content).toContain('def helper_function():')
+  })
+
+  it('preserves comments with empty lines between them', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 8 (index 8) should have comments with empty lines
+    expect(blocks[8].content).toBe('# First comment\n\n# Comment after empty line\n\n# Another comment\nresult = 42')
+  })
+
+  it('preserves non-Latin characters (Japanese, Chinese, Korean, Russian, Greek)', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 10 (index 10) should have international characters
+    const intlBlock = blocks[10]
+    expect(intlBlock.content).toContain('# 日本語のコメント (Japanese comment)')
+    expect(intlBlock.content).toContain('# 中文注释 (Chinese comment)')
+    expect(intlBlock.content).toContain('# 한국어 주석 (Korean comment)')
+    expect(intlBlock.content).toContain('# Комментарий на русском (Russian comment)')
+    expect(intlBlock.content).toContain('# Σχόλιο στα ελληνικά (Greek comment)')
+    expect(intlBlock.content).toContain("greeting = 'こんにちは'")
+    expect(intlBlock.content).toContain("name = '世界'")
+  })
+
+  it('preserves emoji characters in comments and strings', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 11 (index 11) should have emoji characters
+    const emojiBlock = blocks[11]
+    expect(emojiBlock.content).toContain('# Emoji in comments 🚀💻🔥')
+    expect(emojiBlock.content).toContain('# Data science icons: 📊📈🧮🤖')
+    expect(emojiBlock.content).toContain("'rocket': '🚀'")
+    expect(emojiBlock.content).toContain("'fire': '🔥'")
+  })
+
+  it('preserves special characters and math symbols', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 12 (index 12) should have special characters
+    const specialBlock = blocks[12]
+    expect(specialBlock.content).toContain('# Special characters: éèêë àâä ùûü îï ôö ç ñ')
+    expect(specialBlock.content).toContain('# Math symbols: α β γ δ ε π Σ θ λ μ')
+    expect(specialBlock.content).toContain('# Arrows: ← ↑ → ↓ ⇒ ⇔')
+    expect(specialBlock.content).toContain('# Mathematical: ∞ ≈ ≠ ≤ ≥ √ ∫ ∂')
+    expect(specialBlock.content).toContain('alpha = 0.05  # α significance level')
+  })
+
+  it('preserves emoji in markdown cells', async () => {
+    const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
+    const outputPath = path.join(tempDir, 'test.deepnote')
+
+    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+    const blocks = result.project.notebooks[0].blocks
+
+    // Block 0 (index 0) is markdown with emoji
+    expect(blocks[0].content).toContain('# Python Comprehensive Test 🐍')
+
+    // Block 5 (index 5) is markdown with emoji
+    expect(blocks[5].content).toBe('## Edge Cases 🧪')
+
+    // Block 9 (index 9) is markdown with emoji
+    expect(blocks[9].content).toBe('## International Characters 🌍')
   })
 })

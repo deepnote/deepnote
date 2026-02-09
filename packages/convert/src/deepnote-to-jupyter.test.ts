@@ -12,7 +12,7 @@ import {
 import type { JupyterCell } from './types/jupyter'
 
 describe('convertDeepnoteFileToJupyterFiles', () => {
-  const testFixturesDir = join(__dirname, '../test-fixtures')
+  const testFixturesDir = join(__dirname, '../../../test-fixtures')
   const testOutputDir = join(__dirname, '../test-output')
 
   beforeEach(async () => {
@@ -150,7 +150,7 @@ describe('convertDeepnoteFileToJupyterFiles', () => {
 })
 
 describe('convertDeepnoteToJupyterNotebooks', () => {
-  const testFixturesDir = join(__dirname, '../test-fixtures')
+  const testFixturesDir = join(__dirname, '../../../test-fixtures')
 
   it('converts a Deepnote file to Jupyter notebook objects without file I/O', async () => {
     const inputPath = join(testFixturesDir, 'ChartExamples.deepnote')

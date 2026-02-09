@@ -77,3 +77,18 @@ export async function loadDiffFixture(filename: string): Promise<string> {
 export function getDiffFixturePath(filename: string): string {
   return getFixturePath('diff', filename)
 }
+
+/**
+ * Load a test fixture from the root fixtures directory
+ */
+export async function loadRootFixture(filename: string): Promise<string> {
+  const filePath = path.join(FIXTURES_ROOT, filename)
+  return fs.readFile(filePath, 'utf-8')
+}
+
+/**
+ * Get the absolute path to a fixture in the root fixtures directory
+ */
+export function getRootFixturePath(filename: string): string {
+  return path.join(FIXTURES_ROOT, filename)
+}

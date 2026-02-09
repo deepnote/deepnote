@@ -26,7 +26,7 @@ import { convertPercentNotebooksToDeepnote, parsePercentFormat } from './percent
 import { convertQuartoDocumentsToDeepnote, parseQuartoFormat } from './quarto-to-deepnote'
 import type { JupyterNotebook } from './types/jupyter'
 
-const testFixturesDir = join(__dirname, '../test-fixtures')
+const testFixturesDir = join(__dirname, '../../../test-fixtures')
 
 // ============================================================================
 // JUPYTER ROUNDTRIP TESTS

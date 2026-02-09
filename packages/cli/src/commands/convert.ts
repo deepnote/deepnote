@@ -12,17 +12,18 @@ import {
   detectFormat,
   type NotebookFormat,
 } from '@deepnote/convert'
-import chalk from 'chalk'
 import type { Command } from 'commander'
 import ora from 'ora'
 import { ExitCode } from '../exit-codes'
-import { debug, getOutputConfig, error as logError } from '../output'
+import { debug, getChalk, getOutputConfig, error as logError, output } from '../output'
 import { resolvePath } from '../utils/file-resolver'
+import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 
 export interface ConvertOptions {
   output?: string
   name?: string
   format?: 'jupyter' | 'percent' | 'quarto' | 'marimo'
+  open?: boolean
 }
 
 export interface ConvertResult {
@@ -38,7 +39,21 @@ export function createConvertAction(_program: Command): (inputPath: string, opti
     try {
       debug(`Converting: ${inputPath}`)
       debug(`Options: ${JSON.stringify(options)}`)
-      await convertFile(inputPath, options)
+      const result = await convertFile(inputPath, options)
+
+      // Handle --open flag: open the converted .deepnote file in Deepnote Cloud
+      if (options.open && result.outputFormat === 'deepnote') {
+        const c = getChalk()
+        const quiet = getOutputConfig().quiet
+        const openResult = await openDeepnoteFileInCloud(result.outputPath, { quiet })
+        if (!quiet) {
+          output(`${c.green('✓')} Opened in Deepnote Cloud`)
+          output(`${c.dim('URL:')} ${openResult.url}`)
+        }
+      } else if (options.open && result.outputFormat !== 'deepnote') {
+        const c = getChalk()
+        output(c.yellow('Warning: --open is only available when converting to .deepnote format'))
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       logError(message)
@@ -159,7 +174,7 @@ async function convertFromDeepnote(
         break
     }
 
-    spinner?.succeed(`${formatNames[outputFormat]} saved to ${chalk.bold(outputDir)}`)
+    spinner?.succeed(`${formatNames[outputFormat]} saved to ${getChalk().bold(outputDir)}`)
 
     return {
       success: true,
@@ -218,7 +233,7 @@ async function convertToDeepnote(
         break
     }
 
-    spinner?.succeed(`Deepnote project saved to ${chalk.bold(outputPath)}`)
+    spinner?.succeed(`Deepnote project saved to ${getChalk().bold(outputPath)}`)
 
     return {
       success: true,
