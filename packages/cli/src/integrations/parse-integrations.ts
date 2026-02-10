@@ -98,6 +98,9 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i]
     const pathPrefix = `integrations[${i}]`
+    const entryId = z.string().safeParse(entry.id).data
+    const entryName = z.string().safeParse(entry.name).data
+    const integrationLabel = entryName || entryId
 
     // Resolve environment variable references
     let resolvedEntry: unknown
@@ -105,9 +108,7 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
       resolvedEntry = resolveEnvVarRefs(entry)
     } catch (error) {
       if (error instanceof EnvVarResolutionError) {
-        const entryId = z.string().safeParse(entry.id).data
-        const entryName = z.string().safeParse(entry.name).data
-        const context = entryName || entryId ? `Integration "${entryName ?? entryId ?? 'Unknown'}": ` : ''
+        const context = integrationLabel ? `Integration "${integrationLabel}": ` : ''
         issues.push({
           path: error.path ? `${pathPrefix}.${error.path}` : pathPrefix,
           message: `${context}${error.message}`,
@@ -125,10 +126,8 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
       // Add validation issues with context about which integration failed
       const formattedIssues = formatZodIssues(result.error.issues, pathPrefix)
       // Add integration name/id to first issue for context
-      const entryId = z.string().safeParse(entry.id).data
-      const entryName = z.string().safeParse(entry.name).data
-      if (formattedIssues.length > 0 && (entryName || entryId)) {
-        formattedIssues[0].message = `Integration "${entryName || entryId}": ${formattedIssues[0].message}`
+      if (formattedIssues.length > 0 && integrationLabel) {
+        formattedIssues[0].message = `Integration "${integrationLabel}": ${formattedIssues[0].message}`
       }
       issues.push(...formattedIssues)
     }

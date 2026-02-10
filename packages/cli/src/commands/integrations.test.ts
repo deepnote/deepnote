@@ -412,8 +412,8 @@ describe('integrations command', () => {
         await runPullCommand(['--file', filePath, '--env-file', envFilePath])
 
         // Files should not be created when no integrations
-        const fileExists = existsSync(filePath)
-        expect(fileExists).toBe(false)
+        const yamlFileExists = existsSync(filePath)
+        expect(yamlFileExists).toBe(false)
 
         const envFileExists = existsSync(envFilePath)
         expect(envFileExists).toBe(false)
@@ -722,11 +722,11 @@ integrations:
         await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
 
         // Files should not be created on error
-        const yamlContent = existsSync(filePath)
-        const envContent = existsSync(envFilePath)
+        const yamlFileExists = existsSync(filePath)
+        const envFileExists = existsSync(envFilePath)
 
-        expect(yamlContent).toBe(false)
-        expect(envContent).toBe(false)
+        expect(yamlFileExists).toBe(false)
+        expect(envFileExists).toBe(false)
       })
     })
 
@@ -739,11 +739,11 @@ integrations:
       await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
 
       // Files should not be created on error
-      const yamlContent = existsSync(filePath)
-      const envContent = existsSync(envFilePath)
+      const yamlFileExists = existsSync(filePath)
+      const envFileExists = existsSync(envFilePath)
 
-      expect(yamlContent).toBe(false)
-      expect(envContent).toBe(false)
+      expect(yamlFileExists).toBe(false)
+      expect(envFileExists).toBe(false)
     })
 
     it('uses token from --token flag', async () => {
