@@ -9,6 +9,7 @@ import {
   convertDeepnoteToMarimoApps,
   serializeMarimoFormat,
 } from './deepnote-to-marimo'
+import { FileWriteError } from './errors'
 import { parseMarimoFormat } from './marimo-to-deepnote'
 
 describe('serializeMarimoFormat', () => {
@@ -372,7 +373,7 @@ describe('convertBlocksToMarimoApp', () => {
 })
 
 describe('convertDeepnoteToMarimoApps', () => {
-  const testFixturesDir = path.join(__dirname, '../test-fixtures')
+  const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
   it('converts a Deepnote file to Marimo app objects', async () => {
     const inputPath = path.join(testFixturesDir, 'ChartExamples.deepnote')
@@ -405,7 +406,7 @@ describe('convertDeepnoteToMarimoApps', () => {
 
 describe('convertDeepnoteFileToMarimoFiles', () => {
   let tempDir: string
-  const testFixturesDir = path.join(__dirname, '../test-fixtures')
+  const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
@@ -481,7 +482,7 @@ describe('convertDeepnoteFileToMarimoFiles error handling', () => {
   })
 
   it('provides clear error message with filename when file write fails', async () => {
-    const testFixturesDir = path.join(__dirname, '../test-fixtures')
+    const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
     const inputPath = path.join(testFixturesDir, 'simple.deepnote')
 
     // Use a read-only directory to trigger write failure
@@ -494,7 +495,7 @@ describe('convertDeepnoteFileToMarimoFiles error handling', () => {
       expect.fail('Expected function to throw an error')
     } catch (err) {
       // Verify the error message includes the filename
-      expect(err).toBeInstanceOf(Error)
+      expect(err).toBeInstanceOf(FileWriteError)
       const error = err as Error
       expect(error.message).toMatch(/Failed to write.*\.py/)
       // Verify it includes context about the original error
@@ -703,7 +704,7 @@ if __name__ == "__main__":
 
   it('preserves Deepnote → Marimo → Deepnote content', async () => {
     const { deserializeDeepnoteFile } = await import('@deepnote/blocks')
-    const testFixturesDir = path.join(__dirname, '../test-fixtures')
+    const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
     const inputPath = path.join(testFixturesDir, 'ChartExamples.deepnote')
     const yamlContent = await fs.readFile(inputPath, 'utf-8')
     const original = deserializeDeepnoteFile(yamlContent)

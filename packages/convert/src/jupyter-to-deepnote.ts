@@ -4,6 +4,7 @@ import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
 import { deepnoteBlockSchema, environmentSchema, executionSchema } from '@deepnote/blocks'
 import { stringify } from 'yaml'
+import { FileReadError, JsonParseError } from './errors'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
 import { createSortingKey, sortKeysAlphabetically } from './utils'
 
@@ -191,7 +192,7 @@ async function parseIpynbFile(filePath: string): Promise<JupyterNotebook> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
-    throw new Error(`Failed to read ${filePath}: ${message}`)
+    throw new FileReadError(`Failed to read ${filePath}: ${message}`, { cause: error, filePath })
   }
 
   try {
@@ -199,7 +200,7 @@ async function parseIpynbFile(filePath: string): Promise<JupyterNotebook> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
-    throw new Error(`Failed to parse ${filePath}: invalid JSON - ${message}`)
+    throw new JsonParseError(`Failed to parse ${filePath}: invalid JSON - ${message}`, { cause: error, filePath })
   }
 }
 
@@ -221,9 +222,23 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
   const blockGroup = cell.metadata?.deepnote_block_group ?? cell.block_group ?? idGenerator()
 
   // Restore original content from metadata if available (for lossless roundtrip)
+  // For plain code blocks, only use deepnote_source if it matches the current source
+  // (this respects user edits while preserving roundtrip for unchanged content)
+  // For non-code blocks (sql, text-cell-h2, etc.), always use deepnote_source since
+  // transformations are applied during export (e.g., "Data Cleaning" → "## Data Cleaning")
   const deepnoteSource = cell.metadata?.deepnote_source as string | undefined
+  const isPlainCodeBlock = cell.cell_type === 'code' && (!deepnoteCellType || deepnoteCellType === 'code')
   if (deepnoteSource !== undefined) {
-    source = deepnoteSource
+    if (isPlainCodeBlock) {
+      // Plain code blocks: only use deepnote_source if content is unchanged
+      if (deepnoteSource === source) {
+        source = deepnoteSource
+      }
+      // Otherwise, user has edited - keep the actual source
+    } else {
+      // Non-code blocks: always use deepnote_source (content is transformed during export)
+      source = deepnoteSource
+    }
   }
 
   const blockType = (deepnoteCellType ?? (cell.cell_type === 'code' ? 'code' : 'markdown')) as DeepnoteBlock['type']

@@ -1,6 +1,5 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
-
 import type {
   InputCheckboxBlock,
   InputDateBlock,
@@ -11,6 +10,7 @@ import type {
   InputTextareaBlock,
   InputTextBlock,
 } from '../deserialize-file/deepnote-file-schema'
+import { InvalidValueError } from '../errors'
 import {
   createPythonCodeForInputCheckboxBlock,
   createPythonCodeForInputDateBlock,
@@ -189,6 +189,50 @@ describe('createPythonCodeForInputSelectBlock', () => {
 })
 
 describe('createPythonCodeForInputSliderBlock', () => {
+  it('throws InvalidValueError for non-numeric slider value', () => {
+    const block: InputSliderBlock = {
+      id: '123',
+      type: 'input-slider',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        deepnote_variable_name: 'my_slider',
+        deepnote_variable_value: 'abc',
+        deepnote_slider_min_value: 0,
+        deepnote_slider_max_value: 100,
+        deepnote_slider_step: 1,
+      },
+    }
+
+    expect(() => createPythonCodeForInputSliderBlock(block)).toThrow(InvalidValueError)
+    expect(() => createPythonCodeForInputSliderBlock(block)).toThrow(
+      'Invalid numeric value for slider input: "abc". Expected a valid number (integer or float).'
+    )
+  })
+
+  it('throws InvalidValueError for Infinity slider value', () => {
+    // A 310-digit number overflows to Infinity in JavaScript
+    const hugeNumber = `1${'0'.repeat(309)}`
+    const block: InputSliderBlock = {
+      id: '123',
+      type: 'input-slider',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        deepnote_variable_name: 'my_slider',
+        deepnote_variable_value: hugeNumber,
+        deepnote_slider_min_value: 0,
+        deepnote_slider_max_value: 100,
+        deepnote_slider_step: 1,
+      },
+    }
+
+    expect(() => createPythonCodeForInputSliderBlock(block)).toThrow(InvalidValueError)
+    expect(() => createPythonCodeForInputSliderBlock(block)).toThrow('Value must be finite.')
+  })
+
   it('creates Python code for slider block', () => {
     const block: InputSliderBlock = {
       id: '123',

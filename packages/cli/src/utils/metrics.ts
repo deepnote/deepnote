@@ -1,6 +1,5 @@
-import chalk from 'chalk'
 import { z } from 'zod'
-import { debug, output } from '../output'
+import { debug, getChalk, output } from '../output'
 
 /** Schema for jupyter_resource_usage API response */
 export const JupyterMetricsResponseSchema = z.object({
@@ -69,22 +68,24 @@ export function formatBytes(bytes: number): string {
 
 /** Create a progress bar */
 export function createProgressBar(percent: number, width: number): string {
+  const c = getChalk()
   const p = Math.min(100, Math.max(0, percent))
   const filled = Math.round((p / 100) * width)
   const empty = Math.max(0, width - filled)
 
-  let barColor = chalk.green
+  let barColor = c.green
   if (p >= 80) {
-    barColor = chalk.red
+    barColor = c.red
   } else if (p >= 60) {
-    barColor = chalk.yellow
+    barColor = c.yellow
   }
 
-  return `[${barColor('█'.repeat(filled))}${chalk.dim('░'.repeat(empty))}]`
+  return `[${barColor('█'.repeat(filled))}${c.dim('░'.repeat(empty))}]`
 }
 
 /** Display resource metrics inline */
 export function displayMetrics(metrics: JupyterMetricsResponse): void {
+  const c = getChalk()
   const cpuBar = createProgressBar(metrics.cpu_percent, 15)
   const memUsed = formatBytes(metrics.rss)
 
@@ -98,7 +99,7 @@ export function displayMetrics(metrics: JupyterMetricsResponse): void {
     memDisplay = memUsed
   }
 
-  output(chalk.dim(`  CPU: ${cpuBar} ${metrics.cpu_percent.toFixed(1)}% | Memory: ${memDisplay}`))
+  output(c.dim(`  CPU: ${cpuBar} ${metrics.cpu_percent.toFixed(1)}% | Memory: ${memDisplay}`))
 }
 
 /** Format memory delta as human-readable string with sign */
@@ -114,6 +115,8 @@ export function formatMemoryDelta(bytes: number): string {
 /** Display profile summary table */
 export function displayProfileSummary(profiles: BlockProfile[]): void {
   if (profiles.length === 0) return
+
+  const c = getChalk()
 
   // Sort by duration descending (slowest first)
   const sorted = [...profiles].sort((a, b) => b.durationMs - a.durationMs)
@@ -131,35 +134,33 @@ export function displayProfileSummary(profiles: BlockProfile[]): void {
     ...sorted.map(p => formatMemoryDelta(p.memoryDelta).length)
   )
 
-  output(chalk.bold('\nProfile Summary:'))
+  output(c.bold('\nProfile Summary:'))
 
   // Header
   output(
-    chalk.dim(
-      `  ${'Block'.padEnd(labelWidth)}  ${'Duration'.padStart(durationWidth)}  ${'Memory'.padStart(memoryWidth)}`
-    )
+    c.dim(`  ${'Block'.padEnd(labelWidth)}  ${'Duration'.padStart(durationWidth)}  ${'Memory'.padStart(memoryWidth)}`)
   )
 
   // Rows sorted by duration
   for (const profile of sorted) {
     const duration = `${profile.durationMs}ms`
     const memory = formatMemoryDelta(profile.memoryDelta)
-    const memColor = profile.memoryDelta > 0 ? chalk.yellow : chalk.green
+    const memColor = profile.memoryDelta > 0 ? c.yellow : c.green
 
     output(
-      `  ${profile.label.padEnd(labelWidth)}  ${chalk.cyan(duration.padStart(durationWidth))}  ${memColor(memory.padStart(memoryWidth))}`
+      `  ${profile.label.padEnd(labelWidth)}  ${c.cyan(duration.padStart(durationWidth))}  ${memColor(memory.padStart(memoryWidth))}`
     )
   }
 
   // Separator and totals
   const totalWidth = labelWidth + durationWidth + memoryWidth + 6
-  output(chalk.dim(`  ${'─'.repeat(totalWidth)}`))
+  output(c.dim(`  ${'─'.repeat(totalWidth)}`))
 
   const totalDurationStr = `${totalDuration}ms`
   const totalMemoryStr = formatMemoryDelta(totalMemoryDelta)
-  const totalMemColor = totalMemoryDelta > 0 ? chalk.yellow : chalk.green
+  const totalMemColor = totalMemoryDelta > 0 ? c.yellow : c.green
 
   output(
-    `  ${'Total'.padEnd(labelWidth)}  ${chalk.cyan(totalDurationStr.padStart(durationWidth))}  ${totalMemColor(totalMemoryStr.padStart(memoryWidth))}`
+    `  ${'Total'.padEnd(labelWidth)}  ${c.cyan(totalDurationStr.padStart(durationWidth))}  ${totalMemColor(totalMemoryStr.padStart(memoryWidth))}`
   )
 }

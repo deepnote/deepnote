@@ -1,11 +1,8 @@
 import fs from 'node:fs/promises'
-import { dirname } from 'node:path'
-import {
-  type DeepnoteBlock as BlocksDeepnoteBlock,
-  type DeepnoteFile,
-  decodeUtf8NoBom,
-  deserializeDeepnoteFile,
-} from '@deepnote/blocks'
+import os from 'node:os'
+import { dirname, join } from 'node:path'
+import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
@@ -16,13 +13,18 @@ import {
   type IOutput,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
 } from '@deepnote/runtime-core'
-import chalk from 'chalk'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
+import { stringify as serializeToYaml } from 'yaml'
+import { DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { debug, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
+import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
+import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
+import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
 import { getBlockLabel } from '../utils/block-label'
-import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { FileResolutionError } from '../utils/file-resolver'
+import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
 import {
   type BlockProfile,
   displayMetrics,
@@ -30,6 +32,8 @@ import {
   fetchMetrics,
   formatMemoryDelta,
 } from '../utils/metrics'
+import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
+import { saveExecutionSnapshot } from '../utils/output-persistence'
 
 /**
  * Error thrown when required inputs are missing.
@@ -70,6 +74,8 @@ export interface RunOptions {
   dryRun?: boolean
   top?: boolean
   profile?: boolean
+  open?: boolean
+  context?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -83,11 +89,62 @@ interface BlockResult {
   error?: string | undefined
 }
 
+/** Diagnosis info for a failed block */
+interface BlockDiagnosis {
+  blockId: string
+  blockLabel: string
+  upstream: Array<{
+    id: string
+    label: string
+    variables: string[]
+  }>
+  relatedIssues: Array<{
+    code: string
+    message: string
+    severity: 'error' | 'warning'
+  }>
+  usedVariables: string[]
+}
+
+/** Block info with context (for --context flag) */
+interface BlockWithContext extends BlockResult {
+  /** Variables defined by this block */
+  defines?: string[]
+  /** Variables used by this block */
+  uses?: string[]
+  /** Lint issues specific to this block */
+  issues?: Array<{
+    code: string
+    message: string
+    severity: 'error' | 'warning'
+  }>
+}
+
+/** Project context info for --context flag */
+interface ProjectContext {
+  stats: ProjectStats
+  issues: {
+    errors: number
+    warnings: number
+    details: Array<{
+      code: string
+      message: string
+      severity: 'error' | 'warning'
+      blockId: string
+      blockLabel: string
+    }>
+  }
+}
+
 /** Overall run result for JSON output, extends ExecutionSummary */
 interface RunResult extends ExecutionSummary {
   success: boolean
   path: string
-  blocks: BlockResult[]
+  blocks: BlockResult[] | BlockWithContext[]
+  /** Diagnosis info for failed blocks (when machine output is enabled) */
+  failedBlockDiagnosis?: BlockDiagnosis[]
+  /** Project-level context info (when --context is enabled) */
+  project?: ProjectContext
 }
 
 /** Info about a block in a dry run */
@@ -113,31 +170,88 @@ interface ProjectSetup {
   pythonEnv: string
   inputs: Record<string, unknown>
   isMachineOutput: boolean
+  convertedFile: ConvertedFile
 }
 
 /**
- * Common project setup: resolve path, parse file, validate requirements.
+ * Common project setup: resolve path, parse/convert file, validate requirements.
  * Shared by both runDeepnoteProject and dryRunDeepnoteProject.
+ *
+ * Supports multiple file formats:
+ * - .deepnote - Native format (no conversion)
+ * - .ipynb - Jupyter Notebook (auto-converted)
+ * - .py - Percent or Marimo format (auto-converted)
+ * - .qmd - Quarto document (auto-converted)
  */
 async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
-  const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const workingDirectory = options.cwd ?? dirname(absolutePath)
-  const pythonEnv = options.python ?? detectDefaultPython()
   const isMachineOutput = options.output !== undefined
+
+  const convertedFile = await resolveAndConvertToDeepnote(path)
+  const { file, originalPath: absolutePath, wasConverted, format } = convertedFile
+
+  const workingDirectory = options.cwd ?? dirname(absolutePath)
+
+  dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
+
+  const pythonEnv = options.python ?? detectDefaultPython()
+
   const inputs = parseInputs(options.input)
 
   if (!isMachineOutput) {
-    log(chalk.dim(`Parsing ${absolutePath}...`))
+    if (wasConverted) {
+      log(getChalk().dim(`Converting ${format} file: ${absolutePath}...`))
+    } else {
+      log(getChalk().dim(`Parsing ${absolutePath}...`))
+    }
   }
 
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
+  // Parse integrations file (if it exists)
+  const integrationsFilePath = getDefaultIntegrationsFilePath(workingDirectory)
+  const parsedIntegrations = await parseIntegrationsFile(integrationsFilePath)
+
+  // Show any integration parsing issues (non-fatal warnings)
+  if (parsedIntegrations.issues.length > 0) {
+    if (!isMachineOutput) {
+      log(getChalk().yellow(`Warning: Some integrations in ${integrationsFilePath} could not be parsed:`))
+      for (const issue of parsedIntegrations.issues) {
+        const pathStr = issue.path ? getChalk().dim(`${issue.path}: `) : ''
+        log(`  ${getChalk().yellow('•')} ${pathStr}${issue.message}`)
+      }
+      log('') // Blank line after warnings
+    } else {
+      // In machine output mode, still log to debug for troubleshooting
+      for (const issue of parsedIntegrations.issues) {
+        debug(`Integration parsing issue: ${issue.path ? `${issue.path}: ` : ''}${issue.message}`)
+      }
+    }
+  }
+
+  debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, options.notebook)
+  await validateRequirements(file, inputs, pythonEnv, parsedIntegrations.integrations, options.notebook)
 
-  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput }
+  // Inject integration environment variables into process.env
+  // This allows SQL blocks to access database connections
+  if (parsedIntegrations.integrations.length > 0) {
+    const { envVars, errors } = getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
+      projectRootDirectory: workingDirectory,
+    })
+
+    // Log any errors from env var generation
+    for (const error of errors) {
+      debug(`Integration env var error: ${error.message}`)
+    }
+
+    // Inject env vars into process.env
+    for (const { name, value } of envVars) {
+      process.env[name] = value
+    }
+
+    debug(`Injected ${envVars.length} environment variables for integrations`)
+  }
+
+  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
 }
 
 /**
@@ -231,7 +345,7 @@ export function createRunAction(program: Command): (path: string, options: RunOp
         process.exitCode = exitCode
         return
       }
-      program.error(chalk.red(message), { exitCode })
+      program.error(getChalk().red(message), { exitCode })
     }
   }
 }
@@ -328,13 +442,11 @@ function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputInfo[] 
 }
 
 /**
- * List all input blocks in a .deepnote file.
+ * List all input blocks in a notebook file.
+ * Supports .deepnote, .ipynb, .py, and .qmd formats.
  */
 async function listInputs(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath } = await resolvePathToDeepnoteFile(path)
-  const rawBytes = await fs.readFile(absolutePath)
-  const content = decodeUtf8NoBom(rawBytes)
-  const file = deserializeDeepnoteFile(content)
+  const { file, originalPath: absolutePath } = await resolveAndConvertToDeepnote(path)
 
   const inputs = getInputBlocks(file, options.notebook)
 
@@ -352,22 +464,24 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
     return
   }
 
+  const c = getChalk()
+
   if (inputs.length === 0) {
-    console.log(chalk.dim('No input blocks found.'))
+    output(c.dim('No input blocks found.'))
     return
   }
 
-  console.log(chalk.bold('Input variables:'))
-  console.log()
+  output(c.bold('Input variables:'))
+  output('')
   for (const input of inputs) {
-    const typeLabel = chalk.dim(`(${input.type})`)
-    const valueStr = input.hasValue ? chalk.green(JSON.stringify(input.currentValue)) : chalk.yellow('(no value)')
+    const typeLabel = c.dim(`(${input.type})`)
+    const valueStr = input.hasValue ? c.green(JSON.stringify(input.currentValue)) : c.yellow('(no value)')
     const labelStr = input.label ? ` - ${input.label}` : ''
-    console.log(`  ${chalk.cyan(input.variableName)} ${typeLabel}${labelStr}`)
-    console.log(`    Current value: ${valueStr}`)
+    output(`  ${c.cyan(input.variableName)} ${typeLabel}${labelStr}`)
+    output(`    Current value: ${valueStr}`)
   }
-  console.log()
-  console.log(chalk.dim('Use --input <name>=<value> to set values before running.'))
+  output('')
+  output(c.dim('Use --input <name>=<value> to set values before running.'))
 }
 
 /**
@@ -393,43 +507,32 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
       outputJson(result)
     }
   } else {
-    output(chalk.bold('\nExecution Plan (dry run)'))
-    output(chalk.dim('─'.repeat(50)))
+    const c = getChalk()
+    output(c.bold('\nExecution Plan (dry run)'))
+    output(c.dim('─'.repeat(50)))
 
     if (executableBlocks.length === 0) {
-      output(chalk.yellow('No executable blocks found.'))
+      output(c.yellow('No executable blocks found.'))
     } else {
       for (let i = 0; i < executableBlocks.length; i++) {
         const block = executableBlocks[i]
-        output(`${chalk.cyan(`[${i + 1}/${executableBlocks.length}]`)} ${block.label}`)
+        output(`${c.cyan(`[${i + 1}/${executableBlocks.length}]`)} ${block.label}`)
         if (notebookCount > 1) {
-          output(chalk.dim(`    Notebook: ${block.notebook}`))
+          output(c.dim(`    Notebook: ${block.notebook}`))
         }
       }
     }
 
-    output(chalk.dim('─'.repeat(50)))
-    output(chalk.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
+    output(c.dim('─'.repeat(50)))
+    output(c.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
   }
-}
-
-/**
- * Convert an integration ID to its environment variable name.
- * Format: SQL_<ID_UPPERCASED_WITH_UNDERSCORES>
- */
-function getIntegrationEnvVarName(integrationId: string): string {
-  // Same logic as @deepnote/database-integrations getSqlEnvVarName
-  const notFirstDigit = /^\d/.test(integrationId) ? `_${integrationId}` : integrationId
-  const upperCased = notFirstDigit.toUpperCase()
-  const sanitized = upperCased.replace(/[^\w]/g, '_')
-  return `SQL_${sanitized}`
 }
 
 /**
  * Validate that all required configuration is present before running.
  * Checks for:
  * - Missing input variables (used before defined, no --input provided)
- * - Missing database integrations (SQL blocks without env vars)
+ * - Missing database integrations (SQL blocks not in integrations config)
  *
  * Throws MissingInputError or MissingIntegrationError (exit code 2) on failure.
  */
@@ -437,6 +540,7 @@ async function validateRequirements(
   file: DeepnoteFile,
   providedInputs: Record<string, unknown>,
   pythonInterpreter: string,
+  integrations: DatabaseIntegrationConfig[],
   notebookName?: string
 ): Promise<void> {
   const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
@@ -453,17 +557,20 @@ async function validateRequirements(
   // Built-in integrations that don't require external configuration
   const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
 
-  const missingIntegrations: Array<{ id: string; envVar: string }> = []
+  const missingIntegrations: Array<{ id: string }> = []
   for (const block of allBlocks) {
     if (block.type === 'sql') {
       const metadata = block.metadata as Record<string, unknown>
       const integrationId = metadata.sql_integration_id as string | undefined
       if (integrationId && !builtInIntegrations.has(integrationId)) {
-        const envVarName = getIntegrationEnvVarName(integrationId)
-        if (!process.env[envVarName]) {
+        // Check if integration is configured in the integrations file
+        // Use lowercase for case-insensitive UUID matching
+        // const envVarName = getIntegrationEnvVarName(integrationId)
+        // if (!process.env[envVarName]) { ... }
+        if (!integrations.some(i => i.id.toLowerCase() === integrationId.toLowerCase())) {
           // Check if we haven't already recorded this integration
           if (!missingIntegrations.some(i => i.id === integrationId)) {
-            missingIntegrations.push({ id: integrationId, envVar: envVarName })
+            missingIntegrations.push({ id: integrationId })
           }
         }
       }
@@ -471,12 +578,12 @@ async function validateRequirements(
   }
 
   if (missingIntegrations.length > 0) {
-    const envVarList = missingIntegrations.map(i => `  ${i.envVar}`).join('\n')
+    const integrationList = missingIntegrations.map(i => `  - ${i.id}`).join('\n')
     throw new MissingIntegrationError(
       `Missing database integration configuration.\n\n` +
         `The following SQL blocks require database integrations that are not configured:\n` +
-        `${envVarList}\n\n` +
-        `Set the environment variables with your database connection details.\n` +
+        `${integrationList}\n\n` +
+        `Add the integration configuration to your integrations file.\n` +
         `See: https://docs.deepnote.com/integrations for integration configuration.`,
       missingIntegrations.map(i => i.id)
     )
@@ -548,7 +655,8 @@ async function validateRequirements(
 }
 
 async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput } = await setupProject(path, options)
+  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file } =
+    await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
@@ -562,7 +670,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   })
 
   if (!isMachineOutput) {
-    log(chalk.dim('Starting deepnote-toolkit server...'))
+    log(getChalk().dim('Starting deepnote-toolkit server...'))
   }
 
   try {
@@ -576,7 +684,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     } catch (stopError) {
       const stopMessage = stopError instanceof Error ? stopError.message : String(stopError)
       if (!isMachineOutput) {
-        logError(chalk.dim(`Note: cleanup also failed: ${stopMessage}`))
+        logError(getChalk().dim(`Note: cleanup also failed: ${stopMessage}`))
       }
     }
 
@@ -586,7 +694,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   }
 
   if (!isMachineOutput) {
-    log(chalk.dim('Server ready. Executing blocks...\n'))
+    log(getChalk().dim('Server ready. Executing blocks...\n'))
   }
 
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
@@ -622,8 +730,12 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     }, 2000)
   }
 
+  // Track execution timing for snapshot
+  const executionStartedAt = new Date().toISOString()
+
   try {
-    const summary = await engine.runFile(absolutePath, {
+    // Use runProject instead of runFile since we may have converted the file in memory
+    const summary = await engine.runProject(file, {
       notebookName: options.notebook,
       blockId: options.block,
       inputs,
@@ -641,7 +753,8 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         }
 
         if (!isMachineOutput) {
-          process.stdout.write(`${chalk.cyan(`[${index + 1}/${total}] ${label}`)} `)
+          const c = getChalk()
+          process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
       },
 
@@ -686,10 +799,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         }
 
         if (!isMachineOutput) {
+          const c = getChalk()
           if (result.success) {
-            output(chalk.green('✓') + chalk.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
+            output(c.green('✓') + c.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
           } else {
-            output(chalk.red('✗'))
+            output(c.red('✗'))
           }
 
           // Render outputs
@@ -705,11 +819,35 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       },
     })
 
+    // Save execution outputs to snapshot
+    const executionFinishedAt = new Date().toISOString()
+    try {
+      // Determine the source path for the snapshot
+      // For converted files, use the path where a .deepnote file would be (same dir as original)
+      const snapshotSourcePath = convertedFile.wasConverted
+        ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
+        : absolutePath
+
+      const { snapshotPath } = await saveExecutionSnapshot(snapshotSourcePath, file, blockResults, {
+        startedAt: executionStartedAt,
+        finishedAt: executionFinishedAt,
+      })
+
+      if (!isMachineOutput) {
+        debug(`Snapshot saved to: ${snapshotPath}`)
+      }
+    } catch (snapshotError) {
+      // Snapshot saving is best-effort; don't fail the run if it fails
+      debug(
+        `Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`
+      )
+    }
+
     // Determine exit code based on failures
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
     if (isMachineOutput) {
-      // Output machine-readable result and exit
+      // Output machine-readable result
       const result: RunResult = {
         success: summary.failedBlocks === 0,
         path: absolutePath,
@@ -719,6 +857,92 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         totalDurationMs: summary.totalDurationMs,
         blocks: blockResults,
       }
+
+      // Include context info if --context flag is set or there are failures
+      const shouldIncludeContext = options.context || summary.failedBlocks > 0
+
+      if (shouldIncludeContext) {
+        try {
+          debug('Generating context info...')
+          const { stats, lint, dag } = await analyzeProject(file, {
+            notebook: options.notebook,
+            pythonInterpreter: pythonEnv,
+          })
+          const blockMap = buildBlockMap(file, { notebook: options.notebook })
+
+          // Add project-level context if --context is set
+          if (options.context) {
+            result.project = {
+              stats,
+              issues: {
+                errors: lint.issueCount.errors,
+                warnings: lint.issueCount.warnings,
+                details: lint.issues.map(issue => ({
+                  code: issue.code,
+                  message: issue.message,
+                  severity: issue.severity,
+                  blockId: issue.blockId,
+                  blockLabel: issue.blockLabel,
+                })),
+              },
+            }
+
+            // Pre-build lookups for O(n) mapping
+            const dagNodeMap = new Map(dag.nodes.map(n => [n.id, n]))
+            const issuesByBlock = new Map<string, typeof lint.issues>()
+            for (const issue of lint.issues) {
+              const arr = issuesByBlock.get(issue.blockId) ?? []
+              arr.push(issue)
+              issuesByBlock.set(issue.blockId, arr)
+            }
+
+            // Enhance block results with context (defines, uses, issues)
+            const blocksWithContext: BlockWithContext[] = blockResults.map(block => {
+              const node = dagNodeMap.get(block.id)
+              const blockIssues = issuesByBlock.get(block.id) ?? []
+
+              return {
+                ...block,
+                defines: node?.outputVariables ?? [],
+                uses: node?.inputVariables ?? [],
+                issues:
+                  blockIssues.length > 0
+                    ? blockIssues.map(i => ({
+                        code: i.code,
+                        message: i.message,
+                        severity: i.severity,
+                      }))
+                    : undefined,
+              }
+            })
+            result.blocks = blocksWithContext
+          }
+
+          // Auto-diagnose failed blocks
+          if (summary.failedBlocks > 0) {
+            const failedBlockIds = blockResults.filter(b => !b.success).map(b => b.id)
+
+            result.failedBlockDiagnosis = failedBlockIds.map(blockId => {
+              const diagnosis = diagnoseBlockFailure(blockId, dag, lint, blockMap)
+              return {
+                blockId: diagnosis.blockId,
+                blockLabel: diagnosis.blockLabel,
+                upstream: diagnosis.upstream,
+                relatedIssues: diagnosis.relatedIssues.map(issue => ({
+                  code: issue.code,
+                  message: issue.message,
+                  severity: issue.severity,
+                })),
+                usedVariables: diagnosis.usedVariables,
+              }
+            })
+          }
+        } catch (analysisError) {
+          // Context/diagnosis is best-effort; don't fail the run if it fails
+          debug(`Analysis failed: ${analysisError instanceof Error ? analysisError.message : String(analysisError)}`)
+        }
+      }
+
       if (options.output === 'toon') {
         outputToon(result, { showEfficiencyHint: true })
       } else {
@@ -726,14 +950,15 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       }
       process.exitCode = exitCode
     } else {
+      const c = getChalk()
       // Print summary
-      output(chalk.dim('─'.repeat(50)))
+      output(c.dim('─'.repeat(50)))
 
       // Show final resource usage if --top was enabled
       if (showTop && engine.serverPort) {
         const finalMetrics = await fetchMetrics(engine.serverPort)
         if (finalMetrics) {
-          output(chalk.bold('Final resource usage:'))
+          output(c.bold('Final resource usage:'))
           displayMetrics(finalMetrics)
         }
       }
@@ -745,16 +970,65 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
       if (summary.failedBlocks > 0) {
         output(
-          chalk.red(
+          c.red(
             `Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`
           )
         )
       } else {
         const duration = (summary.totalDurationMs / 1000).toFixed(1)
-        output(chalk.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
+        output(c.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
       }
 
       process.exitCode = exitCode
+    }
+
+    // Handle --open flag: open in Deepnote Cloud after successful execution
+    if (options.open && summary.failedBlocks === 0) {
+      let fileToOpen = absolutePath
+      let tempFile: string | null = null
+
+      // If the file was converted, we need to write a temp .deepnote file to upload
+      if (convertedFile.wasConverted) {
+        const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-run-'))
+        // Sanitize project name to prevent path traversal attacks
+        const rawName = file.project.name || 'project'
+        const safeName =
+          rawName
+            .replace(/[/\\]/g, '_') // Replace path separators
+            .replace(/\.\./g, '_') // Replace parent directory references
+            .replace(/^\.+/, '') || // Remove leading dots
+          'project' // Fallback if empty after sanitization
+        tempFile = join(tempDir, `${safeName}.deepnote`)
+        const yamlContent = serializeToYaml(file)
+        await fs.writeFile(tempFile, yamlContent, 'utf-8')
+        fileToOpen = tempFile
+        debug(`Created temp file for upload: ${tempFile}`)
+      }
+
+      try {
+        const c = getChalk()
+        if (!isMachineOutput) {
+          output('')
+        }
+        const result = await openDeepnoteFileInCloud(fileToOpen, { quiet: isMachineOutput })
+        if (!isMachineOutput) {
+          output(`${c.green('✓')} Opened in Deepnote Cloud`)
+          output(`${c.dim('URL:')} ${result.url}`)
+        }
+      } finally {
+        // Clean up temp file if created
+        if (tempFile) {
+          try {
+            await fs.rm(dirname(tempFile), { recursive: true })
+            debug(`Cleaned up temp directory: ${dirname(tempFile)}`)
+          } catch (cleanupError) {
+            // Log cleanup errors for debugging, but don't fail the operation
+            debug(
+              `Failed to clean up temp directory ${dirname(tempFile)}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            )
+          }
+        }
+      }
     }
   } finally {
     if (metricsInterval) {

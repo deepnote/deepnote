@@ -58,24 +58,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "password",
-                  "database"
-                ],
+                "required": ["host", "user", "password", "database"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -110,24 +100,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "access_key_id",
-                  "region",
-                  "s3_output_path",
-                  "secret_access_key"
-                ],
+                "required": ["access_key_id", "region", "s3_output_path", "secret_access_key"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -156,9 +136,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "service_account"
-                    ],
+                    "required": ["service_account"],
                     "additionalProperties": false
                   },
                   {
@@ -178,12 +156,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "authMethod",
-                      "project",
-                      "clientId",
-                      "clientSecret"
-                    ],
+                    "required": ["authMethod", "project", "clientId", "clientSecret"],
                     "additionalProperties": false
                   }
                 ]
@@ -197,10 +170,7 @@
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "service-account",
-                          "google-oauth"
-                        ]
+                        "enum": ["service-account", "google-oauth"]
                       }
                     ]
                   },
@@ -210,12 +180,7 @@
                 ]
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -271,23 +236,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "database"
-                ],
+                "required": ["host", "user", "database"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -337,24 +293,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "httpPath",
-                  "token",
-                  "port"
-                ],
+                "required": ["host", "httpPath", "token", "port"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -398,24 +344,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "schema",
-                  "host",
-                  "port",
-                  "token"
-                ],
+                "required": ["schema", "host", "port", "token"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -471,24 +407,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "password",
-                  "database"
-                ],
+                "required": ["host", "user", "password", "database"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -547,25 +473,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "password",
-                  "database",
-                  "cluster"
-                ],
+                "required": ["host", "user", "password", "database", "cluster"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -621,24 +536,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "password",
-                  "database"
-                ],
+                "required": ["host", "user", "password", "database"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -706,21 +611,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "connection_string"
-                ],
+                "required": ["connection_string"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -776,24 +674,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "password",
-                  "database"
-                ],
+                "required": ["host", "user", "password", "database"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -818,12 +706,7 @@
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -879,24 +762,14 @@
                     "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/caCertificateText"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "password",
-                  "database"
-                ],
+                "required": ["host", "user", "password", "database"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -958,12 +831,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "database",
-                      "host",
-                      "user",
-                      "password"
-                    ],
+                    "required": ["database", "host", "user", "password"],
                     "additionalProperties": false
                   },
                   {
@@ -1013,14 +881,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "database",
-                      "host",
-                      "authMethod",
-                      "roleArn",
-                      "roleExternalId",
-                      "roleNonce"
-                    ],
+                    "required": ["database", "host", "authMethod", "roleArn", "roleExternalId", "roleNonce"],
                     "additionalProperties": false
                   },
                   {
@@ -1061,11 +922,7 @@
                         "const": "individual-credentials"
                       }
                     },
-                    "required": [
-                      "database",
-                      "host",
-                      "authMethod"
-                    ],
+                    "required": ["database", "host", "authMethod"],
                     "additionalProperties": false
                   }
                 ]
@@ -1079,11 +936,7 @@
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "username-and-password",
-                          "iam-role",
-                          "individual-credentials"
-                        ]
+                        "enum": ["username-and-password", "iam-role", "individual-credentials"]
                       }
                     ]
                   },
@@ -1093,12 +946,7 @@
                 ]
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -1154,11 +1002,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "accountName",
-                      "username",
-                      "password"
-                    ],
+                    "required": ["accountName", "username", "password"],
                     "additionalProperties": false
                   },
                   {
@@ -1257,12 +1101,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "accountName",
-                      "authMethod",
-                      "clientId",
-                      "clientSecret"
-                    ],
+                    "required": ["accountName", "authMethod", "clientId", "clientSecret"],
                     "additionalProperties": false
                   },
                   {
@@ -1309,14 +1148,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "accountName",
-                      "authMethod",
-                      "clientId",
-                      "clientSecret",
-                      "resource",
-                      "tenant"
-                    ],
+                    "required": ["accountName", "authMethod", "clientId", "clientSecret", "resource", "tenant"],
                     "additionalProperties": false
                   },
                   {
@@ -1351,10 +1183,7 @@
                         "const": "key-pair"
                       }
                     },
-                    "required": [
-                      "accountName",
-                      "authMethod"
-                    ],
+                    "required": ["accountName", "authMethod"],
                     "additionalProperties": false
                   },
                   {
@@ -1398,12 +1227,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "accountName",
-                      "authMethod",
-                      "username",
-                      "privateKey"
-                    ],
+                    "required": ["accountName", "authMethod", "username", "privateKey"],
                     "additionalProperties": false
                   }
                 ]
@@ -1417,14 +1241,7 @@
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "okta",
-                          "snowflake",
-                          "azure",
-                          "key-pair",
-                          "password",
-                          "service-account-key-pair"
-                        ]
+                        "enum": ["okta", "snowflake", "azure", "key-pair", "password", "service-account-key-pair"]
                       }
                     ]
                   },
@@ -1434,12 +1251,7 @@
                 ]
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -1471,24 +1283,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "service_account",
-                  "dataBoostEnabled",
-                  "instance",
-                  "database"
-                ],
+                "required": ["service_account", "dataBoostEnabled", "instance", "database"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -1535,25 +1337,14 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "host",
-                  "user",
-                  "password",
-                  "database",
-                  "port"
-                ],
+                "required": ["host", "user", "password", "database", "port"],
                 "additionalProperties": false
               },
               "federated_auth_method": {
                 "type": "null"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           },
           {
@@ -1622,12 +1413,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "host",
-                      "database",
-                      "user",
-                      "password"
-                    ],
+                    "required": ["host", "database", "user", "password"],
                     "additionalProperties": false
                   },
                   {
@@ -1682,15 +1468,7 @@
                         "format": "uri"
                       }
                     },
-                    "required": [
-                      "host",
-                      "database",
-                      "authMethod",
-                      "clientId",
-                      "clientSecret",
-                      "authUrl",
-                      "tokenUrl"
-                    ],
+                    "required": ["host", "database", "authMethod", "clientId", "clientSecret", "authUrl", "tokenUrl"],
                     "additionalProperties": false
                   }
                 ]
@@ -1704,10 +1482,7 @@
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "trino-oauth",
-                          "password"
-                        ]
+                        "enum": ["trino-oauth", "password"]
                       }
                     ]
                   },
@@ -1717,21 +1492,14 @@
                 ]
               }
             },
-            "required": [
-              "id",
-              "name",
-              "type",
-              "metadata"
-            ],
+            "required": ["id", "name", "type", "metadata"],
             "additionalProperties": false
           }
         ]
       }
     }
   },
-  "required": [
-    "integrations"
-  ],
+  "required": ["integrations"],
   "additionalProperties": false,
   "$schema": "http://json-schema.org/draft-07/schema#"
 }

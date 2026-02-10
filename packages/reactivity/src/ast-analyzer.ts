@@ -40,6 +40,7 @@ export interface BlockContentDepsWithOrder {
   definedVariables: string[]
   usedVariables: string[]
   importedModules?: string[]
+  linesOfCode?: number
   error?: {
     type: string
     message: string
@@ -55,6 +56,7 @@ const AstAnalyzerItemSchema = z.object({
   definedVariables: z.array(z.string()),
   usedVariables: z.array(z.string()),
   importedModules: z.array(z.string()).optional(),
+  linesOfCode: z.number().optional(),
   error: z
     .object({
       type: z.string(),

@@ -1,5 +1,6 @@
 export { UnsupportedBlockTypeError } from './blocks'
-export { isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
+export { INPUT_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
+export { convertToEnvironmentVariableName, getSqlEnvVarName } from './blocks/sql-utils'
 export type { TableState } from './blocks/table-state'
 export type {
   DeepnoteBlock,
@@ -22,5 +23,14 @@ export {
 } from './deserialize-file/deepnote-file-schema'
 export { deserializeDeepnoteFile } from './deserialize-file/deserialize-deepnote-file'
 export { decodeUtf8NoBom, parseYaml } from './deserialize-file/parse-yaml'
+export {
+  DeepnoteError,
+  EncodingError,
+  InvalidValueError,
+  ParseError,
+  ProhibitedYamlFeatureError,
+  SchemaValidationError,
+  YamlParseError,
+} from './errors'
 export { createMarkdown, stripMarkdown } from './markdown'
 export { createPythonCode } from './python-code'
