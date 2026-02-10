@@ -318,10 +318,13 @@ describe('diff command', () => {
   })
 
   describe('snapshot comparison', () => {
-    it('can compare two different deepnote files', async () => {
+    it('can compare regular file with snapshot', async () => {
       const action = createDiffAction(program)
       const file1 = resolve(process.cwd(), HELLO_WORLD_FILE)
-      const file2 = resolve(process.cwd(), BLOCKS_FILE)
+      const file2 = resolve(
+        process.cwd(),
+        'examples/snapshots/hello-world_18aaab73-3599-4bb5-b2ab-c05ac09f597d_latest.snapshot.deepnote'
+      )
 
       await action(file1, file2, { output: 'json' })
 
@@ -356,9 +359,12 @@ describe('diff command', () => {
 
     it('shows Modified notebooks in output', async () => {
       const action = createDiffAction(program)
-      // Compare two files with modified blocks
-      const file1 = resolve(process.cwd(), 'test-fixtures/diff/base-modified-blocks.deepnote')
-      const file2 = resolve(process.cwd(), 'test-fixtures/diff/modified-blocks.deepnote')
+      // Compare snapshot with original - same notebook but potentially different content
+      const file1 = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const file2 = resolve(
+        process.cwd(),
+        'examples/snapshots/hello-world_18aaab73-3599-4bb5-b2ab-c05ac09f597d_latest.snapshot.deepnote'
+      )
 
       await action(file1, file2, DEFAULT_OPTIONS)
 

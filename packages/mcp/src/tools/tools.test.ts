@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { conversionTools } from './conversion'
 import { executionTools } from './execution'
-import { magicTools } from './magic'
 import { readingTools } from './reading'
 import { snapshotTools } from './snapshots'
 import { writingTools } from './writing'
@@ -20,14 +19,7 @@ interface InputSchema {
 }
 
 describe('MCP tools definitions', () => {
-  const allTools = [
-    ...readingTools,
-    ...writingTools,
-    ...conversionTools,
-    ...executionTools,
-    ...magicTools,
-    ...snapshotTools,
-  ]
+  const allTools = [...readingTools, ...writingTools, ...conversionTools, ...executionTools, ...snapshotTools]
 
   describe('tool metadata', () => {
     it('all tools have unique names', () => {
@@ -68,12 +60,8 @@ describe('MCP tools definitions', () => {
     it('has expected tools', () => {
       const names = readingTools.map(t => t.name)
       expect(names).toContain('deepnote_read')
-      expect(names).toContain('deepnote_inspect')
       expect(names).toContain('deepnote_cat')
-      expect(names).toContain('deepnote_lint')
-      expect(names).toContain('deepnote_stats')
-      expect(names).toContain('deepnote_analyze')
-      expect(names).toContain('deepnote_dag')
+      expect(names).toContain('deepnote_validate')
       expect(names).toContain('deepnote_diff')
     })
 
@@ -84,20 +72,10 @@ describe('MCP tools definitions', () => {
     })
 
     it('all reading tools require path parameter', () => {
-      const pathRequiredTools = [
-        'deepnote_read',
-        'deepnote_inspect',
-        'deepnote_cat',
-        'deepnote_lint',
-        'deepnote_stats',
-        'deepnote_analyze',
-        'deepnote_dag',
-      ]
-      for (const name of pathRequiredTools) {
-        const tool = readingTools.find(t => t.name === name)
-        const schema = tool?.inputSchema as InputSchema
-        expect(schema?.properties?.path).toBeDefined()
-        expect(schema?.required).toContain('path')
+      for (const tool of readingTools) {
+        const schema = tool.inputSchema as InputSchema
+        const required = schema?.required || []
+        expect(required.some(r => r.includes('path') || r.includes('Path'))).toBe(true)
       }
     })
 
@@ -129,7 +107,6 @@ describe('MCP tools definitions', () => {
       expect(names).toContain('deepnote_remove_block')
       expect(names).toContain('deepnote_reorder_blocks')
       expect(names).toContain('deepnote_add_notebook')
-      expect(names).toContain('deepnote_bulk_edit')
     })
 
     it('all writing tools are NOT read-only', () => {
@@ -139,11 +116,8 @@ describe('MCP tools definitions', () => {
     })
 
     it('destructive tools are marked as destructive', () => {
-      const destructiveTools = ['deepnote_remove_block', 'deepnote_bulk_edit']
-      for (const name of destructiveTools) {
-        const tool = writingTools.find(t => t.name === name)
-        expect(tool?.annotations?.destructiveHint).toBe(true)
-      }
+      const tool = writingTools.find(t => t.name === 'deepnote_remove_block')
+      expect(tool?.annotations?.destructiveHint).toBe(true)
     })
   })
 
@@ -152,12 +126,6 @@ describe('MCP tools definitions', () => {
       const names = conversionTools.map(t => t.name)
       expect(names).toContain('deepnote_convert_to')
       expect(names).toContain('deepnote_convert_from')
-      expect(names).toContain('deepnote_detect_format')
-    })
-
-    it('detect_format is read-only', () => {
-      const tool = conversionTools.find(t => t.name === 'deepnote_detect_format')
-      expect(tool?.annotations?.readOnlyHint).toBe(true)
     })
 
     it('conversion tools support multiple formats', () => {
@@ -175,7 +143,6 @@ describe('MCP tools definitions', () => {
     it('has expected tools', () => {
       const names = executionTools.map(t => t.name)
       expect(names).toContain('deepnote_run')
-      expect(names).toContain('deepnote_run_block')
     })
 
     it('execution tools have openWorldHint true', () => {
@@ -190,6 +157,13 @@ describe('MCP tools definitions', () => {
       }
     })
 
+    it('deepnote_run supports blockId parameter', () => {
+      const tool = executionTools.find(t => t.name === 'deepnote_run')
+      const schema = tool?.inputSchema as InputSchema
+      expect(schema?.properties?.blockId).toBeDefined()
+      expect(schema?.properties?.blockId?.type).toBe('string')
+    })
+
     it('deepnote_run supports includeOutputSummary parameter', () => {
       const tool = executionTools.find(t => t.name === 'deepnote_run')
       const schema = tool?.inputSchema as InputSchema
@@ -202,77 +176,6 @@ describe('MCP tools definitions', () => {
       const schema = tool?.inputSchema as InputSchema
       expect(schema?.properties?.compact).toBeDefined()
       expect(schema?.properties?.compact?.type).toBe('boolean')
-    })
-  })
-
-  describe('magic tools', () => {
-    it('has expected tools', () => {
-      const names = magicTools.map(t => t.name)
-      expect(names).toContain('deepnote_scaffold')
-      expect(names).toContain('deepnote_enhance')
-      expect(names).toContain('deepnote_fix')
-      expect(names).toContain('deepnote_explain')
-      expect(names).toContain('deepnote_suggest')
-      expect(names).toContain('deepnote_template')
-      expect(names).toContain('deepnote_refactor')
-      expect(names).toContain('deepnote_profile')
-      expect(names).toContain('deepnote_test')
-      expect(names).toContain('deepnote_workflow')
-    })
-
-    it('scaffold tool has required parameters', () => {
-      const tool = magicTools.find(t => t.name === 'deepnote_scaffold')
-      const schema = tool?.inputSchema as InputSchema
-      expect(schema?.required).toContain('description')
-      expect(schema?.required).toContain('outputPath')
-    })
-
-    it('template tool supports expected templates', () => {
-      const tool = magicTools.find(t => t.name === 'deepnote_template')
-      const schema = tool?.inputSchema as InputSchema
-      const templates = schema?.properties?.template?.enum
-      expect(templates).toContain('dashboard')
-      expect(templates).toContain('ml_pipeline')
-      expect(templates).toContain('etl')
-      expect(templates).toContain('report')
-      expect(templates).toContain('api_client')
-    })
-
-    it('enhance tool supports enhancement types', () => {
-      const tool = magicTools.find(t => t.name === 'deepnote_enhance')
-      const schema = tool?.inputSchema as InputSchema
-      const enhancements = schema?.properties?.enhancements
-      expect(enhancements?.items?.enum).toContain('inputs')
-      expect(enhancements?.items?.enum).toContain('documentation')
-      expect(enhancements?.items?.enum).toContain('structure')
-      expect(enhancements?.items?.enum).toContain('visualizations')
-      expect(enhancements?.items?.enum).toContain('all')
-    })
-
-    it('workflow tool supports preset parameter', () => {
-      const tool = magicTools.find(t => t.name === 'deepnote_workflow')
-      const schema = tool?.inputSchema as InputSchema
-      expect(schema?.properties?.preset).toBeDefined()
-      expect(schema?.properties?.preset?.enum).toContain('quickstart')
-      expect(schema?.properties?.preset?.enum).toContain('import')
-      expect(schema?.properties?.preset?.enum).toContain('polish')
-    })
-
-    it('workflow tool supports compact parameter', () => {
-      const tool = magicTools.find(t => t.name === 'deepnote_workflow')
-      const schema = tool?.inputSchema as InputSchema
-      expect(schema?.properties?.compact).toBeDefined()
-      expect(schema?.properties?.compact?.type).toBe('boolean')
-    })
-
-    it('magic tools with compact support have the parameter', () => {
-      const compactTools = ['deepnote_scaffold', 'deepnote_enhance', 'deepnote_fix', 'deepnote_suggest']
-      for (const name of compactTools) {
-        const tool = magicTools.find(t => t.name === name)
-        const schema = tool?.inputSchema as InputSchema
-        expect(schema?.properties?.compact).toBeDefined()
-        expect(schema?.properties?.compact?.type).toBe('boolean')
-      }
     })
   })
 
@@ -311,44 +214,14 @@ describe('MCP tools definitions', () => {
     })
   })
 
-  describe('validate tool', () => {
-    it('exists in reading tools', () => {
-      const names = readingTools.map(t => t.name)
-      expect(names).toContain('deepnote_validate')
-    })
-
-    it('is read-only', () => {
-      const tool = readingTools.find(t => t.name === 'deepnote_validate')
-      expect(tool?.annotations?.readOnlyHint).toBe(true)
-    })
-  })
-
-  describe('open tool', () => {
-    it('exists in execution tools', () => {
-      const names = executionTools.map(t => t.name)
-      expect(names).toContain('deepnote_open')
-    })
-
-    it('has openWorldHint true (network access)', () => {
-      const tool = executionTools.find(t => t.name === 'deepnote_open')
-      expect(tool?.annotations?.openWorldHint).toBe(true)
-    })
-
-    it('is read-only (does not modify local files)', () => {
-      const tool = executionTools.find(t => t.name === 'deepnote_open')
-      expect(tool?.annotations?.readOnlyHint).toBe(true)
-    })
-  })
-
   describe('total tool count', () => {
     it('has correct number of tools', () => {
-      expect(readingTools.length).toBe(9) // Added validate and deepnote_read
-      expect(writingTools.length).toBe(7)
-      expect(conversionTools.length).toBe(3)
-      expect(executionTools.length).toBe(3) // Added open
-      expect(magicTools.length).toBe(10)
+      expect(readingTools.length).toBe(4)
+      expect(writingTools.length).toBe(6)
+      expect(conversionTools.length).toBe(2)
+      expect(executionTools.length).toBe(1)
       expect(snapshotTools.length).toBe(4)
-      expect(allTools.length).toBe(36)
+      expect(allTools.length).toBe(17)
     })
   })
 })

@@ -1,10 +1,30 @@
 import { randomUUID } from 'node:crypto'
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
+import { generateSortingKey, loadDeepnoteFile, saveDeepnoteFile } from '../utils.js'
+
+/**
+ * Find a block by ID or ID prefix. Returns the block or undefined.
+ */
+function findBlock(blocks: DeepnoteBlock[], idOrPrefix: string): DeepnoteBlock | undefined {
+  return blocks.find(b => b.id === idOrPrefix || b.id.startsWith(idOrPrefix))
+}
+
+/**
+ * Find a block index by ID or ID prefix. Returns -1 if not found.
+ */
+function findBlockIndex(blocks: DeepnoteBlock[], idOrPrefix: string): number {
+  return blocks.findIndex(b => b.id === idOrPrefix || b.id.startsWith(idOrPrefix))
+}
+
+/**
+ * Resolve a block ID or prefix to the full block ID. Returns undefined if not found.
+ */
+function resolveBlockId(blocks: DeepnoteBlock[], idOrPrefix: string): string | undefined {
+  const block = findBlock(blocks, idOrPrefix)
+  return block?.id
+}
 
 export const writingTools: Tool[] = [
   {
@@ -281,82 +301,7 @@ export const writingTools: Tool[] = [
       required: ['path', 'name'],
     },
   },
-  {
-    name: 'deepnote_bulk_edit',
-    title: 'Bulk Edit Blocks',
-    description:
-      'Apply bulk changes to multiple blocks matching a filter. Useful for adding docstrings, updating metadata, etc.',
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: true,
-      idempotentHint: false,
-      openWorldHint: false,
-    },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-        filter: {
-          type: 'object',
-          description: 'Filter for which blocks to edit',
-          properties: {
-            type: {
-              type: 'string',
-              description: 'Block type to match',
-            },
-            notebook: {
-              type: 'string',
-              description: 'Notebook name or ID to match',
-            },
-            contentContains: {
-              type: 'string',
-              description: 'Only match blocks whose content contains this string',
-            },
-          },
-        },
-        transform: {
-          type: 'object',
-          description: 'Transformation to apply',
-          properties: {
-            prependContent: {
-              type: 'string',
-              description: 'Text to prepend to content',
-            },
-            appendContent: {
-              type: 'string',
-              description: 'Text to append to content',
-            },
-            replaceContent: {
-              type: 'object',
-              description: 'Find and replace in content',
-              properties: {
-                find: { type: 'string' },
-                replace: { type: 'string' },
-              },
-            },
-            setMetadata: {
-              type: 'object',
-              description: 'Metadata to set/merge',
-            },
-          },
-        },
-        dryRun: {
-          type: 'boolean',
-          description: 'If true, return changes without writing (default: false)',
-        },
-      },
-      required: ['path', 'filter', 'transform'],
-    },
-  },
 ]
-
-function generateSortingKey(index: number): string {
-  // Generate a sorting key that maintains order
-  return String(index).padStart(6, '0')
-}
 
 function createBlock(
   spec: { type: string; content?: string; metadata?: Record<string, unknown> },
@@ -387,22 +332,6 @@ function createBlock(
   }
 
   return base as DeepnoteBlock
-}
-
-async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
-  const absolutePath = path.resolve(filePath)
-  const content = await fs.readFile(absolutePath, 'utf-8')
-  return deserializeDeepnoteFile(content)
-}
-
-async function saveDeepnoteFile(filePath: string, file: DeepnoteFile): Promise<void> {
-  const absolutePath = path.resolve(filePath)
-  const content = yamlStringify(file, {
-    lineWidth: 0,
-    defaultStringType: 'PLAIN',
-    defaultKeyType: 'PLAIN',
-  })
-  await fs.writeFile(absolutePath, content, 'utf-8')
 }
 
 async function handleCreate(args: Record<string, unknown>) {
@@ -504,10 +433,10 @@ async function handleAddBlock(args: Record<string, unknown>) {
   // Determine insertion index
   let insertIndex = notebook.blocks.length
   if (position?.after) {
-    const afterIdx = notebook.blocks.findIndex(b => b.id === position.after)
+    const afterIdx = findBlockIndex(notebook.blocks, position.after)
     if (afterIdx >= 0) insertIndex = afterIdx + 1
   } else if (position?.before) {
-    const beforeIdx = notebook.blocks.findIndex(b => b.id === position.before)
+    const beforeIdx = findBlockIndex(notebook.blocks, position.before)
     if (beforeIdx >= 0) insertIndex = beforeIdx
   } else if (position?.index !== undefined) {
     insertIndex = Math.min(position.index, notebook.blocks.length)
@@ -580,12 +509,12 @@ async function handleEditBlock(args: Record<string, unknown>) {
 
   const file = await loadDeepnoteFile(filePath)
 
-  // Find the block
+  // Find the block (supports ID prefix matching)
   let targetBlock: DeepnoteBlock | undefined
   let targetNotebook: string | undefined
 
   for (const notebook of file.project.notebooks) {
-    const block = notebook.blocks.find(b => b.id === blockId)
+    const block = findBlock(notebook.blocks, blockId)
     if (block) {
       targetBlock = block
       targetNotebook = notebook.name
@@ -665,7 +594,7 @@ async function handleRemoveBlock(args: Record<string, unknown>) {
   let removedFrom: string | undefined
 
   for (const notebook of file.project.notebooks) {
-    const index = notebook.blocks.findIndex(b => b.id === blockId)
+    const index = findBlockIndex(notebook.blocks, blockId)
     if (index >= 0) {
       if (!dryRun) {
         notebook.blocks.splice(index, 1)
@@ -748,27 +677,31 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
     notebook = found
   }
 
-  // Build a map of blocks by ID
-  const blockMap = new Map(notebook.blocks.map(b => [b.id, b]))
-
-  // Verify all blockIds exist
+  // Resolve all block IDs (support prefix matching)
+  const resolvedIds: string[] = []
   for (const id of blockIds) {
-    if (!blockMap.has(id)) {
+    const fullId = resolveBlockId(notebook.blocks, id)
+    if (!fullId) {
       return {
         content: [{ type: 'text', text: `Block not found: ${id}` }],
         isError: true,
       }
     }
+    resolvedIds.push(fullId)
   }
 
-  // Reorder blocks (we verified all IDs exist above)
-  const reorderedBlocks = blockIds
+  // Build a map of blocks by ID
+  const blockMap = new Map(notebook.blocks.map(b => [b.id, b]))
+
+  // Reorder blocks
+  const reorderedBlocks = resolvedIds
     .map(id => blockMap.get(id))
     .filter((b): b is NonNullable<typeof b> => b !== undefined)
 
   // Add any blocks not in the list at the end (preserving their relative order)
+  const resolvedIdSet = new Set(resolvedIds)
   for (const block of notebook.blocks) {
-    if (!blockIds.includes(block.id)) {
+    if (!resolvedIdSet.has(block.id)) {
       reorderedBlocks.push(block)
     }
   }
@@ -789,7 +722,7 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
             {
               wouldReorder: {
                 notebook: notebook.name,
-                newOrder: blockIds.map(id => id.slice(0, 8)),
+                newOrder: resolvedIds.map(id => id.slice(0, 8)),
               },
             },
             null,
@@ -883,120 +816,6 @@ async function handleAddNotebook(args: Record<string, unknown>) {
   }
 }
 
-async function handleBulkEdit(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const filter = args.filter as {
-    type?: string
-    notebook?: string
-    contentContains?: string
-  }
-  const transform = args.transform as {
-    prependContent?: string
-    appendContent?: string
-    replaceContent?: { find: string; replace: string }
-    setMetadata?: Record<string, unknown>
-  }
-  const dryRun = args.dryRun as boolean | undefined
-
-  const file = await loadDeepnoteFile(filePath)
-
-  const edits: Array<{ blockId: string; notebook: string; changes: string[] }> = []
-
-  for (const notebook of file.project.notebooks) {
-    if (filter.notebook && notebook.name !== filter.notebook && notebook.id !== filter.notebook) {
-      continue
-    }
-
-    for (const block of notebook.blocks) {
-      // Apply filters
-      if (filter.type && block.type !== filter.type) continue
-      if (filter.contentContains && !block.content?.includes(filter.contentContains)) continue
-
-      const changes: string[] = []
-
-      // Apply transformations
-      if (transform.prependContent && block.content !== undefined) {
-        block.content = transform.prependContent + block.content
-        changes.push('prepended content')
-      }
-
-      if (transform.appendContent && block.content !== undefined) {
-        block.content = block.content + transform.appendContent
-        changes.push('appended content')
-      }
-
-      if (transform.replaceContent && block.content) {
-        const newContent = block.content.replace(
-          new RegExp(transform.replaceContent.find, 'g'),
-          transform.replaceContent.replace
-        )
-        if (newContent !== block.content) {
-          block.content = newContent
-          changes.push(`replaced "${transform.replaceContent.find}"`)
-        }
-      }
-
-      if (transform.setMetadata) {
-        block.metadata = { ...block.metadata, ...transform.setMetadata }
-        changes.push('updated metadata')
-      }
-
-      if (changes.length > 0) {
-        edits.push({
-          blockId: block.id,
-          notebook: notebook.name,
-          changes,
-        })
-      }
-    }
-  }
-
-  if (dryRun) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              wouldEdit: edits.length,
-              edits: edits.map(e => ({
-                blockId: e.blockId.slice(0, 8),
-                notebook: e.notebook,
-                changes: e.changes,
-              })),
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    }
-  }
-
-  await saveDeepnoteFile(filePath, file)
-
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
-          {
-            success: true,
-            editedBlocks: edits.length,
-            edits: edits.map(e => ({
-              blockId: e.blockId.slice(0, 8),
-              notebook: e.notebook,
-              changes: e.changes,
-            })),
-          },
-          null,
-          2
-        ),
-      },
-    ],
-  }
-}
-
 export async function handleWritingTool(name: string, args: Record<string, unknown> | undefined) {
   const safeArgs = args || {}
 
@@ -1013,8 +832,6 @@ export async function handleWritingTool(name: string, args: Record<string, unkno
       return handleReorderBlocks(safeArgs)
     case 'deepnote_add_notebook':
       return handleAddNotebook(safeArgs)
-    case 'deepnote_bulk_edit':
-      return handleBulkEdit(safeArgs)
     default:
       return {
         content: [{ type: 'text', text: `Unknown writing tool: ${name}` }],

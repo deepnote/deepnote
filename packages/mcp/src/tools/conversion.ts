@@ -79,26 +79,6 @@ export const conversionTools: Tool[] = [
       required: ['inputPath'],
     },
   },
-  {
-    name: 'deepnote_detect_format',
-    title: 'Detect Format',
-    description: 'Detect the format of a notebook file. Useful for .py files which could be Percent or Marimo format.',
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the file to analyze',
-        },
-      },
-      required: ['path'],
-    },
-  },
 ]
 
 async function handleConvertTo(args: Record<string, unknown>) {
@@ -244,48 +224,6 @@ async function handleConvertFrom(args: Record<string, unknown>) {
   }
 }
 
-async function handleDetectFormat(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const absolutePath = path.resolve(filePath)
-
-  try {
-    const content = await fs.readFile(absolutePath, 'utf-8')
-    const format = detectFormat(absolutePath, content)
-
-    const formatDescriptions: Record<string, string> = {
-      jupyter: 'Jupyter Notebook (.ipynb) - JSON format with cells',
-      quarto: 'Quarto Document (.qmd) - Markdown with code chunks',
-      percent: 'Percent Format (.py) - Python with # %% cell markers',
-      marimo: 'Marimo Notebook (.py) - Python with @app.cell decorators',
-      deepnote: 'Deepnote Project (.deepnote) - YAML format',
-      unknown: 'Unknown format',
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              path: absolutePath,
-              format,
-              description: formatDescriptions[format] || formatDescriptions.unknown,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: `Detection failed: ${message}` }],
-      isError: true,
-    }
-  }
-}
-
 export async function handleConversionTool(name: string, args: Record<string, unknown> | undefined) {
   const safeArgs = args || {}
 
@@ -294,8 +232,6 @@ export async function handleConversionTool(name: string, args: Record<string, un
       return handleConvertTo(safeArgs)
     case 'deepnote_convert_from':
       return handleConvertFrom(safeArgs)
-    case 'deepnote_detect_format':
-      return handleDetectFormat(safeArgs)
     default:
       return {
         content: [{ type: 'text', text: `Unknown conversion tool: ${name}` }],

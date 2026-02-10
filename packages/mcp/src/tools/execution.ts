@@ -20,10 +20,7 @@ import {
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
-
-// Cloud upload constants
-const DEFAULT_DOMAIN = 'deepnote.com'
-const MAX_FILE_SIZE = 100 * 1024 * 1024
+import { formatOutput } from '../utils.js'
 
 // Supported file extensions for running
 const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
@@ -31,24 +28,6 @@ const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
 // Output summary limits
 const MAX_OUTPUT_CHARS_PER_BLOCK = 500
 const MAX_BLOCKS_IN_SUMMARY = 5
-
-/**
- * Format output based on compact mode - omit null/empty, use single-line JSON
- */
-function formatOutput(data: object, compact: boolean): string {
-  if (compact) {
-    const filtered = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => {
-        if (v == null) return false
-        if (Array.isArray(v) && v.length === 0) return false
-        if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return false
-        return true
-      })
-    )
-    return JSON.stringify(filtered)
-  }
-  return JSON.stringify(data, null, 2)
-}
 
 /**
  * Extract a text summary from block outputs for inline display.
@@ -109,7 +88,7 @@ export const executionTools: Tool[] = [
     name: 'deepnote_run',
     title: 'Run Project',
     description:
-      'Run notebook locally. Supports .deepnote, .ipynb, .py, .qmd. Returns outputs inline by default (includeOutputSummary=true).',
+      'Run notebook locally. Supports .deepnote, .ipynb, .py, .qmd. Use blockId to run a single block. Returns outputs inline by default (includeOutputSummary=true).',
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -126,6 +105,10 @@ export const executionTools: Tool[] = [
         notebook: {
           type: 'string',
           description: 'Run only this notebook (by name or ID). If omitted, runs ALL notebooks.',
+        },
+        blockId: {
+          type: 'string',
+          description: 'Run only this specific block (by ID or prefix).',
         },
         pythonPath: {
           type: 'string',
@@ -153,72 +136,7 @@ export const executionTools: Tool[] = [
       required: ['path'],
     },
   },
-  {
-    name: 'deepnote_run_block',
-    title: 'Run Single Block',
-    description: 'Run a specific block by ID. Includes dependencies.',
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: false,
-      openWorldHint: true,
-    },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-        blockId: {
-          type: 'string',
-          description: 'ID of the block to run',
-        },
-        pythonPath: {
-          type: 'string',
-          description: 'Path to Python environment',
-        },
-        inputs: {
-          type: 'object',
-          description: 'Input values to set before running',
-          additionalProperties: true,
-        },
-      },
-      required: ['path', 'blockId'],
-    },
-  },
-  {
-    name: 'deepnote_open',
-    title: 'Open in Deepnote Cloud',
-    description: 'Upload to Deepnote Cloud and get a shareable URL. No account required.',
-    annotations: {
-      readOnlyHint: true, // Doesn't modify local files
-      destructiveHint: false,
-      idempotentHint: false, // Creates new import each time
-      openWorldHint: true, // Network access
-    },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'Path to the .deepnote file',
-        },
-        domain: {
-          type: 'string',
-          description: 'Deepnote domain (default: deepnote.com)',
-        },
-      },
-      required: ['path'],
-    },
-  },
 ]
-
-async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
-  const absolutePath = path.resolve(filePath)
-  const content = await fs.readFile(absolutePath, 'utf-8')
-  return deserializeDeepnoteFile(content)
-}
 
 /**
  * Resolve and convert any supported notebook format to a DeepnoteFile.
@@ -349,6 +267,7 @@ async function saveExecutionSnapshot(
 async function handleRun(args: Record<string, unknown>) {
   const filePath = args.path as string
   const notebookFilter = args.notebook as string | undefined
+  const blockIdFilter = args.blockId as string | undefined
   const pythonPath = args.pythonPath as string | undefined
   const inputs = args.inputs as Record<string, unknown> | undefined
   const dryRun = args.dryRun as boolean | undefined
@@ -357,6 +276,11 @@ async function handleRun(args: Record<string, unknown>) {
 
   // Load file, auto-converting from other formats if needed
   const { file, originalPath, format, wasConverted } = await resolveAndConvertToDeepnote(filePath)
+
+  // If blockId is specified, run just that block with its dependencies
+  if (blockIdFilter) {
+    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs)
+  }
 
   // Filter notebooks if specified, otherwise run all
   let notebooks = file.project.notebooks
@@ -516,19 +440,26 @@ async function handleRun(args: Record<string, unknown>) {
   }
 }
 
-async function handleRunBlock(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const blockId = args.blockId as string
-  const pythonPath = args.pythonPath as string | undefined
-  const inputs = args.inputs as Record<string, unknown> | undefined
-
-  const file = await loadDeepnoteFile(filePath)
-
+/**
+ * Run a single block by ID within an already-loaded file.
+ * Called from handleRun when blockId is specified.
+ */
+async function handleRunBlock(
+  file: DeepnoteFile,
+  originalPath: string,
+  blockId: string,
+  notebookFilter: string | undefined,
+  pythonPath: string | undefined,
+  inputs: Record<string, unknown> | undefined
+) {
   // Find the block
   let targetBlock = null
   let targetNotebook = null
 
   for (const notebook of file.project.notebooks) {
+    if (notebookFilter && notebook.name !== notebookFilter && notebook.id !== notebookFilter) {
+      continue
+    }
     const block = notebook.blocks.find(b => b.id === blockId || b.id.startsWith(blockId))
     if (block) {
       targetBlock = block
@@ -545,7 +476,7 @@ async function handleRunBlock(args: Record<string, unknown>) {
   }
 
   // Run the specific block
-  const workingDir = path.dirname(path.resolve(filePath))
+  const workingDir = path.dirname(originalPath)
   const engine = new ExecutionEngine({
     pythonEnv: pythonPath || 'python',
     workingDirectory: workingDir,
@@ -554,7 +485,7 @@ async function handleRunBlock(args: Record<string, unknown>) {
   try {
     await engine.start()
 
-    const summary = await engine.runFile(path.resolve(filePath), {
+    const summary = await engine.runFile(originalPath, {
       notebookName: targetNotebook.name,
       blockId: targetBlock.id,
       inputs,
@@ -591,132 +522,12 @@ async function handleRunBlock(args: Record<string, unknown>) {
   }
 }
 
-async function handleOpen(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const domain = (args.domain as string) || DEFAULT_DOMAIN
-
-  const absolutePath = path.resolve(filePath)
-  const fileName = path.basename(absolutePath)
-
-  // Validate file exists and check size
-  let fileSize: number
-  try {
-    const stats = await fs.stat(absolutePath)
-    fileSize = stats.size
-
-    if (fileSize <= 0) {
-      return {
-        content: [{ type: 'text', text: JSON.stringify({ error: 'File is empty' }) }],
-        isError: true,
-      }
-    }
-
-    if (fileSize > MAX_FILE_SIZE) {
-      const sizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024))
-      return {
-        content: [{ type: 'text', text: JSON.stringify({ error: `File exceeds ${sizeMB}MB limit` }) }],
-        isError: true,
-      }
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: JSON.stringify({ error: `Cannot read file: ${message}` }) }],
-      isError: true,
-    }
-  }
-
-  // Read file contents
-  const fileBuffer = await fs.readFile(absolutePath)
-
-  // Initialize import
-  const apiEndpoint = `https://api.${domain}`
-  const initUrl = `${apiEndpoint}/v1/import/init`
-
-  let initResponse: { importId: string; uploadUrl: string }
-  try {
-    const response = await fetch(initUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName, fileSize }),
-      signal: AbortSignal.timeout(30_000),
-    })
-
-    if (!response.ok) {
-      const text = await response.text()
-      return {
-        content: [{ type: 'text', text: JSON.stringify({ error: `Failed to initialize import: ${text}` }) }],
-        isError: true,
-      }
-    }
-
-    initResponse = (await response.json()) as { importId: string; uploadUrl: string }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: JSON.stringify({ error: `Network error: ${message}` }) }],
-      isError: true,
-    }
-  }
-
-  // Upload file
-  try {
-    const uploadResponse = await fetch(initResponse.uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': fileBuffer.length.toString(),
-      },
-      body: fileBuffer,
-    })
-
-    if (!uploadResponse.ok) {
-      return {
-        content: [{ type: 'text', text: JSON.stringify({ error: 'Upload failed' }) }],
-        isError: true,
-      }
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: JSON.stringify({ error: `Upload failed: ${message}` }) }],
-      isError: true,
-    }
-  }
-
-  // Build launch URL
-  const launchUrl = `https://${domain}/launch?importId=${initResponse.importId}`
-
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
-          {
-            success: true,
-            path: absolutePath,
-            url: launchUrl,
-            importId: initResponse.importId,
-            hint: 'Share this URL to let others open the notebook in Deepnote Cloud',
-          },
-          null,
-          2
-        ),
-      },
-    ],
-  }
-}
-
 export async function handleExecutionTool(name: string, args: Record<string, unknown> | undefined) {
   const safeArgs = args || {}
 
   switch (name) {
     case 'deepnote_run':
       return handleRun(safeArgs)
-    case 'deepnote_run_block':
-      return handleRunBlock(safeArgs)
-    case 'deepnote_open':
-      return handleOpen(safeArgs)
     default:
       return {
         content: [{ type: 'text', text: `Unknown execution tool: ${name}` }],

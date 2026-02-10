@@ -163,9 +163,16 @@ async function handleSnapshotList(args: Record<string, unknown>) {
 
   try {
     const absolutePath = path.resolve(filePath)
-    const defaultSnapshotDir = snapshotDir || path.join(path.dirname(absolutePath), 'snapshots')
+    const projectDir = path.dirname(absolutePath)
 
-    const snapshots = await findSnapshotsForProject(absolutePath, defaultSnapshotDir)
+    // Read file to get the project ID
+    const content = await fs.readFile(absolutePath, 'utf-8')
+    const file = deserializeDeepnoteFile(content)
+    const projectId = file.project.id
+
+    const snapshotOptions = snapshotDir ? { snapshotDir } : {}
+    const snapshots = await findSnapshotsForProject(projectDir, projectId, snapshotOptions)
+    const resolvedSnapshotDir = snapshotDir || path.join(projectDir, 'snapshots')
 
     return {
       content: [
@@ -174,7 +181,7 @@ async function handleSnapshotList(args: Record<string, unknown>) {
           text: JSON.stringify(
             {
               sourcePath: absolutePath,
-              snapshotDir: defaultSnapshotDir,
+              snapshotDir: resolvedSnapshotDir,
               snapshotsFound: snapshots.length,
               snapshots: snapshots.map(s => ({
                 path: s.path,
@@ -250,8 +257,11 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
     }
 
     // Otherwise, find and load latest snapshot for the source file
-    const defaultSnapshotDir = snapshotDir || path.join(path.dirname(absolutePath), 'snapshots')
-    const snapshot = await loadLatestSnapshot(absolutePath, defaultSnapshotDir)
+    const content = await fs.readFile(absolutePath, 'utf-8')
+    const file = deserializeDeepnoteFile(content)
+    const projectId = file.project.id
+    const snapshotOptions = snapshotDir ? { snapshotDir } : {}
+    const snapshot = await loadLatestSnapshot(absolutePath, projectId, snapshotOptions)
 
     if (!snapshot) {
       return {
@@ -261,7 +271,7 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
             text: JSON.stringify({
               error: 'No snapshot found',
               sourcePath: absolutePath,
-              snapshotDir: defaultSnapshotDir,
+              snapshotDir: snapshotDir || path.join(path.dirname(absolutePath), 'snapshots'),
               hint: 'Use deepnote_snapshot_split to create a snapshot first',
             }),
           },
@@ -422,8 +432,7 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
       const absoluteSnapshotPath = path.resolve(snapshotPath)
       snapshot = await loadSnapshotFile(absoluteSnapshotPath)
     } else {
-      const snapshotDir = path.join(path.dirname(absoluteSourcePath), 'snapshots')
-      snapshot = await loadLatestSnapshot(absoluteSourcePath, snapshotDir)
+      snapshot = await loadLatestSnapshot(absoluteSourcePath, source.project.id)
 
       if (!snapshot) {
         return {
