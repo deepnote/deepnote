@@ -15,7 +15,7 @@ import { stringify as serializeYaml } from 'yaml'
 function snapshotError(message: string) {
   return {
     content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
-  } as const
+  }
 }
 
 function parseRequiredStringArg(value: unknown): string | undefined {
