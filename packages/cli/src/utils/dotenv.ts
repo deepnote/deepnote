@@ -39,7 +39,8 @@ function formatValue(value: string): string {
 
   // For values with single quotes but no double quotes, use double quotes
   if (value.includes("'") && !value.includes('"')) {
-    return `"${value}"`
+    const escaped = value.replace(/\\/g, '\\\\').replace(/\$/g, '\\$')
+    return `"${escaped}"`
   }
 
   // For values with both quote types, leave unquoted if safe.
