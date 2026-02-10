@@ -53,7 +53,7 @@ function formatValue(value: string): string {
     }
     // If value has both quote types AND # or leading/trailing spaces, there's a dotenv limitation.
     // We do best-effort with double quotes + escaping, knowing backslashes will be preserved.
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')
     return `"${escaped}"`
   }
 
