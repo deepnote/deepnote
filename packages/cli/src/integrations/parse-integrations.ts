@@ -24,7 +24,7 @@ export interface IntegrationsParseResult {
  */
 function formatZodIssues(issues: ZodIssue[], pathPrefix: string): ValidationIssue[] {
   return issues.map(issue => ({
-    path: pathPrefix ? `${pathPrefix}.${issue.path.join('.')}` : issue.path.join('.'),
+    path: [pathPrefix, ...issue.path].filter(Boolean).join('.'),
     message: issue.message,
     code: issue.code,
   }))

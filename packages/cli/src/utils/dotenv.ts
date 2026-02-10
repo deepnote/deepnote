@@ -57,7 +57,7 @@ function formatValue(value: string): string {
   }
 
   // Default: use double quotes for other special chars
-  const escaped = value.replace(/\\/g, '\\\\')
+  const escaped = value.replace(/\\/g, '\\\\').replace(/\$/g, '\\$')
   return `"${escaped}"`
 }
 

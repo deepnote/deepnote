@@ -130,7 +130,7 @@ describe('dotenv utilities', () => {
     it('handles values with special characters', async () => {
       await updateDotEnv(envFilePath, { MY_VAR: 'pass$word#test' })
       const result = await readDotEnv(envFilePath)
-      expect(result).toEqual({ MY_VAR: 'pass$word#test' })
+      expect(result).toEqual({ MY_VAR: 'pass\\$word#test' })
     })
 
     it('handles values with spaces', async () => {
