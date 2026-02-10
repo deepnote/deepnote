@@ -56,12 +56,12 @@ vi.mock('../integrations/parse-integrations', () => {
   }
 })
 // Mock fetchIntegrations for API integration tests
-const mockFetchIntegrations = vi.fn<(baseUrl: string, token: string) => Promise<unknown[]>>()
+const mockFetchIntegrations = vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<unknown[]>>()
 vi.mock('../integrations/fetch-integrations', async importOriginal => {
   const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
   return {
     ...actual,
-    fetchIntegrations: (baseUrl: string, token: string) => mockFetchIntegrations(baseUrl, token),
+    fetchIntegrations: (...args: Parameters<typeof actual.fetchIntegrations>) => mockFetchIntegrations(...args),
   }
 })
 
@@ -1121,6 +1121,9 @@ describe('run command', () => {
     })
 
     describe('--token flag (API integrations)', () => {
+      // The INTEGRATIONS_FILE has a SQL block referencing this integration ID
+      const REQUIRED_INTEGRATION_ID = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
+
       // Helper to create mock API integrations (same pattern as integrations.test.ts)
       function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiIntegration {
         return {
@@ -1141,33 +1144,44 @@ describe('run command', () => {
         }
       }
 
-      it('fetches API integrations when --token is provided', async () => {
+      it('fetches only the required integration IDs from the API', async () => {
         setupSuccessfulRun()
-        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration()])
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'my-token', [REQUIRED_INTEGRATION_ID])
+      })
+
+      it('does not fetch when notebook has no SQL blocks requiring external integrations', async () => {
+        setupSuccessfulRun()
 
         await action(HELLO_WORLD_FILE, { token: 'my-token' })
 
-        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'my-token')
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
       })
 
       it('uses DEEPNOTE_TOKEN env var as fallback when no --token flag', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
         vi.stubEnv(DEEPNOTE_TOKEN_ENV, 'env-token')
-        mockFetchIntegrations.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
 
-        await action(HELLO_WORLD_FILE, {})
+        await action(INTEGRATIONS_FILE, {})
 
-        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'env-token')
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'env-token', [REQUIRED_INTEGRATION_ID])
       })
 
       it('prefers --token flag over DEEPNOTE_TOKEN env var', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
         vi.stubEnv(DEEPNOTE_TOKEN_ENV, 'env-token')
-        mockFetchIntegrations.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
 
-        await action(HELLO_WORLD_FILE, { token: 'flag-token' })
+        await action(INTEGRATIONS_FILE, { token: 'flag-token' })
 
-        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'flag-token')
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'flag-token', [REQUIRED_INTEGRATION_ID])
       })
 
       it('does not fetch when no token is available', async () => {
@@ -1181,11 +1195,14 @@ describe('run command', () => {
 
       it('uses custom --url for API calls', async () => {
         setupSuccessfulRun()
-        mockFetchIntegrations.mockResolvedValue([])
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token', url: 'https://custom-api.example.com' })
+        await action(INTEGRATIONS_FILE, { token: 'my-token', url: 'https://custom-api.example.com' })
 
-        expect(mockFetchIntegrations).toHaveBeenCalledWith('https://custom-api.example.com', 'my-token')
+        expect(mockFetchIntegrations).toHaveBeenCalledWith('https://custom-api.example.com', 'my-token', [
+          REQUIRED_INTEGRATION_ID,
+        ])
       })
 
       it('merges API integrations with local ones', async () => {
@@ -1210,7 +1227,7 @@ describe('run command', () => {
 
         // Both integrations should be used (engine started successfully)
         expect(mockStart).toHaveBeenCalled()
-        expect(mockFetchIntegrations).toHaveBeenCalled()
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
       })
 
       it('local integrations take precedence over API when IDs match', async () => {
@@ -1256,9 +1273,10 @@ describe('run command', () => {
         })
 
         // API provides the integrations
-        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration()])
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token' })
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
 
         expect(mockFetchIntegrations).toHaveBeenCalled()
         expect(mockStart).toHaveBeenCalled()
@@ -1267,7 +1285,7 @@ describe('run command', () => {
       it('propagates API fetch failure as error', async () => {
         mockFetchIntegrations.mockRejectedValue(new ApiError(401, 'Authentication failed'))
 
-        await expect(action(HELLO_WORLD_FILE, { token: 'bad-token' })).rejects.toThrow('program.error called')
+        await expect(action(INTEGRATIONS_FILE, { token: 'bad-token' })).rejects.toThrow('program.error called')
 
         expect(programErrorSpy).toHaveBeenCalled()
         const errorArg = programErrorSpy.mock.calls[0][0]
@@ -1275,9 +1293,10 @@ describe('run command', () => {
       })
 
       it('sets exit code 2 for API auth errors in JSON mode', async () => {
+        mockGetBlockDependencies.mockResolvedValue([])
         mockFetchIntegrations.mockRejectedValue(new ApiError(401, 'Authentication failed'))
 
-        await action(HELLO_WORLD_FILE, { token: 'bad-token', output: 'json' })
+        await action(INTEGRATIONS_FILE, { token: 'bad-token', output: 'json' })
 
         expect(process.exitCode).toBe(2)
         const output = getOutput(consoleLogSpy)
@@ -1375,12 +1394,11 @@ describe('run command', () => {
 
       it('suppresses fetch message with -o json', async () => {
         setupSuccessfulRun()
-        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration()])
-
-        await action(HELLO_WORLD_FILE, { token: 'my-token', output: 'json' })
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+        await action(INTEGRATIONS_FILE, { token: 'my-token', output: 'json' })
 
         const output = getOutput(consoleLogSpy)
-        // Should NOT contain the interactive fetch message
         expect(output).not.toContain('Fetching integrations')
         const parsed = JSON.parse(output)
         expect(parsed.success).toBe(true)
@@ -1388,9 +1406,10 @@ describe('run command', () => {
 
       it('suppresses fetch message with -o toon', async () => {
         setupSuccessfulRun()
-        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration()])
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token', output: 'toon' })
+        await action(INTEGRATIONS_FILE, { token: 'my-token', output: 'toon' })
 
         const output = getOutput(consoleLogSpy)
         expect(output).not.toContain('Fetching integrations')
@@ -1398,9 +1417,10 @@ describe('run command', () => {
 
       it('shows fetch message in interactive mode', async () => {
         setupSuccessfulRun()
-        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration()])
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token' })
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
 
         const output = getOutput(consoleLogSpy)
         expect(output).toContain('Fetching integrations')
@@ -1437,9 +1457,10 @@ describe('run command', () => {
 
       it('shows warning for invalid API integrations in interactive mode', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
 
         mockFetchIntegrations.mockResolvedValue([
-          createMockApiIntegration(),
+          createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID }),
           {
             id: 'bad-integration',
             name: 'Bad One',
@@ -1452,7 +1473,7 @@ describe('run command', () => {
           },
         ])
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token' })
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
 
         const output = getOutput(consoleLogSpy)
         expect(output).toContain('Skipping invalid integration')
@@ -1461,9 +1482,10 @@ describe('run command', () => {
 
       it('suppresses invalid integration warnings with -o json', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
 
         mockFetchIntegrations.mockResolvedValue([
-          createMockApiIntegration(),
+          createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID }),
           {
             id: 'bad-integration',
             name: 'Bad One',
@@ -1476,7 +1498,7 @@ describe('run command', () => {
           },
         ])
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token', output: 'json' })
+        await action(INTEGRATIONS_FILE, { token: 'my-token', output: 'json' })
 
         const output = getOutput(consoleLogSpy)
         // Should NOT contain the interactive warning

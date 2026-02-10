@@ -239,41 +239,44 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
   if (token) {
     const baseUrl = options.url ?? DEFAULT_API_URL
-    if (!isMachineOutput) {
-      log(getChalk().dim(`Fetching integrations from ${baseUrl}...`))
-    }
 
-    const apiIntegrations = await fetchIntegrations(baseUrl, token)
-    const { integrations: apiConfigs, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
+    // Only fetch integrations that are actually needed by SQL blocks and not already local
+    const requiredIds = collectRequiredIntegrationIds(file, options.notebook)
+    const localIds = new Set(allIntegrations.map(i => i.id.toLowerCase()))
+    const idsToFetch = requiredIds.filter(id => !localIds.has(id.toLowerCase()))
 
-    // Report conversion errors (invalid integrations from API)
-    if (conversionErrors.length > 0) {
+    if (idsToFetch.length === 0) {
+      debug('All required integrations are already configured locally, skipping API fetch')
+    } else {
       if (!isMachineOutput) {
-        for (const conversionError of conversionErrors) {
-          log(
-            getChalk().yellow(
-              `Warning: Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`
+        log(getChalk().dim(`Fetching integrations from ${baseUrl}...`))
+      }
+
+      const apiIntegrations = await fetchIntegrations(baseUrl, token, idsToFetch)
+      const { integrations: apiConfigs, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
+
+      // Report conversion errors (invalid integrations from API)
+      if (conversionErrors.length > 0) {
+        if (!isMachineOutput) {
+          for (const conversionError of conversionErrors) {
+            log(
+              getChalk().yellow(
+                `Warning: Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`
+              )
             )
-          )
-        }
-      } else {
-        for (const conversionError of conversionErrors) {
-          debug(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
+          }
+        } else {
+          for (const conversionError of conversionErrors) {
+            debug(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
+          }
         }
       }
-    }
 
-    debug(`Fetched ${apiConfigs.length} integration(s) from API`)
+      debug(`Fetched ${apiConfigs.length} integration(s) from API for ${idsToFetch.length} requested ID(s)`)
 
-    // Merge: local integrations take precedence by ID (case-insensitive)
-    const localIds = new Set(allIntegrations.map(i => i.id.toLowerCase()))
-    const newFromApi = apiConfigs.filter(i => !localIds.has(i.id.toLowerCase()))
-
-    if (newFromApi.length > 0) {
-      allIntegrations = [...allIntegrations, ...newFromApi]
-      debug(
-        `Added ${newFromApi.length} integration(s) from API (${apiConfigs.length - newFromApi.length} already local)`
-      )
+      if (apiConfigs.length > 0) {
+        allIntegrations = [...allIntegrations, ...apiConfigs]
+      }
     }
   }
 
@@ -578,6 +581,30 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
   }
 }
 
+/** Built-in integrations that don't require external configuration */
+const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
+
+/**
+ * Collect unique external integration IDs referenced by SQL blocks in the file.
+ * Excludes built-in integrations (e.g. deepnote-dataframe-sql, pandas-dataframe).
+ */
+function collectRequiredIntegrationIds(file: DeepnoteFile, notebookName?: string): string[] {
+  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
+  const ids = new Set<string>()
+  for (const notebook of notebooks) {
+    for (const block of notebook.blocks) {
+      if (block.type === 'sql') {
+        const metadata = block.metadata as Record<string, unknown>
+        const integrationId = metadata.sql_integration_id as string | undefined
+        if (integrationId && !builtInIntegrations.has(integrationId)) {
+          ids.add(integrationId)
+        }
+      }
+    }
+  }
+  return Array.from(ids)
+}
+
 /**
  * Validate that all required configuration is present before running.
  * Checks for:
@@ -604,28 +631,11 @@ async function validateRequirements(
   }
 
   // === Check for missing database integrations ===
-  // Built-in integrations that don't require external configuration
-  const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
-
-  const missingIntegrations: Array<{ id: string }> = []
-  for (const block of allBlocks) {
-    if (block.type === 'sql') {
-      const metadata = block.metadata as Record<string, unknown>
-      const integrationId = metadata.sql_integration_id as string | undefined
-      if (integrationId && !builtInIntegrations.has(integrationId)) {
-        // Check if integration is configured in the integrations file
-        // Use lowercase for case-insensitive UUID matching
-        // const envVarName = getIntegrationEnvVarName(integrationId)
-        // if (!process.env[envVarName]) { ... }
-        if (!integrations.some(i => i.id.toLowerCase() === integrationId.toLowerCase())) {
-          // Check if we haven't already recorded this integration
-          if (!missingIntegrations.some(i => i.id === integrationId)) {
-            missingIntegrations.push({ id: integrationId })
-          }
-        }
-      }
-    }
-  }
+  const requiredIds = collectRequiredIntegrationIds(file, notebookName)
+  const configuredIds = new Set(integrations.map(i => i.id.toLowerCase()))
+  const missingIntegrations = requiredIds
+    .filter(id => !configuredIds.has(id.toLowerCase()))
+    .map(id => ({ id }))
 
   if (missingIntegrations.length > 0) {
     const integrationList = missingIntegrations.map(i => `  - ${i.id}`).join('\n')
