@@ -1213,7 +1213,7 @@ describe('run command', () => {
           id: 'local-id',
           name: 'Local DB',
           type: 'pgsql' as const,
-          metadata: { host: 'local.example.com', database: 'localdb', user: 'local', password: 'local-pass' },
+          metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-password' },
         } satisfies DatabaseIntegrationConfig
         mockParseIntegrationsFile.mockResolvedValue({
           integrations: [localIntegration],
@@ -1240,7 +1240,7 @@ describe('run command', () => {
           id: sharedId,
           name: 'Local Override',
           type: 'pgsql' as const,
-          metadata: { host: 'local.example.com', database: 'localdb', user: 'localuser', password: 'local-secret' },
+          metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-secret' },
         }
         mockParseIntegrationsFile.mockResolvedValue({
           integrations: [localIntegration],
@@ -1252,7 +1252,7 @@ describe('run command', () => {
           createMockApiIntegration({
             id: sharedId,
             name: 'API Version',
-            metadata: { host: 'api.example.com', database: 'apidb', user: 'apiuser', password: 'api-secret' },
+            metadata: { host: 'api.example.com', database: 'api-db', user: 'api-user', password: 'api-secret' },
           }),
         ])
 
@@ -1371,7 +1371,7 @@ describe('run command', () => {
           id: 'ABC-123',
           name: 'Local DB',
           type: 'pgsql' as const,
-          metadata: { host: 'local.example.com', database: 'localdb', user: 'local', password: 'local-pass' },
+          metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-password' },
         }
         mockParseIntegrationsFile.mockResolvedValue({
           integrations: [localIntegration],

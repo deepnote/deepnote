@@ -633,9 +633,7 @@ async function validateRequirements(
   // === Check for missing database integrations ===
   const requiredIds = collectRequiredIntegrationIds(file, notebookName)
   const configuredIds = new Set(integrations.map(i => i.id.toLowerCase()))
-  const missingIntegrations = requiredIds
-    .filter(id => !configuredIds.has(id.toLowerCase()))
-    .map(id => ({ id }))
+  const missingIntegrations = requiredIds.filter(id => !configuredIds.has(id.toLowerCase())).map(id => ({ id }))
 
   if (missingIntegrations.length > 0) {
     const integrationList = missingIntegrations.map(i => `  - ${i.id}`).join('\n')
