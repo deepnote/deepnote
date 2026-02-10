@@ -3,12 +3,12 @@
  *
  * MCP server for AI-assisted Deepnote notebook creation and manipulation.
  *
- * Provides tools for:
- * - Magic operations: scaffold, enhance, fix, explain, suggest
- * - Reading: inspect, cat, lint, stats, analyze, dag, diff
- * - Writing: create, add_block, edit_block, remove_block, bulk_edit
- * - Conversion: convert_to, convert_from, detect_format
- * - Execution: run, run_block
+ * Exposed tool surface:
+ * - Reading: read, cat, validate, diff
+ * - Writing: create, add_block, edit_block, remove_block, reorder_blocks
+ * - Conversion: convert_to, convert_from
+ * - Execution: run
+ * - Snapshots: snapshot_list, snapshot_load, snapshot_split, snapshot_merge
  *
  * @packageDocumentation
  */

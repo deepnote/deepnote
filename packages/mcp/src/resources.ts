@@ -95,9 +95,10 @@ export async function listResources(workspaceRoot?: string): Promise<Resource[]>
     for (const file of workspaceFiles) {
       const relativePath = path.relative(workspaceRoot, file)
       const name = path.basename(file, DEEPNOTE_EXTENSION)
+      const encodedFilePath = encodeURIComponent(file)
 
       resources.push({
-        uri: `deepnote://file/${file}`,
+        uri: `deepnote://file/${encodedFilePath}`,
         name,
         description: `Notebook: ${relativePath}`,
         mimeType: 'application/x-deepnote',
@@ -195,12 +196,32 @@ export async function readResource(uri: string, workspaceRoot?: string): Promise
 
   if (parsed.type === 'file' && parsed.path) {
     try {
-      const content = await fs.readFile(parsed.path, 'utf-8')
+      const decodedPath = decodeURIComponent(parsed.path)
+      const normalizedPath = path.normalize(decodedPath)
+      const resolvedPath = path.resolve(normalizedPath)
+
+      if (workspaceRoot) {
+        const resolvedWorkspaceRoot = path.resolve(path.normalize(workspaceRoot))
+        const relative = path.relative(resolvedWorkspaceRoot, resolvedPath)
+        const outsideWorkspace = relative.startsWith('..') || path.isAbsolute(relative)
+
+        if (outsideWorkspace) {
+          return [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: JSON.stringify({ error: 'Access denied: path outside workspace root' }),
+            },
+          ]
+        }
+      }
+
+      const content = await fs.readFile(resolvedPath, 'utf-8')
       const deepnote = deserializeDeepnoteFile(content)
 
       // Return structured summary of the notebook
       const summary = {
-        path: parsed.path,
+        path: resolvedPath,
         projectName: deepnote.project.name,
         projectId: deepnote.project.id,
         version: deepnote.version,

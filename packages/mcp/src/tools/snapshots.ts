@@ -105,8 +105,8 @@ The source file is updated in place, snapshot is saved to snapshotDir.`,
     },
     annotations: {
       readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: true,
+      destructiveHint: true,
+      idempotentHint: false,
       openWorldHint: false,
     },
   },
@@ -322,7 +322,13 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
 async function handleSnapshotSplit(args: Record<string, unknown>) {
   const filePath = args.path as string
   const snapshotDir = args.snapshotDir as string | undefined
-  const keepLatest = args.keepLatest !== false // default true
+  const keepLatestRaw = args.keepLatest
+  const keepLatest =
+    keepLatestRaw === undefined
+      ? true
+      : typeof keepLatestRaw === 'string'
+        ? keepLatestRaw.toLowerCase() === 'true'
+        : Boolean(keepLatestRaw)
 
   if (!filePath) {
     return {
@@ -413,7 +419,9 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
   const sourcePath = args.sourcePath as string
   const snapshotPath = args.snapshotPath as string | undefined
   const outputPath = args.outputPath as string | undefined
-  const skipMismatched = (args.skipMismatched as boolean) || false
+  const skipMismatchedRaw = args.skipMismatched
+  const skipMismatched =
+    typeof skipMismatchedRaw === 'boolean' ? skipMismatchedRaw : String(skipMismatchedRaw).toLowerCase() === 'true'
 
   if (!sourcePath) {
     return {

@@ -142,7 +142,7 @@ Snapshots separate execution outputs from source files for clean version control
 
 ### Create a notebook from description
 
-```
+```text
 Use deepnote_scaffold with:
 - description: "Data analysis notebook that loads CSV, explores with visualizations, trains a model"
 - outputPath: "analysis.deepnote"
@@ -150,14 +150,14 @@ Use deepnote_scaffold with:
 
 ### Convert and enhance a Jupyter notebook
 
-```
+```text
 1. Use deepnote_convert_to with inputPath: "notebook.ipynb"
 2. Use deepnote_enhance with enhancements: ["all"]
 ```
 
 ### Fix issues in a notebook
 
-```
+```text
 Use deepnote_fix with:
 - path: "broken.deepnote"
 - dryRun: true (preview first)
@@ -165,7 +165,7 @@ Use deepnote_fix with:
 
 ### Use a template
 
-```
+```text
 Use deepnote_template with:
 - template: "dashboard" (or ml_pipeline, etl, report, api_client)
 - outputPath: "my-dashboard.deepnote"
@@ -173,7 +173,7 @@ Use deepnote_template with:
 
 ### Manage outputs with snapshots
 
-```
+```text
 # Split outputs for version control:
 Use deepnote_snapshot_split with path: "notebook.deepnote"
 # Outputs are saved to snapshots/, source file is cleaned
@@ -185,7 +185,7 @@ Use deepnote_snapshot_merge with sourcePath: "notebook.deepnote"
 
 ### Run a workflow pipeline
 
-```
+```text
 Use deepnote_workflow with steps:
 1. template: Create ML pipeline
 2. enhance: Add interactivity
@@ -194,7 +194,7 @@ Use deepnote_workflow with steps:
 
 ### Generate tests for functions
 
-```
+```text
 Use deepnote_test with:
 - path: "notebook.deepnote"
 - testFramework: "pytest" (or unittest, assert)

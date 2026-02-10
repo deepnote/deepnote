@@ -23,13 +23,13 @@ export async function saveDeepnoteFile(filePath: string, file: DeepnoteFile): Pr
 /**
  * Format output based on compact mode - omit null/empty, use single-line JSON
  */
-export function formatOutput(data: object, compact: boolean): string {
+export function formatOutput(data: Record<string, unknown>, compact: boolean): string {
   if (compact) {
     const filtered = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => {
+      Object.entries(data).filter(([_, v]: [string, unknown]) => {
         if (v == null) return false
         if (Array.isArray(v) && v.length === 0) return false
-        if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return false
+        if (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0) return false
         return true
       })
     )

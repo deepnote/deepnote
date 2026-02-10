@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getPrompt, prompts } from './prompts'
+import { getPrompt, isPromptName, prompts } from './prompts'
 
 describe('prompts', () => {
   describe('prompts array', () => {
     it('has all expected prompts', () => {
       const promptNames = prompts.map(p => p.name)
+      expect(promptNames).toContain('debug_execution')
       expect(promptNames).toContain('create_notebook')
       expect(promptNames).toContain('convert_and_enhance')
       expect(promptNames).toContain('fix_and_document')
@@ -34,6 +35,22 @@ describe('prompts', () => {
   })
 
   describe('getPrompt', () => {
+    it('returns debug_execution prompt and preserves special characters', () => {
+      const result = getPrompt('debug_execution', {
+        execution_id: 'exec-äöü!@#$',
+        error_message: 'NullPointer¶',
+      })
+      expect(result.description).toContain('Debug notebook execution')
+      expect(result.messages).toHaveLength(1)
+      expect(result.messages[0].role).toBe('user')
+      expect(result.messages[0].content).toMatchObject({ type: 'text' })
+      const content = result.messages[0].content as { type: string; text: string }
+      expect(content.text).toContain('exec-äöü!@#$')
+      expect(content.text).toContain('NullPointer¶')
+      expect(content.text).toContain('deepnote_run')
+      expect(content.text).toContain('deepnote_snapshot_load')
+    })
+
     it('returns create_notebook prompt with default values', () => {
       const result = getPrompt('create_notebook', undefined)
       expect(result.description).toContain('data analysis')
@@ -89,8 +106,9 @@ describe('prompts', () => {
       expect(content.text).toContain('deepnote_enhance')
     })
 
-    it('throws for unknown prompt', () => {
-      expect(() => getPrompt('nonexistent_prompt', undefined)).toThrow('Unknown prompt: nonexistent_prompt')
+    it('validates known prompt names', () => {
+      expect(isPromptName('create_notebook')).toBe(true)
+      expect(isPromptName('nonexistent_prompt')).toBe(false)
     })
   })
 })

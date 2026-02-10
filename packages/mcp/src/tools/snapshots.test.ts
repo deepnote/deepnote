@@ -86,6 +86,28 @@ describe('snapshot tools handlers', () => {
       expect(stat.isFile()).toBe(true)
     })
 
+    it('handles source paths with spaces and unicode', async () => {
+      const specialDir = path.join(tempDir, 'snap dir-ü')
+      await fs.mkdir(specialDir, { recursive: true })
+      const specialNotebookPath = path.join(specialDir, 'test notebook.deepnote')
+      await fs.copyFile(testNotebookPath, specialNotebookPath)
+
+      const response = await handleSnapshotTool('deepnote_snapshot_split', {
+        path: specialNotebookPath,
+        snapshotDir: path.join(tempDir, 'snapshots'),
+      })
+
+      const result = extractResult(response)
+      expect(result.success).toBe(true)
+
+      const sourcePath = result.sourcePath as string
+      const snapshotPath = result.snapshotPath as string
+      const latestPath = result.latestPath as string
+      expect((await fs.stat(sourcePath)).isFile()).toBe(true)
+      expect((await fs.stat(snapshotPath)).isFile()).toBe(true)
+      expect((await fs.stat(latestPath)).isFile()).toBe(true)
+    })
+
     it('returns error when path is missing', async () => {
       const response = await handleSnapshotTool('deepnote_snapshot_split', {})
       const result = extractResult(response)

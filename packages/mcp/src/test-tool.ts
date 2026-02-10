@@ -15,6 +15,23 @@
 
 import { spawn } from 'node:child_process'
 import * as path from 'node:path'
+import { conversionTools } from './tools/conversion'
+import { executionTools } from './tools/execution'
+import { readingTools } from './tools/reading'
+import { snapshotTools } from './tools/snapshots'
+import { writingTools } from './tools/writing'
+
+const toolGroups: Array<{ label: string; tools: string[] }> = [
+  { label: 'Reading', tools: readingTools.map(tool => tool.name) },
+  { label: 'Writing', tools: writingTools.map(tool => tool.name) },
+  { label: 'Conversion', tools: conversionTools.map(tool => tool.name) },
+  { label: 'Execution', tools: executionTools.map(tool => tool.name) },
+  { label: 'Snapshots', tools: snapshotTools.map(tool => tool.name) },
+]
+
+function formatAvailableTools(): string {
+  return toolGroups.map(group => `  ${group.label}: ${group.tools.join(', ')}`).join('\n')
+}
 
 async function testTool(): Promise<void> {
   const args = process.argv.slice(2)
@@ -26,23 +43,14 @@ Deepnote MCP Tool Tester
 Usage: pnpm test:tool <tool-name> '<json-arguments>'
 
 Examples:
-  pnpm test:tool deepnote_inspect '{"path": "example.deepnote"}'
-  pnpm test:tool deepnote_scaffold '{"description": "Data analysis notebook", "outputPath": "/tmp/test.deepnote"}'
-  pnpm test:tool deepnote_template '{"template": "dashboard", "outputPath": "/tmp/dash.deepnote"}'
-  pnpm test:tool deepnote_lint '{"path": "notebook.deepnote"}'
-  pnpm test:tool deepnote_suggest '{"path": "notebook.deepnote"}'
+  pnpm test:tool deepnote_read '{"path": "example.deepnote"}'
+  pnpm test:tool deepnote_create '{"outputPath": "/tmp/test.deepnote", "projectName": "Demo", "notebooks": [{"name":"Notebook","blocks":[{"type":"code","content":"print(1)"}]}]}'
+  pnpm test:tool deepnote_convert_to '{"inputPath": "notebook.ipynb"}'
+  pnpm test:tool deepnote_run '{"path": "notebook.deepnote", "dryRun": true}'
+  pnpm test:tool deepnote_snapshot_list '{"path": "notebook.deepnote"}'
 
 Available tools:
-  Magic:      deepnote_scaffold, deepnote_template, deepnote_enhance, deepnote_fix,
-              deepnote_explain, deepnote_suggest, deepnote_refactor, deepnote_profile,
-              deepnote_test, deepnote_workflow
-  Reading:    deepnote_inspect, deepnote_cat, deepnote_lint, deepnote_stats,
-              deepnote_analyze, deepnote_dag, deepnote_diff
-  Writing:    deepnote_create, deepnote_add_block, deepnote_edit_block,
-              deepnote_remove_block, deepnote_reorder_blocks, deepnote_add_notebook,
-              deepnote_bulk_edit
-  Conversion: deepnote_convert_to, deepnote_convert_from, deepnote_detect_format
-  Execution:  deepnote_run, deepnote_run_block
+${formatAvailableTools()}
 `)
     process.exit(1)
   }
@@ -93,6 +101,10 @@ Available tools:
 
     child.stderr.on('data', data => {
       stderr += data.toString()
+    })
+
+    child.on('error', err => {
+      reject(err)
     })
 
     child.on('close', code => {

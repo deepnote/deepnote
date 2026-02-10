@@ -8,22 +8,124 @@ import { generateSortingKey, loadDeepnoteFile, saveDeepnoteFile } from '../utils
  * Find a block by ID or ID prefix. Returns the block or undefined.
  */
 function findBlock(blocks: DeepnoteBlock[], idOrPrefix: string): DeepnoteBlock | undefined {
-  return blocks.find(b => b.id === idOrPrefix || b.id.startsWith(idOrPrefix))
+  const matches = blocks.filter(b => b.id === idOrPrefix || b.id.startsWith(idOrPrefix))
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous block ID prefix "${idOrPrefix}" matches multiple blocks`)
+  }
+  return matches[0]
 }
 
 /**
  * Find a block index by ID or ID prefix. Returns -1 if not found.
  */
 function findBlockIndex(blocks: DeepnoteBlock[], idOrPrefix: string): number {
-  return blocks.findIndex(b => b.id === idOrPrefix || b.id.startsWith(idOrPrefix))
+  const matches = blocks
+    .map((block, index) => ({ block, index }))
+    .filter(({ block }) => block.id === idOrPrefix || block.id.startsWith(idOrPrefix))
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous block ID prefix "${idOrPrefix}" matches multiple blocks`)
+  }
+  return matches.length === 1 ? matches[0].index : -1
 }
 
 /**
  * Resolve a block ID or prefix to the full block ID. Returns undefined if not found.
  */
 function resolveBlockId(blocks: DeepnoteBlock[], idOrPrefix: string): string | undefined {
-  const block = findBlock(blocks, idOrPrefix)
-  return block?.id
+  const matches = blocks.filter(block => block.id === idOrPrefix || block.id.startsWith(idOrPrefix))
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous block ID prefix "${idOrPrefix}" matches multiple blocks`)
+  }
+  return matches[0]?.id
+}
+
+interface CreateBlockSpec {
+  type: string
+  content?: string
+  metadata?: Record<string, unknown>
+}
+
+interface CreateNotebookSpec {
+  name: string
+  blocks: CreateBlockSpec[]
+}
+
+function validateCreateArgs(args: Record<string, unknown>): {
+  outputPath: string
+  projectName: string
+  notebooks: CreateNotebookSpec[]
+  dryRun: boolean | undefined
+} {
+  const outputPath = typeof args.outputPath === 'string' && args.outputPath.trim() ? args.outputPath : undefined
+  const projectName = typeof args.projectName === 'string' && args.projectName.trim() ? args.projectName : undefined
+  const dryRun = args.dryRun
+
+  if (!outputPath) {
+    throw new Error('Invalid outputPath: expected a non-empty string')
+  }
+  if (!projectName) {
+    throw new Error('Invalid projectName: expected a non-empty string')
+  }
+  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
+    throw new Error('Invalid dryRun: expected a boolean if provided')
+  }
+  if (!Array.isArray(args.notebooks)) {
+    throw new Error('Invalid notebooks: expected an array')
+  }
+
+  const notebooks: CreateNotebookSpec[] = args.notebooks.map((notebook, notebookIndex) => {
+    if (typeof notebook !== 'object' || notebook === null) {
+      throw new Error(`Invalid notebooks[${notebookIndex}]: expected an object`)
+    }
+
+    const notebookRecord = notebook as Record<string, unknown>
+    const name = typeof notebookRecord.name === 'string' && notebookRecord.name.trim() ? notebookRecord.name : undefined
+    if (!name) {
+      throw new Error(`Invalid notebooks[${notebookIndex}].name: expected a non-empty string`)
+    }
+
+    if (!Array.isArray(notebookRecord.blocks)) {
+      throw new Error(`Invalid notebooks[${notebookIndex}].blocks: expected an array`)
+    }
+
+    const blocks: CreateBlockSpec[] = notebookRecord.blocks.map((block, blockIndex) => {
+      if (typeof block !== 'object' || block === null) {
+        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}]: expected an object`)
+      }
+      const blockRecord = block as Record<string, unknown>
+      const type = typeof blockRecord.type === 'string' && blockRecord.type.trim() ? blockRecord.type : undefined
+      if (!type) {
+        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}].type: expected a non-empty string`)
+      }
+
+      if (blockRecord.content !== undefined && typeof blockRecord.content !== 'string') {
+        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}].content: expected a string`)
+      }
+      if (
+        blockRecord.metadata !== undefined &&
+        (typeof blockRecord.metadata !== 'object' ||
+          blockRecord.metadata === null ||
+          Array.isArray(blockRecord.metadata))
+      ) {
+        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}].metadata: expected an object`)
+      }
+
+      return {
+        type,
+        content: blockRecord.content as string | undefined,
+        metadata: blockRecord.metadata as Record<string, unknown> | undefined,
+      }
+    })
+
+    return { name, blocks }
+  })
+
+  return {
+    outputPath,
+    projectName,
+    notebooks,
+    dryRun: dryRun as boolean | undefined,
+  }
 }
 
 export const writingTools: Tool[] = [
@@ -335,13 +437,7 @@ function createBlock(
 }
 
 async function handleCreate(args: Record<string, unknown>) {
-  const outputPath = args.outputPath as string
-  const projectName = args.projectName as string
-  const notebooks = args.notebooks as Array<{
-    name: string
-    blocks: Array<{ type: string; content?: string; metadata?: Record<string, unknown> }>
-  }>
-  const dryRun = args.dryRun as boolean | undefined
+  const { outputPath, projectName, notebooks, dryRun } = validateCreateArgs(args)
 
   const projectId = randomUUID()
 
@@ -434,12 +530,21 @@ async function handleAddBlock(args: Record<string, unknown>) {
   let insertIndex = notebook.blocks.length
   if (position?.after) {
     const afterIdx = findBlockIndex(notebook.blocks, position.after)
-    if (afterIdx >= 0) insertIndex = afterIdx + 1
+    if (afterIdx < 0) {
+      throw new Error(`Invalid position.after: block not found (${position.after})`)
+    }
+    insertIndex = afterIdx + 1
   } else if (position?.before) {
     const beforeIdx = findBlockIndex(notebook.blocks, position.before)
-    if (beforeIdx >= 0) insertIndex = beforeIdx
+    if (beforeIdx < 0) {
+      throw new Error(`Invalid position.before: block not found (${position.before})`)
+    }
+    insertIndex = beforeIdx
   } else if (position?.index !== undefined) {
-    insertIndex = Math.min(position.index, notebook.blocks.length)
+    if (!Number.isInteger(position.index) || position.index < 0 || position.index > notebook.blocks.length) {
+      throw new Error(`Invalid position.index: expected integer in range 0..${notebook.blocks.length}`)
+    }
+    insertIndex = position.index
   }
 
   // Get blockGroup from existing blocks or create new one
@@ -679,6 +784,7 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
 
   // Resolve all block IDs (support prefix matching)
   const resolvedIds: string[] = []
+  const resolvedIdSet = new Set<string>()
   for (const id of blockIds) {
     const fullId = resolveBlockId(notebook.blocks, id)
     if (!fullId) {
@@ -687,7 +793,14 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
         isError: true,
       }
     }
+    if (resolvedIdSet.has(fullId)) {
+      return {
+        content: [{ type: 'text', text: `Duplicate block ID in blockIds: ${id}` }],
+        isError: true,
+      }
+    }
     resolvedIds.push(fullId)
+    resolvedIdSet.add(fullId)
   }
 
   // Build a map of blocks by ID
@@ -699,7 +812,6 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
     .filter((b): b is NonNullable<typeof b> => b !== undefined)
 
   // Add any blocks not in the list at the end (preserving their relative order)
-  const resolvedIdSet = new Set(resolvedIds)
   for (const block of notebook.blocks) {
     if (!resolvedIdSet.has(block.id)) {
       reorderedBlocks.push(block)

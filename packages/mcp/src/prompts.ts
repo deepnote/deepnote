@@ -1,6 +1,6 @@
 import type { GetPromptResult, Prompt } from '@modelcontextprotocol/sdk/types.js'
 
-export const prompts: Prompt[] = [
+export const prompts = [
   {
     name: 'debug_execution',
     description:
@@ -10,6 +10,16 @@ export const prompts: Prompt[] = [
         name: 'notebook_path',
         description: 'Path to the notebook to debug',
         required: true,
+      },
+      {
+        name: 'execution_id',
+        description: 'Optional execution id for the failed run',
+        required: false,
+      },
+      {
+        name: 'error_message',
+        description: 'Optional error message from the failed run',
+        required: false,
       },
     ],
   },
@@ -62,9 +72,21 @@ export const prompts: Prompt[] = [
     description: 'Best practices for creating well-structured, interactive Deepnote notebooks.',
     arguments: [],
   },
-]
+] as const satisfies Prompt[]
 
-export function getPrompt(name: string, args: Record<string, string> | undefined): GetPromptResult {
+export type PromptName = (typeof prompts)[number]['name']
+
+const promptNameSet: Set<string> = new Set(prompts.map(prompt => prompt.name))
+
+export function isPromptName(name: string): name is PromptName {
+  return promptNameSet.has(name)
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unknown prompt: ${String(value)}`)
+}
+
+export function getPrompt(name: PromptName, args: Record<string, string> | undefined): GetPromptResult {
   switch (name) {
     case 'debug_execution':
       return getDebugExecutionPrompt(args)
@@ -79,12 +101,14 @@ export function getPrompt(name: string, args: Record<string, string> | undefined
     case 'best_practices':
       return getBestPracticesPrompt()
     default:
-      throw new Error(`Unknown prompt: ${name}`)
+      return assertNever(name)
   }
 }
 
 function getDebugExecutionPrompt(args: Record<string, string> | undefined): GetPromptResult {
   const notebookPath = args?.notebook_path || 'notebook.deepnote'
+  const executionId = args?.execution_id
+  const errorMessage = args?.error_message
 
   return {
     description: 'Debug notebook execution using snapshots',
@@ -94,6 +118,8 @@ function getDebugExecutionPrompt(args: Record<string, string> | undefined): GetP
         content: {
           type: 'text',
           text: `Debug the notebook execution for: ${notebookPath}
+${executionId ? `Execution ID: ${executionId}` : ''}
+${errorMessage ? `Error message: ${errorMessage}` : ''}
 
 ## Understanding Outputs
 

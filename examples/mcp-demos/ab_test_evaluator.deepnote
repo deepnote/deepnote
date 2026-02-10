@@ -53,11 +53,16 @@ project:
           type: code
           content: |-
             # Basic info about the dataset
-            print("Shape:", df.shape)
-            print("\nColumn types:")
-            print(df.dtypes)
-            print("\nMissing values:")
-            print(df.isnull().sum())
+            if 'df' not in globals() or df is None:
+                print("No dataframe found. Please load data into 'df' first.")
+            elif hasattr(df, "empty") and df.empty:
+                print("Dataframe 'df' is empty. Please load data before exploring.")
+            else:
+                print("Shape:", df.shape)
+                print("\nColumn types:")
+                print(df.dtypes)
+                print("\nMissing values:")
+                print(df.isnull().sum())
           metadata: {}
           executionCount: null
           outputs: []

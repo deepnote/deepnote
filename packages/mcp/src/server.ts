@@ -10,7 +10,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 
 import { serverInstructions } from './instructions'
-import { getPrompt, prompts } from './prompts'
+import { getPrompt, isPromptName, prompts } from './prompts'
 import { listResources, readResource } from './resources'
 import { conversionTools, handleConversionTool } from './tools/conversion'
 import { executionTools, handleExecutionTool } from './tools/execution'
@@ -55,6 +55,9 @@ export function createServer(): Server {
   server.setRequestHandler(GetPromptRequestSchema, async request => {
     const { name, arguments: args } = request.params
     try {
+      if (!isPromptName(name)) {
+        throw new Error(`Unknown prompt: ${name}`)
+      }
       return getPrompt(name, args)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

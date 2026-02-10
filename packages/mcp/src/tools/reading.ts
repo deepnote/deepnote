@@ -126,6 +126,7 @@ async function computeDagInfo(file: DeepnoteFile, notebookFilter?: string) {
     notebook: string
     blocks: Array<{
       id: string
+      shortId: string
       defines: string[]
       uses: string[]
       dependsOn: string[]
@@ -151,11 +152,12 @@ async function computeDagInfo(file: DeepnoteFile, notebookFilter?: string) {
         for (const usedVar of block.usedVariables) {
           const definingBlock = varToBlock.get(usedVar)
           if (definingBlock && definingBlock !== block.id) {
-            deps.add(definingBlock.slice(0, 8))
+            deps.add(definingBlock)
           }
         }
         return {
-          id: block.id.slice(0, 8),
+          id: block.id,
+          shortId: block.id.slice(0, 8),
           defines: block.definedVariables,
           uses: block.usedVariables,
           dependsOn: Array.from(deps),
@@ -297,13 +299,24 @@ export const readingTools: Tool[] = [
  * Unified read handler that combines multiple reading operations
  */
 async function handleRead(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const includeRaw = args.include as string[] | undefined
+  const filePath = typeof args.path === 'string' ? args.path : undefined
+  const includeRaw = args.include
   const notebookFilter = args.notebook as string | undefined
   const compact = args.compact as boolean | undefined
 
+  if (!filePath) {
+    return {
+      content: [{ type: 'text', text: 'path is required and must be a string' }],
+      isError: true,
+    }
+  }
+
   // Default to structure only
-  const include = new Set(includeRaw || ['structure'])
+  const includeValues =
+    Array.isArray(includeRaw) && includeRaw.length > 0 && includeRaw.every(value => typeof value === 'string')
+      ? includeRaw
+      : ['structure']
+  const include = new Set(includeValues)
   const includeAll = include.has('all')
 
   const file = await loadDeepnoteFile(filePath)

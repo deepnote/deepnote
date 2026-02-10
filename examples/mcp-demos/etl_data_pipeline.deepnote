@@ -115,7 +115,7 @@ project:
                 
                 # Handle missing values
                 missing_before = df_transformed.isnull().sum().sum()
-                df_transformed = df_transformed.fillna(method='ffill').fillna(method='bfill')
+                df_transformed = df_transformed.ffill().bfill()
                 print(f"  - Handled {missing_before} missing values")
                 
                 # Add transformations here

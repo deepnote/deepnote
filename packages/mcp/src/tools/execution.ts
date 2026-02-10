@@ -279,7 +279,7 @@ async function handleRun(args: Record<string, unknown>) {
 
   // If blockId is specified, run just that block with its dependencies
   if (blockIdFilter) {
-    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs)
+    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs, dryRun === true)
   }
 
   // Filter notebooks if specified, otherwise run all
@@ -450,7 +450,8 @@ async function handleRunBlock(
   blockId: string,
   notebookFilter: string | undefined,
   pythonPath: string | undefined,
-  inputs: Record<string, unknown> | undefined
+  inputs: Record<string, unknown> | undefined,
+  dryRun: boolean
 ) {
   // Find the block
   let targetBlock = null
@@ -475,6 +476,31 @@ async function handleRunBlock(
     }
   }
 
+  if (dryRun) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              dryRun: true,
+              level: 'block',
+              notebook: targetNotebook.name,
+              block: {
+                id: targetBlock.id.slice(0, 8),
+                fullId: targetBlock.id,
+                type: targetBlock.type,
+              },
+              inputs: inputs || {},
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    }
+  }
+
   // Run the specific block
   const workingDir = path.dirname(originalPath)
   const engine = new ExecutionEngine({
@@ -485,7 +511,7 @@ async function handleRunBlock(
   try {
     await engine.start()
 
-    const summary = await engine.runFile(originalPath, {
+    const summary = await engine.runProject(file, {
       notebookName: targetNotebook.name,
       blockId: targetBlock.id,
       inputs,

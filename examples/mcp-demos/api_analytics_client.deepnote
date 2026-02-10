@@ -94,6 +94,16 @@ project:
                             response = self.session.get(url, params=params, timeout=30)
                             response.raise_for_status()
                             return response.json()
+                        except requests.HTTPError as e:
+                            status_code = e.response.status_code if e.response is not None else None
+                            # Retry only on transient HTTP failures: 429 or 5xx
+                            if status_code == 429 or (status_code is not None and status_code >= 500):
+                                if attempt == retries - 1:
+                                    raise
+                                time.sleep(2 ** attempt)  # Exponential backoff
+                                continue
+                            # Non-429 4xx errors should fail fast
+                            raise
                         except requests.RequestException as e:
                             if attempt == retries - 1:
                                 raise

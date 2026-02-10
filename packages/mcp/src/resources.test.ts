@@ -48,10 +48,37 @@ metadata:
       await fs.writeFile(path.join(tempDir, 'test.deepnote'), testNotebook)
 
       const resources = await listResources(tempDir)
-      const fileResource = resources.find(r => r.uri.includes('test.deepnote'))
+      const expectedUri = `deepnote://file/${encodeURIComponent(path.join(tempDir, 'test.deepnote'))}`
+      const fileResource = resources.find(r => r.uri === expectedUri)
       expect(fileResource).toBeDefined()
       expect(fileResource?.name).toBe('test')
       expect(fileResource?.mimeType).toBe('application/x-deepnote')
+    })
+
+    it('encodes resource uri for filenames with spaces and unicode', async () => {
+      const filename = 'test ñ space.deepnote'
+      const notebookPath = path.join(tempDir, filename)
+      const testNotebook = `version: "1.0"
+project:
+  name: "Unicode Test"
+  id: "unicode-123"
+  notebooks:
+    - name: "Notebook"
+      id: "nb-123"
+      blocks: []
+metadata:
+  createdAt: "2026-01-01T00:00:00Z"
+  modifiedAt: "2026-01-01T00:00:00Z"
+`
+      await fs.writeFile(notebookPath, testNotebook)
+
+      const resources = await listResources(tempDir)
+      const expectedUri = `deepnote://file/${encodeURIComponent(notebookPath)}`
+      const resource = resources.find(r => r.uri === expectedUri)
+      expect(resource).toBeDefined()
+      expect(resource?.name).toBe('test ñ space')
+      expect(resource?.mimeType).toBe('application/x-deepnote')
+      expect(resource?.uri).toContain(encodeURIComponent(filename))
     })
 
     it('ignores node_modules and hidden directories', async () => {

@@ -81,48 +81,157 @@ export const conversionTools: Tool[] = [
   },
 ]
 
+function toOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
+function toError(message: string) {
+  return {
+    content: [{ type: 'text', text: message }],
+    isError: true,
+  } as const
+}
+
+async function listFilesByExtension(dirPath: string, extension: string): Promise<string[]> {
+  const entries = await fs.readdir(dirPath, { withFileTypes: true })
+  return entries
+    .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(extension))
+    .map(entry => path.join(dirPath, entry.name))
+}
+
+function deriveDefaultDeepnoteOutputPath(inputPath: string, isDirectory: boolean): string {
+  if (isDirectory) {
+    return path.join(inputPath, `${path.basename(inputPath)}.deepnote`)
+  }
+
+  const ext = path.extname(inputPath)
+  if (ext) {
+    return `${inputPath.slice(0, -ext.length)}.deepnote`
+  }
+  return `${inputPath}.deepnote`
+}
+
+async function resolveConvertToOutputPath(
+  outputPathRaw: string | undefined,
+  absoluteInput: string,
+  inputIsDirectory: boolean
+): Promise<string> {
+  if (!outputPathRaw) {
+    return deriveDefaultDeepnoteOutputPath(absoluteInput, inputIsDirectory)
+  }
+
+  const resolvedOutputPath = path.resolve(outputPathRaw)
+
+  try {
+    const outputStat = await fs.stat(resolvedOutputPath)
+    if (outputStat.isDirectory()) {
+      return path.join(resolvedOutputPath, `${path.basename(absoluteInput, path.extname(absoluteInput))}.deepnote`)
+    }
+  } catch {
+    // Output path may not exist yet; infer intent from extension.
+  }
+
+  if (!resolvedOutputPath.toLowerCase().endsWith('.deepnote')) {
+    return path.join(resolvedOutputPath, `${path.basename(absoluteInput, path.extname(absoluteInput))}.deepnote`)
+  }
+
+  return resolvedOutputPath
+}
+
 async function handleConvertTo(args: Record<string, unknown>) {
-  const inputPath = args.inputPath as string
-  const outputPath = args.outputPath as string | undefined
-  const projectName = args.projectName as string | undefined
-  let format = (args.format as string) || 'auto'
+  const inputPath = toOptionalString(args.inputPath)
+  const outputPath = toOptionalString(args.outputPath)
+  const projectName = toOptionalString(args.projectName)
+  let format = toOptionalString(args.format) || 'auto'
+
+  if (!inputPath) {
+    return toError('inputPath is required and must be a non-empty string')
+  }
+
+  const validFormats = new Set(['jupyter', 'quarto', 'percent', 'marimo', 'auto'])
+  if (!validFormats.has(format)) {
+    return toError(`Unknown format: ${format}`)
+  }
 
   const absoluteInput = path.resolve(inputPath)
 
-  // Auto-detect format if needed
-  if (format === 'auto') {
+  let inputStat: Awaited<ReturnType<typeof fs.stat>>
+  try {
+    inputStat = await fs.stat(absoluteInput)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return toError(`Invalid inputPath: ${message}`)
+  }
+
+  if (!inputStat.isFile() && !inputStat.isDirectory()) {
+    return toError('inputPath must point to a file or directory')
+  }
+
+  const inputIsDirectory = inputStat.isDirectory()
+  const inputIsFile = inputStat.isFile()
+
+  if (format === 'auto' && inputIsDirectory) {
+    return toError('Auto-detect format is only supported for file inputs')
+  }
+
+  // Auto-detect format only for file inputs.
+  if (format === 'auto' && inputIsFile) {
     const content = await fs.readFile(absoluteInput, 'utf-8')
     format = detectFormat(absoluteInput, content)
   }
 
+  let inputFiles: string[] = []
+  if (inputIsFile) {
+    inputFiles = [absoluteInput]
+  } else {
+    switch (format) {
+      case 'jupyter':
+        inputFiles = await listFilesByExtension(absoluteInput, '.ipynb')
+        break
+      case 'quarto':
+        inputFiles = await listFilesByExtension(absoluteInput, '.qmd')
+        break
+      case 'percent':
+      case 'marimo':
+        inputFiles = await listFilesByExtension(absoluteInput, '.py')
+        break
+      default:
+        return toError(`Unknown format: ${format}`)
+    }
+  }
+
+  if (inputFiles.length === 0) {
+    return toError(`No input files found for format "${format}" at: ${absoluteInput}`)
+  }
+
   // Determine output path
-  const finalOutputPath = outputPath || absoluteInput.replace(/\.(ipynb|qmd|py)$/, '.deepnote')
+  const finalOutputPath = await resolveConvertToOutputPath(outputPath, absoluteInput, inputIsDirectory)
 
   // Determine project name
-  const finalProjectName = projectName || path.basename(absoluteInput).replace(/\.(ipynb|qmd|py)$/, '')
+  const finalProjectName = projectName || path.basename(absoluteInput, path.extname(absoluteInput))
 
   try {
     switch (format) {
       case 'jupyter':
-        await convertIpynbFilesToDeepnoteFile([absoluteInput], {
+        await convertIpynbFilesToDeepnoteFile(inputFiles, {
           projectName: finalProjectName,
           outputPath: finalOutputPath,
         })
         break
       case 'quarto':
-        await convertQuartoFilesToDeepnoteFile([absoluteInput], {
+        await convertQuartoFilesToDeepnoteFile(inputFiles, {
           projectName: finalProjectName,
           outputPath: finalOutputPath,
         })
         break
       case 'percent':
-        await convertPercentFilesToDeepnoteFile([absoluteInput], {
+        await convertPercentFilesToDeepnoteFile(inputFiles, {
           projectName: finalProjectName,
           outputPath: finalOutputPath,
         })
         break
       case 'marimo':
-        await convertMarimoFilesToDeepnoteFile([absoluteInput], {
+        await convertMarimoFilesToDeepnoteFile(inputFiles, {
           projectName: finalProjectName,
           outputPath: finalOutputPath,
         })
@@ -145,6 +254,7 @@ async function handleConvertTo(args: Record<string, unknown>) {
               outputPath: finalOutputPath,
               detectedFormat: format,
               projectName: finalProjectName,
+              inputFiles,
             },
             null,
             2
@@ -162,12 +272,34 @@ async function handleConvertTo(args: Record<string, unknown>) {
 }
 
 async function handleConvertFrom(args: Record<string, unknown>) {
-  const inputPath = args.inputPath as string
-  const outputDir = args.outputDir as string | undefined
-  const format = (args.format as string) || 'jupyter'
+  const inputPath = toOptionalString(args.inputPath)
+  const outputDir = toOptionalString(args.outputDir)
+  const format = toOptionalString(args.format) || 'jupyter'
+
+  if (!inputPath) {
+    return toError('inputPath is required and must be a non-empty string')
+  }
+
+  const validFormats = new Set(['jupyter', 'quarto', 'percent', 'marimo'])
+  if (!validFormats.has(format)) {
+    return toError(`Unknown format: ${format}`)
+  }
 
   const absoluteInput = path.resolve(inputPath)
-  const finalOutputDir = outputDir || path.dirname(absoluteInput)
+
+  let inputStat: Awaited<ReturnType<typeof fs.stat>>
+  try {
+    inputStat = await fs.stat(absoluteInput)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return toError(`Invalid inputPath: ${message}`)
+  }
+
+  if (!inputStat.isFile()) {
+    return toError('inputPath for deepnote_convert_from must point to a file')
+  }
+
+  const finalOutputDir = outputDir ? path.resolve(outputDir) : path.dirname(absoluteInput)
 
   try {
     switch (format) {
