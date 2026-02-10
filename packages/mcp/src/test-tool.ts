@@ -1,0 +1,160 @@
+#!/usr/bin/env node
+// biome-ignore-all lint/suspicious/noConsole: CLI tool requires console output
+
+/**
+ * CLI utility for testing MCP tools directly.
+ *
+ * Usage:
+ *   pnpm test:tool <tool-name> '<json-arguments>'
+ *
+ * Examples:
+ *   pnpm test:tool deepnote_inspect '{"path": "example.deepnote"}'
+ *   pnpm test:tool deepnote_scaffold '{"description": "ML notebook", "outputPath": "/tmp/test.deepnote"}'
+ *   pnpm test:tool deepnote_template '{"template": "dashboard", "outputPath": "/tmp/dash.deepnote"}'
+ */
+
+import { spawn } from 'node:child_process'
+import * as path from 'node:path'
+
+async function testTool(): Promise<void> {
+  const args = process.argv.slice(2)
+
+  if (args.length < 2) {
+    console.log(`
+Deepnote MCP Tool Tester
+
+Usage: pnpm test:tool <tool-name> '<json-arguments>'
+
+Examples:
+  pnpm test:tool deepnote_inspect '{"path": "example.deepnote"}'
+  pnpm test:tool deepnote_scaffold '{"description": "Data analysis notebook", "outputPath": "/tmp/test.deepnote"}'
+  pnpm test:tool deepnote_template '{"template": "dashboard", "outputPath": "/tmp/dash.deepnote"}'
+  pnpm test:tool deepnote_lint '{"path": "notebook.deepnote"}'
+  pnpm test:tool deepnote_suggest '{"path": "notebook.deepnote"}'
+
+Available tools:
+  Magic:      deepnote_scaffold, deepnote_template, deepnote_enhance, deepnote_fix,
+              deepnote_explain, deepnote_suggest, deepnote_refactor, deepnote_profile,
+              deepnote_test, deepnote_workflow
+  Reading:    deepnote_inspect, deepnote_cat, deepnote_lint, deepnote_stats,
+              deepnote_analyze, deepnote_dag, deepnote_diff
+  Writing:    deepnote_create, deepnote_add_block, deepnote_edit_block,
+              deepnote_remove_block, deepnote_reorder_blocks, deepnote_add_notebook,
+              deepnote_bulk_edit
+  Conversion: deepnote_convert_to, deepnote_convert_from, deepnote_detect_format
+  Execution:  deepnote_run, deepnote_run_block
+`)
+    process.exit(1)
+  }
+
+  const toolName = args[0]
+  const toolArgsString = args[1]
+
+  if (!toolArgsString) {
+    console.error('Error: Missing JSON arguments')
+    process.exit(1)
+  }
+
+  let toolArgs: Record<string, unknown>
+
+  try {
+    toolArgs = JSON.parse(toolArgsString)
+  } catch (error) {
+    console.error('Error: Invalid JSON arguments')
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  }
+
+  // Create MCP request for calling a tool
+  const request = {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'tools/call',
+    params: {
+      name: toolName,
+      arguments: toolArgs,
+    },
+  }
+
+  return new Promise((resolve, reject) => {
+    // Resolve bin.js relative to this script's location (process.argv[1])
+    const scriptDir = path.dirname(process.argv[1] || '')
+    const serverPath = path.join(scriptDir, 'bin.js')
+    const child = spawn('node', [serverPath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout.on('data', data => {
+      stdout += data.toString()
+    })
+
+    child.stderr.on('data', data => {
+      stderr += data.toString()
+    })
+
+    child.on('close', code => {
+      if (stderr) {
+        console.error('Server stderr:', stderr)
+      }
+
+      if (code !== 0 && code !== null) {
+        reject(new Error(`Server exited with code ${code}`))
+        return
+      }
+
+      try {
+        // Parse the JSON-RPC response
+        const lines = stdout.trim().split('\n')
+        const responseLine = lines.find(line => {
+          try {
+            const parsed = JSON.parse(line)
+            return parsed.id === 1 && (parsed.result || parsed.error)
+          } catch {
+            return false
+          }
+        })
+
+        if (responseLine) {
+          const response = JSON.parse(responseLine)
+
+          if (response.error) {
+            console.error('Error:', response.error.message || response.error)
+            process.exit(1)
+          }
+
+          // Pretty print the result
+          const result = response.result
+          if (result?.content?.[0]?.text) {
+            try {
+              // Try to parse and pretty-print JSON content
+              const parsed = JSON.parse(result.content[0].text)
+              console.log(JSON.stringify(parsed, null, 2))
+            } catch {
+              // Not JSON, print as-is
+              console.log(result.content[0].text)
+            }
+          } else {
+            console.log(JSON.stringify(result, null, 2))
+          }
+        } else {
+          console.log('Raw output:', stdout)
+        }
+        resolve()
+      } catch (error) {
+        reject(error)
+      }
+    })
+
+    // Send the tool call request
+    child.stdin.write(`${JSON.stringify(request)}\n`)
+    child.stdin.end()
+  })
+}
+
+testTool().catch(error => {
+  console.error('Error:', error.message || error)
+  process.exit(1)
+})
