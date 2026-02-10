@@ -42,9 +42,16 @@ function formatValue(value: string): string {
     return `"${value}"`
   }
 
-  // For values with both quote types, use double quotes and escape inner double quotes
-  // Note: dotenv.parse preserves the backslashes, so this is a limitation
+  // For values with both quote types, leave unquoted if safe.
+  // dotenv.parse does not unescape \" in double-quoted values, so quoting would break roundtrip.
+  // Unquoted values work as long as there's no # (inline comment), no leading/trailing whitespace,
+  // and no newlines (already handled above).
   if (value.includes('"') && value.includes("'")) {
+    if (!value.includes('#') && !value.startsWith(' ') && !value.endsWith(' ')) {
+      return value
+    }
+    // If value has both quote types AND # or leading/trailing spaces, there's a dotenv limitation.
+    // We do best-effort with double quotes + escaping, knowing backslashes will be preserved.
     const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
     return `"${escaped}"`
   }

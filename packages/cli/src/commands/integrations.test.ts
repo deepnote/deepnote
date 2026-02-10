@@ -61,15 +61,8 @@ describe('integrations command', () => {
   })
 
   describe('Token resolution', () => {
-    const originalEnv = process.env
-
     beforeEach(() => {
-      process.env = { ...originalEnv }
-      delete process.env.DEEPNOTE_TOKEN
-    })
-
-    afterEach(() => {
-      process.env = originalEnv
+      vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
     })
 
     it('uses --token flag when provided', () => {
@@ -98,23 +91,6 @@ describe('integrations command', () => {
 
   describe('API response validation', () => {
     it('validates correct API response structure', async () => {
-      const { z } = await import('zod')
-
-      const apiIntegrationSchema = z.object({
-        id: z.string(),
-        name: z.string(),
-        type: z.string(),
-        metadata: z.record(z.unknown()),
-        is_public: z.boolean(),
-        created_at: z.string(),
-        updated_at: z.string(),
-        federated_auth_method: z.string().nullable(),
-      })
-
-      const apiResponseSchema = z.object({
-        integrations: z.array(apiIntegrationSchema),
-      })
-
       const validResponse = {
         integrations: [
           {

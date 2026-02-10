@@ -151,6 +151,12 @@ describe('dotenv utilities', () => {
       expect(result).toEqual({ MY_VAR: 'say "hello"' })
     })
 
+    it('handles values with both single and double quotes', async () => {
+      await updateDotEnv(envFilePath, { MY_VAR: `it's called "test"` })
+      const result = await readDotEnv(envFilePath)
+      expect(result).toEqual({ MY_VAR: `it's called "test"` })
+    })
+
     it('handles env: prefix values without resolving them', async () => {
       await updateDotEnv(envFilePath, { MY_VAR: 'env:SOME_OTHER_VAR' })
       const result = await readDotEnv(envFilePath)

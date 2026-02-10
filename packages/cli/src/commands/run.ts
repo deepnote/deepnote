@@ -565,8 +565,6 @@ async function validateRequirements(
       if (integrationId && !builtInIntegrations.has(integrationId)) {
         // Check if integration is configured in the integrations file
         // Use lowercase for case-insensitive UUID matching
-        // const envVarName = getIntegrationEnvVarName(integrationId)
-        // if (!process.env[envVarName]) { ... }
         if (!integrations.some(i => i.id.toLowerCase() === integrationId.toLowerCase())) {
           // Check if we haven't already recorded this integration
           if (!missingIntegrations.some(i => i.id === integrationId)) {

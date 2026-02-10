@@ -142,7 +142,7 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
 
 /**
  * Get the default path for the integrations file relative to a .deepnote file.
- * @param deepnoteFilePath - Path to the .deepnote file
+ * @param deepnoteFileDir - Directory containing the .deepnote file
  * @returns Path to the integrations file in the same directory
  */
 export function getDefaultIntegrationsFilePath(deepnoteFileDir: string): string {
