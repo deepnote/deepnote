@@ -422,8 +422,14 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
   const snapshotPath = args.snapshotPath as string | undefined
   const outputPath = args.outputPath as string | undefined
   const skipMismatchedRaw = args.skipMismatched
-  const skipMismatched =
-    typeof skipMismatchedRaw === 'boolean' ? skipMismatchedRaw : String(skipMismatchedRaw).toLowerCase() === 'true'
+  let skipMismatched: boolean
+  if (typeof skipMismatchedRaw === 'boolean') {
+    skipMismatched = skipMismatchedRaw
+  } else if (skipMismatchedRaw == null) {
+    skipMismatched = false
+  } else {
+    skipMismatched = String(skipMismatchedRaw).toLowerCase() === 'true'
+  }
 
   if (!sourcePath) {
     return {

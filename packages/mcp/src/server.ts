@@ -22,6 +22,8 @@ export type DeepnoteMcpServer = Server
 
 const allTools = [...readingTools, ...writingTools, ...conversionTools, ...executionTools, ...snapshotTools]
 const writingToolNames = new Set(writingTools.map(tool => tool.name))
+const conversionToolNames = new Set(conversionTools.map(tool => tool.name))
+const snapshotToolNames = new Set(snapshotTools.map(tool => tool.name))
 
 // Get workspace root from environment or current directory
 const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
@@ -98,7 +100,7 @@ export function createServer(): Server {
         return await handleWritingTool(name, args)
       }
 
-      if (name.startsWith('deepnote_convert')) {
+      if (conversionToolNames.has(name)) {
         return await handleConversionTool(name, args)
       }
 
@@ -106,7 +108,7 @@ export function createServer(): Server {
         return await handleExecutionTool(name, args)
       }
 
-      if (name.startsWith('deepnote_snapshot')) {
+      if (snapshotToolNames.has(name)) {
         return await handleSnapshotTool(name, args)
       }
 

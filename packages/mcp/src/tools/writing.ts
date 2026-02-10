@@ -612,11 +612,54 @@ async function handleAddBlock(args: Record<string, unknown>) {
 }
 
 async function handleEditBlock(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const blockId = args.blockId as string
-  const newContent = args.content as string | undefined
-  const newMetadata = args.metadata as Record<string, unknown> | undefined
-  const dryRun = args.dryRun as boolean | undefined
+  const filePath = typeof args.path === 'string' && args.path.trim().length > 0 ? args.path : undefined
+  const blockId = typeof args.blockId === 'string' && args.blockId.trim().length > 0 ? args.blockId : undefined
+  const newContentRaw = args.content
+  const newMetadataRaw = args.metadata
+  const dryRun = args.dryRun
+
+  if (!filePath) {
+    return {
+      content: [{ type: 'text', text: 'Invalid filePath in handleEditBlock: args.path must be a non-empty string' }],
+      isError: true,
+    }
+  }
+  if (!blockId) {
+    return {
+      content: [{ type: 'text', text: 'Invalid blockId in handleEditBlock: args.blockId must be a non-empty string' }],
+      isError: true,
+    }
+  }
+  if (newContentRaw !== undefined && typeof newContentRaw !== 'string') {
+    return {
+      content: [
+        { type: 'text', text: 'Invalid content in handleEditBlock: args.content must be a string when provided' },
+      ],
+      isError: true,
+    }
+  }
+  if (
+    newMetadataRaw !== undefined &&
+    (typeof newMetadataRaw !== 'object' || newMetadataRaw === null || Array.isArray(newMetadataRaw))
+  ) {
+    return {
+      content: [
+        { type: 'text', text: 'Invalid metadata in handleEditBlock: args.metadata must be an object when provided' },
+      ],
+      isError: true,
+    }
+  }
+  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
+    return {
+      content: [
+        { type: 'text', text: 'Invalid dryRun in handleEditBlock: args.dryRun must be a boolean when provided' },
+      ],
+      isError: true,
+    }
+  }
+
+  const newContent = newContentRaw as string | undefined
+  const newMetadata = newMetadataRaw as Record<string, unknown> | undefined
 
   const file = await loadDeepnoteFile(filePath)
 
@@ -695,9 +738,32 @@ async function handleEditBlock(args: Record<string, unknown>) {
 }
 
 async function handleRemoveBlock(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const blockId = args.blockId as string
-  const dryRun = args.dryRun as boolean | undefined
+  const filePath = typeof args.path === 'string' && args.path.trim().length > 0 ? args.path : undefined
+  const blockId = typeof args.blockId === 'string' && args.blockId.trim().length > 0 ? args.blockId : undefined
+  const dryRun = args.dryRun
+
+  if (!filePath) {
+    return {
+      content: [{ type: 'text', text: 'Invalid filePath in handleRemoveBlock: args.path must be a non-empty string' }],
+      isError: true,
+    }
+  }
+  if (!blockId) {
+    return {
+      content: [
+        { type: 'text', text: 'Invalid blockId in handleRemoveBlock: args.blockId must be a non-empty string' },
+      ],
+      isError: true,
+    }
+  }
+  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
+    return {
+      content: [
+        { type: 'text', text: 'Invalid dryRun in handleRemoveBlock: args.dryRun must be a boolean when provided' },
+      ],
+      isError: true,
+    }
+  }
 
   const file = await loadDeepnoteFile(filePath)
 
@@ -707,7 +773,7 @@ async function handleRemoveBlock(args: Record<string, unknown>) {
   for (const notebook of file.project.notebooks) {
     const index = findBlockIndex(notebook.blocks, blockId)
     if (index >= 0) {
-      if (!dryRun) {
+      if (dryRun !== true) {
         notebook.blocks.splice(index, 1)
         // Update sorting keys
         notebook.blocks.forEach((block, i) => {
@@ -727,7 +793,7 @@ async function handleRemoveBlock(args: Record<string, unknown>) {
     }
   }
 
-  if (dryRun) {
+  if (dryRun === true) {
     return {
       content: [
         {
@@ -878,12 +944,79 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
 }
 
 async function handleAddNotebook(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const name = args.name as string
-  const blocks = args.blocks as
-    | Array<{ type: string; content?: string; metadata?: Record<string, unknown> }>
-    | undefined
-  const dryRun = args.dryRun as boolean | undefined
+  const filePath = typeof args.path === 'string' && args.path.trim().length > 0 ? args.path : undefined
+  const name = typeof args.name === 'string' && args.name.trim().length > 0 ? args.name : undefined
+  const blocksRaw = args.blocks
+  const dryRun = args.dryRun
+
+  if (!filePath) {
+    return {
+      content: [{ type: 'text', text: 'Invalid filePath in handleAddNotebook: args.path must be a non-empty string' }],
+      isError: true,
+    }
+  }
+  if (!name) {
+    return {
+      content: [{ type: 'text', text: 'Invalid name in handleAddNotebook: args.name must be a non-empty string' }],
+      isError: true,
+    }
+  }
+  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
+    return {
+      content: [
+        { type: 'text', text: 'Invalid dryRun in handleAddNotebook: args.dryRun must be a boolean when provided' },
+      ],
+      isError: true,
+    }
+  }
+  if (blocksRaw !== undefined && !Array.isArray(blocksRaw)) {
+    return {
+      content: [
+        { type: 'text', text: 'Invalid blocks in handleAddNotebook: args.blocks must be an array when provided' },
+      ],
+      isError: true,
+    }
+  }
+
+  const blocks: Array<{ type: string; content?: string; metadata?: Record<string, unknown> }> = []
+  for (const [index, rawBlock] of (blocksRaw || []).entries()) {
+    if (typeof rawBlock !== 'object' || rawBlock === null) {
+      return {
+        content: [{ type: 'text', text: `Invalid blocks[${index}] in handleAddNotebook: expected an object` }],
+        isError: true,
+      }
+    }
+    const block = rawBlock as Record<string, unknown>
+    const type = typeof block.type === 'string' && block.type.trim().length > 0 ? block.type : undefined
+    if (!type) {
+      return {
+        content: [
+          { type: 'text', text: `Invalid blocks[${index}].type in handleAddNotebook: expected a non-empty string` },
+        ],
+        isError: true,
+      }
+    }
+    if (block.content !== undefined && typeof block.content !== 'string') {
+      return {
+        content: [{ type: 'text', text: `Invalid blocks[${index}].content in handleAddNotebook: expected a string` }],
+        isError: true,
+      }
+    }
+    if (
+      block.metadata !== undefined &&
+      (typeof block.metadata !== 'object' || block.metadata === null || Array.isArray(block.metadata))
+    ) {
+      return {
+        content: [{ type: 'text', text: `Invalid blocks[${index}].metadata in handleAddNotebook: expected an object` }],
+        isError: true,
+      }
+    }
+    blocks.push({
+      type,
+      content: block.content as string | undefined,
+      metadata: block.metadata as Record<string, unknown> | undefined,
+    })
+  }
 
   const file = await loadDeepnoteFile(filePath)
 
@@ -893,10 +1026,10 @@ async function handleAddNotebook(args: Record<string, unknown>) {
   const newNotebook = {
     id: notebookId,
     name,
-    blocks: (blocks || []).map((block, index) => createBlock(block, index, blockGroup)),
+    blocks: blocks.map((block, index) => createBlock(block, index, blockGroup)),
   }
 
-  if (dryRun) {
+  if (dryRun === true) {
     return {
       content: [
         {
