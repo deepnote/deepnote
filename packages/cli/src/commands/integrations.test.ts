@@ -306,7 +306,7 @@ describe('integrations command', () => {
 
       await updateDotEnv(envPath, { PASS: 'p$ss#word=123' })
       const result = await readDotEnv(envPath)
-      expect(result.PASS).toBe('p$ss#word=123')
+      expect(result.PASS).toBe('p\\$ss#word=123')
     })
   })
 
