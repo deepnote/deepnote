@@ -12,6 +12,26 @@ import {
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as serializeYaml } from 'yaml'
 
+function snapshotError(message: string) {
+  return {
+    content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
+  } as const
+}
+
+function parseRequiredStringArg(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return undefined
+  }
+  return value
+}
+
+function parseOptionalStringArg(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return undefined
+  }
+  return value
+}
+
 export const snapshotTools: Tool[] = [
   {
     name: 'deepnote_snapshot_list',
@@ -152,14 +172,14 @@ Options:
 ]
 
 async function handleSnapshotList(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const snapshotDir = args.snapshotDir as string | undefined
-
+  const filePath = parseRequiredStringArg(args.path)
   if (!filePath) {
-    return {
-      content: [{ type: 'text', text: JSON.stringify({ error: 'path is required' }) }],
-    }
+    return snapshotError('path is required')
   }
+  if (args.snapshotDir !== undefined && parseOptionalStringArg(args.snapshotDir) === undefined) {
+    return snapshotError('snapshotDir must be a non-empty string when provided')
+  }
+  const snapshotDir = parseOptionalStringArg(args.snapshotDir)
 
   try {
     const absolutePath = path.resolve(filePath)
@@ -206,14 +226,14 @@ async function handleSnapshotList(args: Record<string, unknown>) {
 }
 
 async function handleSnapshotLoad(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const snapshotDir = args.snapshotDir as string | undefined
-
+  const filePath = parseRequiredStringArg(args.path)
   if (!filePath) {
-    return {
-      content: [{ type: 'text', text: JSON.stringify({ error: 'path is required' }) }],
-    }
+    return snapshotError('path is required')
   }
+  if (args.snapshotDir !== undefined && parseOptionalStringArg(args.snapshotDir) === undefined) {
+    return snapshotError('snapshotDir must be a non-empty string when provided')
+  }
+  const snapshotDir = parseOptionalStringArg(args.snapshotDir)
 
   try {
     const absolutePath = path.resolve(filePath)
@@ -320,8 +340,14 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
 }
 
 async function handleSnapshotSplit(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const snapshotDir = args.snapshotDir as string | undefined
+  const filePath = parseRequiredStringArg(args.path)
+  if (!filePath) {
+    return snapshotError('path is required')
+  }
+  if (args.snapshotDir !== undefined && parseOptionalStringArg(args.snapshotDir) === undefined) {
+    return snapshotError('snapshotDir must be a non-empty string when provided')
+  }
+  const snapshotDir = parseOptionalStringArg(args.snapshotDir)
   const keepLatestRaw = args.keepLatest
   let keepLatest: boolean
   if (keepLatestRaw === undefined) {
@@ -330,12 +356,6 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     keepLatest = keepLatestRaw.toLowerCase() === 'true'
   } else {
     keepLatest = Boolean(keepLatestRaw)
-  }
-
-  if (!filePath) {
-    return {
-      content: [{ type: 'text', text: JSON.stringify({ error: 'path is required' }) }],
-    }
   }
 
   try {
@@ -418,9 +438,18 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
 }
 
 async function handleSnapshotMerge(args: Record<string, unknown>) {
-  const sourcePath = args.sourcePath as string
-  const snapshotPath = args.snapshotPath as string | undefined
-  const outputPath = args.outputPath as string | undefined
+  const sourcePath = parseRequiredStringArg(args.sourcePath)
+  if (!sourcePath) {
+    return snapshotError('sourcePath is required')
+  }
+  if (args.snapshotPath !== undefined && parseOptionalStringArg(args.snapshotPath) === undefined) {
+    return snapshotError('snapshotPath must be a non-empty string when provided')
+  }
+  if (args.outputPath !== undefined && parseOptionalStringArg(args.outputPath) === undefined) {
+    return snapshotError('outputPath must be a non-empty string when provided')
+  }
+  const snapshotPath = parseOptionalStringArg(args.snapshotPath)
+  const outputPath = parseOptionalStringArg(args.outputPath)
   const skipMismatchedRaw = args.skipMismatched
   let skipMismatched: boolean
   if (typeof skipMismatchedRaw === 'boolean') {
@@ -429,12 +458,6 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
     skipMismatched = false
   } else {
     skipMismatched = String(skipMismatchedRaw).toLowerCase() === 'true'
-  }
-
-  if (!sourcePath) {
-    return {
-      content: [{ type: 'text', text: JSON.stringify({ error: 'sourcePath is required' }) }],
-    }
   }
 
   try {

@@ -50,6 +50,21 @@ interface CreateNotebookSpec {
   blocks: CreateBlockSpec[]
 }
 
+function writingError(message: string) {
+  return {
+    content: [{ type: 'text', text: message }],
+    isError: true,
+  } as const
+}
+
+function parseRequiredNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
+function parseOptionalNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
 function validateCreateArgs(args: Record<string, unknown>): {
   outputPath: string
   projectName: string
@@ -501,15 +516,74 @@ async function handleCreate(args: Record<string, unknown>) {
 }
 
 async function handleAddBlock(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const notebookFilter = args.notebook as string | undefined
-  const blockSpec = args.block as {
-    type: string
-    content?: string
-    metadata?: Record<string, unknown>
+  const filePath = parseRequiredNonEmptyString(args.path)
+  if (!filePath) {
+    return writingError('Invalid filePath in handleAddBlock: args.path must be a non-empty string')
   }
-  const position = args.position as { after?: string; before?: string; index?: number } | undefined
-  const dryRun = args.dryRun as boolean | undefined
+
+  if (args.notebook !== undefined && parseOptionalNonEmptyString(args.notebook) === undefined) {
+    return writingError(
+      'Invalid notebookFilter in handleAddBlock: args.notebook must be a non-empty string when provided'
+    )
+  }
+  const notebookFilter = parseOptionalNonEmptyString(args.notebook)
+
+  if (typeof args.block !== 'object' || args.block === null || Array.isArray(args.block)) {
+    return writingError('Invalid blockSpec in handleAddBlock: args.block must be an object')
+  }
+  const blockRaw = args.block as Record<string, unknown>
+  const blockType = parseRequiredNonEmptyString(blockRaw.type)
+  if (!blockType) {
+    return writingError('Invalid blockSpec.type in handleAddBlock: args.block.type must be a non-empty string')
+  }
+  if (blockRaw.content !== undefined && typeof blockRaw.content !== 'string') {
+    return writingError(
+      'Invalid blockSpec.content in handleAddBlock: args.block.content must be a string when provided'
+    )
+  }
+  if (
+    blockRaw.metadata !== undefined &&
+    (typeof blockRaw.metadata !== 'object' || blockRaw.metadata === null || Array.isArray(blockRaw.metadata))
+  ) {
+    return writingError(
+      'Invalid blockSpec.metadata in handleAddBlock: args.block.metadata must be an object when provided'
+    )
+  }
+  const blockSpec: { type: string; content?: string; metadata?: Record<string, unknown> } = {
+    type: blockType,
+    content: blockRaw.content as string | undefined,
+    metadata: blockRaw.metadata as Record<string, unknown> | undefined,
+  }
+
+  if (
+    args.position !== undefined &&
+    (typeof args.position !== 'object' || args.position === null || Array.isArray(args.position))
+  ) {
+    return writingError('Invalid position in handleAddBlock: args.position must be an object when provided')
+  }
+  const positionRaw = (args.position || {}) as Record<string, unknown>
+  if (positionRaw.after !== undefined && parseOptionalNonEmptyString(positionRaw.after) === undefined) {
+    return writingError('Invalid position.after in handleAddBlock: expected a non-empty string')
+  }
+  if (positionRaw.before !== undefined && parseOptionalNonEmptyString(positionRaw.before) === undefined) {
+    return writingError('Invalid position.before in handleAddBlock: expected a non-empty string')
+  }
+  if (positionRaw.index !== undefined && typeof positionRaw.index !== 'number') {
+    return writingError('Invalid position.index in handleAddBlock: expected a number')
+  }
+  const position: { after?: string; before?: string; index?: number } | undefined =
+    args.position === undefined
+      ? undefined
+      : {
+          after: parseOptionalNonEmptyString(positionRaw.after),
+          before: parseOptionalNonEmptyString(positionRaw.before),
+          index: positionRaw.index as number | undefined,
+        }
+
+  if (args.dryRun !== undefined && typeof args.dryRun !== 'boolean') {
+    return writingError('Invalid dryRun in handleAddBlock: args.dryRun must be a boolean when provided')
+  }
+  const dryRun = args.dryRun === true
 
   const file = await loadDeepnoteFile(filePath)
   if (file.project.notebooks.length === 0) {
@@ -834,10 +908,26 @@ async function handleRemoveBlock(args: Record<string, unknown>) {
 }
 
 async function handleReorderBlocks(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const notebookFilter = args.notebook as string | undefined
-  const blockIds = args.blockIds as string[]
-  const dryRun = args.dryRun as boolean | undefined
+  const filePath = parseRequiredNonEmptyString(args.path)
+  if (!filePath) {
+    return writingError('Invalid filePath in handleReorderBlocks: args.path must be a non-empty string')
+  }
+  if (args.notebook !== undefined && parseOptionalNonEmptyString(args.notebook) === undefined) {
+    return writingError(
+      'Invalid notebookFilter in handleReorderBlocks: args.notebook must be a non-empty string when provided'
+    )
+  }
+  const notebookFilter = parseOptionalNonEmptyString(args.notebook)
+
+  const blockIds = args.blockIds
+  if (!Array.isArray(blockIds) || !blockIds.every(id => typeof id === 'string')) {
+    return writingError('Invalid blockIds in handleReorderBlocks: args.blockIds must be an array of strings')
+  }
+
+  if (args.dryRun !== undefined && typeof args.dryRun !== 'boolean') {
+    return writingError('Invalid dryRun in handleReorderBlocks: args.dryRun must be a boolean when provided')
+  }
+  const dryRun = args.dryRun === true
 
   const file = await loadDeepnoteFile(filePath)
   if (file.project.notebooks.length === 0) {
