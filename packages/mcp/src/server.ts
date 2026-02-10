@@ -21,6 +21,7 @@ import { handleWritingTool, writingTools } from './tools/writing'
 export type DeepnoteMcpServer = Server
 
 const allTools = [...readingTools, ...writingTools, ...conversionTools, ...executionTools, ...snapshotTools]
+const writingToolNames = new Set(writingTools.map(tool => tool.name))
 
 // Get workspace root from environment or current directory
 const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
@@ -93,13 +94,7 @@ export function createServer(): Server {
         return await handleReadingTool(name, args)
       }
 
-      if (
-        name === 'deepnote_create' ||
-        name.startsWith('deepnote_add_') ||
-        name.startsWith('deepnote_edit_') ||
-        name.startsWith('deepnote_remove_') ||
-        name === 'deepnote_reorder_blocks'
-      ) {
+      if (writingToolNames.has(name)) {
         return await handleWritingTool(name, args)
       }
 

@@ -8,9 +8,9 @@
  *   pnpm test:tool <tool-name> '<json-arguments>'
  *
  * Examples:
- *   pnpm test:tool deepnote_inspect '{"path": "example.deepnote"}'
- *   pnpm test:tool deepnote_scaffold '{"description": "ML notebook", "outputPath": "/tmp/test.deepnote"}'
- *   pnpm test:tool deepnote_template '{"template": "dashboard", "outputPath": "/tmp/dash.deepnote"}'
+ *   pnpm test:tool deepnote_read '{"path": "example.deepnote"}'
+ *   pnpm test:tool deepnote_create '{"outputPath": "/tmp/test.deepnote", "projectName": "Demo", "notebooks": [{"name":"Notebook","blocks":[{"type":"code","content":"print(1)"}]}]}'
+ *   pnpm test:tool deepnote_convert_to '{"inputPath": "notebook.ipynb"}'
  */
 
 import { spawn } from 'node:child_process'

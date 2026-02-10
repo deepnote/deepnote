@@ -128,14 +128,14 @@ async function resolveConvertToOutputPath(
       return path.join(resolvedOutputPath, `${path.basename(absoluteInput, path.extname(absoluteInput))}.deepnote`)
     }
   } catch {
-    // Output path may not exist yet; infer intent from extension.
+    // Output path may not exist yet; treat it as the intended file path.
   }
 
-  if (!resolvedOutputPath.toLowerCase().endsWith('.deepnote')) {
-    return path.join(resolvedOutputPath, `${path.basename(absoluteInput, path.extname(absoluteInput))}.deepnote`)
+  if (resolvedOutputPath.toLowerCase().endsWith('.deepnote')) {
+    return resolvedOutputPath
   }
 
-  return resolvedOutputPath
+  return `${resolvedOutputPath}.deepnote`
 }
 
 async function handleConvertTo(args: Record<string, unknown>) {

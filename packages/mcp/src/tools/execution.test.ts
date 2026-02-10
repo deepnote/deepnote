@@ -82,13 +82,16 @@ describe('execution tools handlers', () => {
       expect(response.content[0].text).toContain('Unknown execution tool')
     })
 
-    it('throws for nonexistent file on run', async () => {
-      await expect(
-        handleExecutionTool('deepnote_run', {
-          path: '/nonexistent/path.deepnote',
-          dryRun: true,
-        })
-      ).rejects.toThrow()
+    it('returns structured error for nonexistent file on run', async () => {
+      const response = (await handleExecutionTool('deepnote_run', {
+        path: '/nonexistent/path.deepnote',
+        dryRun: true,
+      })) as {
+        content: Array<{ type: string; text: string }>
+        isError?: boolean
+      }
+      expect(response.isError).toBe(true)
+      expect(response.content[0].text).toContain('error')
     })
   })
 })

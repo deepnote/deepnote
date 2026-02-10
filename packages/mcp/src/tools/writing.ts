@@ -512,6 +512,12 @@ async function handleAddBlock(args: Record<string, unknown>) {
   const dryRun = args.dryRun as boolean | undefined
 
   const file = await loadDeepnoteFile(filePath)
+  if (file.project.notebooks.length === 0) {
+    return {
+      content: [{ type: 'text', text: `No notebooks found for file "${file.project.name}" (${file.project.id})` }],
+      isError: true,
+    }
+  }
 
   // Find the target notebook
   let notebook = file.project.notebooks[0]
@@ -768,6 +774,12 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
   const dryRun = args.dryRun as boolean | undefined
 
   const file = await loadDeepnoteFile(filePath)
+  if (file.project.notebooks.length === 0) {
+    return {
+      content: [{ type: 'text', text: `No notebooks in project "${file.project.name}"` }],
+      isError: true,
+    }
+  }
 
   // Find the target notebook
   let notebook = file.project.notebooks[0]

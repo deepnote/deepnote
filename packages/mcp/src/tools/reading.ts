@@ -319,7 +319,16 @@ async function handleRead(args: Record<string, unknown>) {
   const include = new Set(includeValues)
   const includeAll = include.has('all')
 
-  const file = await loadDeepnoteFile(filePath)
+  let file: DeepnoteFile
+  try {
+    file = await loadDeepnoteFile(filePath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [{ type: 'text', text: `Failed to read file "${filePath}": ${message}` }],
+      isError: true,
+    }
+  }
   const result: Record<string, unknown> = { path: filePath }
 
   if (includeAll || include.has('structure')) {
@@ -353,13 +362,29 @@ async function handleRead(args: Record<string, unknown>) {
 }
 
 async function handleCat(args: Record<string, unknown>) {
-  const filePath = args.path as string
+  const filePath = typeof args.path === 'string' ? args.path : undefined
   const notebookFilter = args.notebook as string | undefined
   const blockIdFilter = args.blockId as string | undefined
   const blockTypeFilter = args.blockType as string | undefined
   const includeMetadata = args.includeMetadata as boolean | undefined
 
-  const file = await loadDeepnoteFile(filePath)
+  if (!filePath) {
+    return {
+      content: [{ type: 'text', text: 'path is required and must be a string' }],
+      isError: true,
+    }
+  }
+
+  let file: DeepnoteFile
+  try {
+    file = await loadDeepnoteFile(filePath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [{ type: 'text', text: `Failed to read file "${filePath}": ${message}` }],
+      isError: true,
+    }
+  }
   const output: string[] = []
 
   for (const notebook of file.project.notebooks) {
@@ -411,12 +436,20 @@ function formatZodIssue(issue: ZodIssue): { path: string; message: string; code:
 }
 
 async function handleValidate(args: Record<string, unknown>) {
-  const filePath = args.path as string
-  const absolutePath = path.resolve(filePath)
+  const filePath = typeof args.path === 'string' ? args.path : undefined
+  if (!filePath) {
+    return {
+      content: [
+        { type: 'text', text: JSON.stringify({ valid: false, error: 'path is required and must be a string' }) },
+      ],
+    }
+  }
 
-  // Read file
+  let absolutePath: string
   let rawBytes: Buffer
+
   try {
+    absolutePath = path.resolve(filePath)
     rawBytes = await fs.readFile(absolutePath)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -424,7 +457,7 @@ async function handleValidate(args: Record<string, unknown>) {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({ valid: false, error: `Cannot read file: ${message}` }),
+          text: JSON.stringify({ path: filePath, valid: false, error: `Cannot read file: ${message}` }),
         },
       ],
     }
@@ -492,11 +525,28 @@ async function handleValidate(args: Record<string, unknown>) {
 }
 
 async function handleDiff(args: Record<string, unknown>) {
-  const path1 = args.path1 as string
-  const path2 = args.path2 as string
+  const path1 = typeof args.path1 === 'string' ? args.path1 : undefined
+  const path2 = typeof args.path2 === 'string' ? args.path2 : undefined
 
-  const file1 = await loadDeepnoteFile(path1)
-  const file2 = await loadDeepnoteFile(path2)
+  if (!path1 || !path2) {
+    return {
+      content: [{ type: 'text', text: 'path1 and path2 are required and must be strings' }],
+      isError: true,
+    }
+  }
+
+  let file1: DeepnoteFile
+  let file2: DeepnoteFile
+  try {
+    file1 = await loadDeepnoteFile(path1)
+    file2 = await loadDeepnoteFile(path2)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      content: [{ type: 'text', text: `Failed to diff files: ${message}` }],
+      isError: true,
+    }
+  }
 
   const differences: string[] = []
 

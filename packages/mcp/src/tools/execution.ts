@@ -265,7 +265,7 @@ async function saveExecutionSnapshot(
 }
 
 async function handleRun(args: Record<string, unknown>) {
-  const filePath = args.path as string
+  const filePath = typeof args.path === 'string' ? args.path : undefined
   const notebookFilter = args.notebook as string | undefined
   const blockIdFilter = args.blockId as string | undefined
   const pythonPath = args.pythonPath as string | undefined
@@ -274,12 +274,51 @@ async function handleRun(args: Record<string, unknown>) {
   const includeOutputSummary = args.includeOutputSummary !== false // default true
   const compact = args.compact as boolean | undefined
 
+  if (!filePath) {
+    return {
+      content: [{ type: 'text', text: 'path is required and must be a string' }],
+      isError: true,
+    }
+  }
+
   // Load file, auto-converting from other formats if needed
-  const { file, originalPath, format, wasConverted } = await resolveAndConvertToDeepnote(filePath)
+  let convertedFile: ConvertedFile
+  try {
+    convertedFile = await resolveAndConvertToDeepnote(filePath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const errorCode =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      typeof (error as { code?: unknown }).code === 'string'
+        ? ((error as { code: string }).code ?? undefined)
+        : undefined
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              error: message,
+              ...(errorCode ? { code: errorCode } : {}),
+            },
+            null,
+            2
+          ),
+        },
+      ],
+      isError: true,
+    }
+  }
+
+  const { file, originalPath, format, wasConverted } = convertedFile
 
   // If blockId is specified, run just that block with its dependencies
   if (blockIdFilter) {
-    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs, dryRun === true)
+    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs, {
+      dryRun: dryRun === true,
+    })
   }
 
   // Filter notebooks if specified, otherwise run all
@@ -451,7 +490,7 @@ async function handleRunBlock(
   notebookFilter: string | undefined,
   pythonPath: string | undefined,
   inputs: Record<string, unknown> | undefined,
-  dryRun: boolean
+  options: { dryRun: boolean }
 ) {
   // Find the block
   let targetBlock = null
@@ -476,7 +515,7 @@ async function handleRunBlock(
     }
   }
 
-  if (dryRun) {
+  if (options.dryRun) {
     return {
       content: [
         {

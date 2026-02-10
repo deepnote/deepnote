@@ -323,12 +323,14 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
   const filePath = args.path as string
   const snapshotDir = args.snapshotDir as string | undefined
   const keepLatestRaw = args.keepLatest
-  const keepLatest =
-    keepLatestRaw === undefined
-      ? true
-      : typeof keepLatestRaw === 'string'
-        ? keepLatestRaw.toLowerCase() === 'true'
-        : Boolean(keepLatestRaw)
+  let keepLatest: boolean
+  if (keepLatestRaw === undefined) {
+    keepLatest = true
+  } else if (typeof keepLatestRaw === 'string') {
+    keepLatest = keepLatestRaw.toLowerCase() === 'true'
+  } else {
+    keepLatest = Boolean(keepLatestRaw)
+  }
 
   if (!filePath) {
     return {

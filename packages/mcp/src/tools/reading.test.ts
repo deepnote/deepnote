@@ -150,12 +150,15 @@ describe('reading tools handlers', () => {
       expect(response.content[0].text).toContain('Unknown reading tool')
     })
 
-    it('throws for nonexistent file', async () => {
-      await expect(
-        handleReadingTool('deepnote_read', {
-          path: '/nonexistent/path.deepnote',
-        })
-      ).rejects.toThrow()
+    it('returns error for nonexistent file', async () => {
+      const response = (await handleReadingTool('deepnote_read', {
+        path: '/nonexistent/path.deepnote',
+      })) as {
+        content: Array<{ type: string; text: string }>
+        isError?: boolean
+      }
+      expect(response.isError).toBe(true)
+      expect(response.content[0].text).toContain('Failed to read file')
     })
   })
 })
