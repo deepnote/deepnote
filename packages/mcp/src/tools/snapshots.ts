@@ -15,6 +15,7 @@ import { stringify as serializeYaml } from 'yaml'
 function snapshotError(message: string) {
   return {
     content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
+    isError: true,
   }
 }
 
@@ -192,7 +193,7 @@ async function handleSnapshotList(args: Record<string, unknown>) {
 
     const snapshotOptions = snapshotDir ? { snapshotDir } : {}
     const snapshots = await findSnapshotsForProject(projectDir, projectId, snapshotOptions)
-    const resolvedSnapshotDir = snapshotDir || path.join(projectDir, 'snapshots')
+    const resolvedSnapshotDir = snapshotDir ? snapshotDir : path.join(projectDir, 'snapshots')
 
     return {
       content: [
@@ -291,7 +292,7 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
             text: JSON.stringify({
               error: 'No snapshot found',
               sourcePath: absolutePath,
-              snapshotDir: snapshotDir || path.join(path.dirname(absolutePath), 'snapshots'),
+              snapshotDir: snapshotDir ? snapshotDir : path.join(path.dirname(absolutePath), 'snapshots'),
               hint: 'Use deepnote_snapshot_split to create a snapshot first',
             }),
           },
@@ -367,7 +368,7 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     const { source, snapshot } = splitDeepnoteFile(file)
 
     // Determine snapshot directory and filename
-    const defaultSnapshotDir = snapshotDir || path.join(path.dirname(absolutePath), 'snapshots')
+    const defaultSnapshotDir = snapshotDir ? snapshotDir : path.join(path.dirname(absolutePath), 'snapshots')
     await fs.mkdir(defaultSnapshotDir, { recursive: true })
 
     // Generate timestamp-based filename

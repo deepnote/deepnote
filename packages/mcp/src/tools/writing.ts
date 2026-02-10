@@ -430,8 +430,8 @@ function createBlock(
     blockGroup,
     sortingKey: generateSortingKey(index),
     type: spec.type,
-    content: spec.content || '',
-    metadata: spec.metadata || {},
+    content: spec.content !== undefined ? spec.content : '',
+    metadata: spec.metadata !== undefined ? spec.metadata : {},
   }
 
   // Add execution fields for executable blocks
@@ -452,7 +452,20 @@ function createBlock(
 }
 
 async function handleCreate(args: Record<string, unknown>) {
-  const { outputPath, projectName, notebooks, dryRun } = validateCreateArgs(args)
+  let outputPath: string
+  let projectName: string
+  let notebooks: CreateNotebookSpec[]
+  let dryRun: boolean | undefined
+  try {
+    const validatedArgs = validateCreateArgs(args)
+    outputPath = validatedArgs.outputPath
+    projectName = validatedArgs.projectName
+    notebooks = validatedArgs.notebooks
+    dryRun = validatedArgs.dryRun
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return writingError(message)
+  }
 
   const projectId = randomUUID()
 
