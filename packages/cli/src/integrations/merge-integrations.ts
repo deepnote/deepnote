@@ -270,6 +270,56 @@ export function mergeProcessedIntegrations(
 }
 
 /**
+ * Error thrown when an API integration fails schema validation during conversion.
+ */
+export class InvalidIntegrationError extends Error {
+  readonly integrationId: string
+
+  constructor(integrationId: string, message: string) {
+    super(message)
+    this.name = 'InvalidIntegrationError'
+    this.integrationId = integrationId
+  }
+}
+
+/**
+ * Result of converting API integrations to DatabaseIntegrationConfig.
+ */
+export interface ConvertApiIntegrationsResult {
+  /** Successfully validated integrations */
+  integrations: DatabaseIntegrationConfig[]
+  /** Errors for integrations that failed validation */
+  errors: InvalidIntegrationError[]
+}
+
+/**
+ * Convert API integrations to DatabaseIntegrationConfig.
+ * Validates each integration against the schema and collects errors for invalid ones.
+ *
+ * Shared by both `integrations pull` (via mergeApiIntegrationsIntoDocument) and `run` (for on-the-fly fetching).
+ *
+ * @param apiIntegrations - Integrations fetched from the API
+ * @returns Object containing validated integrations and any validation errors
+ */
+export function convertApiIntegrations(apiIntegrations: ApiIntegration[]): ConvertApiIntegrationsResult {
+  const integrations: DatabaseIntegrationConfig[] = []
+  const errors: InvalidIntegrationError[] = []
+
+  for (const apiIntegration of apiIntegrations) {
+    const config = databaseIntegrationConfigSchema.safeParse(apiIntegration)
+
+    if (!config.success) {
+      errors.push(new InvalidIntegrationError(apiIntegration.id, config.error.message))
+      continue
+    }
+
+    integrations.push(config.data)
+  }
+
+  return { integrations, errors }
+}
+
+/**
  * Merge API integrations into an existing document (or create a new one).
  * Extracts secrets and replaces them with env var references during the merge.
  * Preserves custom environment variable names from existing entries.
@@ -284,18 +334,12 @@ export function mergeApiIntegrationsIntoDocument(doc: Document, apiIntegrations:
   const integrationsSeq = getOrCreateIntegrationsFromDocument(doc)
 
   // Convert API integrations to DatabaseIntegrationConfig
-  const databaseIntegrations = apiIntegrations.reduce<DatabaseIntegrationConfig[]>((acc, apiIntegration) => {
-    const config = databaseIntegrationConfigSchema.safeParse(apiIntegration)
+  const { integrations: databaseIntegrations, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
 
-    if (!config.success) {
-      error(`Skipping invalid integration [${apiIntegration.id}]: ${config.error.message}`)
-      return acc
-    }
-
-    acc.push(config.data)
-
-    return acc
-  }, [])
+  // Log conversion errors (integrations pull is always interactive)
+  for (const conversionError of conversionErrors) {
+    error(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
+  }
 
   // Merge integrations and extract secrets in a single pass
   // This preserves custom env var names by checking existing values before updating

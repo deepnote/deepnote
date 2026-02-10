@@ -16,12 +16,15 @@ import {
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { stringify as serializeToYaml } from 'yaml'
-import { DEFAULT_ENV_FILE } from '../constants'
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
+import { fetchIntegrations } from '../integrations/fetch-integrations'
+import { convertApiIntegrations } from '../integrations/merge-integrations'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import { ApiError } from '../utils/api'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -34,6 +37,7 @@ import {
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { saveExecutionSnapshot } from '../utils/output-persistence'
+import { DEFAULT_API_URL } from './integrations'
 
 /**
  * Error thrown when required inputs are missing.
@@ -76,6 +80,8 @@ export interface RunOptions {
   profile?: boolean
   open?: boolean
   context?: boolean
+  token?: string
+  url?: string
 }
 
 /** Result of a single block execution for JSON output */
@@ -228,13 +234,56 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
+  // Fetch integrations from API if a token is available (--token flag or DEEPNOTE_TOKEN env var)
+  let allIntegrations = parsedIntegrations.integrations
+  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
+  if (token) {
+    const baseUrl = options.url ?? DEFAULT_API_URL
+    if (!isMachineOutput) {
+      log(getChalk().dim(`Fetching integrations from ${baseUrl}...`))
+    }
+
+    const apiIntegrations = await fetchIntegrations(baseUrl, token)
+    const { integrations: apiConfigs, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
+
+    // Report conversion errors (invalid integrations from API)
+    if (conversionErrors.length > 0) {
+      if (!isMachineOutput) {
+        for (const conversionError of conversionErrors) {
+          log(
+            getChalk().yellow(
+              `Warning: Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`
+            )
+          )
+        }
+      } else {
+        for (const conversionError of conversionErrors) {
+          debug(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
+        }
+      }
+    }
+
+    debug(`Fetched ${apiConfigs.length} integration(s) from API`)
+
+    // Merge: local integrations take precedence by ID (case-insensitive)
+    const localIds = new Set(allIntegrations.map(i => i.id.toLowerCase()))
+    const newFromApi = apiConfigs.filter(i => !localIds.has(i.id.toLowerCase()))
+
+    if (newFromApi.length > 0) {
+      allIntegrations = [...allIntegrations, ...newFromApi]
+      debug(
+        `Added ${newFromApi.length} integration(s) from API (${apiConfigs.length - newFromApi.length} already local)`
+      )
+    }
+  }
+
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, parsedIntegrations.integrations, options.notebook)
+  await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
-  if (parsedIntegrations.integrations.length > 0) {
-    const { envVars, errors } = getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
+  if (allIntegrations.length > 0) {
+    const { envVars, errors } = getEnvironmentVariablesForIntegrations(allIntegrations, {
       projectRootDirectory: workingDirectory,
     })
 
@@ -328,11 +377,12 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors, missing inputs, and missing integrations (user errors)
+      // Use InvalidUsage for file resolution errors, missing inputs, missing integrations, and API auth errors (user errors)
       const exitCode =
         error instanceof FileResolutionError ||
         error instanceof MissingInputError ||
-        error instanceof MissingIntegrationError
+        error instanceof MissingIntegrationError ||
+        error instanceof ApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
       if (options.output === 'json') {
