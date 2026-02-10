@@ -6,6 +6,7 @@ import { type ZodIssue, z } from 'zod'
 import type { ValidationIssue } from '../commands/validate'
 import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import { EnvVarResolutionError, resolveEnvVarRefs } from '../utils/env-var-refs'
+import { isErrnoENOENT } from '../utils/file-resolver'
 import { baseIntegrationsFileSchema } from './integrations-file-schemas'
 
 /**
@@ -41,20 +42,16 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
   const emptyIntegrations: DatabaseIntegrationConfig[] = []
   const issues: ValidationIssue[] = []
 
-  // Check if file exists
-  try {
-    await fs.access(filePath)
-  } catch {
-    // File doesn't exist - return empty result (not an error, integrations are optional)
-    return { integrations: emptyIntegrations, issues }
-  }
-
   // Read and decode file
   let content: string
   try {
     const rawBytes = await fs.readFile(filePath)
     content = decodeUtf8NoBom(rawBytes)
   } catch (error) {
+    if (isErrnoENOENT(error)) {
+      // File doesn't exist - return empty result (not an error, integrations are optional)
+      return { integrations: emptyIntegrations, issues }
+    }
     const message = error instanceof Error ? error.message : String(error)
     issues.push({
       path: '',
