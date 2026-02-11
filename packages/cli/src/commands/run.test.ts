@@ -3,6 +3,7 @@ import os from 'node:os'
 import { join } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
+import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import type { saveExecutionSnapshot } from '../utils/output-persistence'
 
 // Create mock engine functions
@@ -44,6 +45,14 @@ vi.mock('@deepnote/reactivity', () => {
   }
 })
 
+// Mock integrations module for testing integration validation
+const mockParseIntegrationsFile = vi.fn()
+vi.mock('../integrations/parse-integrations', () => {
+  return {
+    parseIntegrationsFile: (...args: unknown[]) => mockParseIntegrationsFile(...args),
+    getDefaultIntegrationsFilePath: (dir: string) => join(dir, DEFAULT_INTEGRATIONS_FILE),
+  }
+})
 // Mock openDeepnoteFileInCloud for --open flag tests
 const mockOpenDeepnoteFileInCloud = vi.fn()
 vi.mock('../utils/open-file-in-cloud', () => ({
@@ -142,10 +151,16 @@ describe('run command', () => {
       originalExitCode = process.exitCode
 
       vi.clearAllMocks()
+      vi.restoreAllMocks()
 
       // Reset getBlockDependencies to return empty by default (no validation errors)
       mockGetBlockDependencies.mockResolvedValue([])
 
+      // Reset parseIntegrationsFile to return empty by default (no integrations configured)
+      mockParseIntegrationsFile.mockResolvedValue({
+        integrations: [],
+        issues: [],
+      })
       // Reset saveExecutionSnapshot mock
       mockSaveExecutionSnapshot.mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
 
@@ -1034,7 +1049,7 @@ describe('run command', () => {
     })
 
     describe('validateRequirements - missing integrations', () => {
-      it('throws MissingIntegrationError for SQL blocks without env var', async () => {
+      it('throws MissingIntegrationError for SQL blocks without integration config', async () => {
         mockGetBlockDependencies.mockResolvedValue([])
 
         // INTEGRATIONS_FILE has SQL block with integration 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
@@ -1043,7 +1058,7 @@ describe('run command', () => {
         expect(programErrorSpy).toHaveBeenCalled()
         const errorArg = programErrorSpy.mock.calls[0][0]
         expect(errorArg).toContain('Missing database integration')
-        expect(errorArg).toContain('SQL_')
+        expect(errorArg).toContain('100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d')
       })
 
       it('sets exit code 2 for missing integration (-o json mode)', async () => {
@@ -1058,28 +1073,32 @@ describe('run command', () => {
         expect(parsed.error).toContain('Missing database integration')
       })
 
-      it('succeeds when integration env var is set', async () => {
+      it('succeeds when integration is configured in integrations file', async () => {
         mockGetBlockDependencies.mockResolvedValue([])
         setupSuccessfulRun()
 
-        // Set the required env var (note: starts with digit, so _ is prepended)
-        // 100eef5b... -> _100EEF5B... -> SQL__100EEF5B_8AD8_4D35_8E5E_3DFEEB387D4D
-        const envVarName = 'SQL__100EEF5B_8AD8_4D35_8E5E_3DFEEB387D4D'
-        const originalEnv = process.env[envVarName]
-        process.env[envVarName] = 'postgresql://localhost/test'
-
-        try {
-          await action(INTEGRATIONS_FILE, {})
-          expect(programErrorSpy).not.toHaveBeenCalled()
-          expect(mockStart).toHaveBeenCalled()
-        } finally {
-          // Restore original env
-          if (originalEnv === undefined) {
-            delete process.env[envVarName]
-          } else {
-            process.env[envVarName] = originalEnv
-          }
+        // Mock the integrations file to return the required integration
+        const integrationId = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
+        const mockIntegration = {
+          id: integrationId,
+          name: 'Test PostgreSQL',
+          type: 'pgsql',
+          metadata: {
+            host: 'localhost',
+            port: '5432',
+            database: 'test-database',
+            user: 'test-user',
+            password: 'test-password',
+          },
         }
+        mockParseIntegrationsFile.mockResolvedValue({
+          integrations: [mockIntegration],
+          issues: [],
+        })
+
+        await action(INTEGRATIONS_FILE, {})
+        expect(programErrorSpy).not.toHaveBeenCalled()
+        expect(mockStart).toHaveBeenCalled()
       })
     })
 

@@ -9,12 +9,14 @@ import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
+import { createIntegrationsPullAction, DEFAULT_API_URL } from './commands/integrations'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
 import { createStatsAction } from './commands/stats'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from './constants'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
 import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
@@ -97,6 +99,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Show project statistics')}
   $ deepnote stats my-project.deepnote
+
+  ${c.dim('# Pull integrations from Deepnote API')}
+  $ deepnote integrations pull
 
   ${c.dim('# Get help for a specific command')}
   $ deepnote help run
@@ -680,6 +685,37 @@ ${c.bold('Examples:')}
         })
       }
     })
+
+  // Integrations command - manage database integrations
+  const integrationsCmd = program
+    .command('integrations')
+    .description('Manage database integrations')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Subcommands:')}
+  pull        Pull integrations from Deepnote API and merge with local file
+
+${c.bold('Examples:')}
+  ${c.dim('# Pull integrations from Deepnote API')}
+  $ deepnote integrations pull
+
+  ${c.dim('# Pull with a specific token')}
+  $ deepnote integrations pull --token <token>
+
+  ${c.dim('# Pull to a custom file path')}
+  $ deepnote integrations pull --file my-integrations.yaml
+`
+    })
+
+  integrationsCmd
+    .command('pull')
+    .description('Pull integrations from Deepnote API and merge with local file')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for authentication (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+    .action(createIntegrationsPullAction(program))
 }
 
 /**

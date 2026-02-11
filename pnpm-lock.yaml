@@ -75,6 +75,9 @@ importers:
       '@deepnote/convert':
         specifier: workspace:*
         version: link:../convert
+      '@deepnote/database-integrations':
+        specifier: workspace:*
+        version: link:../database-integrations
       '@deepnote/reactivity':
         specifier: workspace:*
         version: link:../reactivity
@@ -96,6 +99,9 @@ importers:
       diff:
         specifier: '>=8.0.3'
         version: 8.0.3
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
       ora:
         specifier: ^9.0.0
         version: 9.0.0
@@ -103,7 +109,7 @@ importers:
         specifier: ^9.0.2
         version: 9.0.2
       yaml:
-        specifier: ^2.8.0
+        specifier: ^2.8.1
         version: 2.8.1
       zod:
         specifier: 3.25.76
@@ -112,6 +118,9 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
+      zod-to-json-schema:
+        specifier: ^3.25.1
+        version: 3.25.1(zod@3.25.76)
 
   packages/convert:
     dependencies:
@@ -1520,6 +1529,10 @@ packages:
   diff@8.0.3:
     resolution: {integrity: sha512-qejHi7bcSD4hQAZE0tNAawRK1ZtafHDmMTMkrrIGgSLl7hTnQHmKCeB45xAcbfTqK2zowkM3j3bHt/4b/ARbYQ==}
     engines: {node: '>=0.3.1'}
+
+  dotenv@17.2.3:
+    resolution: {integrity: sha512-JVUnt+DUIzu87TABbhPmNfVdBDt18BLOWjMUFJMSi/Qqg7NTYtabbvSNJGOJ7afbRuv9D/lngizHtP7QyLQ+9w==}
+    engines: {node: '>=12'}
 
   dts-resolver@2.1.2:
     resolution: {integrity: sha512-xeXHBQkn2ISSXxbJWD828PFjtyg+/UrMDo7W4Ffcs7+YWCquxU8YjV1KoxuiL+eJ5pg3ll+bC6flVv61L3LKZg==}
@@ -3890,6 +3903,8 @@ snapshots:
       dequal: 2.0.3
 
   diff@8.0.3: {}
+
+  dotenv@17.2.3: {}
 
   dts-resolver@2.1.2: {}
 
