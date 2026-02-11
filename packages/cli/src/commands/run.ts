@@ -16,7 +16,7 @@ import {
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { stringify as serializeToYaml } from 'yaml'
-import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
+import { BUILTIN_INTEGRATIONS, DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { fetchIntegrations } from '../integrations/fetch-integrations'
 import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
@@ -591,9 +591,6 @@ async function fetchAndMergeApiIntegrations(params: {
   return localIntegrations
 }
 
-/** Built-in integrations that don't require external configuration */
-const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
-
 /**
  * Collect unique external integration IDs referenced by SQL blocks in the file.
  * Excludes built-in integrations (e.g. deepnote-dataframe-sql, pandas-dataframe).
@@ -606,7 +603,7 @@ function collectRequiredIntegrationIds(file: DeepnoteFile, notebookName?: string
       if (block.type === 'sql') {
         const metadata = block.metadata as Record<string, unknown>
         const integrationId = metadata.sql_integration_id as string | undefined
-        if (integrationId && !builtInIntegrations.has(integrationId)) {
+        if (integrationId && !BUILTIN_INTEGRATIONS.has(integrationId)) {
           ids.add(integrationId)
         }
       }

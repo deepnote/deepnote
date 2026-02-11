@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { BUILTIN_INTEGRATIONS } from '../constants'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
 
@@ -495,8 +496,7 @@ describe('lint command', () => {
       const parsed = JSON.parse(output)
 
       // Builtin integrations should not appear in missing
-      const builtins = ['deepnote-dataframe-sql', 'pandas-dataframe']
-      for (const builtin of builtins) {
+      for (const builtin of BUILTIN_INTEGRATIONS) {
         expect(parsed.integrations.missing).not.toContain(builtin)
       }
     })
