@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
+import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
@@ -19,6 +19,7 @@ import { stringify as serializeToYaml } from 'yaml'
 import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { fetchIntegrations } from '../integrations/fetch-integrations'
+import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
 import { convertApiIntegrations } from '../integrations/merge-integrations'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
@@ -235,73 +236,21 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
   // Fetch integrations from API if a token is available (--token flag or DEEPNOTE_TOKEN env var)
-  let allIntegrations = parsedIntegrations.integrations
-  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
-  if (token) {
-    const baseUrl = options.url ?? DEFAULT_API_URL
-
-    // Only fetch integrations that are actually needed by SQL blocks and not already local
-    const requiredIds = collectRequiredIntegrationIds(file, options.notebook)
-    const localIds = new Set(allIntegrations.map(i => i.id.toLowerCase()))
-    const idsToFetch = requiredIds.filter(id => !localIds.has(id.toLowerCase()))
-
-    if (idsToFetch.length === 0) {
-      debug('All required integrations are already configured locally, skipping API fetch')
-    } else {
-      if (!isMachineOutput) {
-        log(getChalk().dim(`Fetching integrations from ${baseUrl}...`))
-      }
-
-      const apiIntegrations = await fetchIntegrations(baseUrl, token, idsToFetch)
-      const { integrations: apiConfigs, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
-
-      // Report conversion errors (invalid integrations from API)
-      if (conversionErrors.length > 0) {
-        if (!isMachineOutput) {
-          for (const conversionError of conversionErrors) {
-            log(
-              getChalk().yellow(
-                `Warning: Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`
-              )
-            )
-          }
-        } else {
-          for (const conversionError of conversionErrors) {
-            debug(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
-          }
-        }
-      }
-
-      debug(`Fetched ${apiConfigs.length} integration(s) from API for ${idsToFetch.length} requested ID(s)`)
-
-      if (apiConfigs.length > 0) {
-        allIntegrations = [...allIntegrations, ...apiConfigs]
-      }
-    }
-  }
+  const allIntegrations = await fetchAndMergeApiIntegrations({
+    localIntegrations: parsedIntegrations.integrations,
+    file,
+    notebookName: options.notebook,
+    token: options.token ?? process.env[DEEPNOTE_TOKEN_ENV],
+    baseUrl: options.url ?? DEFAULT_API_URL,
+    isMachineOutput,
+  })
 
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
   await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
-  if (allIntegrations.length > 0) {
-    const { envVars, errors } = getEnvironmentVariablesForIntegrations(allIntegrations, {
-      projectRootDirectory: workingDirectory,
-    })
-
-    // Log any errors from env var generation
-    for (const error of errors) {
-      debug(`Integration env var error: ${error.message}`)
-    }
-
-    // Inject env vars into process.env
-    for (const { name, value } of envVars) {
-      process.env[name] = value
-    }
-
-    debug(`Injected ${envVars.length} environment variables for integrations`)
-  }
+  injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
   return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
 }
@@ -579,6 +528,66 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
     output(c.dim('─'.repeat(50)))
     output(c.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
   }
+}
+
+/**
+ * Fetch integrations from the API and merge them with locally configured integrations.
+ * Only fetches integrations that are actually needed by SQL blocks and not already present locally.
+ */
+async function fetchAndMergeApiIntegrations(params: {
+  localIntegrations: DatabaseIntegrationConfig[]
+  file: DeepnoteFile
+  notebookName?: string
+  token: string | undefined
+  baseUrl: string
+  isMachineOutput: boolean
+}): Promise<DatabaseIntegrationConfig[]> {
+  const { localIntegrations, file, notebookName, token, baseUrl, isMachineOutput } = params
+
+  if (!token) {
+    return localIntegrations
+  }
+
+  const requiredIds = collectRequiredIntegrationIds(file, notebookName)
+  const localIds = new Set(localIntegrations.map(i => i.id.toLowerCase()))
+  const idsToFetch = requiredIds.filter(id => !localIds.has(id.toLowerCase()))
+
+  if (idsToFetch.length === 0) {
+    debug('All required integrations are already configured locally, skipping API fetch')
+    return localIntegrations
+  }
+
+  if (!isMachineOutput) {
+    log(getChalk().dim(`Fetching integrations from ${baseUrl}...`))
+  }
+
+  const apiIntegrations = await fetchIntegrations(baseUrl, token, idsToFetch)
+  const { integrations: apiConfigs, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
+
+  // Report conversion errors (invalid integrations from API)
+  if (conversionErrors.length > 0) {
+    if (!isMachineOutput) {
+      for (const conversionError of conversionErrors) {
+        log(
+          getChalk().yellow(
+            `Warning: Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`
+          )
+        )
+      }
+    } else {
+      for (const conversionError of conversionErrors) {
+        debug(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
+      }
+    }
+  }
+
+  debug(`Fetched ${apiConfigs.length} integration(s) from API for ${idsToFetch.length} requested ID(s)`)
+
+  if (apiConfigs.length > 0) {
+    return [...localIntegrations, ...apiConfigs]
+  }
+
+  return localIntegrations
 }
 
 /** Built-in integrations that don't require external configuration */

@@ -65,6 +65,13 @@ vi.mock('../integrations/fetch-integrations', async importOriginal => {
   }
 })
 
+// Mock injectIntegrationEnvVars for testing integration env var injection
+const mockInjectIntegrationEnvVars = vi.fn<(integrations: unknown[], workingDirectory: string) => string[]>()
+mockInjectIntegrationEnvVars.mockReturnValue([])
+vi.mock('../integrations/inject-integration-env-vars', () => ({
+  injectIntegrationEnvVars: (...args: [unknown[], string]) => mockInjectIntegrationEnvVars(...args),
+}))
+
 // Mock openDeepnoteFileInCloud for --open flag tests
 const mockOpenDeepnoteFileInCloud = vi.fn()
 vi.mock('../utils/open-file-in-cloud', () => ({
@@ -179,6 +186,9 @@ describe('run command', () => {
         integrations: [],
         issues: [],
       })
+      // Reset injectIntegrationEnvVars to no-op by default
+      mockInjectIntegrationEnvVars.mockReturnValue([])
+
       // Reset saveExecutionSnapshot mock
       mockSaveExecutionSnapshot.mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
 
@@ -1186,9 +1196,12 @@ describe('run command', () => {
 
       it('does not fetch when no token is available', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
         vi.stubEnv(DEEPNOTE_TOKEN_ENV, '')
 
-        await action(HELLO_WORLD_FILE, {})
+        // Use a file that requires integrations — the missing token should be
+        // the reason the fetch is skipped, not the absence of SQL blocks
+        await expect(action(INTEGRATIONS_FILE, {})).rejects.toThrow()
 
         expect(mockFetchIntegrations).not.toHaveBeenCalled()
       })
@@ -1207,10 +1220,11 @@ describe('run command', () => {
 
       it('merges API integrations with local ones', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
 
-        // Local has one integration
+        // Local has an integration with a different ID than the one required by the SQL block
         const localIntegration = {
-          id: 'local-id',
+          id: 'local-only-id',
           name: 'Local DB',
           type: 'pgsql' as const,
           metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-password' },
@@ -1220,24 +1234,39 @@ describe('run command', () => {
           issues: [],
         })
 
-        // API returns a different integration
-        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: 'api-id' })])
+        // API provides the integration required by the SQL block
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({
+            id: REQUIRED_INTEGRATION_ID,
+            name: 'API DB',
+            metadata: { host: 'api.example.com', database: 'api-db', user: 'api-user', password: 'api-password' },
+          }),
+        ])
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token' })
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
 
-        // Both integrations should be used (engine started successfully)
+        // API was called for the required integration (not covered locally)
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'my-token', [REQUIRED_INTEGRATION_ID])
+
+        // Both local and API integrations should be passed to env var injection
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ id: 'local-only-id', name: 'Local DB' }),
+            expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'API DB' }),
+          ]),
+          expect.any(String)
+        )
+
         expect(mockStart).toHaveBeenCalled()
-        expect(mockFetchIntegrations).not.toHaveBeenCalled()
       })
 
-      it('local integrations take precedence over API when IDs match', async () => {
+      it('skips API fetch when required integration is already configured locally', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
 
-        const sharedId = 'shared-integration-id'
-
-        // Local has integration with specific config
+        // Local has integration with the same ID that the INTEGRATIONS_FILE SQL block requires
         const localIntegration = {
-          id: sharedId,
+          id: REQUIRED_INTEGRATION_ID,
           name: 'Local Override',
           type: 'pgsql' as const,
           metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-secret' },
@@ -1247,24 +1276,29 @@ describe('run command', () => {
           issues: [],
         })
 
-        // API has integration with same ID but different config
-        mockFetchIntegrations.mockResolvedValue([
-          createMockApiIntegration({
-            id: sharedId,
-            name: 'API Version',
-            metadata: { host: 'api.example.com', database: 'api-db', user: 'api-user', password: 'api-secret' },
-          }),
-        ])
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token', output: 'json' })
+        // The local integration already covers the required ID, so API should NOT be called
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
 
-        // Verify that local config was used (env vars should use local values)
-        // The LOCAL_OVERRIDE integration env vars should be injected, not API_VERSION ones
+        // Verify only the local integration was passed to env var injection
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          [
+            expect.objectContaining({
+              id: REQUIRED_INTEGRATION_ID,
+              name: 'Local Override',
+              metadata: expect.objectContaining({ host: 'local.example.com' }),
+            }),
+          ],
+          expect.any(String)
+        )
+
         expect(mockStart).toHaveBeenCalled()
       })
 
       it('works with no local integrations file (API-only)', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
 
         // No local integrations
         mockParseIntegrationsFile.mockResolvedValue({
@@ -1272,13 +1306,29 @@ describe('run command', () => {
           issues: [],
         })
 
-        // API provides the integrations
-        mockGetBlockDependencies.mockResolvedValue([])
-        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+        // API returns the required integration for the INTEGRATIONS_FILE SQL block
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({
+            id: REQUIRED_INTEGRATION_ID,
+            name: 'Test PostgreSQL',
+            metadata: {
+              host: 'api-host.example.com',
+              database: 'test-database',
+              user: 'test-user',
+              password: 'test-password',
+            },
+          }),
+        ])
 
         await action(INTEGRATIONS_FILE, { token: 'my-token' })
 
+        // API was called and the integration was passed through to env var injection
         expect(mockFetchIntegrations).toHaveBeenCalled()
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'Test PostgreSQL' })],
+          expect.any(String)
+        )
+        expect(programErrorSpy).not.toHaveBeenCalled()
         expect(mockStart).toHaveBeenCalled()
       })
 
@@ -1303,37 +1353,6 @@ describe('run command', () => {
         const parsed = JSON.parse(output)
         expect(parsed.success).toBe(false)
         expect(parsed.error).toContain('Authentication failed')
-      })
-
-      it('SQL block validation passes with API-fetched integrations', async () => {
-        setupSuccessfulRun()
-        mockGetBlockDependencies.mockResolvedValue([])
-
-        // No local integrations
-        mockParseIntegrationsFile.mockResolvedValue({
-          integrations: [],
-          issues: [],
-        })
-
-        // API returns the required integration for the INTEGRATIONS_FILE SQL block
-        const integrationId = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
-        mockFetchIntegrations.mockResolvedValue([
-          createMockApiIntegration({
-            id: integrationId,
-            name: 'Test PostgreSQL',
-            metadata: {
-              host: 'api-host.example.com',
-              database: 'test-database',
-              user: 'test-user',
-              password: 'test-password',
-            },
-          }),
-        ])
-
-        await action(INTEGRATIONS_FILE, { token: 'my-token' })
-
-        expect(programErrorSpy).not.toHaveBeenCalled()
-        expect(mockStart).toHaveBeenCalled()
       })
 
       it('dry-run works with API-fetched integrations', async () => {
@@ -1366,9 +1385,11 @@ describe('run command', () => {
 
       it('case-insensitive ID matching when merging local and API integrations', async () => {
         setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
 
+        // Local integration has the required ID but in uppercase
         const localIntegration = {
-          id: 'ABC-123',
+          id: REQUIRED_INTEGRATION_ID.toUpperCase(),
           name: 'Local DB',
           type: 'pgsql' as const,
           metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-password' },
@@ -1378,17 +1399,22 @@ describe('run command', () => {
           issues: [],
         })
 
-        // API returns same integration with different case ID
-        mockFetchIntegrations.mockResolvedValue([
-          createMockApiIntegration({
-            id: 'abc-123',
-            name: 'API Version',
-          }),
-        ])
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
 
-        await action(HELLO_WORLD_FILE, { token: 'my-token' })
+        // Case-insensitive match should skip the API fetch
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
 
-        // Should not duplicate - local takes precedence
+        // Only the local integration should be passed to env var injection
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          [
+            expect.objectContaining({
+              id: REQUIRED_INTEGRATION_ID.toUpperCase(),
+              name: 'Local DB',
+            }),
+          ],
+          expect.any(String)
+        )
+
         expect(mockStart).toHaveBeenCalled()
       })
 
