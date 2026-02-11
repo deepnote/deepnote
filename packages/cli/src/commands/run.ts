@@ -330,11 +330,12 @@ export function createRunAction(program: Command): (path: string, options: RunOp
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution errors, missing inputs, missing integrations, and API auth errors (user errors)
+      const isAuthApiError = error instanceof ApiError && (error.status === 401 || error.status === 403)
       const exitCode =
         error instanceof FileResolutionError ||
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
-        error instanceof ApiError
+        isAuthApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
       if (options.output === 'json') {

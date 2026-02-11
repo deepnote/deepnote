@@ -56,7 +56,8 @@ vi.mock('../integrations/parse-integrations', () => {
   }
 })
 // Mock fetchIntegrations for API integration tests
-const mockFetchIntegrations = vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<unknown[]>>()
+const mockFetchIntegrations =
+  vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<ApiIntegration[]>>()
 vi.mock('../integrations/fetch-integrations', async importOriginal => {
   const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
   return {

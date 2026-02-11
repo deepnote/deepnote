@@ -4,7 +4,7 @@ import {
   getSecretFieldPaths,
 } from '@deepnote/database-integrations'
 import { type Document, isMap, isSeq, parseDocument, type YAMLMap, type YAMLSeq } from 'yaml'
-import { error } from '../output'
+import { debug, error } from '../output'
 import { createEnvVarRef, extractEnvVarName, generateEnvVarName } from '../utils/env-var-refs'
 import type { ApiIntegration } from './fetch-integrations'
 
@@ -309,7 +309,8 @@ export function convertApiIntegrations(apiIntegrations: ApiIntegration[]): Conve
     const config = databaseIntegrationConfigSchema.safeParse(apiIntegration)
 
     if (!config.success) {
-      errors.push(new InvalidIntegrationError(apiIntegration.id, config.error.message))
+      debug(`Invalid integration [${apiIntegration.id}]: ${config.error.message}`)
+      errors.push(new InvalidIntegrationError(apiIntegration.id, 'Invalid integration returned by API.'))
       continue
     }
 

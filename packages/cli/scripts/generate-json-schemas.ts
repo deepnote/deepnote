@@ -5,7 +5,10 @@ import { zodToJsonSchema } from 'zod-to-json-schema'
 import { integrationsFileSchema } from '../src/integrations/integrations-file-schemas'
 
 async function run() {
-  const jsonSchema = zodToJsonSchema(integrationsFileSchema as unknown as ZodTypeAny)
+  // biome-ignore lint/suspicious/noTsIgnore: Type instantiation is excessively deep and possibly infinite.
+  // @ts-ignore
+  const zodToJsonSchemaUnsafe: (schema: ZodTypeAny) => unknown = zodToJsonSchema
+  const jsonSchema = zodToJsonSchemaUnsafe(integrationsFileSchema)
   await fs.writeFile(path.join('json-schemas', 'integrations-file-schema.json'), JSON.stringify(jsonSchema, null, 2))
 }
 
