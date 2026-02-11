@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|validate|convert|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff)
+            inspect|cat|run|open|validate|convert|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull)
                 subcommand="\${word}"
                 break
                 ;;
@@ -205,6 +205,21 @@ _deepnote_completions() {
             fi
             return 0
             ;;
+        integrations)
+            COMPREPLY=( $(compgen -W "pull" -- "\${cur}") )
+            return 0
+            ;;
+        pull)
+            # Complete integrations pull options
+            if [[ "\${subcommand}" == "integrations" || "\${subcommand}" == "pull" ]]; then
+                if [[ "\${cur}" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "--url --token --file --env-file" -- "\${cur}") )
+                else
+                    COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
+                fi
+                return 0
+            fi
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "\${cur}") )
             return 0
@@ -237,6 +252,7 @@ const zshCommandDescriptions: Record<string, string> = {
   analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
+  integrations: 'Manage database integrations',
 }
 
 function generateZshCompletion(commands: string[]): string {
@@ -400,6 +416,27 @@ ${commandEntries}
                         '1:first deepnote file:_files -g "*.deepnote"' \\
                         '2:second deepnote file:_files -g "*.deepnote"'
                     ;;
+                integrations)
+                    local -a subcommands
+                    subcommands=(
+                        'pull:Pull integrations from Deepnote API and merge with local file'
+                    )
+                    _arguments \\
+                        '2: :->subcommand' \\
+                        '*:: :->args'
+                    case $state in
+                        subcommand)
+                            _describe -t subcommands 'integrations subcommands' subcommands
+                            ;;
+                        args)
+                            _arguments \\
+                                '--url[API base URL]:url:' \\
+                                '--token[Bearer token for authentication]:token:' \\
+                                '--file[Path to integrations file]:file path:_files' \\
+                                '--env-file[Path to .env file for storing secrets]:env file path:_files'
+                            ;;
+                    esac
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -429,6 +466,7 @@ const fishCommandDescriptions: Record<string, string> = {
   analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
   completion: 'Generate shell completion scripts',
+  integrations: 'Manage database integrations',
 }
 
 function generateFishCompletion(commands: string[]): string {
@@ -532,6 +570,13 @@ complete -c deepnote -n '__fish_seen_subcommand_from analyze' -F -a '*.deepnote'
 complete -c deepnote -n '__fish_seen_subcommand_from diff' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from diff' -l content -d 'Include content differences in output'
 complete -c deepnote -n '__fish_seen_subcommand_from diff' -F -a '*.deepnote'
+
+# integrations subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from integrations' -a pull -d 'Pull integrations from Deepnote API and merge with local file'
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l url -d 'API base URL'
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l token -d 'Bearer token for authentication'
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l file -d 'Path to integrations file' -F
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l env-file -d 'Path to .env file for storing secrets' -F
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
