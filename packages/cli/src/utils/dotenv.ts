@@ -39,18 +39,26 @@ function formatValue(value: string): string {
 
   // For values with single quotes but no double quotes, use double quotes
   if (value.includes("'") && !value.includes('"')) {
-    return `"${value}"`
+    const escaped = value.replace(/\\/g, '\\\\').replace(/\$/g, '\\$')
+    return `"${escaped}"`
   }
 
-  // For values with both quote types, use double quotes and escape inner double quotes
-  // Note: dotenv.parse preserves the backslashes, so this is a limitation
+  // For values with both quote types, leave unquoted if safe.
+  // dotenv.parse does not unescape \" in double-quoted values, so quoting would break roundtrip.
+  // Unquoted values work as long as there's no # (inline comment), no leading/trailing whitespace,
+  // and no newlines (already handled above).
   if (value.includes('"') && value.includes("'")) {
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    if (!value.includes('#') && !value.startsWith(' ') && !value.endsWith(' ')) {
+      return value
+    }
+    // If value has both quote types AND # or leading/trailing spaces, there's a dotenv limitation.
+    // We do best-effort with double quotes + escaping, knowing backslashes will be preserved.
+    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')
     return `"${escaped}"`
   }
 
   // Default: use double quotes for other special chars
-  const escaped = value.replace(/\\/g, '\\\\')
+  const escaped = value.replace(/\\/g, '\\\\').replace(/\$/g, '\\$')
   return `"${escaped}"`
 }
 

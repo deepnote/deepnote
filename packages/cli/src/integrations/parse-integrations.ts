@@ -6,6 +6,7 @@ import { type ZodIssue, z } from 'zod'
 import type { ValidationIssue } from '../commands/validate'
 import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import { EnvVarResolutionError, resolveEnvVarRefs } from '../utils/env-var-refs'
+import { isErrnoENOENT } from '../utils/file-resolver'
 import { baseIntegrationsFileSchema } from './integrations-file-schemas'
 
 /**
@@ -24,7 +25,7 @@ export interface IntegrationsParseResult {
  */
 function formatZodIssues(issues: ZodIssue[], pathPrefix: string): ValidationIssue[] {
   return issues.map(issue => ({
-    path: pathPrefix ? `${pathPrefix}.${issue.path.join('.')}` : issue.path.join('.'),
+    path: [pathPrefix, ...issue.path].filter(Boolean).join('.'),
     message: issue.message,
     code: issue.code,
   }))
@@ -41,20 +42,16 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
   const emptyIntegrations: DatabaseIntegrationConfig[] = []
   const issues: ValidationIssue[] = []
 
-  // Check if file exists
-  try {
-    await fs.access(filePath)
-  } catch {
-    // File doesn't exist - return empty result (not an error, integrations are optional)
-    return { integrations: emptyIntegrations, issues }
-  }
-
   // Read and decode file
   let content: string
   try {
     const rawBytes = await fs.readFile(filePath)
     content = decodeUtf8NoBom(rawBytes)
   } catch (error) {
+    if (isErrnoENOENT(error)) {
+      // File doesn't exist - return empty result (not an error, integrations are optional)
+      return { integrations: emptyIntegrations, issues }
+    }
     const message = error instanceof Error ? error.message : String(error)
     issues.push({
       path: '',
@@ -98,6 +95,9 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i]
     const pathPrefix = `integrations[${i}]`
+    const entryId = z.string().safeParse(entry.id).data
+    const entryName = z.string().safeParse(entry.name).data
+    const integrationLabel = entryName || entryId
 
     // Resolve environment variable references
     let resolvedEntry: unknown
@@ -105,9 +105,7 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
       resolvedEntry = resolveEnvVarRefs(entry)
     } catch (error) {
       if (error instanceof EnvVarResolutionError) {
-        const entryId = z.string().safeParse(entry.id).data
-        const entryName = z.string().safeParse(entry.name).data
-        const context = entryName || entryId ? `Integration "${entryName ?? entryId ?? 'Unknown'}": ` : ''
+        const context = integrationLabel ? `Integration "${integrationLabel}": ` : ''
         issues.push({
           path: error.path ? `${pathPrefix}.${error.path}` : pathPrefix,
           message: `${context}${error.message}`,
@@ -125,10 +123,8 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
       // Add validation issues with context about which integration failed
       const formattedIssues = formatZodIssues(result.error.issues, pathPrefix)
       // Add integration name/id to first issue for context
-      const entryId = z.string().safeParse(entry.id).data
-      const entryName = z.string().safeParse(entry.name).data
-      if (formattedIssues.length > 0 && (entryName || entryId)) {
-        formattedIssues[0].message = `Integration "${entryName || entryId}": ${formattedIssues[0].message}`
+      if (formattedIssues.length > 0 && integrationLabel) {
+        formattedIssues[0].message = `Integration "${integrationLabel}": ${formattedIssues[0].message}`
       }
       issues.push(...formattedIssues)
     }
@@ -142,7 +138,7 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
 
 /**
  * Get the default path for the integrations file relative to a .deepnote file.
- * @param deepnoteFilePath - Path to the .deepnote file
+ * @param deepnoteFileDir - Directory containing the .deepnote file
  * @returns Path to the integrations file in the same directory
  */
 export function getDefaultIntegrationsFilePath(deepnoteFileDir: string): string {

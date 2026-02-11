@@ -130,7 +130,7 @@ describe('dotenv utilities', () => {
     it('handles values with special characters', async () => {
       await updateDotEnv(envFilePath, { MY_VAR: 'pass$word#test' })
       const result = await readDotEnv(envFilePath)
-      expect(result).toEqual({ MY_VAR: 'pass$word#test' })
+      expect(result).toEqual({ MY_VAR: 'pass\\$word#test' })
     })
 
     it('handles values with spaces', async () => {
@@ -149,6 +149,23 @@ describe('dotenv utilities', () => {
       await updateDotEnv(envFilePath, { MY_VAR: 'say "hello"' })
       const result = await readDotEnv(envFilePath)
       expect(result).toEqual({ MY_VAR: 'say "hello"' })
+    })
+
+    it('handles values with single quotes and dollar signs', async () => {
+      // Single quotes force double-quoting; $ is escaped to \$ to prevent
+      // dotenv-expand from expanding $VAR patterns. dotenv.parse() preserves
+      // the backslash literally, so the roundtrip value includes \$.
+      await updateDotEnv(envFilePath, { MY_VAR: "it's $HOME" })
+      const content = await fs.readFile(envFilePath, 'utf-8')
+      expect(content).toBe(`MY_VAR="it's \\$HOME"\n`)
+      const result = await readDotEnv(envFilePath)
+      expect(result).toEqual({ MY_VAR: "it's \\$HOME" })
+    })
+
+    it('handles values with both single and double quotes', async () => {
+      await updateDotEnv(envFilePath, { MY_VAR: `it's called "test"` })
+      const result = await readDotEnv(envFilePath)
+      expect(result).toEqual({ MY_VAR: `it's called "test"` })
     })
 
     it('handles env: prefix values without resolving them', async () => {

@@ -12,15 +12,15 @@ export type { ApiIntegration } from './fetch-integrations'
 
 /**
  * JSON schema URL for the integrations file.
- * TODO - change to main branch when the schema is merged
+ * TODO - change to main branch when the PR is merged into main
  */
-const JSON_SCHEMA_URL =
+export const JSON_SCHEMA_URL =
   'https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json'
 
 /**
  * Schema comment for the YAML file.
  */
-const SCHEMA_COMMENT = `yaml-language-server: $schema=${JSON_SCHEMA_URL}`
+export const SCHEMA_COMMENT = `yaml-language-server: $schema=${JSON_SCHEMA_URL}`
 
 /**
  * Error thrown when the integrations property has an invalid type.

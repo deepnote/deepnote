@@ -6,7 +6,7 @@ import { type Document, isSeq, parseDocument } from 'yaml'
 import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { fetchIntegrations } from '../integrations/fetch-integrations'
-import { createNewDocument, mergeApiIntegrationsIntoDocument } from '../integrations/merge-integrations'
+import { createNewDocument, mergeApiIntegrationsIntoDocument, SCHEMA_COMMENT } from '../integrations/merge-integrations'
 import { debug, log, output } from '../output'
 import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
@@ -34,18 +34,6 @@ export {
  * Default API base URL.
  */
 export const DEFAULT_API_URL = 'https://api.deepnote.com'
-
-/**
- * JSON schema URL for the integrations file.
- * TODO - change to main branch when the schema is merged
- */
-const JSON_SCHEMA_URL =
-  'https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json'
-
-/**
- * Schema comment for the YAML file.
- */
-const SCHEMA_COMMENT = `yaml-language-server: $schema=${JSON_SCHEMA_URL}`
 
 // Re-export API types for backward compatibility
 export type { ApiIntegration, ApiResponse } from '../integrations/fetch-integrations'
@@ -180,11 +168,9 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
   if (stats.updatedCount > 0) {
     output(chalk.dim(`  Updated ${stats.updatedCount} existing integration(s)`))
   }
-  if (stats.existingCount > fetchedIntegrations.length) {
-    const preservedCount = finalCount - fetchedIntegrations.length
-    if (preservedCount > 0) {
-      output(chalk.dim(`  Preserved ${preservedCount} local-only integration(s)`))
-    }
+  const preservedCount = finalCount - fetchedIntegrations.length
+  if (preservedCount > 0) {
+    output(chalk.dim(`  Preserved ${preservedCount} local-only integration(s)`))
   }
   if (secretCount > 0) {
     output(chalk.dim(`  Stored ${secretCount} secret(s) in ${envFilePath}`))

@@ -62,15 +62,8 @@ describe('integrations command', () => {
   })
 
   describe('Token resolution', () => {
-    const originalEnv = process.env
-
     beforeEach(() => {
-      process.env = { ...originalEnv }
-      delete process.env.DEEPNOTE_TOKEN
-    })
-
-    afterEach(() => {
-      process.env = originalEnv
+      vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
     })
 
     it('uses --token flag when provided', () => {
@@ -99,23 +92,6 @@ describe('integrations command', () => {
 
   describe('API response validation', () => {
     it('validates correct API response structure', async () => {
-      const { z } = await import('zod')
-
-      const apiIntegrationSchema = z.object({
-        id: z.string(),
-        name: z.string(),
-        type: z.string(),
-        metadata: z.record(z.unknown()),
-        is_public: z.boolean(),
-        created_at: z.string(),
-        updated_at: z.string(),
-        federated_auth_method: z.string().nullable(),
-      })
-
-      const apiResponseSchema = z.object({
-        integrations: z.array(apiIntegrationSchema),
-      })
-
       const validResponse = {
         integrations: [
           {
@@ -331,7 +307,7 @@ describe('integrations command', () => {
 
       await updateDotEnv(envPath, { PASS: 'p$ss#word=123' })
       const result = await readDotEnv(envPath)
-      expect(result.PASS).toBe('p$ss#word=123')
+      expect(result.PASS).toBe('p\\$ss#word=123')
     })
   })
 
@@ -437,8 +413,8 @@ describe('integrations command', () => {
         await runPullCommand(['--file', filePath, '--env-file', envFilePath])
 
         // Files should not be created when no integrations
-        const fileExists = existsSync(filePath)
-        expect(fileExists).toBe(false)
+        const yamlFileExists = existsSync(filePath)
+        expect(yamlFileExists).toBe(false)
 
         const envFileExists = existsSync(envFilePath)
         expect(envFileExists).toBe(false)
@@ -747,11 +723,11 @@ integrations:
         await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
 
         // Files should not be created on error
-        const yamlContent = existsSync(filePath)
-        const envContent = existsSync(envFilePath)
+        const yamlFileExists = existsSync(filePath)
+        const envFileExists = existsSync(envFilePath)
 
-        expect(yamlContent).toBe(false)
-        expect(envContent).toBe(false)
+        expect(yamlFileExists).toBe(false)
+        expect(envFileExists).toBe(false)
       })
     })
 
@@ -764,11 +740,11 @@ integrations:
       await expect(runPullCommand(['--file', filePath, '--env-file', envFilePath])).rejects.toThrow()
 
       // Files should not be created on error
-      const yamlContent = existsSync(filePath)
-      const envContent = existsSync(envFilePath)
+      const yamlFileExists = existsSync(filePath)
+      const envFileExists = existsSync(envFilePath)
 
-      expect(yamlContent).toBe(false)
-      expect(envContent).toBe(false)
+      expect(yamlFileExists).toBe(false)
+      expect(envFileExists).toBe(false)
     })
 
     it('uses token from --token flag', async () => {
