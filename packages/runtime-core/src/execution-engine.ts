@@ -170,17 +170,17 @@ export class ExecutionEngine {
       }
     }
 
-    // For error reporting, use the single blockId (the primary target)
-    const primaryBlockId = options.blockId
-    if (primaryBlockId && allExecutableBlocks.length === 0) {
-      // Check if the block exists but is not executable
-      for (const notebook of notebooks) {
-        const block = notebook.blocks.find(b => b.id === primaryBlockId)
-        if (block) {
-          throw new Error(`Block "${primaryBlockId}" is not executable (type: ${block.type}).`)
-        }
+    // Validate blockIds when the filter yields no executable blocks.
+    if (options.blockIds && allExecutableBlocks.length === 0 && options.blockIds.length > 0) {
+      for (const blockId of options.blockIds) {
+        this.assertExecutableBlockExists(blockId, notebooks)
       }
-      throw new Error(`Block "${primaryBlockId}" not found in project`)
+    }
+
+    // For error reporting, use the single blockId only when blockIds is not provided.
+    const primaryBlockId = options.blockIds ? undefined : options.blockId
+    if (primaryBlockId && allExecutableBlocks.length === 0) {
+      this.assertExecutableBlockExists(primaryBlockId, notebooks)
     }
 
     const totalBlocks = allExecutableBlocks.length
@@ -245,6 +245,23 @@ export class ExecutionEngine {
    */
   private sortBlocks(blocks: DeepnoteBlock[]): DeepnoteBlock[] {
     return [...blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+  }
+
+  /**
+   * Ensure a requested block exists in the selected notebooks and is executable.
+   */
+  private assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['project']['notebooks']): void {
+    for (const notebook of notebooks) {
+      const block = notebook.blocks.find(b => b.id === blockId)
+      if (!block) {
+        continue
+      }
+      if (!isExecutableBlock(block)) {
+        throw new Error(`Block "${blockId}" is not executable (type: ${block.type}).`)
+      }
+      return
+    }
+    throw new Error(`Block "${blockId}" not found in project`)
   }
 
   /**
