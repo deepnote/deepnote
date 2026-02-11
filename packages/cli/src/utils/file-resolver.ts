@@ -24,6 +24,18 @@ export interface ResolvedPath {
   extension: string // lowercase, empty string for directories
 }
 
+export function isErrnoException(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error != null && 'code' in error && error.code === code
+}
+
+export function isErrnoENOENT(error: unknown): boolean {
+  return isErrnoException(error, 'ENOENT')
+}
+
+export function isErrnoENOTDIR(error: unknown): boolean {
+  return isErrnoException(error, 'ENOTDIR')
+}
+
 /**
  * General-purpose path resolution with proper error handling.
  *

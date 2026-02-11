@@ -1,0 +1,1505 @@
+{
+  "type": "object",
+  "properties": {
+    "integrations": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "alloydb"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string"
+                  },
+                  "user": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "database": {
+                    "type": "string"
+                  },
+                  "sshEnabled": {
+                    "type": "boolean"
+                  },
+                  "sshHost": {
+                    "type": "string"
+                  },
+                  "sshPort": {
+                    "type": "string"
+                  },
+                  "sshUser": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "sslEnabled": {
+                    "type": "boolean"
+                  },
+                  "caCertificateName": {
+                    "type": "string"
+                  },
+                  "caCertificateText": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "user", "password", "database"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "athena"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "access_key_id": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "s3_output_path": {
+                    "type": "string"
+                  },
+                  "secret_access_key": {
+                    "type": "string"
+                  },
+                  "workgroup": {
+                    "type": "string"
+                  }
+                },
+                "required": ["access_key_id", "region", "s3_output_path", "secret_access_key"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "big-query"
+              },
+              "metadata": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "authMethod": {
+                        "type": "string",
+                        "const": "service-account"
+                      },
+                      "service_account": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["service_account"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "authMethod": {
+                        "type": "string",
+                        "const": "google-oauth"
+                      },
+                      "project": {
+                        "type": "string"
+                      },
+                      "clientId": {
+                        "type": "string"
+                      },
+                      "clientSecret": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["authMethod", "project", "clientId", "clientSecret"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "federated_auth_method": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "not": {}
+                      },
+                      {
+                        "type": "string",
+                        "enum": ["service-account", "google-oauth"]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "clickhouse"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string"
+                  },
+                  "user": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "database": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "sshEnabled": {
+                    "type": "boolean"
+                  },
+                  "sshHost": {
+                    "type": "string"
+                  },
+                  "sshPort": {
+                    "type": "string"
+                  },
+                  "sshUser": {
+                    "type": "string"
+                  },
+                  "sslEnabled": {
+                    "type": "boolean"
+                  },
+                  "caCertificateName": {
+                    "type": "string"
+                  },
+                  "caCertificateText": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "user", "database"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "databricks"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string"
+                  },
+                  "httpPath": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "schema": {
+                    "type": "string"
+                  },
+                  "catalog": {
+                    "type": "string"
+                  },
+                  "sshEnabled": {
+                    "type": "boolean"
+                  },
+                  "sshHost": {
+                    "type": "string"
+                  },
+                  "sshPort": {
+                    "type": "string"
+                  },
+                  "sshUser": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "httpPath", "token", "port"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "dremio"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "host": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "sshEnabled": {
+                    "type": "boolean"
+                  },
+                  "sshHost": {
+                    "type": "string"
+                  },
+                  "sshPort": {
+                    "type": "string"
+                  },
+                  "sshUser": {
+                    "type": "string"
+                  }
+                },
+                "required": ["schema", "host", "port", "token"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "mariadb"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                  },
+                  "user": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                  },
+                  "password": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                  },
+                  "database": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                  },
+                  "sshEnabled": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                  },
+                  "sshHost": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                  },
+                  "sshPort": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                  },
+                  "sshUser": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "sslEnabled": {
+                    "type": "boolean"
+                  },
+                  "caCertificateName": {
+                    "type": "string"
+                  },
+                  "caCertificateText": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "user", "password", "database"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "materialize"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                  },
+                  "user": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                  },
+                  "password": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                  },
+                  "database": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                  },
+                  "sshEnabled": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                  },
+                  "sshHost": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                  },
+                  "sshPort": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                  },
+                  "sshUser": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "sslEnabled": {
+                    "type": "boolean"
+                  },
+                  "caCertificateName": {
+                    "type": "string"
+                  },
+                  "caCertificateText": {
+                    "type": "string"
+                  },
+                  "cluster": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "user", "password", "database", "cluster"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "mindsdb"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                  },
+                  "user": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                  },
+                  "password": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                  },
+                  "database": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                  },
+                  "sshEnabled": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                  },
+                  "sshHost": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                  },
+                  "sshPort": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                  },
+                  "sshUser": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "sslEnabled": {
+                    "type": "boolean"
+                  },
+                  "caCertificateName": {
+                    "type": "string"
+                  },
+                  "caCertificateText": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "user", "password", "database"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "mongodb"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "connection_string": {
+                    "type": "string"
+                  },
+                  "rawConnectionString": {
+                    "type": "string"
+                  },
+                  "prefix": {
+                    "type": "string"
+                  },
+                  "host": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "user": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "database": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "string"
+                  },
+                  "sshEnabled": {
+                    "type": "boolean"
+                  },
+                  "sshHost": {
+                    "type": "string"
+                  },
+                  "sshPort": {
+                    "type": "string"
+                  },
+                  "sshUser": {
+                    "type": "string"
+                  },
+                  "sslEnabled": {
+                    "type": "boolean"
+                  },
+                  "caCertificateName": {
+                    "type": "string"
+                  },
+                  "caCertificateText": {
+                    "type": "string"
+                  }
+                },
+                "required": ["connection_string"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "mysql"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                  },
+                  "user": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                  },
+                  "password": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                  },
+                  "database": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                  },
+                  "sshEnabled": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                  },
+                  "sshHost": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                  },
+                  "sshPort": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                  },
+                  "sshUser": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                  },
+                  "port": {
+                    "type": "string"
+                  },
+                  "sslEnabled": {
+                    "type": "boolean"
+                  },
+                  "caCertificateName": {
+                    "type": "string"
+                  },
+                  "caCertificateText": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "user", "password", "database"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "pandas-dataframe"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "pgsql"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                  },
+                  "user": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                  },
+                  "password": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                  },
+                  "database": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                  },
+                  "sshEnabled": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                  },
+                  "sshHost": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                  },
+                  "sshPort": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                  },
+                  "sshUser": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                  },
+                  "port": {
+                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/port"
+                  },
+                  "sslEnabled": {
+                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/sslEnabled"
+                  },
+                  "caCertificateName": {
+                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/caCertificateName"
+                  },
+                  "caCertificateText": {
+                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/caCertificateText"
+                  }
+                },
+                "required": ["host", "user", "password", "database"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "redshift"
+              },
+              "metadata": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "database": {
+                        "type": "string"
+                      },
+                      "host": {
+                        "type": "string"
+                      },
+                      "port": {
+                        "type": "string"
+                      },
+                      "sshEnabled": {
+                        "type": "boolean"
+                      },
+                      "sshHost": {
+                        "type": "string"
+                      },
+                      "sshPort": {
+                        "type": "string"
+                      },
+                      "sshUser": {
+                        "type": "string"
+                      },
+                      "sslEnabled": {
+                        "type": "boolean"
+                      },
+                      "caCertificateName": {
+                        "type": "string"
+                      },
+                      "caCertificateText": {
+                        "type": "string"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "username-and-password"
+                      },
+                      "user": {
+                        "type": "string"
+                      },
+                      "password": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["database", "host", "user", "password"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "host": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/host"
+                      },
+                      "port": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/port"
+                      },
+                      "sshEnabled": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshEnabled"
+                      },
+                      "sshHost": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshHost"
+                      },
+                      "sshPort": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshPort"
+                      },
+                      "sshUser": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshUser"
+                      },
+                      "sslEnabled": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sslEnabled"
+                      },
+                      "caCertificateName": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateName"
+                      },
+                      "caCertificateText": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateText"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "iam-role"
+                      },
+                      "roleArn": {
+                        "type": "string"
+                      },
+                      "roleExternalId": {
+                        "type": "string"
+                      },
+                      "roleNonce": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["database", "host", "authMethod", "roleArn", "roleExternalId", "roleNonce"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "host": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/host"
+                      },
+                      "port": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/port"
+                      },
+                      "sshEnabled": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshEnabled"
+                      },
+                      "sshHost": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshHost"
+                      },
+                      "sshPort": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshPort"
+                      },
+                      "sshUser": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshUser"
+                      },
+                      "sslEnabled": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sslEnabled"
+                      },
+                      "caCertificateName": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateName"
+                      },
+                      "caCertificateText": {
+                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateText"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "individual-credentials"
+                      }
+                    },
+                    "required": ["database", "host", "authMethod"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "federated_auth_method": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "not": {}
+                      },
+                      {
+                        "type": "string",
+                        "enum": ["username-and-password", "iam-role", "individual-credentials"]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "snowflake"
+              },
+              "metadata": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountName": {
+                        "type": "string"
+                      },
+                      "warehouse": {
+                        "type": "string"
+                      },
+                      "database": {
+                        "type": "string"
+                      },
+                      "role": {
+                        "type": "string"
+                      },
+                      "dbt": {
+                        "type": "boolean"
+                      },
+                      "dbtServiceToken": {
+                        "type": "string"
+                      },
+                      "dbtPrimaryJobId": {
+                        "type": "string"
+                      },
+                      "dbtProxyServerUrl": {
+                        "type": "string"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "password"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "password": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["accountName", "username", "password"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountName": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                      },
+                      "warehouse": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                      },
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "role": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                      },
+                      "dbt": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                      },
+                      "dbtServiceToken": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                      },
+                      "dbtPrimaryJobId": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                      },
+                      "dbtProxyServerUrl": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "okta"
+                      },
+                      "clientId": {
+                        "type": "string"
+                      },
+                      "clientSecret": {
+                        "type": "string"
+                      },
+                      "oktaSubdomain": {
+                        "type": "string"
+                      },
+                      "identityProvider": {
+                        "type": "string"
+                      },
+                      "authorizationServer": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "accountName",
+                      "authMethod",
+                      "clientId",
+                      "clientSecret",
+                      "oktaSubdomain",
+                      "identityProvider",
+                      "authorizationServer"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountName": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                      },
+                      "warehouse": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                      },
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "role": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                      },
+                      "dbt": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                      },
+                      "dbtServiceToken": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                      },
+                      "dbtPrimaryJobId": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                      },
+                      "dbtProxyServerUrl": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "snowflake"
+                      },
+                      "clientId": {
+                        "type": "string"
+                      },
+                      "clientSecret": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["accountName", "authMethod", "clientId", "clientSecret"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountName": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                      },
+                      "warehouse": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                      },
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "role": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                      },
+                      "dbt": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                      },
+                      "dbtServiceToken": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                      },
+                      "dbtPrimaryJobId": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                      },
+                      "dbtProxyServerUrl": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "azure"
+                      },
+                      "clientId": {
+                        "type": "string"
+                      },
+                      "clientSecret": {
+                        "type": "string"
+                      },
+                      "resource": {
+                        "type": "string"
+                      },
+                      "tenant": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["accountName", "authMethod", "clientId", "clientSecret", "resource", "tenant"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountName": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                      },
+                      "warehouse": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                      },
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "role": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                      },
+                      "dbt": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                      },
+                      "dbtServiceToken": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                      },
+                      "dbtPrimaryJobId": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                      },
+                      "dbtProxyServerUrl": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "key-pair"
+                      }
+                    },
+                    "required": ["accountName", "authMethod"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "accountName": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                      },
+                      "warehouse": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                      },
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "role": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                      },
+                      "dbt": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                      },
+                      "dbtServiceToken": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                      },
+                      "dbtPrimaryJobId": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                      },
+                      "dbtProxyServerUrl": {
+                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "service-account-key-pair"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "privateKey": {
+                        "type": "string"
+                      },
+                      "privateKeyPassphrase": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["accountName", "authMethod", "username", "privateKey"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "federated_auth_method": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "not": {}
+                      },
+                      {
+                        "type": "string",
+                        "enum": ["okta", "snowflake", "azure", "key-pair", "password", "service-account-key-pair"]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "spanner"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "service_account": {
+                    "type": "string"
+                  },
+                  "dataBoostEnabled": {
+                    "type": "boolean"
+                  },
+                  "instance": {
+                    "type": "string"
+                  },
+                  "database": {
+                    "type": "string"
+                  }
+                },
+                "required": ["service_account", "dataBoostEnabled", "instance", "database"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "sql-server"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                  },
+                  "user": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                  },
+                  "password": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                  },
+                  "database": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                  },
+                  "sshEnabled": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                  },
+                  "sshHost": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                  },
+                  "sshPort": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                  },
+                  "sshUser": {
+                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                  },
+                  "port": {
+                    "type": "string"
+                  }
+                },
+                "required": ["host", "user", "password", "database", "port"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+              },
+              "name": {
+                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+              },
+              "type": {
+                "type": "string",
+                "const": "trino"
+              },
+              "metadata": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "host": {
+                        "type": "string"
+                      },
+                      "port": {
+                        "type": "string"
+                      },
+                      "database": {
+                        "type": "string"
+                      },
+                      "sshEnabled": {
+                        "type": "boolean"
+                      },
+                      "sshHost": {
+                        "type": "string"
+                      },
+                      "sshPort": {
+                        "type": "string"
+                      },
+                      "sshUser": {
+                        "type": "string"
+                      },
+                      "sslEnabled": {
+                        "type": "boolean"
+                      },
+                      "caCertificateName": {
+                        "type": "string"
+                      },
+                      "caCertificateText": {
+                        "type": "string"
+                      },
+                      "authMethod": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "const": "password"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "user": {
+                        "type": "string"
+                      },
+                      "password": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["host", "database", "user", "password"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "host": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/host"
+                      },
+                      "port": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/port"
+                      },
+                      "database": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/database"
+                      },
+                      "sshEnabled": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshEnabled"
+                      },
+                      "sshHost": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshHost"
+                      },
+                      "sshPort": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshPort"
+                      },
+                      "sshUser": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshUser"
+                      },
+                      "sslEnabled": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sslEnabled"
+                      },
+                      "caCertificateName": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/caCertificateName"
+                      },
+                      "caCertificateText": {
+                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/caCertificateText"
+                      },
+                      "authMethod": {
+                        "type": "string",
+                        "const": "trino-oauth"
+                      },
+                      "clientId": {
+                        "type": "string"
+                      },
+                      "clientSecret": {
+                        "type": "string"
+                      },
+                      "authUrl": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "tokenUrl": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
+                    "required": ["host", "database", "authMethod", "clientId", "clientSecret", "authUrl", "tokenUrl"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "federated_auth_method": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "not": {}
+                      },
+                      {
+                        "type": "string",
+                        "enum": ["trino-oauth", "password"]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": ["integrations"],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
