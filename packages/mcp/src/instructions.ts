@@ -1,3 +1,5 @@
+import { TOOL_NAMES } from './tool-names'
+
 /**
  * Server instructions that get added to the AI's system prompt.
  * This is the MCP-standard way to provide "skills" to the AI.
@@ -8,7 +10,7 @@ Tools for creating, editing, running, and converting Deepnote notebooks (.deepno
 
 ## IMPORTANT: Always work in .deepnote format
 
-When something goes wrong, do NOT fall back to converting to .ipynb and working in Jupyter format. The .deepnote format has better debugging tools (\`deepnote_read\` with include=[lint,dag], \`deepnote_snapshot_load\`) that are not available for .ipynb files. Stay in .deepnote and use these tools to diagnose and fix issues. Only use \`deepnote_convert_to\` when the user explicitly asks for export.
+When something goes wrong, do NOT fall back to converting to .ipynb and working in Jupyter format. The .deepnote format has better debugging tools (\`${TOOL_NAMES.read}\` with include=[lint,dag], \`${TOOL_NAMES.snapshotLoad}\`) that are not available for .ipynb files. Stay in .deepnote and use these tools to diagnose and fix issues. Only use \`${TOOL_NAMES.convertTo}\` when the user explicitly asks for export.
 
 ## Structure
 
@@ -19,20 +21,20 @@ A \`.deepnote\` file is a **project** containing **notebooks**, each containing 
 
 ## Execution and Snapshots
 
-Execution outputs are saved to snapshot files (.snapshot.deepnote). Use \`deepnote_snapshot_load\` to inspect them -- do NOT read snapshot files directly.
+Execution outputs are saved to snapshot files (.snapshot.deepnote). Use \`${TOOL_NAMES.snapshotLoad}\` to inspect them -- do NOT read snapshot files directly.
 
 **Execution scopes (smallest to largest):**
-1. \`deepnote_run blockId=X\` - One block + dependencies (use during development)
-2. \`deepnote_run notebook=X\` - One notebook
-3. \`deepnote_run\` - All notebooks (use for final verification)
+1. \`${TOOL_NAMES.run} blockId=X\` - One block + dependencies (use during development)
+2. \`${TOOL_NAMES.run} notebook=X\` - One notebook
+3. \`${TOOL_NAMES.run}\` - All notebooks (use for final verification)
 
 Use \`dryRun: true\` to preview execution plan without running.
 
 ## Quick Start
 
-**Create:** Build incrementally with \`deepnote_create\` + \`deepnote_add_block\` + \`deepnote_run\`
-**Read:** \`deepnote_read\` with include=[structure,stats,lint,dag,all] for analysis, \`deepnote_cat\` for block contents
-**Convert:** \`deepnote_convert_to\` to import (.ipynb, .qmd, .py), \`deepnote_convert_from\` to export
+**Create:** Build incrementally with \`${TOOL_NAMES.create}\` + \`${TOOL_NAMES.addBlock}\` + \`${TOOL_NAMES.run}\`
+**Read:** \`${TOOL_NAMES.read}\` with include=[structure,stats,lint,dag,all] for analysis, \`${TOOL_NAMES.cat}\` for block contents
+**Convert:** \`${TOOL_NAMES.convertTo}\` to import (.ipynb, .qmd, .py), \`${TOOL_NAMES.convertFrom}\` to export
 
 ## Block Types
 
@@ -49,9 +51,9 @@ Use \`dryRun: true\` to preview execution plan without running.
 
 ## Incremental Development (recommended for complex logic)
 
-1. \`deepnote_create\` → \`deepnote_add_block\` → \`deepnote_run blockId=X\` → verify with \`deepnote_snapshot_load\`
+1. \`${TOOL_NAMES.create}\` → \`${TOOL_NAMES.addBlock}\` → \`${TOOL_NAMES.run} blockId=X\` → verify with \`${TOOL_NAMES.snapshotLoad}\`
 2. Repeat: add block → run → verify
-3. Once complete, \`deepnote_run\` full notebook/project
+3. Once complete, \`${TOOL_NAMES.run}\` full notebook/project
 
 Build block by block. Adding multiple blocks without testing after each one makes debugging harder.
 
@@ -60,6 +62,6 @@ Build block by block. Adding multiple blocks without testing after each one make
 - Start notebooks with a title (text-cell-h1) and introduction
 - Organize with section headers (text-cell-h2)
 - Convert hardcoded values to input blocks for interactivity
-- Use \`deepnote_read include=[lint]\` to catch issues before running
+- Use \`${TOOL_NAMES.read} include=[lint]\` to catch issues before running
 - Scope execution to the smallest level needed
 `

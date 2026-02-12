@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { serverInstructions } from './instructions'
 import { getPrompt, isPromptName, prompts } from './prompts'
+import { ALL_TOOL_NAMES, TOOL_NAMES } from './tool-names'
 
 describe('prompts', () => {
   describe('prompts array', () => {
@@ -75,16 +77,16 @@ describe('prompts', () => {
       expect(result.messages[0].content).toMatchObject({ type: 'text' })
       const content = result.messages[0].content as { type: string; text: string }
       expect(content.text).toContain('my_notebook.ipynb')
-      expect(content.text).toContain('deepnote_convert_to')
-      expect(content.text).toContain('deepnote_enhance')
+      expect(content.text).toContain(TOOL_NAMES.convertTo)
+      expect(content.text).toContain(TOOL_NAMES.addBlock)
     })
 
     it('returns fix_and_document prompt', () => {
       const result = getPrompt('fix_and_document', { notebook_path: 'analysis.deepnote' })
       const content = result.messages[0].content as { type: string; text: string }
       expect(content.text).toContain('analysis.deepnote')
-      expect(content.text).toContain('deepnote_lint')
-      expect(content.text).toContain('deepnote_fix')
+      expect(content.text).toContain(TOOL_NAMES.read)
+      expect(content.text).toContain(TOOL_NAMES.editBlock)
     })
 
     it('returns block_types_reference prompt', () => {
@@ -102,13 +104,52 @@ describe('prompts', () => {
       const content = result.messages[0].content as { type: string; text: string }
       expect(content.text).toContain('Structure')
       expect(content.text).toContain('Interactivity')
-      expect(content.text).toContain('deepnote_scaffold')
-      expect(content.text).toContain('deepnote_enhance')
+      expect(content.text).toContain(TOOL_NAMES.create)
+      expect(content.text).toContain(TOOL_NAMES.addBlock)
     })
 
     it('validates known prompt names', () => {
       expect(isPromptName('create_notebook')).toBe(true)
       expect(isPromptName('nonexistent_prompt')).toBe(false)
+    })
+
+    it('does not reference unknown deepnote_* tool names in instructions or prompts', () => {
+      const allowedTokens = new Set([
+        ...ALL_TOOL_NAMES,
+        // Metadata keys intentionally documented in prose examples.
+        'deepnote_variable_name',
+        'deepnote_input_label',
+        'deepnote_input_default',
+        'deepnote_input_min',
+        'deepnote_input_max',
+        'deepnote_input_step',
+        'deepnote_input_options',
+        'deepnote_input_presets',
+        'deepnote_button_label',
+        'deepnote_big_number_template',
+      ])
+      const tokenPattern = /\bdeepnote_[a-z_]+\b/g
+      const unknownTokens: string[] = []
+
+      const promptTexts = prompts.map(prompt => {
+        const result = getPrompt(prompt.name, undefined)
+        const firstMessage = result.messages[0]
+        if (!firstMessage || firstMessage.content.type !== 'text') {
+          return ''
+        }
+        return firstMessage.content.text
+      })
+
+      const allTexts = [serverInstructions, ...promptTexts]
+      for (const text of allTexts) {
+        for (const token of text.match(tokenPattern) ?? []) {
+          if (!allowedTokens.has(token)) {
+            unknownTokens.push(token)
+          }
+        }
+      }
+
+      expect(new Set(unknownTokens)).toEqual(new Set())
     })
   })
 })

@@ -12,6 +12,7 @@ import {
 import { serverInstructions } from './instructions'
 import { getPrompt, isPromptName, prompts } from './prompts'
 import { listResources, readResource } from './resources'
+import { TOOL_NAMES } from './tool-names'
 import { conversionTools, handleConversionTool } from './tools/conversion'
 import { executionTools, handleExecutionTool } from './tools/execution'
 import { handleReadingTool, readingTools } from './tools/reading'
@@ -100,7 +101,7 @@ export function createServer(): Server {
         return await handleConversionTool(name, args)
       }
 
-      if (name === 'deepnote_run') {
+      if (name === TOOL_NAMES.run) {
         return await handleExecutionTool(name, args)
       }
 

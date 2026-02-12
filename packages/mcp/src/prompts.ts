@@ -1,4 +1,5 @@
 import type { GetPromptResult, Prompt } from '@modelcontextprotocol/sdk/types.js'
+import { TOOL_NAMES } from './tool-names'
 
 export const prompts = [
   {
@@ -125,13 +126,13 @@ ${errorMessage ? `Error message: ${errorMessage}` : ''}
 
 **All execution outputs are saved to snapshot files.** After running a notebook:
 1. The response includes \`snapshotPath\` - this is where all results live
-2. Use \`deepnote_snapshot_load\` to inspect outputs
+2. Use \`${TOOL_NAMES.snapshotLoad}\` to inspect outputs
 
 ## Debugging Workflow
 
 ### Step 1: Run the notebook
 \`\`\`
-deepnote_run path="${notebookPath}"
+${TOOL_NAMES.run} path="${notebookPath}"
 \`\`\`
 
 The response will include:
@@ -141,7 +142,7 @@ The response will include:
 
 ### Step 2: Inspect the snapshot
 \`\`\`
-deepnote_snapshot_load path="<snapshotPath from step 1>"
+${TOOL_NAMES.snapshotLoad} path="<snapshotPath from step 1>"
 \`\`\`
 
 The snapshot contains:
@@ -153,22 +154,22 @@ The snapshot contains:
 ### Step 3: Debug issues
 If blocks failed:
 1. Check error messages in the snapshot
-2. Use \`deepnote_cat path="${notebookPath}" blockId="<failed-block-id>"\` to see the code
-3. Fix the issue with \`deepnote_edit_block\`
+2. Use \`${TOOL_NAMES.cat} path="${notebookPath}" blockId="<failed-block-id>"\` to see the code
+3. Fix the issue with \`${TOOL_NAMES.editBlock}\`
 4. Re-run and compare snapshots
 
 ### Step 4: Compare runs
-Each run creates a new snapshot. Use \`deepnote_snapshot_list\` to see history and compare outputs between runs.
+Each run creates a new snapshot. Use \`${TOOL_NAMES.snapshotList}\` to see history and compare outputs between runs.
 
 ## Key Tools
 
 | Tool | Purpose |
 |------|---------|
-| deepnote_run | Execute notebook, save outputs to snapshot |
-| deepnote_snapshot_load | **Load outputs**, errors, timing from snapshot |
-| deepnote_snapshot_list | Find available snapshots |
-| deepnote_cat | View block source code |
-| deepnote_edit_block | Fix code issues |`,
+| ${TOOL_NAMES.run} | Execute notebook, save outputs to snapshot |
+| ${TOOL_NAMES.snapshotLoad} | **Load outputs**, errors, timing from snapshot |
+| ${TOOL_NAMES.snapshotList} | Find available snapshots |
+| ${TOOL_NAMES.cat} | View block source code |
+| ${TOOL_NAMES.editBlock} | Fix code issues |`,
         },
       },
     ],
@@ -190,22 +191,30 @@ function getCreateNotebookPrompt(args: Record<string, string> | undefined): GetP
 
 Data source: ${dataSource}
 
-Use the deepnote_scaffold tool with these guidelines:
-- Set style to "documented" for clear explanations
-- The description should be specific about what the notebook does
-- Include data loading, exploration, and output sections
+Use available notebook editing tools with these guidelines:
+- Start with \`${TOOL_NAMES.create}\` to create the project/notebook shell
+- Use \`${TOOL_NAMES.addBlock}\` to incrementally add analysis blocks
+- Keep sections small and run often with \`${TOOL_NAMES.run}\`
 
 Example tool call:
 {
-  "name": "deepnote_scaffold",
+  "name": "${TOOL_NAMES.create}",
   "arguments": {
-    "description": "${purpose} notebook that loads data from ${dataSource}, explores with summary statistics, and creates visualizations",
+    "projectName": "${purpose}",
     "outputPath": "notebook.deepnote",
-    "style": "documented"
+    "notebooks": [
+      {
+        "name": "Notebook 1",
+        "blocks": [
+          { "type": "text-cell-h1", "content": "${purpose}" },
+          { "type": "markdown", "content": "Data source: ${dataSource}" }
+        ]
+      }
+    ]
   }
 }
 
-After creating, consider using deepnote_enhance to add:
+After creating, continue with \`${TOOL_NAMES.addBlock}\` and \`${TOOL_NAMES.editBlock}\` to add:
 - Interactive inputs for configurable parameters
 - Better documentation between code sections`,
         },
@@ -229,25 +238,23 @@ function getConvertAndEnhancePrompt(args: Record<string, string> | undefined): G
 Follow this workflow:
 
 1. **Convert to Deepnote format**:
-   Use deepnote_convert_to with inputPath: "${sourcePath}"
+   Use ${TOOL_NAMES.convertTo} with inputPath: "${sourcePath}"
    Format will be auto-detected from content.
 
 2. **Inspect the result**:
-   Use deepnote_inspect to see the structure and block counts.
+   Use ${TOOL_NAMES.read} with include: ["structure", "stats"].
 
-3. **Enhance with interactivity**:
-   Use deepnote_enhance with enhancements: ["all"]
-   This adds:
-   - Markdown documentation between code sections
-   - Input widgets for hardcoded values (sliders, dropdowns)
-   - DataFrame table displays
-   - Section headers
+3. **Enhance with interactivity and docs**:
+   Use ${TOOL_NAMES.addBlock} and ${TOOL_NAMES.editBlock} to:
+   - Add markdown documentation between code sections
+   - Replace hardcoded values with input widgets
+   - Add section headers and summary blocks
 
 4. **Check for issues**:
-   Use deepnote_lint to find undefined variables or other problems.
+   Use ${TOOL_NAMES.read} with include: ["lint", "dag"] to find undefined variables and dependency issues.
 
-5. **Get suggestions**:
-   Use deepnote_suggest for additional improvement ideas.
+5. **Run and inspect outputs**:
+   Use ${TOOL_NAMES.run} and then ${TOOL_NAMES.snapshotLoad} using the returned snapshotPath.
 
 The result will be a well-documented, interactive Deepnote notebook.`,
         },
@@ -271,30 +278,23 @@ function getFixAndDocumentPrompt(args: Record<string, string> | undefined): GetP
 Follow this workflow:
 
 1. **Check for issues**:
-   Use deepnote_lint to identify:
+   Use ${TOOL_NAMES.read} with include: ["lint", "dag"] to identify:
    - Undefined variables
    - Missing imports
    - Circular dependencies
 
-2. **Auto-fix issues**:
-   Use deepnote_fix with dryRun: true first to preview
-   Then deepnote_fix to apply fixes for:
-   - Missing imports (adds them to first code block)
-   - Flagged undefined variables
+2. **Inspect and fix affected blocks**:
+   Use ${TOOL_NAMES.cat} path: "${notebookPath}" blockId: "<failed-or-flagged-block-id>"
+   Then use ${TOOL_NAMES.editBlock} to apply fixes.
 
-3. **Add documentation**:
-   Use deepnote_enhance with enhancements: ["documentation", "structure"]
-   This adds:
+3. **Add documentation and structure**:
+   Use ${TOOL_NAMES.addBlock} to add:
    - Markdown explanations before code blocks
    - Section headers to organize the notebook
 
-4. **Generate README**:
-   Use deepnote_explain with format: "markdown" and detail: "comprehensive"
-   This creates documentation explaining:
-   - What the notebook does
-   - Data flow between blocks
-   - Required dependencies
-   - How to run it`,
+4. **Re-run and verify**:
+   Use ${TOOL_NAMES.run} and inspect results with ${TOOL_NAMES.snapshotLoad}.
+   Use ${TOOL_NAMES.snapshotList} to review output history between runs.`,
         },
       },
     ],
@@ -357,7 +357,7 @@ function getBlockTypesReferencePrompt(): GetPromptResult {
 }
 \`\`\`
 
-Use deepnote_add_block to add blocks with these types and metadata.`,
+Use ${TOOL_NAMES.addBlock} to add blocks with these types and metadata.`,
         },
       },
     ],
@@ -403,19 +403,19 @@ function getBestPracticesPrompt(): GetPromptResult {
 ## Tools Workflow
 
 **For new notebooks:**
-1. deepnote_scaffold → Creates complete notebook from description
-2. deepnote_enhance → Adds inputs and better docs
-3. deepnote_suggest → Get improvement ideas
+1. ${TOOL_NAMES.create} → Creates project and initial notebook
+2. ${TOOL_NAMES.addBlock} → Adds content and interactivity incrementally
+3. ${TOOL_NAMES.run} → Validates the notebook end-to-end
 
 **For existing notebooks:**
-1. deepnote_lint → Find issues
-2. deepnote_fix → Auto-fix problems
-3. deepnote_enhance → Improve interactivity
+1. ${TOOL_NAMES.read} include=["lint","dag"] → Find issues
+2. ${TOOL_NAMES.cat} + ${TOOL_NAMES.editBlock} → Inspect and fix blocks
+3. ${TOOL_NAMES.run} + ${TOOL_NAMES.snapshotLoad} → Verify behavior
 
 **For analysis:**
-1. deepnote_inspect → See structure
-2. deepnote_dag → View dependencies
-3. deepnote_explain → Generate docs`,
+1. ${TOOL_NAMES.read} include=["structure","stats"] → See structure
+2. ${TOOL_NAMES.read} include=["dag"] → View dependencies
+3. ${TOOL_NAMES.snapshotLoad} → Inspect outputs from previous runs`,
         },
       },
     ],
