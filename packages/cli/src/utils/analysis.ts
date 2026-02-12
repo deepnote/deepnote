@@ -11,6 +11,7 @@ import {
   INPUT_BLOCK_TYPES,
 } from '@deepnote/blocks'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
+import { BUILTIN_INTEGRATIONS } from '../constants'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'
 
@@ -94,13 +95,6 @@ export interface AnalysisResult {
   lint: LintResult
   dag: BlockDependencyDag
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/** Built-in integrations that don't require external configuration */
-const BUILTIN_INTEGRATIONS = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
 
 // ============================================================================
 // Main Analysis Functions
