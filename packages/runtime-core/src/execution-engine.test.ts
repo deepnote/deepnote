@@ -277,6 +277,76 @@ describe('ExecutionEngine', () => {
         expect(mockKernelClient.execute).toHaveBeenCalledTimes(1)
       })
 
+      it('filters by multiple block IDs', async () => {
+        // Get two different executable blocks
+        const allExecutableBlocks = BLOCKS_EXAMPLE.project.notebooks
+          .flatMap(n => n.blocks)
+          .filter(b => b.type === 'code' || b.type.startsWith('input-'))
+        const blockIds = allExecutableBlocks.slice(0, 3).map(b => b.id)
+
+        await engine.start()
+        const summary = await engine.runProject(BLOCKS_EXAMPLE, { blockIds })
+
+        expect(summary.totalBlocks).toBe(3)
+        expect(mockKernelClient.execute).toHaveBeenCalledTimes(3)
+      })
+
+      it('blockIds takes precedence over blockId', async () => {
+        const allExecutableBlocks = BLOCKS_EXAMPLE.project.notebooks
+          .flatMap(n => n.blocks)
+          .filter(b => b.type === 'code' || b.type.startsWith('input-'))
+        const blockIds = allExecutableBlocks.slice(0, 2).map(b => b.id)
+
+        await engine.start()
+        const summary = await engine.runProject(BLOCKS_EXAMPLE, {
+          blockId: allExecutableBlocks[0].id,
+          blockIds,
+        })
+
+        expect(summary.totalBlocks).toBe(2)
+        expect(mockKernelClient.execute).toHaveBeenCalledTimes(2)
+      })
+
+      it('ignores non-existent blockIds', async () => {
+        const allExecutableBlocks = BLOCKS_EXAMPLE.project.notebooks
+          .flatMap(n => n.blocks)
+          .filter(b => b.type === 'code' || b.type.startsWith('input-'))
+        const blockIds = [allExecutableBlocks[0].id, 'non-existent-id', allExecutableBlocks[1].id]
+
+        await engine.start()
+        const summary = await engine.runProject(BLOCKS_EXAMPLE, { blockIds })
+
+        expect(summary.totalBlocks).toBe(2)
+        expect(mockKernelClient.execute).toHaveBeenCalledTimes(2)
+      })
+
+      it('ignores non-executable blockIds', async () => {
+        const allExecutableBlocks = BLOCKS_EXAMPLE.project.notebooks
+          .flatMap(n => n.blocks)
+          .filter(b => b.type === 'code' || b.type.startsWith('input-'))
+        const nonExecutableBlock = BLOCKS_EXAMPLE.project.notebooks
+          .flatMap(n => n.blocks)
+          .find(b => b.type !== 'code' && !b.type.startsWith('input-'))
+        if (!nonExecutableBlock) throw new Error('No non-executable block found in test data')
+        const blockIds = [allExecutableBlocks[0].id, nonExecutableBlock.id, allExecutableBlocks[1].id]
+
+        await engine.start()
+        const summary = await engine.runProject(BLOCKS_EXAMPLE, { blockIds })
+
+        expect(summary.totalBlocks).toBe(2)
+        expect(mockKernelClient.execute).toHaveBeenCalledTimes(2)
+      })
+
+      it('handles empty blockIds array', async () => {
+        await engine.start()
+        const summary = await engine.runProject(BLOCKS_EXAMPLE, { blockIds: [] })
+
+        expect(summary.totalBlocks).toBe(0)
+        expect(summary.executedBlocks).toBe(0)
+        expect(summary.failedBlocks).toBe(0)
+        expect(mockKernelClient.execute).not.toHaveBeenCalled()
+      })
+
       it('throws if filtered notebook not found', async () => {
         await engine.start()
 
@@ -291,6 +361,27 @@ describe('ExecutionEngine', () => {
         await expect(engine.runProject(BLOCKS_EXAMPLE, { blockId: 'nonexistent-block-id' })).rejects.toThrow(
           'Block "nonexistent-block-id" not found in project'
         )
+      })
+
+      it('throws if all filtered blockIds are non-executable', async () => {
+        const markdownBlocks = BLOCKS_EXAMPLE.project.notebooks
+          .flatMap(n => n.blocks)
+          .filter(b => b.type === 'markdown')
+        if (markdownBlocks.length === 0) throw new Error('No markdown blocks found in test data')
+
+        await engine.start()
+
+        await expect(
+          engine.runProject(BLOCKS_EXAMPLE, { blockIds: markdownBlocks.map(block => block.id) })
+        ).rejects.toThrow(`Block "${markdownBlocks[0].id}" is not executable (type: markdown).`)
+      })
+
+      it('throws if all filtered blockIds are missing', async () => {
+        await engine.start()
+
+        await expect(
+          engine.runProject(BLOCKS_EXAMPLE, { blockIds: ['missing-block-id-1', 'missing-block-id-2'] })
+        ).rejects.toThrow('Block "missing-block-id-1" not found in project')
       })
     })
 
