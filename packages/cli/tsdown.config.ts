@@ -1,6 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'tsdown'
+
+const currentDir =
+  typeof __dirname !== 'undefined'
+    ? __dirname
+    : // @ts-expect-error: Safe ESM fallback; import.meta.url is only evaluated in ESM where __dirname is undefined.
+      path.dirname(fileURLToPath(import.meta.url))
 
 function copyDirSync(src: string, dest: string): void {
   fs.mkdirSync(dest, { recursive: true })
@@ -20,8 +27,8 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   dts: true,
   onSuccess() {
-    const skillsSrc = path.resolve(__dirname, '../../skills/deepnote')
-    const skillsDest = path.resolve(__dirname, 'dist/skills/deepnote')
+    const skillsSrc = path.resolve(currentDir, '../../skills/deepnote')
+    const skillsDest = path.resolve(currentDir, 'dist/skills/deepnote')
     if (!fs.existsSync(skillsSrc)) {
       console.warn('Skills source directory not found, skipping copy:', skillsSrc)
       return
