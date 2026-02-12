@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { loadLatestSnapshot } from '@deepnote/convert'
 import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
@@ -76,6 +77,7 @@ export interface RunOptions {
   profile?: boolean
   open?: boolean
   context?: boolean
+  forceUpstreamBlocks?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -342,7 +344,9 @@ function assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['p
 async function resolveUpstreamExecutionBlockIds(
   file: DeepnoteFile,
   options: { notebook?: string; block?: string },
-  pythonInterpreter: string
+  pythonInterpreter: string,
+  sourcePath?: string,
+  forceUpstreamBlocks?: boolean
 ): Promise<string[] | undefined> {
   if (!options.block) {
     return undefined
@@ -375,15 +379,90 @@ async function resolveUpstreamExecutionBlockIds(
     }
   }
 
-  const upstreamIds = upstreamResult.blocksToExecuteWithDeps
+  let upstreamIds = upstreamResult.blocksToExecuteWithDeps
     .filter(block => block.id !== options.block)
     .map(block => block.id)
   if (upstreamIds.length === 0) {
     return undefined
   }
+
+  // Skip upstream blocks that have valid cached outputs (matching contentHash)
+  if (sourcePath && !forceUpstreamBlocks) {
+    upstreamIds = await filterCachedUpstreamBlocks(upstreamIds, file, sourcePath)
+    if (upstreamIds.length === 0) {
+      debug('All upstream dependencies have valid cached outputs, running only target block')
+      return undefined
+    }
+  }
+
   const blockIds = [...new Set([...upstreamIds, options.block])]
   debug(`Block ${options.block} has ${upstreamIds.length} upstream dependencies: ${upstreamIds.join(', ')}`)
   return blockIds
+}
+
+/**
+ * Filter out upstream block IDs that have valid cached outputs in the latest snapshot.
+ * A block is considered cached if:
+ * - It has outputs in the snapshot
+ * - Its contentHash in the snapshot matches the current source contentHash
+ */
+async function filterCachedUpstreamBlocks(
+  upstreamIds: string[],
+  file: DeepnoteFile,
+  sourcePath: string
+): Promise<string[]> {
+  let snapshot: Awaited<ReturnType<typeof loadLatestSnapshot>>
+  try {
+    snapshot = await loadLatestSnapshot(sourcePath, file.project.id)
+  } catch (e) {
+    debug(`Failed to load snapshot for cache check: ${e instanceof Error ? e.message : String(e)}`)
+    return upstreamIds
+  }
+
+  if (!snapshot) {
+    debug('No snapshot found, all upstream dependencies will be re-run')
+    return upstreamIds
+  }
+
+  // Build snapshot block lookup: id → { contentHash, hasOutputs }
+  const snapshotBlocks = new Map<string, { contentHash?: string; hasOutputs: boolean }>()
+  for (const notebook of snapshot.project.notebooks) {
+    for (const block of notebook.blocks) {
+      const execBlock = block as typeof block & { outputs?: unknown[] }
+      snapshotBlocks.set(block.id, {
+        contentHash: block.contentHash,
+        hasOutputs: (execBlock.outputs?.length ?? 0) > 0,
+      })
+    }
+  }
+
+  // Build source block lookup: id → contentHash
+  const sourceHashes = new Map<string, string | undefined>()
+  for (const notebook of file.project.notebooks) {
+    for (const block of notebook.blocks) {
+      sourceHashes.set(block.id, block.contentHash)
+    }
+  }
+
+  // Filter: keep only upstream blocks that need re-execution
+  return upstreamIds.filter(id => {
+    const cached = snapshotBlocks.get(id)
+    if (!cached?.hasOutputs) {
+      debug(`Upstream block ${id}: no cached outputs, will re-run`)
+      return true
+    }
+    const sourceHash = sourceHashes.get(id)
+    if (!cached.contentHash || !sourceHash) {
+      debug(`Upstream block ${id}: missing contentHash, will re-run`)
+      return true
+    }
+    if (cached.contentHash !== sourceHash) {
+      debug(`Upstream block ${id}: contentHash changed, will re-run`)
+      return true
+    }
+    debug(`Upstream block ${id}: cached outputs valid, skipping`)
+    return false
+  })
 }
 
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
@@ -569,7 +648,13 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
   const { absolutePath, file, isMachineOutput, pythonEnv } = await setupProject(path, options)
-  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const blockIds = await resolveUpstreamExecutionBlockIds(
+    file,
+    options,
+    pythonEnv,
+    absolutePath,
+    options.forceUpstreamBlocks
+  )
   const executableBlocks = collectExecutableBlocks(file, { ...options, blockIds })
 
   const notebookCount = options.notebook ? 1 : file.project.notebooks.length
@@ -811,7 +896,13 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track execution timing for snapshot
   const executionStartedAt = new Date().toISOString()
 
-  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const blockIds = await resolveUpstreamExecutionBlockIds(
+    file,
+    options,
+    pythonEnv,
+    absolutePath,
+    options.forceUpstreamBlocks
+  )
 
   try {
     // Use runProject instead of runFile since we may have converted the file in memory
