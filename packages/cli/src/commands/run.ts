@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
@@ -13,17 +14,14 @@ import {
   type DeepnoteBlock as RuntimeDeepnoteBlock,
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { stringify as serializeToYaml } from 'yaml'
+import { DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
+import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
-import {
-  analyzeProject,
-  buildBlockMap,
-  diagnoseBlockFailure,
-  getIntegrationEnvVarName,
-  type ProjectStats,
-} from '../utils/analysis'
+import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -186,12 +184,17 @@ interface ProjectSetup {
  * - .qmd - Quarto document (auto-converted)
  */
 async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
+  const isMachineOutput = options.output !== undefined
+
   const convertedFile = await resolveAndConvertToDeepnote(path)
   const { file, originalPath: absolutePath, wasConverted, format } = convertedFile
 
   const workingDirectory = options.cwd ?? dirname(absolutePath)
+
+  dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
+
   const pythonEnv = options.python ?? detectDefaultPython()
-  const isMachineOutput = options.output !== undefined
+
   const inputs = parseInputs(options.input)
 
   if (!isMachineOutput) {
@@ -202,8 +205,51 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
     }
   }
 
+  // Parse integrations file (if it exists)
+  const integrationsFilePath = getDefaultIntegrationsFilePath(workingDirectory)
+  const parsedIntegrations = await parseIntegrationsFile(integrationsFilePath)
+
+  // Show any integration parsing issues (non-fatal warnings)
+  if (parsedIntegrations.issues.length > 0) {
+    if (!isMachineOutput) {
+      log(getChalk().yellow(`Warning: Some integrations in ${integrationsFilePath} could not be parsed:`))
+      for (const issue of parsedIntegrations.issues) {
+        const pathStr = issue.path ? getChalk().dim(`${issue.path}: `) : ''
+        log(`  ${getChalk().yellow('•')} ${pathStr}${issue.message}`)
+      }
+      log('') // Blank line after warnings
+    } else {
+      // In machine output mode, still log to debug for troubleshooting
+      for (const issue of parsedIntegrations.issues) {
+        debug(`Integration parsing issue: ${issue.path ? `${issue.path}: ` : ''}${issue.message}`)
+      }
+    }
+  }
+
+  debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
+
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, options.notebook)
+  await validateRequirements(file, inputs, pythonEnv, parsedIntegrations.integrations, options.notebook)
+
+  // Inject integration environment variables into process.env
+  // This allows SQL blocks to access database connections
+  if (parsedIntegrations.integrations.length > 0) {
+    const { envVars, errors } = getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
+      projectRootDirectory: workingDirectory,
+    })
+
+    // Log any errors from env var generation
+    for (const error of errors) {
+      debug(`Integration env var error: ${error.message}`)
+    }
+
+    // Inject env vars into process.env
+    for (const { name, value } of envVars) {
+      process.env[name] = value
+    }
+
+    debug(`Injected ${envVars.length} environment variables for integrations`)
+  }
 
   return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
 }
@@ -486,7 +532,7 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
  * Validate that all required configuration is present before running.
  * Checks for:
  * - Missing input variables (used before defined, no --input provided)
- * - Missing database integrations (SQL blocks without env vars)
+ * - Missing database integrations (SQL blocks not in integrations config)
  *
  * Throws MissingInputError or MissingIntegrationError (exit code 2) on failure.
  */
@@ -494,6 +540,7 @@ async function validateRequirements(
   file: DeepnoteFile,
   providedInputs: Record<string, unknown>,
   pythonInterpreter: string,
+  integrations: DatabaseIntegrationConfig[],
   notebookName?: string
 ): Promise<void> {
   const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
@@ -510,17 +557,18 @@ async function validateRequirements(
   // Built-in integrations that don't require external configuration
   const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
 
-  const missingIntegrations: Array<{ id: string; envVar: string }> = []
+  const missingIntegrations: Array<{ id: string }> = []
   for (const block of allBlocks) {
     if (block.type === 'sql') {
       const metadata = block.metadata as Record<string, unknown>
       const integrationId = metadata.sql_integration_id as string | undefined
       if (integrationId && !builtInIntegrations.has(integrationId)) {
-        const envVarName = getIntegrationEnvVarName(integrationId)
-        if (!process.env[envVarName]) {
+        // Check if integration is configured in the integrations file
+        // Use lowercase for case-insensitive UUID matching
+        if (!integrations.some(i => i.id.toLowerCase() === integrationId.toLowerCase())) {
           // Check if we haven't already recorded this integration
           if (!missingIntegrations.some(i => i.id === integrationId)) {
-            missingIntegrations.push({ id: integrationId, envVar: envVarName })
+            missingIntegrations.push({ id: integrationId })
           }
         }
       }
@@ -528,12 +576,12 @@ async function validateRequirements(
   }
 
   if (missingIntegrations.length > 0) {
-    const envVarList = missingIntegrations.map(i => `  ${i.envVar}`).join('\n')
+    const integrationList = missingIntegrations.map(i => `  - ${i.id}`).join('\n')
     throw new MissingIntegrationError(
       `Missing database integration configuration.\n\n` +
         `The following SQL blocks require database integrations that are not configured:\n` +
-        `${envVarList}\n\n` +
-        `Set the environment variables with your database connection details.\n` +
+        `${integrationList}\n\n` +
+        `Add the integration configuration to your integrations file.\n` +
         `See: https://docs.deepnote.com/integrations for integration configuration.`,
       missingIntegrations.map(i => i.id)
     )

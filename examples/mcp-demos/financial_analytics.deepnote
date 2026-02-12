@@ -1,0 +1,135 @@
+version: "1.0"
+metadata:
+  createdAt: 2026-01-28T15:52:55.376Z
+  modifiedAt: 2026-01-28T15:52:55.377Z
+project:
+  id: 4821a8f4-826b-44cb-b2f5-dc1c29ee2c69
+  name: Financial Analytics Report
+  notebooks:
+    - id: efedbf5e-9ff8-4db9-92d7-6ff7086fcee5
+      name: Notebook
+      blocks:
+        - id: 8e3a1bd9-2f91-47a1-a589-a3a7394761ca
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000000"
+          type: text-cell-h1
+          content: Analysis Report
+          metadata: {}
+        - id: c3f8145c-7c5d-4627-8aee-11edd9fd84c2
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000001"
+          type: markdown
+          content: |-
+            ## Executive Summary
+
+            This report presents the analysis of [describe data source]. Key findings include:
+            - Finding 1
+            - Finding 2
+            - Finding 3
+
+            **Recommendation:** [Your recommendation here]
+          metadata: {}
+        - id: 74c25b04-d534-4718-a96a-3fbb8f3513d7
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000002"
+          type: text-cell-h2
+          content: Data Overview
+          metadata: {}
+        - id: 443e4f8d-e986-4af4-9e8f-15e8ac99a95f
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000003"
+          type: code
+          content: |-
+            import pandas as pd
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+
+            # Load data
+            # df = pd.read_csv('data.csv')
+            # print(f"Dataset: {len(df)} rows, {len(df.columns)} columns")
+            # df.describe()
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 7eb81ac4-59d3-46df-93be-fbda222b3bcd
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000004"
+          type: text-cell-h2
+          content: Key Findings
+          metadata: {}
+        - id: 65043583-9056-4cfb-8c15-43bf5c03d599
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000005"
+          type: text-cell-h3
+          content: "Finding 1: [Title]"
+          metadata: {}
+        - id: 75b3cfd7-b003-44b8-b016-b4276af85aa4
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000006"
+          type: markdown
+          content: Description of the first key finding and its implications.
+          metadata: {}
+        - id: 1bf84e1c-f537-42dd-82c8-f379a66bc40e
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000007"
+          type: code
+          content: |-
+            # Visualization or analysis supporting Finding 1
+            # plt.figure(figsize=(10, 6))
+            # ...
+            # plt.show()
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 2024957d-486a-4343-a787-f1b7d9b2fb13
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000008"
+          type: text-cell-h3
+          content: "Finding 2: [Title]"
+          metadata: {}
+        - id: f6c6a2f2-f577-4395-bfff-5d755ee4dbd2
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000009"
+          type: markdown
+          content: Description of the second key finding and its implications.
+          metadata: {}
+        - id: beea1315-f38c-4561-aef7-312058f92af1
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000010"
+          type: code
+          content: |-
+            # Visualization or analysis supporting Finding 2
+            # plt.figure(figsize=(10, 6))
+            # ...
+            # plt.show()
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 06f2ea04-0a77-4f27-b078-37e3563ee7fb
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000011"
+          type: text-cell-h2
+          content: Conclusions & Recommendations
+          metadata: {}
+        - id: ead084ef-8c42-44d2-a534-f77fd7d981a6
+          blockGroup: 877f8089-8334-4027-9447-cf4813c00ede
+          sortingKey: "000012"
+          type: markdown
+          content: |-
+            ### Conclusions
+
+            Based on our analysis:
+            1. Conclusion 1
+            2. Conclusion 2
+
+            ### Recommendations
+
+            We recommend the following actions:
+            1. **Action 1**: Description
+            2. **Action 2**: Description
+
+            ### Next Steps
+
+            - Next step 1
+            - Next step 2
+          metadata: {}
