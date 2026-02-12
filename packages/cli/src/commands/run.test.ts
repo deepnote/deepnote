@@ -74,6 +74,16 @@ vi.mock('../utils/output-persistence', async importOriginal => {
   }
 })
 
+// Mock loadLatestSnapshot from @deepnote/convert for upstream cache tests
+const mockLoadLatestSnapshot = vi.fn()
+vi.mock('@deepnote/convert', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/convert')>()
+  return {
+    ...actual,
+    loadLatestSnapshot: (...args: unknown[]) => mockLoadLatestSnapshot(...args),
+  }
+})
+
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
 
 // Helper to parse JSON from console output
@@ -86,6 +96,7 @@ function getJsonOutput(spy: Mock): unknown {
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+const INLINE_OUTPUTS_FILE = join('examples', '4_inline_outputs.deepnote')
 
 function parseDeepnoteFixture(path: string) {
   return deserializeDeepnoteFile(fs.readFileSync(path, 'utf-8'))
@@ -175,6 +186,8 @@ describe('run command', () => {
       })
       // Reset saveExecutionSnapshot mock
       mockSaveExecutionSnapshot.mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
+      // Reset loadLatestSnapshot to return null by default (no snapshot)
+      mockLoadLatestSnapshot.mockResolvedValue(null)
 
       program = new Command()
       program.exitOverride()
@@ -386,6 +399,188 @@ describe('run command', () => {
           blockIds: [upstreamBlockId, targetBlockId],
         })
       )
+    })
+
+    describe('upstream dependency caching', () => {
+      // Use INLINE_OUTPUTS_FILE which has 3 code blocks all with contentHash:
+      // print-block-id (a1), calc-block-id (a2), greeting-block-id (a3)
+      const UPSTREAM_BLOCK_ID = 'print-block-id'
+      const TARGET_BLOCK_ID = 'greeting-block-id'
+
+      function setupUpstreamDeps() {
+        const fixture = parseDeepnoteFixture(INLINE_OUTPUTS_FILE)
+        const notebook = fixture.project.notebooks[0]
+        const upstreamBlock = notebook.blocks.find(b => b.id === UPSTREAM_BLOCK_ID)
+        const targetBlock = notebook.blocks.find(b => b.id === TARGET_BLOCK_ID)
+        if (!upstreamBlock || !targetBlock) {
+          throw new Error('Expected blocks in inline outputs fixture')
+        }
+
+        mockGetUpstreamBlocks.mockResolvedValue({
+          status: 'success',
+          blocksToExecuteWithDeps: [upstreamBlock, targetBlock],
+          newlyComputedBlocksContentDeps: [],
+        })
+
+        return { fixture, upstreamBlock, targetBlock }
+      }
+
+      it('skips upstream dep with matching contentHash and cached outputs', async () => {
+        setupSuccessfulRun()
+        const { fixture } = setupUpstreamDeps()
+
+        // Snapshot has same contentHash as source and has outputs
+        mockLoadLatestSnapshot.mockResolvedValue({
+          project: {
+            ...fixture.project,
+            notebooks: fixture.project.notebooks.map(n => ({
+              ...n,
+              blocks: n.blocks.map(b => ({
+                ...b,
+                outputs: b.id === UPSTREAM_BLOCK_ID ? [{ output_type: 'stream', name: 'stdout', text: 'cached' }] : [],
+              })),
+            })),
+          },
+        })
+
+        await action(INLINE_OUTPUTS_FILE, { block: TARGET_BLOCK_ID })
+
+        // Upstream dep should be skipped — only target block should run
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            blockId: TARGET_BLOCK_ID,
+            blockIds: undefined,
+          })
+        )
+      })
+
+      it('re-runs upstream dep with mismatched contentHash', async () => {
+        setupSuccessfulRun()
+        const { fixture } = setupUpstreamDeps()
+
+        // Snapshot has different contentHash for upstream block
+        mockLoadLatestSnapshot.mockResolvedValue({
+          project: {
+            ...fixture.project,
+            notebooks: fixture.project.notebooks.map(n => ({
+              ...n,
+              blocks: n.blocks.map(b => ({
+                ...b,
+                contentHash: b.id === UPSTREAM_BLOCK_ID ? 'md5:different_hash' : b.contentHash,
+                outputs: b.id === UPSTREAM_BLOCK_ID ? [{ output_type: 'stream', name: 'stdout', text: 'old' }] : [],
+              })),
+            })),
+          },
+        })
+
+        await action(INLINE_OUTPUTS_FILE, { block: TARGET_BLOCK_ID })
+
+        // Upstream dep should be included (content changed)
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            blockId: TARGET_BLOCK_ID,
+            blockIds: [UPSTREAM_BLOCK_ID, TARGET_BLOCK_ID],
+          })
+        )
+      })
+
+      it('re-runs upstream dep with no cached outputs', async () => {
+        setupSuccessfulRun()
+        const { fixture } = setupUpstreamDeps()
+
+        // Snapshot has matching hash but no outputs
+        mockLoadLatestSnapshot.mockResolvedValue({
+          project: {
+            ...fixture.project,
+            notebooks: fixture.project.notebooks.map(n => ({
+              ...n,
+              blocks: n.blocks.map(b => ({
+                ...b,
+                outputs: [], // No outputs for any block
+              })),
+            })),
+          },
+        })
+
+        await action(INLINE_OUTPUTS_FILE, { block: TARGET_BLOCK_ID })
+
+        // Upstream dep should be included since it has no cached outputs
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            blockId: TARGET_BLOCK_ID,
+            blockIds: [UPSTREAM_BLOCK_ID, TARGET_BLOCK_ID],
+          })
+        )
+      })
+
+      it('re-runs all upstream deps when --force-upstream-blocks is set', async () => {
+        setupSuccessfulRun()
+        const { fixture } = setupUpstreamDeps()
+
+        // Snapshot has valid cache (would normally be skipped)
+        mockLoadLatestSnapshot.mockResolvedValue({
+          project: {
+            ...fixture.project,
+            notebooks: fixture.project.notebooks.map(n => ({
+              ...n,
+              blocks: n.blocks.map(b => ({
+                ...b,
+                outputs: b.id === UPSTREAM_BLOCK_ID ? [{ output_type: 'stream', name: 'stdout', text: 'cached' }] : [],
+              })),
+            })),
+          },
+        })
+
+        await action(INLINE_OUTPUTS_FILE, { block: TARGET_BLOCK_ID, forceUpstreamBlocks: true })
+
+        // Even though cache is valid, --force-upstream-blocks should re-run all deps
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            blockId: TARGET_BLOCK_ID,
+            blockIds: [UPSTREAM_BLOCK_ID, TARGET_BLOCK_ID],
+          })
+        )
+      })
+
+      it('re-runs all upstream deps when no snapshot exists', async () => {
+        setupSuccessfulRun()
+        setupUpstreamDeps()
+
+        mockLoadLatestSnapshot.mockResolvedValue(null)
+
+        await action(INLINE_OUTPUTS_FILE, { block: TARGET_BLOCK_ID })
+
+        // All upstream deps should be included
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            blockId: TARGET_BLOCK_ID,
+            blockIds: [UPSTREAM_BLOCK_ID, TARGET_BLOCK_ID],
+          })
+        )
+      })
+
+      it('gracefully handles snapshot loading failure', async () => {
+        setupSuccessfulRun()
+        setupUpstreamDeps()
+
+        mockLoadLatestSnapshot.mockRejectedValue(new Error('Snapshot corrupted'))
+
+        await action(INLINE_OUTPUTS_FILE, { block: TARGET_BLOCK_ID })
+
+        // Should fall back to running all upstream deps
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            blockId: TARGET_BLOCK_ID,
+            blockIds: [UPSTREAM_BLOCK_ID, TARGET_BLOCK_ID],
+          })
+        )
+      })
     })
 
     it('prints parsing and server messages', async () => {
@@ -1550,6 +1745,7 @@ describe('run command', () => {
         blocksToExecuteWithDeps: [],
         newlyComputedBlocksContentDeps: [],
       })
+      mockLoadLatestSnapshot.mockResolvedValue(null)
 
       program = new Command()
       program.exitOverride()
@@ -1815,6 +2011,7 @@ describe('run command', () => {
         blocksToExecuteWithDeps: [],
         newlyComputedBlocksContentDeps: [],
       })
+      mockLoadLatestSnapshot.mockResolvedValue(null)
       process.exitCode = 0
 
       program = new Command()

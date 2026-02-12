@@ -283,6 +283,7 @@ ${c.bold('Examples:')}
     .option('--profile', 'Show per-block timing and memory usage')
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
     .option('--context', 'Include analysis context (stats, lint issues, variable usage) in output')
+    .option('--force-upstream-blocks', 'Force re-execution of all upstream blocks (skip output cache)')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
