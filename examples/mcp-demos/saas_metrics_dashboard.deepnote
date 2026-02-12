@@ -1,0 +1,143 @@
+version: "1.0"
+metadata:
+  createdAt: 2026-01-28T15:52:47.087Z
+  modifiedAt: 2026-01-28T15:52:47.088Z
+project:
+  id: 4dfaf5a8-330b-4a5b-ac55-656aebf013f3
+  name: SaaS Metrics Dashboard
+  notebooks:
+    - id: e2d999be-2008-42ca-9bb0-773bb4389e14
+      name: Notebook
+      blocks:
+        - id: a6e99ac0-6a19-4891-aac5-05074cfee23a
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000000"
+          type: text-cell-h1
+          content: Dashboard
+          metadata: {}
+        - id: ef5379a6-616d-408b-8f75-2645b7ab4cbb
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000001"
+          type: markdown
+          content: Interactive dashboard with filters and KPIs.
+          metadata: {}
+        - id: 1a48fd5a-0523-4100-9527-766afefaa2d0
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000002"
+          type: text-cell-h2
+          content: Configuration
+          metadata: {}
+        - id: d1fd4fce-2193-4872-b8b3-52c362d3a1b3
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000003"
+          type: input-date-range
+          content: ""
+          metadata:
+            deepnote_variable_name: date_range
+            deepnote_input_label: Date Range
+            deepnote_input_presets:
+              - Last 7 days
+              - Last 30 days
+              - Last 90 days
+              - Year to date
+            deepnote_variable_value: past7days
+          executionCount: null
+          outputs: []
+        - id: 03fc571b-6990-49d9-afb4-227c4c5e4492
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000004"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: category
+            deepnote_input_label: Category
+            deepnote_input_options:
+              - All
+              - Category A
+              - Category B
+              - Category C
+            deepnote_input_default: All
+            deepnote_variable_value: All
+          executionCount: null
+          outputs: []
+        - id: 32198f57-9ebd-4a4d-aeb6-cf0b6e4d1c2b
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000005"
+          type: text-cell-h2
+          content: Key Metrics
+          metadata: {}
+        - id: ba063b20-cba2-46cf-b917-f904f059f0ab
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000006"
+          type: code
+          content: |-
+            import pandas as pd
+            import numpy as np
+
+            # Load and filter data based on inputs
+            # df = pd.read_csv('data.csv')
+            # df_filtered = df[(df['date'] >= date_range[0]) & (df['date'] <= date_range[1])]
+            # if category != 'All':
+            #     df_filtered = df_filtered[df_filtered['category'] == category]
+
+            # Calculate KPIs
+            total_revenue = 125000  # Replace with actual calculation
+            total_orders = 450
+            avg_order_value = total_revenue / total_orders if total_orders > 0 else 0
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: f4e615ea-e66d-43be-8622-117b06b4dc07
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000007"
+          type: big-number
+          content: ""
+          metadata:
+            deepnote_variable_name: total_revenue
+            deepnote_big_number_template: ${value:,.0f}
+            deepnote_big_number_label: Total Revenue
+          executionCount: null
+          outputs: []
+        - id: 541bb351-f574-4d0d-a698-a3f1fc80c5d9
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000008"
+          type: big-number
+          content: ""
+          metadata:
+            deepnote_variable_name: total_orders
+            deepnote_big_number_template: "{value}"
+            deepnote_big_number_label: Total Orders
+          executionCount: null
+          outputs: []
+        - id: 5f692799-1463-423f-a1cb-c456f8a6c522
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000009"
+          type: text-cell-h2
+          content: Visualizations
+          metadata: {}
+        - id: 9a5d1946-c5eb-45be-ace0-dfe80908ec63
+          blockGroup: dfed95f6-aa95-42d4-afc7-b2b234c2af0a
+          sortingKey: "000010"
+          type: code
+          content: |-
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+
+            # Create visualizations
+            fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+            # Chart 1: Revenue over time
+            # axes[0].plot(df_filtered.groupby('date')['revenue'].sum())
+            axes[0].set_title('Revenue Over Time')
+            axes[0].set_xlabel('Date')
+            axes[0].set_ylabel('Revenue')
+
+            # Chart 2: Category breakdown
+            # df_filtered.groupby('category')['revenue'].sum().plot(kind='bar', ax=axes[1])
+            axes[1].set_title('Revenue by Category')
+
+            plt.tight_layout()
+            plt.show()
+          metadata: {}
+          executionCount: null
+          outputs: []

@@ -1,0 +1,163 @@
+version: "1.0"
+metadata:
+  createdAt: 2026-01-28T15:52:50.066Z
+  modifiedAt: 2026-01-28T15:52:50.067Z
+project:
+  id: ceb2fcb0-c89f-4650-bc90-f6f77e371c4b
+  name: Customer Churn Prediction
+  notebooks:
+    - id: aaacc0df-af18-43b0-b2b1-8038431d0ee9
+      name: Notebook
+      blocks:
+        - id: d3cea65a-e79e-45b2-9fb9-e12d3b0e51ed
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000000"
+          type: text-cell-h1
+          content: Customer Churn Prediction
+          metadata: {}
+        - id: 129bbc4d-f5f1-4941-877e-70b3c16bc0a6
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000001"
+          type: markdown
+          content: This notebook Customer churn prediction model that loads customer data, performs feature engineering on usage metrics, subscription history, and engagement data, trains a classification model with hyperparameter tuning, evaluates model performance with confusion matrix and ROC curve, and outputs churn probability scores.
+          metadata: {}
+        - id: bb8e7648-f15c-4b1b-a65d-e61b1b0c825f
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000002"
+          type: text-cell-h2
+          content: Data Loading
+          metadata: {}
+        - id: 93520efd-5b56-467a-b9d2-aa01721c76de
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000003"
+          type: code
+          content: |-
+            import pandas as pd
+
+            # Load your data here
+            # df = pd.read_csv('your_file.csv')
+            # df = pd.read_excel('your_file.xlsx')
+            # df = pd.read_json('your_file.json')
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 5d0d1878-6ab7-4e31-ba2f-7246293e174e
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000004"
+          type: text-cell-h2
+          content: Model Training
+          metadata: {}
+        - id: 94766be0-a5d7-4183-9afc-6733b3164ca1
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000005"
+          type: markdown
+          content: Now we'll prepare the data and train a model.
+          metadata: {}
+        - id: 57730f3c-bd6a-42c3-ac09-0769f3314101
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000006"
+          type: input-slider
+          content: ""
+          metadata:
+            deepnote_variable_name: test_size
+            deepnote_input_label: Test Set Size
+            deepnote_input_min: 0.1
+            deepnote_input_max: 0.5
+            deepnote_input_step: 0.05
+            deepnote_input_default: 0.2
+            deepnote_variable_value: "0.2"
+          executionCount: null
+          outputs: []
+        - id: d8bf03fe-55f1-4c1b-a6fd-560203594875
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000007"
+          type: code
+          content: |-
+            from sklearn.model_selection import train_test_split
+            from sklearn.preprocessing import StandardScaler
+
+            # Prepare features and target
+            # X = df.drop('target_column', axis=1)
+            # y = df['target_column']
+
+            # Split the data
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=42
+            )
+
+            print(f"Training set: {len(X_train)} samples")
+            print(f"Test set: {len(X_test)} samples")
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 194d3cb5-7abf-43c9-b5ba-2f03e810886a
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000008"
+          type: code
+          content: |-
+            from sklearn.linear_model import LogisticRegression
+            # Choose your model:
+            # from sklearn.ensemble import RandomForestClassifier
+            # from sklearn.ensemble import GradientBoostingClassifier
+            # from sklearn.svm import SVC
+
+            model = LogisticRegression(random_state=42)
+            model.fit(X_train, y_train)
+
+            # Evaluate
+            train_score = model.score(X_train, y_train)
+            test_score = model.score(X_test, y_test)
+            print(f"Training accuracy: {train_score:.3f}")
+            print(f"Test accuracy: {test_score:.3f}")
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 701a5348-2175-4ecd-a881-e2092b52e6d4
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000009"
+          type: text-cell-h2
+          content: Model Evaluation
+          metadata: {}
+        - id: bd86c98e-092e-41ed-882d-85e62c378fff
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000010"
+          type: code
+          content: |-
+            from sklearn.metrics import classification_report, confusion_matrix
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+
+            # Predictions
+            y_pred = model.predict(X_test)
+
+            # Classification report
+            print(classification_report(y_test, y_pred))
+
+            # Confusion matrix
+            plt.figure(figsize=(8, 6))
+            cm = confusion_matrix(y_test, y_pred)
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+            plt.xlabel('Predicted')
+            plt.ylabel('Actual')
+            plt.title('Confusion Matrix')
+            plt.show()
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 3a7ea58d-6869-4eba-b655-1a5598443237
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000011"
+          type: text-cell-h2
+          content: Dashboard
+          metadata: {}
+        - id: 22795e85-d81e-4816-b3b3-174e03c8fe99
+          blockGroup: cbd46609-3314-44d4-aee5-ed1af0ec85f9
+          sortingKey: "000012"
+          type: big-number
+          content: ""
+          metadata:
+            deepnote_variable_name: kpi_value
+            deepnote_big_number_template: ${value}
+            deepnote_big_number_label: Key Metric
+          executionCount: null
+          outputs: []
