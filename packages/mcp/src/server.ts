@@ -21,6 +21,7 @@ import { handleWritingTool, writingTools } from './tools/writing'
 export type DeepnoteMcpServer = Server
 
 const allTools = [...readingTools, ...writingTools, ...conversionTools, ...executionTools, ...snapshotTools]
+const readingToolNames = new Set(readingTools.map(tool => tool.name))
 const writingToolNames = new Set(writingTools.map(tool => tool.name))
 const conversionToolNames = new Set(conversionTools.map(tool => tool.name))
 const snapshotToolNames = new Set(snapshotTools.map(tool => tool.name))
@@ -87,12 +88,7 @@ export function createServer(): Server {
 
     try {
       // Route to appropriate handler based on tool name
-      if (
-        name === 'deepnote_read' ||
-        name === 'deepnote_cat' ||
-        name === 'deepnote_validate' ||
-        name === 'deepnote_diff'
-      ) {
+      if (readingToolNames.has(name)) {
         return await handleReadingTool(name, args)
       }
 
