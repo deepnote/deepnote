@@ -1,14 +1,13 @@
 # @deepnote/mcp
 
-MCP (Model Context Protocol) server for AI-assisted Deepnote notebook creation and manipulation.
+MCP (Model Context Protocol) server for AI-assisted Deepnote notebook creation, editing, conversion, and execution.
 
-This server follows MCP best practices (spec version 2025-11-25):
+This server follows MCP best practices:
 
-- **Server instructions**: Comprehensive usage guidance injected into AI's system prompt
-- **MCP Prompts**: Pre-built workflow templates for common tasks
-- **Bounded toolsets**: Focused tools with specific contracts
-- **Self-documenting**: Comprehensive tool descriptions with usage guidance
-- **Contracts first**: Strict input/output schemas, explicit side effects
+- **Server instructions**: Usage guidance is injected into the AI system prompt
+- **MCP prompts**: Reusable workflow templates for common notebook tasks
+- **Bounded toolsets**: Focused tools with strict contracts
+- **Contracts first**: Explicit schemas and side effects
 
 ## Installation
 
@@ -16,13 +15,13 @@ This server follows MCP best practices (spec version 2025-11-25):
 # Install globally
 npm install -g @deepnote/mcp
 
-# Or use with npx
+# Or run directly with npx
 npx @deepnote/mcp
 ```
 
 ## Usage with Cursor
 
-Add to your Cursor MCP settings (`~/.cursor/mcp.json`):
+Add to Cursor MCP settings:
 
 ```json
 {
@@ -35,185 +34,164 @@ Add to your Cursor MCP settings (`~/.cursor/mcp.json`):
 }
 ```
 
+Common settings locations:
+
+- `~/.cursor/mcp.json`
+- `~/.cursor/config/mcp.json`
+
 ## MCP Prompts
 
-The server exposes pre-built workflow templates via the MCP Prompts capability:
+The server exposes workflow templates through MCP prompts:
 
-| Prompt                  | Description                                                        |
-| ----------------------- | ------------------------------------------------------------------ |
-| `create_notebook`       | Template for creating a new Deepnote notebook with best practices  |
-| `convert_and_enhance`   | Workflow for converting Jupyter/other notebooks and enhancing them |
-| `fix_and_document`      | Workflow for fixing issues and adding documentation                |
-| `block_types_reference` | Quick reference for all block types and metadata                   |
-| `best_practices`        | Best practices for well-structured notebooks                       |
-
-Access prompts through your MCP client's prompt interface (e.g., slash commands in Cursor).
+| Prompt                  | Description                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `debug_execution`       | Debug notebook execution using snapshots and reruns               |
+| `create_notebook`       | Create a new Deepnote notebook with recommended structure         |
+| `convert_and_enhance`   | Convert from Jupyter/other formats and improve notebook structure |
+| `fix_and_document`      | Fix issues and add documentation                                  |
+| `block_types_reference` | Quick reference for block types and metadata                      |
+| `best_practices`        | Best practices for well-structured interactive notebooks          |
 
 ## MCP Resources
 
-The server exposes notebook files as MCP Resources for easy discovery:
+The server exposes notebook resources for discovery:
 
-| Resource URI           | Description                                   |
-| ---------------------- | --------------------------------------------- |
-| `deepnote://examples`  | List of built-in example notebooks            |
-| `deepnote://workspace` | All .deepnote files in the current workspace  |
-| `deepnote://file/...`  | Individual notebook files with structure info |
-
-Resources enable AI assistants to browse and understand notebooks without explicit file paths.
+| Resource URI           | Description                                           |
+| ---------------------- | ----------------------------------------------------- |
+| `deepnote://examples`  | Example notebooks (if available in your installation) |
+| `deepnote://workspace` | All `.deepnote` files in the current workspace        |
+| `deepnote://file/...`  | Individual notebook summary by absolute file path     |
 
 ## Available Tools
 
-### Magic Tools (high-level)
-
-| Tool                | Description                                                                  |
-| ------------------- | ---------------------------------------------------------------------------- |
-| `deepnote_scaffold` | Create a complete notebook from a natural language description               |
-| `deepnote_template` | Apply a pre-built template (dashboard, ml_pipeline, etl, report, api_client) |
-| `deepnote_enhance`  | Transform a basic notebook into an interactive, well-documented one          |
-| `deepnote_fix`      | Auto-fix issues (missing imports, undefined variables)                       |
-| `deepnote_explain`  | Generate documentation explaining what a notebook does                       |
-| `deepnote_suggest`  | Get improvement suggestions for a notebook                                   |
-| `deepnote_refactor` | Extract reusable code into a module notebook                                 |
-| `deepnote_profile`  | Add execution timing and memory profiling to code blocks                     |
-| `deepnote_test`     | Generate test cells for functions and classes                                |
-| `deepnote_workflow` | Execute a sequence of tools as a workflow pipeline                           |
-
 ### Reading Tools
 
-| Tool                | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `deepnote_inspect`  | Get notebook metadata and structure              |
-| `deepnote_cat`      | Read block contents with filtering               |
-| `deepnote_lint`     | Check for issues (undefined vars, circular deps) |
-| `deepnote_validate` | Validate file structure against the schema       |
-| `deepnote_stats`    | Get statistics (LOC, imports, block counts)      |
-| `deepnote_analyze`  | Comprehensive analysis with quality score        |
-| `deepnote_dag`      | Show dependency graph between blocks             |
-| `deepnote_diff`     | Compare two .deepnote files                      |
+| Tool                | Description                                                                                     |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| `deepnote_read`     | Read/analyze a notebook. Use `include` to request `structure`, `stats`, `lint`, `dag`, or `all` |
+| `deepnote_cat`      | Show block contents with optional filters                                                       |
+| `deepnote_validate` | Validate YAML + schema structure                                                                |
+| `deepnote_diff`     | Compare two `.deepnote` files structurally                                                      |
 
 ### Writing Tools
 
-| Tool                      | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| `deepnote_create`         | Create a new .deepnote file from a block specification |
-| `deepnote_add_block`      | Add a block to an existing notebook                    |
-| `deepnote_edit_block`     | Modify a block's content or metadata                   |
-| `deepnote_remove_block`   | Remove a block by ID                                   |
-| `deepnote_reorder_blocks` | Change block ordering                                  |
-| `deepnote_add_notebook`   | Add a new notebook to a project                        |
-| `deepnote_bulk_edit`      | Apply changes to multiple blocks                       |
+| Tool                      | Description                                        |
+| ------------------------- | -------------------------------------------------- |
+| `deepnote_create`         | Create a new `.deepnote` file from a specification |
+| `deepnote_add_block`      | Add a block to an existing notebook                |
+| `deepnote_edit_block`     | Edit a block's content and/or metadata             |
+| `deepnote_remove_block`   | Remove a block by ID                               |
+| `deepnote_reorder_blocks` | Reorder blocks in a notebook                       |
+| `deepnote_add_notebook`   | Add a new notebook to an existing project          |
 
 ### Conversion Tools
 
-| Tool                     | Description                                        |
-| ------------------------ | -------------------------------------------------- |
-| `deepnote_convert_to`    | Convert Jupyter/Quarto/Percent/Marimo to .deepnote |
-| `deepnote_convert_from`  | Convert .deepnote to other formats                 |
-| `deepnote_detect_format` | Detect format of a notebook file                   |
+| Tool                    | Description                                          |
+| ----------------------- | ---------------------------------------------------- |
+| `deepnote_convert_to`   | Convert Jupyter/Quarto/Percent/Marimo to `.deepnote` |
+| `deepnote_convert_from` | Convert `.deepnote` to Jupyter/Quarto/Percent/Marimo |
 
 ### Execution Tools
 
-A .deepnote project can contain multiple notebooks. Execution supports three levels:
+Execution is handled by a single tool:
 
-| Tool                 | Description                                          |
-| -------------------- | ---------------------------------------------------- |
-| `deepnote_run`       | Execute project (all notebooks) or a single notebook |
-| `deepnote_run_block` | Execute a specific block                             |
-| `deepnote_open`      | Upload to Deepnote Cloud and get shareable URL       |
+| Tool           | Description                                   |
+| -------------- | --------------------------------------------- |
+| `deepnote_run` | Run all notebooks, one notebook, or one block |
 
-- **Project level** (default): `deepnote_run` runs ALL notebooks
-- **Notebook level**: `deepnote_run` with `notebook` param runs one notebook
-- **Block level**: `deepnote_run_block` runs a specific block
+Scopes:
+
+- **Project level**: `deepnote_run` with only `path` runs all notebooks
+- **Notebook level**: pass `notebook`
+- **Block level**: pass `blockId` (optionally also `notebook`)
+
+`deepnote_run` supports `.deepnote`, `.ipynb`, `.py`, and `.qmd` inputs.
 
 ### Snapshot Tools
 
-Snapshots separate execution outputs from source files for clean version control.
+Snapshots store outputs separately from source files.
 
 | Tool                      | Description                                    |
 | ------------------------- | ---------------------------------------------- |
-| `deepnote_snapshot_list`  | List available snapshots for a project         |
-| `deepnote_snapshot_load`  | Load a snapshot to inspect outputs             |
-| `deepnote_snapshot_split` | Split notebook into source (clean) + snapshot  |
-| `deepnote_snapshot_merge` | Restore outputs from snapshot back into source |
-
-**Tip:** Snapshots are valid `.deepnote` files with outputs included. You can run them directly with `deepnote_run` to reproduce/debug previous results.
+| `deepnote_snapshot_list`  | List snapshots for a project                   |
+| `deepnote_snapshot_load`  | Load latest or specific snapshot details       |
+| `deepnote_snapshot_split` | Split source and outputs into separate files   |
+| `deepnote_snapshot_merge` | Merge snapshot outputs back into a source file |
 
 ## Examples
 
-### Create a notebook from description
+### Create a notebook
 
 ```text
-Use deepnote_scaffold with:
-- description: "Data analysis notebook that loads CSV, explores with visualizations, trains a model"
+Use deepnote_create with:
 - outputPath: "analysis.deepnote"
+- projectName: "Sales Analysis"
+- notebooks:
+  - name: "Notebook 1"
+    blocks:
+      - type: "text-cell-h1"
+        content: "Sales Analysis"
+      - type: "markdown"
+        content: "Load data and explore trends"
 ```
 
-### Convert and enhance a Jupyter notebook
+### Add a block and run only that block
+
+```text
+1. Use deepnote_add_block with:
+   - path: "analysis.deepnote"
+   - block: { type: "code", content: "print('hello')" }
+2. Use deepnote_run with:
+   - path: "analysis.deepnote"
+   - blockId: "<new block id>"
+```
+
+### Lint and dependency analysis
+
+```text
+Use deepnote_read with:
+- path: "analysis.deepnote"
+- include: ["lint", "dag"]
+```
+
+### Convert from Jupyter and inspect
 
 ```text
 1. Use deepnote_convert_to with inputPath: "notebook.ipynb"
-2. Use deepnote_enhance with enhancements: ["all"]
-```
-
-### Fix issues in a notebook
-
-```text
-Use deepnote_fix with:
-- path: "broken.deepnote"
-- dryRun: true (preview first)
-```
-
-### Use a template
-
-```text
-Use deepnote_template with:
-- template: "dashboard" (or ml_pipeline, etl, report, api_client)
-- outputPath: "my-dashboard.deepnote"
+2. Use deepnote_read with:
+   - path: "notebook.deepnote"
+   - include: ["structure", "stats"]
 ```
 
 ### Manage outputs with snapshots
 
 ```text
 # Split outputs for version control:
-Use deepnote_snapshot_split with path: "notebook.deepnote"
-# Outputs are saved to snapshots/, source file is cleaned
+Use deepnote_snapshot_split with path: "analysis.deepnote"
 
-# Later, restore outputs:
-Use deepnote_snapshot_merge with sourcePath: "notebook.deepnote"
-# Or specify snapshotPath to merge a specific snapshot
-```
+# Inspect latest snapshot:
+Use deepnote_snapshot_load with path: "analysis.deepnote"
 
-### Run a workflow pipeline
-
-```text
-Use deepnote_workflow with steps:
-1. template: Create ML pipeline
-2. enhance: Add interactivity
-3. suggest: Get improvement suggestions
-```
-
-### Generate tests for functions
-
-```text
-Use deepnote_test with:
-- path: "notebook.deepnote"
-- testFramework: "pytest" (or unittest, assert)
+# Restore outputs:
+Use deepnote_snapshot_merge with sourcePath: "analysis.deepnote"
 ```
 
 ## Development
+
+Run from the monorepo root:
 
 ```bash
 # Install dependencies
 pnpm install
 
 # Run in development mode
-pnpm dev
+pnpm --filter @deepnote/mcp dev
 
 # Build
-pnpm build
+pnpm --filter @deepnote/mcp build
 
 # Test
-pnpm test
+pnpm --filter @deepnote/mcp test
 ```
 
 ## License
