@@ -35,7 +35,7 @@ deepnote inspect path/to/file.deepnote --output toon
 # Validate a .deepnote file
 deepnote validate path/to/file.deepnote
 
-# Run a notebook file (.deepnote, .ipynb, .py, .qmd)
+# Run a project/notebook file (.deepnote, .ipynb, .py, .qmd)
 deepnote run path/to/file.deepnote
 ```
 
@@ -60,9 +60,9 @@ deepnote inspect my-project.deepnote
 
 **Options:**
 
-| Option               | Description                             |
-| -------------------- | --------------------------------------- |
-| `-o, --output <fmt>` | Output format: `json`, `toon`, or `llm` |
+| Option               | Description                             | Default |
+| -------------------- | --------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json`, `toon`, or `llm` | text    |
 
 **Examples:**
 
@@ -85,7 +85,7 @@ deepnote inspect my-project.deepnote --output json | jq '.project.name'
 
 ### `run [path]`
 
-Run a notebook file locally. Supported formats: `.deepnote`, `.ipynb`, `.py`, `.qmd`.
+Run a project/notebook file locally. Supported formats: `.deepnote`, `.ipynb`, `.py`, `.qmd`.
 Path is optional: when omitted, the CLI discovers the first `.deepnote` file in the current directory.
 
 ```bash
@@ -94,20 +94,20 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option                  | Description                                               | Default       |
-| ----------------------- | --------------------------------------------------------- | ------------- |
-| `--python <path>`       | Path to Python interpreter or virtual environment         | auto-detected |
-| `--cwd <path>`          | Working directory for execution (defaults to file dir)    |               |
-| `--notebook <name>`     | Run only the specified notebook                           |               |
-| `--block <id>`          | Run only the specified block                              |               |
-| `-i, --input <key=val>` | Set input variable value (can be repeated)                |               |
-| `--list-inputs`         | List input variables without running                      | `false`       |
-| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                   |               |
-| `--dry-run`             | Show execution plan without running                       | `false`       |
-| `--top`                 | Display resource usage (CPU/memory) during execution      | `false`       |
-| `--profile`             | Show per-block timing and memory summary                  | `false`       |
-| `--open`                | Open project in Deepnote Cloud after successful execution | `false`       |
-| `--context`             | Include analysis context in machine-readable output       | `false`       |
+| Option                  | Description                                               | Default        |
+| ----------------------- | --------------------------------------------------------- | -------------- |
+| `--python <path>`       | Path to Python interpreter or virtual environment         | auto-detected  |
+| `--cwd <path>`          | Working directory for execution                           | file directory |
+| `--notebook <name>`     | Run only the specified notebook                           | all notebooks  |
+| `--block <id>`          | Run only the specified block                              | all blocks     |
+| `-i, --input <key=val>` | Set input variable value (can be repeated)                |                |
+| `--list-inputs`         | List input variables without running                      | `false`        |
+| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                   | text           |
+| `--dry-run`             | Show execution plan without running                       | `false`        |
+| `--top`                 | Display resource usage (CPU/memory) during execution      | `false`        |
+| `--profile`             | Show per-block timing and memory summary                  | `false`        |
+| `--open`                | Open project in Deepnote Cloud after successful execution | `false`        |
+| `--context`             | Include analysis context in machine-readable output       | `false`        |
 
 **Examples:**
 
@@ -141,9 +141,9 @@ deepnote validate my-project.deepnote
 
 **Options:**
 
-| Option               | Description                    |
-| -------------------- | ------------------------------ |
-| `-o, --output <fmt>` | Output format: `json` or `llm` |
+| Option               | Description                    | Default |
+| -------------------- | ------------------------------ | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm` | text    |
 
 **Examples:**
 
