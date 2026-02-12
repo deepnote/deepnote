@@ -193,6 +193,15 @@ const catArgsSchema = z.object({
   includeMetadata: z.boolean().optional(),
 })
 
+const validateArgsSchema = z.object({
+  path: z.string(),
+})
+
+const diffArgsSchema = z.object({
+  path1: z.string(),
+  path2: z.string(),
+})
+
 export const readingTools: Tool[] = [
   {
     name: 'deepnote_read',
@@ -335,10 +344,7 @@ async function handleRead(args: Record<string, unknown>) {
   const compact = parsedArgs.data.compact
 
   // Default to structure only
-  const includeValues =
-    Array.isArray(includeRaw) && includeRaw.length > 0 && includeRaw.every(value => typeof value === 'string')
-      ? includeRaw
-      : ['structure']
+  const includeValues = includeRaw && includeRaw.length > 0 ? includeRaw : ['structure']
   const include = new Set(includeValues)
   const includeAll = include.has('all')
 
@@ -464,14 +470,15 @@ function formatZodIssue(issue: ZodIssue): { path: string; message: string; code:
 }
 
 async function handleValidate(args: Record<string, unknown>) {
-  const filePath = typeof args.path === 'string' ? args.path : undefined
-  if (!filePath) {
+  const parsedArgs = validateArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
     return {
       content: [
         { type: 'text', text: JSON.stringify({ valid: false, error: 'path is required and must be a string' }) },
       ],
     }
   }
+  const filePath = parsedArgs.data.path
 
   let absolutePath: string
   let rawBytes: Buffer
@@ -553,15 +560,14 @@ async function handleValidate(args: Record<string, unknown>) {
 }
 
 async function handleDiff(args: Record<string, unknown>) {
-  const path1 = typeof args.path1 === 'string' ? args.path1 : undefined
-  const path2 = typeof args.path2 === 'string' ? args.path2 : undefined
-
-  if (!path1 || !path2) {
+  const parsedArgs = diffArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
     return {
       content: [{ type: 'text', text: 'path1 and path2 are required and must be strings' }],
       isError: true,
     }
   }
+  const { path1, path2 } = parsedArgs.data
 
   let file1: DeepnoteFile
   let file2: DeepnoteFile

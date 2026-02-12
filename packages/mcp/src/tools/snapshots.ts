@@ -11,6 +11,7 @@ import {
 } from '@deepnote/convert'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as serializeYaml } from 'yaml'
+import { z } from 'zod'
 
 function snapshotError(message: string) {
   return {
@@ -19,18 +20,51 @@ function snapshotError(message: string) {
   }
 }
 
-function parseRequiredStringArg(value: unknown): string | undefined {
-  if (typeof value !== 'string' || value.trim() === '') {
-    return undefined
-  }
-  return value
-}
+const nonEmptyStringSchema = z.string().refine(value => value.trim().length > 0, {
+  message: 'expected a non-empty string',
+})
 
-function parseOptionalStringArg(value: unknown): string | undefined {
-  if (typeof value !== 'string' || value.trim() === '') {
-    return undefined
-  }
-  return value
+const looseBooleanSchema = z.preprocess(value => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return value.toLowerCase() === 'true'
+  if (value == null) return undefined
+  return Boolean(value)
+}, z.boolean().optional())
+
+const mergeBooleanSchema = z.preprocess(value => {
+  if (typeof value === 'boolean') return value
+  if (value == null) return undefined
+  return String(value).toLowerCase() === 'true'
+}, z.boolean().optional())
+
+const snapshotListArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  snapshotDir: nonEmptyStringSchema.optional(),
+})
+
+const snapshotLoadArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  snapshotDir: nonEmptyStringSchema.optional(),
+})
+
+const snapshotSplitArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  snapshotDir: nonEmptyStringSchema.optional(),
+  keepLatest: looseBooleanSchema.optional(),
+})
+
+const snapshotMergeArgsSchema = z.object({
+  sourcePath: nonEmptyStringSchema,
+  snapshotPath: nonEmptyStringSchema.optional(),
+  outputPath: nonEmptyStringSchema.optional(),
+  skipMismatched: mergeBooleanSchema.optional(),
+})
+
+function formatFirstIssue(error: z.ZodError): string {
+  const issue = error.issues[0]
+  if (!issue) return 'invalid arguments'
+  const issuePath = issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''
+  return `${issuePath}${issue.message}`
 }
 
 export const snapshotTools: Tool[] = [
@@ -173,14 +207,14 @@ Options:
 ]
 
 async function handleSnapshotList(args: Record<string, unknown>) {
-  const filePath = parseRequiredStringArg(args.path)
-  if (!filePath) {
+  if (args.path === undefined) {
     return snapshotError('path is required')
   }
-  if (args.snapshotDir !== undefined && parseOptionalStringArg(args.snapshotDir) === undefined) {
-    return snapshotError('snapshotDir must be a non-empty string when provided')
+  const parsedArgs = snapshotListArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return snapshotError(`Invalid arguments for deepnote_snapshot_list: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  const snapshotDir = parseOptionalStringArg(args.snapshotDir)
+  const { path: filePath, snapshotDir } = parsedArgs.data
 
   try {
     const absolutePath = path.resolve(filePath)
@@ -227,14 +261,14 @@ async function handleSnapshotList(args: Record<string, unknown>) {
 }
 
 async function handleSnapshotLoad(args: Record<string, unknown>) {
-  const filePath = parseRequiredStringArg(args.path)
-  if (!filePath) {
+  if (args.path === undefined) {
     return snapshotError('path is required')
   }
-  if (args.snapshotDir !== undefined && parseOptionalStringArg(args.snapshotDir) === undefined) {
-    return snapshotError('snapshotDir must be a non-empty string when provided')
+  const parsedArgs = snapshotLoadArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return snapshotError(`Invalid arguments for deepnote_snapshot_load: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  const snapshotDir = parseOptionalStringArg(args.snapshotDir)
+  const { path: filePath, snapshotDir } = parsedArgs.data
 
   try {
     const absolutePath = path.resolve(filePath)
@@ -341,23 +375,15 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
 }
 
 async function handleSnapshotSplit(args: Record<string, unknown>) {
-  const filePath = parseRequiredStringArg(args.path)
-  if (!filePath) {
+  if (args.path === undefined) {
     return snapshotError('path is required')
   }
-  if (args.snapshotDir !== undefined && parseOptionalStringArg(args.snapshotDir) === undefined) {
-    return snapshotError('snapshotDir must be a non-empty string when provided')
+  const parsedArgs = snapshotSplitArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return snapshotError(`Invalid arguments for deepnote_snapshot_split: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  const snapshotDir = parseOptionalStringArg(args.snapshotDir)
-  const keepLatestRaw = args.keepLatest
-  let keepLatest: boolean
-  if (keepLatestRaw === undefined) {
-    keepLatest = true
-  } else if (typeof keepLatestRaw === 'string') {
-    keepLatest = keepLatestRaw.toLowerCase() === 'true'
-  } else {
-    keepLatest = Boolean(keepLatestRaw)
-  }
+  const { path: filePath, snapshotDir } = parsedArgs.data
+  const keepLatest = parsedArgs.data.keepLatest ?? true
 
   try {
     const absolutePath = path.resolve(filePath)
@@ -439,27 +465,15 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
 }
 
 async function handleSnapshotMerge(args: Record<string, unknown>) {
-  const sourcePath = parseRequiredStringArg(args.sourcePath)
-  if (!sourcePath) {
+  if (args.sourcePath === undefined) {
     return snapshotError('sourcePath is required')
   }
-  if (args.snapshotPath !== undefined && parseOptionalStringArg(args.snapshotPath) === undefined) {
-    return snapshotError('snapshotPath must be a non-empty string when provided')
+  const parsedArgs = snapshotMergeArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return snapshotError(`Invalid arguments for deepnote_snapshot_merge: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  if (args.outputPath !== undefined && parseOptionalStringArg(args.outputPath) === undefined) {
-    return snapshotError('outputPath must be a non-empty string when provided')
-  }
-  const snapshotPath = parseOptionalStringArg(args.snapshotPath)
-  const outputPath = parseOptionalStringArg(args.outputPath)
-  const skipMismatchedRaw = args.skipMismatched
-  let skipMismatched: boolean
-  if (typeof skipMismatchedRaw === 'boolean') {
-    skipMismatched = skipMismatchedRaw
-  } else if (skipMismatchedRaw == null) {
-    skipMismatched = false
-  } else {
-    skipMismatched = String(skipMismatchedRaw).toLowerCase() === 'true'
-  }
+  const { sourcePath, snapshotPath, outputPath } = parsedArgs.data
+  const skipMismatched = parsedArgs.data.skipMismatched ?? false
 
   try {
     const absoluteSourcePath = path.resolve(sourcePath)

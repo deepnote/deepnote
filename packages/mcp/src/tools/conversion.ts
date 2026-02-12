@@ -12,6 +12,7 @@ import {
   detectFormat,
 } from '@deepnote/convert'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
+import { z } from 'zod'
 
 export const conversionTools: Tool[] = [
   {
@@ -81,15 +82,38 @@ export const conversionTools: Tool[] = [
   },
 ]
 
-function toOptionalString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
-}
-
 function toError(message: string) {
   return {
     content: [{ type: 'text', text: message }],
     isError: true,
   } as const
+}
+
+const nonEmptyStringSchema = z.string().refine(value => value.trim().length > 0, {
+  message: 'expected a non-empty string',
+})
+
+const convertToFormatSchema = z.enum(['jupyter', 'quarto', 'percent', 'marimo', 'auto'])
+const convertFromFormatSchema = z.enum(['jupyter', 'quarto', 'percent', 'marimo'])
+
+const convertToArgsSchema = z.object({
+  inputPath: nonEmptyStringSchema,
+  outputPath: nonEmptyStringSchema.optional(),
+  projectName: nonEmptyStringSchema.optional(),
+  format: convertToFormatSchema.optional(),
+})
+
+const convertFromArgsSchema = z.object({
+  inputPath: nonEmptyStringSchema,
+  outputDir: nonEmptyStringSchema.optional(),
+  format: convertFromFormatSchema.optional(),
+})
+
+function formatFirstIssue(error: z.ZodError): string {
+  const issue = error.issues[0]
+  if (!issue) return 'invalid arguments'
+  const issuePath = issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''
+  return `${issuePath}${issue.message}`
 }
 
 async function listFilesByExtension(dirPath: string, extension: string): Promise<string[]> {
@@ -139,19 +163,12 @@ async function resolveConvertToOutputPath(
 }
 
 async function handleConvertTo(args: Record<string, unknown>) {
-  const inputPath = toOptionalString(args.inputPath)
-  const outputPath = toOptionalString(args.outputPath)
-  const projectName = toOptionalString(args.projectName)
-  let format = toOptionalString(args.format) || 'auto'
-
-  if (!inputPath) {
-    return toError('inputPath is required and must be a non-empty string')
+  const parsedArgs = convertToArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return toError(`Invalid arguments for deepnote_convert_to: ${formatFirstIssue(parsedArgs.error)}`)
   }
-
-  const validFormats = new Set(['jupyter', 'quarto', 'percent', 'marimo', 'auto'])
-  if (!validFormats.has(format)) {
-    return toError(`Unknown format: ${format}`)
-  }
+  const { inputPath, outputPath, projectName } = parsedArgs.data
+  let format = parsedArgs.data.format ?? 'auto'
 
   const absoluteInput = path.resolve(inputPath)
 
@@ -177,7 +194,11 @@ async function handleConvertTo(args: Record<string, unknown>) {
   // Auto-detect format only for file inputs.
   if (format === 'auto' && inputIsFile) {
     const content = await fs.readFile(absoluteInput, 'utf-8')
-    format = detectFormat(absoluteInput, content)
+    const detectedFormat = detectFormat(absoluteInput, content)
+    if (detectedFormat === 'deepnote') {
+      return toError('Input is already a .deepnote file; use deepnote_convert_from to export to other formats')
+    }
+    format = detectedFormat
   }
 
   let inputFiles: string[] = []
@@ -272,18 +293,12 @@ async function handleConvertTo(args: Record<string, unknown>) {
 }
 
 async function handleConvertFrom(args: Record<string, unknown>) {
-  const inputPath = toOptionalString(args.inputPath)
-  const outputDir = toOptionalString(args.outputDir)
-  const format = toOptionalString(args.format) || 'jupyter'
-
-  if (!inputPath) {
-    return toError('inputPath is required and must be a non-empty string')
+  const parsedArgs = convertFromArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return toError(`Invalid arguments for deepnote_convert_from: ${formatFirstIssue(parsedArgs.error)}`)
   }
-
-  const validFormats = new Set(['jupyter', 'quarto', 'percent', 'marimo'])
-  if (!validFormats.has(format)) {
-    return toError(`Unknown format: ${format}`)
-  }
+  const { inputPath, outputDir } = parsedArgs.data
+  const format = parsedArgs.data.format ?? 'jupyter'
 
   const absoluteInput = path.resolve(inputPath)
 

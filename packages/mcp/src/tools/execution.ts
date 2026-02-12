@@ -20,6 +20,7 @@ import {
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
+import { z } from 'zod'
 import { formatOutput } from '../utils.js'
 
 // Supported file extensions for running
@@ -81,6 +82,34 @@ interface ConvertedFile {
   originalPath: string
   format: 'deepnote' | 'jupyter' | 'percent' | 'marimo' | 'quarto'
   wasConverted: boolean
+}
+
+const nonEmptyStringSchema = z.string().refine(value => value.trim().length > 0, {
+  message: 'expected a non-empty string',
+})
+
+const runArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  notebook: z.string().optional(),
+  blockId: z.string().optional(),
+  pythonPath: z.string().optional(),
+  inputs: z.record(z.string(), z.unknown()).optional(),
+  dryRun: z.boolean().optional(),
+  includeOutputSummary: z.boolean().optional(),
+  compact: z.boolean().optional(),
+})
+
+function formatFirstIssue(error: z.ZodError): string {
+  const issue = error.issues[0]
+  if (!issue) return 'invalid arguments'
+  const issuePath = issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''
+  return `${issuePath}${issue.message}`
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const maybeCode = Reflect.get(error, 'code')
+  return typeof maybeCode === 'string' ? maybeCode : undefined
 }
 
 export const executionTools: Tool[] = [
@@ -265,21 +294,21 @@ async function saveExecutionSnapshot(
 }
 
 async function handleRun(args: Record<string, unknown>) {
-  const filePath = typeof args.path === 'string' ? args.path : undefined
-  const notebookFilter = args.notebook as string | undefined
-  const blockIdFilter = args.blockId as string | undefined
-  const pythonPath = args.pythonPath as string | undefined
-  const inputs = args.inputs as Record<string, unknown> | undefined
-  const dryRun = args.dryRun as boolean | undefined
-  const includeOutputSummary = args.includeOutputSummary !== false // default true
-  const compact = args.compact as boolean | undefined
-
-  if (!filePath) {
+  const parsedArgs = runArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
     return {
-      content: [{ type: 'text', text: 'path is required and must be a string' }],
+      content: [{ type: 'text', text: `Invalid arguments for deepnote_run: ${formatFirstIssue(parsedArgs.error)}` }],
       isError: true,
     }
   }
+  const filePath = parsedArgs.data.path
+  const notebookFilter = parsedArgs.data.notebook
+  const blockIdFilter = parsedArgs.data.blockId
+  const pythonPath = parsedArgs.data.pythonPath
+  const inputs = parsedArgs.data.inputs
+  const dryRun = parsedArgs.data.dryRun
+  const includeOutputSummary = parsedArgs.data.includeOutputSummary !== false
+  const compact = parsedArgs.data.compact
 
   // Load file, auto-converting from other formats if needed
   let convertedFile: ConvertedFile
@@ -287,13 +316,7 @@ async function handleRun(args: Record<string, unknown>) {
     convertedFile = await resolveAndConvertToDeepnote(filePath)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const errorCode =
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      typeof (error as { code?: unknown }).code === 'string'
-        ? ((error as { code: string }).code ?? undefined)
-        : undefined
+    const errorCode = getErrorCode(error)
     return {
       content: [
         {
