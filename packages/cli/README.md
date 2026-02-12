@@ -41,7 +41,7 @@ deepnote run path/to/file.deepnote
 
 ## Commands
 
-### `inspect <path>`
+### `inspect [path]`
 
 Inspect and display metadata from a `.deepnote` file.
 Path is optional: when omitted, the CLI discovers the first `.deepnote` file in the current directory.
