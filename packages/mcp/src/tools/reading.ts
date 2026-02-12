@@ -4,7 +4,7 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deepnoteFileSchema, parseYaml } from '@deepnote/blocks'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
-import type { ZodIssue } from 'zod'
+import { type ZodIssue, z } from 'zod'
 import { formatOutput, isPythonBuiltin, loadDeepnoteFile } from '../utils.js'
 
 // --- Internal analysis helpers used by handleRead and individual handlers ---
@@ -175,6 +175,24 @@ async function computeDagInfo(file: DeepnoteFile, notebookFilter?: string) {
 
 // --- End internal helpers ---
 
+const readArgsSchema = z.object({
+  path: z.string(),
+  include: z.preprocess(
+    value => (Array.isArray(value) && value.every(v => typeof v === 'string') ? value : undefined),
+    z.array(z.string()).optional()
+  ),
+  notebook: z.string().optional(),
+  compact: z.boolean().optional(),
+})
+
+const catArgsSchema = z.object({
+  path: z.string(),
+  notebook: z.string().optional(),
+  blockId: z.string().optional(),
+  blockType: z.string().optional(),
+  includeMetadata: z.boolean().optional(),
+})
+
 export const readingTools: Tool[] = [
   {
     name: 'deepnote_read',
@@ -299,17 +317,22 @@ export const readingTools: Tool[] = [
  * Unified read handler that combines multiple reading operations
  */
 async function handleRead(args: Record<string, unknown>) {
-  const filePath = typeof args.path === 'string' ? args.path : undefined
-  const includeRaw = args.include
-  const notebookFilter = args.notebook as string | undefined
-  const compact = args.compact as boolean | undefined
-
-  if (!filePath) {
+  const parsedArgs = readArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
     return {
-      content: [{ type: 'text', text: 'path is required and must be a string' }],
+      content: [
+        {
+          type: 'text',
+          text: 'Invalid args for deepnote_read: path is required and optional fields must match expected types',
+        },
+      ],
       isError: true,
     }
   }
+  const filePath = parsedArgs.data.path
+  const includeRaw = parsedArgs.data.include
+  const notebookFilter = parsedArgs.data.notebook
+  const compact = parsedArgs.data.compact
 
   // Default to structure only
   const includeValues =
@@ -362,18 +385,23 @@ async function handleRead(args: Record<string, unknown>) {
 }
 
 async function handleCat(args: Record<string, unknown>) {
-  const filePath = typeof args.path === 'string' ? args.path : undefined
-  const notebookFilter = args.notebook as string | undefined
-  const blockIdFilter = args.blockId as string | undefined
-  const blockTypeFilter = args.blockType as string | undefined
-  const includeMetadata = args.includeMetadata as boolean | undefined
-
-  if (!filePath) {
+  const parsedArgs = catArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
     return {
-      content: [{ type: 'text', text: 'path is required and must be a string' }],
+      content: [
+        {
+          type: 'text',
+          text: 'Invalid args for deepnote_cat: path is required and optional fields must match expected types',
+        },
+      ],
       isError: true,
     }
   }
+  const filePath = parsedArgs.data.path
+  const notebookFilter = parsedArgs.data.notebook
+  const blockIdFilter = parsedArgs.data.blockId
+  const blockTypeFilter = parsedArgs.data.blockType
+  const includeMetadata = parsedArgs.data.includeMetadata
 
   let file: DeepnoteFile
   try {

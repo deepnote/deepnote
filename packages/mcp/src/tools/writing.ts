@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { type DeepnoteBlock, type DeepnoteFile, deepnoteBlockSchema } from '@deepnote/blocks'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { stringify as yamlStringify } from 'yaml'
+import { z } from 'zod'
 import { generateSortingKey, loadDeepnoteFile, saveDeepnoteFile } from '../utils.js'
 
 /**
@@ -39,17 +40,6 @@ function resolveBlockId(blocks: DeepnoteBlock[], idOrPrefix: string): string | u
   return matches[0]?.id
 }
 
-interface CreateBlockSpec {
-  type: string
-  content?: string
-  metadata?: Record<string, unknown>
-}
-
-interface CreateNotebookSpec {
-  name: string
-  blocks: CreateBlockSpec[]
-}
-
 function writingError(message: string) {
   return {
     content: [{ type: 'text', text: message }],
@@ -57,90 +47,77 @@ function writingError(message: string) {
   } as const
 }
 
-function parseRequiredNonEmptyString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
-}
+const nonEmptyStringSchema = z.string().refine(value => value.trim().length > 0, {
+  message: 'expected a non-empty string',
+})
 
-function parseOptionalNonEmptyString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
-}
+const metadataSchema = z.record(z.string(), z.unknown())
 
-function validateCreateArgs(args: Record<string, unknown>): {
-  outputPath: string
-  projectName: string
-  notebooks: CreateNotebookSpec[]
-  dryRun: boolean | undefined
-} {
-  const outputPath = typeof args.outputPath === 'string' && args.outputPath.trim() ? args.outputPath : undefined
-  const projectName = typeof args.projectName === 'string' && args.projectName.trim() ? args.projectName : undefined
-  const dryRun = args.dryRun
+const createBlockSpecSchema = z.object({
+  type: nonEmptyStringSchema,
+  content: z.string().optional(),
+  metadata: metadataSchema.optional(),
+})
 
-  if (!outputPath) {
-    throw new Error('Invalid outputPath: expected a non-empty string')
-  }
-  if (!projectName) {
-    throw new Error('Invalid projectName: expected a non-empty string')
-  }
-  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
-    throw new Error('Invalid dryRun: expected a boolean if provided')
-  }
-  if (!Array.isArray(args.notebooks)) {
-    throw new Error('Invalid notebooks: expected an array')
-  }
+const createNotebookSpecSchema = z.object({
+  name: nonEmptyStringSchema,
+  blocks: z.array(createBlockSpecSchema),
+})
 
-  const notebooks: CreateNotebookSpec[] = args.notebooks.map((notebook, notebookIndex) => {
-    if (typeof notebook !== 'object' || notebook === null) {
-      throw new Error(`Invalid notebooks[${notebookIndex}]: expected an object`)
-    }
+const createArgsSchema = z.object({
+  outputPath: nonEmptyStringSchema,
+  projectName: nonEmptyStringSchema,
+  notebooks: z.array(createNotebookSpecSchema),
+  dryRun: z.boolean().optional(),
+})
 
-    const notebookRecord = notebook as Record<string, unknown>
-    const name = typeof notebookRecord.name === 'string' && notebookRecord.name.trim() ? notebookRecord.name : undefined
-    if (!name) {
-      throw new Error(`Invalid notebooks[${notebookIndex}].name: expected a non-empty string`)
-    }
+const addBlockPositionSchema = z.object({
+  after: nonEmptyStringSchema.optional(),
+  before: nonEmptyStringSchema.optional(),
+  index: z.number().optional(),
+})
 
-    if (!Array.isArray(notebookRecord.blocks)) {
-      throw new Error(`Invalid notebooks[${notebookIndex}].blocks: expected an array`)
-    }
+const addBlockArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  notebook: nonEmptyStringSchema.optional(),
+  block: createBlockSpecSchema,
+  position: addBlockPositionSchema.optional(),
+  dryRun: z.boolean().optional(),
+})
 
-    const blocks: CreateBlockSpec[] = notebookRecord.blocks.map((block, blockIndex) => {
-      if (typeof block !== 'object' || block === null) {
-        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}]: expected an object`)
-      }
-      const blockRecord = block as Record<string, unknown>
-      const type = typeof blockRecord.type === 'string' && blockRecord.type.trim() ? blockRecord.type : undefined
-      if (!type) {
-        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}].type: expected a non-empty string`)
-      }
+const editBlockArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  blockId: nonEmptyStringSchema,
+  content: z.string().optional(),
+  metadata: metadataSchema.optional(),
+  dryRun: z.boolean().optional(),
+})
 
-      if (blockRecord.content !== undefined && typeof blockRecord.content !== 'string') {
-        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}].content: expected a string`)
-      }
-      if (
-        blockRecord.metadata !== undefined &&
-        (typeof blockRecord.metadata !== 'object' ||
-          blockRecord.metadata === null ||
-          Array.isArray(blockRecord.metadata))
-      ) {
-        throw new Error(`Invalid notebooks[${notebookIndex}].blocks[${blockIndex}].metadata: expected an object`)
-      }
+const removeBlockArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  blockId: nonEmptyStringSchema,
+  dryRun: z.boolean().optional(),
+})
 
-      return {
-        type,
-        content: blockRecord.content as string | undefined,
-        metadata: blockRecord.metadata as Record<string, unknown> | undefined,
-      }
-    })
+const reorderBlocksArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  notebook: nonEmptyStringSchema.optional(),
+  blockIds: z.array(z.string()),
+  dryRun: z.boolean().optional(),
+})
 
-    return { name, blocks }
-  })
+const addNotebookArgsSchema = z.object({
+  path: nonEmptyStringSchema,
+  name: nonEmptyStringSchema,
+  blocks: z.array(createBlockSpecSchema).optional(),
+  dryRun: z.boolean().optional(),
+})
 
-  return {
-    outputPath,
-    projectName,
-    notebooks,
-    dryRun: dryRun as boolean | undefined,
-  }
+function formatFirstIssue(error: z.ZodError): string {
+  const issue = error.issues[0]
+  if (!issue) return 'invalid arguments'
+  const issuePath = issue.path.length > 0 ? `${issue.path.join('.')}: ` : ''
+  return `${issuePath}${issue.message}`
 }
 
 export const writingTools: Tool[] = [
@@ -435,37 +412,34 @@ function createBlock(
   }
 
   // Add execution fields for executable blocks
-  if (
+  const candidate =
     ['code', 'sql', 'notebook-function', 'visualization'].includes(spec.type) ||
     spec.type.startsWith('input-') ||
     spec.type === 'button' ||
     spec.type === 'big-number'
-  ) {
-    return {
-      ...base,
-      executionCount: null,
-      outputs: [],
-    } as DeepnoteBlock
+      ? {
+          ...base,
+          executionCount: null,
+          outputs: [],
+        }
+      : base
+
+  const parsed = deepnoteBlockSchema.safeParse(candidate)
+  if (!parsed.success) {
+    throw new Error(
+      `Invalid block spec for type "${spec.type}": ${parsed.error.issues[0]?.message ?? 'schema validation failed'}`
+    )
   }
 
-  return base as DeepnoteBlock
+  return parsed.data
 }
 
 async function handleCreate(args: Record<string, unknown>) {
-  let outputPath: string
-  let projectName: string
-  let notebooks: CreateNotebookSpec[]
-  let dryRun: boolean | undefined
-  try {
-    const validatedArgs = validateCreateArgs(args)
-    outputPath = validatedArgs.outputPath
-    projectName = validatedArgs.projectName
-    notebooks = validatedArgs.notebooks
-    dryRun = validatedArgs.dryRun
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return writingError(message)
+  const parsedArgs = createArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return writingError(`Invalid args in handleCreate: ${formatFirstIssue(parsedArgs.error)}`)
   }
+  const { outputPath, projectName, notebooks, dryRun } = parsedArgs.data
 
   const projectId = randomUUID()
 
@@ -529,74 +503,15 @@ async function handleCreate(args: Record<string, unknown>) {
 }
 
 async function handleAddBlock(args: Record<string, unknown>) {
-  const filePath = parseRequiredNonEmptyString(args.path)
-  if (!filePath) {
-    return writingError('Invalid filePath in handleAddBlock: args.path must be a non-empty string')
+  const parsedArgs = addBlockArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return writingError(`Invalid args in handleAddBlock: ${formatFirstIssue(parsedArgs.error)}`)
   }
-
-  if (args.notebook !== undefined && parseOptionalNonEmptyString(args.notebook) === undefined) {
-    return writingError(
-      'Invalid notebookFilter in handleAddBlock: args.notebook must be a non-empty string when provided'
-    )
-  }
-  const notebookFilter = parseOptionalNonEmptyString(args.notebook)
-
-  if (typeof args.block !== 'object' || args.block === null || Array.isArray(args.block)) {
-    return writingError('Invalid blockSpec in handleAddBlock: args.block must be an object')
-  }
-  const blockRaw = args.block as Record<string, unknown>
-  const blockType = parseRequiredNonEmptyString(blockRaw.type)
-  if (!blockType) {
-    return writingError('Invalid blockSpec.type in handleAddBlock: args.block.type must be a non-empty string')
-  }
-  if (blockRaw.content !== undefined && typeof blockRaw.content !== 'string') {
-    return writingError(
-      'Invalid blockSpec.content in handleAddBlock: args.block.content must be a string when provided'
-    )
-  }
-  if (
-    blockRaw.metadata !== undefined &&
-    (typeof blockRaw.metadata !== 'object' || blockRaw.metadata === null || Array.isArray(blockRaw.metadata))
-  ) {
-    return writingError(
-      'Invalid blockSpec.metadata in handleAddBlock: args.block.metadata must be an object when provided'
-    )
-  }
-  const blockSpec: { type: string; content?: string; metadata?: Record<string, unknown> } = {
-    type: blockType,
-    content: blockRaw.content as string | undefined,
-    metadata: blockRaw.metadata as Record<string, unknown> | undefined,
-  }
-
-  if (
-    args.position !== undefined &&
-    (typeof args.position !== 'object' || args.position === null || Array.isArray(args.position))
-  ) {
-    return writingError('Invalid position in handleAddBlock: args.position must be an object when provided')
-  }
-  const positionRaw = (args.position || {}) as Record<string, unknown>
-  if (positionRaw.after !== undefined && parseOptionalNonEmptyString(positionRaw.after) === undefined) {
-    return writingError('Invalid position.after in handleAddBlock: expected a non-empty string')
-  }
-  if (positionRaw.before !== undefined && parseOptionalNonEmptyString(positionRaw.before) === undefined) {
-    return writingError('Invalid position.before in handleAddBlock: expected a non-empty string')
-  }
-  if (positionRaw.index !== undefined && typeof positionRaw.index !== 'number') {
-    return writingError('Invalid position.index in handleAddBlock: expected a number')
-  }
-  const position: { after?: string; before?: string; index?: number } | undefined =
-    args.position === undefined
-      ? undefined
-      : {
-          after: parseOptionalNonEmptyString(positionRaw.after),
-          before: parseOptionalNonEmptyString(positionRaw.before),
-          index: positionRaw.index as number | undefined,
-        }
-
-  if (args.dryRun !== undefined && typeof args.dryRun !== 'boolean') {
-    return writingError('Invalid dryRun in handleAddBlock: args.dryRun must be a boolean when provided')
-  }
-  const dryRun = args.dryRun === true
+  const filePath = parsedArgs.data.path
+  const notebookFilter = parsedArgs.data.notebook
+  const blockSpec = parsedArgs.data.block
+  const position = parsedArgs.data.position
+  const dryRun = parsedArgs.data.dryRun === true
 
   const file = await loadDeepnoteFile(filePath)
   if (file.project.notebooks.length === 0) {
@@ -699,54 +614,15 @@ async function handleAddBlock(args: Record<string, unknown>) {
 }
 
 async function handleEditBlock(args: Record<string, unknown>) {
-  const filePath = typeof args.path === 'string' && args.path.trim().length > 0 ? args.path : undefined
-  const blockId = typeof args.blockId === 'string' && args.blockId.trim().length > 0 ? args.blockId : undefined
-  const newContentRaw = args.content
-  const newMetadataRaw = args.metadata
-  const dryRun = args.dryRun
-
-  if (!filePath) {
-    return {
-      content: [{ type: 'text', text: 'Invalid filePath in handleEditBlock: args.path must be a non-empty string' }],
-      isError: true,
-    }
+  const parsedArgs = editBlockArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return writingError(`Invalid args in handleEditBlock: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  if (!blockId) {
-    return {
-      content: [{ type: 'text', text: 'Invalid blockId in handleEditBlock: args.blockId must be a non-empty string' }],
-      isError: true,
-    }
-  }
-  if (newContentRaw !== undefined && typeof newContentRaw !== 'string') {
-    return {
-      content: [
-        { type: 'text', text: 'Invalid content in handleEditBlock: args.content must be a string when provided' },
-      ],
-      isError: true,
-    }
-  }
-  if (
-    newMetadataRaw !== undefined &&
-    (typeof newMetadataRaw !== 'object' || newMetadataRaw === null || Array.isArray(newMetadataRaw))
-  ) {
-    return {
-      content: [
-        { type: 'text', text: 'Invalid metadata in handleEditBlock: args.metadata must be an object when provided' },
-      ],
-      isError: true,
-    }
-  }
-  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
-    return {
-      content: [
-        { type: 'text', text: 'Invalid dryRun in handleEditBlock: args.dryRun must be a boolean when provided' },
-      ],
-      isError: true,
-    }
-  }
-
-  const newContent = newContentRaw as string | undefined
-  const newMetadata = newMetadataRaw as Record<string, unknown> | undefined
+  const filePath = parsedArgs.data.path
+  const blockId = parsedArgs.data.blockId
+  const newContent = parsedArgs.data.content
+  const newMetadata = parsedArgs.data.metadata
+  const dryRun = parsedArgs.data.dryRun === true
 
   const file = await loadDeepnoteFile(filePath)
 
@@ -825,32 +701,13 @@ async function handleEditBlock(args: Record<string, unknown>) {
 }
 
 async function handleRemoveBlock(args: Record<string, unknown>) {
-  const filePath = typeof args.path === 'string' && args.path.trim().length > 0 ? args.path : undefined
-  const blockId = typeof args.blockId === 'string' && args.blockId.trim().length > 0 ? args.blockId : undefined
-  const dryRun = args.dryRun
-
-  if (!filePath) {
-    return {
-      content: [{ type: 'text', text: 'Invalid filePath in handleRemoveBlock: args.path must be a non-empty string' }],
-      isError: true,
-    }
+  const parsedArgs = removeBlockArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return writingError(`Invalid args in handleRemoveBlock: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  if (!blockId) {
-    return {
-      content: [
-        { type: 'text', text: 'Invalid blockId in handleRemoveBlock: args.blockId must be a non-empty string' },
-      ],
-      isError: true,
-    }
-  }
-  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
-    return {
-      content: [
-        { type: 'text', text: 'Invalid dryRun in handleRemoveBlock: args.dryRun must be a boolean when provided' },
-      ],
-      isError: true,
-    }
-  }
+  const filePath = parsedArgs.data.path
+  const blockId = parsedArgs.data.blockId
+  const dryRun = parsedArgs.data.dryRun === true
 
   const file = await loadDeepnoteFile(filePath)
 
@@ -921,26 +778,14 @@ async function handleRemoveBlock(args: Record<string, unknown>) {
 }
 
 async function handleReorderBlocks(args: Record<string, unknown>) {
-  const filePath = parseRequiredNonEmptyString(args.path)
-  if (!filePath) {
-    return writingError('Invalid filePath in handleReorderBlocks: args.path must be a non-empty string')
+  const parsedArgs = reorderBlocksArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return writingError(`Invalid args in handleReorderBlocks: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  if (args.notebook !== undefined && parseOptionalNonEmptyString(args.notebook) === undefined) {
-    return writingError(
-      'Invalid notebookFilter in handleReorderBlocks: args.notebook must be a non-empty string when provided'
-    )
-  }
-  const notebookFilter = parseOptionalNonEmptyString(args.notebook)
-
-  const blockIds = args.blockIds
-  if (!Array.isArray(blockIds) || !blockIds.every(id => typeof id === 'string')) {
-    return writingError('Invalid blockIds in handleReorderBlocks: args.blockIds must be an array of strings')
-  }
-
-  if (args.dryRun !== undefined && typeof args.dryRun !== 'boolean') {
-    return writingError('Invalid dryRun in handleReorderBlocks: args.dryRun must be a boolean when provided')
-  }
-  const dryRun = args.dryRun === true
+  const filePath = parsedArgs.data.path
+  const notebookFilter = parsedArgs.data.notebook
+  const blockIds = parsedArgs.data.blockIds
+  const dryRun = parsedArgs.data.dryRun === true
 
   const file = await loadDeepnoteFile(filePath)
   if (file.project.notebooks.length === 0) {
@@ -1047,79 +892,14 @@ async function handleReorderBlocks(args: Record<string, unknown>) {
 }
 
 async function handleAddNotebook(args: Record<string, unknown>) {
-  const filePath = typeof args.path === 'string' && args.path.trim().length > 0 ? args.path : undefined
-  const name = typeof args.name === 'string' && args.name.trim().length > 0 ? args.name : undefined
-  const blocksRaw = args.blocks
-  const dryRun = args.dryRun
-
-  if (!filePath) {
-    return {
-      content: [{ type: 'text', text: 'Invalid filePath in handleAddNotebook: args.path must be a non-empty string' }],
-      isError: true,
-    }
+  const parsedArgs = addNotebookArgsSchema.safeParse(args)
+  if (!parsedArgs.success) {
+    return writingError(`Invalid args in handleAddNotebook: ${formatFirstIssue(parsedArgs.error)}`)
   }
-  if (!name) {
-    return {
-      content: [{ type: 'text', text: 'Invalid name in handleAddNotebook: args.name must be a non-empty string' }],
-      isError: true,
-    }
-  }
-  if (dryRun !== undefined && typeof dryRun !== 'boolean') {
-    return {
-      content: [
-        { type: 'text', text: 'Invalid dryRun in handleAddNotebook: args.dryRun must be a boolean when provided' },
-      ],
-      isError: true,
-    }
-  }
-  if (blocksRaw !== undefined && !Array.isArray(blocksRaw)) {
-    return {
-      content: [
-        { type: 'text', text: 'Invalid blocks in handleAddNotebook: args.blocks must be an array when provided' },
-      ],
-      isError: true,
-    }
-  }
-
-  const blocks: Array<{ type: string; content?: string; metadata?: Record<string, unknown> }> = []
-  for (const [index, rawBlock] of (blocksRaw || []).entries()) {
-    if (typeof rawBlock !== 'object' || rawBlock === null) {
-      return {
-        content: [{ type: 'text', text: `Invalid blocks[${index}] in handleAddNotebook: expected an object` }],
-        isError: true,
-      }
-    }
-    const block = rawBlock as Record<string, unknown>
-    const type = typeof block.type === 'string' && block.type.trim().length > 0 ? block.type : undefined
-    if (!type) {
-      return {
-        content: [
-          { type: 'text', text: `Invalid blocks[${index}].type in handleAddNotebook: expected a non-empty string` },
-        ],
-        isError: true,
-      }
-    }
-    if (block.content !== undefined && typeof block.content !== 'string') {
-      return {
-        content: [{ type: 'text', text: `Invalid blocks[${index}].content in handleAddNotebook: expected a string` }],
-        isError: true,
-      }
-    }
-    if (
-      block.metadata !== undefined &&
-      (typeof block.metadata !== 'object' || block.metadata === null || Array.isArray(block.metadata))
-    ) {
-      return {
-        content: [{ type: 'text', text: `Invalid blocks[${index}].metadata in handleAddNotebook: expected an object` }],
-        isError: true,
-      }
-    }
-    blocks.push({
-      type,
-      content: block.content as string | undefined,
-      metadata: block.metadata as Record<string, unknown> | undefined,
-    })
-  }
+  const filePath = parsedArgs.data.path
+  const name = parsedArgs.data.name
+  const blocks = parsedArgs.data.blocks ?? []
+  const dryRun = parsedArgs.data.dryRun === true
 
   const file = await loadDeepnoteFile(filePath)
 
