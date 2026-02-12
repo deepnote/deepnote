@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
+import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
 import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
@@ -14,6 +15,7 @@ const mockRunProject = vi.fn()
 const mockConstructor = vi.fn()
 let mockServerPort: number | null = 8888
 const mockGetBlockDependencies = vi.fn()
+const mockGetUpstreamBlocks = vi.fn()
 
 // Mock @deepnote/runtime-core before importing run
 vi.mock('@deepnote/runtime-core', async importOriginal => {
@@ -42,6 +44,7 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
 vi.mock('@deepnote/reactivity', () => {
   return {
     getBlockDependencies: (...args: unknown[]) => mockGetBlockDependencies(...args),
+    getUpstreamBlocks: (...args: unknown[]) => mockGetUpstreamBlocks(...args),
   }
 })
 
@@ -83,6 +86,10 @@ function getJsonOutput(spy: Mock): unknown {
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+
+function parseDeepnoteFixture(path: string) {
+  return deserializeDeepnoteFile(fs.readFileSync(path, 'utf-8'))
+}
 
 // Test helpers
 interface ExecutionSummary {
@@ -155,6 +162,11 @@ describe('run command', () => {
 
       // Reset getBlockDependencies to return empty by default (no validation errors)
       mockGetBlockDependencies.mockResolvedValue([])
+      mockGetUpstreamBlocks.mockResolvedValue({
+        status: 'success',
+        blocksToExecuteWithDeps: [],
+        newlyComputedBlocksContentDeps: [],
+      })
 
       // Reset parseIntegrationsFile to return empty by default (no integrations configured)
       mockParseIntegrationsFile.mockResolvedValue({
@@ -249,6 +261,130 @@ describe('run command', () => {
       expect(mockRunProject).toHaveBeenCalledWith(
         expect.any(Object), // DeepnoteFile object
         expect.objectContaining({ blockId: 'block-123' })
+      )
+    })
+
+    it('passes upstream blockIds when DAG returns dependencies', async () => {
+      setupSuccessfulRun()
+      const fixture = parseDeepnoteFixture(BLOCKS_FILE)
+      const notebook = fixture.project.notebooks.find(
+        candidate =>
+          candidate.blocks.filter(block => block.type === 'code' || block.type.startsWith('input-')).length >= 2
+      )
+      if (!notebook) {
+        throw new Error('Expected notebook with at least two executable blocks in fixture')
+      }
+      const executableBlocks = notebook.blocks.filter(block => block.type === 'code' || block.type.startsWith('input-'))
+      const targetBlockId = executableBlocks[executableBlocks.length - 1]?.id
+      const upstreamBlockId = executableBlocks[0]?.id
+      if (!targetBlockId || !upstreamBlockId) {
+        throw new Error('Expected executable blocks in fixture notebook')
+      }
+
+      const upstreamBlock = executableBlocks.find(block => block.id === upstreamBlockId)
+      const targetBlock = executableBlocks.find(block => block.id === targetBlockId)
+      if (!upstreamBlock || !targetBlock) {
+        throw new Error('Expected upstream and target blocks in fixture notebook')
+      }
+
+      mockGetUpstreamBlocks.mockResolvedValue({
+        status: 'success',
+        blocksToExecuteWithDeps: [upstreamBlock, targetBlock],
+        newlyComputedBlocksContentDeps: [],
+      })
+
+      await action(BLOCKS_FILE, { block: targetBlockId })
+
+      expect(mockRunProject).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          blockId: targetBlockId,
+          blockIds: [upstreamBlockId, targetBlockId],
+        })
+      )
+    })
+
+    it('scopes upstream DAG analysis to target block notebook when --notebook is omitted', async () => {
+      setupSuccessfulRun()
+      const fixture = parseDeepnoteFixture(BLOCKS_FILE)
+      const firstNotebook = fixture.project.notebooks[0]
+      const secondNotebook = fixture.project.notebooks[1]
+      if (!firstNotebook || !secondNotebook) {
+        throw new Error('Expected two notebooks in fixture')
+      }
+
+      const targetBlockId = firstNotebook.blocks.find(
+        block => block.type === 'code' || block.type.startsWith('input-')
+      )?.id
+      if (!targetBlockId) {
+        throw new Error('Expected executable block in first notebook')
+      }
+
+      await action(BLOCKS_FILE, { block: targetBlockId })
+
+      expect(mockGetUpstreamBlocks).toHaveBeenCalledTimes(1)
+      const dagBlocks = mockGetUpstreamBlocks.mock.calls[0]?.[0] as Array<{ id: string }> | undefined
+      if (!dagBlocks) {
+        throw new Error('Expected getUpstreamBlocks to receive blocks')
+      }
+
+      const dagBlockIds = new Set(dagBlocks.map(block => block.id))
+      const firstNotebookIds = new Set(firstNotebook.blocks.map(block => block.id))
+      const secondNotebookIds = new Set(secondNotebook.blocks.map(block => block.id))
+
+      for (const blockId of firstNotebookIds) {
+        expect(dagBlockIds.has(blockId)).toBe(true)
+      }
+      for (const blockId of secondNotebookIds) {
+        expect(dagBlockIds.has(blockId)).toBe(false)
+      }
+    })
+
+    it('uses partial DAG upstream deps when dependency analysis has missing deps', async () => {
+      setupSuccessfulRun()
+      const fixture = parseDeepnoteFixture(BLOCKS_FILE)
+      const notebook = fixture.project.notebooks.find(
+        candidate =>
+          candidate.blocks.filter(block => block.type === 'code' || block.type.startsWith('input-')).length >= 2
+      )
+      if (!notebook) {
+        throw new Error('Expected notebook with at least two executable blocks in fixture')
+      }
+      const executableBlocks = notebook.blocks.filter(block => block.type === 'code' || block.type.startsWith('input-'))
+      const targetBlockId = executableBlocks[executableBlocks.length - 1]?.id
+      const upstreamBlockId = executableBlocks[0]?.id
+      if (!targetBlockId || !upstreamBlockId) {
+        throw new Error('Expected executable blocks in fixture notebook')
+      }
+
+      const upstreamBlock = executableBlocks.find(block => block.id === upstreamBlockId)
+      const targetBlock = executableBlocks.find(block => block.id === targetBlockId)
+      if (!upstreamBlock || !targetBlock) {
+        throw new Error('Expected upstream and target blocks in fixture notebook')
+      }
+
+      mockGetUpstreamBlocks.mockResolvedValue({
+        status: 'missing-deps',
+        blocksToExecuteWithDeps: [upstreamBlock, targetBlock],
+        newlyComputedBlocksContentDeps: [
+          {
+            id: 'broken-block',
+            order: 1,
+            definedVariables: [],
+            usedVariables: [],
+            error: { type: 'SyntaxError', message: 'broken' },
+          },
+        ],
+      })
+
+      await action(BLOCKS_FILE, { block: targetBlockId })
+
+      expect(mockRunProject).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          blockId: targetBlockId,
+          blockIds: [upstreamBlockId, targetBlockId],
+        })
       )
     })
 
@@ -1409,6 +1545,11 @@ describe('run command', () => {
 
       // Reset getBlockDependencies to return empty by default (no validation errors)
       mockGetBlockDependencies.mockResolvedValue([])
+      mockGetUpstreamBlocks.mockResolvedValue({
+        status: 'success',
+        blocksToExecuteWithDeps: [],
+        newlyComputedBlocksContentDeps: [],
+      })
 
       program = new Command()
       program.exitOverride()
@@ -1509,6 +1650,45 @@ describe('run command', () => {
 
       expect(jsonOutput.blocks).toHaveLength(1)
       expect(jsonOutput.blocks[0].id).toBe(targetBlockId)
+    })
+
+    it('includes upstream dependencies in dry-run block plan for --block', async () => {
+      const fixture = parseDeepnoteFixture(BLOCKS_FILE)
+      const notebook = fixture.project.notebooks.find(
+        candidate =>
+          candidate.blocks.filter(block => block.type === 'code' || block.type.startsWith('input-')).length >= 2
+      )
+      if (!notebook) {
+        throw new Error('Expected notebook with at least two executable blocks in fixture')
+      }
+      const executableBlocks = notebook.blocks.filter(block => block.type === 'code' || block.type.startsWith('input-'))
+      const targetBlockId = executableBlocks[executableBlocks.length - 1]?.id
+      const upstreamBlockId = executableBlocks[0]?.id
+      if (!targetBlockId || !upstreamBlockId) {
+        throw new Error('Expected executable blocks in fixture notebook')
+      }
+
+      const upstreamBlock = executableBlocks.find(block => block.id === upstreamBlockId)
+      const targetBlock = executableBlocks.find(block => block.id === targetBlockId)
+      if (!upstreamBlock || !targetBlock) {
+        throw new Error('Expected upstream and target blocks in fixture notebook')
+      }
+
+      mockGetUpstreamBlocks.mockResolvedValue({
+        status: 'success',
+        blocksToExecuteWithDeps: [upstreamBlock, targetBlock],
+        newlyComputedBlocksContentDeps: [],
+      })
+
+      await action(BLOCKS_FILE, { dryRun: true, block: targetBlockId, output: 'json' })
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as {
+        totalBlocks: number
+        blocks: Array<{ id: string }>
+      }
+
+      expect(jsonOutput.totalBlocks).toBe(2)
+      expect(jsonOutput.blocks.map(block => block.id)).toEqual([upstreamBlockId, targetBlockId])
     })
 
     it('throws error when notebook not found', async () => {
@@ -1630,6 +1810,11 @@ describe('run command', () => {
     beforeEach(() => {
       vi.clearAllMocks()
       mockGetBlockDependencies.mockResolvedValue([])
+      mockGetUpstreamBlocks.mockResolvedValue({
+        status: 'success',
+        blocksToExecuteWithDeps: [],
+        newlyComputedBlocksContentDeps: [],
+      })
       process.exitCode = 0
 
       program = new Command()
