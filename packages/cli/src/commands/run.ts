@@ -263,6 +263,7 @@ function collectExecutableBlocks(
   options: { notebook?: string; block?: string; blockIds?: string[] }
 ): DryRunBlockInfo[] {
   const notebooks = getNotebooksForExecutionScope(file, options)
+  const idsToValidate = options.blockIds ?? (options.block ? [options.block] : [])
   const blockIdFilter = options.blockIds ? new Set(options.blockIds) : options.block ? new Set([options.block]) : null
 
   // Collect all executable blocks
@@ -286,17 +287,11 @@ function collectExecutableBlocks(
     }
   }
 
-  // Validate blockIds when the filter yields no executable blocks.
-  if (options.blockIds && executableBlocks.length === 0 && options.blockIds.length > 0) {
-    for (const blockId of options.blockIds) {
+  // Validate requested IDs when filtering yields no executable blocks.
+  if (executableBlocks.length === 0) {
+    for (const blockId of idsToValidate) {
       assertExecutableBlockExists(blockId, notebooks)
     }
-  }
-
-  // For error reporting, use the single blockId only when blockIds is not provided.
-  const primaryBlockId = options.blockIds ? undefined : options.block
-  if (primaryBlockId && executableBlocks.length === 0) {
-    assertExecutableBlockExists(primaryBlockId, notebooks)
   }
 
   return executableBlocks
@@ -315,6 +310,18 @@ function getNotebooksForExecutionScope(
   }
 
   return notebooks
+}
+
+function selectScopeNotebooks(
+  notebooks: DeepnoteFile['project']['notebooks'],
+  options: { notebook?: string; block?: string }
+): DeepnoteFile['project']['notebooks'] {
+  if (options.notebook) {
+    return notebooks
+  }
+
+  const notebookWithTargetBlock = notebooks.find(notebook => notebook.blocks.some(block => block.id === options.block))
+  return notebookWithTargetBlock ? [notebookWithTargetBlock] : notebooks
 }
 
 function assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['project']['notebooks']): void {
@@ -344,14 +351,7 @@ async function resolveUpstreamExecutionBlockIds(
   const notebooks = getNotebooksForExecutionScope(file, options)
 
   // If notebook is not specified, scope DAG analysis to the notebook containing the target block.
-  const scopeNotebooks = options.notebook
-    ? notebooks
-    : (() => {
-        const notebookWithTargetBlock = notebooks.find(notebook =>
-          notebook.blocks.some(block => block.id === options.block)
-        )
-        return notebookWithTargetBlock ? [notebookWithTargetBlock] : notebooks
-      })()
+  const scopeNotebooks = selectScopeNotebooks(notebooks, options)
 
   const allBlocks = scopeNotebooks.flatMap(notebook => notebook.blocks)
   if (allBlocks.length === 0) {
