@@ -22,6 +22,10 @@ export default defineConfig({
   onSuccess() {
     const skillsSrc = path.resolve(__dirname, '../../skills/deepnote')
     const skillsDest = path.resolve(__dirname, 'dist/skills/deepnote')
+    if (!fs.existsSync(skillsSrc)) {
+      console.warn('Skills source directory not found, skipping copy:', skillsSrc)
+      return
+    }
     copyDirSync(skillsSrc, skillsDest)
   },
 })

@@ -156,7 +156,7 @@ Snapshots extend the base format with required fields:
 
 ### Snapshot Naming Convention
 
-```
+```text
 {project-name}_{project-id}_{timestamp}.snapshot.deepnote
 ```
 

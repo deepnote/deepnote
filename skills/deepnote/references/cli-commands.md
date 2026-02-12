@@ -311,6 +311,29 @@ deepnote completion zsh >> ~/.zshrc
 deepnote completion fish > ~/.config/fish/completions/deepnote.fish
 ```
 
+## `deepnote install-skills`
+
+Install Deepnote agent skills for AI coding assistants.
+
+| Option                | Description                             |
+| --------------------- | --------------------------------------- |
+| `-g, --global`        | Install to user home instead of project |
+| `-a, --agent <agent>` | Target a specific agent                 |
+| `--dry-run`           | Preview without writing files           |
+
+**Examples:**
+
+```bash
+# Install for detected agents
+deepnote install-skills
+
+# Install globally
+deepnote install-skills --global
+
+# Target specific agent
+deepnote install-skills --agent cursor
+```
+
 ## Global Options
 
 All commands support:

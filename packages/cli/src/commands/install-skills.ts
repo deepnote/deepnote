@@ -26,15 +26,17 @@ interface AgentConfig {
 }
 
 // Agent configurations sourced from https://github.com/vercel-labs/skills
+const CLAUDE_CODE: AgentConfig = {
+  name: 'Claude Code',
+  projectConfigDir: '.claude',
+  projectSkillDir: '.claude/skills',
+  globalConfigDir: '.claude',
+  globalSkillDir: '.claude/skills',
+}
+
 const AGENTS: AgentConfig[] = [
   // Non-universal agents (agent-specific project skill dirs)
-  {
-    name: 'Claude Code',
-    projectConfigDir: '.claude',
-    projectSkillDir: '.claude/skills',
-    globalConfigDir: '.claude',
-    globalSkillDir: '.claude/skills',
-  },
+  CLAUDE_CODE,
   {
     name: 'Cursor',
     projectConfigDir: '.cursor',
@@ -246,6 +248,8 @@ async function installSkills(options: InstallSkillsOptions): Promise<void> {
     output(c.bold('Deepnote skill installed for:'))
   }
 
+  const maxNameLen = Math.max(...results.map(r => r.agent.name.length))
+
   for (const result of results) {
     const icon = result.status === 'up-to-date' ? c.dim('=') : c.green('\u2713')
     const statusText =
@@ -254,7 +258,7 @@ async function installSkills(options: InstallSkillsOptions): Promise<void> {
         : result.status === 'updated'
           ? c.yellow('(updated)')
           : ''
-    const line = `  ${icon} ${result.agent.name.padEnd(16)} ${result.skillPath} ${statusText}`
+    const line = `  ${icon} ${result.agent.name.padEnd(maxNameLen + 2)} ${result.skillPath} ${statusText}`
     output(line.trimEnd())
   }
 }
@@ -317,7 +321,7 @@ async function detectAgents(baseDir: string, isGlobal: boolean, agentFilter?: st
 
   // Default to Claude Code if none detected
   if (detected.length === 0) {
-    return [AGENTS[0]]
+    return [CLAUDE_CODE]
   }
 
   return detected
