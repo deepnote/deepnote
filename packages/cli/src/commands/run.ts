@@ -3,7 +3,7 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
-import { getBlockDependencies } from '@deepnote/reactivity'
+import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
   detectDefaultPython,
@@ -260,16 +260,11 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
  */
 function collectExecutableBlocks(
   file: DeepnoteFile,
-  options: { notebook?: string; block?: string }
+  options: { notebook?: string; block?: string; blockIds?: string[] }
 ): DryRunBlockInfo[] {
-  // Filter notebooks if specified
-  const notebooks = options.notebook
-    ? file.project.notebooks.filter(n => n.name === options.notebook)
-    : file.project.notebooks
-
-  if (options.notebook && notebooks.length === 0) {
-    throw new Error(`Notebook "${options.notebook}" not found in project`)
-  }
+  const notebooks = getNotebooksForExecutionScope(file, options)
+  const idsToValidate = options.blockIds ?? (options.block ? [options.block] : [])
+  const blockIdFilter = options.blockIds ? new Set(options.blockIds) : options.block ? new Set([options.block]) : null
 
   // Collect all executable blocks
   const executableBlocks: DryRunBlockInfo[] = []
@@ -279,8 +274,8 @@ function collectExecutableBlocks(
       if (!executableBlockTypeSet.has(block.type)) {
         continue
       }
-      // Skip if filtering by blockId and this isn't the target
-      if (options.block && block.id !== options.block) {
+      // Skip if filtering by block IDs and this isn't in the set
+      if (blockIdFilter && !blockIdFilter.has(block.id)) {
         continue
       }
       executableBlocks.push({
@@ -292,19 +287,103 @@ function collectExecutableBlocks(
     }
   }
 
-  // Handle case where requested block doesn't exist or isn't executable
-  if (options.block && executableBlocks.length === 0) {
-    // Check if the block exists but is not executable
-    for (const notebook of notebooks) {
-      const block = notebook.blocks.find(b => b.id === options.block)
-      if (block) {
-        throw new Error(`Block "${options.block}" is not executable (type: ${block.type}).`)
-      }
+  // Validate requested IDs when filtering yields no executable blocks.
+  if (executableBlocks.length === 0) {
+    for (const blockId of idsToValidate) {
+      assertExecutableBlockExists(blockId, notebooks)
     }
-    throw new Error(`Block "${options.block}" not found in project`)
   }
 
   return executableBlocks
+}
+
+function getNotebooksForExecutionScope(
+  file: DeepnoteFile,
+  options: { notebook?: string }
+): DeepnoteFile['project']['notebooks'] {
+  const notebooks = options.notebook
+    ? file.project.notebooks.filter(notebook => notebook.name === options.notebook)
+    : file.project.notebooks
+
+  if (options.notebook && notebooks.length === 0) {
+    throw new Error(`Notebook "${options.notebook}" not found in project`)
+  }
+
+  return notebooks
+}
+
+function selectScopeNotebooks(
+  notebooks: DeepnoteFile['project']['notebooks'],
+  options: { notebook?: string; block?: string }
+): DeepnoteFile['project']['notebooks'] {
+  if (options.notebook) {
+    return notebooks
+  }
+
+  const notebookWithTargetBlock = notebooks.find(notebook => notebook.blocks.some(block => block.id === options.block))
+  return notebookWithTargetBlock ? [notebookWithTargetBlock] : notebooks
+}
+
+function assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['project']['notebooks']): void {
+  for (const notebook of notebooks) {
+    const block = notebook.blocks.find(b => b.id === blockId)
+    if (!block) {
+      continue
+    }
+    if (!executableBlockTypeSet.has(block.type)) {
+      throw new Error(`Block "${blockId}" is not executable (type: ${block.type}).`)
+    }
+    return
+  }
+
+  throw new Error(`Block "${blockId}" not found in project`)
+}
+
+async function resolveUpstreamExecutionBlockIds(
+  file: DeepnoteFile,
+  options: { notebook?: string; block?: string },
+  pythonInterpreter: string
+): Promise<string[] | undefined> {
+  if (!options.block) {
+    return undefined
+  }
+
+  const notebooks = getNotebooksForExecutionScope(file, options)
+
+  // If notebook is not specified, scope DAG analysis to the notebook containing the target block.
+  const scopeNotebooks = selectScopeNotebooks(notebooks, options)
+
+  const allBlocks = scopeNotebooks.flatMap(notebook => notebook.blocks)
+  if (allBlocks.length === 0) {
+    return undefined
+  }
+
+  const blocksToExecute = allBlocks.filter(block => block.id === options.block)
+  const upstreamResult = await getUpstreamBlocks(allBlocks, blocksToExecute, {
+    pythonInterpreter,
+  })
+
+  if (upstreamResult.status === 'fatal') {
+    debug(`DAG analysis failed with fatal error, running single block without deps: ${upstreamResult.error.message}`)
+    return undefined
+  }
+
+  if (upstreamResult.status === 'missing-deps') {
+    const depsWithErrors = upstreamResult.newlyComputedBlocksContentDeps.filter(block => block.error)
+    if (depsWithErrors.length > 0) {
+      debug(`DAG analysis found ${depsWithErrors.length} blocks with dependency errors, using partial DAG`)
+    }
+  }
+
+  const upstreamIds = upstreamResult.blocksToExecuteWithDeps
+    .filter(block => block.id !== options.block)
+    .map(block => block.id)
+  if (upstreamIds.length === 0) {
+    return undefined
+  }
+  const blockIds = [...new Set([...upstreamIds, options.block])]
+  debug(`Block ${options.block} has ${upstreamIds.length} upstream dependencies: ${upstreamIds.join(', ')}`)
+  return blockIds
 }
 
 export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
@@ -489,8 +568,9 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
  * Also validates that all requirements (inputs, integrations) are met.
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, file, isMachineOutput } = await setupProject(path, options)
-  const executableBlocks = collectExecutableBlocks(file, options)
+  const { absolutePath, file, isMachineOutput, pythonEnv } = await setupProject(path, options)
+  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const executableBlocks = collectExecutableBlocks(file, { ...options, blockIds })
 
   const notebookCount = options.notebook ? 1 : file.project.notebooks.length
 
@@ -731,11 +811,14 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track execution timing for snapshot
   const executionStartedAt = new Date().toISOString()
 
+  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+
   try {
     // Use runProject instead of runFile since we may have converted the file in memory
     const summary = await engine.runProject(file, {
       notebookName: options.notebook,
       blockId: options.block,
+      blockIds,
       inputs,
 
       onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
