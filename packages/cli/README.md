@@ -6,8 +6,6 @@ Command-line interface for running Deepnote projects locally and on Deepnote Clo
 
 ## Installation
 
-> **Note:** Installation via PyPI is planned for a future release and may deprecate these methods of installation.
-
 ```bash
 npm install -g @deepnote/cli
 # or
@@ -37,15 +35,16 @@ deepnote inspect path/to/file.deepnote --output toon
 # Validate a .deepnote file
 deepnote validate path/to/file.deepnote
 
-# Run a .deepnote file
+# Run a project/notebook file (.deepnote, .ipynb, .py, .qmd)
 deepnote run path/to/file.deepnote
 ```
 
 ## Commands
 
-### `inspect <path>`
+### `inspect [path]`
 
 Inspect and display metadata from a `.deepnote` file.
+Path is optional: when omitted, the CLI discovers the first `.deepnote` file in the current directory.
 
 ```bash
 deepnote inspect my-project.deepnote
@@ -61,15 +60,18 @@ deepnote inspect my-project.deepnote
 
 **Options:**
 
-| Option               | Description                                                 |
-| -------------------- | ----------------------------------------------------------- |
-| `-o, --output <fmt>` | Output format: `json` (scripting) or `toon` (LLM-optimized) |
+| Option               | Description                             | Default |
+| -------------------- | --------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json`, `toon`, or `llm` | text    |
 
 **Examples:**
 
 ```bash
 # Basic inspection
 deepnote inspect my-project.deepnote
+
+# Inspect first .deepnote file in current directory
+deepnote inspect
 
 # JSON output for scripting
 deepnote inspect my-project.deepnote --output json
@@ -81,9 +83,10 @@ deepnote inspect my-project.deepnote --output toon
 deepnote inspect my-project.deepnote --output json | jq '.project.name'
 ```
 
-### `run <path>`
+### `run [path]`
 
-Run a `.deepnote` file locally.
+Run a project/notebook file locally. Supported formats: `.deepnote`, `.ipynb`, `.py`, `.qmd`.
+Path is optional: when omitted, the CLI discovers the first `.deepnote` file in the current directory.
 
 ```bash
 deepnote run my-project.deepnote
@@ -91,19 +94,29 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option               | Description                                                 | Default  |
-| -------------------- | ----------------------------------------------------------- | -------- |
-| `--python <path>`    | Path to Python interpreter or virtual environment           | `python` |
-| `--cwd <path>`       | Working directory for execution (defaults to file dir)      |          |
-| `--notebook <name>`  | Run only the specified notebook                             |          |
-| `--block <id>`       | Run only the specified block                                |          |
-| `-o, --output <fmt>` | Output format: `json` (scripting) or `toon` (LLM-optimized) |          |
+| Option                  | Description                                               | Default        |
+| ----------------------- | --------------------------------------------------------- | -------------- |
+| `--python <path>`       | Path to Python interpreter or virtual environment         | auto-detected  |
+| `--cwd <path>`          | Working directory for execution                           | file directory |
+| `--notebook <name>`     | Run only the specified notebook                           | all notebooks  |
+| `--block <id>`          | Run only the specified block                              | all blocks     |
+| `-i, --input <key=val>` | Set input variable value (can be repeated)                |                |
+| `--list-inputs`         | List input variables without running                      | `false`        |
+| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                   | text           |
+| `--dry-run`             | Show execution plan without running                       | `false`        |
+| `--top`                 | Display resource usage (CPU/memory) during execution      | `false`        |
+| `--profile`             | Show per-block timing and memory summary                  | `false`        |
+| `--open`                | Open project in Deepnote Cloud after successful execution | `false`        |
+| `--context`             | Include analysis context in machine-readable output       | `false`        |
 
 **Examples:**
 
 ```bash
 # Run all notebooks
 deepnote run my-project.deepnote
+
+# Run a Jupyter notebook directly (auto-converted)
+deepnote run notebook.ipynb
 
 # Run with a specific Python virtual environment
 deepnote run my-project.deepnote --python path/to/venv
@@ -118,7 +131,7 @@ deepnote run my-project.deepnote --output json
 deepnote run my-project.deepnote --output toon
 ```
 
-### `validate [path]`
+### `validate <path>`
 
 Validate a `.deepnote` file against the schema.
 
@@ -128,9 +141,9 @@ deepnote validate my-project.deepnote
 
 **Options:**
 
-| Option               | Description                         |
-| -------------------- | ----------------------------------- |
-| `-o, --output <fmt>` | Output format: `json` for scripting |
+| Option               | Description                    | Default |
+| -------------------- | ------------------------------ | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm` | text    |
 
 **Examples:**
 
@@ -212,12 +225,13 @@ fi
 
 ## Output Formats
 
-The CLI supports two output formats via the `-o, --output` option:
+The CLI supports output formats via the `-o, --output` option:
 
-| Format | Description                                                                 |
-| ------ | --------------------------------------------------------------------------- |
-| `json` | Standard JSON format for scripting and CI/CD pipelines                      |
-| `toon` | [TOON format](https://toonformat.dev/) - LLM-optimized, 30-60% fewer tokens |
+| Format | Description                                                                             |
+| ------ | --------------------------------------------------------------------------------------- |
+| `json` | Standard JSON format for scripting and CI/CD pipelines                                  |
+| `toon` | [TOON format](https://toonformat.dev/) - LLM-optimized, 30-60% fewer tokens             |
+| `llm`  | Alias to the best LLM format for each command (`toon` when available, otherwise `json`) |
 
 ## JSON Output Schema
 
