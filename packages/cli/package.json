@@ -46,6 +46,7 @@
     "@deepnote/database-integrations": "workspace:*",
     "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
+    "@inquirer/prompts": "^8.2.1",
     "@shikijs/cli": "^3.21.0",
     "@toon-format/toon": "^2.1.0",
     "chalk": "^5.4.1",
@@ -58,6 +59,9 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@inquirer/testing": "^3.1.1",
+    "@types/mute-stream": "^0.0.4",
+    "mute-stream": "^3.0.0",
     "tsx": "^4.20.6",
     "zod-to-json-schema": "^3.25.1"
   },
