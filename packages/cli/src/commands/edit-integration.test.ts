@@ -231,7 +231,7 @@ describe('edit-integration command', () => {
       const envFilePath = join(tempDir, '.env')
 
       await writeFile(filePath, EXISTING_YAML)
-      await writeFile(envFilePath, 'PG_ID_001__PASSWORD=oldpass\nPG_ID_002__PASSWORD=oldpass2\n')
+      await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n')
 
       const { context, typeText, typeAndEnter, pressEnter, tick } = await createPromptContext()
 
@@ -307,7 +307,7 @@ describe('edit-integration command', () => {
       const envFilePath = join(tempDir, '.env')
 
       await writeFile(filePath, EXISTING_YAML)
-      await writeFile(envFilePath, 'PG_ID_001__PASSWORD=oldpass\n')
+      await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\n')
 
       const { context, typeAndEnter, pressEnter, tick } = await createPromptContext()
 
@@ -339,20 +339,20 @@ describe('edit-integration command', () => {
       await tick()
 
       // Password - enter new password
-      typeAndEnter('newpassword123')
+      typeAndEnter('new-password-123')
 
       await promise
 
       const envContent = await readFile(envFilePath, 'utf-8')
 
       expect(envContent).toMatchInlineSnapshot(`
-        "PG_ID_001__PASSWORD=newpassword123
+        "PG_ID_001__PASSWORD=new-password-123
         "
       `)
 
       // YAML should still have env: reference (not plaintext password)
       const yamlContent = await readFile(filePath, 'utf-8')
-      expect(yamlContent).not.toContain('newpassword123')
+      expect(yamlContent).not.toContain('new-password-123')
       expect(yamlContent).toMatchInlineSnapshot(`
         "#yaml-language-server: $schema=https://example.com/schema.json
 
@@ -541,14 +541,14 @@ describe('edit-integration command', () => {
       await tick()
       pressEnter() // user
       await tick()
-      typeAndEnter('topsecret')
+      typeAndEnter('top-secret')
       await tick()
 
       await promise
 
       const { stripVTControlCharacters } = await import('node:util')
       const stripped = stripVTControlCharacters(allOutput)
-      expect(stripped).not.toContain('topsecret')
+      expect(stripped).not.toContain('top-secret')
     })
 
     it('preserves schema comment in YAML file', async () => {

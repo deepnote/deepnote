@@ -221,7 +221,7 @@ describe('create-integration command', () => {
       await tick()
       typeAndEnter('user')
       await tick()
-      typeAndEnter('mysecretpass')
+      typeAndEnter('my-secret-pass')
       await tick()
 
       await promise
@@ -230,7 +230,7 @@ describe('create-integration command', () => {
       // Strip ANSI escape codes for checking
       const { stripVTControlCharacters } = await import('node:util')
       const stripped = stripVTControlCharacters(allOutput)
-      expect(stripped).not.toContain('mysecretpass')
+      expect(stripped).not.toContain('my-secret-pass')
     })
   })
 
@@ -270,7 +270,7 @@ describe('create-integration command', () => {
       await tick()
 
       // User
-      typeAndEnter('dbadmin')
+      typeAndEnter('db-admin')
       await tick()
 
       // Password
@@ -293,7 +293,7 @@ describe('create-integration command', () => {
               host: db.example.com
               port: "5432"
               database: production
-              user: dbadmin
+              user: db-admin
               password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
         "
       `)
@@ -322,7 +322,7 @@ describe('create-integration command', () => {
 `
       )
 
-      const mockUUID = 'new-uuid-1234-5678-abcdefabcdef'
+      const mockUUID = 'new-uuid-1234-5678-abcd1234abcd'
       vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
 
       const { context, typeText, typeAndEnter, pressEnter, tick } = await createPromptContext()
@@ -340,11 +340,11 @@ describe('create-integration command', () => {
       await tick()
       pressEnter() // port default
       await tick()
-      typeAndEnter('newdb')
+      typeAndEnter('new-db')
       await tick()
-      typeAndEnter('newuser')
+      typeAndEnter('new-user')
       await tick()
-      typeAndEnter('newpass')
+      typeAndEnter('new-pass')
 
       await promise
 
@@ -359,16 +359,16 @@ describe('create-integration command', () => {
             type: pgsql
             metadata:
               host: existing.example.com
-          - id: new-uuid-1234-5678-abcdefabcdef
+          - id: new-uuid-1234-5678-abcd1234abcd
             name: New DB
             type: pgsql
             federated_auth_method: null
             metadata:
               host: new.example.com
               port: "5432"
-              database: newdb
-              user: newuser
-              password: env:NEW_UUID_1234_5678_ABCDEFABCDEF__PASSWORD
+              database: new-db
+              user: new-user
+              password: env:NEW_UUID_1234_5678_ABCD1234ABCD__PASSWORD
         "
       `)
     })
