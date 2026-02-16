@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -239,8 +240,7 @@ describe('create-integration command', () => {
       const envFilePath = join(tempDir, '.env')
 
       const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-      const crypto = await import('node:crypto')
-      vi.spyOn(crypto.default, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.default.randomUUID>)
+      vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
 
       const { context, typeText, typeAndEnter, pressEnter, tick } = await createPromptContext()
 
@@ -323,8 +323,7 @@ describe('create-integration command', () => {
       )
 
       const mockUUID = 'new-uuid-1234-5678-abcdefabcdef'
-      const crypto = await import('node:crypto')
-      vi.spyOn(crypto.default, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.default.randomUUID>)
+      vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
 
       const { context, typeText, typeAndEnter, pressEnter, tick } = await createPromptContext()
 
@@ -378,7 +377,7 @@ describe('create-integration command', () => {
       const filePath = join(tempDir, 'schema-test.yaml')
       const envFilePath = join(tempDir, 'schema-test.env')
 
-      vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('test-uuid' as ReturnType<typeof crypto.randomUUID>)
+      vi.spyOn(crypto, 'randomUUID').mockReturnValue('test-uuid' as ReturnType<typeof crypto.randomUUID>)
 
       const { context, typeText, typeAndEnter, pressEnter, tick } = await createPromptContext()
 
@@ -408,7 +407,7 @@ describe('create-integration command', () => {
         "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
 
         integrations:
-          - id: 22af87ba-e7b0-420f-8774-18b00f0a15e2
+          - id: test-uuid
             name: Test DB
             type: pgsql
             federated_auth_method: null
@@ -417,7 +416,7 @@ describe('create-integration command', () => {
               port: "5432"
               database: db
               user: user
-              password: env:22AF87BA_E7B0_420F_8774_18B00F0A15E2__PASSWORD
+              password: env:TEST_UUID__PASSWORD
         "
       `)
     })
@@ -448,10 +447,7 @@ describe('create-integration command', () => {
       const envFilePath = join(tempDir, 'uuid-test.env')
 
       const expectedUUID = '11111111-2222-3333-4444-555555555555'
-      const crypto = await import('node:crypto')
-      vi.spyOn(crypto.default, 'randomUUID').mockReturnValue(
-        expectedUUID as ReturnType<typeof crypto.default.randomUUID>
-      )
+      vi.spyOn(crypto, 'randomUUID').mockReturnValue(expectedUUID as ReturnType<typeof crypto.randomUUID>)
 
       const { context, typeText, typeAndEnter, pressEnter, tick } = await createPromptContext()
 
