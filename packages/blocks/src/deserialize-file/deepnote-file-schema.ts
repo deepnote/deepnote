@@ -589,9 +589,6 @@ export interface SnapshotHashInput {
   }
 }
 
-/** Compile-time check: DeepnoteFile must always be assignable to SnapshotHashInput. */
-type _AssertDeepnoteFileExtendsSnapshotHashInput = DeepnoteFile extends SnapshotHashInput ? true : never
-
 // Snapshot schema requires environment, execution, and metadata.hash fields.
 // .unwrap() extracts the inner schema from ZodOptional, making these fields required.
 export const deepnoteSnapshotSchema = deepnoteFileSchema.extend({
