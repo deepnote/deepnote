@@ -217,18 +217,24 @@ describe('install-skills command', () => {
       expect(skillContent).toContain('name: deepnote')
       expect(skillContent).toContain('Block Types')
 
-      // Check reference files
-      const fileFormat = await fs.readFile(path.join(baseDir, 'references', 'file-format.md'), 'utf8')
-      expect(fileFormat).toContain('Top-Level Fields')
+      // Check block type reference files
+      const blocksCodeSql = await fs.readFile(path.join(baseDir, 'references', 'blocks-code-and-sql.md'), 'utf8')
+      expect(blocksCodeSql).toContain('Code Block')
+      expect(blocksCodeSql).toContain('SQL Block')
 
-      const blockTypes = await fs.readFile(path.join(baseDir, 'references', 'block-types.md'), 'utf8')
-      expect(blockTypes).toContain('Code Block')
-      expect(blockTypes).toContain('SQL Block')
-      expect(blockTypes).toContain('input-slider')
+      const blocksInput = await fs.readFile(path.join(baseDir, 'references', 'blocks-input.md'), 'utf8')
+      expect(blocksInput).toContain('input-slider')
 
-      const cliCommands = await fs.readFile(path.join(baseDir, 'references', 'cli-commands.md'), 'utf8')
-      expect(cliCommands).toContain('deepnote run')
-      expect(cliCommands).toContain('deepnote convert')
+      // Check CLI reference files
+      const cliRun = await fs.readFile(path.join(baseDir, 'references', 'cli-run.md'), 'utf8')
+      expect(cliRun).toContain('deepnote run')
+
+      const cliConvert = await fs.readFile(path.join(baseDir, 'references', 'cli-convert.md'), 'utf8')
+      expect(cliConvert).toContain('deepnote convert')
+
+      // Check auto-generated schema
+      const schema = await fs.readFile(path.join(baseDir, 'references', 'schema.ts'), 'utf8')
+      expect(schema).toContain('DeepnoteFile')
 
       cwdSpy.mockRestore()
     })

@@ -38,7 +38,9 @@ project:
 
 **Top-level fields:** `version` (required, "1.0.0"), `metadata` (required), `project` (required), `integrations` (optional), `environment` (optional).
 
-See [references/file-format.md](references/file-format.md) for complete field descriptions.
+### Schema Reference
+
+- [TypeScript schema](references/schema.ts) — auto-generated types for .deepnote and .snapshot.deepnote files
 
 ## Notebooks
 
@@ -74,7 +76,12 @@ Every block has these common fields:
 | **Display** | `visualization`, `big-number`, `image`, `separator`                                                                                  |
 | **Other**   | `button`, `notebook-function`                                                                                                        |
 
-See [references/block-types.md](references/block-types.md) for metadata fields and YAML examples for each type.
+### Block Type References
+
+- [Code and SQL blocks](references/blocks-code-and-sql.md)
+- [Text blocks](references/blocks-text.md)
+- [Input blocks](references/blocks-input.md)
+- [Display and action blocks](references/blocks-display.md)
 
 ## Integrations
 
@@ -93,12 +100,64 @@ SQL blocks reference integrations via `metadata.sql_integration_id`.
 
 ## Snapshots
 
-Snapshot files (`.snapshot.deepnote`) are `.deepnote` files with execution outputs populated. They keep your source files output-free.
+Snapshot files (`.snapshot.deepnote`) store execution outputs separately from source.
 
-- **Naming:** `{project-name}_{project-id}_{timestamp}.snapshot.deepnote`
-- **Latest:** `_latest` snapshot accumulates most recent output per block
-- **Timestamped:** Capture point-in-time full execution state
-- **Code provenance:** Each block's `contentHash` (SHA-256) verifies which code produced the output
+### Location
+
+Snapshots are saved in a `snapshots/` directory adjacent to the source file:
+
+```text
+project.deepnote
+snapshots/
+  my-project_<uuid>_latest.snapshot.deepnote
+  my-project_<uuid>_2025-01-08T10-30-00.snapshot.deepnote
+```
+
+**Naming:** `{slug}_{projectId}_{timestamp}.snapshot.deepnote`
+
+- `slug` — slugified project name
+- `projectId` — UUID from `project.id`
+- `timestamp` — `latest` or ISO 8601 (e.g. `2025-01-08T10-30-00`)
+
+### Reading Snapshot Data (token-efficient)
+
+Use CLI commands — they're cross-platform and avoid loading the full YAML:
+
+```bash
+deepnote cat snapshots/*_latest.snapshot.deepnote                    # All block outputs
+deepnote cat snapshots/*_latest.snapshot.deepnote --type code        # Only code outputs
+deepnote inspect snapshots/*_latest.snapshot.deepnote                # Metadata + summary
+deepnote inspect snapshots/*_latest.snapshot.deepnote -o json        # JSON for parsing
+```
+
+Snapshots are plain YAML, so they can also be read directly if the CLI isn't available.
+
+### Diagnosing Errors
+
+When execution fails, check the latest snapshot:
+
+1. `execution.summary` — `blocksExecuted`, `blocksSucceeded`, `blocksFailed`, `totalDurationMs`
+2. `execution.error` — `name`, `message`, `traceback` (top-level error)
+3. Per-block outputs — individual blocks have `error` output_type with `ename`, `evalue`, `traceback`
+
+Quick error check:
+
+```bash
+deepnote inspect snapshots/*_latest.snapshot.deepnote -o json
+deepnote run project.deepnote -o json   # Errors inline in output
+```
+
+### Content Hash Verification
+
+Each block in a snapshot has `contentHash` (SHA-256). If block content changed since the snapshot, the hash won't match — the output is stale.
+
+### Latest vs Timestamped
+
+| Aspect      | `_latest`                           | Timestamped            |
+| ----------- | ----------------------------------- | ---------------------- |
+| Updated     | Overwritten on each run             | Immutable, one per run |
+| Consistency | May mix outputs from different runs | All from same run      |
+| Use case    | Quick access to recent results      | Audit trail            |
 
 ## Editing Guidelines
 
@@ -109,6 +168,50 @@ When creating or modifying `.deepnote` files:
 3. **Sorting keys** - Use lexicographic strings: `a0`, `a1`, ..., `a9`, `b0`, etc. Insert between existing keys for ordering
 4. **Content** - Use YAML literal block scalar (`|`) for multi-line content to preserve newlines
 5. **Metadata** - Use `{}` for defaults; add type-specific fields as needed
+
+## Running After Edits
+
+After creating or modifying blocks, run the project to verify changes.
+
+### Prerequisites
+
+Check if the CLI is installed:
+
+```bash
+deepnote --version
+```
+
+If not installed:
+
+```bash
+npm install -g @deepnote/cli
+```
+
+If Node.js is not available, ask the user to install Node.js 22+ from https://nodejs.org.
+
+### Running
+
+```bash
+deepnote run project.deepnote                         # Run full project
+deepnote run project.deepnote --notebook "Analysis"    # Specific notebook
+deepnote run project.deepnote --block abc123           # Specific block
+deepnote run project.deepnote --dry-run                # Preview only
+deepnote run project.deepnote -o json                  # JSON output
+```
+
+### Checking Results
+
+1. **Inline output** — stdout/stderr printed directly
+2. **Snapshot** — outputs saved to `snapshots/` directory (see Snapshots section above)
+3. **Exit codes** — 0 success, 1 runtime error, 2 invalid usage
+4. **JSON** — use `-o json` for structured per-block results
+
+### Workflow
+
+1. Edit the `.deepnote` file
+2. Run: `deepnote run project.deepnote`
+3. If errors, check snapshot for details
+4. Fix and re-run
 
 ## CLI Quick Reference
 
@@ -126,4 +229,9 @@ When creating or modifying `.deepnote` files:
 | `deepnote dag show\|vars\|downstream` | Dependency analysis                                        |
 | `deepnote open <path>`                | Open in Deepnote Cloud                                     |
 
-See [references/cli-commands.md](references/cli-commands.md) for full options and examples.
+### CLI Command References
+
+- [Run command](references/cli-run.md)
+- [Convert command](references/cli-convert.md)
+- [Analysis commands](references/cli-analysis.md)
+- [Utility commands](references/cli-utility.md)
