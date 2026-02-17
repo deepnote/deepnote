@@ -6,6 +6,14 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     globals: false,
+    deps: {
+      optimizer: {
+        ssr: {
+          enabled: true,
+          include: ['@xterm/headless'],
+        },
+      },
+    },
     include: ['**/*.test.ts'],
     reporters: ['default', 'junit'],
     outputFile: {

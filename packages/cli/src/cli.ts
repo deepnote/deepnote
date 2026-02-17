@@ -1,6 +1,5 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
-import { createIntegrationsAddAction } from './commands/add-integration'
 // Note: We keep 'chalk' import for:
 // 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
 // 2. Setting chalk.level in preAction hook for backward compatibility
@@ -9,9 +8,10 @@ import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } fro
 import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'
-import { createIntegrationsEditAction } from './commands/edit-integration'
 import { createInspectAction } from './commands/inspect'
 import { createIntegrationsPullAction, DEFAULT_API_URL } from './commands/integrations'
+import { createIntegrationsAddAction } from './commands/integrations/add-integration'
+import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'

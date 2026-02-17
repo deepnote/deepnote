@@ -4,11 +4,7 @@ import type { DeepnoteBlock } from '@deepnote/blocks'
 import { z } from 'zod'
 import { safelyCallChildProcessWithInputOutput } from './child-process-utils'
 
-const _dirname =
-  typeof __dirname !== 'undefined'
-    ? __dirname
-    : // @ts-expect-error: Safe ESM fallback; import.meta.url is only evaluated in ESM where __dirname is undefined.
-      path.dirname(fileURLToPath(import.meta.url))
+const _dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url))
 
 export class AstAnalyzerInternalError extends Error {
   constructor(message: string) {
