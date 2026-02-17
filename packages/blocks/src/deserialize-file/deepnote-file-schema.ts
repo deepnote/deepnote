@@ -571,6 +571,27 @@ export const deepnoteFileSchema = z.object({
 
 export type DeepnoteFile = z.infer<typeof deepnoteFileSchema>
 
+/**
+ * Minimal input type accepted by `computeSnapshotHash`.
+ *
+ * Covers only the fields the function actually reads, so callers don't need
+ * to construct a full `DeepnoteFile`. `DeepnoteFile` is assignable to this
+ * type, so existing call-sites remain unchanged.
+ */
+export interface SnapshotHashInput {
+  version: string
+  environment?: { hash?: string }
+  project: {
+    integrations?: Array<{ id: string; type: string }>
+    notebooks: Array<{
+      blocks: Array<{ id: string; contentHash?: string }>
+    }>
+  }
+}
+
+/** Compile-time check: DeepnoteFile must always be assignable to SnapshotHashInput. */
+type _AssertDeepnoteFileExtendsSnapshotHashInput = DeepnoteFile extends SnapshotHashInput ? true : never
+
 // Snapshot schema requires environment, execution, and metadata.hash fields.
 // .unwrap() extracts the inner schema from ZodOptional, making these fields required.
 export const deepnoteSnapshotSchema = deepnoteFileSchema.extend({

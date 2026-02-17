@@ -11,6 +11,7 @@ export type {
   Execution,
   ExecutionError,
   ExecutionSummary,
+  SnapshotHashInput,
 } from './deserialize-file/deepnote-file-schema'
 export {
   deepnoteBlockSchema,
