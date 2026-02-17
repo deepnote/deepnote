@@ -18,6 +18,7 @@ import {
 import { log, output } from '../../output'
 import { updateDotEnv } from '../../utils/dotenv'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
+import { promptForFieldsMongodb } from './integrations-prompts/mongodb'
 import { promptForFieldsPostgres } from './integrations-prompts/pgsql'
 
 export interface IntegrationsCreateOptions {
@@ -64,8 +65,12 @@ export async function promptForIntegrationConfig({
   switch (type) {
     case 'pgsql':
       return promptForFieldsPostgres({ id, type, name })
+    case 'mongodb':
+      return promptForFieldsMongodb({ id, type, name })
     default:
-      throw new Error(`Integration type "${type}" is not yet implemented. Only "pgsql" is currently supported.`)
+      throw new Error(
+        `Integration type "${type}" is not yet implemented. Only "pgsql" and "mongodb" are currently supported.`
+      )
   }
 }
 

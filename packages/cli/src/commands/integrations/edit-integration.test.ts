@@ -14,7 +14,67 @@ vi.mock('../../output', () => ({
 
 import { editIntegration } from './edit-integration'
 
-const EXISTING_YAML = `#yaml-language-server: $schema=https://example.com/schema.json
+describe('edit-integration command', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    vi.restoreAllMocks()
+    tempDir = join(tmpdir(), `edit-integration-test-${Date.now()}`)
+    await mkdir(tempDir, { recursive: true })
+  })
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  describe('error handling', () => {
+    it('throws error when file does not exist', async () => {
+      const filePath = join(tempDir, 'nonexistent.yaml')
+      const envFilePath = join(tempDir, '.env')
+
+      await expect(editIntegration({ file: filePath, envFile: envFilePath })).rejects.toThrow(
+        'No integrations file found'
+      )
+    })
+
+    it('throws error when file has no integrations', async () => {
+      const filePath = join(tempDir, 'empty.yaml')
+      const envFilePath = join(tempDir, '.env')
+
+      await writeFile(filePath, 'integrations: []\n')
+
+      await expect(editIntegration({ file: filePath, envFile: envFilePath })).rejects.toThrow('No integrations found')
+    })
+
+    it('throws error when id argument does not match any integration', async () => {
+      const filePath = join(tempDir, 'integrations.yaml')
+      const envFilePath = join(tempDir, '.env')
+
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: pg-id-001
+    name: Production DB
+    type: pgsql
+    federated_auth_method: null
+    metadata:
+      host: prod.example.com
+      port: "5432"
+      database: production
+      user: admin
+      password: env:PG_ID_001__PASSWORD
+`
+      )
+
+      await expect(editIntegration({ file: filePath, envFile: envFilePath, id: 'nonexistent-id' })).rejects.toThrow(
+        'Integration with ID "nonexistent-id" not found'
+      )
+    })
+  })
+
+  describe('pgsql', () => {
+    const EXISTING_PGSQL_YAML = `#yaml-language-server: $schema=https://example.com/schema.json
 
 integrations:
   - id: pg-id-001
@@ -38,50 +98,6 @@ integrations:
       user: stg_user
       password: env:PG_ID_002__PASSWORD
 `
-
-describe('edit-integration command', () => {
-  let tempDir: string
-
-  beforeEach(async () => {
-    vi.clearAllMocks()
-    vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `edit-integration-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
-  })
-
-  afterEach(async () => {
-    await rm(tempDir, { recursive: true, force: true })
-  })
-
-  describe('editIntegration end-to-end', () => {
-    it('throws error when file does not exist', async () => {
-      const filePath = join(tempDir, 'nonexistent.yaml')
-      const envFilePath = join(tempDir, '.env')
-
-      await expect(editIntegration({ file: filePath, envFile: envFilePath })).rejects.toThrow(
-        'No integrations file found'
-      )
-    })
-
-    it('throws error when file has no integrations', async () => {
-      const filePath = join(tempDir, 'empty.yaml')
-      const envFilePath = join(tempDir, '.env')
-
-      await writeFile(filePath, 'integrations: []\n')
-
-      await expect(editIntegration({ file: filePath, envFile: envFilePath })).rejects.toThrow('No integrations found')
-    })
-
-    it('throws error when id argument does not match any integration', async () => {
-      const filePath = join(tempDir, 'integrations.yaml')
-      const envFilePath = join(tempDir, '.env')
-
-      await writeFile(filePath, EXISTING_YAML)
-
-      await expect(editIntegration({ file: filePath, envFile: envFilePath, id: 'nonexistent-id' })).rejects.toThrow(
-        'Integration with ID "nonexistent-id" not found'
-      )
-    })
 
     it('removes SSH fields when SSH tunnel is disabled during edit', async () => {
       const filePath = join(tempDir, 'integrations.yaml')
@@ -357,7 +373,7 @@ integrations:
       const filePath = join(tempDir, 'integrations.yaml')
       const envFilePath = join(tempDir, '.env')
 
-      await writeFile(filePath, EXISTING_YAML)
+      await writeFile(filePath, EXISTING_PGSQL_YAML)
       await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n')
 
       const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-002' })
@@ -430,7 +446,7 @@ integrations:
       const filePath = join(tempDir, 'integrations.yaml')
       const envFilePath = join(tempDir, '.env')
 
-      await writeFile(filePath, EXISTING_YAML)
+      await writeFile(filePath, EXISTING_PGSQL_YAML)
       await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n')
 
       const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
@@ -491,7 +507,7 @@ integrations:
       const filePath = join(tempDir, 'integrations.yaml')
       const envFilePath = join(tempDir, '.env')
 
-      await writeFile(filePath, EXISTING_YAML)
+      await writeFile(filePath, EXISTING_PGSQL_YAML)
       await writeFile(envFilePath, 'PG_ID_001__PASSWORD=secret-pass\n')
 
       const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
@@ -568,7 +584,7 @@ integrations:
       const filePath = join(tempDir, 'integrations.yaml')
       const envFilePath = join(tempDir, '.env')
 
-      await writeFile(filePath, EXISTING_YAML)
+      await writeFile(filePath, EXISTING_PGSQL_YAML)
       await writeFile(envFilePath, 'PG_ID_001__PASSWORD=secret-pass\n')
 
       const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
@@ -643,7 +659,7 @@ integrations:
       const filePath = join(tempDir, 'integrations.yaml')
       const envFilePath = join(tempDir, '.env')
 
-      await writeFile(filePath, EXISTING_YAML)
+      await writeFile(filePath, EXISTING_PGSQL_YAML)
       await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n')
 
       const promise = editIntegration({ file: filePath, envFile: envFilePath })
@@ -727,6 +743,213 @@ integrations:
         PG_ID_002__PASSWORD=old-pass-2
         "
       `)
+    })
+  })
+
+  describe('mongodb', () => {
+    // Only connection_string in metadata — no individual fields
+    const EXISTING_MONGO_YAML = `#yaml-language-server: $schema=https://example.com/schema.json
+
+integrations:
+  - id: mongo-id-001
+    name: Production Mongo
+    type: mongodb
+    federated_auth_method: null
+    metadata:
+      connection_string: env:MONGO_ID_001__CONNECTION_STRING
+`
+
+    /** Fill all base mongodb fields using defaults parsed from the connection string. */
+    async function acceptMongoDefaults(): Promise<void> {
+      // Host — parsed from connection string
+      await screen.next()
+      expect(screen.getScreen()).toContain('Host: (mongo.example.com)')
+      screen.keypress('enter')
+
+      // Port — parsed from connection string
+      await screen.next()
+      expect(screen.getScreen()).toContain('Port: (27017)')
+      screen.keypress('enter')
+
+      // Database — parsed from connection string
+      await screen.next()
+      expect(screen.getScreen()).toContain('Database: (analytics)')
+      screen.keypress('enter')
+
+      // User — parsed from connection string
+      await screen.next()
+      expect(screen.getScreen()).toContain('User: (mongo-admin)')
+      screen.keypress('enter')
+
+      // Password
+      await screen.next()
+      expect(screen.getScreen()).toContain('Password:')
+      screen.type('secret-pass')
+      screen.keypress('enter')
+    }
+
+    it('parses connection string to populate defaults when editing', async () => {
+      const filePath = join(tempDir, 'integrations.yaml')
+      const envFilePath = join(tempDir, '.env')
+
+      await writeFile(filePath, EXISTING_MONGO_YAML)
+      await writeFile(
+        envFilePath,
+        'MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@mongo.example.com:27017/analytics\n'
+      )
+
+      const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'mongo-id-001' })
+
+      // Integration name - keep default
+      await screen.next()
+      expect(screen.getScreen()).toContain('Integration name: (Production Mongo)')
+      screen.keypress('enter')
+
+      // Host — update to new value (default was parsed from connection string)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Host: (mongo.example.com)')
+      screen.type('new-mongo.example.com')
+      screen.keypress('enter')
+
+      // Port - keep default
+      await screen.next()
+      expect(screen.getScreen()).toContain('Port: (27017)')
+      screen.keypress('enter')
+
+      // Database - type new value
+      await screen.next()
+      expect(screen.getScreen()).toContain('Database: (analytics)')
+      screen.type('reporting')
+      screen.keypress('enter')
+
+      // User - keep default
+      await screen.next()
+      expect(screen.getScreen()).toContain('User: (mongo-admin)')
+      screen.keypress('enter')
+
+      // Password
+      await screen.next()
+      expect(screen.getScreen()).toContain('Password:')
+      screen.type('secret-pass')
+      screen.keypress('enter')
+
+      // SSH tunnel - decline
+      await screen.next()
+      expect(screen.getScreen()).toContain('Enable SSH tunnel: (y/N)')
+      screen.keypress('enter')
+
+      // SSL - decline
+      await screen.next()
+      expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+      screen.keypress('enter')
+
+      await promise
+
+      const yamlContent = await readFile(filePath, 'utf-8')
+      const envContent = await readFile(envFilePath, 'utf-8')
+
+      // Only connection_string in metadata — no individual fields
+      expect(yamlContent).toContain('type: mongodb')
+      expect(yamlContent).toContain('connection_string: env:MONGO_ID_001__CONNECTION_STRING')
+      expect(yamlContent).not.toContain('host:')
+      expect(yamlContent).not.toContain('user:')
+      expect(yamlContent).not.toContain('password:')
+
+      // .env should have the rebuilt connection string with new host and database
+      expect(envContent).toContain(
+        'MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@new-mongo.example.com:27017/reporting'
+      )
+    })
+
+    it('edits a mongodb integration updating the name', async () => {
+      const filePath = join(tempDir, 'integrations.yaml')
+      const envFilePath = join(tempDir, '.env')
+
+      await writeFile(filePath, EXISTING_MONGO_YAML)
+      await writeFile(
+        envFilePath,
+        'MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@mongo.example.com:27017/analytics\n'
+      )
+
+      const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'mongo-id-001' })
+
+      // Integration name - type new name
+      await screen.next()
+      expect(screen.getScreen()).toContain('Integration name: (Production Mongo)')
+      screen.type('Staging Mongo')
+      screen.keypress('enter')
+
+      await acceptMongoDefaults()
+
+      // SSH tunnel - decline
+      await screen.next()
+      expect(screen.getScreen()).toContain('Enable SSH tunnel: (y/N)')
+      screen.keypress('enter')
+
+      // SSL - decline
+      await screen.next()
+      expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+      screen.keypress('enter')
+
+      await promise
+
+      const yamlContent = await readFile(filePath, 'utf-8')
+
+      expect(yamlContent).toContain('name: Staging Mongo')
+      expect(yamlContent).not.toContain('Production Mongo')
+    })
+
+    it('edits a mongodb integration adding SSL', async () => {
+      const filePath = join(tempDir, 'integrations.yaml')
+      const envFilePath = join(tempDir, '.env')
+
+      await writeFile(filePath, EXISTING_MONGO_YAML)
+      await writeFile(
+        envFilePath,
+        'MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@mongo.example.com:27017/analytics\n'
+      )
+
+      const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'mongo-id-001' })
+
+      // Integration name - keep default
+      await screen.next()
+      expect(screen.getScreen()).toContain('Integration name: (Production Mongo)')
+      screen.keypress('enter')
+
+      await acceptMongoDefaults()
+
+      // SSH tunnel - decline
+      await screen.next()
+      expect(screen.getScreen()).toContain('Enable SSH tunnel: (y/N)')
+      screen.keypress('enter')
+
+      // Enable SSL
+      await screen.next()
+      expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+      screen.type('y')
+      screen.keypress('enter')
+
+      await screen.next()
+      expect(screen.getScreen()).toContain('CA Certificate Name:')
+      screen.type('mongo-ca')
+      screen.keypress('enter')
+
+      await screen.next()
+      expect(screen.getScreen()).toContain('CA Certificate:')
+      screen.type('mongo-cert-content')
+      screen.keypress('enter')
+
+      await promise
+
+      const yamlContent = await readFile(filePath, 'utf-8')
+      const envContent = await readFile(envFilePath, 'utf-8')
+
+      expect(yamlContent).toContain('sslEnabled: true')
+      expect(yamlContent).toContain('caCertificateName: mongo-ca')
+      expect(yamlContent).toContain('caCertificateText: env:MONGO_ID_001__CACERTIFICATETEXT')
+
+      expect(yamlContent).not.toContain('mongo-cert-content')
+      expect(envContent).toContain('MONGO_ID_001__CACERTIFICATETEXT=mongo-cert-content')
     })
   })
 })
