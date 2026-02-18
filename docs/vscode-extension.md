@@ -178,6 +178,18 @@ ORDER BY
     average_spend
 ```
 
+#### Query files with SQL:
+
+You can also query local files like CSV, Parquet, or JSON directly from a SQL block without loading them into a DataFrame first. Select "DataFrame SQL" as the data source (which uses DuckDB under the hood) and reference the file path in your query:
+
+```sql
+SELECT * FROM 'sales_data.csv' WHERE region = 'Europe'
+```
+
+DuckDB supports reading from CSV, Parquet, JSON, and [other formats](https://duckdb.org/docs/data/overview).
+
+![Query files with SQL](../assets/examples/getting_started_with_deepnote_in_vscode/query_files_with_sql.png)
+
 #### Jinja templating in SQL:
 
 SQL blocks support Jinja-style templating with `{{ variable }}` syntax, letting you reference Python variables directly in your queries:
