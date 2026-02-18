@@ -99,6 +99,7 @@
     "pymssql",
     "pyplot",
     "PYTHONPATH",
+    "RAWCONNECTIONSTRING",
     "qlty",
     "qmark",
     "rankdir",
