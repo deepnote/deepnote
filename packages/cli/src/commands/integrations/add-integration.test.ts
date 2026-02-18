@@ -464,29 +464,30 @@ describe('create-integration command', () => {
   })
 
   describe('mongodb', () => {
-    interface MongoBaseFieldInputs {
+    interface MongoCredentialsInputs {
       type?: string
       name?: string
       host?: string
       port?: string
-      database?: string
       user?: string
       password?: string
+      database?: string
     }
 
     /**
-     * Fills in the common mongodb prompts: type, name, host, port, database, user, password.
-     * Returns after the password prompt so the caller can handle SSH/SSL prompts.
+     * Fills in MongoDB prompts using credentials mode (host, user, password, etc.).
+     * Selects "Credentials" connection type and "mongodb://" prefix, then fills each field.
+     * Returns after the Options prompt so the caller can handle SSH/SSL prompts.
      */
-    async function fillMongoBaseFields(inputs: MongoBaseFieldInputs = {}): Promise<void> {
+    async function fillMongoCredentials(inputs: MongoCredentialsInputs = {}): Promise<void> {
       const {
         type = 'mongodb',
         name = 'My Mongo DB',
         host = 'mongo.example.com',
         port = '27017',
-        database = 'analytics',
         user = 'mongo-admin',
         password = 'supersecret',
+        database = 'analytics',
       } = inputs
 
       expect(screen.getScreen()).toContain('Select integration type:')
@@ -496,6 +497,16 @@ describe('create-integration command', () => {
       await screen.next()
       expect(screen.getScreen()).toContain('Integration name:')
       screen.type(name)
+      screen.keypress('enter')
+
+      // Select credentials connection type (first option, default)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Connection type:')
+      screen.keypress('enter')
+
+      // Select mongodb:// prefix (first option, default)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Prefix:')
       screen.keypress('enter')
 
       await screen.next()
@@ -511,11 +522,6 @@ describe('create-integration command', () => {
       screen.keypress('enter')
 
       await screen.next()
-      expect(screen.getScreen()).toContain('Database:')
-      screen.type(database)
-      screen.keypress('enter')
-
-      await screen.next()
       expect(screen.getScreen()).toContain('User:')
       screen.type(user)
       screen.keypress('enter')
@@ -523,6 +529,16 @@ describe('create-integration command', () => {
       await screen.next()
       expect(screen.getScreen()).toContain('Password:')
       screen.type(password)
+      screen.keypress('enter')
+
+      await screen.next()
+      expect(screen.getScreen()).toContain('Database:')
+      screen.type(database)
+      screen.keypress('enter')
+
+      // Skip options
+      await screen.next()
+      expect(screen.getScreen()).toContain('Options:')
       screen.keypress('enter')
     }
 
@@ -537,7 +553,7 @@ describe('create-integration command', () => {
       screen.keypress('enter')
     }
 
-    it('creates a new YAML file with mongodb integration and stores secrets in .env', async () => {
+    it('creates a mongodb integration using credentials mode and stores secrets in .env', async () => {
       const filePath = join(tempDir, 'integrations.yaml')
       const envFilePath = join(tempDir, '.env')
 
@@ -546,7 +562,7 @@ describe('create-integration command', () => {
 
       const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
-      await fillMongoBaseFields()
+      await fillMongoCredentials()
       await declineMongoSshAndSsl()
 
       await promise
@@ -554,19 +570,78 @@ describe('create-integration command', () => {
       const yamlContent = await readFile(filePath, 'utf-8')
       const envContent = await readFile(envFilePath, 'utf-8')
 
-      // Only connection_string should be in metadata — no individual fields
+      // Credentials mode: individual fields stored in YAML, secrets as env refs
       expect(yamlContent).toContain('type: mongodb')
+      expect(yamlContent).toContain('prefix: mongodb://')
+      expect(yamlContent).toContain('host: mongo.example.com')
+      expect(yamlContent).toContain('user: mongo-admin')
+      expect(yamlContent).toContain('database: analytics')
+      expect(yamlContent).toContain('password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD')
+      expect(yamlContent).toContain('connection_string: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CONNECTION_STRING')
+
+      // Secrets should not appear as plaintext in YAML
+      expect(yamlContent).not.toContain('supersecret')
+
+      // .env should contain both password and connection string
+      expect(envContent).toContain('AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret')
+      expect(envContent).toContain(
+        'AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CONNECTION_STRING=mongodb://mongo-admin:supersecret@mongo.example.com:27017/analytics'
+      )
+    })
+
+    it('creates a mongodb integration using connection string mode', async () => {
+      const filePath = join(tempDir, 'integrations-cs.yaml')
+      const envFilePath = join(tempDir, '.env')
+
+      const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+
+      const promise = createIntegration({ file: filePath, envFile: envFilePath })
+
+      expect(screen.getScreen()).toContain('Select integration type:')
+      screen.type('mongodb')
+      screen.keypress('enter')
+
+      await screen.next()
+      expect(screen.getScreen()).toContain('Integration name:')
+      screen.type('My Mongo DB')
+      screen.keypress('enter')
+
+      // Select "Connection string" (second option)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Connection type:')
+      screen.keypress('down')
+      screen.keypress('enter')
+
+      await screen.next()
+      expect(screen.getScreen()).toContain('Connection string:')
+      screen.type('mongodb://mongo-admin:supersecret@mongo.example.com:27017/analytics')
+      screen.keypress('enter')
+
+      await declineMongoSshAndSsl()
+
+      await promise
+
+      const yamlContent = await readFile(filePath, 'utf-8')
+      const envContent = await readFile(envFilePath, 'utf-8')
+
+      // Connection string mode: only rawConnectionString + connection_string stored
+      expect(yamlContent).toContain('type: mongodb')
+      expect(yamlContent).toContain(
+        'rawConnectionString: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__RAWCONNECTIONSTRING'
+      )
       expect(yamlContent).toContain('connection_string: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CONNECTION_STRING')
       expect(yamlContent).not.toContain('host:')
-      expect(yamlContent).not.toContain('port:')
       expect(yamlContent).not.toContain('user:')
       expect(yamlContent).not.toContain('password:')
-      expect(yamlContent).not.toContain('database:')
 
-      // Connection string should not be plaintext in YAML
-      expect(yamlContent).not.toContain('mongodb://')
+      // Secrets should not appear as plaintext in YAML
+      expect(yamlContent).not.toContain('supersecret')
 
-      // .env should contain the built connection string
+      // .env should contain both the raw and encoded connection string
+      expect(envContent).toContain(
+        'AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__RAWCONNECTIONSTRING=mongodb://mongo-admin:supersecret@mongo.example.com:27017/analytics'
+      )
       expect(envContent).toContain(
         'AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CONNECTION_STRING=mongodb://mongo-admin:supersecret@mongo.example.com:27017/analytics'
       )
@@ -581,7 +656,7 @@ describe('create-integration command', () => {
 
       const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
-      await fillMongoBaseFields()
+      await fillMongoCredentials()
 
       // Enable SSH tunnel
       await screen.next()

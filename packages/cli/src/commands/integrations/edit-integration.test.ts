@@ -747,7 +747,7 @@ integrations:
   })
 
   describe('mongodb', () => {
-    // Only connection_string in metadata — no individual fields
+    // Existing integration that only has connection_string (legacy format, no individual fields)
     const EXISTING_MONGO_YAML = `#yaml-language-server: $schema=https://example.com/schema.json
 
 integrations:
@@ -759,8 +759,22 @@ integrations:
       connection_string: env:MONGO_ID_001__CONNECTION_STRING
 `
 
-    /** Fill all base mongodb fields using defaults parsed from the connection string. */
+    /**
+     * Accepts all base MongoDB credential field defaults (parsed from the connection string).
+     * Selects credentials mode, accepts mongodb:// prefix, then accepts all field defaults.
+     * The password field must always be typed (not defaulted, since it is a secret).
+     */
     async function acceptMongoDefaults(): Promise<void> {
+      // Connection type — keep "Credentials" (default)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Connection type:')
+      screen.keypress('enter')
+
+      // Prefix — keep "mongodb://" (default)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Prefix:')
+      screen.keypress('enter')
+
       // Host — parsed from connection string
       await screen.next()
       expect(screen.getScreen()).toContain('Host: (mongo.example.com)')
@@ -771,20 +785,25 @@ integrations:
       expect(screen.getScreen()).toContain('Port: (27017)')
       screen.keypress('enter')
 
-      // Database — parsed from connection string
-      await screen.next()
-      expect(screen.getScreen()).toContain('Database: (analytics)')
-      screen.keypress('enter')
-
       // User — parsed from connection string
       await screen.next()
       expect(screen.getScreen()).toContain('User: (mongo-admin)')
       screen.keypress('enter')
 
-      // Password
+      // Password — always typed (secret field does not show default)
       await screen.next()
       expect(screen.getScreen()).toContain('Password:')
       screen.type('secret-pass')
+      screen.keypress('enter')
+
+      // Database — parsed from connection string
+      await screen.next()
+      expect(screen.getScreen()).toContain('Database: (analytics)')
+      screen.keypress('enter')
+
+      // Options — empty, skip
+      await screen.next()
+      expect(screen.getScreen()).toContain('Options:')
       screen.keypress('enter')
     }
 
@@ -805,6 +824,16 @@ integrations:
       expect(screen.getScreen()).toContain('Integration name: (Production Mongo)')
       screen.keypress('enter')
 
+      // Connection type — keep "Credentials" (default)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Connection type:')
+      screen.keypress('enter')
+
+      // Prefix — keep "mongodb://" (parsed from connection string, default)
+      await screen.next()
+      expect(screen.getScreen()).toContain('Prefix:')
+      screen.keypress('enter')
+
       // Host — update to new value (default was parsed from connection string)
       await screen.next()
       expect(screen.getScreen()).toContain('Host: (mongo.example.com)')
@@ -816,12 +845,6 @@ integrations:
       expect(screen.getScreen()).toContain('Port: (27017)')
       screen.keypress('enter')
 
-      // Database - type new value
-      await screen.next()
-      expect(screen.getScreen()).toContain('Database: (analytics)')
-      screen.type('reporting')
-      screen.keypress('enter')
-
       // User - keep default
       await screen.next()
       expect(screen.getScreen()).toContain('User: (mongo-admin)')
@@ -831,6 +854,17 @@ integrations:
       await screen.next()
       expect(screen.getScreen()).toContain('Password:')
       screen.type('secret-pass')
+      screen.keypress('enter')
+
+      // Database - type new value
+      await screen.next()
+      expect(screen.getScreen()).toContain('Database: (analytics)')
+      screen.type('reporting')
+      screen.keypress('enter')
+
+      // Options - skip
+      await screen.next()
+      expect(screen.getScreen()).toContain('Options:')
       screen.keypress('enter')
 
       // SSH tunnel - decline
@@ -848,14 +882,20 @@ integrations:
       const yamlContent = await readFile(filePath, 'utf-8')
       const envContent = await readFile(envFilePath, 'utf-8')
 
-      // Only connection_string in metadata — no individual fields
+      // Credentials mode: individual fields are stored in YAML
       expect(yamlContent).toContain('type: mongodb')
+      expect(yamlContent).toContain('prefix: mongodb://')
+      expect(yamlContent).toContain('host: new-mongo.example.com')
+      expect(yamlContent).toContain('user: mongo-admin')
+      expect(yamlContent).toContain('database: reporting')
+      expect(yamlContent).toContain('password: env:MONGO_ID_001__PASSWORD')
       expect(yamlContent).toContain('connection_string: env:MONGO_ID_001__CONNECTION_STRING')
-      expect(yamlContent).not.toContain('host:')
-      expect(yamlContent).not.toContain('user:')
-      expect(yamlContent).not.toContain('password:')
 
-      // .env should have the rebuilt connection string with new host and database
+      // Secrets should not appear as plaintext
+      expect(yamlContent).not.toContain('secret-pass')
+
+      // .env should have the new password and the rebuilt connection string
+      expect(envContent).toContain('MONGO_ID_001__PASSWORD=secret-pass')
       expect(envContent).toContain(
         'MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@new-mongo.example.com:27017/reporting'
       )

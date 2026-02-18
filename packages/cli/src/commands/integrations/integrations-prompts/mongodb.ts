@@ -1,32 +1,83 @@
 import type { DatabaseIntegrationConfig, DatabaseIntegrationMetadataByType } from '@deepnote/database-integrations'
+import { select } from '@inquirer/prompts'
 import {
   promptForOptionalBooleanField,
   promptForOptionalSecretField,
   promptForOptionalStringField,
+  promptForOptionalStringPortField,
   promptForRequiredSecretField,
   promptForRequiredStringField,
   promptForRequiredStringPortField,
 } from '../../../utils/inquirer'
 
+export const MONGO_PREFIX = 'mongodb://'
+export const SRV_PREFIX = 'mongodb+srv://'
+
+export function encodeOptions(options: string): string {
+  return options.replace(/,|\n/g, '&').replace(/\s/g, '')
+}
+
+export function encodeConnectionString(connectionString: string): string {
+  const hasCredentials = connectionString.includes('@')
+  if (!hasCredentials) {
+    return connectionString
+  }
+
+  const [protocol, urlWithoutProtocol] = connectionString.split(/\/\/(.*)/) as [string, string]
+  const [credentials, restOfTheUrl] = urlWithoutProtocol.split(/@(.*)/) as [string, string]
+  const [username, password] = credentials.split(/:(.*)/)
+
+  const encodedCredentials: string[] = []
+  if (username) {
+    encodedCredentials.push(encodeURIComponent(username))
+  }
+  if (password) {
+    encodedCredentials.push(encodeURIComponent(password))
+  }
+
+  return `${protocol}//${encodedCredentials.join(':')}@${restOfTheUrl}`
+}
+
 export function buildMongoConnectionString({
+  prefix,
   host,
   port,
   user,
   password,
   database,
+  options,
 }: {
+  prefix: string
   host: string
-  port: string
-  user: string
-  password: string
-  database: string
+  port?: string
+  user?: string
+  password?: string
+  database?: string
+  options?: string
 }): string {
-  const credentials = `${encodeURIComponent(user)}:${encodeURIComponent(password)}`
-  const db = database ? `/${database}` : ''
-  return `mongodb://${credentials}@${host}:${port}${db}`
+  let credentials = ''
+  let portPart = ''
+  let dbPart = ''
+  let optionsPart = ''
+
+  if (user && password) {
+    credentials = `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
+  }
+  if (port) {
+    portPart = `:${port}`
+  }
+  if (database) {
+    dbPart = `/${database}`
+  }
+  if (options) {
+    optionsPart = `?${encodeOptions(options)}`
+  }
+
+  return `${prefix}${credentials}${host}${portPart}${dbPart}${optionsPart}`
 }
 
 export function parseMongoConnectionString(connectionString: string): {
+  prefix?: string
   host?: string
   port?: string
   user?: string
@@ -35,7 +86,9 @@ export function parseMongoConnectionString(connectionString: string): {
 } {
   try {
     const url = new URL(connectionString)
+    const prefix = url.protocol === 'mongodb+srv:' ? SRV_PREFIX : MONGO_PREFIX
     return {
+      prefix,
       host: url.hostname || undefined,
       port: url.port || undefined,
       user: url.username ? decodeURIComponent(url.username) : undefined,
@@ -58,23 +111,95 @@ export async function promptForFieldsMongodb({
   name: string
   defaultValues?: DatabaseIntegrationMetadataByType['mongodb']
 }): Promise<DatabaseIntegrationConfig> {
-  // When editing, parse the connection string to extract defaults for individual fields
-  const parsed = defaultValues?.connection_string ? parseMongoConnectionString(defaultValues.connection_string) : {}
+  const defaultConnectionType: 'credentials' | 'connection_string' = defaultValues?.rawConnectionString
+    ? 'connection_string'
+    : 'credentials'
 
-  const host = await promptForRequiredStringField({ label: 'Host:', defaultValue: parsed.host })
-  const port = await promptForRequiredStringPortField({
-    label: 'Port:',
-    defaultValue: parsed.port ?? '27017',
+  const connectionType = await select<'credentials' | 'connection_string'>({
+    message: 'Connection type:',
+    choices: [
+      { name: 'Credentials (host, user, password)', value: 'credentials' },
+      { name: 'Connection string', value: 'connection_string' },
+    ],
+    default: defaultConnectionType,
   })
-  const database = await promptForRequiredStringField({ label: 'Database:', defaultValue: parsed.database })
-  const user = await promptForRequiredStringField({ label: 'User:', defaultValue: parsed.user })
-  const password = await promptForRequiredSecretField({ label: 'Password:', defaultValue: parsed.password })
 
-  const connection_string = buildMongoConnectionString({ host, port, user, password, database })
+  let metadata: DatabaseIntegrationMetadataByType['mongodb']
 
-  // Only store connection_string in metadata — no individual fields to avoid inconsistency
-  let metadata: DatabaseIntegrationMetadataByType['mongodb'] = {
-    connection_string,
+  if (connectionType === 'credentials') {
+    const parsedFromConnectionString = defaultValues?.connection_string
+      ? parseMongoConnectionString(defaultValues.connection_string)
+      : {}
+
+    const prefix = await select<string>({
+      message: 'Prefix:',
+      choices: [
+        { name: MONGO_PREFIX, value: MONGO_PREFIX },
+        { name: SRV_PREFIX, value: SRV_PREFIX },
+      ],
+      default: defaultValues?.prefix ?? parsedFromConnectionString.prefix ?? MONGO_PREFIX,
+    })
+
+    const host = await promptForRequiredStringField({
+      label: 'Host:',
+      defaultValue: defaultValues?.host ?? parsedFromConnectionString.host,
+    })
+
+    const portRaw = await promptForOptionalStringPortField({
+      label: 'Port:',
+      defaultValue: defaultValues?.port ?? parsedFromConnectionString.port ?? '27017',
+    })
+
+    const userRaw = await promptForOptionalStringField({
+      label: 'User:',
+      defaultValue: defaultValues?.user ?? parsedFromConnectionString.user,
+    })
+
+    const passwordRaw = await promptForOptionalSecretField({
+      label: 'Password:',
+      defaultValue: defaultValues?.password ?? parsedFromConnectionString.password,
+    })
+
+    const databaseRaw = await promptForOptionalStringField({
+      label: 'Database:',
+      defaultValue: defaultValues?.database ?? parsedFromConnectionString.database,
+    })
+
+    const optionsRaw = await promptForOptionalStringField({
+      label: 'Options:',
+      defaultValue: defaultValues?.options,
+    })
+
+    const port = portRaw || undefined
+    const user = userRaw || undefined
+    const password = passwordRaw || undefined
+    const database = databaseRaw || undefined
+    const options = optionsRaw || undefined
+
+    const connection_string = buildMongoConnectionString({ prefix, host, port, user, password, database, options })
+
+    metadata = {
+      prefix,
+      host,
+      ...(port !== undefined ? { port } : {}),
+      ...(user !== undefined ? { user } : {}),
+      ...(password !== undefined ? { password } : {}),
+      ...(database !== undefined ? { database } : {}),
+      ...(options !== undefined ? { options } : {}),
+      connection_string,
+    }
+  } else {
+    const rawConnectionString = await promptForRequiredSecretField({
+      label: 'Connection string:',
+      defaultValue: defaultValues?.rawConnectionString,
+    })
+
+    const connection_string = encodeConnectionString(rawConnectionString)
+
+    metadata = {
+      rawConnectionString,
+      connection_string,
+    }
   }
 
   const sshEnabled = await promptForOptionalBooleanField({

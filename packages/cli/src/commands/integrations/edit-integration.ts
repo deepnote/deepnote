@@ -14,7 +14,8 @@ import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { SCHEMA_COMMENT, updateIntegrationMetadataMap } from '../../integrations/merge-integrations'
 import { log, output } from '../../output'
-import { updateDotEnv } from '../../utils/dotenv'
+import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
+import { resolveEnvVarRefs } from '../../utils/env-var-refs'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForIntegrationName } from './add-integration'
 import { promptForFieldsMongodb } from './integrations-prompts/mongodb'
@@ -174,7 +175,29 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
 
   const existingConfig = existingConfigResult.data
 
-  const newConfig = await promptForIntegrationConfig(existingConfig)
+  // Load .env file vars into process.env so env: refs in existing metadata can be resolved.
+  // This allows prompt defaults to be populated from the actual secret values (e.g. parsing
+  // a MongoDB connection string stored as env:MONGO_ID__CONNECTION_STRING).
+  const dotEnvVars = await readDotEnv(envFilePath)
+  for (const [key, value] of Object.entries(dotEnvVars)) {
+    if (!(key in process.env)) {
+      process.env[key] = value
+    }
+  }
+
+  // Resolve env: refs in metadata so prompt functions receive actual values as defaults.
+  // Falls back to original config if any variable is missing.
+  let configForPrompt: DatabaseIntegrationConfig
+  try {
+    configForPrompt = {
+      ...existingConfig,
+      metadata: resolveEnvVarRefs(existingConfig.metadata),
+    } as DatabaseIntegrationConfig
+  } catch {
+    configForPrompt = existingConfig
+  }
+
+  const newConfig = await promptForIntegrationConfig(configForPrompt)
 
   // Update top-level fields on the integration map
   found.map.set('name', newConfig.name)

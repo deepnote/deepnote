@@ -4,6 +4,10 @@ import z from 'zod'
 export type StringFieldCustomValidateFn = (value: string) => string | true
 
 export function stringPortValidate(value: string): string | true {
+  // Allow empty string — optional port fields skip validation when left blank
+  if (!value.trim()) {
+    return true
+  }
   const port = z.coerce.number().safeParse(value)
   if (!port.success) {
     return 'Invalid value, expected a number'
