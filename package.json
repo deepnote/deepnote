@@ -43,6 +43,7 @@
     "@biomejs/biome": "2.2.7",
     "@types/node": "22.18.12",
     "@vitest/coverage-v8": "4.0.5",
+    "@xterm/headless": "^5.5.0",
     "cspell": "9.2.2",
     "husky": "9.1.7",
     "license-checker-rseidelsohn": "4.4.2",

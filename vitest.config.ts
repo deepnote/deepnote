@@ -6,6 +6,15 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     globals: false,
+    deps: {
+      optimizer: {
+        ssr: {
+          enabled: true,
+          include: ['@xterm/headless'],
+        },
+      },
+    },
+    include: ['**/*.test.ts'],
     reporters: ['default', 'junit'],
     outputFile: {
       junit: './coverage/test-results.xml',
@@ -18,30 +27,5 @@ export default defineConfig({
     },
     setupFiles: [path.resolve(__dirname, 'test-helpers/expect-url-with-query-params.ts')],
     bail: 1,
-    projects: [
-      {
-        extends: true,
-        test: {
-          name: 'packages',
-          include: ['packages/*/src/**/*.test.ts'],
-          exclude: ['packages/cli/**', '**/node_modules/**'],
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: 'cli',
-          include: ['packages/cli/src/**/*.test.ts'],
-          deps: {
-            optimizer: {
-              ssr: {
-                enabled: true,
-                include: ['@xterm/headless'],
-              },
-            },
-          },
-        },
-      },
-    ],
   },
 })
