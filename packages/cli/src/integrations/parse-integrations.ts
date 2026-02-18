@@ -23,46 +23,12 @@ export interface IntegrationsParseResult {
 /**
  * Format Zod validation errors into ValidationIssue format.
  */
-export function formatZodIssues(issues: ZodIssue[], pathPrefix: string): ValidationIssue[] {
+function formatZodIssues(issues: ZodIssue[], pathPrefix: string): ValidationIssue[] {
   return issues.map(issue => ({
     path: [pathPrefix, ...issue.path].filter(Boolean).join('.'),
     message: issue.message,
     code: issue.code,
   }))
-}
-
-/**
- * Result of validating a single integration entry.
- */
-export type EntryValidationResult =
-  | { success: true; config: DatabaseIntegrationConfig }
-  | { success: false; issues: ValidationIssue[] }
-
-/**
- * Validate a single raw integration entry against the `databaseIntegrationConfigSchema`.
- *
- * Extracts `id`/`name` for labeling in error messages.
- * Returns either the validated `DatabaseIntegrationConfig` or formatted validation issues.
- *
- * @param entry - The raw entry object (may contain unresolved env var refs in metadata)
- * @param index - The position in the integrations array, used for error path prefixes
- */
-export function validateIntegrationEntry(entry: Record<string, unknown>, index: number): EntryValidationResult {
-  const pathPrefix = `integrations[${index}]`
-  const entryId = z.string().safeParse(entry.id).data
-  const entryName = z.string().safeParse(entry.name).data
-  const integrationLabel = entryName || entryId
-
-  const result = databaseIntegrationConfigSchema.safeParse(entry)
-  if (result.success) {
-    return { success: true, config: result.data }
-  }
-
-  const formattedIssues = formatZodIssues(result.error.issues, pathPrefix)
-  if (formattedIssues.length > 0 && integrationLabel) {
-    formattedIssues[0].message = `Integration "${integrationLabel}": ${formattedIssues[0].message}`
-  }
-  return { success: false, issues: formattedIssues }
 }
 
 /**
