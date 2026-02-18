@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "declaration": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2022"],
     "module": "esnext",
