@@ -1,7 +1,7 @@
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { resetOutputConfig } from '../output'
+import { resetOutputConfig, setOutputConfig } from '../output'
 import { createInspectAction, type InspectOptions } from './inspect'
 
 // Test file path relative to project root (tests are run from root)
@@ -22,6 +22,7 @@ describe('inspect command', () => {
     program = new Command()
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     resetOutputConfig()
+    setOutputConfig({ color: false })
   })
 
   afterEach(() => {
