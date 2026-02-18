@@ -68,6 +68,9 @@
       "lodash@<4.17.23": "^4.17.23",
       "lodash-es@<4.17.23": "^4.17.23",
       "@xterm/headless": "^6"
+    },
+    "patchedDependencies": {
+      "@inquirer/testing@3.1.1": "patches/@inquirer__testing@3.1.1.patch"
     }
   }
 }
