@@ -1,7 +1,7 @@
 import type { DatabaseIntegrationConfig, DatabaseIntegrationMetadataByType } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
 import {
-  promptForOptionalBooleanField,
+  promptForBooleanField,
   promptForOptionalSecretField,
   promptForOptionalStringField,
   promptForOptionalStringPortField,
@@ -24,7 +24,13 @@ export function encodeConnectionString(connectionString: string): string {
   }
 
   const [protocol, urlWithoutProtocol] = connectionString.split(/\/\/(.*)/) as [string, string]
+  if (!urlWithoutProtocol) {
+    return connectionString
+  }
   const [credentials, restOfTheUrl] = urlWithoutProtocol.split(/@(.*)/) as [string, string]
+  if (!credentials) {
+    return connectionString
+  }
   const [username, password] = credentials.split(/:(.*)/)
 
   const encodedCredentials: string[] = []
@@ -60,8 +66,10 @@ export function buildMongoConnectionString({
   let dbPart = ''
   let optionsPart = ''
 
-  if (user && password) {
-    credentials = `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
+  if (user) {
+    credentials = password
+      ? `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
+      : `${encodeURIComponent(user)}@`
   }
   if (port) {
     portPart = `:${port}`
@@ -202,7 +210,7 @@ export async function promptForFieldsMongodb({
     }
   }
 
-  const sshEnabled = await promptForOptionalBooleanField({
+  const sshEnabled = await promptForBooleanField({
     label: 'Enable SSH tunnel:',
     defaultValue: defaultValues?.sshEnabled ?? false,
   })
@@ -223,7 +231,7 @@ export async function promptForFieldsMongodb({
     }
   }
 
-  const sslEnabled = await promptForOptionalBooleanField({
+  const sslEnabled = await promptForBooleanField({
     label: 'Enable SSL:',
     defaultValue: defaultValues?.sslEnabled ?? false,
   })

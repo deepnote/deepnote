@@ -171,13 +171,13 @@ export async function promptForRequiredNumberField({
   })
 }
 
-export async function promptForOptionalBooleanField({
+export async function promptForBooleanField({
   label,
   defaultValue,
 }: {
   label: string
   defaultValue?: boolean
-}): Promise<boolean | undefined> {
+}): Promise<boolean> {
   return confirm({
     message: label,
     default: defaultValue,

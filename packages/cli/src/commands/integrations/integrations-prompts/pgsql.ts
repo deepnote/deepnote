@@ -1,6 +1,6 @@
 import type { DatabaseIntegrationConfig, DatabaseIntegrationMetadataByType } from '@deepnote/database-integrations'
 import {
-  promptForOptionalBooleanField,
+  promptForBooleanField,
   promptForOptionalSecretField,
   promptForOptionalStringField,
   promptForRequiredSecretField,
@@ -36,7 +36,7 @@ export async function promptForFieldsPostgres({
     password,
   }
 
-  const sshEnabled = await promptForOptionalBooleanField({
+  const sshEnabled = await promptForBooleanField({
     label: 'Enable SSH tunnel:',
     defaultValue: defaultValues?.sshEnabled ?? false,
   })
@@ -57,7 +57,7 @@ export async function promptForFieldsPostgres({
     }
   }
 
-  const sslEnabled = await promptForOptionalBooleanField({
+  const sslEnabled = await promptForBooleanField({
     label: 'Enable SSL:',
     defaultValue: defaultValues?.sslEnabled ?? false,
   })
