@@ -183,10 +183,10 @@ ORDER BY
 You can also query local files like CSV, Parquet, or JSON directly from a SQL block without loading them into a DataFrame first. Select "DataFrame SQL" as the data source (which uses DuckDB under the hood) and reference the file path in your query:
 
 ```sql
-SELECT * FROM 'sales_data.csv' WHERE region = 'Europe'
+SELECT * FROM sales_data.csv WHERE region = 'Europe'
 ```
 
-DuckDB supports reading from CSV, Parquet, JSON, and [other formats](https://duckdb.org/docs/data/overview).
+File paths are relative to the folder where your `.deepnote` file is located. DuckDB supports reading from CSV, Parquet, JSON, and [other formats](https://duckdb.org/docs/data/overview).
 
 ![Query files with SQL](../assets/examples/getting_started_with_deepnote_in_vscode/query_files_with_sql.png)
 
