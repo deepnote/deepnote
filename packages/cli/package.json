@@ -60,8 +60,6 @@
   },
   "devDependencies": {
     "@inquirer/testing": "^3.1.1",
-    "@types/mute-stream": "^0.0.4",
-    "mute-stream": "^3.0.0",
     "tsx": "^4.20.6",
     "zod-to-json-schema": "^3.25.1"
   },
