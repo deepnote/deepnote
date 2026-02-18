@@ -16,10 +16,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-24.04
-          - macos-14
-          - windows-2022
+        include:
+          - os: ubuntu-24.04
+            platform-tag: manylinux2014_x86_64
+          - os: macos-14
+            platform-tag: macosx_11_0_arm64
+          - os: windows-2022
+            platform-tag: win_amd64
 
     steps:
       - name: Checkout code
@@ -76,6 +79,9 @@ jobs:
 
       - name: Build wheel
         run: python -m build --wheel packages/cli/pypi --outdir packages/cli/pypi/dist
+
+      - name: Retag wheel
+        run: python -m wheel tags --platform-tag=${{ matrix.platform-tag }} --python-tag=py3 --abi-tag=none --remove packages/cli/pypi/dist/*.whl
 
       - name: Smoke test wheel
         shell: bash
