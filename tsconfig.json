@@ -6,8 +6,8 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2022"],
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "noImplicitAny": true,
     "noImplicitThis": true,
     "paths": {
