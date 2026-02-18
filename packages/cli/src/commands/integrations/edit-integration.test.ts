@@ -1,7 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-// @ts-expect-error
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
