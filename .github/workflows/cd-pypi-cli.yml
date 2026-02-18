@@ -81,6 +81,7 @@ jobs:
         run: python -m build --wheel packages/cli/pypi --outdir packages/cli/pypi/dist
 
       - name: Retag wheel
+        shell: bash
         run: python -m wheel tags --platform-tag=${{ matrix.platform-tag }} --python-tag=py3 --abi-tag=none --remove packages/cli/pypi/dist/*.whl
 
       - name: Smoke test wheel
