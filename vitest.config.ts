@@ -20,7 +20,7 @@ export default defineConfig({
       junit: './coverage/test-results.xml',
     },
     coverage: {
-      provider: 'v8',
+      provider: 'istanbul',
       reporter: ['text', 'json', 'html', 'lcov'],
       include: ['packages/*/src/**/*.ts'],
       exclude: ['**/*.test.ts'],
