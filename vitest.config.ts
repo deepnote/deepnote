@@ -6,21 +6,13 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     globals: false,
-    deps: {
-      optimizer: {
-        ssr: {
-          enabled: true,
-          include: ['@xterm/headless'],
-        },
-      },
-    },
     include: ['**/*.test.ts'],
     reporters: ['default', 'junit'],
     outputFile: {
       junit: './coverage/test-results.xml',
     },
     coverage: {
-      provider: 'istanbul',
+      provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
       include: ['packages/*/src/**/*.ts'],
       exclude: ['**/*.test.ts'],

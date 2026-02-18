@@ -10,6 +10,7 @@ overrides:
   glob: '>=11.1.0'
   lodash@<4.17.23: ^4.17.23
   lodash-es@<4.17.23: ^4.17.23
+  '@xterm/headless': ^6
 
 importers:
 
@@ -28,8 +29,8 @@ importers:
         specifier: 4.0.5
         version: 4.0.5(vitest@4.0.5(@types/node@22.18.12)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1))
       '@xterm/headless':
-        specifier: ^5.5.0
-        version: 5.5.0
+        specifier: ^6
+        version: 6.0.0
       cspell:
         specifier: 9.2.2
         version: 9.2.2
@@ -1521,8 +1522,8 @@ packages:
   '@vitest/utils@4.0.5':
     resolution: {integrity: sha512-V5RndUgCB5/AfNvK9zxGCrRs99IrPYtMTIdUzJMMFs9nrmE5JXExIEfjVtUteyTRiLfCm+dCRMHf/Uu7Mm8/dg==}
 
-  '@xterm/headless@5.5.0':
-    resolution: {integrity: sha512-5xXB7kdQlFBP82ViMJTwwEc3gKCLGKR/eoxQm4zge7GPBl86tCdI0IdPJjoKd8mUSFXz5V7i/25sfsEkP4j46g==}
+  '@xterm/headless@6.0.0':
+    resolution: {integrity: sha512-5Yj1QINYCyzrZtf8OFIHi47iQtI+0qYFPHmouEfG8dHNxbZ9Tb9YGSuLcsEwj9Z+OL75GJqPyJbyoFer80a2Hw==}
 
   abbrev@2.0.0:
     resolution: {integrity: sha512-6/mh1E2u2YgEsCHdY0Yx5oW+61gZU+1vXaoiHHrpKeuRNNgFvS+/jrwHiQhB5apAf5oB7UB7E19ol2R2LKH8hQ==}
@@ -3749,7 +3750,7 @@ snapshots:
   '@inquirer/testing@3.1.1(@inquirer/checkbox@5.0.6(@types/node@22.18.12))(@inquirer/confirm@6.0.6(@types/node@22.18.12))(@inquirer/editor@5.0.6(@types/node@22.18.12))(@inquirer/expand@5.0.6(@types/node@22.18.12))(@inquirer/external-editor@2.0.3(@types/node@22.18.12))(@inquirer/input@5.0.6(@types/node@22.18.12))(@inquirer/number@4.0.6(@types/node@22.18.12))(@inquirer/password@5.0.6(@types/node@22.18.12))(@inquirer/prompts@8.2.1(@types/node@22.18.12))(@inquirer/rawlist@5.2.2(@types/node@22.18.12))(@inquirer/search@4.1.2(@types/node@22.18.12))(@inquirer/select@5.0.6(@types/node@22.18.12))(@types/node@22.18.12)(vitest@4.0.5(@types/node@22.18.12)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1))':
     dependencies:
       '@inquirer/type': 4.0.3(@types/node@22.18.12)
-      '@xterm/headless': 5.5.0
+      '@xterm/headless': 6.0.0
       mute-stream: 3.0.0
     optionalDependencies:
       '@inquirer/checkbox': 5.0.6(@types/node@22.18.12)
@@ -4220,7 +4221,7 @@ snapshots:
       '@vitest/pretty-format': 4.0.5
       tinyrainbow: 3.0.3
 
-  '@xterm/headless@5.5.0': {}
+  '@xterm/headless@6.0.0': {}
 
   abbrev@2.0.0: {}
 
