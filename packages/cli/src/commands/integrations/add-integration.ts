@@ -90,7 +90,7 @@ export async function createIntegration(options: IntegrationsCreateOptions): Pro
   const secrets = addIntegrationToSeq(doc, integrationsSeq, config)
 
   if (doc.commentBefore == null || !doc.commentBefore.includes('yaml-language-server')) {
-    doc.commentBefore = SCHEMA_COMMENT
+    doc.commentBefore = doc.commentBefore ? `${SCHEMA_COMMENT}\n${doc.commentBefore}` : SCHEMA_COMMENT
   }
 
   const secretCount = Object.keys(secrets).length
