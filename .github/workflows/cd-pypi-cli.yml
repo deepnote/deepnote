@@ -1,8 +1,9 @@
 name: CD PyPI CLI
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - '@deepnote/cli@*'
 
 permissions:
   contents: read
@@ -10,7 +11,6 @@ permissions:
 jobs:
   build-wheels:
     name: Build wheel (${{ matrix.os }})
-    if: startsWith(github.event.release.tag_name, '@deepnote/cli@')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -92,7 +92,6 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    if: startsWith(github.event.release.tag_name, '@deepnote/cli@')
     needs: build-wheels
     runs-on: ubuntu-latest
     timeout-minutes: 10
