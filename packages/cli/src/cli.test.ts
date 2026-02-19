@@ -236,4 +236,22 @@ describe('CLI', () => {
       )
     })
   })
+
+  describe('invalid option values', () => {
+    it('exits with code 2 when invalid block type is used with cat', async () => {
+      const program = createProgram()
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(code => {
+        throw new Error(`process.exit called with ${code}`)
+      })
+
+      try {
+        await program.parseAsync(['cat', 'test.deepnote', '--type', 'invalid'], { from: 'user' })
+      } catch (error) {
+        // InvalidArgumentError should trigger exit code 2 via our exitOverride
+        expect(exitSpy).toHaveBeenCalledWith(2)
+      } finally {
+        exitSpy.mockRestore()
+      }
+    })
+  })
 })
