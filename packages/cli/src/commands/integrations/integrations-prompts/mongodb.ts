@@ -18,30 +18,15 @@ export function encodeOptions(options: string): string {
 }
 
 export function encodeConnectionString(connectionString: string): string {
-  const hasCredentials = connectionString.includes('@')
-  if (!hasCredentials) {
+  // Matches: <protocol://><username>[:<password>]@<rest>
+  const match = connectionString.match(/^(.*?\/\/)([^:@]+)(?::([^@]*))?@(.*)$/)
+  if (!match) {
     return connectionString
   }
-
-  const [protocol, urlWithoutProtocol] = connectionString.split(/\/\/(.*)/) as [string, string]
-  if (!urlWithoutProtocol) {
-    return connectionString
-  }
-  const [credentials, restOfTheUrl] = urlWithoutProtocol.split(/@(.*)/) as [string, string]
-  if (!credentials) {
-    return connectionString
-  }
-  const [username, password] = credentials.split(/:(.*)/)
-
-  const encodedCredentials: string[] = []
-  if (username) {
-    encodedCredentials.push(encodeURIComponent(username))
-  }
-  if (password) {
-    encodedCredentials.push(encodeURIComponent(password))
-  }
-
-  return `${protocol}//${encodedCredentials.join(':')}@${restOfTheUrl}`
+  const [, protocol, username, password, rest] = match
+  const encodedUsername = encodeURIComponent(username)
+  const credentials = password !== undefined ? `${encodedUsername}:${encodeURIComponent(password)}` : encodedUsername
+  return `${protocol}${credentials}@${rest}`
 }
 
 export function buildMongoConnectionString({
