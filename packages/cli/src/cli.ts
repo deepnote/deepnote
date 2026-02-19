@@ -47,6 +47,15 @@ export function createProgram(): Command {
       // Write errors to stderr with chalk styling
       outputError: (str, write) => write(chalk.red(str)),
     })
+    .exitOverride(err => {
+      // Map Commander errors to appropriate exit codes
+      // InvalidArgumentError (e.g., invalid --type value) should exit with InvalidUsage (2)
+      if (err.code === 'commander.invalidArgument') {
+        process.exit(ExitCode.InvalidUsage)
+      }
+      // For other Commander errors, use the default exit code
+      process.exit(err.exitCode)
+    })
     // Global options
     .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
     .option('--debug', 'Show debug information for troubleshooting')
@@ -446,8 +455,8 @@ ${c.bold('Output:')}
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  File is valid
-  ${c.dim('1')}  File is invalid (schema violations found)
-  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file)
+  ${c.dim('1')}  Runtime error (unexpected failure)
+  ${c.dim('2')}  File is invalid (schema violations) or invalid usage (file not found, not a .deepnote file)
 
 ${c.bold('Examples:')}
   ${c.dim('# Validate a .deepnote file')}
