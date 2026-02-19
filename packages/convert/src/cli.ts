@@ -1,10 +1,9 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, extname, resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
 import chalk from 'chalk'
 import ora from 'ora'
-import { stringify } from 'yaml'
 
 import {
   convertDeepnoteFileToJupyterFiles,
@@ -375,7 +374,7 @@ async function convertDeepnoteToFormat(
     const tempPath = resolve(tempDir, tempFilename)
 
     try {
-      const mergedYaml = stringify(deepnoteFile)
+      const mergedYaml = serializeDeepnoteFile(deepnoteFile)
       await fs.writeFile(tempPath, mergedYaml, 'utf-8')
 
       switch (outputFormat) {

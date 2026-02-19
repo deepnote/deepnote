@@ -5,7 +5,8 @@ import { deepnoteFileSchema, deepnoteSnapshotSchema } from './deepnote-file-sche
 
 const yamlOptions = {
   indent: 2,
-  lineWidth: 0,
+  lineWidth: 120,
+  blockQuote: 'folded',
   defaultStringType: 'PLAIN',
   defaultKeyType: 'PLAIN',
 } as const

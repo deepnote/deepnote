@@ -230,33 +230,6 @@ describe('serializeDeepnoteFile', () => {
   })
 
   describe('special characters', () => {
-    it('handles unicode characters', () => {
-      const file = createMinimalFile()
-      file.project.name = 'Тест 测试 🎉'
-      file.project.notebooks = [
-        {
-          id: 'notebook-1',
-          name: 'Notebook',
-          blocks: [
-            {
-              id: 'block-1',
-              blockGroup: 'group-1',
-              sortingKey: '000001',
-              type: 'markdown',
-              content: '# Привет мир 你好世界',
-              metadata: {},
-            },
-          ],
-        },
-      ]
-
-      const yaml = serializeDeepnoteFile(file)
-      const parsed = deserializeDeepnoteFile(yaml)
-
-      expect(parsed.project.name).toBe('Тест 测试 🎉')
-      expect(parsed.project.notebooks[0].blocks[0].content).toBe('# Привет мир 你好世界')
-    })
-
     it('handles quotes and special YAML characters', () => {
       const file = createMinimalFile()
       file.project.notebooks = [

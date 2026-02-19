@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { type DeepnoteBlock, type DeepnoteFile, deepnoteBlockSchema } from '@deepnote/blocks'
+import { type DeepnoteBlock, type DeepnoteFile, deepnoteBlockSchema, serializeDeepnoteFile } from '@deepnote/blocks'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
-import { stringify as yamlStringify } from 'yaml'
 import { z } from 'zod'
 import { generateSortingKey, loadDeepnoteFile, saveDeepnoteFile } from '../utils.js'
 
@@ -465,11 +464,7 @@ async function handleCreate(args: Record<string, unknown>) {
   }
 
   if (dryRun) {
-    const content = yamlStringify(file, {
-      lineWidth: 0,
-      defaultStringType: 'PLAIN',
-      defaultKeyType: 'PLAIN',
-    })
+    const content = serializeDeepnoteFile(file)
     return {
       content: [
         {

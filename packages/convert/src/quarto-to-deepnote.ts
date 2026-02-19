@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { parse as parseYaml, stringify } from 'yaml'
+import { serializeDeepnoteFile } from '@deepnote/blocks'
+import { parse as parseYaml } from 'yaml'
 import type { QuartoCell, QuartoCellOptions, QuartoDocument, QuartoFrontmatter } from './types/quarto'
 import { createSortingKey } from './utils'
 
@@ -439,7 +440,7 @@ export async function convertQuartoFilesToDeepnoteFile(
     projectName: options.projectName,
   })
 
-  const yamlContent = stringify(deepnoteFile)
+  const yamlContent = serializeDeepnoteFile(deepnoteFile)
 
   const parentDir = dirname(options.outputPath)
   await fs.mkdir(parentDir, { recursive: true })
