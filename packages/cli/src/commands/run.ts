@@ -808,6 +808,11 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
 
+  // Streaming output tracking: blocks that started but haven't emitted first output yet
+  const needsNewlineBeforeOutput = new Set<string>()
+  // Blocks that had streaming output (so onBlockDone knows to put ✓/✗ on its own line)
+  const blocksWithStreamedOutput = new Set<string>()
+
   // Profiling: track memory before each block and collect profile data
   const showProfile = options.profile && !isMachineOutput
   const blockProfiles: BlockProfile[] = []
@@ -866,6 +871,17 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         if (!isMachineOutput) {
           const c = getChalk()
           process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
+          needsNewlineBeforeOutput.add(block.id)
+        }
+      },
+
+      onOutput: (blockId: string, blockOutput: IOutput) => {
+        if (!isMachineOutput) {
+          if (needsNewlineBeforeOutput.delete(blockId)) {
+            output('') // newline after the "[1/3] Block label " line
+          }
+          renderOutput(blockOutput)
+          blocksWithStreamedOutput.add(blockId)
         }
       },
 
@@ -911,19 +927,17 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
         if (!isMachineOutput) {
           const c = getChalk()
+          const hadStreamedOutput = blocksWithStreamedOutput.delete(result.blockId)
+          needsNewlineBeforeOutput.delete(result.blockId)
+
           if (result.success) {
             output(c.green('✓') + c.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
           } else {
             output(c.red('✗'))
           }
 
-          // Render outputs
-          for (const blockOutput of result.outputs) {
-            renderOutput(blockOutput)
-          }
-
-          // Add blank line between blocks for readability
-          if (result.outputs.length > 0) {
+          // Add blank line after blocks that produced output (already streamed via onOutput)
+          if (hadStreamedOutput) {
             output('')
           }
         }
