@@ -1,4 +1,4 @@
-import type { BigNumberBlock, DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
+import type { BigNumberBlock, DeepnoteBlock } from '../deepnote-file/deepnote-file-schema'
 import { pythonCode } from '../python-snippets'
 
 export function createPythonCodeForBigNumberBlock(block: BigNumberBlock): string {

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import {
   convertJupyterNotebooksToDeepnote,
   convertMarimoAppsToDeepnote,
@@ -19,7 +19,6 @@ import {
 } from '@deepnote/convert'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
-import { stringify as yamlStringify } from 'yaml'
 import { z } from 'zod'
 import { formatOutput } from '../utils.js'
 
@@ -287,7 +286,7 @@ async function saveExecutionSnapshot(
   await fs.mkdir(snapshotDir, { recursive: true })
 
   // Write snapshot
-  const snapshotYaml = yamlStringify(snapshot)
+  const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
   await fs.writeFile(snapshotPath, snapshotYaml, 'utf-8')
 
   return { snapshotPath }
