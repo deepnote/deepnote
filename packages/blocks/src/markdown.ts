@@ -7,7 +7,7 @@ import {
   isTextBlock,
   stripMarkdownFromTextBlock,
 } from './blocks/text-blocks'
-import type { DeepnoteBlock } from './deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock } from './deepnote-file/deepnote-file-schema'
 
 export function createMarkdown(block: DeepnoteBlock): string {
   if (block.type === 'markdown') {
