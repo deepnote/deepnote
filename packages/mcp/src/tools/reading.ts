@@ -2,10 +2,11 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deepnoteFileSchema, parseYaml } from '@deepnote/blocks'
+import { checkForIssues, computeProjectStats } from '@deepnote/cli'
 import { getBlockDependencies } from '@deepnote/reactivity'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { type ZodIssue, z } from 'zod'
-import { formatOutput, isPythonBuiltin, loadDeepnoteFile } from '../utils.js'
+import { formatOutput, loadDeepnoteFile } from '../utils.js'
 
 // --- Internal analysis helpers used by handleRead and individual handlers ---
 
@@ -36,89 +37,43 @@ function computeStructure(file: DeepnoteFile) {
 }
 
 function computeStats(file: DeepnoteFile) {
-  let totalLines = 0
-  const imports = new Set<string>()
+  // Use CLI's analysis function for consistency
+  const stats = computeProjectStats(file)
+
+  // Convert block type summary to simple counts object for backwards compatibility
   const blockCounts: Record<string, number> = {}
-
-  for (const notebook of file.project.notebooks) {
-    for (const block of notebook.blocks) {
-      blockCounts[block.type] = (blockCounts[block.type] || 0) + 1
-
-      if (block.content) {
-        const lines = block.content.split('\n')
-        totalLines += lines.length
-
-        if (block.type === 'code') {
-          for (const line of lines) {
-            const importMatch = line.match(/^(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)/)
-            if (importMatch) {
-              imports.add(importMatch[1])
-            }
-          }
-        }
-      }
-    }
+  for (const bt of stats.blockTypesSummary) {
+    blockCounts[bt.type] = bt.count
   }
 
   return {
-    totalLines,
-    uniqueImports: Array.from(imports).sort(),
-    importCount: imports.size,
+    totalLines: stats.totalLinesOfCode,
+    uniqueImports: stats.imports,
+    importCount: stats.imports.length,
     blockCounts,
-    totalBlocks: Object.values(blockCounts).reduce((a, b) => a + b, 0),
+    totalBlocks: stats.totalBlocks,
   }
 }
 
 async function computeLintIssues(file: DeepnoteFile) {
-  const issues: Array<{
-    severity: 'error' | 'warning' | 'info'
-    message: string
-    notebook?: string
-    blockId?: string
-  }> = []
-
-  for (const notebook of file.project.notebooks) {
-    try {
-      const blockDeps = await getBlockDependencies(notebook.blocks)
-
-      const definedVars = new Set<string>()
-      for (const block of blockDeps) {
-        for (const v of block.definedVariables) definedVars.add(v)
-        for (const m of block.importedModules || []) definedVars.add(m)
-      }
-
-      for (const block of blockDeps) {
-        if (block.error) {
-          issues.push({
-            severity: 'warning',
-            message: `Parse error: ${block.error.message}`,
-            notebook: notebook.name,
-            blockId: block.id,
-          })
-          continue
-        }
-
-        for (const varName of block.usedVariables) {
-          if (!definedVars.has(varName) && !isPythonBuiltin(varName)) {
-            issues.push({
-              severity: 'error',
-              message: `Undefined variable: ${varName}`,
-              notebook: notebook.name,
-              blockId: block.id,
-            })
-          }
-        }
-      }
-    } catch {
-      issues.push({
-        severity: 'warning',
-        message: 'Could not analyze dependencies',
-        notebook: notebook.name,
-      })
-    }
+  // Use CLI's analysis function for consistency and comprehensive checks
+  try {
+    const { lint } = await checkForIssues(file)
+    return lint.issues.map(issue => ({
+      severity: issue.severity,
+      message: issue.message,
+      notebook: issue.notebookName,
+      blockId: issue.blockId,
+    }))
+  } catch (error) {
+    // Return a generic error if analysis fails
+    return [
+      {
+        severity: 'warning' as const,
+        message: `Could not analyze: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    ]
   }
-
-  return issues
 }
 
 async function computeDagInfo(file: DeepnoteFile, notebookFilter?: string) {
