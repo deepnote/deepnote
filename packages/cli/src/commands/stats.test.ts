@@ -1,6 +1,9 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { ExitCode } from '../exit-codes'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createStatsAction, type StatsOptions } from './stats'
 
@@ -8,6 +11,22 @@ import { createStatsAction, type StatsOptions } from './stats'
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+
+async function createTempFile(content: string): Promise<string> {
+  const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-stats-test-'))
+  const filePath = join(tempDir, 'test.deepnote')
+  await fs.writeFile(filePath, content, 'utf8')
+  return filePath
+}
+
+async function cleanupTempFile(filePath: string): Promise<void> {
+  try {
+    await fs.unlink(filePath)
+    await fs.rmdir(join(filePath, '..'))
+  } catch {
+    // Ignore cleanup errors
+  }
+}
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: StatsOptions = {}
@@ -237,6 +256,56 @@ describe('stats command', () => {
       expect(parsed.error).toContain('File not found')
 
       exitSpy.mockRestore()
+    })
+
+    it('exits with code 2 for file not found', async () => {
+      const action = createStatsAction(program)
+      let exitCode: number | undefined
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
+
+      await expect(action('non-existent.deepnote', DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+      expect(exitCode).toBe(ExitCode.InvalidUsage)
+
+      exitSpy.mockRestore()
+    })
+
+    it('exits with code 2 for invalid YAML (parse error)', async () => {
+      const action = createStatsAction(program)
+      let exitCode: number | undefined
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
+
+      const filePath = await createTempFile('invalid: [yaml')
+
+      try {
+        await expect(action(filePath, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+        expect(exitCode).toBe(ExitCode.InvalidUsage)
+      } finally {
+        await cleanupTempFile(filePath)
+        exitSpy.mockRestore()
+      }
+    })
+
+    it('exits with code 2 for non-existent notebook filter', async () => {
+      const action = createStatsAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      let exitCode: number | undefined
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
+
+      try {
+        await expect(action(filePath, { notebook: 'Non-existent' })).rejects.toThrow('process.exit called')
+        expect(exitCode).toBe(ExitCode.InvalidUsage)
+      } finally {
+        exitSpy.mockRestore()
+      }
     })
   })
 

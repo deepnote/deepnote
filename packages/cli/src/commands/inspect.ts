@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
@@ -21,12 +21,7 @@ export function createInspectAction(
       const message = error instanceof Error ? error.message : String(error)
       // Use InvalidUsage for file resolution and parse errors (user input), Error for runtime failures
       const exitCode =
-        error instanceof FileResolutionError ||
-        message.includes('Failed to parse') ||
-        message.includes('Invalid YAML') ||
-        message.includes('parse error')
-          ? ExitCode.InvalidUsage
-          : ExitCode.Error
+        error instanceof FileResolutionError || error instanceof ParseError ? ExitCode.InvalidUsage : ExitCode.Error
       if (options.output === 'json') {
         outputJson({ success: false, error: message })
       } else if (options.output === 'toon') {

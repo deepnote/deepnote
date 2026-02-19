@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deepnoteFileSchema, parseYaml } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deepnoteFileSchema, ParseError, parseYaml } from '@deepnote/blocks'
 import type { Command } from 'commander'
 import type { ZodIssue } from 'zod'
 import { ExitCode } from '../exit-codes'
@@ -56,8 +56,9 @@ export function createValidateAction(
         process.exit(error.exitCode)
       }
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
-      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      // Use InvalidUsage for file resolution and parse errors (user input), Error for runtime failures
+      const exitCode =
+        error instanceof FileResolutionError || error instanceof ParseError ? ExitCode.InvalidUsage : ExitCode.Error
       if (options.output === 'json') {
         outputJson({ success: false, error: message } satisfies ValidationError)
       } else {

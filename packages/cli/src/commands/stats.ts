@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
@@ -104,11 +104,7 @@ function handleError(error: unknown, options: StatsOptions): never {
   const message = error instanceof Error ? error.message : String(error)
   // User input errors should return InvalidUsage (2)
   const exitCode =
-    error instanceof FileResolutionError ||
-    message.includes('not found') ||
-    message.includes('Notebook ') ||
-    message.includes('Failed to parse') ||
-    message.includes('Invalid YAML')
+    error instanceof FileResolutionError || error instanceof ParseError || message.includes('not found in project')
       ? ExitCode.InvalidUsage
       : ExitCode.Error
 

@@ -8,6 +8,10 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { type ZodIssue, z } from 'zod'
 import { formatOutput, loadDeepnoteFile } from '../utils.js'
 
+// --- Constants for include options ---
+
+const INCLUDE_OPTIONS = ['structure', 'stats', 'lint', 'dag', 'all'] as const
+
 // --- Internal analysis helpers used by handleRead and individual handlers ---
 
 function computeStructure(file: DeepnoteFile) {
@@ -173,7 +177,7 @@ export const readingTools: Tool[] = [
           type: 'array',
           items: {
             type: 'string',
-            enum: ['structure', 'stats', 'lint', 'dag', 'all'],
+            enum: INCLUDE_OPTIONS,
           },
           description:
             'What to include: structure (metadata), stats (lines/imports), lint (issues), dag (dependencies), all. Default: ["structure"]',

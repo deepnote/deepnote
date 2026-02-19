@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import { codeToANSI } from '@shikijs/cli'
 import type { ChalkInstance } from 'chalk'
 import { type Command, InvalidArgumentError } from 'commander'
@@ -50,11 +50,7 @@ export function createCatAction(_program: Command): (path: string, options: CatO
       const message = error instanceof Error ? error.message : String(error)
       // User input errors should return InvalidUsage (2)
       const exitCode =
-        error instanceof FileResolutionError ||
-        message.includes('not found') ||
-        message.includes('Notebook ') ||
-        message.includes('Failed to parse') ||
-        message.includes('Invalid YAML')
+        error instanceof FileResolutionError || error instanceof ParseError || message.includes('not found in project')
           ? ExitCode.InvalidUsage
           : ExitCode.Error
       if (options.output === 'json') {
