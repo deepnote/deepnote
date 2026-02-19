@@ -479,31 +479,35 @@ describe('convertPercentFilesToDeepnoteFile', () => {
         name: Simple Test
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-003
-                content: |-
-                  # Hello World
-
-                  This is a simple percent format notebook.
-                id: test-uuid-004
-                metadata: {}
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
                 sortingKey: "0"
                 type: markdown
-              - blockGroup: test-uuid-005
-                content: print("Hello, World!")
-                id: test-uuid-006
+                content: >-
+                  # Hello World
+
+
+                  This is a simple percent format notebook.
                 metadata: {}
+              - id: test-uuid-006
+                blockGroup: test-uuid-005
                 sortingKey: "1"
                 type: code
-              - blockGroup: test-uuid-007
-                content: |-
-                  x = 10
-                  y = 20
-                  result = x + y
-                  print(f"Result: {result}")
-                id: test-uuid-008
+                content: print("Hello, World!")
                 metadata: {}
+              - id: test-uuid-008
+                blockGroup: test-uuid-007
                 sortingKey: "2"
                 type: code
+                content: >-
+                  x = 10
+
+                  y = 20
+
+                  result = x + y
+
+                  print(f"Result: {result}")
+                metadata: {}
             executionMode: block
             id: test-uuid-001
             isModule: false

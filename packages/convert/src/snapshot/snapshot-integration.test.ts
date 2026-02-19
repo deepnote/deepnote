@@ -2,9 +2,8 @@ import fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { stringify } from 'yaml'
 import { findSnapshotsForProject, loadLatestSnapshot, parseSnapshotFilename } from './lookup'
 import { mergeSnapshotIntoSource } from './merge'
 import { generateSnapshotFilename, slugifyProjectName, splitDeepnoteFile } from './split'
@@ -146,7 +145,7 @@ describe('Snapshot Integration', () => {
     // Write source file
     const sourceFilename = 'project.deepnote'
     const sourcePath = join(tempDir, sourceFilename)
-    await fs.writeFile(sourcePath, stringify(source), 'utf-8')
+    await fs.writeFile(sourcePath, serializeDeepnoteFile(source), 'utf-8')
 
     // Create snapshots directory and write snapshot
     const snapshotsDir = join(tempDir, 'snapshots')
@@ -155,7 +154,7 @@ describe('Snapshot Integration', () => {
     const slug = slugifyProjectName(file.project.name)
     const snapshotFilename = generateSnapshotFilename(slug, file.project.id)
     const snapshotPath = join(snapshotsDir, snapshotFilename)
-    await fs.writeFile(snapshotPath, stringify(snapshot), 'utf-8')
+    await fs.writeFile(snapshotPath, serializeDeepnoteSnapshot(snapshot), 'utf-8')
 
     // Find snapshots
     const snapshots = await findSnapshotsForProject(tempDir, file.project.id)
@@ -205,7 +204,7 @@ describe('Snapshot Integration', () => {
         notebooks: [],
       },
     }
-    await fs.writeFile(sourcePath, stringify(file), 'utf-8')
+    await fs.writeFile(sourcePath, serializeDeepnoteFile(file), 'utf-8')
 
     const snapshot = await loadLatestSnapshot(sourcePath, 'test-id')
     expect(snapshot).toBeNull()

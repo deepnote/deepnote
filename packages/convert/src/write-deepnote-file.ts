@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { stringify } from 'yaml'
+import { serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import { generateSnapshotFilename, getSnapshotDir, hasOutputs, slugifyProjectName, splitDeepnoteFile } from './snapshot'
 
 export interface WriteDeepnoteFileOptions {
@@ -44,7 +44,7 @@ export async function writeDeepnoteFile(options: WriteDeepnoteFileOptions): Prom
 
   // If singleFile mode or no outputs, write complete file
   if (singleFile || !hasOutputs(file)) {
-    const yamlContent = stringify(file)
+    const yamlContent = serializeDeepnoteFile(file)
     await fs.writeFile(outputPath, yamlContent, 'utf-8')
     return { sourcePath: outputPath }
   }
@@ -59,8 +59,8 @@ export async function writeDeepnoteFile(options: WriteDeepnoteFileOptions): Prom
   const snapshotPath = resolve(snapshotDir, snapshotFilename)
 
   // Serialize both files
-  const sourceYaml = stringify(source)
-  const snapshotYaml = stringify(snapshot)
+  const sourceYaml = serializeDeepnoteFile(source)
+  const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
 
   // Create snapshot directory and write both files in parallel
   await fs.mkdir(snapshotDir, { recursive: true })

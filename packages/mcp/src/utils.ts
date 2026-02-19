@@ -1,9 +1,8 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
 import { PYTHON_BUILTINS } from '@deepnote/reactivity'
-import { stringify as yamlStringify } from 'yaml'
 
 export async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
   const absolutePath = path.resolve(filePath)
@@ -13,11 +12,7 @@ export async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> 
 
 export async function saveDeepnoteFile(filePath: string, file: DeepnoteFile): Promise<void> {
   const absolutePath = path.resolve(filePath)
-  const content = yamlStringify(file, {
-    lineWidth: 0,
-    defaultStringType: 'PLAIN',
-    defaultKeyType: 'PLAIN',
-  })
+  const content = serializeDeepnoteFile(file)
   await fs.writeFile(absolutePath, content, 'utf-8')
 }
 

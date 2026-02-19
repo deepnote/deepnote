@@ -23,7 +23,7 @@ import {
 import { createPythonCodeForNotebookFunctionBlock, isNotebookFunctionBlock } from './blocks/notebook-function-blocks'
 import { createPythonCodeForSqlBlock, isSqlBlock } from './blocks/sql-blocks'
 import { createPythonCodeForVisualizationBlock, isVisualizationBlock } from './blocks/visualization-blocks'
-import type { DeepnoteBlock } from './deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock } from './deepnote-file/deepnote-file-schema'
 
 export function createPythonCode(block: DeepnoteBlock, executionContext?: ButtonExecutionContext): string {
   if (isCodeBlock(block)) {
