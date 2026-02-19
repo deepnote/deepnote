@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
@@ -20,7 +20,7 @@ async function createTempFile(content: string): Promise<string> {
 async function cleanupTempFile(filePath: string): Promise<void> {
   try {
     await fs.unlink(filePath)
-    await fs.rmdir(join(filePath, '..'))
+    await fs.rmdir(dirname(filePath))
   } catch {
     // Ignore cleanup errors
   }
