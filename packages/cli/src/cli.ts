@@ -282,7 +282,7 @@ ${c.bold('Examples:')}
     .option('--top', 'Display resource usage (CPU, memory) during execution')
     .option('--profile', 'Show per-block timing and memory usage')
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
-    .option('--context', 'Include analysis context (stats, lint issues, variable usage) in output')
+    .option('--context', 'Include analysis context in machine-readable output (requires -o json/toon/llm)')
     .addHelpText('after', () => {
       const c = getChalk()
       return `

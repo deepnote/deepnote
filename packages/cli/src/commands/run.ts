@@ -745,6 +745,8 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   const engine = new ExecutionEngine({
     pythonEnv,
     workingDirectory,
+    // Suppress server logs when in machine-readable output mode
+    env: isMachineOutput ? { DEEPNOTE_QUIET: '1' } : undefined,
   })
 
   if (!isMachineOutput) {

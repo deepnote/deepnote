@@ -19,8 +19,14 @@ export function createInspectAction(
       await inspectDeepnoteFile(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
-      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      // Use InvalidUsage for file resolution and parse errors (user input), Error for runtime failures
+      const exitCode =
+        error instanceof FileResolutionError ||
+        message.includes('Failed to parse') ||
+        message.includes('Invalid YAML') ||
+        message.includes('parse error')
+          ? ExitCode.InvalidUsage
+          : ExitCode.Error
       if (options.output === 'json') {
         outputJson({ success: false, error: message })
       } else if (options.output === 'toon') {

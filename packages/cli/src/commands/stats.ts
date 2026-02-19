@@ -102,7 +102,15 @@ function outputStats(stats: StatsFileResult, options: StatsOptions): void {
 
 function handleError(error: unknown, options: StatsOptions): never {
   const message = error instanceof Error ? error.message : String(error)
-  const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+  // User input errors should return InvalidUsage (2)
+  const exitCode =
+    error instanceof FileResolutionError ||
+    message.includes('not found') ||
+    message.includes('Notebook ') ||
+    message.includes('Failed to parse') ||
+    message.includes('Invalid YAML')
+      ? ExitCode.InvalidUsage
+      : ExitCode.Error
 
   if (options.output === 'json') {
     outputJson({ success: false, error: message })

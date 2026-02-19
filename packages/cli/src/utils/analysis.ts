@@ -152,6 +152,12 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
     }
   }
 
+  // Validate notebook exists if filter was specified
+  if (options.notebook && notebooks.length === 0) {
+    const availableNotebooks = file.project.notebooks.map(n => `"${n.name}"`).join(', ')
+    throw new Error(`Notebook "${options.notebook}" not found in project. Available notebooks: ${availableNotebooks}`)
+  }
+
   // Convert block types map to sorted array
   const blockTypesSummary: BlockTypeStats[] = Array.from(allBlockTypes.entries())
     .map(([type, stats]) => ({

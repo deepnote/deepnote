@@ -91,7 +91,7 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
     } else {
       logError(`Invalid YAML: ${message}`)
     }
-    throw new ValidationHandledError(ExitCode.Error)
+    throw new ValidationHandledError(ExitCode.InvalidUsage)
   }
 
   debug('Validating against schema...')
@@ -133,7 +133,7 @@ async function validateDeepnoteFile(path: string | undefined, options: ValidateO
     }
   }
 
-  throw new ValidationHandledError(ExitCode.Error)
+  throw new ValidationHandledError(ExitCode.InvalidUsage)
 }
 
 /**

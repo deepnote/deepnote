@@ -310,7 +310,7 @@ version: "1.0.0"
       exitSpy.mockRestore()
     })
 
-    it('exits with code 1 for invalid files (schema errors)', async () => {
+    it('exits with code 2 for invalid files (schema errors)', async () => {
       const action = createValidateAction(program)
       let exitCode: number | undefined
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
@@ -328,7 +328,7 @@ version: "1.0.0"
 
       try {
         await expect(action(filePath, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
-        expect(exitCode).toBe(ExitCode.Error)
+        expect(exitCode).toBe(ExitCode.InvalidUsage)
       } finally {
         await cleanupTempFile(filePath)
         exitSpy.mockRestore()
