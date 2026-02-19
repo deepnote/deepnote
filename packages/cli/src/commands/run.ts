@@ -745,9 +745,14 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   const engine = new ExecutionEngine({
     pythonEnv,
     workingDirectory,
-    // Suppress server logs when in machine-readable output mode
-    env: isMachineOutput ? { DEEPNOTE_QUIET: '1' } : undefined,
   })
+
+  // Suppress console.debug in machine output mode to prevent @jupyterlab/services
+  // "Starting WebSocket:" messages from contaminating stdout JSON output
+  const originalConsoleDebug = console.debug
+  if (isMachineOutput) {
+    console.debug = () => {}
+  }
 
   if (!isMachineOutput) {
     log(getChalk().dim('Starting deepnote-toolkit server...'))
@@ -1114,6 +1119,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       }
     }
   } finally {
+    console.debug = originalConsoleDebug
     if (metricsInterval) {
       clearInterval(metricsInterval)
       metricsInterval = null
