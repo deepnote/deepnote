@@ -245,9 +245,9 @@ describe('CLI', () => {
       })
 
       try {
-        await program.parseAsync(['cat', 'test.deepnote', '--type', 'invalid'], { from: 'user' })
-      } catch (_error) {
-        // InvalidArgumentError should trigger exit code 2 via our exitOverride
+        await expect(
+          program.parseAsync(['cat', 'test.deepnote', '--type', 'invalid'], { from: 'user' })
+        ).rejects.toThrow('process.exit called with 2')
         expect(exitSpy).toHaveBeenCalledWith(2)
       } finally {
         exitSpy.mockRestore()
