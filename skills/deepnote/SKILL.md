@@ -130,7 +130,7 @@ deepnote inspect snapshots/*_latest.snapshot.deepnote                # Metadata 
 deepnote inspect snapshots/*_latest.snapshot.deepnote -o json        # JSON for parsing
 ```
 
-Snapshots are plain YAML, so they can also be read directly if the CLI isn't available.
+Do not read snapshot files directly — always use CLI commands or MCP tools to inspect them.
 
 ### Diagnosing Errors
 
@@ -168,6 +168,11 @@ When creating or modifying `.deepnote` files:
 3. **Sorting keys** - Use lexicographic strings: `a0`, `a1`, ..., `a9`, `b0`, etc. Insert between existing keys for ordering
 4. **Content** - Use YAML literal block scalar (`|`) for multi-line content to preserve newlines
 5. **Metadata** - Use `{}` for defaults; add type-specific fields as needed
+
+## Important Policies
+
+- **Stay in .deepnote format.** When something goes wrong, do not fall back to converting to `.ipynb` and working in Jupyter format. The `.deepnote` format has better debugging tools (`deepnote inspect`, `deepnote cat`, `deepnote lint`, `deepnote dag`) that are not available for `.ipynb` files. Stay in `.deepnote` and use these tools to diagnose and fix issues.
+- **Only convert on explicit request.** Only use `deepnote convert` to export when the user explicitly asks for a format conversion.
 
 ## Running After Edits
 
