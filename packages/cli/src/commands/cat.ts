@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import { codeToANSI } from '@shikijs/cli'
 import type { ChalkInstance } from 'chalk'
-import type { Command } from 'commander'
+import { type Command, InvalidArgumentError } from 'commander'
 import wrapAnsi from 'wrap-ansi'
-import { ExitCode } from '../exit-codes'
+import { ExitCode, NotFoundInProjectError } from '../exit-codes'
 import { debug, getChalk, getOutputConfig, error as logError, type OutputFormat, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -27,7 +27,7 @@ export type FilterableBlockType = (typeof FILTERABLE_BLOCK_TYPES)[number]
 export function createBlockTypeValidator(): (value: string) => FilterableBlockType {
   return (value: string): FilterableBlockType => {
     if (!FILTERABLE_BLOCK_TYPES.includes(value as FilterableBlockType)) {
-      throw new Error(`Invalid block type: ${value}. Valid types: ${FILTERABLE_BLOCK_TYPES.join(', ')}`)
+      throw new InvalidArgumentError(`Invalid block type "${value}". Valid types: ${FILTERABLE_BLOCK_TYPES.join(', ')}`)
     }
     return value as FilterableBlockType
   }
@@ -48,7 +48,11 @@ export function createCatAction(_program: Command): (path: string, options: CatO
       await catDeepnoteFile(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      // User input errors should return InvalidUsage (2)
+      const exitCode =
+        error instanceof FileResolutionError || error instanceof ParseError || error instanceof NotFoundInProjectError
+          ? ExitCode.InvalidUsage
+          : ExitCode.Error
       if (options.output === 'json') {
         outputJson({ success: false, error: message })
       } else {
@@ -74,7 +78,7 @@ async function catDeepnoteFile(path: string, options: CatOptions): Promise<void>
   if (options.notebook) {
     notebooks = notebooks.filter(nb => nb.name === options.notebook)
     if (notebooks.length === 0) {
-      throw new Error(`Notebook "${options.notebook}" not found in project`)
+      throw new NotFoundInProjectError(`Notebook "${options.notebook}" not found in project`)
     }
   }
 

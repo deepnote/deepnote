@@ -22,6 +22,8 @@ export interface ServerOptions {
   port?: number
   /** Optional timeout for server startup in milliseconds */
   startupTimeoutMs?: number
+  /** Optional environment variables to pass to the server */
+  env?: Record<string, string>
 }
 
 /**
@@ -39,7 +41,7 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
   const lspPort = jupyterPort + 1
 
   // Set up environment
-  const env = { ...process.env }
+  const env = { ...process.env, ...options.env }
   env.DEEPNOTE_RUNTIME__RUNNING_IN_DETACHED_MODE = 'true'
   env.DEEPNOTE_ENFORCE_PIP_CONSTRAINTS = 'true'
 
