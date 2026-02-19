@@ -5,7 +5,7 @@ import { codeToANSI } from '@shikijs/cli'
 import type { ChalkInstance } from 'chalk'
 import { type Command, InvalidArgumentError } from 'commander'
 import wrapAnsi from 'wrap-ansi'
-import { ExitCode } from '../exit-codes'
+import { ExitCode, NotFoundInProjectError } from '../exit-codes'
 import { debug, getChalk, getOutputConfig, error as logError, type OutputFormat, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -50,7 +50,7 @@ export function createCatAction(_program: Command): (path: string, options: CatO
       const message = error instanceof Error ? error.message : String(error)
       // User input errors should return InvalidUsage (2)
       const exitCode =
-        error instanceof FileResolutionError || error instanceof ParseError || message.includes('not found in project')
+        error instanceof FileResolutionError || error instanceof ParseError || error instanceof NotFoundInProjectError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
       if (options.output === 'json') {
@@ -78,7 +78,7 @@ async function catDeepnoteFile(path: string, options: CatOptions): Promise<void>
   if (options.notebook) {
     notebooks = notebooks.filter(nb => nb.name === options.notebook)
     if (notebooks.length === 0) {
-      throw new Error(`Notebook "${options.notebook}" not found in project`)
+      throw new NotFoundInProjectError(`Notebook "${options.notebook}" not found in project`)
     }
   }
 
