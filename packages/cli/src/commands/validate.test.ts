@@ -1,32 +1,15 @@
-import fs from 'node:fs/promises'
-import os from 'node:os'
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
 import { resetOutputConfig } from '../output'
+import { cleanupTempFile, createTempFile } from './test-helpers'
 import { createValidateAction, type ValidateOptions } from './validate'
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
-
-async function createTempFile(content: string): Promise<string> {
-  const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-validate-test-'))
-  const filePath = join(tempDir, 'test.deepnote')
-  await fs.writeFile(filePath, content, 'utf8')
-  return filePath
-}
-
-async function cleanupTempFile(filePath: string): Promise<void> {
-  try {
-    await fs.unlink(filePath)
-    await fs.rmdir(join(filePath, '..'))
-  } catch {
-    // Ignore cleanup errors
-  }
-}
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: ValidateOptions = {}

@@ -1,30 +1,13 @@
-import fs from 'node:fs/promises'
-import os from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createInspectAction, type InspectOptions } from './inspect'
+import { cleanupTempFile, createTempFile } from './test-helpers'
 
 // Test file path relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
-
-async function createTempFile(content: string): Promise<string> {
-  const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-inspect-test-'))
-  const filePath = join(tempDir, 'test.deepnote')
-  await fs.writeFile(filePath, content, 'utf8')
-  return filePath
-}
-
-async function cleanupTempFile(filePath: string): Promise<void> {
-  try {
-    await fs.unlink(filePath)
-    await fs.rmdir(dirname(filePath))
-  } catch {
-    // Ignore cleanup errors
-  }
-}
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: InspectOptions = {}
