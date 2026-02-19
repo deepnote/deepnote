@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import type { Command } from 'commander'
-import { ExitCode } from '../exit-codes'
+import { ExitCode, NotFoundInProjectError } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { analyzeProject, type ProjectStats } from '../utils/analysis'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -102,7 +102,11 @@ function outputStats(stats: StatsFileResult, options: StatsOptions): void {
 
 function handleError(error: unknown, options: StatsOptions): never {
   const message = error instanceof Error ? error.message : String(error)
-  const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+  // User input errors should return InvalidUsage (2)
+  const exitCode =
+    error instanceof FileResolutionError || error instanceof ParseError || error instanceof NotFoundInProjectError
+      ? ExitCode.InvalidUsage
+      : ExitCode.Error
 
   if (options.output === 'json') {
     outputJson({ success: false, error: message })

@@ -11,6 +11,7 @@ import {
   INPUT_BLOCK_TYPES,
 } from '@deepnote/blocks'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
+import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'
 
@@ -150,6 +151,14 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
         loc: existing.loc + bt.linesOfCode,
       })
     }
+  }
+
+  // Validate notebook exists if filter was specified
+  if (options.notebook && notebooks.length === 0) {
+    const availableNotebooks = file.project.notebooks.map(n => `"${n.name}"`).join(', ')
+    throw new NotFoundInProjectError(
+      `Notebook "${options.notebook}" not found in project. Available notebooks: ${availableNotebooks}`
+    )
   }
 
   // Convert block types map to sorted array

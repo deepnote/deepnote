@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for AI-assisted Deepnote notebook creation and manipulation",
   "keywords": [
     "mcp",
@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
+    "@deepnote/cli": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { stringify } from 'yaml'
+import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { FileReadError } from './errors'
 import { getMarimoOutputsFromCache } from './snapshot'
 import type { JupyterOutput } from './types/jupyter'
@@ -532,7 +532,7 @@ export async function convertMarimoFilesToDeepnoteFile(
     projectName: options.projectName,
   })
 
-  const yamlContent = stringify(deepnoteFile)
+  const yamlContent = serializeDeepnoteFile(deepnoteFile)
 
   const parentDir = dirname(options.outputPath)
   await fs.mkdir(parentDir, { recursive: true })

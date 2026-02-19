@@ -9,7 +9,7 @@ import type {
   InputSliderBlock,
   InputTextareaBlock,
   InputTextBlock,
-} from '../deserialize-file/deepnote-file-schema'
+} from '../deepnote-file/deepnote-file-schema'
 import { InvalidValueError } from '../errors'
 import {
   createPythonCodeForInputCheckboxBlock,

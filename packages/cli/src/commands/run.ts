@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
@@ -15,7 +16,6 @@ import {
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { stringify as serializeToYaml } from 'yaml'
 import { DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
@@ -747,6 +747,13 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     workingDirectory,
   })
 
+  // Suppress console.debug in machine output mode to prevent @jupyterlab/services
+  // "Starting WebSocket:" messages from contaminating stdout JSON output
+  const originalConsoleDebug = console.debug
+  if (isMachineOutput) {
+    console.debug = () => {}
+  }
+
   if (!isMachineOutput) {
     log(getChalk().dim('Starting deepnote-toolkit server...'))
   }
@@ -1080,7 +1087,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
             .replace(/^\.+/, '') || // Remove leading dots
           'project' // Fallback if empty after sanitization
         tempFile = join(tempDir, `${safeName}.deepnote`)
-        const yamlContent = serializeToYaml(file)
+        const yamlContent = serializeDeepnoteFile(file)
         await fs.writeFile(tempFile, yamlContent, 'utf-8')
         fileToOpen = tempFile
         debug(`Created temp file for upload: ${tempFile}`)
@@ -1112,6 +1119,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       }
     }
   } finally {
+    console.debug = originalConsoleDebug
     if (metricsInterval) {
       clearInterval(metricsInterval)
       metricsInterval = null

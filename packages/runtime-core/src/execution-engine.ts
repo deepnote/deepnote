@@ -87,6 +87,7 @@ export class ExecutionEngine {
       pythonEnv: this.config.pythonEnv,
       workingDirectory: this.config.workingDirectory,
       port: this.config.serverPort,
+      env: this.config.env,
     })
 
     try {
