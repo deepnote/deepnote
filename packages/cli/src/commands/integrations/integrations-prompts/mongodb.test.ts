@@ -43,7 +43,7 @@ describe('encodeConnectionString', () => {
   })
 
   it('returns unchanged string when it has no protocol separator', () => {
-    expect(encodeConnectionString('notaurl')).toBe('notaurl')
+    expect(encodeConnectionString('not-a-url')).toBe('not-a-url')
   })
 
   it('treats the first @ as the credential boundary when the password contains @', () => {
