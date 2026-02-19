@@ -8,7 +8,7 @@ import type {
   TextCellH3Block,
   TextCellPBlock,
   TextCellTodoBlock,
-} from '../deserialize-file/deepnote-file-schema'
+} from '../deepnote-file/deepnote-file-schema'
 import { UnsupportedBlockTypeError } from '../errors'
 
 type TextBlock =

@@ -1,6 +1,6 @@
 import { dedent } from 'ts-dedent'
 
-import type { CodeBlock, DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
+import type { CodeBlock, DeepnoteBlock } from '../deepnote-file/deepnote-file-schema'
 import { createDataFrameConfig } from './data-frame'
 
 export function createPythonCodeForCodeBlock(block: CodeBlock): string {

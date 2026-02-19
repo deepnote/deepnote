@@ -1,4 +1,4 @@
-import type { ButtonBlock, DeepnoteBlock } from '../deserialize-file/deepnote-file-schema'
+import type { ButtonBlock, DeepnoteBlock } from '../deepnote-file/deepnote-file-schema'
 import { pythonCode } from '../python-snippets'
 import { sanitizePythonVariableName } from './python-utils'
 

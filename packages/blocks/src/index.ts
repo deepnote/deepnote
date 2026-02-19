@@ -12,7 +12,7 @@ export type {
   ExecutionError,
   ExecutionSummary,
   SnapshotHashInput,
-} from './deserialize-file/deepnote-file-schema'
+} from './deepnote-file/deepnote-file-schema'
 export {
   deepnoteBlockSchema,
   deepnoteFileSchema,
@@ -21,9 +21,10 @@ export {
   executionErrorSchema,
   executionSchema,
   executionSummarySchema,
-} from './deserialize-file/deepnote-file-schema'
-export { deserializeDeepnoteFile } from './deserialize-file/deserialize-deepnote-file'
-export { decodeUtf8NoBom, parseYaml } from './deserialize-file/parse-yaml'
+} from './deepnote-file/deepnote-file-schema'
+export { deserializeDeepnoteFile } from './deepnote-file/deserialize-deepnote-file'
+export { decodeUtf8NoBom, parseYaml } from './deepnote-file/parse-yaml'
+export { serializeDeepnoteFile, serializeDeepnoteSnapshot } from './deepnote-file/serialize-deepnote-file'
 export {
   DeepnoteError,
   EncodingError,
