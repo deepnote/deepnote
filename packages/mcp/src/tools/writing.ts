@@ -398,12 +398,11 @@ export const writingTools: Tool[] = [
 
 function createBlock(
   spec: { type: string; content?: string; metadata?: Record<string, unknown> },
-  index: number,
-  blockGroup: string
+  index: number
 ): DeepnoteBlock {
   const base = {
     id: randomUUID(),
-    blockGroup,
+    blockGroup: randomUUID(),
     sortingKey: generateSortingKey(index),
     type: spec.type,
     content: spec.content !== undefined ? spec.content : '',
@@ -453,11 +452,10 @@ async function handleCreate(args: Record<string, unknown>) {
       name: projectName,
       notebooks: notebooks.map(nb => {
         const notebookId = randomUUID()
-        const blockGroup = randomUUID()
         return {
           id: notebookId,
           name: nb.name,
-          blocks: nb.blocks.map((block, index) => createBlock(block, index, blockGroup)),
+          blocks: nb.blocks.map((block, index) => createBlock(block, index)),
         }
       }),
     },
@@ -550,11 +548,8 @@ async function handleAddBlock(args: Record<string, unknown>) {
     insertIndex = position.index
   }
 
-  // Get blockGroup from existing blocks or create new one
-  const blockGroup = notebook.blocks[0]?.blockGroup || randomUUID()
-
   // Create the new block
-  const newBlock = createBlock(blockSpec, insertIndex, blockGroup)
+  const newBlock = createBlock(blockSpec, insertIndex)
 
   // Insert the block
   notebook.blocks.splice(insertIndex, 0, newBlock)
@@ -899,12 +894,10 @@ async function handleAddNotebook(args: Record<string, unknown>) {
   const file = await loadDeepnoteFile(filePath)
 
   const notebookId = randomUUID()
-  const blockGroup = randomUUID()
-
   const newNotebook = {
     id: notebookId,
     name,
-    blocks: blocks.map((block, index) => createBlock(block, index, blockGroup)),
+    blocks: blocks.map((block, index) => createBlock(block, index)),
   }
 
   if (dryRun === true) {
