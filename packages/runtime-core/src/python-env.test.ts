@@ -1,9 +1,9 @@
 import { execSync } from 'node:child_process'
 import { chmod, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { detectDefaultPython, resolvePythonExecutable } from './python-env'
+import { buildPythonEnv, detectDefaultPython, resolvePythonExecutable } from './python-env'
 
 vi.mock('node:child_process', () => ({
   execSync: vi.fn(),
@@ -204,5 +204,91 @@ describe('detectDefaultPython', () => {
     // Should only call once for 'python' since it succeeds
     expect(mockExecSync).toHaveBeenCalledTimes(1)
     expect(mockExecSync).toHaveBeenCalledWith('python --version', { stdio: 'ignore' })
+  })
+})
+
+describe('buildPythonEnv', () => {
+  let tempDir: string
+  let venvDir: string
+  let binDir: string
+  let pythonPath: string
+
+  beforeAll(async () => {
+    tempDir = join(tmpdir(), `python-env-build-test-${Date.now()}`)
+    venvDir = join(tempDir, 'myvenv')
+    binDir = join(venvDir, 'bin')
+    await mkdir(binDir, { recursive: true })
+
+    pythonPath = join(binDir, 'python')
+    await writeFile(pythonPath, '#!/bin/bash\necho "mock python"')
+    await chmod(pythonPath, 0o755)
+
+    // Create pyvenv.cfg to mark as a venv
+    await writeFile(join(venvDir, 'pyvenv.cfg'), 'home = /usr/bin\nversion = 3.11.0\n')
+  })
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  it('returns env as-is for bare "python" command', async () => {
+    const baseEnv = { PATH: '/usr/bin', VIRTUAL_ENV: '/some/other/venv', HOME: '/home/user' }
+    const env = await buildPythonEnv('python', baseEnv)
+
+    expect(env.PATH).toBe('/usr/bin')
+    expect(env.VIRTUAL_ENV).toBe('/some/other/venv')
+  })
+
+  it('returns env as-is for bare "python3" command', async () => {
+    const baseEnv = { PATH: '/usr/bin', VIRTUAL_ENV: '/some/other/venv' }
+    const env = await buildPythonEnv('python3', baseEnv)
+
+    expect(env.PATH).toBe('/usr/bin')
+    expect(env.VIRTUAL_ENV).toBe('/some/other/venv')
+  })
+
+  it('prepends python directory to PATH for absolute path', async () => {
+    const baseEnv = { PATH: '/usr/bin:/usr/local/bin' }
+    const env = await buildPythonEnv(pythonPath, baseEnv)
+
+    const resolvedBinDir = resolve(binDir)
+    expect(env.PATH).toBe(`${resolvedBinDir}:/usr/bin:/usr/local/bin`)
+  })
+
+  it('sets VIRTUAL_ENV when python is inside a venv', async () => {
+    const baseEnv = { PATH: '/usr/bin' }
+    const env = await buildPythonEnv(pythonPath, baseEnv)
+
+    expect(env.VIRTUAL_ENV).toBe(resolve(venvDir))
+  })
+
+  it('clears inherited VIRTUAL_ENV when python is NOT in a venv', async () => {
+    // Create a standalone python (no pyvenv.cfg in parent)
+    const standaloneDir = join(tempDir, 'standalone', 'bin')
+    await mkdir(standaloneDir, { recursive: true })
+    const standalonePython = join(standaloneDir, 'python')
+    await writeFile(standalonePython, '#!/bin/bash\necho "standalone"')
+    await chmod(standalonePython, 0o755)
+
+    const baseEnv = { PATH: '/usr/bin', VIRTUAL_ENV: '/some/other/venv' }
+    const env = await buildPythonEnv(standalonePython, baseEnv)
+
+    expect(env.VIRTUAL_ENV).toBeUndefined()
+  })
+
+  it('replaces inherited VIRTUAL_ENV with correct venv root', async () => {
+    const baseEnv = { PATH: '/other/venv/bin:/usr/bin', VIRTUAL_ENV: '/other/venv' }
+    const env = await buildPythonEnv(pythonPath, baseEnv)
+
+    expect(env.VIRTUAL_ENV).toBe(resolve(venvDir))
+    expect(env.PATH).toMatch(new RegExp(`^${resolve(binDir).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+  })
+
+  it('handles empty PATH in base env', async () => {
+    const baseEnv = { PATH: undefined as string | undefined }
+    const env = await buildPythonEnv(pythonPath, baseEnv)
+
+    const resolvedBinDir = resolve(binDir)
+    expect(env.PATH).toBe(resolvedBinDir)
   })
 })
