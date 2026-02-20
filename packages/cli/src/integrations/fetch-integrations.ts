@@ -10,7 +10,7 @@ export const apiIntegrationSchema = z
     id: z.string(),
     name: z.string(),
     type: z.string(),
-    metadata: z.record(z.unknown()),
+    metadata: z.unknown(),
     is_public: z.boolean(),
     created_at: z.string(),
     updated_at: z.string(),
@@ -62,6 +62,9 @@ export async function fetchIntegrations(baseUrl: string, token: string): Promise
   }
 
   const json = await response.json()
+
+  const fs = await import('node:fs')
+  fs.writeFileSync('integrations-response.json', JSON.stringify(json, null, 2))
 
   const parseResult = apiResponseSchema.safeParse(json)
   if (!parseResult.success) {
