@@ -186,13 +186,21 @@ Check if the CLI is installed:
 deepnote --version
 ```
 
-If not installed:
+If not installed, find the best available Python and install via pip:
+
+1. **IDE environment** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.agent/` (see IDE Environment Detection below) and use its `venvPath`
+2. **Project instructions** — if the project has a `.python-version` file or `pyproject.toml` with `requires-python`, use the specified version
+3. **Project venv** — look for `.venv/bin/python`, `venv/bin/python`, or `env/bin/python`
+4. **Homebrew Python** — check if `/opt/homebrew/bin/python3` or `brew --prefix python3` exists
+5. **System Python** — use `python3` (preferred) or `python`
+
+Install with the best available Python (must be >= 3.9):
 
 ```bash
-pip install deepnote-cli
+<best-python> -m pip install deepnote-cli
 ```
 
-If pip is not available, install via npm instead:
+If no suitable Python is available, install via npm instead:
 
 ```bash
 npm install -g @deepnote/cli
