@@ -97,6 +97,7 @@
     "pgsql",
     "pnpm",
     "pyformat",
+    "pyproject",
     "pymongo",
     "pymssql",
     "pyplot",
