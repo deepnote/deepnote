@@ -10,7 +10,7 @@ export const apiIntegrationSchema = z
     id: z.string(),
     name: z.string(),
     type: z.string(),
-    metadata: z.record(z.unknown()),
+    metadata: z.unknown(),
     is_public: z.boolean(),
     created_at: z.string(),
     updated_at: z.string(),
