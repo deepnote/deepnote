@@ -131,7 +131,7 @@ class VariableVisitor(ast.NodeVisitor):
     def visit_ImportFrom(self, node):
         for alias in node.names:
             self.imported_modules.add(alias.asname or alias.name)
-            if node.module and not alias.asname:
+            if node.module:
                 top_level = node.module.split(".")[0]
                 self.package_from_imports.setdefault(top_level, []).append(alias.name)
         if node.module:

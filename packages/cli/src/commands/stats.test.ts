@@ -90,6 +90,8 @@ describe('stats command', () => {
       const output = getOutput(consoleSpy)
       expect(output).toContain('Imports')
       expect(output).toContain('pandas')
+      expect(output).toContain('(as pd)')
+      expect(output).toContain('(from urlparse)')
     })
   })
 
@@ -124,6 +126,7 @@ describe('stats command', () => {
       expect(parsed.notebooks).toBeDefined()
       expect(parsed.imports).toBeDefined()
       expect(parsed.packageAliases).toBeDefined()
+      expect(parsed.packageFromImports).toBeDefined()
     })
 
     it('includes notebook details', async () => {
@@ -331,8 +334,10 @@ describe('stats command', () => {
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
 
-      // imports should be an array (may be empty depending on file content)
       expect(Array.isArray(parsed.imports)).toBe(true)
+      expect(parsed.imports).toContain('pandas')
+      expect(parsed.packageAliases).toEqual(expect.objectContaining({ pandas: 'pd' }))
+      expect(parsed.packageFromImports).toEqual(expect.objectContaining({ urllib: ['urlparse'] }))
     })
   })
 

@@ -754,13 +754,17 @@ function extractImportsFromDag(dag: BlockDependencyDag): string[] {
  * Only includes explicit "as" renames (e.g. pandas → pd from "import pandas as pd").
  */
 function extractPackageAliasesFromDag(dag: BlockDependencyDag): Record<string, string> {
-  const aliases: Record<string, string> = {}
+  const unsorted: Record<string, string> = {}
   for (const node of dag.nodes) {
     for (const [pkg, alias] of Object.entries(node.packageAliases ?? {})) {
-      aliases[pkg] = alias
+      unsorted[pkg] = alias
     }
   }
-  return aliases
+  const result: Record<string, string> = {}
+  for (const key of Object.keys(unsorted).sort()) {
+    result[key] = unsorted[key]
+  }
+  return result
 }
 
 /**
@@ -778,8 +782,11 @@ function extractPackageFromImportsFromDag(dag: BlockDependencyDag): Record<strin
     }
   }
   const result: Record<string, string[]> = {}
-  for (const [pkg, names] of fromImports) {
-    result[pkg] = Array.from(names).sort()
+  for (const pkg of Array.from(fromImports.keys()).sort()) {
+    const names = fromImports.get(pkg)
+    if (names) {
+      result[pkg] = Array.from(names).sort()
+    }
   }
   return result
 }

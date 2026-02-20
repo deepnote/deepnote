@@ -193,6 +193,28 @@ describe('buildDagFromBlocks', () => {
     })
   })
 
+  it('should pass through package metadata fields', () => {
+    const blocks = [
+      {
+        id: '1',
+        definedVariables: ['pd', 'arr'],
+        usedVariables: [],
+        importedModules: ['pd', 'arr'],
+        importedPackages: ['pandas', 'numpy'],
+        packageAliases: { pandas: 'pd' },
+        packageFromImports: { numpy: ['array'] },
+        order: 1,
+      },
+    ]
+
+    const dag = buildDagFromBlocks(blocks)
+    const node = dag.nodes[0]
+
+    expect(node.importedPackages).toEqual(['pandas', 'numpy'])
+    expect(node.packageAliases).toEqual({ pandas: 'pd' })
+    expect(node.packageFromImports).toEqual({ numpy: ['array'] })
+  })
+
   it('should include error information in nodes', () => {
     const blocks = [
       {
