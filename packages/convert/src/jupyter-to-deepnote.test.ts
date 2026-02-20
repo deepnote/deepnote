@@ -478,13 +478,13 @@ describe('snapshot tests - exact YAML output format', () => {
           - blocks:
               - id: test-uuid-004
                 blockGroup: test-uuid-003
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 1"
                 metadata: {}
               - id: test-uuid-006
                 blockGroup: test-uuid-005
-                sortingKey: "1"
+                sortingKey: "000001"
                 executionCount: 1
                 outputs: []
                 type: code
@@ -522,13 +522,13 @@ describe('snapshot tests - exact YAML output format', () => {
           - blocks:
               - id: test-uuid-004
                 blockGroup: test-uuid-003
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 2"
                 metadata: {}
               - id: test-uuid-006
                 blockGroup: test-uuid-005
-                sortingKey: "1"
+                sortingKey: "000001"
                 executionCount: 1
                 outputs: []
                 type: code
@@ -566,7 +566,7 @@ describe('snapshot tests - exact YAML output format', () => {
           - blocks:
               - id: test-uuid-004
                 blockGroup: test-uuid-003
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: >-
                   Logging into Kaggle for the first time can be daunting. Our competitions often have large cash prizes,
@@ -684,7 +684,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-006
                 blockGroup: test-uuid-005
-                sortingKey: "1"
+                sortingKey: "000001"
                 type: markdown
                 content: >-
                   # Part 2: Your coding environment
@@ -745,7 +745,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-008
                 blockGroup: test-uuid-007
-                sortingKey: "2"
+                sortingKey: "000002"
                 outputs: []
                 type: code
                 content: >-
@@ -785,7 +785,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   trusted: true
               - id: test-uuid-010
                 blockGroup: test-uuid-009
-                sortingKey: "3"
+                sortingKey: "000003"
                 type: markdown
                 content: >-
                   This shows us where the competition data is stored, so that we can load the files into the notebook.  We'll
@@ -806,7 +806,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-012
                 blockGroup: test-uuid-011
-                sortingKey: "4"
+                sortingKey: "000004"
                 outputs: []
                 type: code
                 content: >
@@ -823,7 +823,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   trusted: true
               - id: test-uuid-014
                 blockGroup: test-uuid-013
-                sortingKey: "5"
+                sortingKey: "000005"
                 type: markdown
                 content: >-
                   Your code should return the output above, which corresponds to the first five rows of the table in
@@ -853,7 +853,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-016
                 blockGroup: test-uuid-015
-                sortingKey: "6"
+                sortingKey: "000006"
                 outputs: []
                 type: code
                 content: >-
@@ -870,7 +870,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   trusted: true
               - id: test-uuid-018
                 blockGroup: test-uuid-017
-                sortingKey: "7"
+                sortingKey: "000007"
                 type: markdown
                 content: >-
                   As before, make sure that you see the output above in your notebook before continuing.  
@@ -906,7 +906,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-020
                 blockGroup: test-uuid-019
-                sortingKey: "8"
+                sortingKey: "000008"
                 outputs: []
                 type: code
                 content: >-
@@ -927,7 +927,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   trusted: true
               - id: test-uuid-022
                 blockGroup: test-uuid-021
-                sortingKey: "9"
+                sortingKey: "000009"
                 type: markdown
                 content: >-
                   Before moving on, make sure that your code returns the output above.  The code above calculates the
@@ -938,7 +938,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-024
                 blockGroup: test-uuid-023
-                sortingKey: a
+                sortingKey: "000010"
                 outputs: []
                 type: code
                 content: >-
@@ -958,7 +958,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   trusted: true
               - id: test-uuid-026
                 blockGroup: test-uuid-025
-                sortingKey: b
+                sortingKey: "000011"
                 type: markdown
                 content: >-
                   The code above calculates the percentage of male passengers (in **train.csv**) who survived.
@@ -998,7 +998,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-028
                 blockGroup: test-uuid-027
-                sortingKey: c
+                sortingKey: "000012"
                 outputs: []
                 type: code
                 content: >-
@@ -1038,7 +1038,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   trusted: true
               - id: test-uuid-030
                 blockGroup: test-uuid-029
-                sortingKey: d
+                sortingKey: "000013"
                 type: markdown
                 content: >-
                   Make sure that your notebook outputs the same message above (\`Your submission was successfully saved!\`)
@@ -1070,7 +1070,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-032
                 blockGroup: test-uuid-031
-                sortingKey: e
+                sortingKey: "000014"
                 type: markdown
                 content: >-
                   # Part 4: Learn more!
@@ -1116,13 +1116,13 @@ describe('snapshot tests - exact YAML output format', () => {
           - blocks:
               - id: test-uuid-004
                 blockGroup: test-uuid-003
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 1"
                 metadata: {}
               - id: test-uuid-006
                 blockGroup: test-uuid-005
-                sortingKey: "1"
+                sortingKey: "000001"
                 executionCount: 1
                 outputs: []
                 type: code
@@ -1135,13 +1135,13 @@ describe('snapshot tests - exact YAML output format', () => {
           - blocks:
               - id: test-uuid-008
                 blockGroup: test-uuid-007
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 2"
                 metadata: {}
               - id: test-uuid-010
                 blockGroup: test-uuid-009
-                sortingKey: "1"
+                sortingKey: "000001"
                 executionCount: 1
                 outputs: []
                 type: code

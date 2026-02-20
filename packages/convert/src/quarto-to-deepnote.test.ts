@@ -625,13 +625,13 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
           - blocks:
               - id: test-uuid-004
                 blockGroup: test-uuid-003
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: "# Hello World"
                 metadata: {}
               - id: test-uuid-006
                 blockGroup: test-uuid-005
-                sortingKey: "1"
+                sortingKey: "000001"
                 type: markdown
                 content: >-
                   # Welcome
@@ -641,13 +641,13 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
                 metadata: {}
               - id: test-uuid-008
                 blockGroup: test-uuid-007
-                sortingKey: "2"
+                sortingKey: "000002"
                 type: code
                 content: print("Hello, World!")
                 metadata: {}
               - id: test-uuid-010
                 blockGroup: test-uuid-009
-                sortingKey: "3"
+                sortingKey: "000003"
                 type: code
                 content: >-
                   x = 10
@@ -660,7 +660,7 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
                 metadata: {}
               - id: test-uuid-012
                 blockGroup: test-uuid-011
-                sortingKey: "4"
+                sortingKey: "000004"
                 type: markdown
                 content: >-
                   ## Conclusion
