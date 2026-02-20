@@ -63,9 +63,6 @@ export async function fetchIntegrations(baseUrl: string, token: string): Promise
 
   const json = await response.json()
 
-  const fs = await import('node:fs')
-  fs.writeFileSync('integrations-response.json', JSON.stringify(json, null, 2))
-
   const parseResult = apiResponseSchema.safeParse(json)
   if (!parseResult.success) {
     throw new Error(`Invalid API response: ${parseResult.error.message}`)
