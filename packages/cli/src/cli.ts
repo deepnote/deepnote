@@ -9,6 +9,7 @@ import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
+import { createInstallSkillsAction } from './commands/install-skills'
 import { createIntegrationsPullAction, DEFAULT_API_URL } from './commands/integrations'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
@@ -650,6 +651,62 @@ ${c.bold('Examples:')}
 `
     })
     .action(createLintAction(program))
+
+  // Install-skills command - install agent skill files
+  program
+    .command('install-skills')
+    .description('Install or update Deepnote agent skills for AI coding assistants')
+    .option('-g, --global', 'Install to user home directory instead of project')
+    .option('-a, --agent <agent>', 'Target a specific agent')
+    .option('--dry-run', 'Show what would be written without making changes')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Copies the Deepnote skill (SKILL.md + references) into agent skill directories
+  so AI coding assistants can understand .deepnote files.
+
+${c.bold('Supported Agents:')}
+  Claude Code      .claude/skills/
+  Cursor           .cursor/skills/
+  Windsurf         .windsurf/skills/
+  Cline            .cline/skills/
+  Roo Code         .roo/skills/
+  Augment          .augment/skills/
+  Continue         .continue/skills/
+  Antigravity      .agent/skills/
+  Trae             .trae/skills/
+  Goose            .goose/skills/
+  Junie            .junie/skills/
+  Kilo Code        .kilocode/skills/
+  Kiro             .kiro/skills/
+  GitHub Copilot   .agents/skills/
+  Codex            .agents/skills/
+  Gemini CLI       .agents/skills/
+  Amp              .agents/skills/
+  Kimi Code CLI    .agents/skills/
+  OpenCode         .agents/skills/
+
+${c.bold('Detection:')}
+  By default, installs for agents whose config directory exists (e.g. .claude/).
+  If none are detected, defaults to Claude Code.
+  Use --agent to target a specific agent regardless of detection.
+
+${c.bold('Examples:')}
+  ${c.dim('# Install for all detected agents in current project')}
+  $ deepnote install-skills
+
+  ${c.dim('# Install globally (user home directory)')}
+  $ deepnote install-skills --global
+
+  ${c.dim('# Install for a specific agent')}
+  $ deepnote install-skills --agent cursor
+
+  ${c.dim('# Preview without writing')}
+  $ deepnote install-skills --dry-run
+`
+    })
+    .action(createInstallSkillsAction(program))
 
   // Completion command - generate shell completions
   program

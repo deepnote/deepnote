@@ -97,6 +97,7 @@
     "pgsql",
     "pnpm",
     "pyformat",
+    "pyproject",
     "pymongo",
     "pymssql",
     "pyplot",
@@ -136,7 +137,13 @@
     "existinghash",
     "encodeddata",
     "résumé",
+    "junie",
+    "kilocode",
+    "kimi",
+    "kiro",
     "kpis",
+    "opencode",
+    "trae",
     "unconfigured"
   ]
 }
