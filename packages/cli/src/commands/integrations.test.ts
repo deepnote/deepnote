@@ -19,8 +19,9 @@ vi.mock('../integrations/fetch-integrations', async importOriginal => {
 })
 
 // Mock output functions to suppress console output during tests
+const mockDebug = vi.hoisted(() => vi.fn())
 vi.mock('../output', () => ({
-  debug: vi.fn(),
+  debug: mockDebug,
   log: vi.fn(),
   output: vi.fn(),
   error: vi.fn(),
@@ -727,6 +728,58 @@ integrations:
 
         expect(yamlFileExists).toBe(false)
         expect(envFileExists).toBe(false)
+      })
+
+      it('skips integration with invalid metadata (empty string) and writes only valid integrations', async () => {
+        const invalidIntegration = createMockIntegration({
+          id: 'invalid-metadata-id',
+          name: 'Invalid Metadata DB',
+          metadata: '',
+        })
+        const validIntegration = createMockIntegration({
+          id: 'valid-id',
+          name: 'Valid DB',
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([invalidIntegration, validIntegration])
+
+        const filePath = join(tempDir, 'test-invalid-metadata.yaml')
+        const envFilePath = join(tempDir, 'test-invalid-metadata.env')
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+
+        expect(yamlContent).not.toContain('invalid-metadata-id')
+        expect(yamlContent).toContain('valid-id')
+        expect(mockDebug).toHaveBeenCalledWith(
+          expect.stringContaining('Skipping invalid or unsupported integration "Invalid Metadata DB" (pgsql)')
+        )
+      })
+
+      it('skips integration with unsupported type "env" and writes only valid integrations', async () => {
+        const unsupportedIntegration = createMockIntegration({
+          id: '975b13fc-0d9b-4e30-afc8-ca43585e703c',
+          name: 'Comet ML',
+          type: 'env',
+        })
+        const validIntegration = createMockIntegration({
+          id: 'valid-id',
+          name: 'Valid DB',
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([unsupportedIntegration, validIntegration])
+
+        const filePath = join(tempDir, 'test-unsupported-type.yaml')
+        const envFilePath = join(tempDir, 'test-unsupported-type.env')
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+
+        expect(yamlContent).not.toContain('975b13fc-0d9b-4e30-afc8-ca43585e703c')
+        expect(yamlContent).toContain('valid-id')
+        expect(mockDebug).toHaveBeenCalledWith(
+          expect.stringContaining('Skipping invalid or unsupported integration "Comet ML" (env)')
+        )
       })
     })
 
