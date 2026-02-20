@@ -12,6 +12,8 @@ npm install -g @deepnote/cli
 pnpm add -g @deepnote/cli
 # or
 yarn global add @deepnote/cli
+# or
+pip install deepnote-cli
 ```
 
 ## Quick Start

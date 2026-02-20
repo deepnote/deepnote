@@ -189,10 +189,14 @@ deepnote --version
 If not installed:
 
 ```bash
-npm install -g @deepnote/cli
+pip install deepnote-cli
 ```
 
-If Node.js is not available, ask the user to install Node.js 22+ from https://nodejs.org.
+If pip is not available, install via npm instead:
+
+```bash
+npm install -g @deepnote/cli
+```
 
 ### IDE Environment Detection
 
