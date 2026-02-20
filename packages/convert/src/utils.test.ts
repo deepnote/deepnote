@@ -1,6 +1,5 @@
-import { InvalidValueError } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import { createSortingKey, isMarkdownBlockType, sortKeysAlphabetically } from './utils'
+import { isMarkdownBlockType, sortKeysAlphabetically } from './utils'
 
 describe('sortKeysAlphabetically', () => {
   it('sorts keys in alphabetical order', () => {
@@ -67,24 +66,6 @@ describe('sortKeysAlphabetically', () => {
 
     // Keys come out in numeric order (1, 2, 10), not lexicographic ('1', '10', '2')
     expect(Object.keys(result)).toEqual(['1', '2', '10'])
-  })
-})
-
-describe('createSortingKey', () => {
-  it('creates keys for small indices', () => {
-    expect(createSortingKey(0)).toBe('0')
-    expect(createSortingKey(1)).toBe('1')
-    expect(createSortingKey(9)).toBe('9')
-  })
-
-  it('creates keys using base-36 characters', () => {
-    expect(createSortingKey(10)).toBe('a')
-    expect(createSortingKey(35)).toBe('z')
-  })
-
-  it('throws for negative indices', () => {
-    expect(() => createSortingKey(-1)).toThrow(InvalidValueError)
-    expect(() => createSortingKey(-1)).toThrow('Index must be non-negative')
   })
 })
 

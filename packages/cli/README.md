@@ -12,6 +12,8 @@ npm install -g @deepnote/cli
 pnpm add -g @deepnote/cli
 # or
 yarn global add @deepnote/cli
+# or
+pip install deepnote-cli
 ```
 
 ## Quick Start
@@ -486,6 +488,42 @@ source ~/.zshrc
 
 # Fish (save to completions directory)
 deepnote completion fish > ~/.config/fish/completions/deepnote.fish
+```
+
+### `install-skills`
+
+Install the Deepnote skill for AI coding assistants (Claude Code, Cursor, Windsurf, etc.). The skill gives your AI assistant knowledge of the `.deepnote` file format, CLI commands, and block types.
+
+```bash
+deepnote install-skills
+```
+
+**Options:**
+
+| Option                | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `-g, --global`        | Install to your home directory instead of project   |
+| `-a, --agent <agent>` | Target a specific agent (e.g. `cursor`, `windsurf`) |
+| `--dry-run`           | Preview what would be installed without writing     |
+
+**Supported agents:** Claude Code, Cursor, Windsurf, GitHub Copilot, Cline, Roo Code, Augment, Continue, Antigravity, Trae, Goose, Junie, Kilo Code, Kiro, Codex, Gemini CLI, Amp, Kimi Code CLI, OpenCode.
+
+**Examples:**
+
+```bash
+# Install for all detected agents in the current project
+deepnote install-skills
+
+# Install globally (available across all projects)
+deepnote install-skills --global
+
+# Install for a specific agent
+deepnote install-skills --agent cursor
+deepnote install-skills --agent "github copilot"
+deepnote install-skills --agent windsurf
+
+# Preview without writing files
+deepnote install-skills --dry-run
 ```
 
 ## Global Options

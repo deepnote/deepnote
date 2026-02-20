@@ -443,7 +443,7 @@ async function handleCreate(args: Record<string, unknown>) {
   const projectId = randomUUID()
 
   const file: DeepnoteFile = {
-    version: '1.0',
+    version: '1.0.0',
     metadata: {
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
