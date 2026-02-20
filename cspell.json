@@ -142,6 +142,7 @@
     "typescript",
     "unconfigured",
     "unstub",
+    "urlparse",
     "venv",
     "vscode",
     "windsurf",
