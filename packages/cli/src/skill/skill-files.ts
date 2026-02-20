@@ -9,22 +9,28 @@ const _dirname =
       path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * Returns the absolute path to the skill directory.
+ * Resolves the skill directory from the given module directory and executable path.
  *
- * In built mode, skills are at `dist/skills/deepnote/` (copied by tsdown onSuccess).
- * In dev/test mode, skills are at `skills/deepnote/` at the repo root.
- * We resolve by walking up from the current directory until we find the skill files.
+ * Resolution order:
+ * 1. `skills/deepnote/` relative to `dirname` (npm install — skills sit in dist/)
+ * 2. `../skills/deepnote/` relative to `execPath` (Bun compiled binary in pypi package)
+ * 3. Walk up from `dirname` to find `skills/deepnote/` at repo root (dev/test mode)
  */
-export function getSkillDir(): string {
-  // Try bundled path first (dist/skills/deepnote)
-  const bundledPath = path.join(_dirname, 'skills', 'deepnote')
+export function resolveSkillDir(dirname: string, execPath: string): string {
+  const bundledPath = path.join(dirname, 'skills', 'deepnote')
   if (existsSync(path.join(bundledPath, 'SKILL.md'))) {
     return bundledPath
   }
 
-  // Walk up to find skills/deepnote at repo root (dev/test mode)
-  let dir = _dirname
+  // In a Bun compiled binary, import.meta.url is frozen at build time, but
+  // process.execPath points to the actual binary on disk. The pypi package
+  // ships skills at ../skills/deepnote/ relative to the bin/ directory.
+  const execBundledPath = path.join(path.dirname(execPath), '..', 'skills', 'deepnote')
+  if (existsSync(path.join(execBundledPath, 'SKILL.md'))) {
+    return execBundledPath
+  }
 
+  let dir = dirname
   for (let i = 0; i < 10; i++) {
     const candidate = path.join(dir, 'skills', 'deepnote')
 
@@ -41,6 +47,10 @@ export function getSkillDir(): string {
     dir = parent
   }
 
-  // Fallback to bundled path (will fail with a clear error in the caller)
   return bundledPath
+}
+
+/** Returns the absolute path to the bundled skill directory. */
+export function getSkillDir(): string {
+  return resolveSkillDir(_dirname, process.execPath)
 }
