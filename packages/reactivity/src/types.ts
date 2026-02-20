@@ -24,7 +24,6 @@ export interface DagNode {
   importedModules: string[]
   importedPackages?: string[]
   packageAliases?: Record<string, string>
-  packageFromImports?: Record<string, string[]>
   order: number
   outputVariables: string[]
   usedImportedModules: string[]

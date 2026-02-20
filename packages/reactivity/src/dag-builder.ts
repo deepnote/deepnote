@@ -42,7 +42,6 @@ export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockDe
       importedModules: block.importedModules ?? [],
       importedPackages: block.importedPackages ?? [],
       packageAliases: block.packageAliases ?? {},
-      packageFromImports: block.packageFromImports ?? {},
       outputVariables: [...block.definedVariables],
       usedImportedModules: block.usedImportedModules ?? [],
       error: block.error ?? null,

@@ -185,7 +185,6 @@ describe('buildDagFromBlocks', () => {
       importedModules: [],
       importedPackages: [],
       packageAliases: {},
-      packageFromImports: {},
       order: 2,
       outputVariables: ['x'],
       usedImportedModules: ['numpy'],
@@ -197,12 +196,11 @@ describe('buildDagFromBlocks', () => {
     const blocks = [
       {
         id: '1',
-        definedVariables: ['pd', 'arr'],
+        definedVariables: ['pd'],
         usedVariables: [],
-        importedModules: ['pd', 'arr'],
-        importedPackages: ['pandas', 'numpy'],
+        importedModules: ['pd'],
+        importedPackages: ['pandas'],
         packageAliases: { pandas: 'pd' },
-        packageFromImports: { numpy: ['array'] },
         order: 1,
       },
     ]
@@ -210,9 +208,8 @@ describe('buildDagFromBlocks', () => {
     const dag = buildDagFromBlocks(blocks)
     const node = dag.nodes[0]
 
-    expect(node.importedPackages).toEqual(['pandas', 'numpy'])
+    expect(node.importedPackages).toEqual(['pandas'])
     expect(node.packageAliases).toEqual({ pandas: 'pd' })
-    expect(node.packageFromImports).toEqual({ numpy: ['array'] })
   })
 
   it('should include error information in nodes', () => {

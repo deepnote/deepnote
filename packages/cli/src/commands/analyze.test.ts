@@ -114,7 +114,6 @@ describe('analyze command', () => {
       const result = outputJsonSpy.mock.calls[0][0]
       expect(Array.isArray(result.dependencies.imports)).toBe(true)
       expect(result.dependencies.packageAliases).toBeDefined()
-      expect(result.dependencies.packageFromImports).toBeDefined()
       expect(Array.isArray(result.dependencies.missingIntegrations)).toBe(true)
     })
 

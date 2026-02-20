@@ -199,7 +199,6 @@ describe('analysis utilities', () => {
       expect(result.stats.imports).toHaveLength(3)
 
       expect(result.stats.packageAliases).toEqual({ pandas: 'pd', numpy: 'np' })
-      expect(result.stats.packageFromImports).toEqual({ sklearn: ['metrics'] })
     })
   })
 

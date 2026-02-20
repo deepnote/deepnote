@@ -74,7 +74,6 @@ export interface ProjectStats {
   notebooks: NotebookStats[]
   imports: string[]
   packageAliases: Record<string, string>
-  packageFromImports: Record<string, string[]>
 }
 
 export interface BlockInfo {
@@ -119,9 +118,8 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
 
   const imports = extractImportsFromDag(dag)
   const packageAliases = extractPackageAliasesFromDag(dag)
-  const packageFromImports = extractPackageFromImportsFromDag(dag)
 
-  return { stats: { ...stats, imports, packageAliases, packageFromImports }, lint, dag }
+  return { stats: { ...stats, imports, packageAliases }, lint, dag }
 }
 
 /**
@@ -184,7 +182,6 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
     // Imports are populated by analyzeProject using DAG analysis for accuracy
     imports: [],
     packageAliases: {},
-    packageFromImports: {},
   }
 }
 
@@ -763,30 +760,6 @@ function extractPackageAliasesFromDag(dag: BlockDependencyDag): Record<string, s
   const result: Record<string, string> = {}
   for (const key of Object.keys(unsorted).sort()) {
     result[key] = unsorted[key]
-  }
-  return result
-}
-
-/**
- * Extract "from X import Y" names aggregated by package across all DAG nodes.
- */
-function extractPackageFromImportsFromDag(dag: BlockDependencyDag): Record<string, string[]> {
-  const fromImports = new Map<string, Set<string>>()
-  for (const node of dag.nodes) {
-    for (const [pkg, names] of Object.entries(node.packageFromImports ?? {})) {
-      const existing = fromImports.get(pkg) ?? new Set()
-      for (const name of names) {
-        existing.add(name)
-      }
-      fromImports.set(pkg, existing)
-    }
-  }
-  const result: Record<string, string[]> = {}
-  for (const pkg of Array.from(fromImports.keys()).sort()) {
-    const names = fromImports.get(pkg)
-    if (names) {
-      result[pkg] = Array.from(names).sort()
-    }
   }
   return result
 }

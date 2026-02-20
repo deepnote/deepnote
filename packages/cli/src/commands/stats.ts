@@ -87,11 +87,7 @@ function outputStats(stats: StatsFileResult, options: StatsOptions): void {
     output(c.bold('Imports'))
     const formatted = stats.imports.map(pkg => {
       const alias = stats.packageAliases[pkg]
-      const fromNames = stats.packageFromImports[pkg]
-      const parts: string[] = []
-      if (alias) parts.push(`as ${alias}`)
-      if (fromNames?.length) parts.push(`from ${fromNames.join(', ')}`)
-      return parts.length > 0 ? `${pkg} ${c.dim(`(${parts.join('; ')})`)}` : pkg
+      return alias ? `${pkg} ${c.dim(`(as ${alias})`)}` : pkg
     })
     output(`  ${formatted.join(', ')}`)
     output('')
