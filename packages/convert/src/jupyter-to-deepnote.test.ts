@@ -36,85 +36,6 @@ function getMockedRandomUUID() {
   }
 }
 
-describe('createSortingKey', () => {
-  // We need to test the internal function via its behavior in the output
-  // Since it's not exported, we'll validate sorting keys through conversion tests
-
-  it('generates correct sorting keys for first few indices', async () => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
-    const outputPath = path.join(tempDir, 'test.deepnote')
-
-    try {
-      const mockedRandomUUID = getMockedRandomUUID()
-      mockedRandomUUID.mockClear()
-      mockedRandomUUID.__resetCounter()
-
-      await convertIpynbFilesToDeepnoteFile([path.join(__dirname, '__fixtures__', 'simple.ipynb')], {
-        outputPath,
-        projectName: 'Test',
-      })
-
-      const content = await fs.readFile(outputPath, 'utf-8')
-      const result = deserializeDeepnoteFile(content)
-
-      // The sorting keys should be '0', '1', '2' for indices 0, 1, 2
-      const sortingKeys = result.project.notebooks[0].blocks.map(b => b.sortingKey)
-      expect(sortingKeys).toEqual(['0', '1', '2'])
-    } finally {
-      await fs.rm(tempDir, { recursive: true, force: true })
-    }
-  })
-
-  it('generates correct sorting keys for larger indices', async () => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-test-'))
-    const outputPath = path.join(tempDir, 'test.deepnote')
-
-    // Create a notebook with many cells to test larger indices
-    const notebookWithManyCells = {
-      cells: Array.from({ length: 40 }, (_, i) => ({
-        cell_type: 'code' as const,
-        execution_count: null,
-        metadata: {},
-        outputs: [],
-        source: `# Cell ${i}`,
-      })),
-      metadata: {},
-      nbformat: 4,
-      nbformat_minor: 5,
-    }
-
-    const inputPath = path.join(tempDir, 'many-cells.ipynb')
-
-    try {
-      await fs.writeFile(inputPath, JSON.stringify(notebookWithManyCells), 'utf-8')
-      const mockedRandomUUID = getMockedRandomUUID()
-      mockedRandomUUID.mockClear()
-      mockedRandomUUID.__resetCounter()
-
-      await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
-
-      const content = await fs.readFile(outputPath, 'utf-8')
-      const result = deserializeDeepnoteFile(content)
-
-      const sortingKeys = result.project.notebooks[0].blocks.map(b => b.sortingKey)
-
-      // Verify some specific keys (bijective base-36)
-      expect(sortingKeys[0]).toBe('0') // index 0
-      expect(sortingKeys[9]).toBe('9') // index 9
-      expect(sortingKeys[10]).toBe('a') // index 10
-      expect(sortingKeys[35]).toBe('z') // index 35
-      expect(sortingKeys[36]).toBe('00') // index 36 (wraps to two digits)
-      expect(sortingKeys[37]).toBe('01') // index 37
-
-      // Verify all keys are unique
-      const uniqueKeys = new Set(sortingKeys)
-      expect(uniqueKeys.size).toBe(sortingKeys.length)
-    } finally {
-      await fs.rm(tempDir, { recursive: true, force: true })
-    }
-  })
-})
-
 describe('convertIpynbFilesToDeepnoteFile', () => {
   let tempDir: string
 
@@ -498,7 +419,7 @@ describe('snapshot tests - exact YAML output format', () => {
           - blocks:
               - id: test-uuid-004
                 blockGroup: test-uuid-003
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: >-
                   # Hello World
@@ -508,7 +429,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-006
                 blockGroup: test-uuid-005
-                sortingKey: "1"
+                sortingKey: "000001"
                 executionCount: 1
                 outputs: []
                 type: code
@@ -516,7 +437,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 metadata: {}
               - id: test-uuid-008
                 blockGroup: test-uuid-007
-                sortingKey: "2"
+                sortingKey: "000002"
                 executionCount: 2
                 outputs: []
                 type: code

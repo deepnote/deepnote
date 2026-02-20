@@ -402,7 +402,7 @@ describe('Marimo format bidirectional roundtrip', () => {
           },
         ],
       },
-      version: '1.0',
+      version: '1.0.0',
       environment: { python: { version: '3.11' } },
       execution: {},
     }
