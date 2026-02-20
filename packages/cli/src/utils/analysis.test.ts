@@ -186,18 +186,20 @@ describe('analysis utilities', () => {
       expect(result.dag.nodes.length).toBe(2)
     })
 
-    it('extracts imports from DAG analysis', async () => {
+    it('extracts package names from Python import statements', async () => {
       const file = createTestFile([
         { id: 'block1', type: 'code', content: 'import pandas as pd\nimport numpy as np' },
         { id: 'block2', type: 'code', content: 'from sklearn import metrics' },
       ])
       const result = await analyzeProject(file)
 
-      // Note: AST analyzer returns the alias/imported names, not the underlying module names
-      expect(result.stats.imports).toContain('pd')
-      expect(result.stats.imports).toContain('np')
-      expect(result.stats.imports).toContain('metrics')
+      expect(result.stats.imports).toContain('pandas')
+      expect(result.stats.imports).toContain('numpy')
+      expect(result.stats.imports).toContain('sklearn')
       expect(result.stats.imports).toHaveLength(3)
+
+      expect(result.stats.packageAliases).toEqual({ pandas: 'pd', numpy: 'np' })
+      expect(result.stats.packageFromImports).toEqual({ sklearn: ['metrics'] })
     })
   })
 

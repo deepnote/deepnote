@@ -15,7 +15,10 @@ class VariableVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         self.global_vars = set()  # Variables defined globally
         self.used_global_vars = set()  # Variables used and defined globally
-        self.imported_modules = set()  # Imported modules
+        self.imported_modules = set()  # Local names introduced by imports (aliases)
+        self.imported_packages = set()  # Top-level package names from import sources
+        self.package_aliases = {}  # package -> alias for explicit "as" renames
+        self.package_from_imports = {}  # package -> [names] for "from X import Y"
         self.scope_stack = []  # Stack to track scopes
         self.function_globals = set()  # Global variables declared in current function
 
@@ -120,10 +123,20 @@ class VariableVisitor(ast.NodeVisitor):
     def visit_Import(self, node):
         for alias in node.names:
             self.imported_modules.add(alias.asname or alias.name)
+            top_level = alias.name.split(".")[0]
+            self.imported_packages.add(top_level)
+            if alias.asname:
+                self.package_aliases[top_level] = alias.asname
 
     def visit_ImportFrom(self, node):
         for alias in node.names:
             self.imported_modules.add(alias.asname or alias.name)
+            if node.module and not alias.asname:
+                top_level = node.module.split(".")[0]
+                self.package_from_imports.setdefault(top_level, []).append(alias.name)
+        if node.module:
+            top_level = node.module.split(".")[0]
+            self.imported_packages.add(top_level)
 
 
 def get_defined_used_variables(block):
@@ -134,6 +147,9 @@ def get_defined_used_variables(block):
         visitor.global_vars,
         visitor.used_global_vars,
         visitor.imported_modules,
+        visitor.imported_packages,
+        visitor.package_aliases,
+        visitor.package_from_imports,
     )
 
 
@@ -244,7 +260,7 @@ def analyze_blocks(blocks):
             loc = count_lines_of_code(content)
 
             if block.get("type") == "code" or block.get("type") is None:
-                block_defined, block_used, block_imported = get_defined_used_variables(
+                block_defined, block_used, block_imported, block_packages, block_pkg_aliases, block_from_imports = get_defined_used_variables(
                     block
                 )
                 block_defined_list = list(block_defined)
@@ -253,12 +269,18 @@ def analyze_blocks(blocks):
                 block_used_list.sort()
                 block_imported_list = list(block_imported)
                 block_imported_list.sort()
+                block_packages_list = list(block_packages)
+                block_packages_list.sort()
+                block_from_imports_sorted = {k: sorted(v) for k, v in block_from_imports.items()}
                 analysis.append(
                     {
                         "id": block["id"],
                         "definedVariables": block_defined_list,
                         "usedVariables": block_used_list,
                         "importedModules": block_imported_list,
+                        "importedPackages": block_packages_list,
+                        "packageAliases": block_pkg_aliases,
+                        "packageFromImports": block_from_imports_sorted,
                         "linesOfCode": loc,
                     }
                 )

@@ -12,6 +12,7 @@ export const BlockDependencySchema = z.object({
   definedVariables: z.array(z.string()),
   usedVariables: z.array(z.string()),
   importedModules: z.array(z.string()).optional(),
+  importedPackages: z.array(z.string()).optional(),
   // Note: if this field is not returned by AST parser, it will be calculated within webapp
   usedImportedModules: z.array(z.string()).optional(),
   error: BlockErrorSchema.optional(),
@@ -21,6 +22,9 @@ export interface DagNode {
   id: string
   inputVariables: string[]
   importedModules: string[]
+  importedPackages?: string[]
+  packageAliases?: Record<string, string>
+  packageFromImports?: Record<string, string[]>
   order: number
   outputVariables: string[]
   usedImportedModules: string[]

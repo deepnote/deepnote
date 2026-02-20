@@ -73,6 +73,8 @@ export interface ProjectStats {
   blockTypesSummary: BlockTypeStats[]
   notebooks: NotebookStats[]
   imports: string[]
+  packageAliases: Record<string, string>
+  packageFromImports: Record<string, string[]>
 }
 
 export interface BlockInfo {
@@ -115,10 +117,11 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
   const stats = computeProjectStats(file, options)
   const { lint, dag } = await checkForIssues(file, options)
 
-  // Extract imports from DAG nodes (more accurate than regex-based extraction)
   const imports = extractImportsFromDag(dag)
+  const packageAliases = extractPackageAliasesFromDag(dag)
+  const packageFromImports = extractPackageFromImportsFromDag(dag)
 
-  return { stats: { ...stats, imports }, lint, dag }
+  return { stats: { ...stats, imports, packageAliases, packageFromImports }, lint, dag }
 }
 
 /**
@@ -180,6 +183,8 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
     notebooks,
     // Imports are populated by analyzeProject using DAG analysis for accuracy
     imports: [],
+    packageAliases: {},
+    packageFromImports: {},
   }
 }
 
@@ -730,18 +735,53 @@ function countLinesOfCode(block: DeepnoteBlock): number {
 }
 
 /**
- * Extract imported module names from DAG nodes.
- * Uses the AST-based import extraction from the reactivity package
- * which is more accurate than regex-based extraction.
+ * Extract top-level package names from DAG nodes.
+ * Uses importedPackages which contains actual package names (e.g. "pandas")
+ * rather than importedModules which contains local aliases (e.g. "pd").
  */
 function extractImportsFromDag(dag: BlockDependencyDag): string[] {
   const imports = new Set<string>()
   for (const node of dag.nodes) {
-    for (const mod of node.importedModules) {
-      imports.add(mod)
+    for (const pkg of node.importedPackages ?? []) {
+      imports.add(pkg)
     }
   }
   return Array.from(imports).sort()
+}
+
+/**
+ * Extract package-to-alias mapping from DAG nodes.
+ * Only includes explicit "as" renames (e.g. pandas → pd from "import pandas as pd").
+ */
+function extractPackageAliasesFromDag(dag: BlockDependencyDag): Record<string, string> {
+  const aliases: Record<string, string> = {}
+  for (const node of dag.nodes) {
+    for (const [pkg, alias] of Object.entries(node.packageAliases ?? {})) {
+      aliases[pkg] = alias
+    }
+  }
+  return aliases
+}
+
+/**
+ * Extract "from X import Y" names aggregated by package across all DAG nodes.
+ */
+function extractPackageFromImportsFromDag(dag: BlockDependencyDag): Record<string, string[]> {
+  const fromImports = new Map<string, Set<string>>()
+  for (const node of dag.nodes) {
+    for (const [pkg, names] of Object.entries(node.packageFromImports ?? {})) {
+      const existing = fromImports.get(pkg) ?? new Set()
+      for (const name of names) {
+        existing.add(name)
+      }
+      fromImports.set(pkg, existing)
+    }
+  }
+  const result: Record<string, string[]> = {}
+  for (const [pkg, names] of fromImports) {
+    result[pkg] = Array.from(names).sort()
+  }
+  return result
 }
 
 // ============================================================================
