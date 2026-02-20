@@ -111,6 +111,7 @@
     "pyplot",
     "pyproject",
     "PYTHONPATH",
+    "RAWCONNECTIONSTRING",
     "qlty",
     "qmark",
     "rankdir",

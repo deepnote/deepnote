@@ -1,2 +1,3 @@
 CODEOWNERS
 pnpm-lock.yaml
+.deepnote.env.yaml
