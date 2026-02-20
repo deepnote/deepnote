@@ -518,6 +518,211 @@ describe('run command', () => {
       expect(consoleLogSpy).toHaveBeenCalled()
     })
 
+    describe('streaming output via onOutput', () => {
+      it('passes onOutput callback to engine.runProject', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, {})
+
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            onOutput: expect.any(Function),
+          })
+        )
+      })
+
+      it('renders output immediately via onOutput in non-machine mode', async () => {
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          options?.onBlockStart?.(
+            { id: 'b1', type: 'code', content: '', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          // Simulate streaming output before block done
+          options?.onOutput?.('b1', { output_type: 'stream', name: 'stdout', text: 'Hello World' })
+          options?.onBlockDone?.({
+            blockId: 'b1',
+            blockType: 'code',
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: 'Hello World' }],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, {})
+
+        // Output should include the streamed text and the status
+        const allOutput = getOutput(consoleLogSpy)
+        expect(allOutput).toContain('✓')
+      })
+
+      it('does not render output via onOutput in machine output mode', async () => {
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          options?.onBlockStart?.(
+            { id: 'b1', type: 'code', content: '', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          options?.onOutput?.('b1', { output_type: 'stream', name: 'stdout', text: 'Hello World' })
+          options?.onBlockDone?.({
+            blockId: 'b1',
+            blockType: 'code',
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: 'Hello World' }],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, { output: 'json' })
+
+        // JSON output should still include outputs in the blocks array
+        const allOutput = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(allOutput)
+        expect(parsed.blocks[0].outputs).toHaveLength(1)
+        expect(parsed.blocks[0].outputs[0].text).toBe('Hello World')
+      })
+
+      it('prints newline before first streamed output to separate from block label', async () => {
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          options?.onBlockStart?.(
+            { id: 'b1', type: 'code', content: '# test', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          // First output triggers the newline
+          options?.onOutput?.('b1', { output_type: 'stream', name: 'stdout', text: 'line 1' })
+          // Second output should NOT trigger another newline
+          options?.onOutput?.('b1', { output_type: 'stream', name: 'stdout', text: 'line 2' })
+          options?.onBlockDone?.({
+            blockId: 'b1',
+            blockType: 'code',
+            success: true,
+            outputs: [
+              { output_type: 'stream', name: 'stdout', text: 'line 1' },
+              { output_type: 'stream', name: 'stdout', text: 'line 2' },
+            ],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, {})
+
+        // The block label is written via process.stdout.write, then a newline via console.log
+        // before the first output. Verify the sequence: after the "Server ready" log message,
+        // the next call should be the newline (empty string) to end the block label line.
+        const logCalls = consoleLogSpy.mock.calls.map((call: unknown[]) => call.join(' '))
+        const serverReadyIdx = logCalls.findIndex((line: string) => line.includes('Server ready'))
+        expect(serverReadyIdx).toBeGreaterThanOrEqual(0)
+        // Next call after "Server ready" should be the newline before first streamed output
+        expect(logCalls[serverReadyIdx + 1]).toBe('')
+      })
+
+      it('keeps status on same line as label for blocks with no output', async () => {
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          options?.onBlockStart?.(
+            { id: 'b1', type: 'code', content: '# test', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          // No onOutput called
+          options?.onBlockDone?.({
+            blockId: 'b1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, {})
+
+        // For blocks with no output, ✓ should be directly after the label (on same line)
+        // The first console.log call after "Server ready" should contain ✓ (not an empty newline)
+        const logCalls = consoleLogSpy.mock.calls.map((call: unknown[]) => call.join(' '))
+        const serverReadyIdx = logCalls.findIndex((line: string) => line.includes('Server ready'))
+        expect(serverReadyIdx).toBeGreaterThanOrEqual(0)
+        expect(logCalls[serverReadyIdx + 1]).toContain('✓')
+      })
+
+      it('adds blank line after blocks that had streamed output', async () => {
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          options?.onBlockStart?.(
+            { id: 'b1', type: 'code', content: '', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          options?.onOutput?.('b1', { output_type: 'stream', name: 'stdout', text: 'output' })
+          options?.onBlockDone?.({
+            blockId: 'b1',
+            blockType: 'code',
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: 'output' }],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, {})
+
+        // Should have a blank line after the ✓ status for readability
+        const logCalls = consoleLogSpy.mock.calls.map((call: unknown[]) => call.join(' '))
+        const checkIdx = logCalls.findIndex((line: string) => line.includes('✓'))
+        expect(checkIdx).toBeGreaterThanOrEqual(0)
+        // Next call after ✓ should be blank line
+        expect(logCalls[checkIdx + 1]).toBe('')
+      })
+
+      it('does not add blank line after blocks with no output', async () => {
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          options?.onBlockStart?.(
+            { id: 'b1', type: 'code', content: '', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+            0,
+            1
+          )
+          options?.onBlockDone?.({
+            blockId: 'b1',
+            blockType: 'code',
+            success: true,
+            outputs: [],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(HELLO_WORLD_FILE, {})
+
+        // The console.log calls between ✓ and the summary separator should not have a blank line
+        const logCalls = consoleLogSpy.mock.calls.map((call: unknown[]) => call.join(' '))
+        const checkIdx = logCalls.findIndex((line: string) => line.includes('✓'))
+        expect(checkIdx).toBeGreaterThanOrEqual(0)
+        // Next call should NOT be a blank line — it should be the separator or summary
+        expect(logCalls[checkIdx + 1]).not.toBe('')
+      })
+    })
+
     it('calls program.error for non-existent file', async () => {
       await expect(action('non-existent-file.deepnote', {})).rejects.toThrow('program.error called')
 
