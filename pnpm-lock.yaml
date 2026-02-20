@@ -166,6 +166,9 @@ importers:
       '@deepnote/blocks':
         specifier: workspace:*
         version: link:../blocks
+      '@deepnote/cli':
+        specifier: workspace:*
+        version: link:../cli
       '@deepnote/convert':
         specifier: workspace:*
         version: link:../convert
