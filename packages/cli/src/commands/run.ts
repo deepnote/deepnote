@@ -468,6 +468,26 @@ function parseInputs(inputFlags: string[] | undefined): Record<string, unknown> 
   return inputs
 }
 
+/**
+ * Apply CLI --input overrides to input block metadata.
+ * Mutates the in-memory DeepnoteFile so input blocks use CLI-provided values
+ * instead of their saved values.
+ */
+export function applyInputOverrides(file: DeepnoteFile, inputs: Record<string, unknown>): void {
+  if (Object.keys(inputs).length === 0) return
+
+  for (const notebook of file.project.notebooks) {
+    for (const block of notebook.blocks) {
+      if (!block.type.startsWith('input-')) continue
+      const metadata = block.metadata as Record<string, unknown>
+      const varName = metadata.deepnote_variable_name as string | undefined
+      if (varName && Object.hasOwn(inputs, varName)) {
+        metadata.deepnote_variable_value = inputs[varName]
+      }
+    }
+  }
+}
+
 /** Information about an input block */
 interface InputInfo {
   variableName: string
@@ -738,6 +758,9 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
+  // Apply CLI --input overrides to input block metadata
+  applyInputOverrides(file, inputs)
+
   // Collect block results for machine-readable output
   const blockResults: BlockResult[] = []
 
@@ -746,6 +769,13 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
     pythonEnv,
     workingDirectory,
   })
+
+  // Suppress console.debug in machine output mode to prevent @jupyterlab/services
+  // "Starting WebSocket:" messages from contaminating stdout JSON output
+  const originalConsoleDebug = console.debug
+  if (isMachineOutput) {
+    console.debug = () => {}
+  }
 
   if (!isMachineOutput) {
     log(getChalk().dim('Starting deepnote-toolkit server...'))
@@ -1112,6 +1142,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       }
     }
   } finally {
+    console.debug = originalConsoleDebug
     if (metricsInterval) {
       clearInterval(metricsInterval)
       metricsInterval = null

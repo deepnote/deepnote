@@ -1,0 +1,62 @@
+metadata:
+  createdAt: '2026-02-20T00:00:00.000Z'
+project:
+  id: input-overrides-example
+  name: Input overrides example
+  notebooks:
+    - blocks:
+        - blockGroup: g1
+          content: ''
+          id: input-greeting
+          metadata:
+            deepnote_variable_name: greeting
+            deepnote_input_label: Greeting
+            deepnote_variable_value: Hello from the file
+            deepnote_variable_default_value: null
+          sortingKey: a0
+          type: input-text
+        - blockGroup: g2
+          content: 'print(f"greeting = {greeting}")'
+          id: code-print-greeting
+          metadata: {}
+          sortingKey: a1
+          type: code
+        - blockGroup: g3
+          content: ''
+          id: input-count
+          metadata:
+            deepnote_variable_name: count
+            deepnote_input_label: Count
+            deepnote_variable_value: '3'
+            deepnote_slider_min_value: 1
+            deepnote_slider_max_value: 100
+            deepnote_slider_step: 1
+            deepnote_variable_default_value: null
+          sortingKey: a2
+          type: input-slider
+        - blockGroup: g4
+          content: 'print(f"count = {count}")'
+          id: code-print-count
+          metadata: {}
+          sortingKey: a3
+          type: code
+        - blockGroup: g5
+          content: ''
+          id: input-enabled
+          metadata:
+            deepnote_variable_name: enabled
+            deepnote_input_label: Enabled
+            deepnote_variable_value: false
+            deepnote_variable_default_value: null
+          sortingKey: a4
+          type: input-checkbox
+        - blockGroup: g6
+          content: 'print(f"enabled = {enabled}")'
+          id: code-print-enabled
+          metadata: {}
+          sortingKey: a5
+          type: code
+      executionMode: block
+      id: nb-input-overrides
+      name: Input Overrides
+version: 1.0.0
