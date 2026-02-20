@@ -105,6 +105,8 @@
     "pgsql",
     "pnpm",
     "pyformat",
+    "pyproject",
+    "pyvenv",
     "pymongo",
     "pymssql",
     "pypi",
@@ -143,6 +145,7 @@
     "unconfigured",
     "unstub",
     "venv",
+    "venvs",
     "vscode",
     "windsurf",
     "workflows"

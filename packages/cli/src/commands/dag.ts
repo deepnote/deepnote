@@ -6,6 +6,7 @@ import {
   getDagForBlocks,
   getDownstreamBlocksForBlocksIds,
 } from '@deepnote/reactivity'
+import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
@@ -136,9 +137,10 @@ async function analyzeDag(
 
   debug(`Analyzing ${allBlocks.length} blocks...`)
 
+  const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
   const { dag } = await getDagForBlocks(allBlocks, {
     acceptPartialDAG: true,
-    pythonInterpreter: options.python,
+    pythonInterpreter,
   })
 
   return { dag, blocks: allBlocks, blockMap }
