@@ -215,7 +215,7 @@ describe('buildPythonEnv', () => {
 
   beforeAll(async () => {
     tempDir = join(tmpdir(), `python-env-build-test-${Date.now()}`)
-    venvDir = join(tempDir, 'myvenv')
+    venvDir = join(tempDir, 'my-venv')
     binDir = join(venvDir, 'bin')
     await mkdir(binDir, { recursive: true })
 
