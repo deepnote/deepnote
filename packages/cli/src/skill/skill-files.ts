@@ -2,11 +2,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const _dirname =
-  typeof __dirname !== 'undefined'
-    ? __dirname
-    : // @ts-expect-error: Safe ESM fallback; import.meta.url is only evaluated in ESM where __dirname is undefined.
-      path.dirname(fileURLToPath(import.meta.url))
+const _dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url))
 
 /**
  * Resolves the skill directory from the given module directory and executable path.
