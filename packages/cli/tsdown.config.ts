@@ -3,11 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'tsdown'
 
-const currentDir =
-  typeof __dirname !== 'undefined'
-    ? __dirname
-    : // @ts-expect-error: Safe ESM fallback; import.meta.url is only evaluated in ESM where __dirname is undefined.
-      path.dirname(fileURLToPath(import.meta.url))
+const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   entry: ['src/bin.ts', 'src/index.ts'],
