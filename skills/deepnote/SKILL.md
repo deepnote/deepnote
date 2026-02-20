@@ -176,7 +176,7 @@ When creating or modifying `.deepnote` files:
 
 ## Running After Edits
 
-After creating or modifying blocks, run the project to verify changes.
+After creating or modifying blocks, **always** run the project to verify changes.
 
 ### Prerequisites
 
