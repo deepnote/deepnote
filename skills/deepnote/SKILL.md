@@ -194,6 +194,41 @@ npm install -g @deepnote/cli
 
 If Node.js is not available, ask the user to install Node.js 22+ from https://nodejs.org.
 
+### IDE Environment Detection
+
+The Deepnote extension for VS Code, Cursor, and Antigravity creates a virtual environment for each project. Before running, check if an IDE-configured environment exists so the CLI uses the same Python interpreter.
+
+Look for a `deepnote.json` file in these directories (in order):
+
+- `.vscode/deepnote.json`
+- `.cursor/deepnote.json`
+- `.agent/deepnote.json` (Antigravity)
+
+The file maps project IDs to virtual environments:
+
+```json
+{
+  "mappings": {
+    "<project-id>": {
+      "environmentId": "<env-id>",
+      "venvPath": "/path/to/deepnote-envs/<env-id>"
+    }
+  }
+}
+```
+
+To use the IDE environment:
+
+1. Read the `project.id` from the `.deepnote` file
+2. Check each `deepnote.json` for a matching key in `mappings`
+3. If found, pass the `venvPath` to the CLI with `--python`:
+
+```bash
+deepnote run project.deepnote --python /path/to/deepnote-envs/<env-id>
+```
+
+If no IDE environment is found, omit `--python` and the CLI will use the system Python.
+
 ### Running
 
 ```bash
