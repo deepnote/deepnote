@@ -359,11 +359,11 @@ describe('convertPercentNotebookToBlocks', () => {
 
     const blocks = convertPercentNotebookToBlocks(notebook)
 
-    expect(blocks[0].sortingKey).toBe('0')
-    expect(blocks[9].sortingKey).toBe('9')
-    expect(blocks[10].sortingKey).toBe('a')
-    expect(blocks[35].sortingKey).toBe('z')
-    expect(blocks[36].sortingKey).toBe('00')
+    expect(blocks[0].sortingKey).toBe('000000')
+    expect(blocks[9].sortingKey).toBe('000009')
+    expect(blocks[10].sortingKey).toBe('000010')
+    expect(blocks[35].sortingKey).toBe('000035')
+    expect(blocks[36].sortingKey).toBe('000036')
   })
 })
 
@@ -481,7 +481,7 @@ describe('convertPercentFilesToDeepnoteFile', () => {
           - blocks:
               - id: test-uuid-004
                 blockGroup: test-uuid-003
-                sortingKey: "0"
+                sortingKey: "000000"
                 type: markdown
                 content: >-
                   # Hello World
@@ -491,13 +491,13 @@ describe('convertPercentFilesToDeepnoteFile', () => {
                 metadata: {}
               - id: test-uuid-006
                 blockGroup: test-uuid-005
-                sortingKey: "1"
+                sortingKey: "000001"
                 type: code
                 content: print("Hello, World!")
                 metadata: {}
               - id: test-uuid-008
                 blockGroup: test-uuid-007
-                sortingKey: "2"
+                sortingKey: "000002"
                 type: code
                 content: >-
                   x = 10
