@@ -75,7 +75,7 @@ Validate a .deepnote file against the schema.
 | ----------------------- | ---------------------------- |
 | `-o, --output <format>` | Output format: `json`, `llm` |
 
-**Exit codes:** 0 = valid, 1 = invalid, 2 = invalid usage.
+**Exit codes:** 0 = valid, 1 = runtime error, 2 = invalid file or invalid usage.
 
 **Examples:**
 
@@ -115,10 +115,10 @@ deepnote lint my-project.deepnote --notebook "Analysis"
 
 Show statistics about a .deepnote file.
 
-| Option                  | Description                          |
-| ----------------------- | ------------------------------------ |
-| `-o, --output <format>` | Output format: `json`, `toon`, `llm` |
-| `--notebook <name>`     | Analyze only a specific notebook     |
+| Option                  | Description                      |
+| ----------------------- | -------------------------------- |
+| `-o, --output <format>` | Output format: `json`, `llm`     |
+| `--notebook <name>`     | Analyze only a specific notebook |
 
 **Examples:**
 
