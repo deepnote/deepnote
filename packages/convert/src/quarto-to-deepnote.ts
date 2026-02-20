@@ -2,10 +2,9 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { serializeDeepnoteFile } from '@deepnote/blocks'
+import { generateSortingKey, serializeDeepnoteFile } from '@deepnote/blocks'
 import { parse as parseYaml } from 'yaml'
 import type { QuartoCell, QuartoCellOptions, QuartoDocument, QuartoFrontmatter } from './types/quarto'
-import { createSortingKey } from './utils'
 
 export interface ConvertQuartoFilesToDeepnoteFileOptions {
   outputPath: string
@@ -334,7 +333,7 @@ export function convertQuartoDocumentToBlocks(
       content: `# ${document.frontmatter.title}`,
       id: idGenerator(),
       metadata: {},
-      sortingKey: createSortingKey(blocks.length),
+      sortingKey: generateSortingKey(blocks.length),
       type: 'markdown',
     })
   }
@@ -480,7 +479,7 @@ function convertCellToBlock(cell: QuartoCell, index: number, idGenerator: () => 
     content: cell.content,
     id: idGenerator(),
     metadata: Object.keys(metadata).length > 0 ? metadata : {},
-    sortingKey: createSortingKey(index),
+    sortingKey: generateSortingKey(index),
     type: blockType,
   }
 }

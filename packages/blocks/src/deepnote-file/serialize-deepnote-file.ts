@@ -11,12 +11,33 @@ const yamlOptions = {
   defaultKeyType: 'PLAIN',
 } as const
 
+export function generateSortingKey(index: number): string {
+  return String(index).padStart(6, '0')
+}
+
+function normalizeSortingKeys<T extends DeepnoteFile | DeepnoteSnapshot>(data: T): T {
+  return {
+    ...data,
+    project: {
+      ...data.project,
+      notebooks: data.project.notebooks.map(notebook => ({
+        ...notebook,
+        blocks: notebook.blocks.map((block, index) => ({
+          ...block,
+          sortingKey: generateSortingKey(index),
+        })),
+      })),
+    },
+  }
+}
+
 /**
  * Serialize a DeepnoteFile to a YAML string.
  */
 export function serializeDeepnoteFile(file: DeepnoteFile): string {
   // We pass object through zod schema to ensure stable fields order
-  const normalized = deepnoteFileSchema.parse(file)
+  const withNormalizedSortingKeys = normalizeSortingKeys(file)
+  const normalized = deepnoteFileSchema.parse(withNormalizedSortingKeys)
   return stringify(normalized, yamlOptions)
 }
 
@@ -25,6 +46,7 @@ export function serializeDeepnoteFile(file: DeepnoteFile): string {
  */
 export function serializeDeepnoteSnapshot(snapshot: DeepnoteSnapshot): string {
   // We pass object through zod schema to ensure stable fields order
-  const normalized = deepnoteSnapshotSchema.parse(snapshot)
+  const withNormalizedSortingKeys = normalizeSortingKeys(snapshot)
+  const normalized = deepnoteSnapshotSchema.parse(withNormalizedSortingKeys)
   return stringify(normalized, yamlOptions)
 }

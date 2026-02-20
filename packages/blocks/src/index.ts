@@ -24,7 +24,11 @@ export {
 } from './deepnote-file/deepnote-file-schema'
 export { deserializeDeepnoteFile } from './deepnote-file/deserialize-deepnote-file'
 export { decodeUtf8NoBom, parseYaml } from './deepnote-file/parse-yaml'
-export { serializeDeepnoteFile, serializeDeepnoteSnapshot } from './deepnote-file/serialize-deepnote-file'
+export {
+  generateSortingKey,
+  serializeDeepnoteFile,
+  serializeDeepnoteSnapshot,
+} from './deepnote-file/serialize-deepnote-file'
 export {
   DeepnoteError,
   EncodingError,

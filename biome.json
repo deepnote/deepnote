@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.7/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignoreUnknown": false },
+  "files": { "ignoreUnknown": false, "includes": ["**", "!skills/deepnote/references/schema.ts"] },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,

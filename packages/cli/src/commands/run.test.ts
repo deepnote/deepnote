@@ -74,7 +74,13 @@ vi.mock('../utils/output-persistence', async importOriginal => {
   }
 })
 
-import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
+import {
+  applyInputOverrides,
+  createRunAction,
+  MissingInputError,
+  MissingIntegrationError,
+  type RunOptions,
+} from './run'
 
 // Helper to parse JSON from console output
 function getJsonOutput(spy: Mock): unknown {
@@ -1129,6 +1135,14 @@ describe('run command', () => {
         expect(process.exitCode).toBe(2)
       })
 
+      it('sets exit code 0 for project with no executable blocks', async () => {
+        setupSuccessfulRun({ totalBlocks: 0, executedBlocks: 0, failedBlocks: 0, totalDurationMs: 0 })
+
+        await action(HELLO_WORLD_FILE, {})
+
+        expect(process.exitCode).toBe(0)
+      })
+
       it('sets exit code 2 for MissingInputError', async () => {
         // Mock getBlockDependencies to return that a code block (sortingKey: a1)
         // uses input_textarea (defined at sortingKey: a2), triggering MissingInputError
@@ -2029,6 +2043,115 @@ describe('run command', () => {
           expect(fs.existsSync(calledPath)).toBe(false)
         }
       })
+    })
+  })
+
+  describe('applyInputOverrides', () => {
+    function makeInputBlock(varName: string, value: string) {
+      return {
+        id: `input-${varName}`,
+        type: 'input-text' as const,
+        content: '',
+        blockGroup: 'g1',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: varName,
+          deepnote_variable_value: value,
+        },
+      }
+    }
+
+    function makeDeepnoteFile(blocks: ReturnType<typeof makeInputBlock>[]) {
+      return {
+        version: '1',
+        metadata: { createdAt: '2026-01-01T00:00:00Z' },
+        project: {
+          id: 'test-project',
+          name: 'test',
+          notebooks: [{ id: 'nb-1', name: 'Notebook 1', blocks }],
+        },
+      }
+    }
+
+    it('patches deepnote_variable_value for matching input blocks', () => {
+      const file = makeDeepnoteFile([makeInputBlock('my_var', 'saved_value')])
+
+      applyInputOverrides(file, { my_var: 'cli_value' })
+
+      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
+      expect(metadata.deepnote_variable_value).toBe('cli_value')
+    })
+
+    it('leaves non-matching input blocks untouched', () => {
+      const file = makeDeepnoteFile([makeInputBlock('other_var', 'original')])
+
+      applyInputOverrides(file, { my_var: 'cli_value' })
+
+      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
+      expect(metadata.deepnote_variable_value).toBe('original')
+    })
+
+    it('is a no-op when inputs object is empty', () => {
+      const file = makeDeepnoteFile([makeInputBlock('my_var', 'saved_value')])
+
+      applyInputOverrides(file, {})
+
+      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
+      expect(metadata.deepnote_variable_value).toBe('saved_value')
+    })
+
+    it('patches multiple input blocks across notebooks', () => {
+      const file = {
+        version: '1',
+        metadata: { createdAt: '2026-01-01T00:00:00Z' },
+        project: {
+          id: 'test-project',
+          name: 'test',
+          notebooks: [
+            { id: 'nb-1', name: 'Notebook 1', blocks: [makeInputBlock('var_a', 'old_a')] },
+            { id: 'nb-2', name: 'Notebook 2', blocks: [makeInputBlock('var_b', 'old_b')] },
+          ],
+        },
+      }
+
+      applyInputOverrides(file, { var_a: 'new_a', var_b: 'new_b' })
+
+      const metaA = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
+      const metaB = file.project.notebooks[1].blocks[0].metadata as Record<string, unknown>
+      expect(metaA.deepnote_variable_value).toBe('new_a')
+      expect(metaB.deepnote_variable_value).toBe('new_b')
+    })
+
+    it('skips non-input blocks', () => {
+      const file = {
+        version: '1',
+        metadata: { createdAt: '2026-01-01T00:00:00Z' },
+        project: {
+          id: 'test-project',
+          name: 'test',
+          notebooks: [
+            {
+              id: 'nb-1',
+              name: 'Notebook 1',
+              blocks: [
+                {
+                  id: 'code-1',
+                  type: 'code' as const,
+                  content: 'print("hello")',
+                  blockGroup: 'g1',
+                  sortingKey: 'a0',
+                  metadata: { deepnote_variable_name: 'my_var', deepnote_variable_value: 'original' },
+                },
+              ],
+            },
+          ],
+        },
+      }
+
+      applyInputOverrides(file, { my_var: 'cli_value' })
+
+      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
+      expect(metadata.deepnote_variable_value).toBe('original')
     })
   })
 })
