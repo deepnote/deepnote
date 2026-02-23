@@ -12,6 +12,7 @@ import {
 } from '@deepnote/blocks'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { BUILTIN_INTEGRATIONS } from '../constants'
+import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'
 
@@ -108,7 +109,6 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
   const stats = computeProjectStats(file, options)
   const { lint, dag } = await checkForIssues(file, options)
 
-  // Extract imports from DAG nodes (more accurate than regex-based extraction)
   const imports = extractImportsFromDag(dag)
 
   return { stats: { ...stats, imports }, lint, dag }
@@ -144,6 +144,14 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
         loc: existing.loc + bt.linesOfCode,
       })
     }
+  }
+
+  // Validate notebook exists if filter was specified
+  if (options.notebook && notebooks.length === 0) {
+    const availableNotebooks = file.project.notebooks.map(n => `"${n.name}"`).join(', ')
+    throw new NotFoundInProjectError(
+      `Notebook "${options.notebook}" not found in project. Available notebooks: ${availableNotebooks}`
+    )
   }
 
   // Convert block types map to sorted array
@@ -715,15 +723,15 @@ function countLinesOfCode(block: DeepnoteBlock): number {
 }
 
 /**
- * Extract imported module names from DAG nodes.
- * Uses the AST-based import extraction from the reactivity package
- * which is more accurate than regex-based extraction.
+ * Extract top-level package names from DAG nodes.
+ * Uses importedPackages which contains actual package names (e.g. "pandas")
+ * rather than importedModules which contains local aliases (e.g. "pd").
  */
 function extractImportsFromDag(dag: BlockDependencyDag): string[] {
   const imports = new Set<string>()
   for (const node of dag.nodes) {
-    for (const mod of node.importedModules) {
-      imports.add(mod)
+    for (const pkg of node.importedPackages ?? []) {
+      imports.add(pkg)
     }
   }
   return Array.from(imports).sort()

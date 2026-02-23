@@ -6,14 +6,14 @@ Command-line interface for running Deepnote projects locally and on Deepnote Clo
 
 ## Installation
 
-> **Note:** Installation via PyPI is planned for a future release and may deprecate these methods of installation.
-
 ```bash
 npm install -g @deepnote/cli
 # or
 pnpm add -g @deepnote/cli
 # or
 yarn global add @deepnote/cli
+# or
+pip install deepnote-cli
 ```
 
 ## Quick Start
@@ -25,27 +25,34 @@ deepnote --help
 # Show version
 deepnote --version
 
+# Run a project/notebook file (.deepnote, .ipynb, .py, .qmd)
+deepnote run path/to/file.deepnote
+
 # Inspect a .deepnote file
 deepnote inspect path/to/file.deepnote
 
-# Inspect with JSON output (for scripting)
-deepnote inspect path/to/file.deepnote --output json
+# Display block contents
+deepnote cat my-project.deepnote
 
-# Inspect with TOON output (for LLMs, 30-60% fewer tokens)
-deepnote inspect path/to/file.deepnote --output toon
+# Check for issues
+deepnote lint my-project.deepnote
+
+# Show project statistics
+deepnote stats my-project.deepnote
 
 # Validate a .deepnote file
 deepnote validate path/to/file.deepnote
 
-# Run a .deepnote file
-deepnote run path/to/file.deepnote
+# Convert between notebook formats
+deepnote convert notebook.ipynb
 ```
 
 ## Commands
 
-### `inspect <path>`
+### `inspect [path]`
 
 Inspect and display metadata from a `.deepnote` file.
+Path is optional: when omitted, the CLI discovers the first `.deepnote` file in the current directory.
 
 ```bash
 deepnote inspect my-project.deepnote
@@ -61,15 +68,18 @@ deepnote inspect my-project.deepnote
 
 **Options:**
 
-| Option               | Description                                                 |
-| -------------------- | ----------------------------------------------------------- |
-| `-o, --output <fmt>` | Output format: `json` (scripting) or `toon` (LLM-optimized) |
+| Option               | Description                             | Default |
+| -------------------- | --------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json`, `toon`, or `llm` | text    |
 
 **Examples:**
 
 ```bash
 # Basic inspection
 deepnote inspect my-project.deepnote
+
+# Inspect first .deepnote file in current directory
+deepnote inspect
 
 # JSON output for scripting
 deepnote inspect my-project.deepnote --output json
@@ -81,9 +91,46 @@ deepnote inspect my-project.deepnote --output toon
 deepnote inspect my-project.deepnote --output json | jq '.project.name'
 ```
 
-### `run <path>`
+### `cat <path>`
 
-Run a `.deepnote` file locally.
+Display block contents from a `.deepnote` file, with optional filtering by notebook, block type, or tree view.
+
+```bash
+deepnote cat my-project.deepnote
+```
+
+**Options:**
+
+| Option               | Description                                                       | Default |
+| -------------------- | ----------------------------------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm`                                    | text    |
+| `--notebook <name>`  | Show only blocks from the specified notebook                      |         |
+| `--type <type>`      | Filter blocks by type: `code`, `sql`, `markdown`, `text`, `input` |         |
+| `--tree`             | Show structure only without block content                         | `false` |
+
+**Examples:**
+
+```bash
+# Display all blocks in a file
+deepnote cat my-project.deepnote
+
+# Show only code blocks
+deepnote cat my-project.deepnote --type code
+
+# Show blocks from a specific notebook
+deepnote cat my-project.deepnote --notebook "Data Analysis"
+
+# Show structure without content (tree view)
+deepnote cat my-project.deepnote --tree
+
+# Output as JSON for scripting
+deepnote cat my-project.deepnote -o json
+```
+
+### `run [path]`
+
+Run a project/notebook file locally. Supported formats: `.deepnote`, `.ipynb`, `.py`, `.qmd`.
+Path is optional: when omitted, the CLI discovers the first `.deepnote` file in the current directory.
 
 ```bash
 deepnote run my-project.deepnote
@@ -91,13 +138,20 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option               | Description                                                 | Default  |
-| -------------------- | ----------------------------------------------------------- | -------- |
-| `--python <path>`    | Path to Python interpreter or virtual environment           | `python` |
-| `--cwd <path>`       | Working directory for execution (defaults to file dir)      |          |
-| `--notebook <name>`  | Run only the specified notebook                             |          |
-| `--block <id>`       | Run only the specified block                                |          |
-| `-o, --output <fmt>` | Output format: `json` (scripting) or `toon` (LLM-optimized) |          |
+| Option                  | Description                                                      | Default        |
+| ----------------------- | ---------------------------------------------------------------- | -------------- |
+| `--python <path>`       | Path to Python interpreter or virtual environment                | auto-detected  |
+| `--cwd <path>`          | Working directory for execution                                  | file directory |
+| `--notebook <name>`     | Run only the specified notebook                                  | all notebooks  |
+| `--block <id>`          | Run only the specified block                                     | all blocks     |
+| `-i, --input <key=val>` | Set input variable value (can be repeated)                       |                |
+| `--list-inputs`         | List input variables without running                             | `false`        |
+| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                          | text           |
+| `--dry-run`             | Show execution plan without running                              | `false`        |
+| `--top`                 | Display resource usage (CPU/memory) during execution             | `false`        |
+| `--profile`             | Show per-block timing and memory summary                         | `false`        |
+| `--open`                | Open project in Deepnote Cloud after successful execution        | `false`        |
+| `--context`             | Include analysis context in output (requires `-o json/toon/llm`) | `false`        |
 
 **Examples:**
 
@@ -105,20 +159,263 @@ deepnote run my-project.deepnote
 # Run all notebooks
 deepnote run my-project.deepnote
 
+# Run a Jupyter notebook directly (auto-converted)
+deepnote run notebook.ipynb
+
 # Run with a specific Python virtual environment
 deepnote run my-project.deepnote --python path/to/venv
 
 # Run only a specific notebook
 deepnote run my-project.deepnote --notebook "Data Analysis"
 
+# Set input values for input blocks
+deepnote run my-project.deepnote --input name="Alice" --input count=42
+
 # Output results as JSON for CI/CD pipelines
 deepnote run my-project.deepnote --output json
 
 # Output results as TOON for LLM consumption
 deepnote run my-project.deepnote --output toon
+
+# Preview what would be executed without running
+deepnote run my-project.deepnote --dry-run
 ```
 
-### `validate [path]`
+### `lint <path>`
+
+Check a `.deepnote` file for issues including undefined variables, circular dependencies, unused/shadowed variables, missing integrations, and missing inputs.
+
+```bash
+deepnote lint my-project.deepnote
+```
+
+**Checks:**
+
+- **undefined-variable** - Variables used but never defined
+- **circular-dependency** - Blocks with circular dependencies
+- **unused-variable** - Variables defined but never used
+- **shadowed-variable** - Variables that shadow previous definitions
+- **parse-error** - Blocks that failed to parse
+- **missing-integration** - SQL blocks using integrations that are not configured
+- **missing-input** - Input blocks without default values
+
+**Options:**
+
+| Option               | Description                    | Default |
+| -------------------- | ------------------------------ | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm` | text    |
+| `--notebook <name>`  | Lint only a specific notebook  |         |
+| `--python <path>`    | Path to Python interpreter     |         |
+
+**Exit codes:** `0` = no errors (warnings may be present), `1` = errors found, `2` = invalid usage.
+
+**Examples:**
+
+```bash
+# Lint a .deepnote file
+deepnote lint my-project.deepnote
+
+# Output as JSON for CI/CD
+deepnote lint my-project.deepnote -o json
+
+# Use in CI pipeline
+deepnote lint my-project.deepnote || exit 1
+```
+
+### `stats <path>`
+
+Show statistics about a `.deepnote` file including block counts, lines of code, and imported modules.
+
+```bash
+deepnote stats my-project.deepnote
+```
+
+**Options:**
+
+| Option               | Description                        | Default |
+| -------------------- | ---------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm`     | text    |
+| `--notebook <name>`  | Show stats for a specific notebook |         |
+
+**Examples:**
+
+```bash
+# Show project statistics
+deepnote stats my-project.deepnote
+
+# Output as JSON for scripting
+deepnote stats my-project.deepnote -o json
+
+# Show stats for a specific notebook
+deepnote stats my-project.deepnote --notebook "Data Analysis"
+```
+
+### `analyze <path>`
+
+Comprehensive project analysis combining quality scoring, structure analysis, dependency checks, and actionable suggestions.
+
+```bash
+deepnote analyze my-project.deepnote
+```
+
+**Options:**
+
+| Option               | Description                             | Default |
+| -------------------- | --------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json`, `toon`, or `llm` | text    |
+| `--notebook <name>`  | Analyze only a specific notebook        |         |
+| `--python <path>`    | Path to Python interpreter              |         |
+
+**Examples:**
+
+```bash
+# Analyze a project
+deepnote analyze my-project.deepnote
+
+# Output for LLM consumption
+deepnote analyze my-project.deepnote -o toon
+```
+
+### `dag <subcommand> <path>`
+
+Analyze block dependencies and variable flow.
+
+**Subcommands:**
+
+| Subcommand   | Description                                     |
+| ------------ | ----------------------------------------------- |
+| `show`       | Show the dependency graph between blocks        |
+| `vars`       | List variables defined and used by each block   |
+| `downstream` | Show blocks that need re-run if a block changes |
+
+**Options (shared):**
+
+| Option               | Description                              | Default |
+| -------------------- | ---------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json`, `dot`\*, or `llm` | text    |
+| `--notebook <name>`  | Analyze only a specific notebook         |         |
+| `--python <path>`    | Path to Python interpreter               |         |
+
+\* `dot` format is only supported by `dag show`.
+
+The `downstream` subcommand also requires `-b, --block <id>` to specify the block to analyze.
+
+**Examples:**
+
+```bash
+# Show the dependency graph
+deepnote dag show my-project.deepnote
+
+# List variables for each block
+deepnote dag vars my-project.deepnote
+
+# Show what needs re-run if a block changes
+deepnote dag downstream my-project.deepnote --block "Load Data"
+
+# Generate Graphviz visualization
+deepnote dag show my-project.deepnote -o dot | dot -Tpng -o deps.png
+```
+
+### `diff <path1> <path2>`
+
+Compare two `.deepnote` files and show structural differences.
+
+```bash
+deepnote diff original.deepnote modified.deepnote
+```
+
+**Options:**
+
+| Option               | Description                           | Default |
+| -------------------- | ------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm`        | text    |
+| `--content`          | Include content differences in output | `false` |
+
+**Examples:**
+
+```bash
+# Compare two .deepnote files
+deepnote diff original.deepnote modified.deepnote
+
+# Compare with content differences
+deepnote diff file1.deepnote file2.deepnote --content
+
+# Output as JSON for scripting
+deepnote diff file1.deepnote file2.deepnote -o json
+```
+
+### `convert <path>`
+
+Convert between notebook formats.
+
+```bash
+deepnote convert notebook.ipynb
+```
+
+**Supported conversions:**
+
+- **To Deepnote:** `.ipynb`, `.qmd`, `.py` → `.deepnote`
+- **From Deepnote:** `.deepnote` → `.ipynb`, `.qmd`, `.py` (percent/marimo)
+
+**Options:**
+
+| Option                | Description                                                              | Default   |
+| --------------------- | ------------------------------------------------------------------------ | --------- |
+| `-o, --output <path>` | Output path (file or directory)                                          |           |
+| `-n, --name <name>`   | Project name (for conversions to `.deepnote`)                            |           |
+| `-f, --format <fmt>`  | Output format from `.deepnote`: `jupyter`, `percent`, `quarto`, `marimo` | `jupyter` |
+| `--open`              | Open the converted `.deepnote` file in Deepnote Cloud                    | `false`   |
+
+**Examples:**
+
+```bash
+# Convert Jupyter notebook to Deepnote
+deepnote convert notebook.ipynb
+
+# Convert and open in Deepnote Cloud
+deepnote convert notebook.ipynb --open
+
+# Convert directory of notebooks
+deepnote convert ./notebooks/
+
+# Convert Deepnote to Jupyter
+deepnote convert project.deepnote
+
+# Convert Deepnote to Quarto
+deepnote convert project.deepnote -f quarto
+
+# Convert Deepnote to Marimo
+deepnote convert project.deepnote -f marimo
+```
+
+### `open <path>`
+
+Open a `.deepnote` file in Deepnote Cloud by uploading it and opening the URL in your default browser.
+
+> **Note:** Files must be under 100 MB.
+
+```bash
+deepnote open my-project.deepnote
+```
+
+**Options:**
+
+| Option               | Description                                   | Default        |
+| -------------------- | --------------------------------------------- | -------------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm`                | text           |
+| `--domain <domain>`  | Deepnote domain (for single-tenant instances) | `deepnote.com` |
+
+**Examples:**
+
+```bash
+# Open a .deepnote file in Deepnote
+deepnote open my-project.deepnote
+
+# Open with JSON output (for scripting)
+deepnote open my-project.deepnote -o json
+```
+
+### `validate <path>`
 
 Validate a `.deepnote` file against the schema.
 
@@ -128,9 +425,9 @@ deepnote validate my-project.deepnote
 
 **Options:**
 
-| Option               | Description                         |
-| -------------------- | ----------------------------------- |
-| `-o, --output <fmt>` | Output format: `json` for scripting |
+| Option               | Description                    | Default |
+| -------------------- | ------------------------------ | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm` | text    |
 
 **Examples:**
 
@@ -140,6 +437,36 @@ deepnote validate my-project.deepnote
 
 # JSON output for CI/CD pipelines
 deepnote validate my-project.deepnote --output json
+```
+
+### `integrations pull`
+
+Pull database integrations from the Deepnote API and merge with a local integrations file.
+
+```bash
+deepnote integrations pull
+```
+
+**Options:**
+
+| Option              | Description                                    | Default             |
+| ------------------- | ---------------------------------------------- | ------------------- |
+| `--url <url>`       | API base URL                                   | Deepnote API        |
+| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                     |
+| `--file <path>`     | Path to integrations file                      | `integrations.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`              |
+
+**Examples:**
+
+```bash
+# Pull integrations from Deepnote API
+deepnote integrations pull
+
+# Pull with a specific token
+deepnote integrations pull --token <token>
+
+# Pull to a custom file path
+deepnote integrations pull --file my-integrations.yaml
 ```
 
 ### `completion <shell>`
@@ -161,6 +488,42 @@ source ~/.zshrc
 
 # Fish (save to completions directory)
 deepnote completion fish > ~/.config/fish/completions/deepnote.fish
+```
+
+### `install-skills`
+
+Install the Deepnote skill for AI coding assistants (Claude Code, Cursor, Windsurf, etc.). The skill gives your AI assistant knowledge of the `.deepnote` file format, CLI commands, and block types.
+
+```bash
+deepnote install-skills
+```
+
+**Options:**
+
+| Option                | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `-g, --global`        | Install to your home directory instead of project   |
+| `-a, --agent <agent>` | Target a specific agent (e.g. `cursor`, `windsurf`) |
+| `--dry-run`           | Preview what would be installed without writing     |
+
+**Supported agents:** Claude Code, Cursor, Windsurf, GitHub Copilot, Cline, Roo Code, Augment, Continue, Antigravity, Trae, Goose, Junie, Kilo Code, Kiro, Codex, Gemini CLI, Amp, Kimi Code CLI, OpenCode.
+
+**Examples:**
+
+```bash
+# Install for all detected agents in the current project
+deepnote install-skills
+
+# Install globally (available across all projects)
+deepnote install-skills --global
+
+# Install for a specific agent
+deepnote install-skills --agent cursor
+deepnote install-skills --agent "github copilot"
+deepnote install-skills --agent windsurf
+
+# Preview without writing files
+deepnote install-skills --dry-run
 ```
 
 ## Global Options
@@ -212,12 +575,13 @@ fi
 
 ## Output Formats
 
-The CLI supports two output formats via the `-o, --output` option:
+The CLI supports output formats via the `-o, --output` option:
 
-| Format | Description                                                                 |
-| ------ | --------------------------------------------------------------------------- |
-| `json` | Standard JSON format for scripting and CI/CD pipelines                      |
-| `toon` | [TOON format](https://toonformat.dev/) - LLM-optimized, 30-60% fewer tokens |
+| Format | Description                                                                             |
+| ------ | --------------------------------------------------------------------------------------- |
+| `json` | Standard JSON format for scripting and CI/CD pipelines                                  |
+| `toon` | [TOON format](https://toonformat.dev/) - LLM-optimized, 30-60% fewer tokens             |
+| `llm`  | Alias to the best LLM format for each command (`toon` when available, otherwise `json`) |
 
 ## JSON Output Schema
 

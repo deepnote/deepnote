@@ -623,46 +623,51 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
         name: Simple Test
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-003
-                content: "# Hello World"
-                id: test-uuid-004
-                metadata: {}
-                sortingKey: "0"
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
+                sortingKey: "000000"
                 type: markdown
-              - blockGroup: test-uuid-005
-                content: |-
+                content: "# Hello World"
+                metadata: {}
+              - id: test-uuid-006
+                blockGroup: test-uuid-005
+                sortingKey: "000001"
+                type: markdown
+                content: >-
                   # Welcome
 
+
                   This is a simple Quarto document.
-                id: test-uuid-006
                 metadata: {}
-                sortingKey: "1"
-                type: markdown
-              - blockGroup: test-uuid-007
+              - id: test-uuid-008
+                blockGroup: test-uuid-007
+                sortingKey: "000002"
+                type: code
                 content: print("Hello, World!")
-                id: test-uuid-008
                 metadata: {}
-                sortingKey: "2"
+              - id: test-uuid-010
+                blockGroup: test-uuid-009
+                sortingKey: "000003"
                 type: code
-              - blockGroup: test-uuid-009
-                content: |-
+                content: >-
                   x = 10
+
                   y = 20
+
                   result = x + y
+
                   print(f"Result: {result}")
-                id: test-uuid-010
                 metadata: {}
-                sortingKey: "3"
-                type: code
-              - blockGroup: test-uuid-011
-                content: |-
+              - id: test-uuid-012
+                blockGroup: test-uuid-011
+                sortingKey: "000004"
+                type: markdown
+                content: >-
                   ## Conclusion
 
+
                   That's all for now!
-                id: test-uuid-012
                 metadata: {}
-                sortingKey: "4"
-                type: markdown
             executionMode: block
             id: test-uuid-001
             isModule: false

@@ -335,12 +335,23 @@ export function mergeApiIntegrationsIntoDocument(doc: Document, apiIntegrations:
   const integrationsSeq = getOrCreateIntegrationsFromDocument(doc)
 
   // Convert API integrations to DatabaseIntegrationConfig
-  const { integrations: databaseIntegrations, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
+  const databaseIntegrations = apiIntegrations.reduce<DatabaseIntegrationConfig[]>((acc, apiIntegration) => {
+    const config = databaseIntegrationConfigSchema.safeParse(apiIntegration)
 
-  // Log conversion errors (integrations pull is always interactive)
-  for (const conversionError of conversionErrors) {
-    error(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
-  }
+    if (!config.success) {
+      debug(
+        `Skipping invalid or unsupported integration "${apiIntegration.name}" (${apiIntegration.type}) [${apiIntegration.id}]:`
+      )
+      for (const issue of config.error.issues) {
+        debug(`  ${issue.code} [${issue.path.join('.')}]: ${issue.message}`)
+      }
+      return acc
+    }
+
+    acc.push(config.data)
+
+    return acc
+  }, [])
 
   // Merge integrations and extract secrets in a single pass
   // This preserves custom env var names by checking existing values before updating

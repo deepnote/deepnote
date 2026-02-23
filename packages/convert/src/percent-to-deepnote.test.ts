@@ -359,11 +359,11 @@ describe('convertPercentNotebookToBlocks', () => {
 
     const blocks = convertPercentNotebookToBlocks(notebook)
 
-    expect(blocks[0].sortingKey).toBe('0')
-    expect(blocks[9].sortingKey).toBe('9')
-    expect(blocks[10].sortingKey).toBe('a')
-    expect(blocks[35].sortingKey).toBe('z')
-    expect(blocks[36].sortingKey).toBe('00')
+    expect(blocks[0].sortingKey).toBe('000000')
+    expect(blocks[9].sortingKey).toBe('000009')
+    expect(blocks[10].sortingKey).toBe('000010')
+    expect(blocks[35].sortingKey).toBe('000035')
+    expect(blocks[36].sortingKey).toBe('000036')
   })
 })
 
@@ -479,31 +479,35 @@ describe('convertPercentFilesToDeepnoteFile', () => {
         name: Simple Test
         notebooks:
           - blocks:
-              - blockGroup: test-uuid-003
-                content: |-
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
+                sortingKey: "000000"
+                type: markdown
+                content: >-
                   # Hello World
 
+
                   This is a simple percent format notebook.
-                id: test-uuid-004
                 metadata: {}
-                sortingKey: "0"
-                type: markdown
-              - blockGroup: test-uuid-005
+              - id: test-uuid-006
+                blockGroup: test-uuid-005
+                sortingKey: "000001"
+                type: code
                 content: print("Hello, World!")
-                id: test-uuid-006
                 metadata: {}
-                sortingKey: "1"
+              - id: test-uuid-008
+                blockGroup: test-uuid-007
+                sortingKey: "000002"
                 type: code
-              - blockGroup: test-uuid-007
-                content: |-
+                content: >-
                   x = 10
+
                   y = 20
+
                   result = x + y
+
                   print(f"Result: {result}")
-                id: test-uuid-008
                 metadata: {}
-                sortingKey: "2"
-                type: code
             executionMode: block
             id: test-uuid-001
             isModule: false

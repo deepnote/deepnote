@@ -2,11 +2,16 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile, Environment, Execution } from '@deepnote/blocks'
-import { deepnoteBlockSchema, environmentSchema, executionSchema } from '@deepnote/blocks'
-import { stringify } from 'yaml'
+import {
+  deepnoteBlockSchema,
+  environmentSchema,
+  executionSchema,
+  generateSortingKey,
+  serializeDeepnoteFile,
+} from '@deepnote/blocks'
 import { FileReadError, JsonParseError } from './errors'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
-import { createSortingKey, sortKeysAlphabetically } from './utils'
+import { sortKeysAlphabetically } from './utils'
 
 export interface ConvertIpynbFilesToDeepnoteFileOptions {
   outputPath: string
@@ -177,7 +182,7 @@ export async function convertIpynbFilesToDeepnoteFile(
     projectName: options.projectName,
   })
 
-  const yamlContent = stringify(deepnoteFile)
+  const yamlContent = serializeDeepnoteFile(deepnoteFile)
 
   const parentDir = dirname(options.outputPath)
   await fs.mkdir(parentDir, { recursive: true })
@@ -272,7 +277,7 @@ function convertCellToBlock(cell: JupyterCell, index: number, idGenerator: () =>
     id: cellId ?? idGenerator(),
     metadata: originalMetadata,
     ...(hasOutputs ? { outputs: cell.outputs } : {}),
-    sortingKey: sortingKey ?? createSortingKey(index),
+    sortingKey: sortingKey ?? generateSortingKey(index),
     type: blockType,
   })
 

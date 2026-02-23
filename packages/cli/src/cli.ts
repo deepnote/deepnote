@@ -9,6 +9,7 @@ import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
+import { createInstallSkillsAction } from './commands/install-skills'
 import { createIntegrationsPullAction, DEFAULT_API_URL } from './commands/integrations'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
@@ -46,6 +47,15 @@ export function createProgram(): Command {
     .configureOutput({
       // Write errors to stderr with chalk styling
       outputError: (str, write) => write(chalk.red(str)),
+    })
+    .exitOverride(err => {
+      // Map Commander errors to appropriate exit codes
+      // InvalidArgumentError (e.g., invalid --type value) should exit with InvalidUsage (2)
+      if (err.code === 'commander.invalidArgument') {
+        process.exit(ExitCode.InvalidUsage)
+      }
+      // For other Commander errors, use the default exit code
+      process.exit(err.exitCode)
     })
     // Global options
     .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
@@ -282,7 +292,7 @@ ${c.bold('Examples:')}
     .option('--top', 'Display resource usage (CPU, memory) during execution')
     .option('--profile', 'Show per-block timing and memory usage')
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
-    .option('--context', 'Include analysis context (stats, lint issues, variable usage) in output')
+    .option('--context', 'Include analysis context in machine-readable output (requires -o json/toon/llm)')
     .option('--url <url>', 'API base URL for fetching integrations', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for fetching integrations (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .addHelpText('after', () => {
@@ -448,8 +458,8 @@ ${c.bold('Output:')}
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  File is valid
-  ${c.dim('1')}  File is invalid (schema violations found)
-  ${c.dim('2')}  Invalid usage (file not found, not a .deepnote file)
+  ${c.dim('1')}  Runtime error (unexpected failure)
+  ${c.dim('2')}  File is invalid (schema violations) or invalid usage (file not found, not a .deepnote file)
 
 ${c.bold('Examples:')}
   ${c.dim('# Validate a .deepnote file')}
@@ -643,6 +653,62 @@ ${c.bold('Examples:')}
 `
     })
     .action(createLintAction(program))
+
+  // Install-skills command - install agent skill files
+  program
+    .command('install-skills')
+    .description('Install or update Deepnote agent skills for AI coding assistants')
+    .option('-g, --global', 'Install to user home directory instead of project')
+    .option('-a, --agent <agent>', 'Target a specific agent')
+    .option('--dry-run', 'Show what would be written without making changes')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Copies the Deepnote skill (SKILL.md + references) into agent skill directories
+  so AI coding assistants can understand .deepnote files.
+
+${c.bold('Supported Agents:')}
+  Claude Code      .claude/skills/
+  Cursor           .cursor/skills/
+  Windsurf         .windsurf/skills/
+  Cline            .cline/skills/
+  Roo Code         .roo/skills/
+  Augment          .augment/skills/
+  Continue         .continue/skills/
+  Antigravity      .agent/skills/
+  Trae             .trae/skills/
+  Goose            .goose/skills/
+  Junie            .junie/skills/
+  Kilo Code        .kilocode/skills/
+  Kiro             .kiro/skills/
+  GitHub Copilot   .agents/skills/
+  Codex            .agents/skills/
+  Gemini CLI       .agents/skills/
+  Amp              .agents/skills/
+  Kimi Code CLI    .agents/skills/
+  OpenCode         .agents/skills/
+
+${c.bold('Detection:')}
+  By default, installs for agents whose config directory exists (e.g. .claude/).
+  If none are detected, defaults to Claude Code.
+  Use --agent to target a specific agent regardless of detection.
+
+${c.bold('Examples:')}
+  ${c.dim('# Install for all detected agents in current project')}
+  $ deepnote install-skills
+
+  ${c.dim('# Install globally (user home directory)')}
+  $ deepnote install-skills --global
+
+  ${c.dim('# Install for a specific agent')}
+  $ deepnote install-skills --agent cursor
+
+  ${c.dim('# Preview without writing')}
+  $ deepnote install-skills --dry-run
+`
+    })
+    .action(createInstallSkillsAction(program))
 
   // Completion command - generate shell completions
   program

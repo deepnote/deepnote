@@ -2,12 +2,11 @@ import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, dirname, extname } from 'node:path'
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { stringify } from 'yaml'
+import { generateSortingKey, serializeDeepnoteFile } from '@deepnote/blocks'
 import { FileReadError } from './errors'
 import { getMarimoOutputsFromCache } from './snapshot'
 import type { JupyterOutput } from './types/jupyter'
 import type { MarimoApp, MarimoCell } from './types/marimo'
-import { createSortingKey } from './utils'
 
 /**
  * Computes a code hash for a cell's content.
@@ -532,7 +531,7 @@ export async function convertMarimoFilesToDeepnoteFile(
     projectName: options.projectName,
   })
 
-  const yamlContent = stringify(deepnoteFile)
+  const yamlContent = serializeDeepnoteFile(deepnoteFile)
 
   const parentDir = dirname(options.outputPath)
   await fs.mkdir(parentDir, { recursive: true })
@@ -583,7 +582,7 @@ function convertCellToBlock(
     content: cell.content,
     id: idGenerator(),
     metadata: Object.keys(metadata).length > 0 ? metadata : {},
-    sortingKey: createSortingKey(index),
+    sortingKey: generateSortingKey(index),
     type: blockType,
     // Add outputs if available (for code and SQL blocks)
     ...(outputs && outputs.length > 0 && (blockType === 'code' || blockType === 'sql') ? { outputs } : {}),

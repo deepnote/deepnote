@@ -31,6 +31,8 @@ export interface ExecutionOptions {
   notebookName?: string
   /** Run only the specified block (by id) */
   blockId?: string
+  /** Run only the specified blocks (by ids). Takes precedence over blockId. */
+  blockIds?: string[]
   /**
    * Input values to inject before execution.
    * Keys are variable names, values are the values to assign.
@@ -85,6 +87,7 @@ export class ExecutionEngine {
       pythonEnv: this.config.pythonEnv,
       workingDirectory: this.config.workingDirectory,
       port: this.config.serverPort,
+      env: this.config.env,
     })
 
     try {
@@ -146,14 +149,21 @@ export class ExecutionEngine {
       throw new Error(`Notebook "${options.notebookName}" not found in project`)
     }
 
+    // Build block ID filter set: blockIds takes precedence over blockId
+    const blockIdFilter = options.blockIds
+      ? new Set(options.blockIds)
+      : options.blockId
+        ? new Set([options.blockId])
+        : null
+
     // Collect all executable blocks
     const allExecutableBlocks: Array<{ block: DeepnoteBlock; notebookName: string }> = []
     for (const notebook of notebooks) {
       const sortedBlocks = this.sortBlocks(notebook.blocks)
       for (const block of sortedBlocks) {
         if (isExecutableBlock(block)) {
-          // Skip if filtering by blockId and this isn't the target
-          if (options.blockId && block.id !== options.blockId) {
+          // Skip if filtering by block IDs and this isn't in the set
+          if (blockIdFilter && !blockIdFilter.has(block.id)) {
             continue
           }
           allExecutableBlocks.push({ block, notebookName: notebook.name })
@@ -161,15 +171,17 @@ export class ExecutionEngine {
       }
     }
 
-    if (options.blockId && allExecutableBlocks.length === 0) {
-      // Check if the block exists but is not executable
-      for (const notebook of notebooks) {
-        const block = notebook.blocks.find(b => b.id === options.blockId)
-        if (block) {
-          throw new Error(`Block "${options.blockId}" is not executable (type: ${block.type}).`)
-        }
+    // Validate blockIds when the filter yields no executable blocks.
+    if (options.blockIds && allExecutableBlocks.length === 0 && options.blockIds.length > 0) {
+      for (const blockId of options.blockIds) {
+        this.assertExecutableBlockExists(blockId, notebooks)
       }
-      throw new Error(`Block "${options.blockId}" not found in project`)
+    }
+
+    // For error reporting, use the single blockId only when blockIds is not provided.
+    const primaryBlockId = options.blockIds ? undefined : options.blockId
+    if (primaryBlockId && allExecutableBlocks.length === 0) {
+      this.assertExecutableBlockExists(primaryBlockId, notebooks)
     }
 
     const totalBlocks = allExecutableBlocks.length
@@ -234,6 +246,23 @@ export class ExecutionEngine {
    */
   private sortBlocks(blocks: DeepnoteBlock[]): DeepnoteBlock[] {
     return [...blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+  }
+
+  /**
+   * Ensure a requested block exists in the selected notebooks and is executable.
+   */
+  private assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['project']['notebooks']): void {
+    for (const notebook of notebooks) {
+      const block = notebook.blocks.find(b => b.id === blockId)
+      if (!block) {
+        continue
+      }
+      if (!isExecutableBlock(block)) {
+        throw new Error(`Block "${blockId}" is not executable (type: ${block.type}).`)
+      }
+      return
+    }
+    throw new Error(`Block "${blockId}" not found in project`)
   }
 
   /**

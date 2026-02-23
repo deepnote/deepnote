@@ -1,6 +1,6 @@
 import { dedent } from 'ts-dedent'
 
-import type { CodeBlock, SqlBlock } from '../deserialize-file/deepnote-file-schema'
+import type { CodeBlock, SqlBlock } from '../deepnote-file/deepnote-file-schema'
 import { escapePythonString } from './python-utils'
 
 export function createDataFrameConfig(block: CodeBlock | SqlBlock): string {

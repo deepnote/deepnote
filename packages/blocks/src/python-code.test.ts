@@ -16,7 +16,7 @@ import type {
   InputTextBlock,
   SqlBlock,
   VisualizationBlock,
-} from './deserialize-file/deepnote-file-schema'
+} from './deepnote-file/deepnote-file-schema'
 import { createPythonCode } from './python-code'
 
 describe('createPythonCode', () => {

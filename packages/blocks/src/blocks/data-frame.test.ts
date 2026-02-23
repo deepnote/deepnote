@@ -1,7 +1,7 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
-import type { CodeBlock, SqlBlock } from '../deserialize-file/deepnote-file-schema'
+import type { CodeBlock, SqlBlock } from '../deepnote-file/deepnote-file-schema'
 import { createDataFrameConfig } from './data-frame'
 
 describe('createDataFrameConfig', () => {

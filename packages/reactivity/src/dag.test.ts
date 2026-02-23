@@ -1,7 +1,7 @@
 import assert from 'node:assert'
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getDagForBlocks, getDownstreamBlocks } from './dag'
+import { getDagForBlocks, getDownstreamBlocks, getUpstreamBlocks } from './dag'
 import * as dagAnalyzer from './dag-analyzer'
 
 const DATAFRAME_SQL_INTEGRATION_ID = 'dataframe-sql-integration'
@@ -1366,6 +1366,106 @@ describe('DAG', () => {
       expect(downstreamBlocksDesc.status).toBe('fatal')
       assert(downstreamBlocksDesc.status === 'fatal', 'Should be fatal')
       expect(downstreamBlocksDesc.error).toBeDefined()
+    })
+  })
+
+  describe('getUpstreamBlocks', () => {
+    it('should return upstream blocks for the given blocks', async () => {
+      const blocks = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content: 'a = 1\nb = 2',
+        },
+        {
+          id: '2',
+          type: 'code',
+          content: 'c = a + b',
+        },
+        {
+          id: '3',
+          type: 'code',
+          content: 'print("nothing here")',
+        },
+        {
+          id: '4',
+          type: 'code',
+          content: 'd = c + 3',
+        },
+      ])
+
+      const blocksToExecute = createBlocks([
+        {
+          id: '4',
+          type: 'code',
+          content: 'd = c + 3',
+        },
+      ])
+
+      const upstreamBlocksDesc = await getUpstreamBlocks(blocks, blocksToExecute)
+
+      expect(upstreamBlocksDesc.status).toBe('success')
+      assert(upstreamBlocksDesc.status !== 'fatal', 'Should not be fatal')
+      expect(upstreamBlocksDesc.blocksToExecuteWithDeps).toHaveLength(3)
+      const expectedIds = ['1', '2', '4']
+      expect(upstreamBlocksDesc.blocksToExecuteWithDeps.every(block => expectedIds.includes(block.id))).toBeTruthy()
+    })
+
+    it('should return missing-deps status if code block could not be parsed', async () => {
+      const content = `
+        brokenCode----[()](3šš)
+      `
+      const blocks = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content,
+        },
+      ])
+
+      const blocksToExecute = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content,
+        },
+      ])
+
+      const upstreamBlocksDesc = await getUpstreamBlocks(blocks, blocksToExecute)
+
+      expect(upstreamBlocksDesc.status).toBe('missing-deps')
+      assert(upstreamBlocksDesc.status === 'missing-deps')
+      expect(upstreamBlocksDesc.newlyComputedBlocksContentDeps).toHaveLength(1)
+      expect(upstreamBlocksDesc.newlyComputedBlocksContentDeps[0].error).toBeDefined()
+    })
+
+    it('should return fatal status if upstream analysis fails', async () => {
+      vi.spyOn(dagAnalyzer, 'getUpstreamBlocksForBlocksIds').mockImplementation(() => {
+        throw new Error('Error')
+      })
+
+      const content = `a = 42`
+      const blocks = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content,
+        },
+      ])
+
+      const blocksToExecute = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content,
+        },
+      ])
+
+      const upstreamBlocksDesc = await getUpstreamBlocks(blocks, blocksToExecute)
+
+      expect(upstreamBlocksDesc.status).toBe('fatal')
+      assert(upstreamBlocksDesc.status === 'fatal', 'Should be fatal')
+      expect(upstreamBlocksDesc.error).toBeDefined()
     })
   })
 })

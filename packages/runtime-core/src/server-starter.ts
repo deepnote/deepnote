@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import tcpPortUsed from 'tcp-port-used'
-import { resolvePythonExecutable } from './python-env'
+import { buildPythonEnv, resolvePythonExecutable } from './python-env'
 
 const DEFAULT_PORT = 8888
 const SERVER_STARTUP_TIMEOUT_MS = 120_000
@@ -22,6 +22,8 @@ export interface ServerOptions {
   port?: number
   /** Optional timeout for server startup in milliseconds */
   startupTimeoutMs?: number
+  /** Optional environment variables to pass to the server */
+  env?: Record<string, string>
 }
 
 /**
@@ -38,8 +40,9 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
   const jupyterPort = await findConsecutiveAvailablePorts(port ?? DEFAULT_PORT)
   const lspPort = jupyterPort + 1
 
-  // Set up environment
-  const env = { ...process.env }
+  // Set up environment with correct Python paths (PATH, VIRTUAL_ENV)
+  const baseEnv: Record<string, string | undefined> = { ...process.env, ...options.env }
+  const env = await buildPythonEnv(pythonPath, baseEnv)
   env.DEEPNOTE_RUNTIME__RUNNING_IN_DETACHED_MODE = 'true'
   env.DEEPNOTE_ENFORCE_PIP_CONSTRAINTS = 'true'
 

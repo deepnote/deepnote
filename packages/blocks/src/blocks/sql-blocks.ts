@@ -1,6 +1,6 @@
 import { dedent } from 'ts-dedent'
 
-import type { DeepnoteBlock, SqlBlock } from '../deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock, SqlBlock } from '../deepnote-file/deepnote-file-schema'
 import { createDataFrameConfig } from './data-frame'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
 import { convertToEnvironmentVariableName, getSqlEnvVarName } from './sql-utils'

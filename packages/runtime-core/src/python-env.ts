@@ -1,9 +1,11 @@
 import { execSync } from 'node:child_process'
 import { stat } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { basename, delimiter, dirname, join, resolve } from 'node:path'
 
-const PYTHON_EXECUTABLES_UNIX = ['python', 'python3']
-const PYTHON_EXECUTABLES_WIN = ['python.exe', 'python3.exe']
+const IS_WINDOWS = process.platform === 'win32'
+const PYTHON_EXECUTABLES = IS_WINDOWS ? ['python.exe', 'python3.exe'] : ['python', 'python3']
+const VENV_BIN_DIR = IS_WINDOWS ? 'Scripts' : 'bin'
+const BARE_PYTHON_COMMAND = /^python[0-9.]*$/
 
 /**
  * Resolves the Python executable path using smart detection.
@@ -19,8 +21,7 @@ const PYTHON_EXECUTABLES_WIN = ['python.exe', 'python3.exe']
  * @throws Error if the path doesn't exist or no Python executable is found
  */
 export async function resolvePythonExecutable(pythonPath: string): Promise<string> {
-  // Handle default 'python' or 'python3' case - use system Python
-  if (pythonPath === 'python' || pythonPath === 'python3') {
+  if (isBareSystemPython(pythonPath)) {
     return pythonPath
   }
 
@@ -51,27 +52,28 @@ export async function resolvePythonExecutable(pythonPath: string): Promise<strin
     throw new Error(`Python path is neither a file nor a directory: ${pythonPath}`)
   }
 
-  const candidates = process.platform === 'win32' ? PYTHON_EXECUTABLES_WIN : PYTHON_EXECUTABLES_UNIX
-
   // Case 2: Directory containing python directly (bin/ or Scripts/ folder)
-  const directPython = await findPythonInDirectory(pythonPath, candidates)
+  const directPython = await findPythonInDirectory(pythonPath, PYTHON_EXECUTABLES)
   if (directPython) {
     return directPython
   }
 
   // Case 3: Venv root directory (look in bin/ or Scripts/)
-  const binDir = process.platform === 'win32' ? join(pythonPath, 'Scripts') : join(pythonPath, 'bin')
+  const binDir = join(pythonPath, VENV_BIN_DIR)
   const binDirStat = await stat(binDir).catch(() => null)
 
   if (binDirStat?.isDirectory()) {
-    const venvPython = await findPythonInDirectory(binDir, candidates)
+    const venvPython = await findPythonInDirectory(binDir, PYTHON_EXECUTABLES)
     if (venvPython) {
       return venvPython
     }
   }
 
   // No Python found - provide helpful error message
-  const searchedPaths = [...candidates.map(c => join(pythonPath, c)), ...candidates.map(c => join(binDir, c))]
+  const searchedPaths = [
+    ...PYTHON_EXECUTABLES.map(c => join(pythonPath, c)),
+    ...PYTHON_EXECUTABLES.map(c => join(binDir, c)),
+  ]
 
   throw new Error(
     `No Python executable found at: ${pythonPath}\n\n` +
@@ -121,6 +123,14 @@ export function detectDefaultPython(): string {
 }
 
 /**
+ * Checks if the given string is a bare system Python command (e.g. 'python', 'python3', 'python3.11')
+ * as opposed to an absolute/relative path to a Python executable.
+ */
+export function isBareSystemPython(pythonPath: string): boolean {
+  return BARE_PYTHON_COMMAND.test(pythonPath)
+}
+
+/**
  * Checks if a Python command is available on the system.
  */
 function isPythonAvailable(command: string): boolean {
@@ -130,4 +140,71 @@ function isPythonAvailable(command: string): boolean {
   } catch {
     return false
   }
+}
+
+/**
+ * Detects the virtual environment root for a given Python executable path.
+ *
+ * Checks for `pyvenv.cfg` which is the standard marker for Python venvs.
+ * Handles both `/path/to/venv/bin/python` and `/path/to/venv/Scripts/python.exe`.
+ *
+ * @returns The venv root directory, or null if the Python is not in a venv
+ */
+async function detectVenvRoot(pythonExecutable: string): Promise<string | null> {
+  const binDir = dirname(pythonExecutable)
+  const possibleVenvRoot = dirname(binDir)
+
+  const pyvenvCfg = join(possibleVenvRoot, 'pyvenv.cfg')
+  const cfgStat = await stat(pyvenvCfg).catch(() => null)
+  if (cfgStat?.isFile()) {
+    return possibleVenvRoot
+  }
+
+  return null
+}
+
+/**
+ * Builds environment variables appropriate for the resolved Python executable.
+ *
+ * When a specific Python path is provided (not just 'python' or 'python3'),
+ * this ensures the spawned process environment is consistent with the specified
+ * Python by:
+ * - Prepending the Python's directory to PATH so subprocesses find the right Python
+ * - Setting VIRTUAL_ENV if the Python is in a venv
+ * - Clearing VIRTUAL_ENV if the Python is NOT in a venv (to avoid inheriting
+ *   the current shell's active venv)
+ *
+ * @param resolvedPythonPath - The resolved path from resolvePythonExecutable()
+ * @param baseEnv - The base environment to modify (defaults to process.env)
+ * @returns Environment variables object for use with child_process.spawn()
+ */
+export async function buildPythonEnv(
+  resolvedPythonPath: string,
+  baseEnv: Record<string, string | undefined> = process.env
+): Promise<Record<string, string | undefined>> {
+  const env = { ...baseEnv }
+
+  if (isBareSystemPython(resolvedPythonPath)) {
+    return env
+  }
+
+  const pythonDir = dirname(resolve(resolvedPythonPath))
+
+  // Prepend the Python's directory to PATH so subprocesses (e.g. Jupyter kernels)
+  // find the correct Python when using bare 'python' commands
+  const pathKey = Object.keys(env).find(k => k.toLowerCase() === 'path') || 'PATH'
+  const currentPath = env[pathKey] || ''
+  env[pathKey] = currentPath ? `${pythonDir}${delimiter}${currentPath}` : pythonDir
+
+  // Detect if this Python is inside a virtual environment
+  const venvRoot = await detectVenvRoot(resolve(resolvedPythonPath))
+  if (venvRoot) {
+    env.VIRTUAL_ENV = venvRoot
+  } else {
+    // Clear any inherited VIRTUAL_ENV to prevent the current shell's venv
+    // from interfering with the specified Python
+    delete env.VIRTUAL_ENV
+  }
+
+  return env
 }

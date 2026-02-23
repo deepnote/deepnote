@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/reactivity",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "description": "Reactivity and dependency graph for Deepnote notebooks",
   "keywords": [],
   "repository": {
@@ -27,7 +27,7 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown && mkdir -p dist/scripts && cp src/scripts/ast-analyzer.py dist/scripts/",
+    "build": "tsdown && node scripts/copy-assets.mjs",
     "test": "vitest",
     "watch": "tsdown --watch"
   },

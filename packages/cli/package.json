@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/cli",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "Command-line interface for running Deepnote projects locally and on Deepnote Cloud",
   "keywords": [
     "cli",
@@ -35,8 +35,9 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown",
+    "build": "pnpm run generate:skill-schema && tsdown",
     "dev": "tsx src/bin.ts",
+    "generate:skill-schema": "tsx scripts/generate-skill-schema.ts",
     "test": "vitest",
     "watch": "tsdown --watch"
   },
@@ -58,6 +59,7 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4",
     "tsx": "^4.20.6",
     "zod-to-json-schema": "^3.25.1"
   },

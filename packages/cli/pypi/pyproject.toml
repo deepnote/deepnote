@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepnote-cli"
+description = "Deepnote CLI packaged for PyPI"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Deepnote" }]
+keywords = ["deepnote", "cli", "notebook", "data-science"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: Utilities",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/deepnote/deepnote"
+Repository = "https://github.com/deepnote/deepnote"
+Documentation = "https://deepnote.com/docs/getting-started"
+
+[project.scripts]
+deepnote = "deepnote_cli._launcher:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "deepnote_cli.__version__" }
+
+[tool.setuptools.package-data]
+deepnote_cli = ["bin/*", "skills/**/*"]
