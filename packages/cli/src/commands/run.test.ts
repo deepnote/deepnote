@@ -37,6 +37,7 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
       }
     },
     detectDefaultPython: () => 'python',
+    resolvePythonExecutable: (pythonPath: string) => Promise.resolve(pythonPath),
   }
 })
 
