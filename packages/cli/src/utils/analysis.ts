@@ -73,7 +73,6 @@ export interface ProjectStats {
   blockTypesSummary: BlockTypeStats[]
   notebooks: NotebookStats[]
   imports: string[]
-  packageAliases: Record<string, string>
 }
 
 export interface BlockInfo {
@@ -117,9 +116,8 @@ export async function analyzeProject(file: DeepnoteFile, options: AnalysisOption
   const { lint, dag } = await checkForIssues(file, options)
 
   const imports = extractImportsFromDag(dag)
-  const packageAliases = extractPackageAliasesFromDag(dag)
 
-  return { stats: { ...stats, imports, packageAliases }, lint, dag }
+  return { stats: { ...stats, imports }, lint, dag }
 }
 
 /**
@@ -181,7 +179,6 @@ export function computeProjectStats(file: DeepnoteFile, options: AnalysisOptions
     notebooks,
     // Imports are populated by analyzeProject using DAG analysis for accuracy
     imports: [],
-    packageAliases: {},
   }
 }
 
@@ -744,24 +741,6 @@ function extractImportsFromDag(dag: BlockDependencyDag): string[] {
     }
   }
   return Array.from(imports).sort()
-}
-
-/**
- * Extract package-to-alias mapping from DAG nodes.
- * Only includes explicit "as" renames (e.g. pandas → pd from "import pandas as pd").
- */
-function extractPackageAliasesFromDag(dag: BlockDependencyDag): Record<string, string> {
-  const unsorted: Record<string, string> = {}
-  for (const node of dag.nodes) {
-    for (const [pkg, alias] of Object.entries(node.packageAliases ?? {})) {
-      unsorted[pkg] = alias
-    }
-  }
-  const result: Record<string, string> = {}
-  for (const key of Object.keys(unsorted).sort()) {
-    result[key] = unsorted[key]
-  }
-  return result
 }
 
 // ============================================================================

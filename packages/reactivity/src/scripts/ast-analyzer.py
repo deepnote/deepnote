@@ -17,7 +17,6 @@ class VariableVisitor(ast.NodeVisitor):
         self.used_global_vars = set()  # Variables used and defined globally
         self.imported_modules = set()  # Local names introduced by imports (aliases)
         self.imported_packages = set()  # Top-level package names from import sources
-        self.package_aliases = {}  # package -> alias for explicit "as" renames
         self.scope_stack = []  # Stack to track scopes
         self.function_globals = set()  # Global variables declared in current function
 
@@ -124,8 +123,6 @@ class VariableVisitor(ast.NodeVisitor):
             self.imported_modules.add(alias.asname or alias.name)
             top_level = alias.name.split(".")[0]
             self.imported_packages.add(top_level)
-            if alias.asname:
-                self.package_aliases[top_level] = alias.asname
 
     def visit_ImportFrom(self, node):
         for alias in node.names:
@@ -144,7 +141,6 @@ def get_defined_used_variables(block):
         visitor.used_global_vars,
         visitor.imported_modules,
         visitor.imported_packages,
-        visitor.package_aliases,
     )
 
 
@@ -255,7 +251,7 @@ def analyze_blocks(blocks):
             loc = count_lines_of_code(content)
 
             if block.get("type") == "code" or block.get("type") is None:
-                block_defined, block_used, block_imported, block_packages, block_pkg_aliases = get_defined_used_variables(
+                block_defined, block_used, block_imported, block_packages = get_defined_used_variables(
                     block
                 )
                 block_defined_list = list(block_defined)
@@ -273,7 +269,6 @@ def analyze_blocks(blocks):
                         "usedVariables": block_used_list,
                         "importedModules": block_imported_list,
                         "importedPackages": block_packages_list,
-                        "packageAliases": block_pkg_aliases,
                         "linesOfCode": loc,
                     }
                 )

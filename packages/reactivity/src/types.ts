@@ -23,7 +23,6 @@ export interface DagNode {
   inputVariables: string[]
   importedModules: string[]
   importedPackages?: string[]
-  packageAliases?: Record<string, string>
   order: number
   outputVariables: string[]
   usedImportedModules: string[]

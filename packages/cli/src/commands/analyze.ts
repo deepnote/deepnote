@@ -42,7 +42,6 @@ interface AnalyzeResult {
   }
   dependencies: {
     imports: string[]
-    packageAliases: Record<string, string>
     missingIntegrations: string[]
   }
   suggestions: string[]
@@ -158,7 +157,6 @@ function buildAnalyzeResult(path: string, analysis: AnalysisResult, blockMap: Ma
     },
     dependencies: {
       imports: stats.imports,
-      packageAliases: stats.packageAliases,
       missingIntegrations: lint.integrations?.missing ?? [],
     },
     suggestions,
@@ -336,11 +334,7 @@ function outputAnalysis(result: AnalyzeResult, options: AnalyzeOptions): void {
   if (result.dependencies.imports.length > 0 || result.dependencies.missingIntegrations.length > 0) {
     output(c.bold('Dependencies'))
     if (result.dependencies.imports.length > 0) {
-      const formatted = result.dependencies.imports.map(pkg => {
-        const alias = result.dependencies.packageAliases[pkg]
-        return alias ? `${pkg} ${c.dim(`(as ${alias})`)}` : pkg
-      })
-      output(`  ${c.dim('Imports:')} ${formatted.join(', ')}`)
+      output(`  ${c.dim('Imports:')} ${result.dependencies.imports.join(', ')}`)
     }
     if (result.dependencies.missingIntegrations.length > 0) {
       output(`  ${c.red('Missing:')} ${result.dependencies.missingIntegrations.join(', ')}`)

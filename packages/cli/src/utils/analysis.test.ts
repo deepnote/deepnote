@@ -197,8 +197,6 @@ describe('analysis utilities', () => {
       expect(result.stats.imports).toContain('numpy')
       expect(result.stats.imports).toContain('sklearn')
       expect(result.stats.imports).toHaveLength(3)
-
-      expect(result.stats.packageAliases).toEqual({ pandas: 'pd', numpy: 'np' })
     })
   })
 
