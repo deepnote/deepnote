@@ -1,9 +1,10 @@
 import { execSync } from 'node:child_process'
 import { stat } from 'node:fs/promises'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, delimiter, dirname, join, resolve } from 'node:path'
 
-const PYTHON_EXECUTABLES_UNIX = ['python', 'python3']
-const PYTHON_EXECUTABLES_WIN = ['python.exe', 'python3.exe']
+const IS_WINDOWS = process.platform === 'win32'
+const PYTHON_EXECUTABLES = IS_WINDOWS ? ['python.exe', 'python3.exe'] : ['python', 'python3']
+const VENV_BIN_DIR = IS_WINDOWS ? 'Scripts' : 'bin'
 
 /**
  * Resolves the Python executable path using smart detection.
@@ -51,7 +52,7 @@ export async function resolvePythonExecutable(pythonPath: string): Promise<strin
     throw new Error(`Python path is neither a file nor a directory: ${pythonPath}`)
   }
 
-  const candidates = process.platform === 'win32' ? PYTHON_EXECUTABLES_WIN : PYTHON_EXECUTABLES_UNIX
+  const candidates = PYTHON_EXECUTABLES
 
   // Case 2: Directory containing python directly (bin/ or Scripts/ folder)
   const directPython = await findPythonInDirectory(pythonPath, candidates)
@@ -60,7 +61,7 @@ export async function resolvePythonExecutable(pythonPath: string): Promise<strin
   }
 
   // Case 3: Venv root directory (look in bin/ or Scripts/)
-  const binDir = process.platform === 'win32' ? join(pythonPath, 'Scripts') : join(pythonPath, 'bin')
+  const binDir = join(pythonPath, VENV_BIN_DIR)
   const binDirStat = await stat(binDir).catch(() => null)
 
   if (binDirStat?.isDirectory()) {
@@ -185,7 +186,7 @@ export async function buildPythonEnv(
   // find the correct Python when using bare 'python' commands
   const pathKey = Object.keys(env).find(k => k.toLowerCase() === 'path') || 'PATH'
   const currentPath = env[pathKey] || ''
-  env[pathKey] = currentPath ? `${pythonDir}${getPathDelimiter()}${currentPath}` : pythonDir
+  env[pathKey] = currentPath ? `${pythonDir}${delimiter}${currentPath}` : pythonDir
 
   // Detect if this Python is inside a virtual environment
   const venvRoot = await detectVenvRoot(resolve(resolvedPythonPath))
@@ -198,8 +199,4 @@ export async function buildPythonEnv(
   }
 
   return env
-}
-
-function getPathDelimiter(): string {
-  return process.platform === 'win32' ? ';' : ':'
 }
