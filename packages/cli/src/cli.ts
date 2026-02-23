@@ -599,11 +599,15 @@ ${c.bold('Examples:')}
   // Lint command - check for issues
   program
     .command('lint')
-    .description('Check a .deepnote file for issues')
-    .argument('<path>', 'Path to a .deepnote file')
+    .description('Check a .deepnote file or integrations yaml file for issues')
+    .argument('[path]', `Path to a .deepnote file or ${DEFAULT_INTEGRATIONS_FILE} (defaults to current directory)`)
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--notebook <name>', 'Lint only a specific notebook')
     .option('--python <path>', 'Path to Python interpreter')
+    .option(
+      '--integrations-file <path>',
+      `Path to integrations env file (default: ${DEFAULT_INTEGRATIONS_FILE} next to .deepnote file)`
+    )
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -617,24 +621,39 @@ ${c.bold('Checks:')}
 
   ${c.underline('Integrations')}
   - missing-integration: SQL blocks using integrations that are not configured
+  - configuration errors in ${DEFAULT_INTEGRATIONS_FILE} (YAML syntax, schema, missing env vars)
 
   ${c.underline('Inputs')}
   - missing-input: Input blocks without default values
 
+${c.bold('Integrations File:')}
+  Integrations are automatically loaded from ${DEFAULT_INTEGRATIONS_FILE} in the same directory as the
+  .deepnote file (or from --integrations-file if specified). This allows the lint command to detect
+  which SQL integrations are properly configured and report configuration errors explicitly.
+
+  You can also lint an integrations yaml file directly by passing it as the path argument.
+  This validates the file structure, integration schemas, and environment variable references.
+
 ${c.bold('Exit Codes:')}
   0  No errors found (warnings may be present)
-  1  One or more errors found
+  1  One or more errors found (including configuration errors)
   2  Invalid usage (bad arguments, file not found)
 
 ${c.bold('Examples:')}
   ${c.dim('# Lint a .deepnote file')}
   $ deepnote lint my-project.deepnote
 
+  ${c.dim('# Lint an integrations yaml file directly')}
+  $ deepnote lint ${DEFAULT_INTEGRATIONS_FILE}
+
   ${c.dim('# Output as JSON for CI/CD')}
   $ deepnote lint my-project.deepnote -o json
 
   ${c.dim('# Lint only a specific notebook')}
   $ deepnote lint my-project.deepnote --notebook "Analysis"
+
+  ${c.dim('# Use a custom integrations file')}
+  $ deepnote lint my-project.deepnote --integrations-file prod-integrations.yaml
 
   ${c.dim('# Use in CI pipeline')}
   $ deepnote lint my-project.deepnote || exit 1
