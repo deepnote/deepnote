@@ -660,7 +660,8 @@ integrations:
       const envFilePath = join(tempDir, '.env')
 
       await writeFile(filePath, EXISTING_PGSQL_YAML)
-      await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n')
+      const fixtureEnvFileContent = `PG_ID_001__PASSWORD=secret-pass\nPG_ID_002__PASSWORD=secret-pass-2\n`
+      await writeFile(envFilePath, fixtureEnvFileContent)
 
       const promise = editIntegration({ file: filePath, envFile: envFilePath })
 
@@ -694,7 +695,6 @@ integrations:
 
       await screen.next()
       expect(screen.getScreen()).toContain('Password:')
-      screen.type('old-pass')
       screen.keypress('enter')
 
       await screen.next()
@@ -736,13 +736,9 @@ integrations:
         "
       `)
 
-      // .env should have the re-entered password for the edited integration
+      // .env should remain unchanged since the password default was kept
       const envContent = await readFile(envFilePath, 'utf-8')
-      expect(envContent).toMatchInlineSnapshot(`
-        "PG_ID_001__PASSWORD=old-pass
-        PG_ID_002__PASSWORD=old-pass-2
-        "
-      `)
+      expect(envContent).toEqual(fixtureEnvFileContent)
     })
   })
 

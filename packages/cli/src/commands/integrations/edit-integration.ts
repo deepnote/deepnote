@@ -178,6 +178,8 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
 
   const existingConfigResult = databaseIntegrationConfigSchema.safeParse(integrationRawJson)
 
+  console.log('existingConfigResult', JSON.stringify(existingConfigResult, null, 2))
+
   if (!existingConfigResult.success) {
     throw new Error(
       `Integration entry "${found.map.get('id')}" failed validation: ${existingConfigResult.error.issues.map(i => i.message).join('; ')}`
@@ -185,6 +187,8 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   }
 
   const configForPrompt = existingConfigResult.data
+
+  console.log('configForPrompt', JSON.stringify(configForPrompt, null, 2))
 
   const newConfig = await promptForIntegrationConfig(configForPrompt)
 

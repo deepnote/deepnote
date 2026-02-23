@@ -31,8 +31,32 @@ export async function promptForStringField({
   secret: boolean
   required: boolean
 }): Promise<string> {
-  const promptFn = secret ? password : input
-  return promptFn({
+  if (secret) {
+    // The password prompt does not support `default` values (input is masked),
+    // so we allow empty submission when a defaultValue exists and fall back to it.
+    const hasDefault = defaultValue != null
+    const result = await password({
+      message: label,
+      validate: (value: string) => {
+        if (required && !value.trim() && !hasDefault) {
+          return `${label} is required`
+        }
+        if (value.trim() && customValidate) {
+          const customValidateResult = customValidate(value)
+          if (typeof customValidateResult === 'string') {
+            return customValidateResult
+          }
+        }
+        return true
+      },
+    })
+    if (hasDefault && !result.trim()) {
+      return defaultValue
+    }
+    return result
+  }
+
+  return input({
     message: label,
     default: defaultValue,
     required: required === true,
