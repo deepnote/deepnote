@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
@@ -56,9 +57,10 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
   const deepnoteFile = deserializeDeepnoteFile(yamlContent)
 
   debug(`Analyzing blocks...`)
+  const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
   const { lint } = await checkForIssues(deepnoteFile, {
     notebook: options.notebook,
-    pythonInterpreter: options.python,
+    pythonInterpreter,
   })
 
   return {

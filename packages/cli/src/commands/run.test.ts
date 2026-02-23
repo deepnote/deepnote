@@ -37,6 +37,7 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
       }
     },
     detectDefaultPython: () => 'python',
+    resolvePythonExecutable: (pythonPath: string) => Promise.resolve(pythonPath),
   }
 })
 
@@ -180,7 +181,10 @@ describe('run command', () => {
         issues: [],
       })
       // Reset saveExecutionSnapshot mock
-      mockSaveExecutionSnapshot.mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
+      mockSaveExecutionSnapshot.mockResolvedValue({
+        snapshotPath: '/mock/snapshot.snapshot.deepnote',
+        timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',
+      })
 
       program = new Command()
       program.exitOverride()
