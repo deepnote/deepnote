@@ -64,4 +64,5 @@ Build block by block. Adding multiple blocks without testing after each one make
 - Convert hardcoded values to input blocks for interactivity
 - Use \`${TOOL_NAMES.read} include=[lint]\` to catch issues before running
 - Scope execution to the smallest level needed
+- Keep each block in its own \`blockGroup\` (do not reuse the same \`blockGroup\` across multiple blocks, or layout can look odd in Deepnote)
 `
