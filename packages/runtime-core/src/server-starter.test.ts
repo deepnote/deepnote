@@ -22,7 +22,8 @@ vi.mock('./python-env', () => ({
     if (resolvedPath !== 'python' && resolvedPath !== 'python3') {
       const binDir = resolvedPath.replace(/\/python[^/]*$/, '')
       const pathDelim = process.platform === 'win32' ? ';' : ':'
-      env.PATH = `${binDir}${pathDelim}${env.PATH || ''}`
+      const currentPath = env.PATH || ''
+      env.PATH = currentPath ? `${binDir}${pathDelim}${currentPath}` : binDir
       env.VIRTUAL_ENV = binDir.replace(/\/bin$/, '')
     }
     return env
