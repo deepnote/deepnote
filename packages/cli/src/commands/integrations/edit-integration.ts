@@ -1,3 +1,4 @@
+import { debug } from 'node:console'
 import {
   type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
@@ -15,7 +16,7 @@ import { ExitCode } from '../../exit-codes'
 import { SCHEMA_COMMENT, updateIntegrationMetadataMap } from '../../integrations/merge-integrations'
 import { log, output } from '../../output'
 import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
-import { resolveEnvVarRefs } from '../../utils/env-var-refs'
+import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForIntegrationName } from './add-integration'
 import { promptForFieldsMongodb } from './integrations-prompts/mongodb'
@@ -140,7 +141,6 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
     throw new Error(`No integrations file found at ${filePath}`)
   }
 
-  // Phase 1: Determine the target integration ID
   let targetId: string
 
   if (options.id) {
@@ -155,7 +155,6 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
     targetId = selected.id
   }
 
-  // Phase 2: Find the YAML node by ID
   const found = findIntegrationMapById(doc, targetId)
   if (!found) {
     throw new Error(`Integration with ID "${targetId}" not found in ${filePath}`)
@@ -165,7 +164,19 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
     throw new Error(`Metadata map not found for integration "${targetId}" in ${filePath}`)
   }
 
-  const existingConfigResult = databaseIntegrationConfigSchema.safeParse(found.map.toJSON())
+  // Read .env vars and merge with process.env (process.env takes priority, matching
+  // the original semantics) so env: refs can be resolved before schema parsing.
+  const dotEnvVars = await readDotEnv(envFilePath)
+  const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...process.env }
+
+  let integrationRawJson = found.map.toJSON()
+  try {
+    integrationRawJson = resolveEnvVarRefsFromMap(integrationRawJson, envVars)
+  } catch (error) {
+    debug('Failed to resolve env: refs in integration metadata:', error)
+  }
+
+  const existingConfigResult = databaseIntegrationConfigSchema.safeParse(integrationRawJson)
 
   if (!existingConfigResult.success) {
     throw new Error(
@@ -173,29 +184,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
     )
   }
 
-  const existingConfig = existingConfigResult.data
-
-  // Load .env file vars into process.env so env: refs in existing metadata can be resolved.
-  // This allows prompt defaults to be populated from the actual secret values (e.g. parsing
-  // a MongoDB connection string stored as env:MONGO_ID__CONNECTION_STRING).
-  const dotEnvVars = await readDotEnv(envFilePath)
-  for (const [key, value] of Object.entries(dotEnvVars)) {
-    if (!(key in process.env)) {
-      process.env[key] = value
-    }
-  }
-
-  // Resolve env: refs in metadata so prompt functions receive actual values as defaults.
-  // Falls back to original config if any variable is missing.
-  let configForPrompt: DatabaseIntegrationConfig
-  try {
-    configForPrompt = {
-      ...existingConfig,
-      metadata: resolveEnvVarRefs(existingConfig.metadata),
-    } as DatabaseIntegrationConfig
-  } catch {
-    configForPrompt = existingConfig
-  }
+  const configForPrompt = existingConfigResult.data
 
   const newConfig = await promptForIntegrationConfig(configForPrompt)
 

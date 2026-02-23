@@ -5,7 +5,7 @@ import { type DatabaseIntegrationConfig, databaseIntegrationConfigSchema } from 
 import { type ZodIssue, z } from 'zod'
 import type { ValidationIssue } from '../commands/validate'
 import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
-import { EnvVarResolutionError, resolveEnvVarRefs } from '../utils/env-var-refs'
+import { EnvVarResolutionError, resolveEnvVarRefsFromMap } from '../utils/env-var-refs'
 import { isErrnoENOENT } from '../utils/file-resolver'
 import { baseIntegrationsFileSchema } from './integrations-file-schemas'
 
@@ -102,7 +102,7 @@ export async function parseIntegrationsFile(filePath: string): Promise<Integrati
     // Resolve environment variable references
     let resolvedEntry: unknown
     try {
-      resolvedEntry = resolveEnvVarRefs(entry)
+      resolvedEntry = resolveEnvVarRefsFromMap(entry, process.env)
     } catch (error) {
       if (error instanceof EnvVarResolutionError) {
         const context = integrationLabel ? `Integration "${integrationLabel}": ` : ''
