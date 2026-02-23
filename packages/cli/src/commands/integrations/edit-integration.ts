@@ -248,7 +248,7 @@ export async function promptForIntegrationConfig(
       })
     default:
       existingConfig satisfies never
-      throw new Error(`Integration type ("${existingConfig}") is not yet implemented.`)
+      throw new Error(`Integration type ('${JSON.stringify(existingConfig)}') is not yet implemented.`)
   }
 }
 
@@ -341,7 +341,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   }
 
   if (doc.commentBefore == null || !doc.commentBefore.includes('yaml-language-server')) {
-    doc.commentBefore = SCHEMA_COMMENT
+    doc.commentBefore = doc.commentBefore ? `${SCHEMA_COMMENT}\n${doc.commentBefore}` : SCHEMA_COMMENT
   }
 
   const secretCount = Object.keys(secrets).length
