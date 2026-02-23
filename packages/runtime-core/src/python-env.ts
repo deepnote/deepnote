@@ -183,8 +183,9 @@ export async function buildPythonEnv(
 
   // Prepend the Python's directory to PATH so subprocesses (e.g. Jupyter kernels)
   // find the correct Python when using bare 'python' commands
-  const currentPath = env.PATH || ''
-  env.PATH = currentPath ? `${pythonDir}${getPathDelimiter()}${currentPath}` : pythonDir
+  const pathKey = Object.keys(env).find(k => k.toLowerCase() === 'path') || 'PATH'
+  const currentPath = env[pathKey] || ''
+  env[pathKey] = currentPath ? `${pythonDir}${getPathDelimiter()}${currentPath}` : pythonDir
 
   // Detect if this Python is inside a virtual environment
   const venvRoot = await detectVenvRoot(resolve(resolvedPythonPath))

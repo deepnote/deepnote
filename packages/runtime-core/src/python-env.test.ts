@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import { chmod, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildPythonEnv, detectDefaultPython, resolvePythonExecutable } from './python-env'
 
@@ -252,7 +252,7 @@ describe('buildPythonEnv', () => {
     const env = await buildPythonEnv(pythonPath, baseEnv)
 
     const resolvedBinDir = resolve(binDir)
-    expect(env.PATH).toBe(`${resolvedBinDir}:/usr/bin:/usr/local/bin`)
+    expect(env.PATH).toBe(`${resolvedBinDir}${delimiter}/usr/bin:/usr/local/bin`)
   })
 
   it('sets VIRTUAL_ENV when python is inside a venv', async () => {
