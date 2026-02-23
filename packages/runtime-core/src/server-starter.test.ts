@@ -13,22 +13,26 @@ vi.mock('tcp-port-used', () => ({
 }))
 
 // Mock python-env to avoid filesystem checks in unit tests
-vi.mock('./python-env', () => ({
-  resolvePythonExecutable: vi.fn((venvPath: string) =>
-    Promise.resolve(venvPath === 'python' ? 'python' : `${venvPath}/bin/python`)
-  ),
-  buildPythonEnv: vi.fn(async (resolvedPath: string, baseEnv: Record<string, string | undefined> = {}) => {
-    const env = { ...baseEnv }
-    if (resolvedPath !== 'python' && resolvedPath !== 'python3') {
-      const binDir = resolvedPath.replace(/\/python[^/]*$/, '')
-      const pathDelim = process.platform === 'win32' ? ';' : ':'
-      const currentPath = env.PATH || ''
-      env.PATH = currentPath ? `${binDir}${pathDelim}${currentPath}` : binDir
-      env.VIRTUAL_ENV = binDir.replace(/\/bin$/, '')
-    }
-    return env
-  }),
-}))
+vi.mock('./python-env', async importOriginal => {
+  const { isBareSystemPython } = await importOriginal<typeof import('./python-env')>()
+  return {
+    isBareSystemPython,
+    resolvePythonExecutable: vi.fn((venvPath: string) =>
+      Promise.resolve(isBareSystemPython(venvPath) ? venvPath : `${venvPath}/bin/python`)
+    ),
+    buildPythonEnv: vi.fn(async (resolvedPath: string, baseEnv: Record<string, string | undefined> = {}) => {
+      const env = { ...baseEnv }
+      if (!isBareSystemPython(resolvedPath)) {
+        const binDir = resolvedPath.replace(/\/python[^/]*$/, '')
+        const pathDelim = process.platform === 'win32' ? ';' : ':'
+        const currentPath = env.PATH || ''
+        env.PATH = currentPath ? `${binDir}${pathDelim}${currentPath}` : binDir
+        env.VIRTUAL_ENV = binDir.replace(/\/bin$/, '')
+      }
+      return env
+    }),
+  }
+})
 
 // Import after mocking
 import { spawn } from 'node:child_process'

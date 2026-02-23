@@ -41,6 +41,11 @@ describe('resolvePythonExecutable', () => {
       const result = await resolvePythonExecutable('python3')
       expect(result).toBe('python3')
     })
+
+    it('returns "python3.11" as-is when passed "python3.11"', async () => {
+      const result = await resolvePythonExecutable('python3.11')
+      expect(result).toBe('python3.11')
+    })
   })
 
   describe('direct executable path', () => {
@@ -242,6 +247,14 @@ describe('buildPythonEnv', () => {
   it('returns env as-is for bare "python3" command', async () => {
     const baseEnv = { PATH: '/usr/bin', VIRTUAL_ENV: '/some/other/venv' }
     const env = await buildPythonEnv('python3', baseEnv)
+
+    expect(env.PATH).toBe('/usr/bin')
+    expect(env.VIRTUAL_ENV).toBe('/some/other/venv')
+  })
+
+  it('returns env as-is for versioned "python3.11" command', async () => {
+    const baseEnv = { PATH: '/usr/bin', VIRTUAL_ENV: '/some/other/venv' }
+    const env = await buildPythonEnv('python3.11', baseEnv)
 
     expect(env.PATH).toBe('/usr/bin')
     expect(env.VIRTUAL_ENV).toBe('/some/other/venv')

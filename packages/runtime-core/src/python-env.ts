@@ -5,6 +5,7 @@ import { basename, delimiter, dirname, join, resolve } from 'node:path'
 const IS_WINDOWS = process.platform === 'win32'
 const PYTHON_EXECUTABLES = IS_WINDOWS ? ['python.exe', 'python3.exe'] : ['python', 'python3']
 const VENV_BIN_DIR = IS_WINDOWS ? 'Scripts' : 'bin'
+const BARE_PYTHON_COMMAND = /^python[0-9.]*$/
 
 /**
  * Resolves the Python executable path using smart detection.
@@ -20,8 +21,7 @@ const VENV_BIN_DIR = IS_WINDOWS ? 'Scripts' : 'bin'
  * @throws Error if the path doesn't exist or no Python executable is found
  */
 export async function resolvePythonExecutable(pythonPath: string): Promise<string> {
-  // Handle default 'python' or 'python3' case - use system Python
-  if (pythonPath === 'python' || pythonPath === 'python3') {
+  if (isBareSystemPython(pythonPath)) {
     return pythonPath
   }
 
@@ -52,10 +52,8 @@ export async function resolvePythonExecutable(pythonPath: string): Promise<strin
     throw new Error(`Python path is neither a file nor a directory: ${pythonPath}`)
   }
 
-  const candidates = PYTHON_EXECUTABLES
-
   // Case 2: Directory containing python directly (bin/ or Scripts/ folder)
-  const directPython = await findPythonInDirectory(pythonPath, candidates)
+  const directPython = await findPythonInDirectory(pythonPath, PYTHON_EXECUTABLES)
   if (directPython) {
     return directPython
   }
@@ -65,14 +63,17 @@ export async function resolvePythonExecutable(pythonPath: string): Promise<strin
   const binDirStat = await stat(binDir).catch(() => null)
 
   if (binDirStat?.isDirectory()) {
-    const venvPython = await findPythonInDirectory(binDir, candidates)
+    const venvPython = await findPythonInDirectory(binDir, PYTHON_EXECUTABLES)
     if (venvPython) {
       return venvPython
     }
   }
 
   // No Python found - provide helpful error message
-  const searchedPaths = [...candidates.map(c => join(pythonPath, c)), ...candidates.map(c => join(binDir, c))]
+  const searchedPaths = [
+    ...PYTHON_EXECUTABLES.map(c => join(pythonPath, c)),
+    ...PYTHON_EXECUTABLES.map(c => join(binDir, c)),
+  ]
 
   throw new Error(
     `No Python executable found at: ${pythonPath}\n\n` +
@@ -119,6 +120,14 @@ export function detectDefaultPython(): string {
       'Please ensure Python is installed and available in your PATH,\n' +
       'or specify the path explicitly with --python <path>'
   )
+}
+
+/**
+ * Checks if the given string is a bare system Python command (e.g. 'python', 'python3', 'python3.11')
+ * as opposed to an absolute/relative path to a Python executable.
+ */
+export function isBareSystemPython(pythonPath: string): boolean {
+  return BARE_PYTHON_COMMAND.test(pythonPath)
 }
 
 /**
@@ -175,8 +184,7 @@ export async function buildPythonEnv(
 ): Promise<Record<string, string | undefined>> {
   const env = { ...baseEnv }
 
-  // For bare commands ('python', 'python3'), inherit the current environment as-is
-  if (resolvedPythonPath === 'python' || resolvedPythonPath === 'python3') {
+  if (isBareSystemPython(resolvedPythonPath)) {
     return env
   }
 
