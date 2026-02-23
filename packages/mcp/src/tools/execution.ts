@@ -276,17 +276,23 @@ async function saveExecutionSnapshot(
   // Split into source and snapshot
   const { snapshot } = splitDeepnoteFile(fileWithOutputs)
 
-  // Determine snapshot path
+  // Determine snapshot paths
   const snapshotDir = getSnapshotDir(sourcePath)
   const slug = slugifyProjectName(file.project.name) || 'project'
-  const snapshotFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
-  const snapshotPath = path.resolve(snapshotDir, snapshotFilename)
+
+  const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
+  const timestampedFilename = generateSnapshotFilename(slug, file.project.id, timestamp)
+  const timestampedSnapshotPath = path.resolve(snapshotDir, timestampedFilename)
+
+  const latestFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
+  const snapshotPath = path.resolve(snapshotDir, latestFilename)
 
   // Create snapshot directory
   await fs.mkdir(snapshotDir, { recursive: true })
 
-  // Write snapshot
+  // Write both timestamped and latest snapshots
   const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
+  await fs.writeFile(timestampedSnapshotPath, snapshotYaml, 'utf-8')
   await fs.writeFile(snapshotPath, snapshotYaml, 'utf-8')
 
   return { snapshotPath }
