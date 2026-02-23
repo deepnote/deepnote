@@ -115,10 +115,10 @@ export async function saveExecutionSnapshot(
   // Create snapshot directory if it doesn't exist
   await fs.mkdir(snapshotDir, { recursive: true })
 
-  // Serialize and write both snapshot files
+  // Write timestamped snapshot first, then copy to latest to reduce corruption risk
   const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
   await fs.writeFile(timestampedSnapshotPath, snapshotYaml, 'utf-8')
-  await fs.writeFile(snapshotPath, snapshotYaml, 'utf-8')
+  await fs.copyFile(timestampedSnapshotPath, snapshotPath)
 
   debug(`Saved execution snapshot to: ${timestampedSnapshotPath}`)
   debug(`Updated latest snapshot: ${snapshotPath}`)
