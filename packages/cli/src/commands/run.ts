@@ -17,6 +17,7 @@ import {
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
+import { z } from 'zod'
 import { BUILTIN_INTEGRATIONS, DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { fetchIntegrations } from '../integrations/fetch-integrations'
@@ -703,7 +704,7 @@ function collectRequiredIntegrationIds(file: DeepnoteFile, notebookName?: string
     for (const block of notebook.blocks) {
       if (block.type === 'sql') {
         const metadata = block.metadata as Record<string, unknown>
-        const integrationId = metadata.sql_integration_id as string | undefined
+        const integrationId = z.string().optional().safeParse(metadata.sql_integration_id).data
         if (integrationId && !BUILTIN_INTEGRATIONS.has(integrationId)) {
           ids.add(integrationId)
         }
