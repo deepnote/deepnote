@@ -393,7 +393,8 @@ export function createRunAction(program: Command): (path: string, options: RunOp
   return async (path, options) => {
     try {
       debug(`Running file: ${path}`)
-      debug(`Options: ${JSON.stringify(options)}`)
+      const safeOptions = { ...options, token: options.token ? '[redacted]' : undefined }
+      debug(`Options: ${JSON.stringify(safeOptions)}`)
 
       // Handle --list-inputs
       if (options.listInputs) {
