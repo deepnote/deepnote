@@ -67,8 +67,8 @@ describe('add-integration databricks', () => {
   it('creates databricks integration with token stored as env ref', async () => {
     const filePath = join(tempDir, 'integrations.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()
@@ -105,8 +105,8 @@ describe('add-integration databricks', () => {
   it('creates databricks integration with optional schema and catalog', async () => {
     const filePath = join(tempDir, 'integrations-full.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields('my_schema', 'main')
@@ -139,8 +139,8 @@ describe('add-integration databricks', () => {
   it('creates databricks integration with SSH tunnel enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssh.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()

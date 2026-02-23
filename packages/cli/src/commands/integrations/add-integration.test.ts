@@ -11,7 +11,7 @@ vi.mock('../../output', () => ({
   error: vi.fn(),
 }))
 
-import { promptForIntegrationName, promptForIntegrationType } from '../add-integration'
+import { promptForIntegrationName, promptForIntegrationType } from './add-integration'
 
 describe('add-integration shared prompts', () => {
   let tempDir: string

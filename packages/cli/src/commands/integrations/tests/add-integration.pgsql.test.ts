@@ -100,8 +100,8 @@ describe('add-integration pgsql', () => {
     const filePath = join(tempDir, 'integrations.yaml')
     const envFilePath = join(tempDir, '.env')
 
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
@@ -143,8 +143,8 @@ describe('add-integration pgsql', () => {
       'integrations:\n  - id: existing-id\n    name: Existing DB\n    type: pgsql\n    metadata:\n      host: existing.example.com\n'
     )
 
-    const mockUUID = 'new-uuid-1234-5678-abcd1234abcd'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'new-uuid-1234-5678-abcd1234abcd'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
@@ -188,8 +188,8 @@ describe('add-integration pgsql', () => {
     const filePath = join(tempDir, 'integrations-ssh.yaml')
     const envFilePath = join(tempDir, '.env')
 
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
@@ -248,8 +248,8 @@ describe('add-integration pgsql', () => {
     const filePath = join(tempDir, 'integrations-ssl.yaml')
     const envFilePath = join(tempDir, '.env')
 
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 

@@ -78,8 +78,8 @@ describe('add-integration mariadb', () => {
   it('creates mariadb integration and stores password as env ref', async () => {
     const filePath = join(tempDir, 'integrations.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()
@@ -120,8 +120,8 @@ describe('add-integration mariadb', () => {
   it('creates mariadb integration with SSH tunnel enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssh.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()
@@ -175,8 +175,8 @@ describe('add-integration mariadb', () => {
   it('creates integration with SSL enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssl.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()

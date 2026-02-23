@@ -74,8 +74,8 @@ describe('add-integration materialize', () => {
   it('creates materialize integration with default cluster', async () => {
     const filePath = join(tempDir, 'integrations.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()
@@ -114,8 +114,8 @@ describe('add-integration materialize', () => {
   it('creates materialize integration with custom cluster', async () => {
     const filePath = join(tempDir, 'integrations-custom.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields('prod-cluster')
@@ -148,8 +148,8 @@ describe('add-integration materialize', () => {
   it('creates materialize integration with SSH tunnel enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssh.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()

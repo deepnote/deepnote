@@ -59,8 +59,8 @@ describe('add-integration snowflake', () => {
   it('creates snowflake integration with password auth', async () => {
     const filePath = join(tempDir, 'integrations.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
@@ -113,8 +113,8 @@ describe('add-integration snowflake', () => {
   it('creates snowflake integration with Okta auth', async () => {
     const filePath = join(tempDir, 'integrations-okta.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
@@ -183,8 +183,8 @@ describe('add-integration snowflake', () => {
   it('creates snowflake integration with service account key pair auth', async () => {
     const filePath = join(tempDir, 'integrations-key-pair.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 
@@ -239,8 +239,8 @@ describe('add-integration snowflake', () => {
   it('creates snowflake integration with Native Snowflake OAuth auth', async () => {
     const filePath = join(tempDir, 'integrations-native.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
 
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
 

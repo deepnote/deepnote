@@ -10,7 +10,7 @@ vi.mock('../../output', () => ({
   error: vi.fn(),
 }))
 
-import { editIntegration } from '../edit-integration'
+import { editIntegration } from './edit-integration'
 
 describe('edit-integration shared error handling', () => {
   let tempDir: string

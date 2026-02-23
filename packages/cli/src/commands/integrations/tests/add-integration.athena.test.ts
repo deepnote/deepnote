@@ -54,8 +54,8 @@ describe('add-integration athena', () => {
   it('creates athena integration and stores secret key as env ref', async () => {
     const filePath = join(tempDir, 'integrations.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields()
     await promise
@@ -84,8 +84,8 @@ describe('add-integration athena', () => {
   it('creates athena integration with optional workgroup', async () => {
     const filePath = join(tempDir, 'integrations-wg.yaml')
     const envFilePath = join(tempDir, '.env')
-    const mockUUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as ReturnType<typeof crypto.randomUUID>)
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
     const promise = createIntegration({ file: filePath, envFile: envFilePath })
     await fillBaseFields('primary')
     await promise
