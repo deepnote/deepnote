@@ -58,15 +58,16 @@ export class EnvVarResolutionError extends Error {
 }
 
 /**
- * Recursively resolves environment variable references in an object.
- * Replaces any string value matching `env:VAR_NAME` with the value of `process.env.VAR_NAME`.
+ * Recursively resolves environment variable references in an object using an explicit variable map.
+ * Replaces any string value matching `env:VAR_NAME` with the value from the provided vars map.
  *
  * @param obj - The object to process (can be any value: primitive, array, or object)
+ * @param vars - Map of variable names to values (e.g. from .env file or process.env)
  * @param currentPath - Internal parameter for tracking the current path in the object (for error messages)
  * @returns A new object with all env var references resolved
  * @throws {EnvVarResolutionError} If an environment variable reference cannot be resolved
  */
-export function resolveEnvVarRefs<T>(obj: T, currentPath?: string): T {
+export function resolveEnvVarRefsFromMap<T>(obj: T, vars: Record<string, string | undefined>, currentPath?: string): T {
   if (obj === null || obj === undefined) {
     return obj
   }
@@ -74,7 +75,7 @@ export function resolveEnvVarRefs<T>(obj: T, currentPath?: string): T {
   if (typeof obj === 'string') {
     const parsed = parseEnvVarRef(obj)
     if (parsed) {
-      const envValue = process.env[parsed.varName]
+      const envValue = vars[parsed.varName]
       if (envValue === undefined) {
         throw new EnvVarResolutionError(parsed.varName, currentPath)
       }
@@ -86,7 +87,7 @@ export function resolveEnvVarRefs<T>(obj: T, currentPath?: string): T {
   if (Array.isArray(obj)) {
     return obj.map((item, index) => {
       const itemPath = currentPath ? `${currentPath}[${index}]` : `[${index}]`
-      return resolveEnvVarRefs(item, itemPath)
+      return resolveEnvVarRefsFromMap(item, vars, itemPath)
     }) as T
   }
 
@@ -94,11 +95,24 @@ export function resolveEnvVarRefs<T>(obj: T, currentPath?: string): T {
     const result: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(obj)) {
       const keyPath = currentPath ? `${currentPath}.${key}` : key
-      result[key] = resolveEnvVarRefs(value, keyPath)
+      result[key] = resolveEnvVarRefsFromMap(value, vars, keyPath)
     }
     return result as T
   }
 
   // For primitives (number, boolean, etc.), return as-is
   return obj
+}
+
+/**
+ * Recursively resolves environment variable references in an object using process.env.
+ * Replaces any string value matching `env:VAR_NAME` with the value of `process.env.VAR_NAME`.
+ *
+ * @param obj - The object to process (can be any value: primitive, array, or object)
+ * @param currentPath - Internal parameter for tracking the current path in the object (for error messages)
+ * @returns A new object with all env var references resolved
+ * @throws {EnvVarResolutionError} If an environment variable reference cannot be resolved
+ */
+export function resolveEnvVarRefs<T>(obj: T, currentPath?: string): T {
+  return resolveEnvVarRefsFromMap(obj, process.env, currentPath)
 }

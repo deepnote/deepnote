@@ -16,6 +16,9 @@ import { editIntegration } from '../edit-integration'
 describe('edit-integration pgsql', () => {
   let tempDir: string
 
+  const EXISTING_ENV = 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n'
+  const SINGLE_INTEGRATION_ENV = 'PG_ID_001__PASSWORD=secret-pass\n'
+
   const EXISTING_YAML = `#yaml-language-server: $schema=https://example.com/schema.json
 
 integrations:
@@ -57,7 +60,7 @@ integrations:
     const envFilePath = join(tempDir, '.env')
 
     await writeFile(filePath, EXISTING_YAML)
-    await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n')
+    await writeFile(envFilePath, EXISTING_ENV)
 
     const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
 
@@ -83,7 +86,6 @@ integrations:
 
     await screen.next()
     expect(screen.getScreen()).toContain('Password:')
-    screen.type('old-pass')
     screen.keypress('enter')
 
     await screen.next()
@@ -123,6 +125,9 @@ integrations:
             password: env:PG_ID_002__PASSWORD
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toEqual(EXISTING_ENV)
   })
 
   it('updates field values when user types new values', async () => {
@@ -130,7 +135,7 @@ integrations:
     const envFilePath = join(tempDir, '.env')
 
     await writeFile(filePath, EXISTING_YAML)
-    await writeFile(envFilePath, 'PG_ID_001__PASSWORD=old-pass\nPG_ID_002__PASSWORD=old-pass-2\n')
+    await writeFile(envFilePath, EXISTING_ENV)
 
     const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-002' })
 
@@ -199,6 +204,9 @@ integrations:
             password: env:PG_ID_002__PASSWORD
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toEqual(EXISTING_ENV)
   })
 
   it('removes SSH fields when SSH tunnel is disabled during edit', async () => {
@@ -225,7 +233,7 @@ integrations:
 `
 
     await writeFile(filePath, yamlWithSsh)
-    await writeFile(envFilePath, 'PG_ID_001__PASSWORD=secret-pass\n')
+    await writeFile(envFilePath, SINGLE_INTEGRATION_ENV)
 
     const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
 
@@ -251,7 +259,6 @@ integrations:
 
     await screen.next()
     expect(screen.getScreen()).toContain('Password:')
-    screen.type('secret-pass')
     screen.keypress('enter')
 
     await screen.next()
@@ -266,6 +273,7 @@ integrations:
     await promise
 
     const yamlContent = await readFile(filePath, 'utf-8')
+
     expect(yamlContent).toMatchInlineSnapshot(`
       "#yaml-language-server: $schema=https://example.com/schema.json
 
@@ -282,6 +290,9 @@ integrations:
             password: env:PG_ID_001__PASSWORD
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toEqual(SINGLE_INTEGRATION_ENV)
   })
 
   it('adds SSL fields when SSL is enabled on a plain integration', async () => {
@@ -289,7 +300,7 @@ integrations:
     const envFilePath = join(tempDir, '.env')
 
     await writeFile(filePath, EXISTING_YAML)
-    await writeFile(envFilePath, 'PG_ID_001__PASSWORD=secret-pass\n')
+    await writeFile(envFilePath, SINGLE_INTEGRATION_ENV)
 
     const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
 
@@ -315,7 +326,6 @@ integrations:
 
     await screen.next()
     expect(screen.getScreen()).toContain('Password:')
-    screen.type('secret-pass')
     screen.keypress('enter')
 
     await screen.next()

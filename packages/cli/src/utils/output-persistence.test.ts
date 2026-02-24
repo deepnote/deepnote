@@ -170,7 +170,7 @@ describe('output-persistence', () => {
       await fs.rm(tempDir, { recursive: true })
     })
 
-    it('creates snapshot directory and saves snapshot file', async () => {
+    it('creates snapshot directory and saves both latest and timestamped snapshot files', async () => {
       const file = await loadTestFile()
       const sourcePath = join(tempDir, 'project.deepnote')
       const outputs: BlockExecutionOutput[] = [
@@ -187,53 +187,76 @@ describe('output-persistence', () => {
 
       const result = await saveExecutionSnapshot(sourcePath, file, outputs, timing)
 
-      // Check snapshot was created
-      expect(result.snapshotPath).toContain('snapshots')
-      expect(result.snapshotPath).toContain('.snapshot.deepnote')
+      // Check latest snapshot was created
+      expect(result.snapshotPath).toContain('_latest.snapshot.deepnote')
 
-      // Check file exists
-      const stat = await fs.stat(result.snapshotPath)
-      expect(stat.isFile()).toBe(true)
+      // Check timestamped snapshot was created
+      expect(result.timestampedSnapshotPath).toContain('_2024-01-01T00-00-05.snapshot.deepnote')
 
-      // Check content is valid YAML
-      const content = await fs.readFile(result.snapshotPath, 'utf-8')
-      const parsed = parse(content)
-      expect(parsed.version).toBe('1')
-      expect(parsed.project.id).toBe('test-project-id-1234-5678-90ab')
+      // Check both files exist
+      const latestStat = await fs.stat(result.snapshotPath)
+      expect(latestStat.isFile()).toBe(true)
 
-      // Check outputs were included
-      const block1 = parsed.project.notebooks[0].blocks[0]
-      expect(block1.outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: 'hello\n' }])
+      const timestampedStat = await fs.stat(result.timestampedSnapshotPath)
+      expect(timestampedStat.isFile()).toBe(true)
+
+      // Check latest content is valid YAML with outputs
+      const latestContent = await fs.readFile(result.snapshotPath, 'utf-8')
+      const latestParsed = parse(latestContent)
+      expect(latestParsed.version).toBe('1')
+      expect(latestParsed.project.id).toBe('test-project-id-1234-5678-90ab')
+      expect(latestParsed.project.notebooks[0].blocks[0].outputs).toEqual([
+        { output_type: 'stream', name: 'stdout', text: 'hello\n' },
+      ])
+
+      // Check timestamped content matches latest
+      const timestampedContent = await fs.readFile(result.timestampedSnapshotPath, 'utf-8')
+      expect(timestampedContent).toBe(latestContent)
     })
 
-    it('overwrites existing snapshot', async () => {
+    it('overwrites latest snapshot but creates unique timestamped snapshots', async () => {
       const file = await loadTestFile()
       const sourcePath = join(tempDir, 'project.deepnote')
-      const timing = {
+
+      // First save
+      const timing1 = {
         startedAt: '2024-01-01T00:00:00.000Z',
         finishedAt: '2024-01-01T00:00:05.000Z',
       }
-
-      // First save
       const outputs1: BlockExecutionOutput[] = [
         { id: 'block-1', outputs: [{ output_type: 'stream', name: 'stdout', text: 'first\n' }], executionCount: 1 },
       ]
-      const result1 = await saveExecutionSnapshot(sourcePath, file, outputs1, timing)
+      const result1 = await saveExecutionSnapshot(sourcePath, file, outputs1, timing1)
 
-      // Second save
+      // Second save with different finishedAt
+      const timing2 = {
+        startedAt: '2024-01-01T00:01:00.000Z',
+        finishedAt: '2024-01-01T00:01:05.000Z',
+      }
       const outputs2: BlockExecutionOutput[] = [
         { id: 'block-1', outputs: [{ output_type: 'stream', name: 'stdout', text: 'second\n' }], executionCount: 2 },
       ]
-      const result2 = await saveExecutionSnapshot(sourcePath, file, outputs2, timing)
+      const result2 = await saveExecutionSnapshot(sourcePath, file, outputs2, timing2)
 
-      // Should use same path
+      // Latest path should be the same
       expect(result1.snapshotPath).toBe(result2.snapshotPath)
 
-      // Should have second output
-      const content = await fs.readFile(result2.snapshotPath, 'utf-8')
-      const parsed = parse(content)
-      const block1 = parsed.project.notebooks[0].blocks[0]
-      expect(block1.outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: 'second\n' }])
+      // Timestamped paths should be different
+      expect(result1.timestampedSnapshotPath).not.toBe(result2.timestampedSnapshotPath)
+
+      // Latest should have second output
+      const latestContent = await fs.readFile(result2.snapshotPath, 'utf-8')
+      const latestParsed = parse(latestContent)
+      expect(latestParsed.project.notebooks[0].blocks[0].outputs).toEqual([
+        { output_type: 'stream', name: 'stdout', text: 'second\n' },
+      ])
+
+      // First timestamped snapshot should still have first output
+      const ts1Content = await fs.readFile(result1.timestampedSnapshotPath, 'utf-8')
+      const ts1Parsed = parse(ts1Content)
+      expect(ts1Parsed.project.notebooks[0].blocks[0].outputs).toEqual([
+        { output_type: 'stream', name: 'stdout', text: 'first\n' },
+      ])
     })
   })
 })

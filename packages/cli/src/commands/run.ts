@@ -13,6 +13,7 @@ import {
   executableBlockTypeSet,
   type IOutput,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
+  resolvePythonExecutable,
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
@@ -193,7 +194,7 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
   dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
 
-  const pythonEnv = options.python ?? detectDefaultPython()
+  const pythonEnv = await resolvePythonExecutable(options.python ?? detectDefaultPython())
 
   const inputs = parseInputs(options.input)
 
