@@ -13,6 +13,17 @@ import {
 export const MONGO_PREFIX = 'mongodb://'
 export const SRV_PREFIX = 'mongodb+srv://'
 
+export function safeUrlParse(url: string): URL | null {
+  try {
+    return new URL(url)
+  } catch (error) {
+    if (error instanceof ReferenceError) {
+      return null
+    }
+    throw error
+  }
+}
+
 export function encodeOptions(options: string): string {
   return options.replace(/,|\n/g, '&').replace(/\s/g, '')
 }
@@ -70,26 +81,27 @@ export function buildMongoConnectionString({
 }
 
 export function parseMongoConnectionString(connectionString: string): {
-  prefix?: string
+  prefix: string
   host?: string
   port?: string
   user?: string
   password?: string
   database?: string
-} {
-  try {
-    const url = new URL(connectionString)
-    const prefix = url.protocol === 'mongodb+srv:' ? SRV_PREFIX : MONGO_PREFIX
-    return {
-      prefix,
-      host: url.hostname || undefined,
-      port: url.port || undefined,
-      user: url.username ? decodeURIComponent(url.username) : undefined,
-      password: url.password ? decodeURIComponent(url.password) : undefined,
-      database: url.pathname.slice(1) || undefined,
-    }
-  } catch {
-    return {}
+} | null {
+  const url = safeUrlParse(connectionString)
+  if (url == null) {
+    return null
+  }
+
+  const prefix = url.protocol === 'mongodb+srv:' ? SRV_PREFIX : MONGO_PREFIX
+
+  return {
+    prefix,
+    host: url.hostname || undefined,
+    port: url.port || undefined,
+    user: url.username ? decodeURIComponent(url.username) : undefined,
+    password: url.password ? decodeURIComponent(url.password) : undefined,
+    database: url.pathname.slice(1) || undefined,
   }
 }
 
@@ -122,7 +134,7 @@ export async function promptForFieldsMongodb({
   if (connectionType === 'credentials') {
     const parsedFromConnectionString = defaultValues?.connection_string
       ? parseMongoConnectionString(defaultValues.connection_string)
-      : {}
+      : null
 
     const prefix = await select<string>({
       message: 'Prefix:',
@@ -130,32 +142,32 @@ export async function promptForFieldsMongodb({
         { name: MONGO_PREFIX, value: MONGO_PREFIX },
         { name: SRV_PREFIX, value: SRV_PREFIX },
       ],
-      default: defaultValues?.prefix ?? parsedFromConnectionString.prefix ?? MONGO_PREFIX,
+      default: defaultValues?.prefix ?? parsedFromConnectionString?.prefix ?? MONGO_PREFIX,
     })
 
     const host = await promptForRequiredStringField({
       label: 'Host:',
-      defaultValue: defaultValues?.host ?? parsedFromConnectionString.host,
+      defaultValue: defaultValues?.host ?? parsedFromConnectionString?.host,
     })
 
     const portRaw = await promptForOptionalStringPortField({
       label: 'Port:',
-      defaultValue: defaultValues?.port ?? parsedFromConnectionString.port ?? '27017',
+      defaultValue: defaultValues?.port ?? parsedFromConnectionString?.port ?? '27017',
     })
 
     const userRaw = await promptForOptionalStringField({
       label: 'User:',
-      defaultValue: defaultValues?.user ?? parsedFromConnectionString.user,
+      defaultValue: defaultValues?.user ?? parsedFromConnectionString?.user,
     })
 
     const passwordRaw = await promptForOptionalSecretField({
       label: 'Password:',
-      defaultValue: defaultValues?.password ?? parsedFromConnectionString.password,
+      defaultValue: defaultValues?.password ?? parsedFromConnectionString?.password,
     })
 
     const databaseRaw = await promptForOptionalStringField({
       label: 'Database:',
-      defaultValue: defaultValues?.database ?? parsedFromConnectionString.database,
+      defaultValue: defaultValues?.database ?? parsedFromConnectionString?.database,
     })
 
     const optionsRaw = await promptForOptionalStringField({
