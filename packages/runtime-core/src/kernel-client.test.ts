@@ -32,6 +32,7 @@ const {
   const mockMakeSettings = vi.fn((config: { baseUrl: string; wsUrl: string; WebSocket?: unknown }) => ({
     baseUrl: config.baseUrl,
     wsUrl: config.wsUrl,
+    WebSocket: config.WebSocket,
   }))
 
   // Create actual constructor functions for the class mocks
