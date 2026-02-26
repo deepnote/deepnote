@@ -30,7 +30,11 @@ const JUPYTER_BINARY_PROTOCOL = 'v1.kernel.websocket.jupyter.org'
 function createJsonWebSocketFactory(): typeof WebSocket {
   return class extends WebSocket {
     constructor(url: string | URL, protocols?: string | string[]) {
-      const filtered = Array.isArray(protocols) ? protocols.filter(p => p !== JUPYTER_BINARY_PROTOCOL) : protocols
+      const filtered = Array.isArray(protocols)
+        ? protocols.filter(p => p !== JUPYTER_BINARY_PROTOCOL)
+        : protocols === JUPYTER_BINARY_PROTOCOL
+          ? undefined
+          : protocols
       super(url, filtered)
     }
   } as typeof WebSocket

@@ -116,10 +116,10 @@ describe('KernelClient', () => {
       )
     })
 
-    it('passes JsonOnlyWebSocket to server settings', async () => {
+    it('passes a WebSocket factory to server settings', async () => {
       await client.connect('http://localhost:8888')
 
-      const callArg = mockMakeSettings.mock.calls[0][0]
+      const callArg = mockMakeSettings.mock.calls[mockMakeSettings.mock.calls.length - 1][0]
       expect(callArg).toHaveProperty('WebSocket')
       expect(typeof callArg.WebSocket).toBe('function')
     })
