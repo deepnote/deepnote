@@ -17,12 +17,11 @@ import {
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { z } from 'zod'
-import { BUILTIN_INTEGRATIONS, DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { fetchIntegrations } from '../integrations/fetch-integrations'
+import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
+import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
 import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
-import { convertApiIntegrations } from '../integrations/merge-integrations'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
@@ -238,10 +237,10 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
   // Fetch integrations from API if a token is available (--token flag or DEEPNOTE_TOKEN env var)
+  const requiredIds = collectRequiredIntegrationIds(file, options.notebook)
   const allIntegrations = await fetchAndMergeApiIntegrations({
     localIntegrations: parsedIntegrations.integrations,
-    file,
-    notebookName: options.notebook,
+    requiredIds,
     token: options.token ?? process.env[DEEPNOTE_TOKEN_ENV],
     baseUrl: options.url ?? DEFAULT_API_URL,
     isMachineOutput,
@@ -632,87 +631,6 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
     output(c.dim('─'.repeat(50)))
     output(c.dim(`Total: ${executableBlocks.length} block(s) would be executed`))
   }
-}
-
-/**
- * Fetch integrations from the API and merge them with locally configured integrations.
- * Only fetches integrations that are actually needed by SQL blocks and not already present locally.
- */
-async function fetchAndMergeApiIntegrations(params: {
-  localIntegrations: DatabaseIntegrationConfig[]
-  file: DeepnoteFile
-  notebookName?: string
-  token: string | undefined
-  baseUrl: string
-  isMachineOutput: boolean
-}): Promise<DatabaseIntegrationConfig[]> {
-  const { localIntegrations, file, notebookName, token, baseUrl, isMachineOutput } = params
-
-  if (!token) {
-    return localIntegrations
-  }
-
-  const requiredIds = collectRequiredIntegrationIds(file, notebookName)
-  const localIds = new Set(localIntegrations.map(i => i.id.toLowerCase()))
-  const idsToFetch = requiredIds.filter(id => !localIds.has(id.toLowerCase()))
-
-  if (idsToFetch.length === 0) {
-    debug('All required integrations are already configured locally, skipping API fetch')
-    return localIntegrations
-  }
-
-  if (!isMachineOutput) {
-    log(getChalk().dim(`Fetching integrations from ${baseUrl}...`))
-  }
-
-  const apiIntegrations = await fetchIntegrations(baseUrl, token, idsToFetch)
-  const { integrations: apiConfigs, errors: conversionErrors } = convertApiIntegrations(apiIntegrations)
-
-  // Report conversion errors (invalid integrations from API)
-  if (conversionErrors.length > 0) {
-    if (!isMachineOutput) {
-      for (const conversionError of conversionErrors) {
-        log(
-          getChalk().yellow(
-            `Warning: Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`
-          )
-        )
-      }
-    } else {
-      for (const conversionError of conversionErrors) {
-        debug(`Skipping invalid integration [${conversionError.integrationId}]: ${conversionError.message}`)
-      }
-    }
-  }
-
-  debug(`Fetched ${apiConfigs.length} integration(s) from API for ${idsToFetch.length} requested ID(s)`)
-
-  if (apiConfigs.length > 0) {
-    return [...localIntegrations, ...apiConfigs]
-  }
-
-  return localIntegrations
-}
-
-/**
- * Collect unique external integration IDs referenced by SQL blocks in the file.
- * Excludes built-in integrations (e.g. deepnote-dataframe-sql, pandas-dataframe).
- */
-function collectRequiredIntegrationIds(file: DeepnoteFile, notebookName?: string): string[] {
-  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
-  const ids = new Set<string>()
-  for (const notebook of notebooks) {
-    for (const block of notebook.blocks) {
-      if (block.type === 'sql') {
-        const metadata = block.metadata as Record<string, unknown>
-        const integrationId = z.string().optional().safeParse(metadata.sql_integration_id).data
-        if (integrationId && !BUILTIN_INTEGRATIONS.has(integrationId)) {
-          ids.add(integrationId)
-        }
-      }
-    }
-  }
-  return Array.from(ids)
 }
 
 /**
