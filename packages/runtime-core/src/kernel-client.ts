@@ -15,6 +15,27 @@ export interface ExecutionCallbacks {
   onDone?: (result: ExecutionResult) => void
 }
 
+// Jupyter kernel WebSocket protocol to exclude from negotiation.
+// The v1 binary protocol uses DataView with getBigUint64 for message
+// deserialization, which fails in Bun's runtime with "Out of bounds access".
+// Excluding it forces the server to fall back to JSON-based messaging.
+// See: https://jupyter-server.readthedocs.io/en/latest/developers/websocket-protocols.html
+const JUPYTER_BINARY_PROTOCOL = 'v1.kernel.websocket.jupyter.org'
+
+/**
+ * Creates a WebSocket factory that excludes the Jupyter binary wire protocol,
+ * forcing JSON-only communication. Passed to ServerConnection.makeSettings()
+ * via the documented WebSocket option.
+ */
+function createJsonWebSocketFactory(): typeof WebSocket {
+  return class extends WebSocket {
+    constructor(url: string | URL, protocols?: string | string[]) {
+      const filtered = Array.isArray(protocols) ? protocols.filter(p => p !== JUPYTER_BINARY_PROTOCOL) : protocols
+      super(url, filtered)
+    }
+  } as typeof WebSocket
+}
+
 /**
  * Client for communicating with a Jupyter kernel via the Jupyter protocol.
  */
@@ -36,6 +57,7 @@ export class KernelClient {
       const serverSettings = ServerConnection.makeSettings({
         baseUrl: serverUrl,
         wsUrl,
+        WebSocket: createJsonWebSocketFactory(),
       })
 
       this.kernelManager = new KernelManager({ serverSettings })

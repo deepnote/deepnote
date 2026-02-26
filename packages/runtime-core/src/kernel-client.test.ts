@@ -29,7 +29,7 @@ const {
   const mockKernelManager = {
     dispose: vi.fn(),
   }
-  const mockMakeSettings = vi.fn((config: { baseUrl: string; wsUrl: string }) => ({
+  const mockMakeSettings = vi.fn((config: { baseUrl: string; wsUrl: string; WebSocket?: unknown }) => ({
     baseUrl: config.baseUrl,
     wsUrl: config.wsUrl,
   }))
@@ -97,19 +97,31 @@ describe('KernelClient', () => {
     it('creates session manager with correct server settings', async () => {
       await client.connect('http://localhost:8888')
 
-      expect(mockMakeSettings).toHaveBeenCalledWith({
-        baseUrl: 'http://localhost:8888',
-        wsUrl: 'ws://localhost:8888/',
-      })
+      expect(mockMakeSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'http://localhost:8888',
+          wsUrl: 'ws://localhost:8888/',
+        })
+      )
     })
 
     it('converts https to wss for websocket URL', async () => {
       await client.connect('https://example.com:8888')
 
-      expect(mockMakeSettings).toHaveBeenCalledWith({
-        baseUrl: 'https://example.com:8888',
-        wsUrl: 'wss://example.com:8888/',
-      })
+      expect(mockMakeSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://example.com:8888',
+          wsUrl: 'wss://example.com:8888/',
+        })
+      )
+    })
+
+    it('passes JsonOnlyWebSocket to server settings', async () => {
+      await client.connect('http://localhost:8888')
+
+      const callArg = mockMakeSettings.mock.calls[0][0]
+      expect(callArg).toHaveProperty('WebSocket')
+      expect(typeof callArg.WebSocket).toBe('function')
     })
 
     it('starts a new session with python3 kernel', async () => {
