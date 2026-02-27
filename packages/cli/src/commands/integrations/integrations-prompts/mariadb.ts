@@ -1,12 +1,11 @@
 import type { DatabaseIntegrationConfig, DatabaseIntegrationMetadataByType } from '@deepnote/database-integrations'
 import {
   promptForBooleanField,
-  promptForOptionalSecretField,
-  promptForOptionalStringField,
   promptForRequiredSecretField,
   promptForRequiredStringField,
   promptForRequiredStringPortField,
 } from '../../../utils/inquirer'
+import { promptForSslFields } from './prompt-for-ssl-fields'
 
 export async function promptForFieldsMariadb({
   id,
@@ -57,27 +56,8 @@ export async function promptForFieldsMariadb({
     }
   }
 
-  const sslEnabled = await promptForBooleanField({
-    label: 'Enable SSL:',
-    defaultValue: defaultValues?.sslEnabled ?? false,
-  })
-  if (sslEnabled === true) {
-    const caCertificateName = await promptForOptionalStringField({
-      label: 'CA Certificate Name:',
-      defaultValue: defaultValues?.caCertificateName,
-    })
-    const caCertificateText = await promptForOptionalSecretField({
-      label: 'CA Certificate:',
-      defaultValue: defaultValues?.caCertificateText,
-    })
-
-    metadata = {
-      ...metadata,
-      sslEnabled: true,
-      caCertificateName,
-      caCertificateText,
-    }
-  }
+  const sslFields = await promptForSslFields(defaultValues)
+  metadata = { ...metadata, ...sslFields }
 
   return {
     id,
