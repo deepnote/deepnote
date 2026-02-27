@@ -12,6 +12,7 @@ import { createInspectAction } from './commands/inspect'
 import { createInstallSkillsAction } from './commands/install-skills'
 import { createIntegrationsPullAction, DEFAULT_API_URL } from './commands/integrations'
 import { createIntegrationsAddAction } from './commands/integrations/add-integration'
+import { createIntegrationsAuthAction } from './commands/integrations/auth-integration'
 import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
@@ -765,6 +766,7 @@ ${c.bold('Subcommands:')}
   pull        Pull integrations from Deepnote API and merge with local file
   add         Add a new database integration interactively
   edit        Edit an existing database integration interactively
+  auth        Authenticate a federated auth integration (e.g., Trino OAuth)
 
 ${c.bold('Examples:')}
   ${c.dim('# Pull integrations from Deepnote API')}
@@ -784,6 +786,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Edit a specific integration by ID')}
   $ deepnote integrations edit <integration-id>
+
+  ${c.dim('# Authenticate a federated auth integration (interactive picker)')}
+  $ deepnote integrations auth
+
+  ${c.dim('# Authenticate a specific integration by ID')}
+  $ deepnote integrations auth <integration-id>
 `
     })
 
@@ -810,6 +818,14 @@ ${c.bold('Examples:')}
     .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
     .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
     .action(createIntegrationsEditAction(program))
+
+  integrationsCmd
+    .command('auth')
+    .argument('[id]', 'Integration ID to authenticate (skips interactive selection)')
+    .description('Authenticate a federated auth integration (e.g., Trino OAuth)')
+    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+    .action(createIntegrationsAuthAction(program))
 }
 
 /**
