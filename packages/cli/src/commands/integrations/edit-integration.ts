@@ -9,7 +9,7 @@ import {
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
-import { isMap, isSeq, type YAMLMap } from 'yaml'
+import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
 import z from 'zod'
 import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
@@ -61,7 +61,7 @@ interface IntegrationSummary {
  * Scan the YAML document for integration summaries (id, name, type).
  * Only used to populate the selection prompt -- no full schema validation here.
  */
-function getIntegrationSummaries(doc: import('yaml').Document): IntegrationSummary[] {
+function getIntegrationSummaries(doc: Document): IntegrationSummary[] {
   const integrations = doc.get('integrations')
   if (!isSeq(integrations)) {
     return []
@@ -101,10 +101,7 @@ export async function promptSelectIntegration(summaries: IntegrationSummary[]): 
 /**
  * Find the YAML map node for an integration by its ID in the document's integrations sequence.
  */
-function findIntegrationMapById(
-  doc: import('yaml').Document,
-  targetId: string
-): { map: YAMLMap; index: number } | null {
+function findIntegrationMapById(doc: Document, targetId: string): { map: YAMLMap; index: number } | null {
   const integrations = doc.get('integrations')
   if (!isSeq(integrations)) {
     return null
@@ -112,7 +109,9 @@ function findIntegrationMapById(
 
   for (let i = 0; i < integrations.items.length; i++) {
     const item = integrations.items[i]
-    if (!isMap(item)) continue
+    if (!isMap(item)) {
+      continue
+    }
     if (item.get('id') === targetId) {
       return { map: item, index: i }
     }

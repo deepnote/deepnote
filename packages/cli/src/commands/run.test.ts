@@ -2,10 +2,14 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
-import { DEFAULT_INTEGRATIONS_FILE } from '../constants'
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_INTEGRATIONS_FILE } from '../constants'
+import type { ApiIntegration } from '../integrations/fetch-integrations'
+import { ApiError } from '../utils/api'
 import type { saveExecutionSnapshot } from '../utils/output-persistence'
+import { DEFAULT_API_URL } from './integrations'
 
 // Create mock engine functions
 const mockStart = vi.fn()
@@ -57,6 +61,24 @@ vi.mock('../integrations/parse-integrations', () => {
     getDefaultIntegrationsFilePath: (dir: string) => join(dir, DEFAULT_INTEGRATIONS_FILE),
   }
 })
+// Mock fetchIntegrations for API integration tests
+const mockFetchIntegrations =
+  vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<ApiIntegration[]>>()
+vi.mock('../integrations/fetch-integrations', async importOriginal => {
+  const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
+  return {
+    ...actual,
+    fetchIntegrations: (...args: Parameters<typeof actual.fetchIntegrations>) => mockFetchIntegrations(...args),
+  }
+})
+
+// Mock injectIntegrationEnvVars for testing integration env var injection
+const mockInjectIntegrationEnvVars = vi.fn<(integrations: unknown[], workingDirectory: string) => string[]>()
+mockInjectIntegrationEnvVars.mockReturnValue([])
+vi.mock('../integrations/inject-integration-env-vars', () => ({
+  injectIntegrationEnvVars: (...args: [unknown[], string]) => mockInjectIntegrationEnvVars(...args),
+}))
+
 // Mock openDeepnoteFileInCloud for --open flag tests
 const mockOpenDeepnoteFileInCloud = vi.fn()
 vi.mock('../utils/open-file-in-cloud', () => ({
@@ -166,6 +188,10 @@ describe('run command', () => {
 
       vi.clearAllMocks()
       vi.restoreAllMocks()
+      vi.unstubAllEnvs()
+
+      // Ensure DEEPNOTE_TOKEN is not set by default (tests that need it will stub it)
+      delete process.env[DEEPNOTE_TOKEN_ENV]
 
       // Reset getBlockDependencies to return empty by default (no validation errors)
       mockGetBlockDependencies.mockResolvedValue([])
@@ -180,6 +206,9 @@ describe('run command', () => {
         integrations: [],
         issues: [],
       })
+      // Reset injectIntegrationEnvVars to no-op by default
+      mockInjectIntegrationEnvVars.mockReturnValue([])
+
       // Reset saveExecutionSnapshot mock
       mockSaveExecutionSnapshot.mockResolvedValue({
         snapshotPath: '/mock/snapshot.snapshot.deepnote',
@@ -1253,6 +1282,411 @@ describe('run command', () => {
         await action(INTEGRATIONS_FILE, {})
         expect(programErrorSpy).not.toHaveBeenCalled()
         expect(mockStart).toHaveBeenCalled()
+      })
+    })
+
+    describe('--token flag (API integrations)', () => {
+      // The INTEGRATIONS_FILE has a SQL block referencing this integration ID
+      const REQUIRED_INTEGRATION_ID = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
+
+      // Helper to create mock API integrations (same pattern as integrations.test.ts)
+      function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiIntegration {
+        return {
+          id: 'api-integration-id',
+          name: 'API Database',
+          type: 'pgsql',
+          metadata: {
+            host: 'api-host.example.com',
+            database: 'api-database',
+            user: 'api-user',
+            password: 'api-secret',
+          },
+          is_public: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          federated_auth_method: null,
+          ...overrides,
+        }
+      }
+
+      it('fetches only the required integration IDs from the API', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'my-token', [REQUIRED_INTEGRATION_ID])
+      })
+
+      it('does not fetch when notebook has no SQL blocks requiring external integrations', async () => {
+        setupSuccessfulRun()
+
+        await action(HELLO_WORLD_FILE, { token: 'my-token' })
+
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
+      })
+
+      it('uses DEEPNOTE_TOKEN env var as fallback when no --token flag', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        vi.stubEnv(DEEPNOTE_TOKEN_ENV, 'env-token')
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+
+        await action(INTEGRATIONS_FILE, {})
+
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'env-token', [REQUIRED_INTEGRATION_ID])
+      })
+
+      it('prefers --token flag over DEEPNOTE_TOKEN env var', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        vi.stubEnv(DEEPNOTE_TOKEN_ENV, 'env-token')
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+
+        await action(INTEGRATIONS_FILE, { token: 'flag-token' })
+
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'flag-token', [REQUIRED_INTEGRATION_ID])
+      })
+
+      it('does not fetch when no token is available', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        vi.stubEnv(DEEPNOTE_TOKEN_ENV, '')
+
+        // Use a file that requires integrations — the missing token should be
+        // the reason the fetch is skipped, not the absence of SQL blocks
+        await expect(action(INTEGRATIONS_FILE, {})).rejects.toThrow()
+
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
+      })
+
+      it('uses custom --url for API calls', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token', url: 'https://custom-api.example.com' })
+
+        expect(mockFetchIntegrations).toHaveBeenCalledWith('https://custom-api.example.com', 'my-token', [
+          REQUIRED_INTEGRATION_ID,
+        ])
+      })
+
+      it('merges API integrations with local ones', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        // Local has an integration with a different ID than the one required by the SQL block
+        const localIntegration = {
+          id: 'local-only-id',
+          name: 'Local DB',
+          type: 'pgsql' as const,
+          metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-password' },
+        } satisfies DatabaseIntegrationConfig
+        mockParseIntegrationsFile.mockResolvedValue({
+          integrations: [localIntegration],
+          issues: [],
+        })
+
+        // API provides the integration required by the SQL block
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({
+            id: REQUIRED_INTEGRATION_ID,
+            name: 'API DB',
+            metadata: { host: 'api.example.com', database: 'api-db', user: 'api-user', password: 'api-password' },
+          }),
+        ])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        // API was called for the required integration (not covered locally)
+        expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'my-token', [REQUIRED_INTEGRATION_ID])
+
+        // Both local and API integrations should be passed to env var injection
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ id: 'local-only-id', name: 'Local DB' }),
+            expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'API DB' }),
+          ]),
+          expect.any(String)
+        )
+
+        expect(mockStart).toHaveBeenCalled()
+      })
+
+      it('skips API fetch when required integration is already configured locally', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        // Local has integration with the same ID that the INTEGRATIONS_FILE SQL block requires
+        const localIntegration = {
+          id: REQUIRED_INTEGRATION_ID,
+          name: 'Local Override',
+          type: 'pgsql' as const,
+          metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-secret' },
+        }
+        mockParseIntegrationsFile.mockResolvedValue({
+          integrations: [localIntegration],
+          issues: [],
+        })
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        // The local integration already covers the required ID, so API should NOT be called
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
+
+        // Verify only the local integration was passed to env var injection
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          [
+            expect.objectContaining({
+              id: REQUIRED_INTEGRATION_ID,
+              name: 'Local Override',
+              metadata: expect.objectContaining({ host: 'local.example.com' }),
+            }),
+          ],
+          expect.any(String)
+        )
+
+        expect(mockStart).toHaveBeenCalled()
+      })
+
+      it('works with no local integrations file (API-only)', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        // No local integrations
+        mockParseIntegrationsFile.mockResolvedValue({
+          integrations: [],
+          issues: [],
+        })
+
+        // API returns the required integration for the INTEGRATIONS_FILE SQL block
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({
+            id: REQUIRED_INTEGRATION_ID,
+            name: 'Test PostgreSQL',
+            metadata: {
+              host: 'api-host.example.com',
+              database: 'test-database',
+              user: 'test-user',
+              password: 'test-password',
+            },
+          }),
+        ])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        // API was called and the integration was passed through to env var injection
+        expect(mockFetchIntegrations).toHaveBeenCalled()
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'Test PostgreSQL' })],
+          expect.any(String)
+        )
+        expect(programErrorSpy).not.toHaveBeenCalled()
+        expect(mockStart).toHaveBeenCalled()
+      })
+
+      it('propagates API fetch failure as error', async () => {
+        mockFetchIntegrations.mockRejectedValue(new ApiError(401, 'Authentication failed'))
+
+        await expect(action(INTEGRATIONS_FILE, { token: 'bad-token' })).rejects.toThrow('program.error called')
+
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('Authentication failed')
+      })
+
+      it('sets exit code 2 for API auth errors in JSON mode', async () => {
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockRejectedValue(new ApiError(401, 'Authentication failed'))
+
+        await action(INTEGRATIONS_FILE, { token: 'bad-token', output: 'json' })
+
+        expect(process.exitCode).toBe(2)
+        const output = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(false)
+        expect(parsed.error).toContain('Authentication failed')
+      })
+
+      it('dry-run works with API-fetched integrations', async () => {
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        // No local integrations
+        mockParseIntegrationsFile.mockResolvedValue({
+          integrations: [],
+          issues: [],
+        })
+
+        // API returns the required integration
+        const integrationId = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({
+            id: integrationId,
+            name: 'Test PostgreSQL',
+          }),
+        ])
+
+        await action(INTEGRATIONS_FILE, { dryRun: true, token: 'my-token' })
+
+        expect(programErrorSpy).not.toHaveBeenCalled()
+        // Should not start engine in dry-run
+        expect(mockStart).not.toHaveBeenCalled()
+        // Should show dry-run output
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Execution Plan (dry run)')
+      })
+
+      it('case-insensitive ID matching when merging local and API integrations', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        // Local integration has the required ID but in uppercase
+        const localIntegration = {
+          id: REQUIRED_INTEGRATION_ID.toUpperCase(),
+          name: 'Local DB',
+          type: 'pgsql' as const,
+          metadata: { host: 'local.example.com', database: 'local-db', user: 'local-user', password: 'local-password' },
+        }
+        mockParseIntegrationsFile.mockResolvedValue({
+          integrations: [localIntegration],
+          issues: [],
+        })
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        // Case-insensitive match should skip the API fetch
+        expect(mockFetchIntegrations).not.toHaveBeenCalled()
+
+        // Only the local integration should be passed to env var injection
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          [
+            expect.objectContaining({
+              id: REQUIRED_INTEGRATION_ID.toUpperCase(),
+              name: 'Local DB',
+            }),
+          ],
+          expect.any(String)
+        )
+
+        expect(mockStart).toHaveBeenCalled()
+      })
+
+      it('suppresses fetch message with -o json', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+        await action(INTEGRATIONS_FILE, { token: 'my-token', output: 'json' })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).not.toContain('Fetching integrations')
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(true)
+      })
+
+      it('suppresses fetch message with -o toon', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token', output: 'toon' })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).not.toContain('Fetching integrations')
+      })
+
+      it('shows fetch message in interactive mode', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockFetchIntegrations.mockResolvedValue([createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID })])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Fetching integrations')
+      })
+
+      it('skips invalid API integrations and continues with valid ones', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        // API returns one valid and one invalid integration
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({
+            id: '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
+            name: 'Valid DB',
+          }),
+          {
+            id: 'invalid-integration',
+            name: 'Invalid',
+            type: 'totally-unsupported-type',
+            metadata: {},
+            is_public: false,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            federated_auth_method: null,
+          },
+        ])
+
+        // The valid one should satisfy the SQL block requirement
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        expect(programErrorSpy).not.toHaveBeenCalled()
+        expect(mockStart).toHaveBeenCalled()
+      })
+
+      it('shows warning for invalid API integrations in interactive mode', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID }),
+          {
+            id: 'bad-integration',
+            name: 'Bad One',
+            type: 'totally-unsupported-type',
+            metadata: {},
+            is_public: false,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            federated_auth_method: null,
+          },
+        ])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token' })
+
+        const output = getOutput(consoleLogSpy)
+        expect(output).toContain('Skipping invalid integration')
+        expect(output).toContain('bad-integration')
+      })
+
+      it('suppresses invalid integration warnings with -o json', async () => {
+        setupSuccessfulRun()
+        mockGetBlockDependencies.mockResolvedValue([])
+
+        mockFetchIntegrations.mockResolvedValue([
+          createMockApiIntegration({ id: REQUIRED_INTEGRATION_ID }),
+          {
+            id: 'bad-integration',
+            name: 'Bad One',
+            type: 'totally-unsupported-type',
+            metadata: {},
+            is_public: false,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+            federated_auth_method: null,
+          },
+        ])
+
+        await action(INTEGRATIONS_FILE, { token: 'my-token', output: 'json' })
+
+        const output = getOutput(consoleLogSpy)
+        // Should NOT contain the interactive warning
+        expect(output).not.toContain('Skipping invalid integration')
+        // Should still succeed
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(true)
       })
     })
 
