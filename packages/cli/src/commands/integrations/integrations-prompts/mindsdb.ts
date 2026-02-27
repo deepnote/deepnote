@@ -7,27 +7,27 @@ import {
 import { promptForSshFields } from './prompt-for-ssh-fields'
 import { promptForSslFields } from './prompt-for-ssl-fields'
 
-export async function promptForFieldsPostgres({
+export async function promptForFieldsMindsdb({
   id,
   type,
   name,
   defaultValues,
 }: {
   id: string
-  type: 'pgsql'
+  type: 'mindsdb'
   name: string
-  defaultValues?: DatabaseIntegrationMetadataByType['pgsql']
+  defaultValues?: DatabaseIntegrationMetadataByType['mindsdb']
 }): Promise<DatabaseIntegrationConfig> {
   const host = await promptForRequiredStringField({ label: 'Host:', defaultValue: defaultValues?.host })
   const port = await promptForRequiredStringPortField({
     label: 'Port:',
-    defaultValue: defaultValues?.port ?? '5432',
+    defaultValue: defaultValues?.port ?? '47334',
   })
   const database = await promptForRequiredStringField({ label: 'Database:', defaultValue: defaultValues?.database })
   const user = await promptForRequiredStringField({ label: 'User:', defaultValue: defaultValues?.user })
   const password = await promptForRequiredSecretField({ label: 'Password:', defaultValue: defaultValues?.password })
 
-  let metadata: DatabaseIntegrationMetadataByType['pgsql'] = {
+  let metadata: DatabaseIntegrationMetadataByType['mindsdb'] = {
     host,
     port,
     database,

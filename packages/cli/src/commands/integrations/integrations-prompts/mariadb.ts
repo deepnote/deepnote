@@ -7,27 +7,27 @@ import {
 import { promptForSshFields } from './prompt-for-ssh-fields'
 import { promptForSslFields } from './prompt-for-ssl-fields'
 
-export async function promptForFieldsPostgres({
+export async function promptForFieldsMariadb({
   id,
   type,
   name,
   defaultValues,
 }: {
   id: string
-  type: 'pgsql'
+  type: 'mariadb'
   name: string
-  defaultValues?: DatabaseIntegrationMetadataByType['pgsql']
+  defaultValues?: DatabaseIntegrationMetadataByType['mariadb']
 }): Promise<DatabaseIntegrationConfig> {
   const host = await promptForRequiredStringField({ label: 'Host:', defaultValue: defaultValues?.host })
   const port = await promptForRequiredStringPortField({
     label: 'Port:',
-    defaultValue: defaultValues?.port ?? '5432',
+    defaultValue: defaultValues?.port ?? '3306',
   })
   const database = await promptForRequiredStringField({ label: 'Database:', defaultValue: defaultValues?.database })
   const user = await promptForRequiredStringField({ label: 'User:', defaultValue: defaultValues?.user })
   const password = await promptForRequiredSecretField({ label: 'Password:', defaultValue: defaultValues?.password })
 
-  let metadata: DatabaseIntegrationMetadataByType['pgsql'] = {
+  let metadata: DatabaseIntegrationMetadataByType['mariadb'] = {
     host,
     port,
     database,

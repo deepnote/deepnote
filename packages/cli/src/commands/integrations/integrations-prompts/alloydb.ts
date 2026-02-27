@@ -7,16 +7,16 @@ import {
 import { promptForSshFields } from './prompt-for-ssh-fields'
 import { promptForSslFields } from './prompt-for-ssl-fields'
 
-export async function promptForFieldsPostgres({
+export async function promptForFieldsAlloydb({
   id,
   type,
   name,
   defaultValues,
 }: {
   id: string
-  type: 'pgsql'
+  type: 'alloydb'
   name: string
-  defaultValues?: DatabaseIntegrationMetadataByType['pgsql']
+  defaultValues?: DatabaseIntegrationMetadataByType['alloydb']
 }): Promise<DatabaseIntegrationConfig> {
   const host = await promptForRequiredStringField({ label: 'Host:', defaultValue: defaultValues?.host })
   const port = await promptForRequiredStringPortField({
@@ -27,7 +27,7 @@ export async function promptForFieldsPostgres({
   const user = await promptForRequiredStringField({ label: 'User:', defaultValue: defaultValues?.user })
   const password = await promptForRequiredSecretField({ label: 'Password:', defaultValue: defaultValues?.password })
 
-  let metadata: DatabaseIntegrationMetadataByType['pgsql'] = {
+  let metadata: DatabaseIntegrationMetadataByType['alloydb'] = {
     host,
     port,
     database,

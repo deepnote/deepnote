@@ -5,41 +5,35 @@ import {
   promptForRequiredStringPortField,
 } from '../../../utils/inquirer'
 import { promptForSshFields } from './prompt-for-ssh-fields'
-import { promptForSslFields } from './prompt-for-ssl-fields'
 
-export async function promptForFieldsPostgres({
+export async function promptForFieldsDremio({
   id,
   type,
   name,
   defaultValues,
 }: {
   id: string
-  type: 'pgsql'
+  type: 'dremio'
   name: string
-  defaultValues?: DatabaseIntegrationMetadataByType['pgsql']
+  defaultValues?: DatabaseIntegrationMetadataByType['dremio']
 }): Promise<DatabaseIntegrationConfig> {
   const host = await promptForRequiredStringField({ label: 'Host:', defaultValue: defaultValues?.host })
   const port = await promptForRequiredStringPortField({
     label: 'Port:',
-    defaultValue: defaultValues?.port ?? '5432',
+    defaultValue: defaultValues?.port ?? '443',
   })
-  const database = await promptForRequiredStringField({ label: 'Database:', defaultValue: defaultValues?.database })
-  const user = await promptForRequiredStringField({ label: 'User:', defaultValue: defaultValues?.user })
-  const password = await promptForRequiredSecretField({ label: 'Password:', defaultValue: defaultValues?.password })
+  const schema = await promptForRequiredStringField({ label: 'Schema:', defaultValue: defaultValues?.schema })
+  const token = await promptForRequiredSecretField({ label: 'Token:', defaultValue: defaultValues?.token })
 
-  let metadata: DatabaseIntegrationMetadataByType['pgsql'] = {
+  let metadata: DatabaseIntegrationMetadataByType['dremio'] = {
     host,
     port,
-    database,
-    user,
-    password,
+    schema,
+    token,
   }
 
   const sshFields = await promptForSshFields(defaultValues)
   metadata = { ...metadata, ...sshFields }
-
-  const sslFields = await promptForSslFields(defaultValues)
-  metadata = { ...metadata, ...sslFields }
 
   return {
     id,

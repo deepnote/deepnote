@@ -19,8 +19,23 @@ import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
 import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForIntegrationName } from './add-integration'
+import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
+import { promptForFieldsAthena } from './integrations-prompts/athena'
+import { promptForFieldsBigQuery } from './integrations-prompts/big-query'
+import { promptForFieldsClickhouse } from './integrations-prompts/clickhouse'
+import { promptForFieldsDatabricks } from './integrations-prompts/databricks'
+import { promptForFieldsDremio } from './integrations-prompts/dremio'
+import { promptForFieldsMariadb } from './integrations-prompts/mariadb'
+import { promptForFieldsMaterialize } from './integrations-prompts/materialize'
+import { promptForFieldsMindsdb } from './integrations-prompts/mindsdb'
 import { promptForFieldsMongodb } from './integrations-prompts/mongodb'
+import { promptForFieldsMysql } from './integrations-prompts/mysql'
 import { promptForFieldsPostgres } from './integrations-prompts/pgsql'
+import { promptForFieldsRedshift } from './integrations-prompts/redshift'
+import { promptForFieldsSnowflake } from './integrations-prompts/snowflake'
+import { promptForFieldsSpanner } from './integrations-prompts/spanner'
+import { promptForFieldsSqlServer } from './integrations-prompts/sql-server'
+import { promptForFieldsTrino } from './integrations-prompts/trino'
 
 export interface IntegrationsEditOptions {
   file?: string
@@ -110,8 +125,64 @@ export async function promptForIntegrationConfig(
   const newName = await promptForIntegrationName({ defaultValue: existingConfig.name })
 
   switch (existingConfig.type) {
-    case 'pgsql':
-      return promptForFieldsPostgres({
+    case 'alloydb':
+      return promptForFieldsAlloydb({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'athena':
+      return promptForFieldsAthena({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'big-query':
+      return promptForFieldsBigQuery({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'clickhouse':
+      return promptForFieldsClickhouse({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'databricks':
+      return promptForFieldsDatabricks({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'dremio':
+      return promptForFieldsDremio({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'mariadb':
+      return promptForFieldsMariadb({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'materialize':
+      return promptForFieldsMaterialize({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'mindsdb':
+      return promptForFieldsMindsdb({
         id: existingConfig.id,
         type: existingConfig.type,
         name: newName,
@@ -124,10 +195,60 @@ export async function promptForIntegrationConfig(
         name: newName,
         defaultValues: existingConfig.metadata,
       })
+    case 'mysql':
+      return promptForFieldsMysql({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'pandas-dataframe':
+      throw new Error('pandas-dataframe integrations cannot be configured via CLI')
+    case 'pgsql':
+      return promptForFieldsPostgres({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'redshift':
+      return promptForFieldsRedshift({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'snowflake':
+      return promptForFieldsSnowflake({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'spanner':
+      return promptForFieldsSpanner({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'sql-server':
+      return promptForFieldsSqlServer({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'trino':
+      return promptForFieldsTrino({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
     default:
-      throw new Error(
-        `Integration type "${existingConfig.type}" is not yet implemented. Only "pgsql" and "mongodb" are currently supported.`
-      )
+      existingConfig satisfies never
+      throw new Error(`Integration type ('${JSON.stringify(existingConfig)}') is not yet implemented.`)
   }
 }
 
@@ -208,7 +329,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   }
 
   if (doc.commentBefore == null || !doc.commentBefore.includes('yaml-language-server')) {
-    doc.commentBefore = SCHEMA_COMMENT
+    doc.commentBefore = doc.commentBefore ? `${SCHEMA_COMMENT}\n${doc.commentBefore}` : SCHEMA_COMMENT
   }
 
   const secretCount = Object.keys(secrets).length

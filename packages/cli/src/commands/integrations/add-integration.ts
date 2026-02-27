@@ -18,16 +18,35 @@ import {
 import { log, output } from '../../output'
 import { updateDotEnv } from '../../utils/dotenv'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
+import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
+import { promptForFieldsAthena } from './integrations-prompts/athena'
+import { promptForFieldsBigQuery } from './integrations-prompts/big-query'
+import { promptForFieldsClickhouse } from './integrations-prompts/clickhouse'
+import { promptForFieldsDatabricks } from './integrations-prompts/databricks'
+import { promptForFieldsDremio } from './integrations-prompts/dremio'
+import { promptForFieldsMariadb } from './integrations-prompts/mariadb'
+import { promptForFieldsMaterialize } from './integrations-prompts/materialize'
+import { promptForFieldsMindsdb } from './integrations-prompts/mindsdb'
 import { promptForFieldsMongodb } from './integrations-prompts/mongodb'
+import { promptForFieldsMysql } from './integrations-prompts/mysql'
 import { promptForFieldsPostgres } from './integrations-prompts/pgsql'
+import { promptForFieldsRedshift } from './integrations-prompts/redshift'
+import { promptForFieldsSnowflake } from './integrations-prompts/snowflake'
+import { promptForFieldsSpanner } from './integrations-prompts/spanner'
+import { promptForFieldsSqlServer } from './integrations-prompts/sql-server'
+import { promptForFieldsTrino } from './integrations-prompts/trino'
 
 export interface IntegrationsCreateOptions {
   file?: string
   envFile?: string
 }
 
+const CLI_CONFIGURABLE_INTEGRATION_TYPES = databaseIntegrationTypes.filter(
+  (t): t is Exclude<DatabaseIntegrationType, 'pandas-dataframe'> => t !== 'pandas-dataframe'
+)
+
 export async function promptForIntegrationType(): Promise<DatabaseIntegrationType> {
-  const choices = databaseIntegrationTypes.map(type => ({
+  const choices = CLI_CONFIGURABLE_INTEGRATION_TYPES.map(type => ({
     name: type,
     value: type,
   }))
@@ -54,23 +73,55 @@ export async function promptForIntegrationName(options?: { defaultValue?: string
 }
 
 export async function promptForIntegrationConfig({
-  type,
+  integrationType,
   name,
 }: {
-  type: DatabaseIntegrationType
+  integrationType: DatabaseIntegrationType
   name: string
 }): Promise<DatabaseIntegrationConfig> {
   const id = crypto.randomUUID()
 
-  switch (type) {
-    case 'pgsql':
-      return promptForFieldsPostgres({ id, type, name })
+  switch (integrationType) {
+    case 'alloydb':
+      return promptForFieldsAlloydb({ id, type: integrationType, name })
+    case 'athena':
+      return promptForFieldsAthena({ id, type: integrationType, name })
+    case 'big-query':
+      return promptForFieldsBigQuery({ id, type: integrationType, name })
+    case 'clickhouse':
+      return promptForFieldsClickhouse({ id, type: integrationType, name })
+    case 'databricks':
+      return promptForFieldsDatabricks({ id, type: integrationType, name })
+    case 'dremio':
+      return promptForFieldsDremio({ id, type: integrationType, name })
+    case 'mariadb':
+      return promptForFieldsMariadb({ id, type: integrationType, name })
+    case 'materialize':
+      return promptForFieldsMaterialize({ id, type: integrationType, name })
+    case 'mindsdb':
+      return promptForFieldsMindsdb({ id, type: integrationType, name })
     case 'mongodb':
-      return promptForFieldsMongodb({ id, type, name })
-    default:
-      throw new Error(
-        `Integration type "${type}" is not yet implemented. Only "pgsql" and "mongodb" are currently supported.`
-      )
+      return promptForFieldsMongodb({ id, type: integrationType, name })
+    case 'mysql':
+      return promptForFieldsMysql({ id, type: integrationType, name })
+    case 'pgsql':
+      return promptForFieldsPostgres({ id, type: integrationType, name })
+    case 'redshift':
+      return promptForFieldsRedshift({ id, type: integrationType, name })
+    case 'snowflake':
+      return promptForFieldsSnowflake({ id, type: integrationType, name })
+    case 'spanner':
+      return promptForFieldsSpanner({ id, type: integrationType, name })
+    case 'sql-server':
+      return promptForFieldsSqlServer({ id, type: integrationType, name })
+    case 'trino':
+      return promptForFieldsTrino({ id, type: integrationType, name })
+    case 'pandas-dataframe':
+      throw new Error('pandas-dataframe integrations cannot be configured via CLI')
+    default: {
+      integrationType satisfies never
+      throw new Error(`Integration type "${integrationType}" is not yet implemented.`)
+    }
   }
 }
 
@@ -81,7 +132,7 @@ export async function createIntegration(options: IntegrationsCreateOptions): Pro
   const type = await promptForIntegrationType()
   const name = await promptForIntegrationName()
 
-  const config = await promptForIntegrationConfig({ type, name })
+  const config = await promptForIntegrationConfig({ integrationType: type, name })
 
   const existingDoc = await readIntegrationsDocument(filePath)
   const doc = existingDoc ?? createNewDocument()
