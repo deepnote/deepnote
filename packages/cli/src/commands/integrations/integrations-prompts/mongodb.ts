@@ -1,14 +1,13 @@
 import type { DatabaseIntegrationConfig, DatabaseIntegrationMetadataByType } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
 import {
-  promptForBooleanField,
   promptForOptionalSecretField,
   promptForOptionalStringField,
   promptForOptionalStringPortField,
   promptForRequiredSecretField,
   promptForRequiredStringField,
-  promptForRequiredStringPortField,
 } from '../../../utils/inquirer'
+import { promptForSshFields } from './prompt-for-ssh-fields'
 import { promptForSslFields } from './prompt-for-ssl-fields'
 
 export const MONGO_PREFIX = 'mongodb://'
@@ -208,26 +207,8 @@ export async function promptForFieldsMongodb({
     }
   }
 
-  const sshEnabled = await promptForBooleanField({
-    label: 'Enable SSH tunnel:',
-    defaultValue: defaultValues?.sshEnabled ?? false,
-  })
-  if (sshEnabled === true) {
-    const sshHost = await promptForRequiredStringField({ label: 'SSH Host:', defaultValue: defaultValues?.sshHost })
-    const sshPort = await promptForRequiredStringPortField({
-      label: 'SSH Port:',
-      defaultValue: defaultValues?.sshPort ?? '22',
-    })
-    const sshUser = await promptForRequiredStringField({ label: 'SSH User:', defaultValue: defaultValues?.sshUser })
-
-    metadata = {
-      ...metadata,
-      sshEnabled: true,
-      sshHost,
-      sshPort,
-      sshUser,
-    }
-  }
+  const sshFields = await promptForSshFields(defaultValues)
+  metadata = { ...metadata, ...sshFields }
 
   const sslFields = await promptForSslFields(defaultValues)
   metadata = { ...metadata, ...sslFields }
