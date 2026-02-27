@@ -9,6 +9,11 @@ export const DEFAULT_ENV_FILE = '.env' as const
 export const DEFAULT_INTEGRATIONS_FILE = '.deepnote.env.yaml' as const
 
 /**
+ * Default federated auth tokens file name (stored in ~/.deepnote/).
+ */
+export const DEFAULT_FEDERATED_AUTH_TOKENS_FILE = 'federated-auth-tokens.yaml' as const
+
+/**
  * Environment variable name for the Deepnote API token.
  */
 export const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN' as const

@@ -3,11 +3,14 @@ export {
   databaseIntegrationConfigSchema,
   type SqlIntegrationConfig,
 } from './database-integration-config'
+export type { GetEnvironmentVariablesForIntegrationsParams } from './database-integration-env-vars'
 export {
   BigQueryServiceAccountParseError,
+  buildTrinoOAuthSqlAlchemyInput,
   type EnvVar,
   getEnvironmentVariablesForIntegrations,
   getSqlAlchemyInput,
+  getSqlEnvVarName,
   SpannerServiceAccountParseError,
 } from './database-integration-env-vars'
 export {
