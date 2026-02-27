@@ -11,6 +11,8 @@ import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
 import { createInstallSkillsAction } from './commands/install-skills'
 import { createIntegrationsPullAction, DEFAULT_API_URL } from './commands/integrations'
+import { createIntegrationsAddAction } from './commands/integrations/add-integration'
+import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
@@ -763,6 +765,8 @@ ${c.bold('Examples:')}
       return `
 ${c.bold('Subcommands:')}
   pull        Pull integrations from Deepnote API and merge with local file
+  add         Add a new database integration interactively
+  edit        Edit an existing database integration interactively
 
 ${c.bold('Examples:')}
   ${c.dim('# Pull integrations from Deepnote API')}
@@ -773,6 +777,15 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Pull to a custom file path')}
   $ deepnote integrations pull --file my-integrations.yaml
+
+  ${c.dim('# Add a new integration interactively')}
+  $ deepnote integrations add
+
+  ${c.dim('# Edit an existing integration (interactive picker)')}
+  $ deepnote integrations edit
+
+  ${c.dim('# Edit a specific integration by ID')}
+  $ deepnote integrations edit <integration-id>
 `
     })
 
@@ -784,6 +797,21 @@ ${c.bold('Examples:')}
     .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
     .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
     .action(createIntegrationsPullAction(program))
+
+  integrationsCmd
+    .command('add')
+    .description('Add a new database integration interactively')
+    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+    .action(createIntegrationsAddAction(program))
+
+  integrationsCmd
+    .command('edit')
+    .argument('[id]', 'Integration ID to edit (skips interactive selection)')
+    .description('Edit an existing database integration interactively')
+    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+    .action(createIntegrationsEditAction(program))
 }
 
 /**

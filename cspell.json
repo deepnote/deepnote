@@ -112,6 +112,7 @@
     "pypi",
     "pyplot",
     "PYTHONPATH",
+    "RAWCONNECTIONSTRING",
     "qlty",
     "qmark",
     "rankdir",
