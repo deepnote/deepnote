@@ -293,6 +293,8 @@ ${c.bold('Examples:')}
     .option('--profile', 'Show per-block timing and memory usage')
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
     .option('--context', 'Include analysis context in machine-readable output (requires -o json/toon/llm)')
+    .option('--url <url>', 'API base URL for fetching integrations', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for fetching integrations (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .addHelpText('after', () => {
       const c = getChalk()
       return `
