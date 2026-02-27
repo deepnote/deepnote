@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import type { ZodSchema } from 'zod/v3'
-import { zodToJsonSchema } from 'zod-to-json-schema'
 import { integrationsFileSchema } from '../src/integrations/integrations-file-schemas'
 
 async function run() {
-  const jsonSchema = zodToJsonSchema(integrationsFileSchema as unknown as ZodSchema)
+  // Dynamic import avoids tsc resolving zod-to-json-schema's deeply nested generics
+  const { zodToJsonSchema } = (await import('zod-to-json-schema')) as { zodToJsonSchema: (schema: unknown) => unknown }
+  const jsonSchema = zodToJsonSchema(integrationsFileSchema)
   await fs.writeFile(path.join('json-schemas', 'integrations-file-schema.json'), JSON.stringify(jsonSchema, null, 2))
 }
 

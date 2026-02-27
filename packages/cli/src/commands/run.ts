@@ -3,7 +3,7 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
-import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
+import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
   type BlockExecutionResult,
@@ -17,12 +17,16 @@ import {
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { DEFAULT_ENV_FILE } from '../constants'
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
+import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
+import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
+import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import { ApiError } from '../utils/api'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -35,6 +39,7 @@ import {
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { saveExecutionSnapshot } from '../utils/output-persistence'
+import { DEFAULT_API_URL } from './integrations'
 
 /**
  * Error thrown when required inputs are missing.
@@ -77,6 +82,8 @@ export interface RunOptions {
   profile?: boolean
   open?: boolean
   context?: boolean
+  token?: string
+  url?: string
 }
 
 /** Result of a single block execution for JSON output */
@@ -229,28 +236,22 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
+  // Fetch integrations from API if a token is available (--token flag or DEEPNOTE_TOKEN env var)
+  const requiredIds = collectRequiredIntegrationIds(file, options.notebook)
+  const allIntegrations = await fetchAndMergeApiIntegrations({
+    localIntegrations: parsedIntegrations.integrations,
+    requiredIds,
+    token: options.token ?? process.env[DEEPNOTE_TOKEN_ENV],
+    baseUrl: options.url ?? DEFAULT_API_URL,
+    isMachineOutput,
+  })
+
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, parsedIntegrations.integrations, options.notebook)
+  await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
-  if (parsedIntegrations.integrations.length > 0) {
-    const { envVars, errors } = getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
-      projectRootDirectory: workingDirectory,
-    })
-
-    // Log any errors from env var generation
-    for (const error of errors) {
-      debug(`Integration env var error: ${error.message}`)
-    }
-
-    // Inject env vars into process.env
-    for (const { name, value } of envVars) {
-      process.env[name] = value
-    }
-
-    debug(`Injected ${envVars.length} environment variables for integrations`)
-  }
+  injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
   return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
 }
@@ -391,7 +392,8 @@ export function createRunAction(program: Command): (path: string, options: RunOp
   return async (path, options) => {
     try {
       debug(`Running file: ${path}`)
-      debug(`Options: ${JSON.stringify(options)}`)
+      const safeOptions = { ...options, token: options.token ? '[redacted]' : undefined }
+      debug(`Options: ${JSON.stringify(safeOptions)}`)
 
       // Handle --list-inputs
       if (options.listInputs) {
@@ -408,11 +410,13 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors, missing inputs, and missing integrations (user errors)
+      // Use InvalidUsage for file resolution errors, missing inputs, missing integrations, and API auth errors (user errors)
+      const isAuthApiError = error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
         error instanceof FileResolutionError ||
         error instanceof MissingInputError ||
-        error instanceof MissingIntegrationError
+        error instanceof MissingIntegrationError ||
+        isAuthApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
       if (options.output === 'json') {
@@ -655,26 +659,9 @@ async function validateRequirements(
   }
 
   // === Check for missing database integrations ===
-  // Built-in integrations that don't require external configuration
-  const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
-
-  const missingIntegrations: Array<{ id: string }> = []
-  for (const block of allBlocks) {
-    if (block.type === 'sql') {
-      const metadata = block.metadata as Record<string, unknown>
-      const integrationId = metadata.sql_integration_id as string | undefined
-      if (integrationId && !builtInIntegrations.has(integrationId)) {
-        // Check if integration is configured in the integrations file
-        // Use lowercase for case-insensitive UUID matching
-        if (!integrations.some(i => i.id.toLowerCase() === integrationId.toLowerCase())) {
-          // Check if we haven't already recorded this integration
-          if (!missingIntegrations.some(i => i.id === integrationId)) {
-            missingIntegrations.push({ id: integrationId })
-          }
-        }
-      }
-    }
-  }
+  const requiredIds = collectRequiredIntegrationIds(file, notebookName)
+  const configuredIds = new Set(integrations.map(i => i.id.toLowerCase()))
+  const missingIntegrations = requiredIds.filter(id => !configuredIds.has(id.toLowerCase())).map(id => ({ id }))
 
   if (missingIntegrations.length > 0) {
     const integrationList = missingIntegrations.map(i => `  - ${i.id}`).join('\n')
