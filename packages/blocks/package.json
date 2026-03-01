@@ -34,7 +34,7 @@
   "dependencies": {
     "ts-dedent": "^2.2.0",
     "yaml": "^2.8.1",
-    "zod": "3.25.76"
+    "zod": "4.3.6"
   },
   "engines": {
     "node": ">=22.14.0",
