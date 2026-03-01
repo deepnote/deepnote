@@ -32,7 +32,7 @@
     "watch": "tsdown --watch --format esm --format cjs --dts"
   },
   "dependencies": {
-    "zod": "3.25.76"
+    "zod": "4.3.6"
   },
   "publishConfig": {
     "access": "public",
