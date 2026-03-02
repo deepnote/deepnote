@@ -106,6 +106,8 @@ export async function runOAuthFlow(params: RunOAuthFlowParams): Promise<Federate
 
     const app = express()
 
+    app.use(passport.initialize())
+
     app.get(START_PATH, passport.authenticate('trino-oauth', { session: false }))
 
     app.get(CALLBACK_PATH, (req: Request, res: Response) => {

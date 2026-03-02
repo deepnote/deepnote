@@ -66,6 +66,41 @@ describe('federated-auth-tokens', () => {
     expect(tokenC).toBeUndefined()
   })
 
+  it('readTokensFile returns issues for malformed YAML', async () => {
+    const testPath = path.join(testDir, 'malformed.yaml')
+    await fs.mkdir(path.dirname(testPath), { recursive: true })
+    await fs.writeFile(testPath, ':\n  - :\n  bad: [unterminated', 'utf-8')
+
+    const result = await readTokensFile(testPath)
+    expect(result.tokens).toEqual([])
+    expect(result.issues).toHaveLength(1)
+    expect(result.issues[0].code).toBe('yaml_parse_error')
+    expect(result.issues[0].message).toMatch(/Invalid YAML/)
+  })
+
+  it('readTokensFile excludes invalid entries and reports schema issues', async () => {
+    const testPath = path.join(testDir, 'invalid-entries.yaml')
+    await fs.mkdir(path.dirname(testPath), { recursive: true })
+
+    const yaml = `tokens:
+  - accessToken: "tok"
+    refreshToken: "ref"
+  - integrationId: "valid-id"
+    accessToken: "valid-tok"
+    refreshToken: "valid-ref"
+  - integrationId: 123
+    accessToken: "tok2"
+    refreshToken: "ref2"`
+
+    await fs.writeFile(testPath, yaml, 'utf-8')
+
+    const result = await readTokensFile(testPath)
+    expect(result.tokens).toEqual([{ integrationId: 'valid-id', accessToken: 'valid-tok', refreshToken: 'valid-ref' }])
+    expect(result.issues.length).toBeGreaterThanOrEqual(2)
+    expect(result.issues.some(i => i.path.startsWith('tokens[0]'))).toBe(true)
+    expect(result.issues.some(i => i.path.startsWith('tokens[2]'))).toBe(true)
+  })
+
   it('saveTokenForIntegration upserts by integrationId', async () => {
     const testPath = path.join(testDir, 'save-token.yaml')
     await fs.mkdir(path.dirname(testPath), { recursive: true })

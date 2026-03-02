@@ -91,6 +91,8 @@ export async function getEnvironmentVariablesForIntegrations(
               name: getSqlEnvVarName(integration.id),
               value: JSON.stringify({ integration_id: integration.id, ...sqlAlchemyInput }),
             })
+          } else {
+            errors.push(new Error(`Unsupported federated auth method: ${integration.federated_auth_method}`))
           }
         } catch (error) {
           errors.push(error as Error)

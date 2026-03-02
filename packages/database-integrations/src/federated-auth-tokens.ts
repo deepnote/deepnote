@@ -11,11 +11,51 @@ const federatedAuthTokenEntrySchema = z.object({
   expiresAt: z.string().datetime().optional(),
 })
 
-type FederatedAuthTokenEntry = z.infer<typeof federatedAuthTokenEntrySchema>
+export type FederatedAuthTokenEntry = z.infer<typeof federatedAuthTokenEntrySchema>
 
 const baseTokensFileSchema = z.object({
   tokens: z.array(z.record(z.unknown())).optional().default([]),
 })
+
+const tokenResponseSchema = z.object({
+  access_token: z.string().optional(),
+  refresh_token: z.string().optional(),
+  expires_in: z.number().optional(),
+  error: z.string().optional(),
+})
+
+function getOAuth2ClientBasicAuthHeaders(clientId: string, clientSecret: string): Record<string, string> {
+  const clientAuthorizationString = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+  return {
+    Authorization: `Basic ${clientAuthorizationString}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
+  }
+}
+
+async function fetchTokenWithTimeout(
+  tokenUrl: string,
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 15_000)
+  try {
+    return await fetch(tokenUrl, {
+      method: 'POST',
+      headers: getOAuth2ClientBasicAuthHeaders(clientId, clientSecret),
+      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Token refresh request timed out')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
 
 async function readTokensFile(filePath: string): Promise<FederatedAuthTokenEntry[]> {
   let content: string
@@ -64,7 +104,10 @@ async function getTokenForIntegration(
   return tokens.find(t => t.integrationId === integrationId)
 }
 
-function isTokenExpired(tokenEntry: FederatedAuthTokenEntry): boolean {
+/**
+ * Check if a token entry is expired (or will expire in the next 60 seconds).
+ */
+export function isTokenExpired(tokenEntry: FederatedAuthTokenEntry): boolean {
   const expiresAt = tokenEntry.expiresAt
   if (!expiresAt) return true
   const expiryTime = new Date(expiresAt).getTime()
@@ -87,10 +130,13 @@ async function saveTokenForIntegration(entry: FederatedAuthTokenEntry, filePath:
   await fs.writeFile(filePath, content, 'utf-8')
 }
 
-async function refreshAccessToken(
+/**
+ * Refresh an access token using the refresh_token grant.
+ * Pure token refresh — performs the HTTP request and returns the updated entry without persisting it.
+ */
+export async function refreshAccessToken(
   tokenEntry: FederatedAuthTokenEntry,
-  integration: DatabaseIntegrationConfig,
-  tokensFilePath: string
+  integration: DatabaseIntegrationConfig
 ): Promise<FederatedAuthTokenEntry> {
   const metadata = integration.metadata as {
     tokenUrl: string
@@ -103,34 +149,27 @@ async function refreshAccessToken(
     throw new Error('Token refresh requires tokenUrl, clientId, and clientSecret in integration metadata')
   }
 
-  const authString = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${authString}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(tokenEntry.refreshToken)}`,
-  })
+  const response = await fetchTokenWithTimeout(tokenUrl, clientId, clientSecret, tokenEntry.refreshToken)
 
-  let responseBody: { access_token?: string; refresh_token?: string; expires_in?: number }
+  let json: unknown
   try {
-    responseBody = (await response.json()) as typeof responseBody
+    json = await response.json()
   } catch {
     throw new Error('Token endpoint response is not valid JSON')
   }
 
+  const parseResult = tokenResponseSchema.safeParse(json)
+  if (!parseResult.success) {
+    throw new Error('Token endpoint returned an unexpected response format')
+  }
+  const responseBody = parseResult.data
+
   if (!response.ok) {
-    if (responseBody && typeof responseBody === 'object' && 'error' in responseBody) {
-      const err = responseBody as { error?: string }
-      if (err.error === 'invalid_grant') {
-        throw new Error(
-          'Refresh token has expired or was revoked. Run `deepnote integrations auth` to re-authenticate.'
-        )
-      }
-      if (err.error === 'invalid_client' || err.error === 'unauthorized_client') {
-        throw new Error('Invalid client credentials. Check your integration configuration.')
-      }
+    if (responseBody.error === 'invalid_grant') {
+      throw new Error('Refresh token has expired or was revoked. Run `deepnote integrations auth` to re-authenticate.')
+    }
+    if (responseBody.error === 'invalid_client' || responseBody.error === 'unauthorized_client') {
+      throw new Error('Invalid client credentials. Check your integration configuration.')
     }
     throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`)
   }
@@ -144,15 +183,12 @@ async function refreshAccessToken(
   const expiresIn = responseBody.expires_in ?? 3600
   const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString()
 
-  const updatedEntry: FederatedAuthTokenEntry = {
+  return {
     integrationId: tokenEntry.integrationId,
     accessToken,
     refreshToken: newRefreshToken,
     expiresAt,
   }
-
-  await saveTokenForIntegration(updatedEntry, tokensFilePath)
-  return updatedEntry
 }
 
 /**
@@ -171,7 +207,8 @@ export async function getValidFederatedAuthToken(
   let finalToken = tokenEntry
   if (isTokenExpired(tokenEntry)) {
     try {
-      finalToken = await refreshAccessToken(tokenEntry, integration, tokensFilePath)
+      finalToken = await refreshAccessToken(tokenEntry, integration)
+      await saveTokenForIntegration(finalToken, tokensFilePath)
     } catch {
       return undefined
     }

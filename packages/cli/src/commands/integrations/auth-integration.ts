@@ -1,4 +1,3 @@
-import { debug } from 'node:console'
 import {
   type DatabaseIntegrationType,
   databaseIntegrationConfigSchema,
@@ -14,7 +13,7 @@ import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { getDefaultTokensFilePath } from '../../federated-auth/federated-auth-tokens'
 import { runOAuthFlow } from '../../federated-auth/oauth-local-server'
-import { log, output } from '../../output'
+import { debug, log, output } from '../../output'
 import { readDotEnv } from '../../utils/dotenv'
 import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
 import { readIntegrationsDocument } from '../integrations'
@@ -145,7 +144,7 @@ export async function authIntegration(options: IntegrationsAuthOptions): Promise
   try {
     integrationRawJson = resolveEnvVarRefsFromMap(integrationRawJson, envVars) as Record<string, unknown>
   } catch (error) {
-    debug('Failed to resolve env: refs in integration metadata:', error)
+    debug(`Failed to resolve env: refs in integration metadata: ${error}`)
   }
 
   const configResult = databaseIntegrationConfigSchema.safeParse(integrationRawJson)

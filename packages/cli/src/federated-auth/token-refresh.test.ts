@@ -1,9 +1,17 @@
 import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FederatedAuthTokenEntry } from './federated-auth-tokens-schema'
-import { isTokenExpired, refreshAccessToken } from './token-refresh'
+import { isTokenExpired, refreshAccessTokenAndSave } from './token-refresh'
 
 describe('isTokenExpired', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('should return true when expiresAt is missing', () => {
     const token: FederatedAuthTokenEntry = {
       integrationId: 'x',
@@ -66,7 +74,7 @@ describe('refreshAccessToken', () => {
         tokenUrl: '',
       },
     } as DatabaseIntegrationConfig
-    await expect(refreshAccessToken(token, integration)).rejects.toThrow(
+    await expect(refreshAccessTokenAndSave(token, integration)).rejects.toThrow(
       'Token refresh requires tokenUrl, clientId, and clientSecret'
     )
   })
@@ -104,7 +112,7 @@ describe('refreshAccessToken', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    const result = await refreshAccessToken(token, integration, '/tmp/test-tokens.yaml')
+    const result = await refreshAccessTokenAndSave(token, integration, '/tmp/test-tokens.yaml')
 
     expect(mockFetch).toHaveBeenCalledWith(
       'https://idp.example.com/token',
@@ -120,7 +128,5 @@ describe('refreshAccessToken', () => {
     expect(result.accessToken).toBe('new-access-token')
     expect(result.refreshToken).toBe('new-refresh-token')
     expect(result.expiresAt).toBeDefined()
-
-    vi.unstubAllGlobals()
   })
 })

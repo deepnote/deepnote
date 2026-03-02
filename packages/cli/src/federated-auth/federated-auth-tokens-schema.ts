@@ -8,9 +8,9 @@ import { z } from 'zod'
  * Integration config (tokenUrl, clientId, etc.) is read from integrations file.
  */
 export const federatedAuthTokenEntrySchema = z.object({
-  integrationId: z.string(),
-  accessToken: z.string(),
-  refreshToken: z.string(),
+  integrationId: z.string().trim().min(1),
+  accessToken: z.string().trim().min(1),
+  refreshToken: z.string().trim().min(1),
   expiresAt: z.string().datetime().optional(),
 })
 

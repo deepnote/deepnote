@@ -48,6 +48,25 @@ describe('federatedAuthTokenEntrySchema', () => {
     }
     expect(() => federatedAuthTokenEntrySchema.parse(invalid)).toThrow()
   })
+
+  it('should reject invalid expiresAt format', () => {
+    const invalid = {
+      integrationId: 'abc-123',
+      accessToken: 'token',
+      refreshToken: 'refresh',
+      expiresAt: 'not-a-date',
+    }
+    expect(() => federatedAuthTokenEntrySchema.parse(invalid)).toThrow()
+  })
+
+  it('should reject empty required string fields', () => {
+    const invalid = {
+      integrationId: '',
+      accessToken: '',
+      refreshToken: '',
+    }
+    expect(() => federatedAuthTokenEntrySchema.parse(invalid)).toThrow()
+  })
 })
 
 describe('baseTokensFileSchema', () => {

@@ -29,6 +29,11 @@ export {
   sqlIntegrationTypes,
 } from './database-integration-types'
 export {
+  type FederatedAuthTokenEntry,
+  isTokenExpired,
+  refreshAccessToken,
+} from './federated-auth-tokens'
+export {
   getSecretFieldPaths,
   type MetadataKey,
 } from './secret-field-paths'
