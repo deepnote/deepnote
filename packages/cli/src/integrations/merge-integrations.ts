@@ -270,6 +270,57 @@ export function mergeProcessedIntegrations(
 }
 
 /**
+ * Error thrown when an API integration fails schema validation during conversion.
+ */
+export class InvalidIntegrationError extends Error {
+  readonly integrationId: string
+
+  constructor(integrationId: string, message: string) {
+    super(message)
+    this.name = 'InvalidIntegrationError'
+    this.integrationId = integrationId
+  }
+}
+
+/**
+ * Result of converting API integrations to DatabaseIntegrationConfig.
+ */
+export interface ConvertApiIntegrationsResult {
+  /** Successfully validated integrations */
+  integrations: DatabaseIntegrationConfig[]
+  /** Errors for integrations that failed validation */
+  errors: InvalidIntegrationError[]
+}
+
+/**
+ * Convert API integrations to DatabaseIntegrationConfig.
+ * Validates each integration against the schema and collects errors for invalid ones.
+ *
+ * Shared by both `integrations pull` (via mergeApiIntegrationsIntoDocument) and `run` (for on-the-fly fetching).
+ *
+ * @param apiIntegrations - Integrations fetched from the API
+ * @returns Object containing validated integrations and any validation errors
+ */
+export function convertApiIntegrations(apiIntegrations: ApiIntegration[]): ConvertApiIntegrationsResult {
+  const integrations: DatabaseIntegrationConfig[] = []
+  const errors: InvalidIntegrationError[] = []
+
+  for (const apiIntegration of apiIntegrations) {
+    const config = databaseIntegrationConfigSchema.safeParse(apiIntegration)
+
+    if (!config.success) {
+      debug(`Invalid integration [${apiIntegration.id}]: ${config.error.message}`)
+      errors.push(new InvalidIntegrationError(apiIntegration.id, 'Invalid integration returned by API.'))
+      continue
+    }
+
+    integrations.push(config.data)
+  }
+
+  return { integrations, errors }
+}
+
+/**
  * Merge API integrations into an existing document (or create a new one).
  * Extracts secrets and replaces them with env var references during the merge.
  * Preserves custom environment variable names from existing entries.

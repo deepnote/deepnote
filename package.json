@@ -43,6 +43,7 @@
     "@biomejs/biome": "2.2.7",
     "@types/node": "22.18.12",
     "@vitest/coverage-v8": "4.0.5",
+    "@xterm/headless": "^5.5.0",
     "cspell": "9.2.2",
     "husky": "9.1.7",
     "license-checker-rseidelsohn": "4.4.2",
@@ -69,6 +70,9 @@
       "lodash@<4.17.23": "^4.17.23",
       "lodash-es@<4.17.23": "^4.17.23",
       "minimatch": ">=10.2.1"
+    },
+    "patchedDependencies": {
+      "@inquirer/testing@3.1.1": "patches/@inquirer__testing@3.1.1.patch"
     }
   }
 }
