@@ -91,7 +91,7 @@ Unlinking stops the sync but doesn't delete the `.deepnote` file from your files
 With `.deepnote` file sync, you can easily bring your notebooks to your local machine and back. Use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to run notebooks locally and [Deepnote MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) to give your agent (like Claude Code or Cursor) power tools to work with Deepnote files.
 
 1. Clone a repository containing a `.deepnote` file
-2. Use [Deepnote extension for VS Code and Cursor](/docs/vscode-extension), [Deepnote MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) and [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to edit and run notebooks locally.
+2. Use [Deepnote extension for VS Code and Cursor](/docs/vscode-extension), [Deepnote MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp), and [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to edit and run notebooks locally.
 3. Commit and push your changes back to the repository
 4. Pull the repository in Deepnote Cloud and see changes synced to your project
 
