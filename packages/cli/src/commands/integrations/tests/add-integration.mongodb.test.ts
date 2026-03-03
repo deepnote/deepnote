@@ -29,18 +29,9 @@ describe('add-integration mongodb', () => {
   })
 
   async function fillMongoCredentials(
-    inputs: {
-      type?: string
-      name?: string
-      host?: string
-      port?: string
-      user?: string
-      password?: string
-      database?: string
-    } = {}
+    inputs: { name?: string; host?: string; port?: string; user?: string; password?: string; database?: string } = {}
   ): Promise<void> {
     const {
-      type = 'mongodb',
       name = 'My Mongo DB',
       host = 'mongo.example.com',
       port = '27017',
@@ -50,7 +41,7 @@ describe('add-integration mongodb', () => {
     } = inputs
 
     expect(screen.getScreen()).toContain('Select integration type:')
-    screen.type(type)
+    screen.type('mongodb')
     screen.keypress('enter')
 
     await screen.next()

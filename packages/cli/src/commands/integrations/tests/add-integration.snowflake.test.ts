@@ -266,6 +266,7 @@ describe('add-integration snowflake', () => {
     await promise
 
     const yamlContent = await readFile(filePath, 'utf-8')
+    const envContent = await readFile(envFilePath, 'utf-8')
 
     expect(yamlContent).toMatchInlineSnapshot(`
       "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
@@ -279,6 +280,10 @@ describe('add-integration snowflake', () => {
             authMethod: snowflake
             clientId: native-client-id
             clientSecret: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CLIENTSECRET
+      "
+    `)
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CLIENTSECRET=native-client-secret
       "
     `)
   })
