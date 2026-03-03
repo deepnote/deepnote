@@ -141,6 +141,10 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
       })
   )
 
+  for (const server of mcpServers) {
+    await server.connect()
+  }
+
   let insertIndex = context.llmBlockIndex + 1
   const addedBlockIds: string[] = []
   const blockOutputs: LlmBlockResult['blockOutputs'] = []

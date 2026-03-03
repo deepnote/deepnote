@@ -1,32 +1,31 @@
-version: "1.0.0"
 metadata:
-  createdAt: "2026-03-03T00:00:00.000Z"
+  createdAt: 2026-03-03T00:00:00.000Z
+  snapshotHash: sha256:07eea767e217f41329fc111ab535a747596946c674a2ded17281e08906d6c0bd
+  modifiedAt: '2026-03-03T13:00:22.842Z'
 project:
   id: demo-llm-agentic
   name: Agentic Analysis Demo
   notebooks:
-    - id: notebook-1
-      name: Sales Analysis
-      blocks:
-        - id: a0000000000000000000000000000001
-          blockGroup: b0000000000000000000000000000001
-          type: text-cell-h1
-          content: "Quarterly Sales Analysis — Agentic Demo"
-          sortingKey: a0
+    - blocks:
+        - blockGroup: b0000000000000000000000000000001
+          content: Quarterly Sales Analysis — Agentic Demo
+          id: a0000000000000000000000000000001
           metadata: {}
-        - id: a0000000000000000000000000000002
-          blockGroup: b0000000000000000000000000000002
-          type: markdown
+          sortingKey: a0
+          type: text-cell-h1
+          contentHash: sha256:229240314154c38946d7b93c9488c599a46b485516f7bf29ca1426dffcac0c88
+        - blockGroup: b0000000000000000000000000000002
           content: |
             This notebook demonstrates the **agentic LLM block**. The code below generates
             a synthetic sales dataset. Then the LLM agent autonomously explores the data,
             creates visualizations, identifies trends, and writes a report — all by adding
             new blocks to this notebook.
-          sortingKey: a1
+          id: a0000000000000000000000000000002
           metadata: {}
-        - id: a0000000000000000000000000000003
-          blockGroup: b0000000000000000000000000000003
-          type: code
+          sortingKey: a1
+          type: markdown
+          contentHash: sha256:31dd46c96b52ead04b0ac37819dd372b39b54ea368f1b5d8ff712a8ebcb1adae
+        - blockGroup: b0000000000000000000000000000003
           content: |
             import pandas as pd
             import numpy as np
@@ -60,13 +59,12 @@ project:
             print(f"\nTotal revenue: ${df['revenue'].sum():,.0f}")
             print(f"\nSample rows:")
             print(df.head(8).to_string(index=False))
-          sortingKey: a2
+          id: a0000000000000000000000000000003
           metadata: {}
-          executionCount: null
-          outputs: []
-        - id: a0000000000000000000000000000004
-          blockGroup: b0000000000000000000000000000004
-          type: llm
+          sortingKey: a2
+          type: code
+          contentHash: sha256:1c4986dee40c59936363029ae29900156485aa1961ed620c5271d39d86208525
+        - blockGroup: b0000000000000000000000000000004
           content: |
             You are a senior data analyst. The code block above created a pandas DataFrame
             called `df` with quarterly sales data across regions and products.
@@ -79,13 +77,24 @@ project:
             3. Create a line chart showing churn rate trends over quarters for each product tier
             4. Compute a pivot table of average revenue by region × product and display it
             5. Identify the single best-performing and worst-performing region+product combo and explain why
-            6. Add a final markdown block with an executive summary containing 3 key takeaways and a recommendation
+            6. Use the filesystem MCP tool to save a final executive report as `examples/report.md`
+            7. Add a final markdown block with an executive summary containing 3 key takeaways and a recommendation
 
             Use clean, publication-quality matplotlib charts with proper labels and titles.
             Use `plt.tight_layout()` and `plt.savefig()` for each chart.
-          sortingKey: a3
+          id: a0000000000000000000000000000004
           metadata:
             deepnote_model: gpt-4o
-            deepnote_max_iterations: 15
-          executionCount: null
-          outputs: []
+            deepnote_max_iterations: 20
+            deepnote_mcp_servers:
+              - name: filesystem
+                command: npx
+                args:
+                  - '-y'
+                  - '@modelcontextprotocol/server-filesystem'
+                  - './examples'
+          sortingKey: a3
+          type: llm
+      id: notebook-1
+      name: Sales Analysis
+version: 1.0.0
