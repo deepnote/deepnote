@@ -67,7 +67,7 @@ You can also trigger sync manually from the project menu or from the linked file
 The sync includes:
 
 - Project name
-- All notebooks and blocks inside them
+- All notebooks and blocks
 - Connected integrations
 
 <Callout status="info">
