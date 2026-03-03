@@ -91,10 +91,10 @@ Unlinking stops the sync but doesn't delete the `.deepnote` file from your files
 With `.deepnote` file sync, you can easily bring your notebooks to your local machine and back. Use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to run notebooks locally and [Deepnote MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) to give your agent (like Claude Code or Cursor) power tools to work with Deepnote files.
 
 1. Clone a repository containing a `.deepnote` file
-2. Use [Deepnote extension for VS Code](/docs/vscode-extension) (for humans) or [MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) and [CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) (for agents) to edit and run notebooks.
+2. Use [Deepnote extension for VS Code and Cursor](/docs/vscode-extension), [Deepnote MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) and [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to edit and run notebooks locally.
 3. Commit and push your changes back to the repository
 4. Pull the repository in Deepnote Cloud and see changes synced to your project
 
 ### Code review for notebooks
 
-Putting your Deepnote project in a file inside a Git repository makes it part of your Git workflow. For example, you can now submit and review changes to the notebook as a pull request. Because the `.deepnote` format is human-readable YAML, notebook changes show up as meaningful diffs in GitHub/GitLab. Similarly, you could run CI on your notebooks.
+Adding a Deepnote project file inside your Git repository makes it part of the Git workflow. For example, you can now submit and review changes to the notebook as a pull request. Since the `.deepnote` format is human-readable YAML, notebook changes show up as meaningful diffs in GitHub/GitLab. Similarly, you could run CI on your notebooks.
