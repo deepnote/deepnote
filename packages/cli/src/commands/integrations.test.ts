@@ -9,12 +9,13 @@ import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
 
 // Mock fetchIntegrations before importing the command module
-const mockFetchIntegrations = vi.fn<(baseUrl: string, token: string) => Promise<ApiIntegration[]>>()
+const mockFetchIntegrations =
+  vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<ApiIntegration[]>>()
 vi.mock('../integrations/fetch-integrations', async importOriginal => {
   const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
   return {
     ...actual,
-    fetchIntegrations: (baseUrl: string, token: string) => mockFetchIntegrations(baseUrl, token),
+    fetchIntegrations: (...args: Parameters<typeof actual.fetchIntegrations>) => mockFetchIntegrations(...args),
   }
 })
 
