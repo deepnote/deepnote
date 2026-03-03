@@ -1,6 +1,6 @@
 metadata:
   createdAt: 2026-03-03T00:00:00.000Z
-  snapshotHash: sha256:07eea767e217f41329fc111ab535a747596946c674a2ded17281e08906d6c0bd
+  snapshotHash: sha256:ed2500292c2fca375116484f886beb8da89082d9e58656cb8f71eefc3140d921
   modifiedAt: '2026-03-03T13:00:22.842Z'
 project:
   id: demo-llm-agentic
@@ -92,7 +92,7 @@ project:
                 args:
                   - '-y'
                   - '@modelcontextprotocol/server-filesystem'
-                  - './examples'
+                  - ./examples
           sortingKey: a3
           type: llm
       id: notebook-1
