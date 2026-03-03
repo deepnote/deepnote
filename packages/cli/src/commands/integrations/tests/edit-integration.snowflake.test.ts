@@ -254,6 +254,8 @@ integrations:
     await promise
 
     const yamlContent = await readFile(filePath, 'utf-8')
+    const envContent = await readFile(envFilePath, 'utf-8')
+
     expect(yamlContent).toMatchInlineSnapshot(`
       "#yaml-language-server: $schema=https://example.com/schema.json
 
@@ -269,6 +271,7 @@ integrations:
             privateKey: env:SF_ID_002__PRIVATEKEY
       "
     `)
+    expect(envContent).toEqual('SF_ID_002__PRIVATEKEY=PRIVATE_KEY_PLACEHOLDER\n')
   })
 
   it('clears okta defaults when switching auth method to native snowflake', async () => {
