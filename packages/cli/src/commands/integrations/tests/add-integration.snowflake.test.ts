@@ -231,7 +231,7 @@ describe('add-integration snowflake', () => {
       "
     `)
     expect(envContent).toMatchInlineSnapshot(`
-      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PRIVATEKEY="FAKE_PRIVATE_KEY"
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PRIVATEKEY=FAKE_PRIVATE_KEY
       "
     `)
   })
