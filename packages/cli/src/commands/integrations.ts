@@ -16,9 +16,12 @@ import { isErrnoENOENT } from '../utils/file-resolver'
 // Re-export merge logic functions for backward compatibility
 export {
   addIntegrationToSeq,
+  type ConvertApiIntegrationsResult,
+  convertApiIntegrations,
   createNewDocument,
   getOrCreateIntegrationMetadata,
   getOrCreateIntegrationsFromDocument,
+  InvalidIntegrationError,
   InvalidIntegrationsTypeError,
   type MergeResult,
   mergeApiIntegrationsIntoDocument,

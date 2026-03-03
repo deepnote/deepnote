@@ -190,7 +190,7 @@ integrations:
     const envFilePath = join(tempDir, '.env')
 
     await writeFile(filePath, EXISTING_KEY_PAIR_YAML)
-    await writeFile(envFilePath, 'SF_ID_002__PRIVATEKEY=-----BEGIN PRIVATE KEY-----\n')
+    await writeFile(envFilePath, 'SF_ID_002__PRIVATEKEY=PRIVATE_KEY_PLACEHOLDER\n')
 
     const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'sf-id-002' })
 
@@ -212,7 +212,7 @@ integrations:
 
     await screen.next()
     expect(screen.getScreen()).toContain('Private Key (PEM):')
-    screen.type('-----BEGIN PRIVATE KEY-----')
+    screen.type('PRIVATE_KEY_PLACEHOLDER')
     screen.keypress('enter')
 
     await screen.next()

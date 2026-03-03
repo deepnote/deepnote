@@ -2,14 +2,12 @@ import type { DatabaseIntegrationConfig, DatabaseIntegrationMetadataByType } fro
 import { TrinoAuthMethods } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
 import {
-  promptForBooleanField,
-  promptForOptionalSecretField,
-  promptForOptionalStringField,
   promptForOptionalStringPortField,
   promptForRequiredSecretField,
   promptForRequiredStringField,
-  promptForRequiredStringPortField,
 } from '../../../utils/inquirer'
+import { promptForSshFields } from './prompt-for-ssh-fields'
+import { promptForSslFields } from './prompt-for-ssl-fields'
 
 export async function promptForFieldsTrino({
   id,
@@ -93,48 +91,11 @@ export async function promptForFieldsTrino({
     }
   }
 
-  const sshEnabled = await promptForBooleanField({
-    label: 'Enable SSH tunnel:',
-    defaultValue: defaultValues?.sshEnabled ?? false,
-  })
-  if (sshEnabled === true) {
-    const sshHost = await promptForRequiredStringField({ label: 'SSH Host:', defaultValue: defaultValues?.sshHost })
-    const sshPort = await promptForRequiredStringPortField({
-      label: 'SSH Port:',
-      defaultValue: defaultValues?.sshPort ?? '22',
-    })
-    const sshUser = await promptForRequiredStringField({ label: 'SSH User:', defaultValue: defaultValues?.sshUser })
+  const sshFields = await promptForSshFields(defaultValues)
+  metadata = { ...metadata, ...sshFields }
 
-    metadata = {
-      ...metadata,
-      sshEnabled: true,
-      sshHost,
-      sshPort,
-      sshUser,
-    }
-  }
-
-  const sslEnabled = await promptForBooleanField({
-    label: 'Enable SSL:',
-    defaultValue: defaultValues?.sslEnabled ?? false,
-  })
-  if (sslEnabled === true) {
-    const caCertificateName = await promptForOptionalStringField({
-      label: 'CA Certificate Name:',
-      defaultValue: defaultValues?.caCertificateName,
-    })
-    const caCertificateText = await promptForOptionalSecretField({
-      label: 'CA Certificate:',
-      defaultValue: defaultValues?.caCertificateText,
-    })
-
-    metadata = {
-      ...metadata,
-      sslEnabled: true,
-      caCertificateName,
-      caCertificateText,
-    }
-  }
+  const sslFields = await promptForSslFields(defaultValues)
+  metadata = { ...metadata, ...sslFields }
 
   return {
     id,
