@@ -13,7 +13,7 @@ The `.deepnote` format is open-source and human-readable (YAML), so you can revi
 
 - **Version control notebooks in Git** — store your notebooks alongside your code and track changes over time
 - **Share projects via repositories** — teammates can pull the repo and open the same notebooks locally
-- **Run notebooks locally** — use Deepnote Local to execute notebooks without cloud dependency
+- **Run notebooks locally** — use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to execute notebooks without cloud dependency
 - **Review notebook changes in PRs** — the file format produces meaningful diffs for code review
 
 ## Linking a project
@@ -56,7 +56,7 @@ Similarly, when you pull from a remote Git repository or switch to a different b
 
 ### Manual sync
 
-You can also trigger sync manually from the project menu or from the file ribbon:
+You can also trigger sync manually from the project menu or from the linked file:
 
 - **Sync to file** — Push your current project state to the `.deepnote` file.
 
