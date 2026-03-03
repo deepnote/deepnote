@@ -202,7 +202,7 @@ describe('add-integration snowflake', () => {
 
     await screen.next()
     expect(screen.getScreen()).toContain('Private Key (PEM):')
-    screen.type('-----BEGIN PRIVATE KEY-----')
+    screen.type('FAKE_PRIVATE_KEY')
     screen.keypress('enter')
 
     await screen.next()
@@ -231,7 +231,7 @@ describe('add-integration snowflake', () => {
       "
     `)
     expect(envContent).toMatchInlineSnapshot(`
-      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PRIVATEKEY="-----BEGIN PRIVATE KEY-----"
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PRIVATEKEY="FAKE_PRIVATE_KEY"
       "
     `)
   })

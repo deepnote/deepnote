@@ -172,6 +172,7 @@ describe('add-integration mysql', () => {
       "
     `)
   })
+
   it('creates integration with SSL enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssl.yaml')
     const envFilePath = join(tempDir, '.env')

@@ -29,18 +29,9 @@ describe('add-integration pgsql', () => {
   })
 
   async function fillBaseFields(
-    inputs: {
-      type?: string
-      name?: string
-      host?: string
-      port?: string
-      database?: string
-      user?: string
-      password?: string
-    } = {}
+    inputs: { name?: string; host?: string; port?: string; database?: string; user?: string; password?: string } = {}
   ): Promise<void> {
     const {
-      type = 'pgsql',
       name = 'My Test DB',
       host = 'db.example.com',
       port = '5432',
@@ -50,7 +41,7 @@ describe('add-integration pgsql', () => {
     } = inputs
 
     expect(screen.getScreen()).toContain('Select integration type:')
-    screen.type(type)
+    screen.type('pgsql')
     screen.keypress('enter')
 
     await screen.next()
