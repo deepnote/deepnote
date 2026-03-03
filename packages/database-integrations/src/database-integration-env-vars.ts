@@ -1,6 +1,5 @@
 import type { DatabaseIntegrationConfig, SqlIntegrationConfig } from './database-integration-config'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
-import { getValidFederatedAuthToken } from './federated-auth-tokens'
 import { getSnowflakeSqlAlchemyInput } from './snowflake-integration-env-vars'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
 import {
@@ -16,15 +15,21 @@ export interface EnvVar {
   value: string
 }
 
+/**
+ * Resolves a valid access token for a federated auth integration.
+ * The implementation is provided by the caller (e.g., the CLI package).
+ */
+export type FederatedAuthTokenResolver = (integration: DatabaseIntegrationConfig) => Promise<string | undefined>
+
 export interface GetEnvironmentVariablesForIntegrationsParams {
   projectRootDirectory: string
   snowflakePartnerIdentifier?: string
   /**
-   * Optional path to the federated auth tokens file (~/.deepnote/federated-auth-tokens.yaml).
-   * When provided, federated auth integrations (e.g., Trino OAuth) will load tokens from this
-   * file and inject the SQL connection env var.
+   * Optional resolver for federated auth tokens.
+   * When provided, federated auth integrations (e.g., Trino OAuth) will use this
+   * to obtain an access token and inject the SQL connection env var.
    */
-  federatedAuthTokensFilePath?: string
+  federatedAuthTokenResolver?: FederatedAuthTokenResolver
 }
 
 export async function getEnvironmentVariablesForIntegrations(
@@ -73,9 +78,9 @@ export async function getEnvironmentVariablesForIntegrations(
       const isFederated =
         integration.federated_auth_method != null && isFederatedAuthMethod(integration.federated_auth_method)
 
-      if (isFederated && params.federatedAuthTokensFilePath) {
+      if (isFederated && params.federatedAuthTokenResolver) {
         try {
-          const accessToken = await getValidFederatedAuthToken(integration, params.federatedAuthTokensFilePath)
+          const accessToken = await params.federatedAuthTokenResolver(integration)
           if (accessToken && integration.type === 'trino' && integration.federated_auth_method === 'trino-oauth') {
             const metadata = integration.metadata as Extract<
               DatabaseIntegrationMetadataByType['trino'],

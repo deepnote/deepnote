@@ -19,7 +19,7 @@ import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { getDefaultTokensFilePath } from '../federated-auth/federated-auth-tokens'
+import { getDefaultTokensFilePath, getValidFederatedAuthToken } from '../federated-auth/federated-auth-tokens'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
@@ -236,9 +236,10 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
   if (parsedIntegrations.integrations.length > 0) {
+    const tokensFilePath = getDefaultTokensFilePath()
     const { envVars, errors } = await getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
       projectRootDirectory: workingDirectory,
-      federatedAuthTokensFilePath: getDefaultTokensFilePath(),
+      federatedAuthTokenResolver: integration => getValidFederatedAuthToken(integration, tokensFilePath),
     })
 
     // Log any errors from env var generation

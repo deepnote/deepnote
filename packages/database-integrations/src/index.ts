@@ -3,7 +3,10 @@ export {
   databaseIntegrationConfigSchema,
   type SqlIntegrationConfig,
 } from './database-integration-config'
-export type { GetEnvironmentVariablesForIntegrationsParams } from './database-integration-env-vars'
+export type {
+  FederatedAuthTokenResolver,
+  GetEnvironmentVariablesForIntegrationsParams,
+} from './database-integration-env-vars'
 export {
   BigQueryServiceAccountParseError,
   buildTrinoOAuthSqlAlchemyInput,
@@ -28,11 +31,6 @@ export {
   type SqlIntegrationType,
   sqlIntegrationTypes,
 } from './database-integration-types'
-export {
-  type FederatedAuthTokenEntry,
-  isTokenExpired,
-  refreshAccessToken,
-} from './federated-auth-tokens'
 export {
   getSecretFieldPaths,
   type MetadataKey,

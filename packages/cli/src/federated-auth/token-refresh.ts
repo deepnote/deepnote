@@ -1,8 +1,7 @@
 import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
-import { type FederatedAuthTokenEntry, refreshAccessToken } from '@deepnote/database-integrations'
-import { saveTokenForIntegration } from './federated-auth-tokens'
+import { type FederatedAuthTokenEntry, refreshAccessToken, saveTokenForIntegration } from './federated-auth-tokens'
 
-export { isTokenExpired } from '@deepnote/database-integrations'
+export { isTokenExpired } from './federated-auth-tokens'
 
 /**
  * Refresh an access token using the refresh_token grant, then persist the updated entry.
