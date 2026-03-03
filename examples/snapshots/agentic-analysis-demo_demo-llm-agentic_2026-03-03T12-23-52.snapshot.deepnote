@@ -1,0 +1,388 @@
+environment: {}
+execution:
+  finishedAt: 2026-03-03T12:23:52.514Z
+  startedAt: 2026-03-03T12:23:27.483Z
+metadata:
+  createdAt: 2026-03-03T00:00:00.000Z
+  snapshotHash: sha256:e269b077eaabbd43f9e3bea0d27f72c6fcc2d77eefe9c3a6cc744c65d0dbc2de
+project:
+  id: demo-llm-agentic
+  name: Agentic Analysis Demo
+  notebooks:
+    - blocks:
+        - id: a0000000000000000000000000000001
+          blockGroup: b0000000000000000000000000000001
+          sortingKey: "000000"
+          contentHash: sha256:229240314154c38946d7b93c9488c599a46b485516f7bf29ca1426dffcac0c88
+          type: text-cell-h1
+          content: Quarterly Sales Analysis — Agentic Demo
+          metadata: {}
+        - id: a0000000000000000000000000000002
+          blockGroup: b0000000000000000000000000000002
+          sortingKey: "000001"
+          contentHash: sha256:31dd46c96b52ead04b0ac37819dd372b39b54ea368f1b5d8ff712a8ebcb1adae
+          type: markdown
+          content: >
+            This notebook demonstrates the **agentic LLM block**. The code below generates
+
+            a synthetic sales dataset. Then the LLM agent autonomously explores the data,
+
+            creates visualizations, identifies trends, and writes a report — all by adding
+
+            new blocks to this notebook.
+          metadata: {}
+        - id: a0000000000000000000000000000003
+          blockGroup: b0000000000000000000000000000003
+          sortingKey: "000002"
+          contentHash: sha256:1c4986dee40c59936363029ae29900156485aa1961ed620c5271d39d86208525
+          outputs:
+            - output_type: stream
+              name: stdout
+              text: >
+                Dataset: 60 rows × 6 columns
+
+                Quarters: 5 | Regions: 4 | Products: 3
+
+
+                Total revenue: $1,935,240
+
+
+                Sample rows:
+
+                quarter        region      product  revenue  deals_closed  churn_rate
+
+                Q1 2025 North America   Enterprise 48118.10           113      0.0932
+
+                Q1 2025 North America Professional 20591.95            88      0.0356
+
+                Q1 2025 North America      Starter  4337.13            99      0.1642
+
+                Q1 2025        Europe   Enterprise 53121.09            85      0.1170
+
+                Q1 2025        Europe Professional 21994.66            97      0.0382
+
+                Q1 2025        Europe      Starter  4525.11            83      0.1535
+
+                Q1 2025  Asia Pacific   Enterprise 48979.18            89      0.0812
+
+                Q1 2025  Asia Pacific Professional 17836.96            81      0.0566
+          type: code
+          content: >
+            import pandas as pd
+
+            import numpy as np
+
+
+            np.random.seed(42)
+
+
+            regions = ['North America', 'Europe', 'Asia Pacific', 'Latin America']
+
+            products = ['Enterprise', 'Professional', 'Starter']
+
+            quarters = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025', 'Q1 2026']
+
+
+            rows = []
+
+            base_revenue = {'Enterprise': 50000, 'Professional': 20000, 'Starter': 5000}
+
+            growth_rate = {'North America': 1.08, 'Europe': 1.12, 'Asia Pacific': 1.20, 'Latin America': 1.15}
+
+
+            for qi, q in enumerate(quarters):
+                for region in regions:
+                    for product in products:
+                        base = base_revenue[product] * (growth_rate[region] ** qi)
+                        revenue = base * np.random.uniform(0.85, 1.15)
+                        deals = int(revenue / (base_revenue[product] * 0.01) * np.random.uniform(0.8, 1.2))
+                        churn = np.random.uniform(0.02, 0.12) if product != 'Starter' else np.random.uniform(0.08, 0.22)
+                        rows.append({
+                            'quarter': q, 'region': region, 'product': product,
+                            'revenue': round(revenue, 2), 'deals_closed': deals,
+                            'churn_rate': round(churn, 4)
+                        })
+
+            df = pd.DataFrame(rows)
+
+            print(f"Dataset: {len(df)} rows × {len(df.columns)} columns")
+
+            print(f"Quarters: {df['quarter'].nunique()} | Regions: {df['region'].nunique()} | Products:
+            {df['product'].nunique()}")
+
+            print(f"\nTotal revenue: ${df['revenue'].sum():,.0f}")
+
+            print(f"\nSample rows:")
+
+            print(df.head(8).to_string(index=False))
+          metadata: {}
+        - id: a0000000000000000000000000000004
+          blockGroup: b0000000000000000000000000000004
+          sortingKey: "000003"
+          contentHash: sha256:8b028f77f622e66b7bc9512500f25136087c88b2d1277c1e2087f58c318b2472
+          outputs:
+            - output_type: stream
+              name: stdout
+              text: >-
+                The exploratory data analysis for the quarterly sales dataset is complete. Here's a brief overview of
+                the steps taken and findings:
+
+
+                1. **Analysis Plan**: Established a roadmap for the analysis, including visualizations and computations.
+
+
+                2. **Revenue Visualization**: Created a grouped bar chart illustrating revenue distributions across
+                different quarters and regions, saved as a PNG file.
+
+
+                3. **Churn Rate Trends**: Plotted a line chart to observe churn rate trends over the quarters for each
+                product tier, highlighting trend differences among products.
+
+
+                4. **Pivot Table Computation**: Computed a pivot table to summarize average revenue contributions per
+                region and product combination.
+
+
+                5. **Performance Evaluation**: Identified the best and worst-performing region-product combinations:
+                   - Best: Asia Pacific with the Enterprise product.
+                   - Worst: North America with the Starter product.
+
+                6. **Executive Summary**: Summarized key insights with recommendations for strategic focus, specifically
+                targeting successful sales strategies and addressing churn rate issues and market performance dynamics.
+
+
+                The analysis provides a comprehensive overview of sales performance, revealing potential areas for focus
+                and improvement.
+          type: llm
+          content: >
+            You are a senior data analyst. The code block above created a pandas DataFrame
+
+            called `df` with quarterly sales data across regions and products.
+
+
+            Perform a thorough exploratory analysis. You MUST do ALL of the following, each
+
+            as a separate code or markdown block:
+
+
+            1. Add a markdown block introducing your analysis plan
+
+            2. Create a grouped bar chart of revenue by quarter, colored by region (use matplotlib, save as PNG)
+
+            3. Create a line chart showing churn rate trends over quarters for each product tier
+
+            4. Compute a pivot table of average revenue by region × product and display it
+
+            5. Identify the single best-performing and worst-performing region+product combo and explain why
+
+            6. Add a final markdown block with an executive summary containing 3 key takeaways and a recommendation
+
+
+            Use clean, publication-quality matplotlib charts with proper labels and titles.
+
+            Use `plt.tight_layout()` and `plt.savefig()` for each chart.
+          metadata:
+            deepnote_model: gpt-4o
+            deepnote_max_iterations: 15
+        - id: 320fc8f3108343fea813aa218eb026d4
+          blockGroup: 96ca6e1986bc4e64ada82e0de52c5280
+          sortingKey: "000004"
+          contentHash: sha256:bbadf2e9e38a055dbf52f0cb44aca479173445a04686fcf7a2783a2c204ea1ff
+          type: markdown
+          content: >-
+            ## Analysis Plan
+
+
+            In this exploratory data analysis, we will perform the following steps to gain insights from the quarterly
+            sales data:
+
+
+            1. **Visualization**: Create a grouped bar chart to visualize revenue distribution by quarter, comparing
+            different regions.
+
+            2. **Trend Analysis**: Plot a line chart to observe churn rate trends over different quarters for each
+            product category.
+
+            3. **Data Summary**: Compute a pivot table to understand the average revenue contributions from each region
+            and product combination.
+
+            4. **Performance Evaluation**: Determine the best and worst-performing region and product combinations based
+            on revenue.
+
+            5. **Executive Summary**: Present key findings and provide actionable recommendations in a summary block.
+
+
+            These steps will help us understand sales performance differences by region and product, observe churn
+            behaviors, and identify strategic opportunities.
+          metadata: {}
+        - id: 98dc2915c09c485a8199a6c55082fe46
+          blockGroup: 4178c37143c54e2081d3fa89a03ced6e
+          sortingKey: "000005"
+          contentHash: sha256:20e846c0a147f9dd597bb72a0a8fd5ed429eb0b4d83955c1188404f4e89dd9b3
+          executionCount: null
+          outputs: []
+          type: code
+          content: >-
+            import matplotlib.pyplot as plt
+
+            import seaborn as sns
+
+
+            # Create a grouped bar chart of revenue by quarter, colored by region
+
+            plt.figure(figsize=(10, 6))
+
+            sns.barplot(x='quarter', y='revenue', hue='region', data=df, ci=None)
+
+            plt.title('Revenue by Quarter and Region')
+
+            plt.xlabel('Quarter')
+
+            plt.ylabel('Revenue ($)')
+
+            plt.legend(title='Region')
+
+            plt.tight_layout()
+
+            plt.savefig('revenue_by_quarter_region.png')
+
+            plt.show()
+          metadata: {}
+        - id: 56935d2f77ec44ab965e380249782088
+          blockGroup: af033c12883847dc934da6400ca096e3
+          sortingKey: "000006"
+          contentHash: sha256:3041bc0a75ea74ec700fec7eb4497d7c7ea73a059e1e33e51b576e5d9fea3856
+          executionCount: null
+          outputs: []
+          type: code
+          content: >-
+            # Create a line chart showing churn rate trends over quarters for each product tier
+
+            plt.figure(figsize=(10, 6))
+
+            for product in df['product'].unique():
+                product_data = df[df['product'] == product]
+                avg_churn = product_data.groupby('quarter')['churn_rate'].mean()
+                plt.plot(avg_churn.index, avg_churn.values, marker='o', label=product)
+
+            plt.title('Churn Rate Trends Over Quarters by Product Tier')
+
+            plt.xlabel('Quarter')
+
+            plt.ylabel('Churn Rate')
+
+            plt.legend(title='Product Tier')
+
+            plt.tight_layout()
+
+            plt.savefig('churn_rate_trends.png')
+
+            plt.show()
+          metadata: {}
+        - id: 9968c6888bf04515ab83bd6b71577e58
+          blockGroup: 55bf7bb11ab843c5b33ed3170cda7713
+          sortingKey: "000007"
+          contentHash: sha256:09a8852432ff5050525a513f25557fe9753eda8efbd9e0d1cfbabd2212d8acba
+          executionCount: null
+          outputs: []
+          type: code
+          content: >-
+            # Compute a pivot table of average revenue by region and product
+
+            pivot_table = df.pivot_table(values='revenue', index='region', columns='product', aggfunc='mean')
+
+            print("Pivot Table: Average Revenue by Region and Product")
+
+            display(pivot_table)
+          metadata: {}
+        - id: 89e68995b3b44ffca090e8cffa2100da
+          blockGroup: 3235ab78c5aa46e1a8b9ea2a0307998c
+          sortingKey: "000008"
+          contentHash: sha256:f8f90d00d48de2ecedfe013009847226d9062968a74fb0ff0911f5b74f22e489
+          executionCount: null
+          outputs: []
+          type: code
+          content: >-
+            # Identify the single best-performing and worst-performing region+product combo
+
+            best_perf = df.loc[df['revenue'].idxmax()]
+
+            worst_perf = df.loc[df['revenue'].idxmin()]
+
+
+            analysis = (
+                f"The best-performing region+product combination is {{best_perf['region']}} "
+                f"with the {{best_perf['product']}} product, generating ${{best_perf['revenue']:,.2f}} in revenue. "
+                f"This indicates strong market adoption or successful execution of sales strategies in this region.")
+
+            analysis += "\n"
+
+
+            analysis += (
+                f"The worst-performing region+product combination is {{worst_perf['region']}} "
+                f"with the {{worst_perf['product']}} product, generating ${{worst_perf['revenue']:,.2f}} in revenue. "
+                f"Potential factors could include lower market demand or more vigorous competition.")
+
+            print(analysis)
+          metadata: {}
+        - id: f388e1140a8e4979a491dcc4866490bb
+          blockGroup: 5e45c9ba5b1e43aa87c94a2780d8b204
+          sortingKey: "000009"
+          contentHash: sha256:448c780d660e686ef377f8320f6f100517d4132765191c2e3de0a27d7b08f811
+          executionCount: null
+          outputs: []
+          type: code
+          content: >-
+            best_perf = df.loc[df['revenue'].idxmax()]
+
+            worst_perf = df.loc[df['revenue'].idxmin()]
+
+
+            analysis = (
+                f"The best-performing region+product combination is {best_perf['region']} "
+                f"with the {best_perf['product']} product, generating ${best_perf['revenue']:,.2f} in revenue. "
+                f"This indicates strong market adoption or successful execution of sales strategies in this region.")
+
+            analysis += "\n"
+
+
+            analysis += (
+                f"The worst-performing region+product combination is {worst_perf['region']} "
+                f"with the {worst_perf['product']} product, generating ${worst_perf['revenue']:,.2f} in revenue. "
+                f"Potential factors could include lower market demand or more vigorous competition.")
+
+            print(analysis)
+          metadata: {}
+        - id: 6203751e3f394b4d95ebff7cc6159ecf
+          blockGroup: 0a3ec986682840f39f1ebf9aef4138fb
+          sortingKey: "000010"
+          contentHash: sha256:9782942c8e4a889749e8b5017735f78b8b7a9d5a0ef27a0e0ebd4cec8d3821ba
+          type: markdown
+          content: >-
+            ## Executive Summary
+
+
+            **Key Takeaways:**
+
+
+            1. **Strong Performance in Asia Pacific with Enterprise Product:**
+               - The Asia Pacific region emerged as the top performer, particularly with the Enterprise product, generating the highest revenue. This suggests a strong demand or efficient sales strategies catering to enterprise-level clients in the region.
+
+            2. **Notable Churn Rate Observations:**
+               - The churn rate trends revealed that while the Enterprise and Professional products maintained relatively consistent rates, the Starter product exhibited higher variability, possibly due to its target market's adaptive nature.
+
+            3. **Revenue Distribution Insights:**
+               - Overall, revenue distribution indicates more substantial returns from higher-tier products (Enterprise) across most regions, with North America showing lower Starter product performance.
+
+            **Recommendation:**
+
+
+            Focus should be placed on leveraging strategies that have succeeded in the Asia Pacific with the Enterprise
+            product, potentially replicating these methods in other regions. Additionally, investigating the underlying
+            factors leading to the variability in the Starter product's churn rate could help optimize customer
+            retention strategies. Understanding the limited performance of the Starter product in North America may also
+            uncover new regional opportunities or adjustments needed in marketing efforts.
+          metadata: {}
+      id: notebook-1
+      name: Sales Analysis
+version: 1.0.0
