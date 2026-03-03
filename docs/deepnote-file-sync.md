@@ -37,7 +37,7 @@ You need a Git repository connected to your project to see the export option. If
 If you already have a `.deepnote` file (for example, from a cloned repository):
 
 1. Navigate to the file in your project's file browser
-2. Click on file menu (three dots) and select **Import project from file and link**
+2. Click on the file menu (three dots) and select **Import project from file and link**
 3. Confirm the import (this replaces existing notebooks in your project)
 
 <Callout status="warning">
@@ -50,9 +50,9 @@ Once your project is linked, you can sync changes in both directions.
 
 ### Automatic sync
 
-Your project automatically syncs to the `.deepnote` file. As you make changes to the project in Deepnote Cloud, those changes will be persisted to file as well.
+Your project automatically syncs to the `.deepnote` file. As you make changes to the project in Deepnote Cloud, those changes will be persisted to the file as well.
 
-Similarly, when you pull from remote git repository or switch to different branch, Deepnote will sync notebooks from the file into linked Deepnote Cloud project.
+Similarly, when you pull from a remote Git repository or switch to a different branch, Deepnote will sync notebooks from the file into the linked Deepnote Cloud project.
 
 ### Manual sync
 
@@ -60,7 +60,7 @@ You can also trigger sync manually from the project menu or from the file ribbon
 
 - **Sync to file** — Push your current project state to the `.deepnote` file.
 
-- **Sync from file** — Pull changes from the file into your project. Use this after `git pull` or `git checkout` if you performed it from machine's terminal or programmatically from the notebook.
+- **Sync from file** — Pull changes from the file into your project. Use this after `git pull` or `git checkout` if you performed it from your machine's terminal or programmatically from the notebook.
 
 ### What gets synced
 
@@ -88,13 +88,13 @@ Unlinking stops the sync but doesn't delete the `.deepnote` file from your files
 
 ### Local development
 
-With .deepnote file sync you can easily bring your notebooks to local machine and back. Use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to run notebooks locally and [Deepnote MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) to give your agent (like Claude Code or Cursor) power tools to work with Deepnote files.
+With `.deepnote` file sync, you can easily bring your notebooks to your local machine and back. Use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to run notebooks locally and [Deepnote MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) to give your agent (like Claude Code or Cursor) power tools to work with Deepnote files.
 
 1. Clone a repository containing a `.deepnote` file
 2. Use [Deepnote extension for VS Code](/docs/vscode-extension) (for humans) or [MCP](https://github.com/deepnote/deepnote/tree/main/packages/mcp) and [CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) (for agents) to edit and run notebooks.
 3. Commit and push your changes back to the repository
-4. Pull repository in Deepnote Cloud and see changes synced to your project
+4. Pull the repository in Deepnote Cloud and see changes synced to your project
 
 ### Code review for notebooks
 
-Putting your Deepnote project in a file inside Git repository makes it part of your Git workflow. For example, you now submit and review changes to the notebook as Pull Request. Because the `.deepnote` format is human-readable YAML, notebook changes show up as meaningful diffs in GitHub/GitLab. Similarly, you could run CI on your notebooks.
+Putting your Deepnote project in a file inside a Git repository makes it part of your Git workflow. For example, you can now submit and review changes to the notebook as a pull request. Because the `.deepnote` format is human-readable YAML, notebook changes show up as meaningful diffs in GitHub/GitLab. Similarly, you could run CI on your notebooks.
