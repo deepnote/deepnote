@@ -247,6 +247,36 @@ const bigNumberBlockSchema = z.object({
 })
 
 // =============================================================================
+// MCP server config schema (shared between project settings and llm blocks)
+// =============================================================================
+
+export const mcpServerSchema = z.object({
+  name: z.string(),
+  command: z.string(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string()).optional(),
+})
+
+export type McpServerConfig = z.infer<typeof mcpServerSchema>
+
+// =============================================================================
+// LLM block schema
+// =============================================================================
+
+const llmBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('llm'),
+  content: z.string().optional(),
+  metadata: executableBlockMetadataSchema
+    .extend({
+      deepnote_model: z.string().default('auto'),
+      deepnote_max_iterations: z.number().default(10),
+      deepnote_mcp_servers: z.array(mcpServerSchema).optional(),
+    })
+    .default({}),
+})
+
+// =============================================================================
 // Input block schemas
 // =============================================================================
 
@@ -387,6 +417,7 @@ export const deepnoteBlockSchema = z.discriminatedUnion('type', [
   visualizationBlockSchema,
   buttonBlockSchema,
   bigNumberBlockSchema,
+  llmBlockSchema,
   // Input blocks
   inputTextBlockSchema,
   inputTextareaBlockSchema,
@@ -420,6 +451,7 @@ export type NotebookFunctionBlock = z.infer<typeof notebookFunctionBlockSchema>
 export type VisualizationBlock = z.infer<typeof visualizationBlockSchema>
 export type ButtonBlock = z.infer<typeof buttonBlockSchema>
 export type BigNumberBlock = z.infer<typeof bigNumberBlockSchema>
+export type LlmBlock = z.infer<typeof llmBlockSchema>
 export type InputTextBlock = z.infer<typeof inputTextBlockSchema>
 export type InputTextareaBlock = z.infer<typeof inputTextareaBlockSchema>
 export type InputCheckboxBlock = z.infer<typeof inputCheckboxBlockSchema>
@@ -448,6 +480,7 @@ export type ExecutableBlock =
   | VisualizationBlock
   | ButtonBlock
   | BigNumberBlock
+  | LlmBlock
   | InputBlock
 
 /** Union of all text cell block types */
@@ -561,6 +594,7 @@ export const deepnoteFileSchema = z.object({
             pythonVersion: z.string().optional(),
           })
           .optional(),
+        mcpServers: z.array(mcpServerSchema).optional(),
         requirements: z.array(z.string()).optional(),
         sqlCacheMaxAge: z.number().optional(),
       })

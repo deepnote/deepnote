@@ -506,6 +506,57 @@ export type DeepnoteBlock =
       executionFinishedAt?: string;
       executionStartedAt?: string;
       outputs?: any[];
+      type: 'llm';
+      content?: string;
+      metadata?: {
+        deepnote_app_is_code_hidden?: boolean;
+        deepnote_app_is_output_hidden?: boolean;
+        deepnote_app_block_visible?: boolean;
+        deepnote_app_block_width?: number;
+        deepnote_app_block_group_id?: string | null;
+        deepnote_app_block_subgroup_id?: string;
+        deepnote_app_block_order?: number;
+        allow_embed?: boolean | ('code_output' | 'code' | 'output');
+        is_code_hidden?: boolean;
+        is_output_hidden?: boolean;
+        output_cleared?: boolean;
+        execution_start?: number;
+        execution_millis?: number;
+        source_hash?: string;
+        execution_context_id?: string;
+        deepnote_cell_height?: number;
+        deepnote_output_heights?: (number | null)[];
+        deepnote_table_state?: {
+          [k: string]: any;
+        };
+        last_executed_function_notebook_id?: string;
+        last_function_run_started_at?: number;
+        function_notebook_export_states?: {
+          [k: string]: any;
+        };
+        deepnote_model?: string;
+        deepnote_max_iterations?: number;
+        deepnote_mcp_servers?: {
+          name: string;
+          command: string;
+          args?: string[];
+          env?: {
+            [k: string]: string;
+          };
+        }[];
+        [k: string]: any;
+      };
+    }
+  | {
+      id: string;
+      blockGroup: string;
+      sortingKey: string;
+      contentHash?: string;
+      version?: number;
+      executionCount?: number | null;
+      executionFinishedAt?: string;
+      executionStartedAt?: string;
+      outputs?: any[];
       type: 'input-text';
       content?: string;
       metadata?: {
@@ -1418,6 +1469,57 @@ export interface DeepnoteFile {
             executionFinishedAt?: string;
             executionStartedAt?: string;
             outputs?: any[];
+            type: 'llm';
+            content?: string;
+            metadata?: {
+              deepnote_app_is_code_hidden?: boolean;
+              deepnote_app_is_output_hidden?: boolean;
+              deepnote_app_block_visible?: boolean;
+              deepnote_app_block_width?: number;
+              deepnote_app_block_group_id?: string | null;
+              deepnote_app_block_subgroup_id?: string;
+              deepnote_app_block_order?: number;
+              allow_embed?: boolean | ('code_output' | 'code' | 'output');
+              is_code_hidden?: boolean;
+              is_output_hidden?: boolean;
+              output_cleared?: boolean;
+              execution_start?: number;
+              execution_millis?: number;
+              source_hash?: string;
+              execution_context_id?: string;
+              deepnote_cell_height?: number;
+              deepnote_output_heights?: (number | null)[];
+              deepnote_table_state?: {
+                [k: string]: any;
+              };
+              last_executed_function_notebook_id?: string;
+              last_function_run_started_at?: number;
+              function_notebook_export_states?: {
+                [k: string]: any;
+              };
+              deepnote_model?: string;
+              deepnote_max_iterations?: number;
+              deepnote_mcp_servers?: {
+                name: string;
+                command: string;
+                args?: string[];
+                env?: {
+                  [k: string]: string;
+                };
+              }[];
+              [k: string]: any;
+            };
+          }
+        | {
+            id: string;
+            blockGroup: string;
+            sortingKey: string;
+            contentHash?: string;
+            version?: number;
+            executionCount?: number | null;
+            executionFinishedAt?: string;
+            executionStartedAt?: string;
+            outputs?: any[];
             type: 'input-text';
             content?: string;
             metadata?: {
@@ -1792,6 +1894,14 @@ export interface DeepnoteFile {
         customImage?: string;
         pythonVersion?: string;
       };
+      mcpServers?: {
+        name: string;
+        command: string;
+        args?: string[];
+        env?: {
+          [k: string]: string;
+        };
+      }[];
       requirements?: string[];
       sqlCacheMaxAge?: number;
     };

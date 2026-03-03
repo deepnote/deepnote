@@ -1,5 +1,6 @@
 export { UnsupportedBlockTypeError } from './blocks'
 export { INPUT_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
+export { isLlmBlock } from './blocks/llm-blocks'
 export { convertToEnvironmentVariableName, getSqlEnvVarName } from './blocks/sql-utils'
 export type { TableState } from './blocks/table-state'
 export type {
@@ -11,6 +12,8 @@ export type {
   Execution,
   ExecutionError,
   ExecutionSummary,
+  LlmBlock,
+  McpServerConfig,
   SnapshotHashInput,
 } from './deepnote-file/deepnote-file-schema'
 export {
@@ -21,6 +24,7 @@ export {
   executionErrorSchema,
   executionSchema,
   executionSummarySchema,
+  mcpServerSchema,
 } from './deepnote-file/deepnote-file-schema'
 export { deserializeDeepnoteFile } from './deepnote-file/deserialize-deepnote-file'
 export { decodeUtf8NoBom, parseYaml } from './deepnote-file/parse-yaml'

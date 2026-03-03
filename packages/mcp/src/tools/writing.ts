@@ -411,7 +411,7 @@ function createBlock(
 
   // Add execution fields for executable blocks
   const candidate =
-    ['code', 'sql', 'notebook-function', 'visualization'].includes(spec.type) ||
+    ['code', 'sql', 'notebook-function', 'visualization', 'llm'].includes(spec.type) ||
     spec.type.startsWith('input-') ||
     spec.type === 'button' ||
     spec.type === 'big-number'

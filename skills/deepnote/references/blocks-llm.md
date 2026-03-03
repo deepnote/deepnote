@@ -1,0 +1,54 @@
+# LLM Block
+
+> Common block fields (`id`, `blockGroup`, `type`, `content`, `sortingKey`, `metadata`) are described in [SKILL.md](../SKILL.md).
+
+## LLM Block (`llm`)
+
+Agentic block that takes a user prompt, reads the full notebook context (including prior block outputs), calls an LLM, and autonomously adds new code and markdown blocks to the notebook.
+
+The LLM agent uses the OpenAI Agents SDK and can connect to external MCP servers for additional tools.
+
+**Metadata fields:**
+
+| Field                     | Type     | Default  | Description                                   |
+| ------------------------- | -------- | -------- | --------------------------------------------- |
+| `deepnote_model`          | `string` | `"auto"` | LLM model name (e.g. `gpt-4o`, `gpt-4o-mini`) |
+| `deepnote_max_iterations` | `number` | `10`     | Maximum agent turns before stopping           |
+| `deepnote_mcp_servers`    | `array`  | -        | Block-level MCP server configs (see below)    |
+
+**MCP server config** (each entry in `deepnote_mcp_servers` or `project.settings.mcpServers`):
+
+| Field     | Type                    | Required | Description                                      |
+| --------- | ----------------------- | -------- | ------------------------------------------------ |
+| `name`    | `string`                | yes      | Unique server identifier                         |
+| `command` | `string`                | yes      | Command to spawn (stdio transport)               |
+| `args`    | `string[]`              | no       | Command arguments                                |
+| `env`     | `Record<string,string>` | no       | Environment variables; `${VAR}` refs process.env |
+
+**Environment variables:**
+
+| Variable          | Required | Description                                              |
+| ----------------- | -------- | -------------------------------------------------------- |
+| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                             |
+| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc) |
+| `OPENAI_MODEL`    | no       | Default model name (overridden by `deepnote_model`)      |
+
+**Built-in agent tools:**
+
+- `add_code_block` - Adds a Python code block after the LLM block and executes it. Returns output.
+- `add_markdown_block` - Adds a markdown block after the LLM block for explanations.
+
+```yaml
+- id: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+  blockGroup: b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4
+  type: llm
+  content: "Analyze the data loaded above and create a visualization of the top 10 categories"
+  metadata:
+    deepnote_model: gpt-4o
+    deepnote_max_iterations: 5
+    deepnote_mcp_servers:
+      - name: filesystem
+        command: npx
+        args: ["-y", "@modelcontextprotocol/server-filesystem", "./data"]
+  sortingKey: a2
+```

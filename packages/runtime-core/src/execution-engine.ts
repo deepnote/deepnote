@@ -1,8 +1,15 @@
 import { readFile } from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
-import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlock } from '@deepnote/blocks'
+import {
+  createPythonCode,
+  decodeUtf8NoBom,
+  deserializeDeepnoteFile,
+  isExecutableBlock,
+  isLlmBlock,
+} from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { KernelClient } from './kernel-client'
+import { executeLlmBlock, type LlmBlockContext } from './llm-handler'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
@@ -14,6 +21,7 @@ export const executableBlockTypes: ExecutableBlock['type'][] = [
   'visualization',
   'button',
   'big-number',
+  'llm',
   'input-text',
   'input-textarea',
   'input-checkbox',
@@ -156,17 +164,26 @@ export class ExecutionEngine {
         ? new Set([options.blockId])
         : null
 
-    // Collect all executable blocks
-    const allExecutableBlocks: Array<{ block: DeepnoteBlock; notebookName: string }> = []
+    // Collect all executable blocks, tracking their notebook and position
+    const allExecutableBlocks: Array<{
+      block: DeepnoteBlock
+      notebookName: string
+      notebookIndex: number
+      blockIndex: number
+    }> = []
     for (const notebook of notebooks) {
       const sortedBlocks = this.sortBlocks(notebook.blocks)
       for (const block of sortedBlocks) {
         if (isExecutableBlock(block)) {
-          // Skip if filtering by block IDs and this isn't in the set
           if (blockIdFilter && !blockIdFilter.has(block.id)) {
             continue
           }
-          allExecutableBlocks.push({ block, notebookName: notebook.name })
+          allExecutableBlocks.push({
+            block,
+            notebookName: notebook.name,
+            notebookIndex: file.project.notebooks.indexOf(notebook),
+            blockIndex: notebook.blocks.indexOf(block),
+          })
         }
       }
     }
@@ -186,35 +203,68 @@ export class ExecutionEngine {
 
     const totalBlocks = allExecutableBlocks.length
 
+    // Track collected outputs for LLM block context
+    const collectedOutputs = new Map<string, { outputs: unknown[]; executionCount: number | null }>()
+
     // Execute blocks sequentially
     for (let i = 0; i < allExecutableBlocks.length; i++) {
-      const { block } = allExecutableBlocks[i]
+      const { block, notebookIndex, blockIndex } = allExecutableBlocks[i]
       const blockStart = Date.now()
 
       await options.onBlockStart?.(block, i, totalBlocks)
 
       try {
-        const code = createPythonCode(block)
-        const result = await this.kernel.execute(code, {
-          onOutput: output => options.onOutput?.(block.id, output),
-        })
+        if (isLlmBlock(block)) {
+          const llmContext: LlmBlockContext = {
+            kernel: this.kernel,
+            file,
+            notebookIndex,
+            llmBlockIndex: blockIndex,
+            collectedOutputs,
+          }
 
-        const blockResult: BlockExecutionResult = {
-          blockId: block.id,
-          blockType: block.type,
-          success: result.success,
-          outputs: result.outputs,
-          executionCount: result.executionCount,
-          durationMs: Date.now() - blockStart,
-        }
+          const llmResult = await executeLlmBlock(block, llmContext)
 
-        await options.onBlockDone?.(blockResult)
-        executedBlocks++
+          // Report outputs from blocks added by the LLM agent
+          for (const bo of llmResult.blockOutputs) {
+            collectedOutputs.set(bo.blockId, { outputs: bo.outputs, executionCount: bo.executionCount })
+          }
 
-        if (!result.success) {
-          failedBlocks++
-          // Fail-fast: stop on first error
-          break
+          const blockResult: BlockExecutionResult = {
+            blockId: block.id,
+            blockType: block.type,
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: llmResult.finalOutput }] as IOutput[],
+            executionCount: null,
+            durationMs: Date.now() - blockStart,
+          }
+
+          await options.onBlockDone?.(blockResult)
+          executedBlocks++
+        } else {
+          const code = createPythonCode(block)
+          const result = await this.kernel.execute(code, {
+            onOutput: output => options.onOutput?.(block.id, output),
+          })
+
+          collectedOutputs.set(block.id, { outputs: result.outputs, executionCount: result.executionCount })
+
+          const blockResult: BlockExecutionResult = {
+            blockId: block.id,
+            blockType: block.type,
+            success: result.success,
+            outputs: result.outputs,
+            executionCount: result.executionCount,
+            durationMs: Date.now() - blockStart,
+          }
+
+          await options.onBlockDone?.(blockResult)
+          executedBlocks++
+
+          if (!result.success) {
+            failedBlocks++
+            break
+          }
         }
       } catch (error) {
         failedBlocks++

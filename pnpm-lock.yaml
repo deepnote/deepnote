@@ -228,12 +228,21 @@ importers:
       '@jupyterlab/services':
         specifier: ^7.3.2
         version: 7.5.2(react@19.2.3)
+      '@openai/agents':
+        specifier: ^0.5.3
+        version: 0.5.3(ws@8.19.0)(zod@3.25.76)
+      openai:
+        specifier: ^6.25.0
+        version: 6.25.0(ws@8.19.0)(zod@3.25.76)
       tcp-port-used:
         specifier: ^1.0.2
         version: 1.0.2
       ws:
         specifier: ^8.18.0
         version: 8.19.0
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/tcp-port-used':
         specifier: ^1.0.4
@@ -990,6 +999,29 @@ packages:
   '@npmcli/fs@3.1.1':
     resolution: {integrity: sha512-q9CRWjpHCMIh5sVyefoD1cA7PkvILqCZsnSOEUUivORLjxCO/Irmue2DprETiNgEqktDBZaM1Bi+jrarx1XdCg==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
+  '@openai/agents-core@0.5.3':
+    resolution: {integrity: sha512-k7zoeBZXHZsszpTN6VJFUlJiHBqGYJPZuSeUW54i9uvVu6jE8caMJYzAuco8XZSMBo2XH0d4bf0Tl3Jglo/Hgg==}
+    peerDependencies:
+      zod: ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@openai/agents-openai@0.5.3':
+    resolution: {integrity: sha512-3U81v/vtNVaKx6JmbkPUpCjxeAJ4wBnJvn/KF+YnXhMypTYes/nwp8nLIhVVVqzk+qR/vxgo5KACYfipDeJFAA==}
+    peerDependencies:
+      zod: ^4.0.0
+
+  '@openai/agents-realtime@0.5.3':
+    resolution: {integrity: sha512-ZLPpxYGXah1WkbYflHQ0gdzCXqWko63gEa54Jt/OyBvNxYIF8mXgV/OQBC5eJssD+9/u24LQ6GEzyworpJH98w==}
+    peerDependencies:
+      zod: ^4.0.0
+
+  '@openai/agents@0.5.3':
+    resolution: {integrity: sha512-zYZ2EQopvhGe7ljxKtIqLgfSIcVlasH577f7tuITvHu5/39/9VUh9XDCqZwPr+F+jKP6ZqakYWO0CusUtbxFBg==}
+    peerDependencies:
+      zod: ^4.0.0
 
   '@oxc-project/types@0.95.0':
     resolution: {integrity: sha512-vACy7vhpMPhjEJhULNxrdR0D943TkA/MigMpJCHmBHvMXxRStRi/dPtTlfQ3uDwWSzRpT8z+7ImjZVf8JWBocQ==}
@@ -2210,6 +2242,18 @@ packages:
 
   oniguruma-to-es@4.3.4:
     resolution: {integrity: sha512-3VhUGN3w2eYxnTzHn+ikMI+fp/96KoRSVK9/kMTcFqj1NRDh2IhQCKvYxDnWePKRXY/AqH+Fuiyb7VHSzBjHfA==}
+
+  openai@6.25.0:
+    resolution: {integrity: sha512-mEh6VZ2ds2AGGokWARo18aPISI1OhlgdEIC1ewhkZr8pSIT31dec0ecr9Nhxx0JlybyOgoAT1sWeKtwPZzJyww==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   ora@9.0.0:
     resolution: {integrity: sha512-m0pg2zscbYgWbqRR6ABga5c3sZdEon7bSgjnlXC64kxtxLOyjRcbbUkLj7HFyy/FTD+P2xdBWu8snGhYI0jc4A==}
@@ -3530,6 +3574,57 @@ snapshots:
     dependencies:
       semver: 7.7.3
 
+  '@openai/agents-core@0.5.3(ws@8.19.0)(zod@3.25.76)':
+    dependencies:
+      debug: 4.4.3
+      openai: 6.25.0(ws@8.19.0)(zod@3.25.76)
+    optionalDependencies:
+      '@modelcontextprotocol/sdk': 1.26.0(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
+      - ws
+
+  '@openai/agents-openai@0.5.3(ws@8.19.0)(zod@3.25.76)':
+    dependencies:
+      '@openai/agents-core': 0.5.3(ws@8.19.0)(zod@3.25.76)
+      debug: 4.4.3
+      openai: 6.25.0(ws@8.19.0)(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
+      - ws
+
+  '@openai/agents-realtime@0.5.3(zod@3.25.76)':
+    dependencies:
+      '@openai/agents-core': 0.5.3(ws@8.19.0)(zod@3.25.76)
+      '@types/ws': 8.18.1
+      debug: 4.4.3
+      ws: 8.19.0
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@openai/agents@0.5.3(ws@8.19.0)(zod@3.25.76)':
+    dependencies:
+      '@openai/agents-core': 0.5.3(ws@8.19.0)(zod@3.25.76)
+      '@openai/agents-openai': 0.5.3(ws@8.19.0)(zod@3.25.76)
+      '@openai/agents-realtime': 0.5.3(zod@3.25.76)
+      debug: 4.4.3
+      openai: 6.25.0(ws@8.19.0)(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+
   '@oxc-project/types@0.95.0': {}
 
   '@quansync/fs@0.1.5':
@@ -4702,6 +4797,11 @@ snapshots:
       oniguruma-parser: 0.12.1
       regex: 6.1.0
       regex-recursion: 6.0.2
+
+  openai@6.25.0(ws@8.19.0)(zod@3.25.76):
+    optionalDependencies:
+      ws: 8.19.0
+      zod: 3.25.76
 
   ora@9.0.0:
     dependencies:
