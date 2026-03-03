@@ -1,11 +1,11 @@
 environment: {}
 execution:
-  finishedAt: 2026-03-03T13:08:22.927Z
-  startedAt: 2026-03-03T13:07:40.056Z
+  finishedAt: 2026-03-03T13:27:30.802Z
+  startedAt: 2026-03-03T13:27:18.731Z
 metadata:
   createdAt: 2026-03-03T00:00:00.000Z
   modifiedAt: 2026-03-03T13:00:22.842Z
-  snapshotHash: sha256:12f8f59338c824f48c84964b0c788158a9a8e8f193c7527efed913b40ada4ab0
+  snapshotHash: sha256:9b9eb1626150ccc3186d66eb595c15a27647999195eed368484cc1e7351a1ac6
 project:
   id: demo-llm-agentic
   name: Agentic Analysis Demo
@@ -124,35 +124,9 @@ project:
           outputs:
             - output_type: stream
               name: stdout
-              text: >-
-                The exploratory data analysis has been completed. Here's a summary of the process and findings:
-
-
-                1. **Analysis Plan Introduction:** A markdown block was added to outline the analysis objectives,
-                including visualizations and insights sought from the dataset.
-
-                2. **Revenue Visualization:** A grouped bar chart was created showing revenue by quarter, segmented by
-                region, to highlight geographic performance.
-
-                3. **Churn Rate Trends:** A line chart was plotted to depict churn rate trends over quarters for each
-                product tier, illustrating temporal patterns in customer retention.
-
-                4. **Revenue Averages:** A pivot table was computed to show average revenue by region and product,
-                providing a comparison of product performance across different regions.
-
-                5. **Performance Identification:** The best and worst-performing region-product combinations were
-                identified: Asia Pacific - Enterprise was the best, and North America - Starter was the worst.
-                Explanations for their performance were provided.
-
-                6. **Executive Report:** A detailed report was saved as `examples/report.md`, summarizing the findings
-                with data-driven insights and recommendations.
-
-                7. **Executive Summary:** Finally, a concise summary with three key takeaways and strategic
-                recommendations was added.
-
-
-                Through this analysis, we identified significant variations in performance, underlining the need for
-                region-specific marketing strategies and retention initiatives to enhance sales outcomes.
+              text: The line chart depicting churn rate trends over quarters for each product tier has been created and saved as
+                `churn_rate_trends_by_product.png`. Next, let's compute a pivot table of average revenue by region and
+                product.
           type: llm
           content: >
             You are a senior data analyst. The code block above created a pandas DataFrame
@@ -193,41 +167,36 @@ project:
                   - -y
                   - "@modelcontextprotocol/server-filesystem"
                   - ./examples
-        - id: 3b1c14ee32634412858a8978fdb135e3
-          blockGroup: 4e9087ace7c744d19a7528762324cf3a
+        - id: f64ca325dccc4512a32940332565aedf
+          blockGroup: 05052293d45744ea8c362a89a6921629
           sortingKey: "000004"
-          contentHash: sha256:5fb9a01ce35a1e2c77a41a4d43ff7f00df775c440c4ef99f1aa149528a902807
+          contentHash: sha256:8e10b59ef959e58636ee8c1f34ec2930a779c6913b7166f955960ab0958fb5fb
           type: markdown
           content: >-
             ## Analysis Plan
 
-            In this analysis, we will thoroughly explore the synthetic sales dataset created earlier. Our objectives
-            are:
+            In this exploratory data analysis, the following steps will be conducted:
 
 
-            1. **Visualize Revenue Distribution:** Create a grouped bar chart of revenue by quarter, separated by
-            regions to understand geographical performance.
+            1. **Visualize Revenue Trends:** A grouped bar chart will be created to illustrate revenue by quarter,
+            categorized by region.
 
-            2. **Evaluate Churn Trends:** Illustrate the trends in churn rates across different product tiers over time
-            with a line chart.
+            2. **Churn Rate Trends:** A line chart will show churn rate trends over the quarters for each product tier.
 
-            3. **Analyze Revenue Averages:** Compute a pivot table to reflect average revenue earned per region and
+            3. **Pivot Table Summary:** A pivot table will provide average revenue per combination of region and
             product.
 
-            4. **Identify Key Performers:** Determine the best and worst performing region-product combinations,
-            offering reasons for their performance.
+            4. **Performance Evaluation:** Identify the best and worst-performing region-product combinations, along
+            with explanations.
 
-            5. **Summarize Insights:** Present a concise executive summary with key takeaways and strategic
-            recommendations.
+            5. **Executive Report:** Compile the findings into an executive report.
 
-
-            This structured approach will facilitate a comprehensive understanding of the sales dynamics within the
-            dataset.
+            6. **Executive Summary:** Summarize the key takeaways and provide recommendations for strategic decisions.
           metadata: {}
-        - id: 272729db72054999a19c0f02424e4262
-          blockGroup: 1d454d4808ea4deb9c0337b58a0f4e82
+        - id: 6ed50301a56a4f049eca4557619c6b1d
+          blockGroup: 66b236c4815a44eda18182094fd4e69d
           sortingKey: "000005"
-          contentHash: sha256:7fbfd55f877d9b00243d0a158a44674e25641bfabca6c440852112d19fc4586c
+          contentHash: sha256:2d6a8b8ccda3ab92015d1781e262e9beee37a512f1b991db723f1a59fd733579
           executionCount: null
           outputs: []
           type: code
@@ -237,152 +206,84 @@ project:
             import seaborn as sns
 
 
-            # Set style for plots
+            # Set the style
 
-            sns.set(style='whitegrid')
-
-
-            # Pivot data for plotting
-
-            revenue_pivot = df.pivot_table(values='revenue', index='quarter', columns='region', aggfunc='sum')
+            sns.set(style="whitegrid")
 
 
-            # Plotting
+            # Prepare data for plotting
 
-            revenue_pivot.plot(kind='bar', figsize=(12, 6), colormap='viridis')
+            revenue_by_quarter_region = df.groupby(['quarter', 'region'])['revenue'].sum().unstack()
 
-            plt.title('Revenue by Quarter and Region')
 
-            plt.xlabel('Quarter')
+            # Plot
 
-            plt.ylabel('Total Revenue')
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            revenue_by_quarter_region.plot(kind='bar', ax=ax)
+
+
+            # Customize
+
+            ax.set_title('Quarterly Revenue by Region')
+
+            ax.set_xlabel('Quarter')
+
+            ax.set_ylabel('Revenue ($USD)')
+
+            ax.legend(title='Region')
 
             plt.xticks(rotation=45)
 
-            plt.legend(title='Region')
-
             plt.tight_layout()
 
-            plt.savefig('revenue_by_quarter_region.png')
+
+            # Save figure
+
+            plt.savefig('quarterly_revenue_by_region.png')
 
             plt.show()
           metadata: {}
-        - id: de9d697d42cb448c8ef90a13244eaa4b
-          blockGroup: 4b3b76a7b6d64ff28408c5a0f4ed3806
+        - id: 63e1503c31824caaab680f42597740eb
+          blockGroup: 343efa4f34e0401f99804bfe86350cbe
           sortingKey: "000006"
-          contentHash: sha256:22fe25a25a02e1dc8b26c6460d28ef8cb8350f04f49c9eb26a81da750dd3da11
+          contentHash: sha256:7df57f53e5c70d970cb981e7d76191ac2dae48dcf248a933af565ed5f156f33e
           executionCount: null
           outputs: []
           type: code
           content: >-
-            # Compute churn rate trends over quarters for each product tier
+            # Prepare data for plotting
 
-            churn_pivot = df.pivot_table(values='churn_rate', index='quarter', columns='product', aggfunc='mean')
+            churn_trends = df.pivot_table(index='quarter', columns='product', values='churn_rate')
 
 
-            # Plotting
+            # Plot
 
-            churn_pivot.plot(kind='line', marker='o', figsize=(12, 6), colormap='tab10')
+            fig, ax = plt.subplots(figsize=(10, 6))
 
-            plt.title('Churn Rate Trends Over Quarters for Each Product Tier')
+            churn_trends.plot(kind='line', ax=ax, marker='o')
 
-            plt.xlabel('Quarter')
 
-            plt.ylabel('Average Churn Rate')
+            # Customize
+
+            ax.set_title('Churn Rate Trends Over Quarters by Product Tier')
+
+            ax.set_xlabel('Quarter')
+
+            ax.set_ylabel('Churn Rate')
+
+            ax.legend(title='Product Tier')
 
             plt.xticks(rotation=45)
 
-            plt.grid(True)
-
             plt.tight_layout()
 
-            plt.savefig('churn_rate_trends.png')
+
+            # Save figure
+
+            plt.savefig('churn_rate_trends_by_product.png')
 
             plt.show()
-          metadata: {}
-        - id: d78daf9bc52443e5b8b6af37133665e7
-          blockGroup: 3525fc44b3124e3fb31369e3f06e980e
-          sortingKey: "000007"
-          contentHash: sha256:896938de50746b4915e17859f881b72c98e264f760457c7d2c4f4a77b1ac9ed7
-          executionCount: null
-          outputs: []
-          type: code
-          content: >-
-            # Compute a pivot table of average revenue by region × product
-
-            avg_revenue_pivot = df.pivot_table(values='revenue', index='region', columns='product', aggfunc='mean')
-
-            avg_revenue_pivot_display = avg_revenue_pivot.style.format('${:,.2f}')
-
-            avg_revenue_pivot_display
-          metadata: {}
-        - id: c317dcca8aeb4b5c84f54880ccf1efea
-          blockGroup: c163d3d2f5f54e9daebf1e51a196b83d
-          sortingKey: "000008"
-          contentHash: sha256:743e9bd907ff3d48cca44151ad5b13f36b6e4adfee06209e50d3d721c0a15f72
-          executionCount: null
-          outputs: []
-          type: code
-          content: >-
-            # Identify the best-performing and worst-performing region-product combo based on total revenue
-
-            total_revenue_by_combo = df.groupby(['region', 'product'])['revenue'].sum()
-
-
-            # Best-performing combo
-
-            best_performing_combo = total_revenue_by_combo.idxmax()
-
-            best_performance_value = total_revenue_by_combo.max()
-
-
-            # Worst-performing combo
-
-            worst_performing_combo = total_revenue_by_combo.idxmin()
-
-            worst_performance_value = total_revenue_by_combo.min()
-
-
-            # Explanation
-
-            best_explanation = (
-                f"The best-performing region-product combination is {best_performing_combo} with total revenue of "
-                f"${best_performance_value:,.2f}. This performance could be attributed to a strong market presence or high demand in the "
-                f"{best_performing_combo[0]} region for the {best_performing_combo[1]} product.")
-            worst_explanation = (
-                f"Conversely, the worst-performing combination is {worst_performing_combo} with total revenue of "
-                f"${worst_performance_value:,.2f}. This could be due to market saturation or competition in the {worst_performing_combo[0]} "
-                f"region for the {worst_performing_combo[1]} product.")
-
-            best_explanation, worst_explanation
-          metadata: {}
-        - id: 52302b29209d48feb715dad599cfe981
-          blockGroup: b1868ea4227e4fd9a459a441ce13354d
-          sortingKey: "000009"
-          contentHash: sha256:037ffe6cf38d9ba9977c11bfbefa279d38461e396499f1f257dc1cd99cbc95b3
-          type: markdown
-          content: >-
-            ## Executive Summary
-
-
-            ### Key Takeaways
-
-            1. **Asia Pacific Dominance:** The Asia Pacific region demonstrated the highest revenue generation,
-            especially with the Enterprise product, highlighting its robust market potential.
-
-            2. **Churn Rate Insights:** Churn rates varied significantly across product tiers, indicating different
-            levels of customer satisfaction and retention challenges.
-
-            3. **Performance Disparity:** There's a marked contrast in performance between region-product combinations,
-            necessitating targeted marketing efforts for underperforming areas.
-
-
-            ### Recommendation
-
-            To capitalize on high-performing regions and improve low-performing sectors, it is essential to tailor
-            strategies towards customer acquisition and retention, based on regional market needs and competitive
-            dynamics. Emphasizing market research and customized offerings would likely yield improved outcomes across
-            all regions.
           metadata: {}
       id: notebook-1
       name: Sales Analysis

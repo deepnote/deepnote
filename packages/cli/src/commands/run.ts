@@ -18,6 +18,8 @@ import {
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
+import { marked } from 'marked'
+import { markedTerminal } from 'marked-terminal'
 import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
@@ -797,6 +799,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
   let llmStreamed = false
+  let llmTextBuffer = ''
 
   // Profiling: track memory before each block and collect profile data
   const showProfile = options.profile && !isMachineOutput
@@ -855,6 +858,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
         if (!isMachineOutput) {
           llmStreamed = false
+          llmTextBuffer = ''
           const c = getChalk()
           process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
@@ -909,13 +913,18 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
             output(`${prefix}${c.red('✗')}`)
           }
 
-          // Render outputs (skip for LLM blocks that already streamed)
-          if (!llmStreamed) {
+          if (llmStreamed && llmTextBuffer) {
+            marked.use(markedTerminal())
+            const rendered = marked.parse(llmTextBuffer)
+            if (typeof rendered === 'string') {
+              output('')
+              process.stdout.write(rendered)
+            }
+          } else if (!llmStreamed) {
             for (const blockOutput of result.outputs) {
               renderOutput(blockOutput)
             }
 
-            // Add blank line between blocks for readability
             if (result.outputs.length > 0) {
               output('')
             }
@@ -943,7 +952,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
                 : ''
               process.stdout.write(` ${status}${preview ? c.dim(` ${preview}`) : ''}`)
             } else if (event.type === 'text_delta') {
-              process.stdout.write(event.text)
+              llmTextBuffer += event.text
             }
           }
         : undefined,
