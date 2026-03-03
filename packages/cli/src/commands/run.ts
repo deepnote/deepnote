@@ -12,6 +12,7 @@ import {
   type ExecutionSummary,
   executableBlockTypeSet,
   type IOutput,
+  type LlmStreamEvent,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
   resolvePythonExecutable,
 } from '@deepnote/runtime-core'
@@ -795,6 +796,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
+  let llmStreamed = false
 
   // Profiling: track memory before each block and collect profile data
   const showProfile = options.profile && !isMachineOutput
@@ -852,6 +854,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
         }
 
         if (!isMachineOutput) {
+          llmStreamed = false
           const c = getChalk()
           process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
@@ -899,23 +902,51 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
 
         if (!isMachineOutput) {
           const c = getChalk()
+          const prefix = llmStreamed ? '\n' : ''
           if (result.success) {
-            output(c.green('✓') + c.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
+            output(`${prefix}${c.green('✓')}${c.dim(` (${result.durationMs}ms${memoryDeltaStr})`)}`)
           } else {
-            output(c.red('✗'))
+            output(`${prefix}${c.red('✗')}`)
           }
 
-          // Render outputs
-          for (const blockOutput of result.outputs) {
-            renderOutput(blockOutput)
-          }
+          // Render outputs (skip for LLM blocks that already streamed)
+          if (!llmStreamed) {
+            for (const blockOutput of result.outputs) {
+              renderOutput(blockOutput)
+            }
 
-          // Add blank line between blocks for readability
-          if (result.outputs.length > 0) {
-            output('')
+            // Add blank line between blocks for readability
+            if (result.outputs.length > 0) {
+              output('')
+            }
           }
         }
       },
+
+      onLlmEvent: !isMachineOutput
+        ? (event: LlmStreamEvent) => {
+            llmStreamed = true
+            const c = getChalk()
+            if (event.type === 'tool_called') {
+              process.stdout.write(`\n${c.dim(`  -> ${event.toolName}()`)}`)
+            } else if (event.type === 'tool_output') {
+              const failed = event.output.startsWith('Execution failed') || event.output.startsWith('Execution error')
+              const status = failed ? c.red('[failed]') : c.green('[ok]')
+              const contentLine = event.output
+                .split('\n')
+                .map(l => l.trim())
+                .find(l => l.length > 0 && l !== 'Output:')
+              const preview = contentLine
+                ? contentLine.length > 80
+                  ? `${contentLine.slice(0, 80)}...`
+                  : contentLine
+                : ''
+              process.stdout.write(` ${status}${preview ? c.dim(` ${preview}`) : ''}`)
+            } else if (event.type === 'text_delta') {
+              process.stdout.write(event.text)
+            }
+          }
+        : undefined,
     })
 
     // Save execution outputs to snapshot

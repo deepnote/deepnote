@@ -4,6 +4,11 @@ import { Agent, MCPServerStdio, OpenAIChatCompletionsModel, run, setTracingDisab
 import OpenAI from 'openai'
 import type { KernelClient } from './kernel-client'
 
+export type LlmStreamEvent =
+  | { type: 'tool_called'; toolName: string }
+  | { type: 'tool_output'; toolName: string; output: string }
+  | { type: 'text_delta'; text: string }
+
 export interface LlmBlockContext {
   kernel: KernelClient
   file: DeepnoteFile
@@ -11,6 +16,7 @@ export interface LlmBlockContext {
   llmBlockIndex: number
   collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
   onLog?: (message: string) => void
+  onLlmEvent?: (event: LlmStreamEvent) => void
 }
 
 export interface LlmBlockResult {
@@ -268,7 +274,36 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
   context.onLog?.(`[llm] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpServers.length}`)
 
   try {
-    const result = await run(agent, block.content ?? '', { maxTurns })
+    const result = await run(agent, block.content ?? '', { stream: true, maxTurns })
+
+    for await (const event of result) {
+      if (event.type === 'run_item_stream_event') {
+        if (event.name === 'tool_called') {
+          const raw = event.item.rawItem
+          const name =
+            raw && typeof raw === 'object' && 'type' in raw && raw.type === 'function_call' && 'name' in raw
+              ? String(raw.name)
+              : 'unknown'
+          context.onLlmEvent?.({ type: 'tool_called', toolName: name })
+        } else if (event.name === 'tool_output') {
+          const json = event.item.toJSON() as Record<string, unknown>
+          const outputStr = typeof json.output === 'string' ? json.output : ''
+          const raw = event.item.rawItem
+          const name =
+            raw && typeof raw === 'object' && 'type' in raw && raw.type === 'function_call_result' && 'name' in raw
+              ? String(raw.name)
+              : 'tool'
+          context.onLlmEvent?.({ type: 'tool_output', toolName: name, output: outputStr })
+        }
+      } else if (event.type === 'raw_model_stream_event') {
+        const data = event.data as Record<string, unknown>
+        if (data.type === 'output_text_delta' && typeof data.delta === 'string') {
+          context.onLlmEvent?.({ type: 'text_delta', text: data.delta })
+        }
+      }
+    }
+
+    await result.completed
 
     return {
       finalOutput: result.finalOutput ?? '',

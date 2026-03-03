@@ -9,7 +9,7 @@ import {
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { KernelClient } from './kernel-client'
-import { executeLlmBlock, type LlmBlockContext } from './llm-handler'
+import { executeLlmBlock, type LlmBlockContext, type LlmStreamEvent } from './llm-handler'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
@@ -51,6 +51,7 @@ export interface ExecutionOptions {
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
+  onLlmEvent?: (event: LlmStreamEvent) => void
   onServerStarting?: () => void
   onServerReady?: () => void
 }
@@ -221,6 +222,7 @@ export class ExecutionEngine {
             notebookIndex,
             llmBlockIndex: blockIndex,
             collectedOutputs,
+            onLlmEvent: options.onLlmEvent,
           }
 
           const llmResult = await executeLlmBlock(block, llmContext)
