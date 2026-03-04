@@ -5,36 +5,40 @@ import type { IOutput } from '@jupyterlab/nbformat'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
-const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient } = vi.hoisted(() => {
-  const mockKernelClient = {
-    connect: vi.fn(),
-    execute: vi.fn(),
-    disconnect: vi.fn(),
-  }
+const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient, mockExecuteLlmBlock } =
+  vi.hoisted(() => {
+    const mockKernelClient = {
+      connect: vi.fn(),
+      execute: vi.fn(),
+      disconnect: vi.fn(),
+    }
 
-  const mockServerInfo = {
-    url: 'http://localhost:8888',
-    jupyterPort: 8888,
-    lspPort: 8889,
-    process: {} as unknown,
-  }
+    const mockServerInfo = {
+      url: 'http://localhost:8888',
+      jupyterPort: 8888,
+      lspPort: 8889,
+      process: {} as unknown,
+    }
 
-  const mockStartServer = vi.fn().mockResolvedValue(mockServerInfo)
-  const mockStopServer = vi.fn().mockResolvedValue(undefined)
+    const mockStartServer = vi.fn().mockResolvedValue(mockServerInfo)
+    const mockStopServer = vi.fn().mockResolvedValue(undefined)
 
-  // Create actual constructor function for the class mock
-  const MockKernelClient = vi.fn(function (this: typeof mockKernelClient) {
-    Object.assign(this, mockKernelClient)
+    // Create actual constructor function for the class mock
+    const MockKernelClient = vi.fn(function (this: typeof mockKernelClient) {
+      Object.assign(this, mockKernelClient)
+    })
+
+    const mockExecuteLlmBlock = vi.fn()
+
+    return {
+      mockKernelClient,
+      mockServerInfo,
+      mockStartServer,
+      mockStopServer,
+      MockKernelClient,
+      mockExecuteLlmBlock,
+    }
   })
-
-  return {
-    mockKernelClient,
-    mockServerInfo,
-    mockStartServer,
-    mockStopServer,
-    MockKernelClient,
-  }
-})
 
 vi.mock('./kernel-client', () => ({
   KernelClient: MockKernelClient,
@@ -45,11 +49,26 @@ vi.mock('./server-starter', () => ({
   stopServer: mockStopServer,
 }))
 
+vi.mock('./llm-handler', async importOriginal => {
+  const actual = await importOriginal<typeof import('./llm-handler')>()
+  return {
+    ...actual,
+    executeLlmBlock: mockExecuteLlmBlock,
+  }
+})
+
 import { ExecutionEngine } from './execution-engine'
 
 // Load example files (tests run from project root)
 function loadExampleFile(filename: string): DeepnoteFile {
   const filePath = `examples/${filename}`
+  const rawBytes = readFileSync(filePath)
+  const content = decodeUtf8NoBom(rawBytes)
+  return deserializeDeepnoteFile(content)
+}
+
+function loadFixture(filename: string): DeepnoteFile {
+  const filePath = `test-fixtures/${filename}`
   const rawBytes = readFileSync(filePath)
   const content = decodeUtf8NoBom(rawBytes)
   return deserializeDeepnoteFile(content)
@@ -808,6 +827,111 @@ describe('ExecutionEngine', () => {
         expect(executionOrder[0]).toBe('input')
         expect(executionOrder[1]).toBe('block')
       })
+    })
+  })
+
+  describe('LLM block execution', () => {
+    const LLM_FIXTURE = loadFixture('llm-block.deepnote')
+
+    beforeEach(() => {
+      mockExecuteLlmBlock.mockResolvedValue({
+        finalOutput: 'Analysis complete.',
+        addedBlockIds: [],
+        blockOutputs: [],
+      })
+    })
+
+    it('calls executeLlmBlock for llm blocks', async () => {
+      await engine.start()
+      await engine.runProject(LLM_FIXTURE)
+
+      expect(mockExecuteLlmBlock).toHaveBeenCalledTimes(1)
+    })
+
+    it('passes the llm block to executeLlmBlock', async () => {
+      await engine.start()
+      await engine.runProject(LLM_FIXTURE)
+
+      const [block] = mockExecuteLlmBlock.mock.calls[0]
+      expect(block.type).toBe('llm')
+      expect(block.content).toContain('Analyze the DataFrame')
+    })
+
+    it('passes kernel, file, and notebook index in context', async () => {
+      await engine.start()
+      await engine.runProject(LLM_FIXTURE)
+
+      const [, context] = mockExecuteLlmBlock.mock.calls[0]
+      expect(context.kernel).toBeDefined()
+      expect(context.file).toBeDefined()
+      expect(context.notebookIndex).toBe(0)
+    })
+
+    it('passes integrations through to LLM context', async () => {
+      const integrations = [{ id: 'pg-1', name: 'Postgres', type: 'pgsql' }]
+      await engine.start()
+      await engine.runProject(LLM_FIXTURE, { integrations })
+
+      const [, context] = mockExecuteLlmBlock.mock.calls[0]
+      expect(context.integrations).toEqual(integrations)
+    })
+
+    it('passes onLlmEvent callback through to LLM context', async () => {
+      const onLlmEvent = vi.fn()
+      await engine.start()
+      await engine.runProject(LLM_FIXTURE, { onLlmEvent })
+
+      const [, context] = mockExecuteLlmBlock.mock.calls[0]
+      expect(context.onLlmEvent).toBe(onLlmEvent)
+    })
+
+    it('executes code blocks before llm block in order', async () => {
+      const executionOrder: string[] = []
+      mockKernelClient.execute.mockImplementation(() => {
+        executionOrder.push('code')
+        return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+      })
+      mockExecuteLlmBlock.mockImplementation(() => {
+        executionOrder.push('llm')
+        return Promise.resolve({ finalOutput: '', addedBlockIds: [], blockOutputs: [] })
+      })
+
+      await engine.start()
+      await engine.runProject(LLM_FIXTURE)
+
+      expect(executionOrder).toEqual(['code', 'llm'])
+    })
+
+    it('reports llm block result via onBlockDone', async () => {
+      const onBlockDone = vi.fn()
+      await engine.start()
+      await engine.runProject(LLM_FIXTURE, { onBlockDone })
+
+      const llmResult = onBlockDone.mock.calls.find(
+        (args: unknown[]) => (args[0] as { blockType: string }).blockType === 'llm'
+      )
+      expect(llmResult).toBeDefined()
+      expect(llmResult?.[0].success).toBe(true)
+      expect(llmResult?.[0].outputs[0]).toEqual(
+        expect.objectContaining({ output_type: 'stream', text: 'Analysis complete.' })
+      )
+    })
+
+    it('handles llm block failure gracefully', async () => {
+      mockExecuteLlmBlock.mockRejectedValue(new Error('OPENAI_API_KEY not set'))
+
+      await engine.start()
+      const summary = await engine.runProject(LLM_FIXTURE)
+
+      expect(summary.failedBlocks).toBe(1)
+    })
+
+    it('includes llm block in total block count', async () => {
+      await engine.start()
+      const summary = await engine.runProject(LLM_FIXTURE)
+
+      expect(summary.totalBlocks).toBe(2)
+      expect(summary.executedBlocks).toBe(2)
     })
   })
 })

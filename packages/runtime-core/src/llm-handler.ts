@@ -26,7 +26,7 @@ export interface LlmBlockResult {
   blockOutputs: Array<{ blockId: string; outputs: unknown[]; executionCount: number | null }>
 }
 
-function resolveEnvVars(env: Record<string, string> | undefined): Record<string, string> | undefined {
+export function resolveEnvVars(env: Record<string, string> | undefined): Record<string, string> | undefined {
   if (!env) return undefined
   const resolved: Record<string, string> = {}
   for (const [key, value] of Object.entries(env)) {
@@ -39,7 +39,7 @@ function generateSortingKey(index: number): string {
   return `a${index}`
 }
 
-function serializeNotebookContext(
+export function serializeNotebookContext(
   file: DeepnoteFile,
   notebookIndex: number,
   collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
@@ -86,7 +86,7 @@ function serializeNotebookContext(
   return lines.join('\n')
 }
 
-function buildSystemPrompt(
+export function buildSystemPrompt(
   notebookContext: string,
   integrations?: Array<{ id: string; name: string; type: string }>
 ): string {
@@ -348,7 +348,7 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
   }
 }
 
-function mergeMcpConfigs(projectServers: McpServerConfig[], blockServers: McpServerConfig[]): McpServerConfig[] {
+export function mergeMcpConfigs(projectServers: McpServerConfig[], blockServers: McpServerConfig[]): McpServerConfig[] {
   const byName = new Map<string, McpServerConfig>()
   for (const s of projectServers) {
     byName.set(s.name, s)
