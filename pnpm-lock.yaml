@@ -118,11 +118,11 @@ importers:
         specifier: ^17.2.3
         version: 17.2.3
       marked:
-        specifier: ^17.0.3
-        version: 17.0.3
+        specifier: ^15.0.12
+        version: 15.0.12
       marked-terminal:
         specifier: ^7.3.0
-        version: 7.3.0(marked@17.0.3)
+        version: 7.3.0(marked@15.0.12)
       ora:
         specifier: ^9.0.0
         version: 9.0.0
@@ -2173,9 +2173,9 @@ packages:
     peerDependencies:
       marked: '>=1 <16'
 
-  marked@17.0.3:
-    resolution: {integrity: sha512-jt1v2ObpyOKR8p4XaUJVk3YWRJ5n+i4+rjQopxvV32rSndTJXvIzuUdWWIy/1pFQMkQmvTXawzDNqOH/CUmx6A==}
-    engines: {node: '>= 20'}
+  marked@15.0.12:
+    resolution: {integrity: sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA==}
+    engines: {node: '>= 18'}
     hasBin: true
 
   math-intrinsics@1.1.0:
@@ -4838,18 +4838,18 @@ snapshots:
     dependencies:
       semver: 7.7.3
 
-  marked-terminal@7.3.0(marked@17.0.3):
+  marked-terminal@7.3.0(marked@15.0.12):
     dependencies:
       ansi-escapes: 7.1.1
       ansi-regex: 6.2.2
       chalk: 5.6.2
       cli-highlight: 2.1.11
       cli-table3: 0.6.5
-      marked: 17.0.3
+      marked: 15.0.12
       node-emoji: 2.2.0
       supports-hyperlinks: 3.2.0
 
-  marked@17.0.3: {}
+  marked@15.0.12: {}
 
   math-intrinsics@1.1.0: {}
 
