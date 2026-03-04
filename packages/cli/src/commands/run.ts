@@ -275,6 +275,8 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     const lastNotebook = file.project.notebooks[file.project.notebooks.length - 1]
     if (lastNotebook) {
       lastNotebook.blocks.push(createLlmBlock(options.prompt, lastNotebook.blocks.length))
+    } else {
+      throw new Error('Cannot append prompt: file contains no notebooks')
     }
   }
 
