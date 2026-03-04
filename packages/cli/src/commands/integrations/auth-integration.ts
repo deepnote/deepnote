@@ -1,4 +1,5 @@
 import {
+  type DatabaseIntegrationMetadataByType,
   type DatabaseIntegrationType,
   databaseIntegrationConfigSchema,
   isDatabaseIntegrationType,
@@ -7,11 +8,11 @@ import {
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
-import { isMap, isSeq } from 'yaml'
+import { type Document, isMap, isSeq } from 'yaml'
 import z from 'zod'
 import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
-import { getDefaultTokensFilePath } from '../../federated-auth/federated-auth-tokens'
+import { getDefaultTokensFilePath, saveTokenForIntegration } from '../../federated-auth/federated-auth-tokens'
 import { runOAuthFlow } from '../../federated-auth/oauth-local-server'
 import { debug, log, output } from '../../output'
 import { readDotEnv } from '../../utils/dotenv'
@@ -32,7 +33,7 @@ interface FederatedIntegrationSummary {
   federatedAuthMethod: string
 }
 
-function getFederatedAuthIntegrationSummaries(doc: import('yaml').Document): FederatedIntegrationSummary[] {
+function getFederatedAuthIntegrationSummaries(doc: Document): FederatedIntegrationSummary[] {
   const integrations = doc.get('integrations')
   if (!isSeq(integrations)) {
     return []
@@ -80,33 +81,6 @@ async function promptSelectFederatedIntegration(
   })
 }
 
-function extractTrinoOAuthParams(metadata: Record<string, unknown>): {
-  authUrl: string
-  tokenUrl: string
-  clientId: string
-  clientSecret: string
-} {
-  const authUrl = metadata.authUrl
-  const tokenUrl = metadata.tokenUrl
-  const clientId = metadata.clientId
-  const clientSecret = metadata.clientSecret
-
-  if (typeof authUrl !== 'string' || !authUrl) {
-    throw new Error('Trino OAuth authUrl is required. Edit your integration and set authUrl in metadata.')
-  }
-  if (typeof tokenUrl !== 'string' || !tokenUrl) {
-    throw new Error('Trino OAuth tokenUrl is required. Edit your integration and set tokenUrl in metadata.')
-  }
-  if (typeof clientId !== 'string' || !clientId) {
-    throw new Error('Trino OAuth clientId is required. Edit your integration and set clientId in metadata.')
-  }
-  if (typeof clientSecret !== 'string' || !clientSecret) {
-    throw new Error('Trino OAuth clientSecret is required. Edit your integration and set clientSecret in metadata.')
-  }
-
-  return { authUrl, tokenUrl, clientId, clientSecret }
-}
-
 export async function authIntegration(options: IntegrationsAuthOptions): Promise<void> {
   const filePath = options.file ?? DEFAULT_INTEGRATIONS_FILE
   const envFilePath = options.envFile ?? DEFAULT_ENV_FILE
@@ -140,14 +114,9 @@ export async function authIntegration(options: IntegrationsAuthOptions): Promise
   const dotEnvVars = await readDotEnv(envFilePath)
   const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...process.env }
 
-  let integrationRawJson = found.map.toJSON() as Record<string, unknown>
-  try {
-    integrationRawJson = resolveEnvVarRefsFromMap(integrationRawJson, envVars) as Record<string, unknown>
-  } catch (error) {
-    debug(`Failed to resolve env: refs in integration metadata: ${error}`)
-  }
+  const integrationRaw = resolveEnvVarRefsFromMap(found.map.toJSON(), envVars)
 
-  const configResult = databaseIntegrationConfigSchema.safeParse(integrationRawJson)
+  const configResult = databaseIntegrationConfigSchema.safeParse(integrationRaw)
   if (!configResult.success) {
     throw new Error(
       `Integration "${found.map.get('id')}" failed validation: ${configResult.error.issues.map(i => i.message).join('; ')}`
@@ -170,8 +139,11 @@ export async function authIntegration(options: IntegrationsAuthOptions): Promise
     )
   }
 
-  const metadata = integration.metadata as Record<string, unknown>
-  const { authUrl, tokenUrl, clientId, clientSecret } = extractTrinoOAuthParams(metadata)
+  // TODO: fix this force casting
+  const { authUrl, tokenUrl, clientId, clientSecret } = integration.metadata as Extract<
+    DatabaseIntegrationMetadataByType['trino'],
+    { authMethod: 'trino-oauth' }
+  >
 
   log(chalk.dim(`Authenticating integration "${integration.name}" (${integration.type})...`))
 
@@ -182,6 +154,8 @@ export async function authIntegration(options: IntegrationsAuthOptions): Promise
     clientId,
     clientSecret,
   })
+
+  await saveTokenForIntegration(tokenEntry)
 
   const tokensPath = getDefaultTokensFilePath()
   output(chalk.green(`Successfully authenticated "${integration.name}". Tokens stored in ${tokensPath}`))

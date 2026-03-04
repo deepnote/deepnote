@@ -1,12 +1,17 @@
 import crypto from 'node:crypto'
+import type { Server } from 'node:http'
 import type { Request, Response } from 'express'
 import express from 'express'
 import open from 'open'
 import passport from 'passport'
-import { Strategy as OAuth2Strategy, type StrategyOptions } from 'passport-oauth2'
-import { log } from '../output'
-import { saveTokenForIntegration } from './federated-auth-tokens'
+import { Strategy as OAuth2Strategy, type StrategyOptions, type VerifyFunction } from 'passport-oauth2'
+import { z } from 'zod'
+import { error, log } from '../output'
 import type { FederatedAuthTokenEntry } from './federated-auth-tokens-schema'
+
+const oauthResultsSchema = z.object({
+  expires_in: z.number().optional(),
+})
 
 const OAUTH_PORT = 21337
 
@@ -43,19 +48,37 @@ export interface RunOAuthFlowParams {
   clientSecret: string
 }
 
-export async function runOAuthFlow(params: RunOAuthFlowParams): Promise<FederatedAuthTokenEntry> {
+export function runOAuthFlow(params: RunOAuthFlowParams): Promise<FederatedAuthTokenEntry> {
   const { integrationId, authUrl, tokenUrl, clientId, clientSecret } = params
 
   const callbackURL = `http://localhost:${OAUTH_PORT}${CALLBACK_PATH}`
   const startURL = `http://localhost:${OAUTH_PORT}${START_PATH}`
 
-  return new Promise((resolve, reject) => {
-    let resolveOnce!: (entry: FederatedAuthTokenEntry) => void
-    let rejectOnce!: (err: Error) => void
-    const completion = new Promise<FederatedAuthTokenEntry>((res, rej) => {
-      resolveOnce = res
-      rejectOnce = rej
-    })
+  return new Promise<FederatedAuthTokenEntry>((pResolve, pReject) => {
+    let server: Server | null = null
+
+    const closeServer = () => {
+      if (server != null) {
+        server.closeAllConnections()
+        server.close()
+        server = null
+      }
+    }
+
+    const resolve = (entry: FederatedAuthTokenEntry) => {
+      closeServer()
+      pResolve(entry)
+    }
+
+    const reject = (err: Error) => {
+      closeServer()
+      pReject(err)
+    }
+
+    const flowTimeoutMs = 5 * 60 * 1000
+    const flowTimeout = setTimeout(() => {
+      reject(new Error('OAuth flow timed out. Please try again.'))
+    }, flowTimeoutMs)
 
     const strategyOptions: StrategyOptions = {
       clientID: clientId,
@@ -64,40 +87,44 @@ export async function runOAuthFlow(params: RunOAuthFlowParams): Promise<Federate
       tokenURL: tokenUrl,
       scope: ['openid', 'email', 'profile', 'offline_access'],
       callbackURL,
-      customHeaders: { 'User-Agent': 'Deepnote' },
+      customHeaders: { 'User-Agent': 'Deepnote CLI' },
       store: createMemoryStateStore(),
     }
 
-    const verifyCallback = async (
+    const verifyCallback: VerifyFunction = (
       accessToken: string,
       refreshToken: string,
+      results: unknown,
       _profile: unknown,
-      done: (err: Error | null, user?: { id: string }) => void
+      done: (err: Error | null) => void
     ) => {
+      clearTimeout(flowTimeout)
+
       if (!refreshToken || refreshToken.length === 0) {
-        return done(
+        done(
           new Error(
             'Refresh token was not present in the response from your OAuth provider. ' +
               'Please make sure that your OAuth provider is configured to issue refresh tokens.'
           )
         )
+        return
       }
 
       try {
-        const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString()
+        const parsed = oauthResultsSchema.safeParse(results)
+        const expiresIn = parsed.success ? parsed.data.expires_in : undefined
+        const expiresAt = expiresIn != null ? new Date(Date.now() + expiresIn * 1000).toISOString() : undefined
         const entry: FederatedAuthTokenEntry = {
           integrationId,
           accessToken,
           refreshToken,
           expiresAt,
         }
-        await saveTokenForIntegration(entry)
-        done(null, { id: integrationId })
-        resolveOnce(entry)
+        done(null)
+        resolve(entry)
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err))
         done(error)
-        rejectOnce(error)
       }
     }
 
@@ -113,36 +140,31 @@ export async function runOAuthFlow(params: RunOAuthFlowParams): Promise<Federate
     app.get(CALLBACK_PATH, (req: Request, res: Response) => {
       passport.authenticate('trino-oauth', { session: false }, (err: Error | null, _user: unknown) => {
         if (err) {
-          const html = `<!DOCTYPE html><html><body><h2>${err.name}</h2><p>${err.message}</p></body></html>`
-          res.status(400).send(html)
-          rejectOnce(err)
+          const errorHtml =
+            '<!DOCTYPE html><html><head><title>Error</title></head><body><p>The authentication failed. Please try again. Check logs for more details.</p></body></html>'
+          res.status(400).send(errorHtml)
+          error(err.message)
+          if (err.stack != null) {
+            error(err.stack)
+          }
+          reject(err)
           return
         }
+
         const successHtml =
           '<!DOCTYPE html><html><head><title>Success</title></head><body><p>The authentication was successful! You can close this window and continue in the terminal.</p></body></html>'
         res.send(successHtml)
       })(req, res)
     })
 
-    const server = app.listen(OAUTH_PORT, () => {
+    server = app.listen(OAUTH_PORT, () => {
       log('Opening browser to authenticate...')
       log('If the browser does not open automatically, visit:')
       log(startURL)
-      try {
-        open(startURL).catch(() => {})
-      } catch {
-        // ignore
-      }
+      open(startURL).catch(err => {
+        log('Error opening browser:')
+        log(err instanceof err ? err.message : String(err))
+      })
     })
-
-    completion
-      .then(entry => {
-        server.close()
-        resolve(entry)
-      })
-      .catch(err => {
-        server.close()
-        reject(err)
-      })
   })
 }

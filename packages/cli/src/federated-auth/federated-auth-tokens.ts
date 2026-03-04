@@ -189,7 +189,9 @@ export async function saveTokenForIntegration(entry: FederatedAuthTokenEntry, fi
  */
 export function isTokenExpired(tokenEntry: FederatedAuthTokenEntry): boolean {
   const expiresAt = tokenEntry.expiresAt
-  if (!expiresAt) return true
+  if (!expiresAt) {
+    return true
+  }
   const expiryTime = new Date(expiresAt).getTime()
   const now = Date.now()
   const bufferSeconds = 60
