@@ -36,7 +36,7 @@ export function resolveEnvVars(env: Record<string, string> | undefined): Record<
 }
 
 function generateSortingKey(index: number): string {
-  return `a${index}`
+  return `a${index.toString().padStart(8, '0')}`
 }
 
 export function serializeNotebookContext(
