@@ -1,6 +1,7 @@
 import {
-  type DatabaseIntegrationMetadataByType,
+  type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
+  TrinoAuthMethods,
   databaseIntegrationConfigSchema,
   isDatabaseIntegrationType,
   isFederatedAuthMethod,
@@ -81,6 +82,36 @@ async function promptSelectFederatedIntegration(
   })
 }
 
+interface OAuthCredentials {
+  authUrl: string
+  tokenUrl: string
+  clientId: string
+  clientSecret: string
+}
+
+function extractOAuthCredentials(integration: DatabaseIntegrationConfig): OAuthCredentials {
+  switch (integration.type) {
+    case 'trino': {
+      const { metadata } = integration
+      if (metadata.authMethod !== TrinoAuthMethods.Oauth) {
+        throw new Error(
+          `Trino integration "${integration.name}" does not use OAuth authentication.`
+        )
+      }
+      return {
+        authUrl: metadata.authUrl,
+        tokenUrl: metadata.tokenUrl,
+        clientId: metadata.clientId,
+        clientSecret: metadata.clientSecret,
+      }
+    }
+    default:
+      throw new Error(
+        `Federated auth for ${integration.type} is not yet supported. Only Trino OAuth is supported.`
+      )
+  }
+}
+
 export async function authIntegration(options: IntegrationsAuthOptions): Promise<void> {
   const filePath = options.file ?? DEFAULT_INTEGRATIONS_FILE
   const envFilePath = options.envFile ?? DEFAULT_ENV_FILE
@@ -132,27 +163,13 @@ export async function authIntegration(options: IntegrationsAuthOptions): Promise
     )
   }
 
-  if (integration.type !== 'trino' || integration.federated_auth_method !== 'trino-oauth') {
-    throw new Error(
-      `Federated auth for ${integration.type} (${integration.federated_auth_method}) is not yet supported. ` +
-        'Only Trino OAuth is supported.'
-    )
-  }
-
-  // TODO: fix this force casting
-  const { authUrl, tokenUrl, clientId, clientSecret } = integration.metadata as Extract<
-    DatabaseIntegrationMetadataByType['trino'],
-    { authMethod: 'trino-oauth' }
-  >
+  const oauthCredentials = extractOAuthCredentials(integration)
 
   log(chalk.dim(`Authenticating integration "${integration.name}" (${integration.type})...`))
 
   const tokenEntry = await runOAuthFlow({
     integrationId: integration.id,
-    authUrl,
-    tokenUrl,
-    clientId,
-    clientSecret,
+    ...oauthCredentials,
     port: DEFAULT_OAUTH_PORT,
   })
 
