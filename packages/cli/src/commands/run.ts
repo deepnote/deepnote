@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
-import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile, LlmBlock } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
@@ -190,7 +190,7 @@ interface ProjectSetup {
   allIntegrations: DatabaseIntegrationConfig[]
 }
 
-function createLlmBlock(prompt: string, sortIndex: number): BlocksDeepnoteBlock {
+function createLlmBlock(prompt: string, sortIndex: number): LlmBlock {
   return {
     id: randomUUID().replace(/-/g, ''),
     blockGroup: randomUUID().replace(/-/g, ''),
@@ -203,8 +203,7 @@ function createLlmBlock(prompt: string, sortIndex: number): BlocksDeepnoteBlock 
     },
     executionCount: null,
     outputs: [],
-    // biome-ignore lint/suspicious/noExplicitAny: block schema union requires coercion
-  } as any
+  }
 }
 
 function createPromptOnlyFile(prompt: string): DeepnoteFile {
@@ -249,7 +248,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     file = createPromptOnlyFile(options.prompt)
     absolutePath = join(process.cwd(), 'prompt.deepnote')
     workingDirectory = options.cwd ?? process.cwd()
-    convertedFile = { file, originalPath: absolutePath, format: 'deepnote', wasConverted: false }
+    convertedFile = { file, originalPath: absolutePath, format: 'deepnote', wasConverted: true }
     if (!isMachineOutput) {
       log(getChalk().dim('Running LLM agent...'))
     }
@@ -1006,7 +1005,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
               output('')
               process.stdout.write(rendered)
             }
-          } else if (!llmStreamed) {
+          } else {
             for (const blockOutput of result.outputs) {
               renderOutput(blockOutput)
             }
