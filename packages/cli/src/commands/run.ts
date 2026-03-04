@@ -251,7 +251,7 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
-  injectIntegrationEnvVars(allIntegrations, workingDirectory)
+  await injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
   return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
 }

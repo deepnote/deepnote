@@ -32,6 +32,7 @@
     "watch": "tsdown --watch --format esm --format cjs --dts"
   },
   "dependencies": {
+    "yaml": "^2.8.1",
     "zod": "3.25.76"
   },
   "publishConfig": {

@@ -54,13 +54,20 @@
     "commander": "^14.0.2",
     "diff": "^8.0.3",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "open": "^11.0.0",
     "ora": "^9.0.0",
+    "passport": "^0.7.0",
+    "passport-oauth2": "^1.8.0",
     "wrap-ansi": "^9.0.2",
     "yaml": "^2.8.1",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@inquirer/testing": "^3.1.1",
+    "@types/express": "^5.0.6",
+    "@types/passport": "^1.0.17",
+    "@types/passport-oauth2": "^1.8.0",
     "json-schema-to-typescript": "^15.0.4",
     "tsx": "^4.20.6",
     "zod-to-json-schema": "^3.25.1"

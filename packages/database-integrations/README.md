@@ -60,11 +60,12 @@ This package provides TypeScript types and utilities for working with Deepnote S
 ### Environment variables and configuration
 
 - utilities
-  - `getEnvironmentVariablesForIntegrations(integrations: Array<DatabaseIntegrationConfig>, params: { projectRootDirectory: string, snowflakePartnerIdentifier?: string })` – Creates a list of environment variables to be set when executing a notebook that uses the integrations, the variables are in a format consumed by the Deepnote Toolkit
+  - `getEnvironmentVariablesForIntegrations(integrations: Array<DatabaseIntegrationConfig>, params: GetEnvironmentVariablesForIntegrationsParams)` – Creates a list of environment variables to be set when executing a notebook that uses the integrations, the variables are in a format consumed by the Deepnote Toolkit. Returns a Promise.
     - arguments:
       - `integrations` – list of active integrations
       - `params.projectRootDirectory` – project root directory, used to construct paths to CA certificates
       - `params.snowflakePartnerIdentifier` (optional) – Snowflake partner identifier, used to construct Snowflake connection URLs; it is used for Snowflake's internal telemetry/analytics, it does not affect the functionality of the integration
+      - `params.federatedAuthTokensFilePath` (optional) – path to the federated auth tokens file (e.g. ~/.deepnote/federated-auth-tokens.yaml). When provided, federated auth integrations (e.g., Trino OAuth) will load tokens from this file and inject the SQL connection env var.
     - returns:
       - `envVars: Array<EnvVar>` – List of environment variables to be set when executing a notebook that uses the integrations
         - The variable names produced have the following format:
