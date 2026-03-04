@@ -13,7 +13,7 @@ const oauthResultsSchema = z.object({
   expires_in: z.number().optional(),
 })
 
-const OAUTH_PORT = 21337
+export const DEFAULT_OAUTH_PORT = 21337
 
 /**
  * In-memory state store for OAuth 2.0 CSRF protection.
@@ -46,13 +46,14 @@ export interface RunOAuthFlowParams {
   tokenUrl: string
   clientId: string
   clientSecret: string
+  port: number
 }
 
 export function runOAuthFlow(params: RunOAuthFlowParams): Promise<FederatedAuthTokenEntry> {
-  const { integrationId, authUrl, tokenUrl, clientId, clientSecret } = params
+  const { integrationId, authUrl, tokenUrl, clientId, clientSecret, port } = params
 
-  const callbackURL = `http://localhost:${OAUTH_PORT}${CALLBACK_PATH}`
-  const startURL = `http://localhost:${OAUTH_PORT}${START_PATH}`
+  const callbackURL = `http://localhost:${port}${CALLBACK_PATH}`
+  const startURL = `http://localhost:${port}${START_PATH}`
 
   return new Promise<FederatedAuthTokenEntry>((pResolve, pReject) => {
     let server: Server | null = null
@@ -157,7 +158,7 @@ export function runOAuthFlow(params: RunOAuthFlowParams): Promise<FederatedAuthT
       })(req, res)
     })
 
-    server = app.listen(OAUTH_PORT, () => {
+    server = app.listen(port, () => {
       log('Opening browser to authenticate...')
       log('If the browser does not open automatically, visit:')
       log(startURL)

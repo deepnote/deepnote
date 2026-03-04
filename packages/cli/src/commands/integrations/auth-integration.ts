@@ -13,7 +13,7 @@ import z from 'zod'
 import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { getDefaultTokensFilePath, saveTokenForIntegration } from '../../federated-auth/federated-auth-tokens'
-import { runOAuthFlow } from '../../federated-auth/oauth-local-server'
+import { DEFAULT_OAUTH_PORT, runOAuthFlow } from '../../federated-auth/oauth-local-server'
 import { debug, log, output } from '../../output'
 import { readDotEnv } from '../../utils/dotenv'
 import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
@@ -153,6 +153,7 @@ export async function authIntegration(options: IntegrationsAuthOptions): Promise
     tokenUrl,
     clientId,
     clientSecret,
+    port: DEFAULT_OAUTH_PORT,
   })
 
   await saveTokenForIntegration(tokenEntry)

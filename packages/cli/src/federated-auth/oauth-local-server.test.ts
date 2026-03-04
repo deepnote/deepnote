@@ -27,10 +27,17 @@ interface FakeIdpOptions {
   refreshToken?: string
   expiresIn?: number
   tokenError?: string
+  port?: number
 }
 
 function startFakeIdp(options: FakeIdpOptions = {}) {
-  const { accessToken = 'fake-access-token', refreshToken = 'fake-refresh-token', expiresIn, tokenError } = options
+  const {
+    accessToken = 'fake-access-token',
+    refreshToken = 'fake-refresh-token',
+    expiresIn,
+    tokenError,
+    port = FAKE_IDP_PORT,
+  } = options
 
   const app = express()
   app.use(express.urlencoded({ extended: false }))
@@ -63,7 +70,7 @@ function startFakeIdp(options: FakeIdpOptions = {}) {
     res.json(body)
   })
 
-  const server = app.listen(FAKE_IDP_PORT)
+  const server = app.listen(port)
   return server
 }
 
@@ -113,6 +120,7 @@ function createParams(overrides: Partial<RunOAuthFlowParams> = {}): RunOAuthFlow
     tokenUrl: `http://localhost:${FAKE_IDP_PORT}/token`,
     clientId: 'test-client-id',
     clientSecret: 'test-client-secret',
+    port: OAUTH_PORT,
     ...overrides,
   }
 }
