@@ -24,9 +24,9 @@ export async function promptForSshFields(defaultValues?: {
 
     return {
       sshEnabled: true,
-      ...(sshHost.length > 0 ? { sshHost } : {}),
-      ...(sshPort.length > 0 ? { sshPort } : {}),
-      ...(sshUser.length > 0 ? { sshUser } : {}),
+      sshHost,
+      sshPort,
+      sshUser,
     }
   }
 

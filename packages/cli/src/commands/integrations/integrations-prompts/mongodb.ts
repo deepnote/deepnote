@@ -16,11 +16,8 @@ export const SRV_PREFIX = 'mongodb+srv://'
 export function safeUrlParse(url: string): URL | null {
   try {
     return new URL(url)
-  } catch (error) {
-    if (error instanceof ReferenceError) {
-      return null
-    }
-    throw error
+  } catch {
+    return null
   }
 }
 

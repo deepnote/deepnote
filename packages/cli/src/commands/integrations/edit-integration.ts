@@ -1,4 +1,4 @@
-import { debug } from 'node:console'
+import { debug } from '../../output'
 import {
   type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
@@ -101,19 +101,18 @@ export async function promptSelectIntegration(summaries: IntegrationSummary[]): 
 /**
  * Find the YAML map node for an integration by its ID in the document's integrations sequence.
  */
-function findIntegrationMapById(doc: Document, targetId: string): { map: YAMLMap; index: number } | null {
+function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
   const integrations = doc.get('integrations')
   if (!isSeq(integrations)) {
     return null
   }
 
-  for (let i = 0; i < integrations.items.length; i++) {
-    const item = integrations.items[i]
+  for (const item of integrations.items) {
     if (!isMap(item)) {
       continue
     }
     if (item.get('id') === targetId) {
-      return { map: item, index: i }
+      return item
     }
   }
   return null
@@ -279,7 +278,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   if (!found) {
     throw new Error(`Integration with ID "${targetId}" not found in ${filePath}`)
   }
-  const metadataMap = found.map.get('metadata')
+  const metadataMap = found.get('metadata')
   if (!isMap(metadataMap)) {
     throw new Error(`Metadata map not found for integration "${targetId}" in ${filePath}`)
   }
@@ -289,18 +288,18 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   const dotEnvVars = await readDotEnv(envFilePath)
   const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...process.env }
 
-  let integrationRawJson = found.map.toJSON()
+  let integrationRawJson = found.toJSON()
   try {
     integrationRawJson = resolveEnvVarRefsFromMap(integrationRawJson, envVars)
   } catch (error) {
-    debug('Failed to resolve env: refs in integration metadata:', error)
+    debug(`Failed to resolve env: refs in integration metadata: ${error}`)
   }
 
   const existingConfigResult = databaseIntegrationConfigSchema.safeParse(integrationRawJson)
 
   if (!existingConfigResult.success) {
     throw new Error(
-      `Integration entry "${found.map.get('id')}" failed validation: ${existingConfigResult.error.issues.map(i => i.message).join('; ')}`
+      `Integration entry "${found.get('id')}" failed validation: ${existingConfigResult.error.issues.map(i => i.message).join('; ')}`
     )
   }
 
@@ -309,7 +308,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   const newConfig = await promptForIntegrationConfig(configForPrompt)
 
   // Update top-level fields on the integration map
-  found.map.set('name', newConfig.name)
+  found.set('name', newConfig.name)
 
   const secrets = updateIntegrationMetadataMap({
     metadataMap,
