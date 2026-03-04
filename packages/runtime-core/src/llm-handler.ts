@@ -164,10 +164,6 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
       })
   )
 
-  for (const server of mcpServers) {
-    await server.connect()
-  }
-
   let insertIndex = context.llmBlockIndex + 1
   const addedBlockIds: string[] = []
   const blockOutputs: LlmBlockResult['blockOutputs'] = []
@@ -189,7 +185,7 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
       const { code } = input as { code: string }
       context.onLog?.(`  [llm] Adding code block and executing...`)
 
-      const newBlock: DeepnoteBlock = {
+      const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
         id: randomUUID().replace(/-/g, ''),
         blockGroup: randomUUID().replace(/-/g, ''),
         sortingKey: generateSortingKey(insertIndex),
@@ -198,8 +194,7 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
         metadata: {},
         executionCount: null,
         outputs: [],
-        // biome-ignore lint/suspicious/noExplicitAny: block schema union requires coercion
-      } as any
+      }
 
       notebook.blocks.splice(insertIndex, 0, newBlock)
       insertIndex++
@@ -270,15 +265,14 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
       const { content: mdContent } = input as { content: string }
       context.onLog?.(`  [llm] Adding markdown block`)
 
-      const newBlock: DeepnoteBlock = {
+      const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
         id: randomUUID().replace(/-/g, ''),
         blockGroup: randomUUID().replace(/-/g, ''),
         sortingKey: generateSortingKey(insertIndex),
         type: 'markdown',
         content: mdContent,
         metadata: {},
-        // biome-ignore lint/suspicious/noExplicitAny: block schema union requires coercion
-      } as any
+      }
 
       notebook.blocks.splice(insertIndex, 0, newBlock)
       insertIndex++
@@ -301,6 +295,10 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
   context.onLog?.(`[llm] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpServers.length}`)
 
   try {
+    for (const server of mcpServers) {
+      await server.connect()
+    }
+
     const result = await run(agent, block.content ?? '', { stream: true, maxTurns })
 
     for await (const event of result) {

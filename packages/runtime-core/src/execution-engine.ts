@@ -171,7 +171,6 @@ export class ExecutionEngine {
       block: DeepnoteBlock
       notebookName: string
       notebookIndex: number
-      blockIndex: number
     }> = []
     for (const notebook of notebooks) {
       const sortedBlocks = this.sortBlocks(notebook.blocks)
@@ -184,7 +183,6 @@ export class ExecutionEngine {
             block,
             notebookName: notebook.name,
             notebookIndex: file.project.notebooks.indexOf(notebook),
-            blockIndex: notebook.blocks.indexOf(block),
           })
         }
       }
@@ -210,18 +208,24 @@ export class ExecutionEngine {
 
     // Execute blocks sequentially
     for (let i = 0; i < allExecutableBlocks.length; i++) {
-      const { block, notebookIndex, blockIndex } = allExecutableBlocks[i]
+      const { block, notebookIndex } = allExecutableBlocks[i]
       const blockStart = Date.now()
 
       await options.onBlockStart?.(block, i, totalBlocks)
 
       try {
         if (isLlmBlock(block)) {
+          const notebook = file.project.notebooks[notebookIndex]
+          const llmBlockIndex = notebook?.blocks.findIndex(b => b.id === block.id) ?? -1
+          if (!notebook || llmBlockIndex < 0) {
+            throw new Error(`LLM block "${block.id}" not found in notebook`)
+          }
+
           const llmContext: LlmBlockContext = {
             kernel: this.kernel,
             file,
             notebookIndex,
-            llmBlockIndex: blockIndex,
+            llmBlockIndex,
             collectedOutputs,
             onLlmEvent: options.onLlmEvent,
             integrations: options.integrations,

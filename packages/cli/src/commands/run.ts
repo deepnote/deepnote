@@ -21,6 +21,9 @@ import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { marked } from 'marked'
 import { markedTerminal } from 'marked-terminal'
+
+marked.use(markedTerminal())
+
 import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
@@ -996,7 +999,6 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
           }
 
           if (llmStreamed && llmTextBuffer) {
-            marked.use(markedTerminal())
             const rendered = marked.parse(llmTextBuffer)
             if (typeof rendered === 'string') {
               output('')

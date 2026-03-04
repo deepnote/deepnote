@@ -38,6 +38,7 @@
   "useGitignore": true,
   "version": "0.2",
   "words": [
+    "agentic",
     "asname",
     "awsathena",
     "bijective",
@@ -70,7 +71,6 @@
     "groupby",
     "hotreload",
     "Instantiator",
-    "agentic",
     "iopub",
     "ipynb",
     "ipywidgets",
