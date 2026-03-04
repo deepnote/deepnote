@@ -14,6 +14,7 @@ Execute notebooks (.deepnote, .ipynb, .py, .qmd).
 | `--block <id>`            | Run only the specified block                             |
 | `-i, --input <key=value>` | Set input variable value (repeatable)                    |
 | `--list-inputs`           | List all input variables without running                 |
+| `--prompt <text>`         | Run an LLM agent block with the given prompt             |
 | `-o, --output <format>`   | Output format: `json`, `toon`, `llm`                     |
 | `--dry-run`               | Show what would be executed without running              |
 | `--top`                   | Display resource usage (CPU, memory) during execution    |
@@ -47,6 +48,20 @@ deepnote run my-project.deepnote --profile
 
 # Run and open in Deepnote Cloud
 deepnote run notebook.ipynb --open
+
+# Run an LLM agent with a prompt (appends to existing file)
+OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the data"
+
+# Run an LLM agent standalone (no file needed)
+OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 ```
+
+**Environment variables for `--prompt` / LLM blocks:**
+
+| Variable          | Required | Description                                               |
+| ----------------- | -------- | --------------------------------------------------------- |
+| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                              |
+| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)  |
+| `OPENAI_MODEL`    | no       | Default model name (overridden by block `deepnote_model`) |
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.

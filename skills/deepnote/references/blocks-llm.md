@@ -52,3 +52,17 @@ The LLM agent uses the OpenAI Agents SDK and can connect to external MCP servers
         args: ["-y", "@modelcontextprotocol/server-filesystem", "./data"]
   sortingKey: a2
 ```
+
+## Using via CLI `--prompt` flag
+
+You can run an LLM agent directly from the command line without creating a `.deepnote` file:
+
+```bash
+# Standalone (creates an in-memory notebook with just the LLM block)
+OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
+
+# Appended to an existing notebook (runs all blocks, then the agent)
+OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the data"
+```
+
+When database integrations are configured (via `integrations.yaml`), the agent is automatically made aware of them and can query databases using `deepnote-toolkit`.

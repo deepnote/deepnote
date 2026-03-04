@@ -54,6 +54,7 @@ export interface ExecutionOptions {
   onLlmEvent?: (event: LlmStreamEvent) => void
   onServerStarting?: () => void
   onServerReady?: () => void
+  integrations?: Array<{ id: string; name: string; type: string }>
 }
 
 /**
@@ -223,6 +224,7 @@ export class ExecutionEngine {
             llmBlockIndex: blockIndex,
             collectedOutputs,
             onLlmEvent: options.onLlmEvent,
+            integrations: options.integrations,
           }
 
           const llmResult = await executeLlmBlock(block, llmContext)

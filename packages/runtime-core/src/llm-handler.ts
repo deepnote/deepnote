@@ -17,6 +17,7 @@ export interface LlmBlockContext {
   collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
   onLog?: (message: string) => void
   onLlmEvent?: (event: LlmStreamEvent) => void
+  integrations?: Array<{ id: string; name: string; type: string }>
 }
 
 export interface LlmBlockResult {
@@ -85,8 +86,11 @@ function serializeNotebookContext(
   return lines.join('\n')
 }
 
-function buildSystemPrompt(notebookContext: string): string {
-  return `You are a data science assistant working inside a Deepnote notebook. You can add code blocks and markdown blocks to the notebook.
+function buildSystemPrompt(
+  notebookContext: string,
+  integrations?: Array<{ id: string; name: string; type: string }>
+): string {
+  let prompt = `You are a data science assistant working inside a Deepnote notebook. You can add code blocks and markdown blocks to the notebook.
 
 ## Current notebook state
 
@@ -100,6 +104,25 @@ ${notebookContext}
 - If a code block errors, read the error and try a different approach.
 - When you are done, provide a brief summary of what you did and found.
 - Be concise in markdown blocks. Prefer code that shows results over long explanations.`
+
+  if (integrations && integrations.length > 0) {
+    prompt += `
+
+## Available database integrations
+
+The following database integrations are configured and available. To query them,
+use add_code_block with the deepnote-toolkit SQL helper:
+
+\`\`\`python
+import deepnote_toolkit as dntk
+df = dntk.execute_sql("SELECT * FROM users LIMIT 10", "SQL_<INTEGRATION_ID>")
+\`\`\`
+
+Available integrations:
+${integrations.map(i => `- "${i.name}" (${i.type}, id: ${i.id})`).join('\n')}`
+  }
+
+  return prompt
 }
 
 export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext): Promise<LlmBlockResult> {
@@ -269,7 +292,7 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
 
   const agent = new Agent({
     name: 'Deepnote Assistant',
-    instructions: buildSystemPrompt(notebookContext),
+    instructions: buildSystemPrompt(notebookContext, context.integrations),
     tools: [addCodeBlockTool, addMarkdownBlockTool],
     mcpServers,
     model: new OpenAIChatCompletionsModel(client, modelName),

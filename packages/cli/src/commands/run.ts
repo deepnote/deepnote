@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
@@ -85,6 +86,7 @@ export interface RunOptions {
   profile?: boolean
   open?: boolean
   context?: boolean
+  prompt?: string
   token?: string
   url?: string
 }
@@ -182,6 +184,44 @@ interface ProjectSetup {
   inputs: Record<string, unknown>
   isMachineOutput: boolean
   convertedFile: ConvertedFile
+  allIntegrations: DatabaseIntegrationConfig[]
+}
+
+function createLlmBlock(prompt: string, sortIndex: number): BlocksDeepnoteBlock {
+  return {
+    id: randomUUID().replace(/-/g, ''),
+    blockGroup: randomUUID().replace(/-/g, ''),
+    sortingKey: `z${String(sortIndex).padStart(6, '0')}`,
+    type: 'llm',
+    content: prompt,
+    metadata: {
+      deepnote_model: 'auto',
+      deepnote_max_iterations: 10,
+    },
+    executionCount: null,
+    outputs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: block schema union requires coercion
+  } as any
+}
+
+function createPromptOnlyFile(prompt: string): DeepnoteFile {
+  return {
+    metadata: {
+      createdAt: new Date().toISOString(),
+    },
+    project: {
+      id: randomUUID(),
+      name: 'Agent',
+      notebooks: [
+        {
+          id: randomUUID(),
+          name: 'Notebook',
+          blocks: [createLlmBlock(prompt, 0)],
+        },
+      ],
+    },
+    version: '1.0.0',
+  }
 }
 
 /**
@@ -194,27 +234,52 @@ interface ProjectSetup {
  * - .py - Percent or Marimo format (auto-converted)
  * - .qmd - Quarto document (auto-converted)
  */
-async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
+async function setupProject(path: string | undefined, options: RunOptions): Promise<ProjectSetup> {
   const isMachineOutput = options.output !== undefined
 
-  const convertedFile = await resolveAndConvertToDeepnote(path)
-  const { file, originalPath: absolutePath, wasConverted, format } = convertedFile
+  let file: DeepnoteFile
+  let absolutePath: string
+  let convertedFile: ConvertedFile
+  let workingDirectory: string
 
-  const workingDirectory = options.cwd ?? dirname(absolutePath)
+  if (!path && options.prompt) {
+    file = createPromptOnlyFile(options.prompt)
+    absolutePath = join(process.cwd(), 'prompt.deepnote')
+    workingDirectory = options.cwd ?? process.cwd()
+    convertedFile = { file, originalPath: absolutePath, format: 'deepnote', wasConverted: false }
+    if (!isMachineOutput) {
+      log(getChalk().dim('Running LLM agent...'))
+    }
+  } else {
+    if (!path) {
+      throw new Error('A file path is required when --prompt is not provided')
+    }
+    convertedFile = await resolveAndConvertToDeepnote(path)
+    const { originalPath, wasConverted, format } = convertedFile
+    file = convertedFile.file
+    absolutePath = originalPath
+    workingDirectory = options.cwd ?? dirname(absolutePath)
+    if (!isMachineOutput) {
+      if (wasConverted) {
+        log(getChalk().dim(`Converting ${format} file: ${absolutePath}...`))
+      } else {
+        log(getChalk().dim(`Parsing ${absolutePath}...`))
+      }
+    }
+  }
+
+  if (path && options.prompt) {
+    const lastNotebook = file.project.notebooks[file.project.notebooks.length - 1]
+    if (lastNotebook) {
+      lastNotebook.blocks.push(createLlmBlock(options.prompt, lastNotebook.blocks.length))
+    }
+  }
 
   dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
 
   const pythonEnv = await resolvePythonExecutable(options.python ?? detectDefaultPython())
 
   const inputs = parseInputs(options.input)
-
-  if (!isMachineOutput) {
-    if (wasConverted) {
-      log(getChalk().dim(`Converting ${format} file: ${absolutePath}...`))
-    } else {
-      log(getChalk().dim(`Parsing ${absolutePath}...`))
-    }
-  }
 
   // Parse integrations file (if it exists)
   const integrationsFilePath = getDefaultIntegrationsFilePath(workingDirectory)
@@ -256,7 +321,7 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
   // This allows SQL blocks to access database connections
   injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
-  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
+  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile, allIntegrations }
 }
 
 /**
@@ -391,21 +456,37 @@ async function resolveUpstreamExecutionBlockIds(
   return blockIds
 }
 
-export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
+export function createRunAction(program: Command): (path: string | undefined, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
-      debug(`Running file: ${path}`)
+      if (!path && !options.prompt) {
+        program.error(getChalk().red('Missing required argument: path (or use --prompt)'), {
+          exitCode: ExitCode.InvalidUsage,
+        })
+      }
+
+      debug(`Running file: ${path ?? '(prompt-only)'}`)
       const safeOptions = { ...options, token: options.token ? '[redacted]' : undefined }
       debug(`Options: ${JSON.stringify(safeOptions)}`)
 
       // Handle --list-inputs
       if (options.listInputs) {
+        if (!path) {
+          program.error(getChalk().red('--list-inputs requires a file path'), {
+            exitCode: ExitCode.InvalidUsage,
+          })
+        }
         await listInputs(path, options)
         return
       }
 
       // Handle --dry-run
       if (options.dryRun) {
+        if (!path) {
+          program.error(getChalk().red('--dry-run requires a file path'), {
+            exitCode: ExitCode.InvalidUsage,
+          })
+        }
         await dryRunDeepnoteProject(path, options)
         return
       }
@@ -743,8 +824,8 @@ async function validateRequirements(
   }
 }
 
-async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file } =
+async function runDeepnoteProject(path: string | undefined, options: RunOptions): Promise<void> {
+  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file, allIntegrations } =
     await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
@@ -843,6 +924,7 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
       blockId: options.block,
       blockIds,
       inputs,
+      integrations: allIntegrations.map(i => ({ id: i.id, name: i.name, type: i.type })),
 
       onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
         const label = getBlockLabel(block)
