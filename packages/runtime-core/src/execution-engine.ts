@@ -4,12 +4,12 @@ import {
   createPythonCode,
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
+  isAgentBlock,
   isExecutableBlock,
-  isLlmBlock,
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
+import { type AgentBlockContext, type AgentStreamEvent, executeAgentBlock } from './agent-handler'
 import { KernelClient } from './kernel-client'
-import { executeLlmBlock, type LlmBlockContext, type LlmStreamEvent } from './llm-handler'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
@@ -21,7 +21,7 @@ export const executableBlockTypes: ExecutableBlock['type'][] = [
   'visualization',
   'button',
   'big-number',
-  'llm',
+  'agent',
   'input-text',
   'input-textarea',
   'input-checkbox',
@@ -51,7 +51,7 @@ export interface ExecutionOptions {
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
-  onLlmEvent?: (event: LlmStreamEvent) => void
+  onAgentEvent?: (event: AgentStreamEvent) => void
   onServerStarting?: () => void
   onServerReady?: () => void
   integrations?: Array<{ id: string; name: string; type: string }>
@@ -203,7 +203,7 @@ export class ExecutionEngine {
 
     const totalBlocks = allExecutableBlocks.length
 
-    // Track collected outputs for LLM block context
+    // Track collected outputs for agent block context
     const collectedOutputs = new Map<string, { outputs: unknown[]; executionCount: number | null }>()
 
     // Execute blocks sequentially
@@ -214,27 +214,27 @@ export class ExecutionEngine {
       await options.onBlockStart?.(block, i, totalBlocks)
 
       try {
-        if (isLlmBlock(block)) {
+        if (isAgentBlock(block)) {
           const notebook = file.project.notebooks[notebookIndex]
-          const llmBlockIndex = notebook?.blocks.findIndex(b => b.id === block.id) ?? -1
-          if (!notebook || llmBlockIndex < 0) {
-            throw new Error(`LLM block "${block.id}" not found in notebook`)
+          const agentBlockIndex = notebook?.blocks.findIndex(b => b.id === block.id) ?? -1
+          if (!notebook || agentBlockIndex < 0) {
+            throw new Error(`Agent block "${block.id}" not found in notebook`)
           }
 
-          const llmContext: LlmBlockContext = {
+          const agentContext: AgentBlockContext = {
             kernel: this.kernel,
             file,
             notebookIndex,
-            llmBlockIndex,
+            agentBlockIndex,
             collectedOutputs,
-            onLlmEvent: options.onLlmEvent,
+            onAgentEvent: options.onAgentEvent,
             integrations: options.integrations,
           }
 
-          const llmResult = await executeLlmBlock(block, llmContext)
+          const agentResult = await executeAgentBlock(block, agentContext)
 
-          // Report outputs from blocks added by the LLM agent
-          for (const bo of llmResult.blockOutputs) {
+          // Report outputs from blocks added by the agent block
+          for (const bo of agentResult.blockOutputs) {
             collectedOutputs.set(bo.blockId, { outputs: bo.outputs, executionCount: bo.executionCount })
           }
 
@@ -242,7 +242,7 @@ export class ExecutionEngine {
             blockId: block.id,
             blockType: block.type,
             success: true,
-            outputs: [{ output_type: 'stream', name: 'stdout', text: llmResult.finalOutput }] as IOutput[],
+            outputs: [{ output_type: 'stream', name: 'stdout', text: agentResult.finalOutput }] as IOutput[],
             executionCount: null,
             durationMs: Date.now() - blockStart,
           }

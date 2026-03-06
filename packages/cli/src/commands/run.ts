@@ -2,18 +2,18 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
-import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile, LlmBlock } from '@deepnote/blocks'
+import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
+  type AgentStreamEvent,
   type BlockExecutionResult,
   detectDefaultPython,
   ExecutionEngine,
   type ExecutionSummary,
   executableBlockTypeSet,
   type IOutput,
-  type LlmStreamEvent,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
   resolvePythonExecutable,
 } from '@deepnote/runtime-core'
@@ -190,12 +190,12 @@ interface ProjectSetup {
   allIntegrations: DatabaseIntegrationConfig[]
 }
 
-function createLlmBlock(prompt: string, sortIndex: number): LlmBlock {
+function createAgentBlock(prompt: string, sortIndex: number): AgentBlock {
   return {
     id: randomUUID().replace(/-/g, ''),
     blockGroup: randomUUID().replace(/-/g, ''),
     sortingKey: `z${String(sortIndex).padStart(6, '0')}`,
-    type: 'llm',
+    type: 'agent',
     content: prompt,
     metadata: {
       deepnote_model: 'auto',
@@ -218,7 +218,7 @@ function createPromptOnlyFile(prompt: string): DeepnoteFile {
         {
           id: randomUUID(),
           name: 'Notebook',
-          blocks: [createLlmBlock(prompt, 0)],
+          blocks: [createAgentBlock(prompt, 0)],
         },
       ],
     },
@@ -250,7 +250,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     workingDirectory = options.cwd ?? process.cwd()
     convertedFile = { file, originalPath: absolutePath, format: 'deepnote', wasConverted: true }
     if (!isMachineOutput) {
-      log(getChalk().dim('Running LLM agent...'))
+      log(getChalk().dim('Running agent block...'))
     }
   } else {
     if (!path) {
@@ -273,7 +273,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   if (path && options.prompt) {
     const lastNotebook = file.project.notebooks[file.project.notebooks.length - 1]
     if (lastNotebook) {
-      lastNotebook.blocks.push(createLlmBlock(options.prompt, lastNotebook.blocks.length))
+      lastNotebook.blocks.push(createAgentBlock(options.prompt, lastNotebook.blocks.length))
     } else {
       throw new Error('Cannot append prompt: file contains no notebooks')
     }
@@ -883,8 +883,8 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
 
   // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
   const blockLabels = new Map<string, string>()
-  let llmStreamed = false
-  let llmTextBuffer = ''
+  let agentStreamed = false
+  let agentTextBuffer = ''
 
   // Profiling: track memory before each block and collect profile data
   const showProfile = options.profile && !isMachineOutput
@@ -943,8 +943,8 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         }
 
         if (!isMachineOutput) {
-          llmStreamed = false
-          llmTextBuffer = ''
+          agentStreamed = false
+          agentTextBuffer = ''
           const c = getChalk()
           process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
@@ -992,15 +992,15 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
 
         if (!isMachineOutput) {
           const c = getChalk()
-          const prefix = llmStreamed ? '\n' : ''
+          const prefix = agentStreamed ? '\n' : ''
           if (result.success) {
             output(`${prefix}${c.green('✓')}${c.dim(` (${result.durationMs}ms${memoryDeltaStr})`)}`)
           } else {
             output(`${prefix}${c.red('✗')}`)
           }
 
-          if (llmStreamed && llmTextBuffer) {
-            const rendered = marked.parse(llmTextBuffer)
+          if (agentStreamed && agentTextBuffer) {
+            const rendered = marked.parse(agentTextBuffer)
             if (typeof rendered === 'string') {
               output('')
               process.stdout.write(rendered)
@@ -1017,9 +1017,9 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         }
       },
 
-      onLlmEvent: !isMachineOutput
-        ? (event: LlmStreamEvent) => {
-            llmStreamed = true
+      onAgentEvent: !isMachineOutput
+        ? (event: AgentStreamEvent) => {
+            agentStreamed = true
             const c = getChalk()
             if (event.type === 'tool_called') {
               process.stdout.write(`\n${c.dim(`  -> ${event.toolName}()`)}`)
@@ -1037,7 +1037,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
                 : ''
               process.stdout.write(` ${status}${preview ? c.dim(` ${preview}`) : ''}`)
             } else if (event.type === 'text_delta') {
-              llmTextBuffer += event.text
+              agentTextBuffer += event.text
             }
           }
         : undefined,

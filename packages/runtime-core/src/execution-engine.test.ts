@@ -5,7 +5,7 @@ import type { IOutput } from '@jupyterlab/nbformat'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
-const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient, mockExecuteLlmBlock } =
+const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient, mockExecuteAgentBlock } =
   vi.hoisted(() => {
     const mockKernelClient = {
       connect: vi.fn(),
@@ -28,7 +28,7 @@ const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockK
       Object.assign(this, mockKernelClient)
     })
 
-    const mockExecuteLlmBlock = vi.fn()
+    const mockExecuteAgentBlock = vi.fn()
 
     return {
       mockKernelClient,
@@ -36,7 +36,7 @@ const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockK
       mockStartServer,
       mockStopServer,
       MockKernelClient,
-      mockExecuteLlmBlock,
+      mockExecuteAgentBlock,
     }
   })
 
@@ -49,11 +49,11 @@ vi.mock('./server-starter', () => ({
   stopServer: mockStopServer,
 }))
 
-vi.mock('./llm-handler', async importOriginal => {
-  const actual = await importOriginal<typeof import('./llm-handler')>()
+vi.mock('./agent-handler', async importOriginal => {
+  const actual = await importOriginal<typeof import('./agent-handler')>()
   return {
     ...actual,
-    executeLlmBlock: mockExecuteLlmBlock,
+    executeAgentBlock: mockExecuteAgentBlock,
   }
 })
 
@@ -830,85 +830,85 @@ describe('ExecutionEngine', () => {
     })
   })
 
-  describe('LLM block execution', () => {
-    const LLM_FIXTURE = loadFixture('llm-block.deepnote')
+  describe('Agent block execution', () => {
+    const AGENT_FIXTURE = loadFixture('agent-block.deepnote')
 
     beforeEach(() => {
-      mockExecuteLlmBlock.mockResolvedValue({
+      mockExecuteAgentBlock.mockResolvedValue({
         finalOutput: 'Analysis complete.',
         addedBlockIds: [],
         blockOutputs: [],
       })
     })
 
-    it('calls executeLlmBlock for llm blocks', async () => {
+    it('calls executeAgentBlock for agent blocks', async () => {
       await engine.start()
-      await engine.runProject(LLM_FIXTURE)
+      await engine.runProject(AGENT_FIXTURE)
 
-      expect(mockExecuteLlmBlock).toHaveBeenCalledTimes(1)
+      expect(mockExecuteAgentBlock).toHaveBeenCalledTimes(1)
     })
 
-    it('passes the llm block to executeLlmBlock', async () => {
+    it('passes the agent block to executeAgentBlock', async () => {
       await engine.start()
-      await engine.runProject(LLM_FIXTURE)
+      await engine.runProject(AGENT_FIXTURE)
 
-      const [block] = mockExecuteLlmBlock.mock.calls[0]
-      expect(block.type).toBe('llm')
+      const [block] = mockExecuteAgentBlock.mock.calls[0]
+      expect(block.type).toBe('agent')
       expect(block.content).toContain('Analyze the DataFrame')
     })
 
     it('passes kernel, file, and notebook index in context', async () => {
       await engine.start()
-      await engine.runProject(LLM_FIXTURE)
+      await engine.runProject(AGENT_FIXTURE)
 
-      const [, context] = mockExecuteLlmBlock.mock.calls[0]
+      const [, context] = mockExecuteAgentBlock.mock.calls[0]
       expect(context.kernel).toBeDefined()
       expect(context.file).toBeDefined()
       expect(context.notebookIndex).toBe(0)
     })
 
-    it('passes integrations through to LLM context', async () => {
+    it('passes integrations through to agent context', async () => {
       const integrations = [{ id: 'pg-1', name: 'Postgres', type: 'pgsql' }]
       await engine.start()
-      await engine.runProject(LLM_FIXTURE, { integrations })
+      await engine.runProject(AGENT_FIXTURE, { integrations })
 
-      const [, context] = mockExecuteLlmBlock.mock.calls[0]
+      const [, context] = mockExecuteAgentBlock.mock.calls[0]
       expect(context.integrations).toEqual(integrations)
     })
 
-    it('passes onLlmEvent callback through to LLM context', async () => {
-      const onLlmEvent = vi.fn()
+    it('passes onAgentEvent callback through to agent context', async () => {
+      const onAgentEvent = vi.fn()
       await engine.start()
-      await engine.runProject(LLM_FIXTURE, { onLlmEvent })
+      await engine.runProject(AGENT_FIXTURE, { onAgentEvent })
 
-      const [, context] = mockExecuteLlmBlock.mock.calls[0]
-      expect(context.onLlmEvent).toBe(onLlmEvent)
+      const [, context] = mockExecuteAgentBlock.mock.calls[0]
+      expect(context.onAgentEvent).toBe(onAgentEvent)
     })
 
-    it('executes code blocks before llm block in order', async () => {
+    it('executes code blocks before agent block in order', async () => {
       const executionOrder: string[] = []
       mockKernelClient.execute.mockImplementation(() => {
         executionOrder.push('code')
         return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
       })
-      mockExecuteLlmBlock.mockImplementation(() => {
-        executionOrder.push('llm')
+      mockExecuteAgentBlock.mockImplementation(() => {
+        executionOrder.push('agent')
         return Promise.resolve({ finalOutput: '', addedBlockIds: [], blockOutputs: [] })
       })
 
       await engine.start()
-      await engine.runProject(LLM_FIXTURE)
+      await engine.runProject(AGENT_FIXTURE)
 
-      expect(executionOrder).toEqual(['code', 'llm'])
+      expect(executionOrder).toEqual(['code', 'agent'])
     })
 
-    it('reports llm block result via onBlockDone', async () => {
+    it('reports agent block result via onBlockDone', async () => {
       const onBlockDone = vi.fn()
       await engine.start()
-      await engine.runProject(LLM_FIXTURE, { onBlockDone })
+      await engine.runProject(AGENT_FIXTURE, { onBlockDone })
 
       const llmResult = onBlockDone.mock.calls.find(
-        (args: unknown[]) => (args[0] as { blockType: string }).blockType === 'llm'
+        (args: unknown[]) => (args[0] as { blockType: string }).blockType === 'agent'
       )
       expect(llmResult).toBeDefined()
       expect(llmResult?.[0].success).toBe(true)
@@ -917,18 +917,18 @@ describe('ExecutionEngine', () => {
       )
     })
 
-    it('handles llm block failure gracefully', async () => {
-      mockExecuteLlmBlock.mockRejectedValue(new Error('OPENAI_API_KEY not set'))
+    it('handles agent block failure gracefully', async () => {
+      mockExecuteAgentBlock.mockRejectedValue(new Error('OPENAI_API_KEY not set'))
 
       await engine.start()
-      const summary = await engine.runProject(LLM_FIXTURE)
+      const summary = await engine.runProject(AGENT_FIXTURE)
 
       expect(summary.failedBlocks).toBe(1)
     })
 
-    it('includes llm block in total block count', async () => {
+    it('includes agent block in total block count', async () => {
       await engine.start()
-      const summary = await engine.runProject(LLM_FIXTURE)
+      const summary = await engine.runProject(AGENT_FIXTURE)
 
       expect(summary.totalBlocks).toBe(2)
       expect(summary.executedBlocks).toBe(2)

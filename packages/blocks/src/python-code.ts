@@ -1,4 +1,5 @@
 import { UnsupportedBlockTypeError } from './blocks'
+import { isAgentBlock } from './blocks/agent-blocks'
 import { createPythonCodeForBigNumberBlock, isBigNumberBlock } from './blocks/big-number-blocks'
 import { type ButtonExecutionContext, createPythonCodeForButtonBlock, isButtonBlock } from './blocks/button-blocks'
 import { createPythonCodeForCodeBlock, isCodeBlock } from './blocks/code-blocks'
@@ -20,7 +21,6 @@ import {
   isInputTextareaBlock,
   isInputTextBlock,
 } from './blocks/input-blocks'
-import { isLlmBlock } from './blocks/llm-blocks'
 import { createPythonCodeForNotebookFunctionBlock, isNotebookFunctionBlock } from './blocks/notebook-function-blocks'
 import { createPythonCodeForSqlBlock, isSqlBlock } from './blocks/sql-blocks'
 import { createPythonCodeForVisualizationBlock, isVisualizationBlock } from './blocks/visualization-blocks'
@@ -83,8 +83,8 @@ export function createPythonCode(block: DeepnoteBlock, executionContext?: Button
     return createPythonCodeForNotebookFunctionBlock(block)
   }
 
-  // LLM blocks are handled by the execution engine directly, not via Python code generation
-  if (isLlmBlock(block)) {
+  // Agent blocks are handled by the execution engine directly, not via Python code generation
+  if (isAgentBlock(block)) {
     return ''
   }
 

@@ -24,9 +24,9 @@ project:
           contentHash: sha256:31dd46c96b52ead04b0ac37819dd372b39b54ea368f1b5d8ff712a8ebcb1adae
           type: markdown
           content: >
-            This notebook demonstrates the **agentic LLM block**. The code below generates
+            This notebook demonstrates the **agent block**. The code below generates
 
-            a synthetic sales dataset. Then the LLM agent autonomously explores the data,
+            a synthetic sales dataset. Then the agent autonomously explores the data,
 
             creates visualizations, identifies trends, and writes a report — all by adding
 
@@ -127,7 +127,7 @@ project:
               text: The line chart depicting churn rate trends over quarters for each product tier has been created and saved as
                 `churn_rate_trends_by_product.png`. Next, let's compute a pivot table of average revenue by region and
                 product.
-          type: llm
+          type: agent
           content: >
             You are a senior data analyst. The code block above created a pandas DataFrame
 

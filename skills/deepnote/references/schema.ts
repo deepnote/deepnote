@@ -506,7 +506,7 @@ export type DeepnoteBlock =
       executionFinishedAt?: string;
       executionStartedAt?: string;
       outputs?: any[];
-      type: 'llm';
+      type: 'agent';
       content?: string;
       metadata?: {
         deepnote_app_is_code_hidden?: boolean;
@@ -1469,7 +1469,7 @@ export interface DeepnoteFile {
             executionFinishedAt?: string;
             executionStartedAt?: string;
             outputs?: any[];
-            type: 'llm';
+            type: 'agent';
             content?: string;
             metadata?: {
               deepnote_app_is_code_hidden?: boolean;

@@ -2542,11 +2542,11 @@ describe('run command', () => {
       const [file] = mockRunProject.mock.calls[0]
       expect(file.project.notebooks).toHaveLength(1)
       expect(file.project.notebooks[0].blocks).toHaveLength(1)
-      expect(file.project.notebooks[0].blocks[0].type).toBe('llm')
+      expect(file.project.notebooks[0].blocks[0].type).toBe('agent')
       expect(file.project.notebooks[0].blocks[0].content).toBe('Say hello')
     })
 
-    it('appends llm block to existing file with --prompt and path', async () => {
+    it('appends agent block to existing file with --prompt and path', async () => {
       setupSuccessfulRun()
 
       await action(HELLO_WORLD_FILE, { prompt: 'Analyze data' })
@@ -2555,7 +2555,7 @@ describe('run command', () => {
       const [file] = mockRunProject.mock.calls[0]
       const blocks = file.project.notebooks[file.project.notebooks.length - 1].blocks
       const lastBlock = blocks[blocks.length - 1]
-      expect(lastBlock.type).toBe('llm')
+      expect(lastBlock.type).toBe('agent')
       expect(lastBlock.content).toBe('Analyze data')
     })
 

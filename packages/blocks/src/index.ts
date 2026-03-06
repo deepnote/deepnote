@@ -1,9 +1,10 @@
 export { UnsupportedBlockTypeError } from './blocks'
+export { isAgentBlock } from './blocks/agent-blocks'
 export { INPUT_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
-export { isLlmBlock } from './blocks/llm-blocks'
 export { convertToEnvironmentVariableName, getSqlEnvVarName } from './blocks/sql-utils'
 export type { TableState } from './blocks/table-state'
 export type {
+  AgentBlock,
   DeepnoteBlock,
   DeepnoteFile,
   DeepnoteSnapshot,
@@ -12,7 +13,6 @@ export type {
   Execution,
   ExecutionError,
   ExecutionSummary,
-  LlmBlock,
   McpServerConfig,
   SnapshotHashInput,
 } from './deepnote-file/deepnote-file-schema'

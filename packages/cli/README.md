@@ -181,16 +181,16 @@ deepnote run my-project.deepnote --output toon
 # Preview what would be executed without running
 deepnote run my-project.deepnote --dry-run
 
-# Run an LLM agent with a prompt (appends an LLM block to the file)
+# Run an agent with a prompt (appends an agent block to the file)
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
 
-# Run an LLM agent standalone (no file needed)
+# Run an agent block standalone (no file needed)
 OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 ```
 
-#### LLM Agent (`--prompt` and LLM blocks)
+#### Agent Block (`--prompt` and agent blocks)
 
-The `--prompt` flag appends an LLM agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.
+The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.
 
 **Requirements:**
 

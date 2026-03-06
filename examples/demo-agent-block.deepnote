@@ -16,8 +16,8 @@ project:
           contentHash: sha256:229240314154c38946d7b93c9488c599a46b485516f7bf29ca1426dffcac0c88
         - blockGroup: b0000000000000000000000000000002
           content: |
-            This notebook demonstrates the **agentic LLM block**. The code below generates
-            a synthetic sales dataset. Then the LLM agent autonomously explores the data,
+            This notebook demonstrates the **agent block**. The code below generates
+            a synthetic sales dataset. Then the agent autonomously explores the data,
             creates visualizations, identifies trends, and writes a report — all by adding
             new blocks to this notebook.
           id: a0000000000000000000000000000002
@@ -94,7 +94,7 @@ project:
                   - '@modelcontextprotocol/server-filesystem'
                   - ./examples
           sortingKey: a3
-          type: llm
+          type: agent
       id: notebook-1
       name: Sales Analysis
 version: 1.0.0

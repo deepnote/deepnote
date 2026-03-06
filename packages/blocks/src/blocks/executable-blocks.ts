@@ -22,7 +22,7 @@ const executableBlockTypes = new Set([
   'visualization',
   'button',
   'big-number',
-  'llm',
+  'agent',
   ...INPUT_BLOCK_TYPES,
 ])
 

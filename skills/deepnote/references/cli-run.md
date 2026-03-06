@@ -14,7 +14,7 @@ Execute notebooks (.deepnote, .ipynb, .py, .qmd).
 | `--block <id>`            | Run only the specified block                             |
 | `-i, --input <key=value>` | Set input variable value (repeatable)                    |
 | `--list-inputs`           | List all input variables without running                 |
-| `--prompt <text>`         | Run an LLM agent block with the given prompt             |
+| `--prompt <text>`         | Run an agent block with the given prompt                 |
 | `-o, --output <format>`   | Output format: `json`, `toon`, `llm`                     |
 | `--dry-run`               | Show what would be executed without running              |
 | `--top`                   | Display resource usage (CPU, memory) during execution    |
@@ -49,14 +49,14 @@ deepnote run my-project.deepnote --profile
 # Run and open in Deepnote Cloud
 deepnote run notebook.ipynb --open
 
-# Run an LLM agent with a prompt (appends to existing file)
+# Run an agent block with a prompt (appends to existing file)
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the data"
 
-# Run an LLM agent standalone (no file needed)
+# Run an agent block standalone (no file needed)
 OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 ```
 
-**Environment variables for `--prompt` / LLM blocks:**
+**Environment variables for `--prompt` / agent blocks:**
 
 | Variable          | Required | Description                                               |
 | ----------------- | -------- | --------------------------------------------------------- |

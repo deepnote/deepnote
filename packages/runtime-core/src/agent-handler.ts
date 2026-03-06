@@ -1,26 +1,26 @@
 import { randomUUID } from 'node:crypto'
-import type { DeepnoteBlock, DeepnoteFile, LlmBlock, McpServerConfig } from '@deepnote/blocks'
+import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { Agent, MCPServerStdio, OpenAIChatCompletionsModel, run, setTracingDisabled, tool } from '@openai/agents'
 import OpenAI from 'openai'
 import type { KernelClient } from './kernel-client'
 
-export type LlmStreamEvent =
+export type AgentStreamEvent =
   | { type: 'tool_called'; toolName: string }
   | { type: 'tool_output'; toolName: string; output: string }
   | { type: 'text_delta'; text: string }
 
-export interface LlmBlockContext {
+export interface AgentBlockContext {
   kernel: KernelClient
   file: DeepnoteFile
   notebookIndex: number
-  llmBlockIndex: number
+  agentBlockIndex: number
   collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
   onLog?: (message: string) => void
-  onLlmEvent?: (event: LlmStreamEvent) => void
+  onAgentEvent?: (event: AgentStreamEvent) => void
   integrations?: Array<{ id: string; name: string; type: string }>
 }
 
-export interface LlmBlockResult {
+export interface AgentBlockResult {
   finalOutput: string
   addedBlockIds: string[]
   blockOutputs: Array<{ blockId: string; outputs: unknown[]; executionCount: number | null }>
@@ -125,11 +125,11 @@ ${integrations.map(i => `- "${i.name}" (${i.type}, id: ${i.id})`).join('\n')}`
   return prompt
 }
 
-export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext): Promise<LlmBlockResult> {
+export async function executeAgentBlock(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     throw new Error(
-      'OPENAI_API_KEY environment variable is required for llm blocks.\n' +
+      'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
         'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
     )
   }
@@ -164,9 +164,9 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
       })
   )
 
-  let insertIndex = context.llmBlockIndex + 1
+  let insertIndex = context.agentBlockIndex + 1
   const addedBlockIds: string[] = []
-  const blockOutputs: LlmBlockResult['blockOutputs'] = []
+  const blockOutputs: AgentBlockResult['blockOutputs'] = []
 
   const addCodeBlockTool = tool({
     name: 'add_code_block',
@@ -183,7 +183,7 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
     strict: false as const,
     execute: async (input: unknown) => {
       const { code } = input as { code: string }
-      context.onLog?.(`  [llm] Adding code block and executing...`)
+      context.onLog?.(`  [agent] Adding code block and executing...`)
 
       const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
         id: randomUUID().replace(/-/g, ''),
@@ -263,7 +263,7 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
     strict: false as const,
     execute: async (input: unknown) => {
       const { content: mdContent } = input as { content: string }
-      context.onLog?.(`  [llm] Adding markdown block`)
+      context.onLog?.(`  [agent] Adding markdown block`)
 
       const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
         id: randomUUID().replace(/-/g, ''),
@@ -292,7 +292,9 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
     model: new OpenAIChatCompletionsModel(client, modelName),
   })
 
-  context.onLog?.(`[llm] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpServers.length}`)
+  context.onLog?.(
+    `[agent] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpServers.length}`
+  )
 
   try {
     for (const server of mcpServers) {
@@ -309,7 +311,7 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
             raw && typeof raw === 'object' && 'type' in raw && raw.type === 'function_call' && 'name' in raw
               ? String(raw.name)
               : 'unknown'
-          context.onLlmEvent?.({ type: 'tool_called', toolName: name })
+          context.onAgentEvent?.({ type: 'tool_called', toolName: name })
         } else if (event.name === 'tool_output') {
           const json = event.item.toJSON() as Record<string, unknown>
           const outputStr = typeof json.output === 'string' ? json.output : ''
@@ -318,12 +320,12 @@ export async function executeLlmBlock(block: LlmBlock, context: LlmBlockContext)
             raw && typeof raw === 'object' && 'type' in raw && raw.type === 'function_call_result' && 'name' in raw
               ? String(raw.name)
               : 'tool'
-          context.onLlmEvent?.({ type: 'tool_output', toolName: name, output: outputStr })
+          context.onAgentEvent?.({ type: 'tool_output', toolName: name, output: outputStr })
         }
       } else if (event.type === 'raw_model_stream_event') {
         const data = event.data as Record<string, unknown>
         if (data.type === 'output_text_delta' && typeof data.delta === 'string') {
-          context.onLlmEvent?.({ type: 'text_delta', text: data.delta })
+          context.onAgentEvent?.({ type: 'text_delta', text: data.delta })
         }
       }
     }

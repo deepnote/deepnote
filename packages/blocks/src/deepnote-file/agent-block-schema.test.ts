@@ -4,26 +4,26 @@ import { describe, expect, it } from 'vitest'
 import { deepnoteFileSchema } from './deepnote-file-schema'
 import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
 
-describe('llm block in deepnote file', () => {
-  it('parses the llm-block test fixture', () => {
-    const fixturePath = path.join(__dirname, '../../../../test-fixtures/llm-block.deepnote')
+describe('agent block in deepnote file', () => {
+  it('parses the agent-block test fixture', () => {
+    const fixturePath = path.join(__dirname, '../../../../test-fixtures/agent-block.deepnote')
     const content = fs.readFileSync(fixturePath, 'utf-8')
     const file = deserializeDeepnoteFile(content)
 
-    expect(file.project.name).toBe('LLM Block Test')
+    expect(file.project.name).toBe('Agent Block Test')
     expect(file.project.settings?.mcpServers).toHaveLength(1)
     expect(file.project.settings?.mcpServers?.[0]?.name).toBe('filesystem')
 
     const notebook = file.project.notebooks[0]
     expect(notebook?.blocks).toHaveLength(3)
 
-    const llmBlock = notebook?.blocks.find(b => b.type === 'llm')
-    expect(llmBlock).toBeDefined()
-    expect(llmBlock?.content).toContain('Analyze the DataFrame')
+    const agentBlock = notebook?.blocks.find(b => b.type === 'agent')
+    expect(agentBlock).toBeDefined()
+    expect(agentBlock?.content).toContain('Analyze the DataFrame')
 
-    if (llmBlock?.type === 'llm') {
-      expect(llmBlock.metadata.deepnote_model).toBe('gpt-4o')
-      expect(llmBlock.metadata.deepnote_max_iterations).toBe(5)
+    if (agentBlock?.type === 'agent') {
+      expect(agentBlock.metadata.deepnote_model).toBe('gpt-4o')
+      expect(agentBlock.metadata.deepnote_max_iterations).toBe(5)
     }
   })
 

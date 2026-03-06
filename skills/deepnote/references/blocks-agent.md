@@ -1,12 +1,12 @@
-# LLM Block
+# Agent Block
 
 > Common block fields (`id`, `blockGroup`, `type`, `content`, `sortingKey`, `metadata`) are described in [SKILL.md](../SKILL.md).
 
-## LLM Block (`llm`)
+## Agent Block (`agent`)
 
 Agentic block that takes a user prompt, reads the full notebook context (including prior block outputs), calls an LLM, and autonomously adds new code and markdown blocks to the notebook.
 
-The LLM agent uses the OpenAI Agents SDK and can connect to external MCP servers for additional tools.
+The agent block uses the OpenAI Agents SDK and can connect to external MCP servers for additional tools.
 
 **Metadata fields:**
 
@@ -35,13 +35,13 @@ The LLM agent uses the OpenAI Agents SDK and can connect to external MCP servers
 
 **Built-in agent tools:**
 
-- `add_code_block` - Adds a Python code block after the LLM block and executes it. Returns output.
-- `add_markdown_block` - Adds a markdown block after the LLM block for explanations.
+- `add_code_block` - Adds a Python code block after the agent block and executes it. Returns output.
+- `add_markdown_block` - Adds a markdown block after the agent block for explanations.
 
 ```yaml
 - id: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
   blockGroup: b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4
-  type: llm
+  type: agent
   content: "Analyze the data loaded above and create a visualization of the top 10 categories"
   metadata:
     deepnote_model: gpt-4o
@@ -55,10 +55,10 @@ The LLM agent uses the OpenAI Agents SDK and can connect to external MCP servers
 
 ## Using via CLI `--prompt` flag
 
-You can run an LLM agent directly from the command line without creating a `.deepnote` file:
+You can run an agent block directly from the command line without creating a `.deepnote` file:
 
 ```bash
-# Standalone (creates an in-memory notebook with just the LLM block)
+# Standalone (creates an in-memory notebook with just the agent block)
 OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 
 # Appended to an existing notebook (runs all blocks, then the agent)

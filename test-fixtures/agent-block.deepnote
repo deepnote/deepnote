@@ -2,8 +2,8 @@ version: "1.0.0"
 metadata:
   createdAt: "2026-03-03T00:00:00.000Z"
 project:
-  id: test-llm-project
-  name: LLM Block Test
+  id: test-agent-project
+  name: Agent Block Test
   settings:
     mcpServers:
       - name: filesystem
@@ -19,7 +19,7 @@ project:
         - id: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
           blockGroup: b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4
           type: text-cell-h1
-          content: LLM Block Demo
+          content: Agent Block Demo
           sortingKey: a0
           metadata: {}
         - id: c1d2e3f4a5b6c1d2e3f4a5b6c1d2e3f4
@@ -35,7 +35,7 @@ project:
           outputs: []
         - id: e1f2a3b4c5d6e1f2a3b4c5d6e1f2a3b4
           blockGroup: f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4
-          type: llm
+          type: agent
           content: Analyze the DataFrame above. Create a bar chart and summarize the findings.
           sortingKey: a2
           metadata:

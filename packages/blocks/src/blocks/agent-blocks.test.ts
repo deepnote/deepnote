@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { deepnoteBlockSchema } from '../deepnote-file/deepnote-file-schema'
-import { isLlmBlock } from './llm-blocks'
+import { isAgentBlock } from './agent-blocks'
 
-describe('llm block schema', () => {
-  it('parses a minimal llm block', () => {
+describe('agent block schema', () => {
+  it('parses a minimal agent block', () => {
     const result = deepnoteBlockSchema.safeParse({
       id: 'abc123',
       blockGroup: 'grp123',
       sortingKey: 'a0',
-      type: 'llm',
+      type: 'agent',
       content: 'Analyze the data',
       metadata: {},
       executionCount: null,
@@ -17,7 +17,7 @@ describe('llm block schema', () => {
 
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.type).toBe('llm')
+      expect(result.data.type).toBe('agent')
       expect(result.data.content).toBe('Analyze the data')
     }
   })
@@ -27,25 +27,25 @@ describe('llm block schema', () => {
       id: 'abc123',
       blockGroup: 'grp123',
       sortingKey: 'a0',
-      type: 'llm',
+      type: 'agent',
       content: 'test prompt',
       executionCount: null,
       outputs: [],
     })
 
     expect(result.success).toBe(true)
-    if (result.success && result.data.type === 'llm') {
+    if (result.success && result.data.type === 'agent') {
       expect(result.data.metadata.deepnote_model).toBe('auto')
       expect(result.data.metadata.deepnote_max_iterations).toBe(10)
     }
   })
 
-  it('parses llm block with MCP servers', () => {
+  it('parses agent block with MCP servers', () => {
     const result = deepnoteBlockSchema.safeParse({
       id: 'abc123',
       blockGroup: 'grp123',
       sortingKey: 'a0',
-      type: 'llm',
+      type: 'agent',
       content: 'query the db',
       metadata: {
         deepnote_model: 'gpt-4o-mini',
@@ -65,7 +65,7 @@ describe('llm block schema', () => {
     })
 
     expect(result.success).toBe(true)
-    if (result.success && result.data.type === 'llm') {
+    if (result.success && result.data.type === 'agent') {
       expect(result.data.metadata.deepnote_model).toBe('gpt-4o-mini')
       expect(result.data.metadata.deepnote_max_iterations).toBe(5)
       expect(result.data.metadata.deepnote_mcp_servers).toHaveLength(1)
@@ -74,19 +74,19 @@ describe('llm block schema', () => {
   })
 })
 
-describe('isLlmBlock', () => {
-  it('returns true for llm blocks', () => {
+describe('isAgentBlock', () => {
+  it('returns true for agent blocks', () => {
     const block = deepnoteBlockSchema.parse({
       id: 'abc123',
       blockGroup: 'grp123',
       sortingKey: 'a0',
-      type: 'llm',
+      type: 'agent',
       content: 'test',
       executionCount: null,
       outputs: [],
     })
 
-    expect(isLlmBlock(block)).toBe(true)
+    expect(isAgentBlock(block)).toBe(true)
   })
 
   it('returns false for code blocks', () => {
@@ -100,6 +100,6 @@ describe('isLlmBlock', () => {
       outputs: [],
     })
 
-    expect(isLlmBlock(block)).toBe(false)
+    expect(isAgentBlock(block)).toBe(false)
   })
 })

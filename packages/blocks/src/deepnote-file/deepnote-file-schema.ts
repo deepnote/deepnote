@@ -247,7 +247,7 @@ const bigNumberBlockSchema = z.object({
 })
 
 // =============================================================================
-// MCP server config schema (shared between project settings and llm blocks)
+// MCP server config schema (shared between project settings and agent blocks)
 // =============================================================================
 
 export const mcpServerSchema = z.object({
@@ -260,12 +260,12 @@ export const mcpServerSchema = z.object({
 export type McpServerConfig = z.infer<typeof mcpServerSchema>
 
 // =============================================================================
-// LLM block schema
+// Agent block schema
 // =============================================================================
 
-const llmBlockSchema = z.object({
+const agentBlockSchema = z.object({
   ...executableBlockFields,
-  type: z.literal('llm'),
+  type: z.literal('agent'),
   content: z.string().optional(),
   metadata: executableBlockMetadataSchema
     .extend({
@@ -417,7 +417,7 @@ export const deepnoteBlockSchema = z.discriminatedUnion('type', [
   visualizationBlockSchema,
   buttonBlockSchema,
   bigNumberBlockSchema,
-  llmBlockSchema,
+  agentBlockSchema,
   // Input blocks
   inputTextBlockSchema,
   inputTextareaBlockSchema,
@@ -451,7 +451,7 @@ export type NotebookFunctionBlock = z.infer<typeof notebookFunctionBlockSchema>
 export type VisualizationBlock = z.infer<typeof visualizationBlockSchema>
 export type ButtonBlock = z.infer<typeof buttonBlockSchema>
 export type BigNumberBlock = z.infer<typeof bigNumberBlockSchema>
-export type LlmBlock = z.infer<typeof llmBlockSchema>
+export type AgentBlock = z.infer<typeof agentBlockSchema>
 export type InputTextBlock = z.infer<typeof inputTextBlockSchema>
 export type InputTextareaBlock = z.infer<typeof inputTextareaBlockSchema>
 export type InputCheckboxBlock = z.infer<typeof inputCheckboxBlockSchema>
@@ -480,7 +480,7 @@ export type ExecutableBlock =
   | VisualizationBlock
   | ButtonBlock
   | BigNumberBlock
-  | LlmBlock
+  | AgentBlock
   | InputBlock
 
 /** Union of all text cell block types */

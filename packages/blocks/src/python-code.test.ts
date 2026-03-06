@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ButtonExecutionContext } from './blocks/button-blocks'
 import type {
+  AgentBlock,
   BigNumberBlock,
   ButtonBlock,
   CodeBlock,
@@ -14,7 +15,6 @@ import type {
   InputSliderBlock,
   InputTextareaBlock,
   InputTextBlock,
-  LlmBlock,
   SqlBlock,
   VisualizationBlock,
 } from './deepnote-file/deepnote-file-schema'
@@ -905,11 +905,11 @@ describe('createPythonCode', () => {
     })
   })
 
-  describe('LLM blocks', () => {
-    it('returns empty string for llm block (handled by execution engine)', () => {
-      const block: LlmBlock = {
+  describe('Agent blocks', () => {
+    it('returns empty string for agent block (handled by execution engine)', () => {
+      const block: AgentBlock = {
         id: '123',
-        type: 'llm',
+        type: 'agent',
         content: 'Analyze the data',
         blockGroup: 'abc',
         sortingKey: 'a0',

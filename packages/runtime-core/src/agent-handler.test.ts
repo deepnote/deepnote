@@ -1,6 +1,6 @@
 import type { DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { buildSystemPrompt, mergeMcpConfigs, resolveEnvVars, serializeNotebookContext } from './llm-handler'
+import { buildSystemPrompt, mergeMcpConfigs, resolveEnvVars, serializeNotebookContext } from './agent-handler'
 
 describe('resolveEnvVars', () => {
   beforeEach(() => {
