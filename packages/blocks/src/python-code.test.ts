@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ButtonExecutionContext } from './blocks/button-blocks'
 import type {
+  AgentBlock,
   BigNumberBlock,
   ButtonBlock,
   CodeBlock,
@@ -896,6 +897,26 @@ describe('createPythonCode', () => {
         blockGroup: 'abc',
         sortingKey: 'a0',
         metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('')
+    })
+  })
+
+  describe('Agent blocks', () => {
+    it('returns empty string for agent block (handled by execution engine)', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: 'Analyze the data',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_model: 'gpt-4o',
+          deepnote_max_iterations: 10,
+        },
       }
 
       const result = createPythonCode(block)

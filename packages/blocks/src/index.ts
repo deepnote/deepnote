@@ -1,8 +1,10 @@
 export { UnsupportedBlockTypeError } from './blocks'
+export { isAgentBlock } from './blocks/agent-blocks'
 export { INPUT_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
 export { convertToEnvironmentVariableName, getSqlEnvVarName } from './blocks/sql-utils'
 export type { TableState } from './blocks/table-state'
 export type {
+  AgentBlock,
   DeepnoteBlock,
   DeepnoteFile,
   DeepnoteSnapshot,
@@ -11,6 +13,7 @@ export type {
   Execution,
   ExecutionError,
   ExecutionSummary,
+  McpServerConfig,
   SnapshotHashInput,
 } from './deepnote-file/deepnote-file-schema'
 export {
@@ -21,6 +24,7 @@ export {
   executionErrorSchema,
   executionSchema,
   executionSummarySchema,
+  mcpServerSchema,
 } from './deepnote-file/deepnote-file-schema'
 export { deserializeDeepnoteFile } from './deepnote-file/deserialize-deepnote-file'
 export { decodeUtf8NoBom, parseYaml } from './deepnote-file/parse-yaml'
