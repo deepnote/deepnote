@@ -12,7 +12,7 @@ export function sanitizeFileName(name: string): string {
  * Deepnote block types that should be converted to code cells.
  * Unknown types default to markdown (less lossy).
  */
-const CODE_BLOCK_TYPES = ['big-number', 'button', 'code', 'notebook-function', 'sql', 'visualization'] as const
+const CODE_BLOCK_TYPES = ['agent', 'big-number', 'button', 'code', 'notebook-function', 'sql', 'visualization'] as const
 
 /**
  * Checks if a Deepnote block type should be converted to a markdown cell.

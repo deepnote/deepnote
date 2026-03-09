@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ButtonExecutionContext } from './blocks/button-blocks'
 import type {
+  AgentBlock,
   BigNumberBlock,
   ButtonBlock,
   CodeBlock,
@@ -20,6 +21,82 @@ import type {
 import { createPythonCode } from './python-code'
 
 describe('createPythonCode', () => {
+  describe('Agent blocks', () => {
+    it('creates Python comment for agent block with prompt', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: 'Analyze the dataset and create a summary',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block]\n# Analyze the dataset and create a summary')
+    })
+
+    it('creates Python comment for agent block with multiline prompt', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: 'First line\nSecond line\nThird line',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block]\n# First line\n# Second line\n# Third line')
+    })
+
+    it('creates empty prompt comment for agent block with no content', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] (empty prompt)')
+    })
+
+    it('creates empty prompt comment for agent block with whitespace-only content', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: '   \n  \n  ',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] (empty prompt)')
+    })
+
+    it('creates empty prompt comment for agent block with undefined content', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] (empty prompt)')
+    })
+  })
+
   describe('Button blocks', () => {
     it('creates Python code for button block with variable', () => {
       const block: ButtonBlock = {
