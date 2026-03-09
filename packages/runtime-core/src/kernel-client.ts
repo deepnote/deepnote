@@ -27,7 +27,7 @@ const JUPYTER_BINARY_PROTOCOL = 'v1.kernel.websocket.jupyter.org'
  * forcing JSON-only communication. Passed to ServerConnection.makeSettings()
  * via the documented WebSocket option.
  */
-function createJsonWebSocketFactory(): typeof WebSocket {
+export function createJsonWebSocketFactory(): typeof WebSocket {
   return class extends WebSocket {
     constructor(url: string | URL, protocols?: string | string[]) {
       const filtered = Array.isArray(protocols)
