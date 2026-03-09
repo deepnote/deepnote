@@ -628,6 +628,155 @@ describe('Deepnote heading block roundtrip', () => {
 })
 
 // ============================================================================
+// AGENT BLOCK ROUNDTRIP TESTS
+// ============================================================================
+
+describe('Agent block roundtrip', () => {
+  const createDeepnoteWithAgentBlock = (): import('@deepnote/blocks').DeepnoteFile => ({
+    metadata: { createdAt: '2025-01-01T00:00:00Z' },
+    project: {
+      id: 'test-project',
+      name: 'Test Project',
+      notebooks: [
+        {
+          id: 'test-notebook',
+          name: 'Test Notebook',
+          blocks: [
+            {
+              id: 'code-1',
+              blockGroup: 'group-1',
+              type: 'code',
+              sortingKey: '0',
+              content: 'import pandas as pd',
+              metadata: {},
+            },
+            {
+              id: 'agent-1',
+              blockGroup: 'group-2',
+              type: 'agent',
+              sortingKey: '1',
+              content: 'Analyze the dataset and create a summary report',
+              metadata: {
+                deepnote_agent_model: 'gpt-4',
+              },
+            },
+            {
+              id: 'agent-2',
+              blockGroup: 'group-3',
+              type: 'agent',
+              sortingKey: '2',
+              content: 'Line one of the prompt\nLine two of the prompt',
+              metadata: {},
+            },
+            {
+              id: 'code-2',
+              blockGroup: 'group-4',
+              type: 'code',
+              sortingKey: '3',
+              content: 'print("done")',
+              metadata: {},
+            },
+          ],
+        },
+      ],
+    },
+    version: '1.0.0',
+  })
+
+  it('Deepnote agent → Jupyter code cell → Deepnote: preserves block type and content', () => {
+    const original = createDeepnoteWithAgentBlock()
+
+    // Step 1: Deepnote → Jupyter
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
+    const jupyterCells = jupyterNotebooks[0].notebook.cells
+
+    // Agent blocks should become code cells
+    expect(jupyterCells[1].cell_type).toBe('code')
+    expect(jupyterCells[2].cell_type).toBe('code')
+
+    // The source should be the commented-out prompt
+    expect(jupyterCells[1].source).toContain('# [agent block]')
+    expect(jupyterCells[1].source).toContain('# Analyze the dataset and create a summary report')
+    expect(jupyterCells[2].source).toContain('# Line one of the prompt')
+    expect(jupyterCells[2].source).toContain('# Line two of the prompt')
+
+    // Original content is preserved in metadata for roundtrip
+    expect(jupyterCells[1].metadata?.deepnote_cell_type).toBe('agent')
+    expect(jupyterCells[1].metadata?.deepnote_source).toBe('Analyze the dataset and create a summary report')
+    expect(jupyterCells[2].metadata?.deepnote_source).toBe('Line one of the prompt\nLine two of the prompt')
+
+    // Step 2: Jupyter → Deepnote
+    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+      projectName: original.project.name,
+    })
+
+    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+    expect(roundtrippedBlocks.length).toBe(4)
+
+    // Agent block type should be restored
+    expect(roundtrippedBlocks[1].type).toBe('agent')
+    expect(roundtrippedBlocks[1].content).toBe('Analyze the dataset and create a summary report')
+    expect(roundtrippedBlocks[1].id).toBe('agent-1')
+
+    expect(roundtrippedBlocks[2].type).toBe('agent')
+    expect(roundtrippedBlocks[2].content).toBe('Line one of the prompt\nLine two of the prompt')
+    expect(roundtrippedBlocks[2].id).toBe('agent-2')
+
+    // Agent-specific metadata should be preserved
+    expect(roundtrippedBlocks[1].metadata?.deepnote_agent_model).toBe('gpt-4')
+
+    // Surrounding code blocks should be unchanged
+    expect(roundtrippedBlocks[0].type).toBe('code')
+    expect(roundtrippedBlocks[0].content).toBe('import pandas as pd')
+    expect(roundtrippedBlocks[3].type).toBe('code')
+    expect(roundtrippedBlocks[3].content).toBe('print("done")')
+  })
+
+  it('Deepnote agent → Percent format: agent becomes code cell with comment', () => {
+    const original = createDeepnoteWithAgentBlock()
+
+    const percentNotebooks = convertDeepnoteToPercentNotebooks(original)
+    const percentCells = percentNotebooks[0].notebook.cells
+
+    // Agent blocks should become code cells
+    const agentCell = percentCells[1]
+    expect(agentCell.cellType).toBe('code')
+    expect(agentCell.content).toContain('# [agent block]')
+    expect(agentCell.content).toContain('# Analyze the dataset')
+  })
+
+  it('Deepnote agent → Quarto format: agent becomes code cell with comment', () => {
+    const original = createDeepnoteWithAgentBlock()
+
+    const quartoDocuments = convertDeepnoteToQuartoDocuments(original)
+    const quartoCells = quartoDocuments[0].document.cells
+
+    // Agent blocks should become code cells
+    const codeCells = quartoCells.filter(c => c.cellType === 'code')
+    expect(codeCells.some(c => c.content.includes('# [agent block]'))).toBe(true)
+    expect(codeCells.some(c => c.content.includes('# Analyze the dataset'))).toBe(true)
+  })
+
+  it('Deepnote agent → Marimo format: agent becomes code cell with comment', () => {
+    const original = createDeepnoteWithAgentBlock()
+
+    const marimoApps = convertDeepnoteToMarimoApps(original)
+    const marimoCells = marimoApps[0].app.cells
+
+    // Agent blocks should become code cells with the prompt as comment
+    const codeCells = marimoCells.filter(c => c.cellType === 'code')
+    expect(codeCells.some(c => c.content.includes('# [agent block]'))).toBe(true)
+    expect(codeCells.some(c => c.content.includes('# Analyze the dataset'))).toBe(true)
+  })
+
+  it('Deepnote schema validates agent blocks', () => {
+    const original = createDeepnoteWithAgentBlock()
+    const validationResult = deepnoteFileSchema.safeParse(original)
+    expect(validationResult.success).toBe(true)
+  })
+})
+
+// ============================================================================
 // FORMAT INTEGRITY VALIDATION
 // ============================================================================
 

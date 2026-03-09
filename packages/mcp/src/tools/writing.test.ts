@@ -66,6 +66,26 @@ describe('writing tools handlers', () => {
     expect(addedBlock.blockGroup).not.toBe(existingGroup)
   })
 
+  it('deepnote_create with agent block includes execution fields', async () => {
+    await handleWritingTool('deepnote_create', {
+      outputPath: testNotebookPath,
+      projectName: 'Test Project',
+      notebooks: [
+        {
+          name: 'Notebook',
+          blocks: [{ type: 'agent', content: 'Analyze the data' }],
+        },
+      ],
+    })
+
+    const file = await loadDeepnoteFile(testNotebookPath)
+    const block = file.project.notebooks[0].blocks[0]
+    expect(block.type).toBe('agent')
+    expect(block.content).toBe('Analyze the data')
+    expect('executionCount' in block).toBe(true)
+    expect('outputs' in block).toBe(true)
+  })
+
   it('deepnote_add_notebook assigns unique blockGroup per block in new notebook', async () => {
     await handleWritingTool('deepnote_create', {
       outputPath: testNotebookPath,

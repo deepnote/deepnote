@@ -74,6 +74,22 @@ describe('AstAnalyzer', () => {
       ])
     })
 
+    it('should accept agent block type without crashing', async () => {
+      const mockBlocks = [
+        { id: '1', type: 'code', content: 'a = 1', blockGroup: 'a', sortingKey: 'a' },
+        { id: '2', type: 'agent', content: 'Analyze the data', blockGroup: 'a', sortingKey: 'b' },
+      ] as DeepnoteBlock[]
+
+      const result = await getBlockDependencies(mockBlocks)
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: '1',
+          definedVariables: ['a'],
+        }),
+      ])
+    })
+
     it('should throw error when python interpreter is not found', async () => {
       const mockBlocks = [{ id: '1', type: 'code', content: 'a = 1' }] as DeepnoteBlock[]
       await expect(getBlockDependencies(mockBlocks, { pythonInterpreter: 'non-existent-python' })).rejects.toThrow(
