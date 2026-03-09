@@ -55,11 +55,11 @@ function getAgentBlockLabel(content: string): string {
   for (const line of lines) {
     const trimmed = line.trim()
     if (trimmed) {
-      return truncate(trimmed, MAX_LABEL_LENGTH)
+      return truncate(`prompt: ${trimmed}`, MAX_LABEL_LENGTH)
     }
   }
 
-  return 'agent (empty)'
+  return 'agent (empty prompt)'
 }
 
 /**

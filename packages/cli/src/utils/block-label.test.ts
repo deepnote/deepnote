@@ -123,7 +123,7 @@ describe('getBlockLabel', () => {
         sortingKey: 'a',
         blockGroup: 'group',
       }
-      expect(getBlockLabel(block)).toBe('Analyze the dataset and create a summary')
+      expect(getBlockLabel(block)).toBe('prompt: Analyze the dataset and create a summary')
     })
 
     it('returns first non-empty line for multiline prompt', () => {
@@ -135,7 +135,7 @@ describe('getBlockLabel', () => {
         sortingKey: 'a',
         blockGroup: 'group',
       }
-      expect(getBlockLabel(block)).toBe('First line of prompt')
+      expect(getBlockLabel(block)).toBe('prompt: First line of prompt')
     })
 
     it('skips empty lines to find first non-empty line', () => {
@@ -147,7 +147,7 @@ describe('getBlockLabel', () => {
         sortingKey: 'a',
         blockGroup: 'group',
       }
-      expect(getBlockLabel(block)).toBe('Actual prompt starts here')
+      expect(getBlockLabel(block)).toBe('prompt: Actual prompt starts here')
     })
 
     it('returns "agent (empty)" for empty content', () => {
@@ -159,7 +159,7 @@ describe('getBlockLabel', () => {
         sortingKey: 'a',
         blockGroup: 'group',
       }
-      expect(getBlockLabel(block)).toBe('agent (empty)')
+      expect(getBlockLabel(block)).toBe('agent (empty prompt)')
     })
 
     it('returns "agent (empty)" for whitespace-only content', () => {
@@ -171,7 +171,7 @@ describe('getBlockLabel', () => {
         sortingKey: 'a',
         blockGroup: 'group',
       }
-      expect(getBlockLabel(block)).toBe('agent (empty)')
+      expect(getBlockLabel(block)).toBe('agent (empty prompt)')
     })
 
     it('returns "agent (empty)" for undefined content', () => {
@@ -182,7 +182,7 @@ describe('getBlockLabel', () => {
         sortingKey: 'a',
         blockGroup: 'group',
       } as DeepnoteBlock
-      expect(getBlockLabel(block)).toBe('agent (empty)')
+      expect(getBlockLabel(block)).toBe('agent (empty prompt)')
     })
 
     it('truncates long prompts', () => {
