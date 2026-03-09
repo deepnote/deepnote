@@ -8,6 +8,7 @@ import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './ty
 
 // Re-export for backwards compatibility - these are now defined in @deepnote/blocks
 export const executableBlockTypes: ExecutableBlock['type'][] = [
+  'agent',
   'code',
   'sql',
   'notebook-function',
