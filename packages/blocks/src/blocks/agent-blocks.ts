@@ -3,11 +3,11 @@ import type { AgentBlock, DeepnoteBlock } from '../deepnote-file/deepnote-file-s
 export function createPythonCodeForAgentBlock(block: AgentBlock): string {
   const prompt = block.content ?? ''
   if (!prompt.trim()) {
-    return '# [agent block] (empty prompt)'
+    return '# [agent block] (empty system prompt)'
   }
 
   const lines = prompt.split('\n').map(line => `# ${line}`)
-  return `# [agent block]\n${lines.join('\n')}`
+  return `# [agent block] System prompt:\n${lines.join('\n')}`
 }
 
 export function isAgentBlock(block: DeepnoteBlock): block is AgentBlock {

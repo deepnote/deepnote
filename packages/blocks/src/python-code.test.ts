@@ -34,7 +34,7 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('# [agent block]\n# Analyze the dataset and create a summary')
+      expect(result).toEqual('# [agent block] System prompt:\n# Analyze the dataset and create a summary')
     })
 
     it('creates Python comment for agent block with multiline prompt', () => {
@@ -49,7 +49,7 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('# [agent block]\n# First line\n# Second line\n# Third line')
+      expect(result).toEqual('# [agent block] System prompt:\n# First line\n# Second line\n# Third line')
     })
 
     it('creates empty prompt comment for agent block with no content', () => {
@@ -64,7 +64,7 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('# [agent block] (empty prompt)')
+      expect(result).toEqual('# [agent block] (empty system prompt)')
     })
 
     it('creates empty prompt comment for agent block with whitespace-only content', () => {
@@ -79,7 +79,7 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('# [agent block] (empty prompt)')
+      expect(result).toEqual('# [agent block] (empty system prompt)')
     })
 
     it('creates empty prompt comment for agent block with undefined content', () => {
@@ -93,7 +93,7 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('# [agent block] (empty prompt)')
+      expect(result).toEqual('# [agent block] (empty system prompt)')
     })
   })
 
