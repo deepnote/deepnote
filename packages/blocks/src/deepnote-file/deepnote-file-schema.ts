@@ -246,10 +246,6 @@ const bigNumberBlockSchema = z.object({
     .default({}),
 })
 
-// =============================================================================
-// MCP server config schema (shared between project settings and agent blocks)
-// =============================================================================
-
 export const mcpServerSchema = z.object({
   name: z.string(),
   command: z.string(),
@@ -258,10 +254,6 @@ export const mcpServerSchema = z.object({
 })
 
 export type McpServerConfig = z.infer<typeof mcpServerSchema>
-
-// =============================================================================
-// Agent block schema
-// =============================================================================
 
 const agentBlockSchema = z.object({
   ...executableBlockFields,
@@ -444,13 +436,13 @@ export type TextCellPBlock = z.infer<typeof textCellPBlockSchema>
 export type TextCellBulletBlock = z.infer<typeof textCellBulletBlockSchema>
 export type TextCellTodoBlock = z.infer<typeof textCellTodoBlockSchema>
 export type TextCellCalloutBlock = z.infer<typeof textCellCalloutBlockSchema>
+export type AgentBlock = z.infer<typeof agentBlockSchema>
 export type CodeBlock = z.infer<typeof codeBlockSchema>
 export type SqlBlock = z.infer<typeof sqlBlockSchema>
 export type NotebookFunctionBlock = z.infer<typeof notebookFunctionBlockSchema>
 export type VisualizationBlock = z.infer<typeof visualizationBlockSchema>
 export type ButtonBlock = z.infer<typeof buttonBlockSchema>
 export type BigNumberBlock = z.infer<typeof bigNumberBlockSchema>
-export type AgentBlock = z.infer<typeof agentBlockSchema>
 export type InputTextBlock = z.infer<typeof inputTextBlockSchema>
 export type InputTextareaBlock = z.infer<typeof inputTextareaBlockSchema>
 export type InputCheckboxBlock = z.infer<typeof inputCheckboxBlockSchema>
@@ -480,7 +472,6 @@ export type ExecutableBlock =
   | VisualizationBlock
   | ButtonBlock
   | BigNumberBlock
-  | AgentBlock
   | InputBlock
 
 /** Union of all text cell block types */
