@@ -43,4 +43,6 @@ export {
   YamlParseError,
 } from './errors'
 export { createMarkdown, stripMarkdown } from './markdown'
+export type { ExtractOutputTextOptions } from './output-text'
+export { extractOutputsText, extractOutputText } from './output-text'
 export { createPythonCode } from './python-code'

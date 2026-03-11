@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
+import { extractOutputsText, generateSortingKey } from '@deepnote/blocks'
 import { Agent, MCPServerStdio, OpenAIChatCompletionsModel, run, setTracingDisabled, tool } from '@openai/agents'
 import OpenAI from 'openai'
 import type { KernelClient } from './kernel-client'
@@ -35,10 +36,6 @@ export function resolveEnvVars(env: Record<string, string> | undefined): Record<
   return resolved
 }
 
-function generateSortingKey(index: number): string {
-  return `a${index.toString().padStart(8, '0')}`
-}
-
 export function serializeNotebookContext(
   file: DeepnoteFile,
   notebookIndex: number,
@@ -61,23 +58,8 @@ export function serializeNotebookContext(
     const outputs = collectedOutputs.get(block.id)
     if (outputs && outputs.outputs.length > 0) {
       lines.push('### Output:')
-      for (const output of outputs.outputs) {
-        const out = output as Record<string, unknown>
-        if (out.output_type === 'stream' && typeof out.text === 'string') {
-          lines.push(out.text)
-        } else if (out.output_type === 'execute_result' || out.output_type === 'display_data') {
-          const data = out.data as Record<string, unknown> | undefined
-          if (data?.['text/plain']) {
-            lines.push(String(data['text/plain']))
-          } else if (data?.['text/html']) {
-            lines.push('[HTML output]')
-          } else if (data?.['image/png'] || data?.['image/jpeg']) {
-            lines.push('[Image output]')
-          }
-        } else if (out.output_type === 'error') {
-          lines.push(`Error: ${out.ename}: ${out.evalue}`)
-        }
-      }
+      const text = extractOutputsText(outputs.outputs)
+      if (text) lines.push(text)
     }
 
     lines.push('')
@@ -204,32 +186,6 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
 
       try {
         const result = await context.kernel.execute(code)
-        const outputTexts: string[] = []
-        for (const output of result.outputs) {
-          const out = output as Record<string, unknown>
-          if (out.output_type === 'stream' && typeof out.text === 'string') {
-            outputTexts.push(out.text)
-          } else if (out.output_type === 'execute_result' || out.output_type === 'display_data') {
-            const data = out.data as Record<string, unknown> | undefined
-            if (data?.['text/plain']) {
-              outputTexts.push(String(data['text/plain']))
-            } else if (data?.['text/html']) {
-              outputTexts.push('[HTML output]')
-            } else if (data?.['image/png'] || data?.['image/jpeg']) {
-              outputTexts.push('[Image output]')
-            }
-          } else if (out.output_type === 'error') {
-            outputTexts.push(`Error: ${out.ename}: ${out.evalue}`)
-            if (Array.isArray(out.traceback)) {
-              outputTexts.push(
-                (out.traceback as string[])
-                  // biome-ignore lint/suspicious/noControlCharactersInRegex: strip ANSI escape sequences from traceback
-                  .map(line => line.replace(/\x1b\[[0-9;]*m/g, ''))
-                  .join('\n')
-              )
-            }
-          }
-        }
 
         blockOutputs.push({
           blockId: newBlock.id,
@@ -242,7 +198,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
           executionCount: result.executionCount,
         })
 
-        const outputText = outputTexts.join('\n') || '(no output)'
+        const outputText = extractOutputsText(result.outputs, { includeTraceback: true }) || '(no output)'
         return result.success ? `Output:\n${outputText}` : `Execution failed:\n${outputText}`
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
