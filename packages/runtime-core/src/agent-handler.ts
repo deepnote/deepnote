@@ -12,6 +12,7 @@ export type AgentStreamEvent =
   | { type: 'tool_called'; toolName: string }
   | { type: 'tool_output'; toolName: string; output: string }
   | { type: 'text_delta'; text: string }
+  | { type: 'reasoning_delta'; text: string }
 
 export interface AgentBlockContext {
   kernel: KernelClient
@@ -119,8 +120,10 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     )
   }
 
-  const baseURL = process.env.OPENAI_BASE_URL
-  const openai = createOpenAI({ apiKey, baseURL })
+  const openai = createOpenAI({
+    apiKey,
+    baseURL: process.env.OPENAI_BASE_URL,
+  })
 
   const modelName =
     block.metadata.deepnote_agent_model !== 'auto'
@@ -128,8 +131,10 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       : (process.env.OPENAI_MODEL ?? 'gpt-5')
   const maxTurns = 10
 
-  // Use Chat Completions API when a custom base URL is set, since most
-  // OpenAI-compatible providers don't support the Responses API.
+  // Use the Responses API for direct OpenAI access (supports reasoning
+  // summaries), but fall back to Chat Completions for custom base URLs
+  // since most OpenAI-compatible providers don't implement the Responses API.
+  const baseURL = process.env.OPENAI_BASE_URL
   const model = baseURL ? openai.chat(modelName) : openai(modelName)
 
   const { file } = context
@@ -244,6 +249,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       ...mcpTools,
     },
     stopWhen: stepCountIs(maxTurns),
+    ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
   })
 
   context.onLog?.(
@@ -256,6 +262,8 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     for await (const part of streamResult.fullStream) {
       if (part.type === 'text-delta') {
         context.onAgentEvent?.({ type: 'text_delta', text: part.text })
+      } else if (part.type === 'reasoning-delta') {
+        context.onAgentEvent?.({ type: 'reasoning_delta', text: part.text })
       } else if (part.type === 'tool-call') {
         context.onAgentEvent?.({ type: 'tool_called', toolName: part.toolName })
       } else if (part.type === 'tool-result') {

@@ -884,6 +884,9 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
   const blockLabels = new Map<string, string>()
   let agentStreamed = false
   let agentTextBuffer = ''
+  let reasoningActive = false
+  let reasoningBuffer = ''
+  const REASONING_LINE_WIDTH = 120
 
   // Profiling: track memory before each block and collect profile data
   const showProfile = options.profile && !isMachineOutput
@@ -944,6 +947,8 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         if (!isMachineOutput) {
           agentStreamed = false
           agentTextBuffer = ''
+          reasoningActive = false
+          reasoningBuffer = ''
           const c = getChalk()
           process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
@@ -1020,23 +1025,39 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         ? (event: AgentStreamEvent) => {
             agentStreamed = true
             const c = getChalk()
-            if (event.type === 'tool_called') {
-              process.stdout.write(`\n${c.dim(`  -> ${event.toolName}()`)}`)
-            } else if (event.type === 'tool_output') {
-              const failed = event.output.startsWith('Execution failed') || event.output.startsWith('Execution error')
-              const status = failed ? c.red('[failed]') : c.green('[ok]')
-              const contentLine = event.output
-                .split('\n')
-                .map(l => l.trim())
-                .find(l => l.length > 0 && l !== 'Output:')
-              const preview = contentLine
-                ? contentLine.length > 80
-                  ? `${contentLine.slice(0, 80)}...`
-                  : contentLine
-                : ''
-              process.stdout.write(` ${status}${preview ? c.dim(` ${preview}`) : ''}`)
-            } else if (event.type === 'text_delta') {
-              agentTextBuffer += event.text
+            if (event.type === 'reasoning_delta') {
+              if (!reasoningActive) {
+                reasoningActive = true
+              }
+              reasoningBuffer += event.text.replace(/\n/g, ' ')
+              const prefix = '  [thinking] '
+              const maxText = REASONING_LINE_WIDTH - prefix.length
+              const visible = reasoningBuffer.slice(-maxText)
+              process.stderr.write(`\r\x1b[K${c.dim(`${prefix}${visible}`)}`)
+            } else {
+              if (reasoningActive) {
+                reasoningActive = false
+                reasoningBuffer = ''
+                process.stderr.write('\r\x1b[K')
+              }
+              if (event.type === 'tool_called') {
+                process.stdout.write(`\n${c.dim(`  -> ${event.toolName}()`)}`)
+              } else if (event.type === 'tool_output') {
+                const failed = event.output.startsWith('Execution failed') || event.output.startsWith('Execution error')
+                const status = failed ? c.red('[failed]') : c.green('[ok]')
+                const contentLine = event.output
+                  .split('\n')
+                  .map(l => l.trim())
+                  .find(l => l.length > 0 && l !== 'Output:')
+                const preview = contentLine
+                  ? contentLine.length > 80
+                    ? `${contentLine.slice(0, 80)}...`
+                    : contentLine
+                  : ''
+                process.stdout.write(` ${status}${preview ? c.dim(` ${preview}`) : ''}`)
+              } else if (event.type === 'text_delta') {
+                agentTextBuffer += event.text
+              }
             }
           }
         : undefined,
