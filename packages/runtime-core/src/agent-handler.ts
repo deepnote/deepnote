@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto'
+import { createMCPClient } from '@ai-sdk/mcp'
+import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
+import { createOpenAI } from '@ai-sdk/openai'
 import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { extractOutputsText, generateSortingKey } from '@deepnote/blocks'
-import { Agent, MCPServerStdio, OpenAIChatCompletionsModel, run, setTracingDisabled, tool } from '@openai/agents'
-import OpenAI from 'openai'
+import { stepCountIs, ToolLoopAgent, tool } from 'ai'
+import { z } from 'zod'
 import type { KernelClient } from './kernel-client'
 
 export type AgentStreamEvent =
@@ -116,17 +119,18 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     )
   }
 
-  setTracingDisabled(true)
+  const baseURL = process.env.OPENAI_BASE_URL
+  const openai = createOpenAI({ apiKey, baseURL })
 
-  const client = new OpenAI({
-    apiKey,
-    baseURL: process.env.OPENAI_BASE_URL,
-  })
   const modelName =
     block.metadata.deepnote_agent_model !== 'auto'
       ? block.metadata.deepnote_agent_model
       : (process.env.OPENAI_MODEL ?? 'gpt-4o')
   const maxTurns = 10
+
+  // Use Chat Completions API when a custom base URL is set, since most
+  // OpenAI-compatible providers don't support the Responses API.
+  const model = baseURL ? openai.chat(modelName) : openai(modelName)
 
   const { file } = context
   const notebook = file.project.notebooks[context.notebookIndex]
@@ -138,14 +142,16 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   const blockMcpServers = block.metadata.deepnote_mcp_servers ?? []
   const mergedMcpConfig = mergeMcpConfigs(projectMcpServers, blockMcpServers)
 
-  const mcpServers = mergedMcpConfig.map(
-    s =>
-      new MCPServerStdio({
-        name: s.name,
-        command: s.command,
-        args: s.args,
-        env: resolveEnvVars(s.env),
+  const mcpClients = await Promise.all(
+    mergedMcpConfig.map(s =>
+      createMCPClient({
+        transport: new Experimental_StdioMCPTransport({
+          command: s.command,
+          args: s.args,
+          env: resolveEnvVars(s.env),
+        }),
       })
+    )
   )
 
   let insertIndex = context.agentBlockIndex + 1
@@ -153,21 +159,13 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   const blockOutputs: AgentBlockResult['blockOutputs'] = []
 
   const addCodeBlockTool = tool({
-    name: 'add_code_block',
     description:
       'Add a Python code block to the notebook and execute it. Returns stdout, stderr, and execution results.',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        code: { type: 'string', description: 'Python code to execute' },
-      },
-      required: ['code' as const],
-      additionalProperties: true as const,
-    },
-    strict: false as const,
-    execute: async (input: unknown) => {
-      const { code } = input as { code: string }
-      context.onLog?.(`  [agent] Adding code block and executing...`)
+    inputSchema: z.object({
+      code: z.string().describe('Python code to execute'),
+    }),
+    execute: async ({ code }) => {
+      context.onLog?.('  [agent] Adding code block and executing...')
 
       const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
         id: randomUUID().replace(/-/g, ''),
@@ -208,20 +206,12 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   })
 
   const addMarkdownBlockTool = tool({
-    name: 'add_markdown_block',
     description: 'Add a markdown block to the notebook for explanations, section headers, or documentation.',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        content: { type: 'string', description: 'Markdown content' },
-      },
-      required: ['content' as const],
-      additionalProperties: true as const,
-    },
-    strict: false as const,
-    execute: async (input: unknown) => {
-      const { content: mdContent } = input as { content: string }
-      context.onLog?.(`  [agent] Adding markdown block`)
+    inputSchema: z.object({
+      content: z.string().describe('Markdown content'),
+    }),
+    execute: async ({ content: mdContent }) => {
+      context.onLog?.('  [agent] Adding markdown block')
 
       const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
         id: randomUUID().replace(/-/g, ''),
@@ -236,69 +226,56 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       insertIndex++
       addedBlockIds.push(newBlock.id)
 
-      return `Markdown block added.`
+      return 'Markdown block added.'
     },
   })
 
+  const mcpToolSets = await Promise.all(mcpClients.map(client => client.tools()))
+  const mcpTools: Record<string, unknown> = Object.assign({}, ...mcpToolSets)
+
   const notebookContext = serializeNotebookContext(file, context.notebookIndex, context.collectedOutputs)
 
-  const agent = new Agent({
-    name: 'Deepnote Assistant',
+  const agent = new ToolLoopAgent({
+    model,
     instructions: buildSystemPrompt(notebookContext, context.integrations),
-    tools: [addCodeBlockTool, addMarkdownBlockTool],
-    mcpServers,
-    model: new OpenAIChatCompletionsModel(client, modelName),
+    tools: {
+      add_code_block: addCodeBlockTool,
+      add_markdown_block: addMarkdownBlockTool,
+      ...mcpTools,
+    },
+    stopWhen: stepCountIs(maxTurns),
   })
 
   context.onLog?.(
-    `[agent] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpServers.length}`
+    `[agent] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpClients.length}`
   )
 
   try {
-    for (const server of mcpServers) {
-      await server.connect()
-    }
+    const streamResult = await agent.stream({ prompt: block.content ?? '' })
 
-    const result = await run(agent, block.content ?? '', { stream: true, maxTurns })
-
-    for await (const event of result) {
-      if (event.type === 'run_item_stream_event') {
-        if (event.name === 'tool_called') {
-          const raw = event.item.rawItem
-          const name =
-            raw && typeof raw === 'object' && 'type' in raw && raw.type === 'function_call' && 'name' in raw
-              ? String(raw.name)
-              : 'unknown'
-          context.onAgentEvent?.({ type: 'tool_called', toolName: name })
-        } else if (event.name === 'tool_output') {
-          const json = event.item.toJSON() as Record<string, unknown>
-          const outputStr = typeof json.output === 'string' ? json.output : ''
-          const raw = event.item.rawItem
-          const name =
-            raw && typeof raw === 'object' && 'type' in raw && raw.type === 'function_call_result' && 'name' in raw
-              ? String(raw.name)
-              : 'tool'
-          context.onAgentEvent?.({ type: 'tool_output', toolName: name, output: outputStr })
-        }
-      } else if (event.type === 'raw_model_stream_event') {
-        const data = event.data as Record<string, unknown>
-        if (data.type === 'output_text_delta' && typeof data.delta === 'string') {
-          context.onAgentEvent?.({ type: 'text_delta', text: data.delta })
-        }
+    for await (const part of streamResult.fullStream) {
+      if (part.type === 'text-delta') {
+        context.onAgentEvent?.({ type: 'text_delta', text: part.text })
+      } else if (part.type === 'tool-call') {
+        context.onAgentEvent?.({ type: 'tool_called', toolName: part.toolName })
+      } else if (part.type === 'tool-result') {
+        const toolOutput = 'output' in part ? part.output : undefined
+        const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput)
+        context.onAgentEvent?.({ type: 'tool_output', toolName: part.toolName, output: outputStr })
       }
     }
 
-    await result.completed
+    const finalText = await streamResult.text
 
     return {
-      finalOutput: result.finalOutput ?? '',
+      finalOutput: finalText ?? '',
       addedBlockIds,
       blockOutputs,
     }
   } finally {
-    for (const server of mcpServers) {
+    for (const client of mcpClients) {
       try {
-        await server.close()
+        await client.close()
       } catch {
         // best-effort cleanup
       }
