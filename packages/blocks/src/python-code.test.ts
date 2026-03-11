@@ -990,7 +990,7 @@ describe('createPythonCode', () => {
         blockGroup: 'abc',
         sortingKey: 'a0',
         metadata: {
-          deepnote_agent_model: 'gpt-4o',
+          deepnote_agent_model: 'gpt-5',
         },
       }
 

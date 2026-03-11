@@ -39,6 +39,6 @@ project:
           content: Analyze the DataFrame above. Create a bar chart and summarize the findings.
           sortingKey: a2
           metadata:
-            deepnote_agent_model: gpt-4o
+            deepnote_agent_model: gpt-5
           executionCount: null
           outputs: []

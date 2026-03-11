@@ -10,10 +10,10 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
 
 **Metadata fields:**
 
-| Field                  | Type     | Default  | Description                                   |
-| ---------------------- | -------- | -------- | --------------------------------------------- |
-| `deepnote_agent_model` | `string` | `"auto"` | LLM model name (e.g. `gpt-4o`, `gpt-4o-mini`) |
-| `deepnote_mcp_servers` | `array`  | -        | Block-level MCP server configs (see below)    |
+| Field                  | Type     | Default  | Description                                 |
+| ---------------------- | -------- | -------- | ------------------------------------------- |
+| `deepnote_agent_model` | `string` | `"auto"` | LLM model name (e.g. `gpt-5`, `gpt-5-mini`) |
+| `deepnote_mcp_servers` | `array`  | -        | Block-level MCP server configs (see below)  |
 
 **MCP server config** (each entry in `deepnote_mcp_servers` or `project.settings.mcpServers`):
 
@@ -43,7 +43,7 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
   type: agent
   content: "Analyze the data loaded above and create a visualization of the top 10 categories"
   metadata:
-    deepnote_agent_model: gpt-4o
+    deepnote_agent_model: gpt-5
     deepnote_mcp_servers:
       - name: filesystem
         command: npx

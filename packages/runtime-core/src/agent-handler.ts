@@ -125,7 +125,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   const modelName =
     block.metadata.deepnote_agent_model !== 'auto'
       ? block.metadata.deepnote_agent_model
-      : (process.env.OPENAI_MODEL ?? 'gpt-4o')
+      : (process.env.OPENAI_MODEL ?? 'gpt-5')
   const maxTurns = 10
 
   // Use Chat Completions API when a custom base URL is set, since most
