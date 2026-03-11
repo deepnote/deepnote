@@ -22,8 +22,7 @@ describe('agent block in deepnote file', () => {
     expect(agentBlock?.content).toContain('Analyze the DataFrame')
 
     if (agentBlock?.type === 'agent') {
-      expect(agentBlock.metadata.deepnote_model).toBe('gpt-4o')
-      expect(agentBlock.metadata.deepnote_max_iterations).toBe(5)
+      expect(agentBlock.metadata.deepnote_agent_model).toBe('gpt-4o')
     }
   })
 

@@ -141,8 +141,10 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     baseURL: process.env.OPENAI_BASE_URL,
   })
   const modelName =
-    block.metadata.deepnote_model !== 'auto' ? block.metadata.deepnote_model : (process.env.OPENAI_MODEL ?? 'gpt-4o')
-  const maxTurns = block.metadata.deepnote_max_iterations
+    block.metadata.deepnote_agent_model !== 'auto'
+      ? block.metadata.deepnote_agent_model
+      : (process.env.OPENAI_MODEL ?? 'gpt-4o')
+  const maxTurns = 10
 
   const { file } = context
   const notebook = file.project.notebooks[context.notebookIndex]

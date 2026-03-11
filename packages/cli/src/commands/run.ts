@@ -198,8 +198,7 @@ function createAgentBlock(prompt: string, sortIndex: number): AgentBlock {
     type: 'agent',
     content: prompt,
     metadata: {
-      deepnote_model: 'auto',
-      deepnote_max_iterations: 10,
+      deepnote_agent_model: 'auto',
     },
     executionCount: null,
     outputs: [],

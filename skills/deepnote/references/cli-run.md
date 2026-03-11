@@ -58,10 +58,10 @@ OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 
 **Environment variables for `--prompt` / agent blocks:**
 
-| Variable          | Required | Description                                               |
-| ----------------- | -------- | --------------------------------------------------------- |
-| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                              |
-| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)  |
-| `OPENAI_MODEL`    | no       | Default model name (overridden by block `deepnote_model`) |
+| Variable          | Required | Description                                                     |
+| ----------------- | -------- | --------------------------------------------------------------- |
+| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                                    |
+| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)        |
+| `OPENAI_MODEL`    | no       | Default model name (overridden by block `deepnote_agent_model`) |
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.

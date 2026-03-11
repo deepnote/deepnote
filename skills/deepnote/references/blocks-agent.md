@@ -10,11 +10,10 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
 
 **Metadata fields:**
 
-| Field                     | Type     | Default  | Description                                   |
-| ------------------------- | -------- | -------- | --------------------------------------------- |
-| `deepnote_model`          | `string` | `"auto"` | LLM model name (e.g. `gpt-4o`, `gpt-4o-mini`) |
-| `deepnote_max_iterations` | `number` | `10`     | Maximum agent turns before stopping           |
-| `deepnote_mcp_servers`    | `array`  | -        | Block-level MCP server configs (see below)    |
+| Field                  | Type     | Default  | Description                                   |
+| ---------------------- | -------- | -------- | --------------------------------------------- |
+| `deepnote_agent_model` | `string` | `"auto"` | LLM model name (e.g. `gpt-4o`, `gpt-4o-mini`) |
+| `deepnote_mcp_servers` | `array`  | -        | Block-level MCP server configs (see below)    |
 
 **MCP server config** (each entry in `deepnote_mcp_servers` or `project.settings.mcpServers`):
 
@@ -27,11 +26,11 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
 
 **Environment variables:**
 
-| Variable          | Required | Description                                              |
-| ----------------- | -------- | -------------------------------------------------------- |
-| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                             |
-| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc) |
-| `OPENAI_MODEL`    | no       | Default model name (overridden by `deepnote_model`)      |
+| Variable          | Required | Description                                               |
+| ----------------- | -------- | --------------------------------------------------------- |
+| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                              |
+| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)  |
+| `OPENAI_MODEL`    | no       | Default model name (overridden by `deepnote_agent_model`) |
 
 **Built-in agent tools:**
 
@@ -44,8 +43,7 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
   type: agent
   content: "Analyze the data loaded above and create a visualization of the top 10 categories"
   metadata:
-    deepnote_model: gpt-4o
-    deepnote_max_iterations: 5
+    deepnote_agent_model: gpt-4o
     deepnote_mcp_servers:
       - name: filesystem
         command: npx

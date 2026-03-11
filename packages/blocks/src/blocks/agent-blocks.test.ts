@@ -35,8 +35,7 @@ describe('agent block schema', () => {
 
     expect(result.success).toBe(true)
     if (result.success && result.data.type === 'agent') {
-      expect(result.data.metadata.deepnote_model).toBe('auto')
-      expect(result.data.metadata.deepnote_max_iterations).toBe(10)
+      expect(result.data.metadata.deepnote_agent_model).toBe('auto')
     }
   })
 
@@ -48,8 +47,7 @@ describe('agent block schema', () => {
       type: 'agent',
       content: 'query the db',
       metadata: {
-        deepnote_model: 'gpt-4o-mini',
-        deepnote_max_iterations: 5,
+        deepnote_agent_model: 'gpt-4o-mini',
         deepnote_mcp_servers: [
           {
             name: 'postgres',
@@ -66,8 +64,7 @@ describe('agent block schema', () => {
 
     expect(result.success).toBe(true)
     if (result.success && result.data.type === 'agent') {
-      expect(result.data.metadata.deepnote_model).toBe('gpt-4o-mini')
-      expect(result.data.metadata.deepnote_max_iterations).toBe(5)
+      expect(result.data.metadata.deepnote_agent_model).toBe('gpt-4o-mini')
       expect(result.data.metadata.deepnote_mcp_servers).toHaveLength(1)
       expect(result.data.metadata.deepnote_mcp_servers?.[0]?.name).toBe('postgres')
     }

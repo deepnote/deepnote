@@ -114,7 +114,7 @@ describe('getBlockLabel', () => {
   })
 
   describe('agent blocks', () => {
-    const agentMetadata = { deepnote_model: 'auto' as const, deepnote_max_iterations: 10 }
+    const agentMetadata = { deepnote_agent_model: 'auto' as const }
 
     it('returns first line of prompt', () => {
       const block: DeepnoteBlock = {

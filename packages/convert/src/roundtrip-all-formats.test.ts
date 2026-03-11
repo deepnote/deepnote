@@ -657,8 +657,7 @@ describe('Agent block roundtrip', () => {
               sortingKey: '1',
               content: 'Analyze the dataset and create a summary report',
               metadata: {
-                deepnote_model: 'gpt-4',
-                deepnote_max_iterations: 10,
+                deepnote_agent_model: 'gpt-4',
               },
             },
             {
@@ -668,8 +667,7 @@ describe('Agent block roundtrip', () => {
               sortingKey: '2',
               content: 'Line one of the prompt\nLine two of the prompt',
               metadata: {
-                deepnote_model: 'auto',
-                deepnote_max_iterations: 10,
+                deepnote_agent_model: 'auto',
               },
             },
             {
@@ -727,7 +725,7 @@ describe('Agent block roundtrip', () => {
     expect(roundtrippedBlocks[2].id).toBe('agent-2')
 
     // Agent-specific metadata should be preserved
-    expect(roundtrippedBlocks[1].metadata?.deepnote_model).toBe('gpt-4')
+    expect(roundtrippedBlocks[1].metadata?.deepnote_agent_model).toBe('gpt-4')
 
     // Surrounding code blocks should be unchanged
     expect(roundtrippedBlocks[0].type).toBe('code')

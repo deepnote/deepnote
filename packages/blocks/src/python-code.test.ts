@@ -29,7 +29,7 @@ describe('createPythonCode', () => {
         content: 'Analyze the dataset and create a summary',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -44,7 +44,7 @@ describe('createPythonCode', () => {
         content: 'First line\nSecond line\nThird line',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -59,7 +59,7 @@ describe('createPythonCode', () => {
         content: '',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -74,7 +74,7 @@ describe('createPythonCode', () => {
         content: '   \n  \n  ',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -88,7 +88,7 @@ describe('createPythonCode', () => {
         type: 'agent',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -990,8 +990,7 @@ describe('createPythonCode', () => {
         blockGroup: 'abc',
         sortingKey: 'a0',
         metadata: {
-          deepnote_model: 'gpt-4o',
-          deepnote_max_iterations: 10,
+          deepnote_agent_model: 'gpt-4o',
         },
       }
 

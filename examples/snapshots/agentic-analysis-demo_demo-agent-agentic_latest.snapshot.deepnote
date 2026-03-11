@@ -158,8 +158,7 @@ project:
 
             Use `plt.tight_layout()` and `plt.savefig()` for each chart.
           metadata:
-            deepnote_model: gpt-4o
-            deepnote_max_iterations: 20
+            deepnote_agent_model: gpt-4o
             deepnote_mcp_servers:
               - name: filesystem
                 command: npx

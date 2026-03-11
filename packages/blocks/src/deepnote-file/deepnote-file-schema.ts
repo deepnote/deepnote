@@ -269,8 +269,7 @@ const agentBlockSchema = z.object({
   content: z.string().optional(),
   metadata: executableBlockMetadataSchema
     .extend({
-      deepnote_model: z.string().default('auto'),
-      deepnote_max_iterations: z.number().default(10),
+      deepnote_agent_model: z.string().default('auto'),
       deepnote_mcp_servers: z.array(mcpServerSchema).optional(),
     })
     .default({}),
