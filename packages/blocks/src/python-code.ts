@@ -1,5 +1,5 @@
 import { UnsupportedBlockTypeError } from './blocks'
-import { isAgentBlock } from './blocks/agent-blocks'
+import { createPythonCodeForAgentBlock, isAgentBlock } from './blocks/agent-blocks'
 import { createPythonCodeForBigNumberBlock, isBigNumberBlock } from './blocks/big-number-blocks'
 import { type ButtonExecutionContext, createPythonCodeForButtonBlock, isButtonBlock } from './blocks/button-blocks'
 import { createPythonCodeForCodeBlock, isCodeBlock } from './blocks/code-blocks'
@@ -27,6 +27,10 @@ import { createPythonCodeForVisualizationBlock, isVisualizationBlock } from './b
 import type { DeepnoteBlock } from './deepnote-file/deepnote-file-schema'
 
 export function createPythonCode(block: DeepnoteBlock, executionContext?: ButtonExecutionContext): string {
+  if (isAgentBlock(block)) {
+    return createPythonCodeForAgentBlock(block)
+  }
+
   if (isCodeBlock(block)) {
     return createPythonCodeForCodeBlock(block)
   }
@@ -81,11 +85,6 @@ export function createPythonCode(block: DeepnoteBlock, executionContext?: Button
 
   if (isNotebookFunctionBlock(block)) {
     return createPythonCodeForNotebookFunctionBlock(block)
-  }
-
-  // Agent blocks are handled by the execution engine directly, not via Python code generation
-  if (isAgentBlock(block)) {
-    return ''
   }
 
   throw new UnsupportedBlockTypeError(`Creating python code from block type ${block.type} is not supported yet.`)

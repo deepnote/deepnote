@@ -411,13 +411,13 @@ export const deepnoteBlockSchema = z.discriminatedUnion('type', [
   textCellTodoBlockSchema,
   textCellCalloutBlockSchema,
   // Executable blocks
+  agentBlockSchema,
   codeBlockSchema,
   sqlBlockSchema,
   notebookFunctionBlockSchema,
   visualizationBlockSchema,
   buttonBlockSchema,
   bigNumberBlockSchema,
-  agentBlockSchema,
   // Input blocks
   inputTextBlockSchema,
   inputTextareaBlockSchema,
@@ -474,6 +474,7 @@ export type InputBlock =
 
 /** Union of all executable block types */
 export type ExecutableBlock =
+  | AgentBlock
   | CodeBlock
   | SqlBlock
   | NotebookFunctionBlock

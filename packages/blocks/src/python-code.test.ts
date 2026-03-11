@@ -21,6 +21,82 @@ import type {
 import { createPythonCode } from './python-code'
 
 describe('createPythonCode', () => {
+  describe('Agent blocks', () => {
+    it('creates Python comment for agent block with prompt', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: 'Analyze the dataset and create a summary',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] System prompt:\n# Analyze the dataset and create a summary')
+    })
+
+    it('creates Python comment for agent block with multiline prompt', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: 'First line\nSecond line\nThird line',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] System prompt:\n# First line\n# Second line\n# Third line')
+    })
+
+    it('creates empty prompt comment for agent block with no content', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] (empty system prompt)')
+    })
+
+    it('creates empty prompt comment for agent block with whitespace-only content', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: '   \n  \n  ',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] (empty system prompt)')
+    })
+
+    it('creates empty prompt comment for agent block with undefined content', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: { deepnote_model: 'auto', deepnote_max_iterations: 10 },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] (empty system prompt)')
+    })
+  })
+
   describe('Button blocks', () => {
     it('creates Python code for button block with variable', () => {
       const block: ButtonBlock = {
@@ -906,7 +982,7 @@ describe('createPythonCode', () => {
   })
 
   describe('Agent blocks', () => {
-    it('returns empty string for agent block (handled by execution engine)', () => {
+    it('returns comment-based code for agent block', () => {
       const block: AgentBlock = {
         id: '123',
         type: 'agent',
@@ -921,7 +997,7 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('')
+      expect(result).toEqual('# [agent block] System prompt:\n# Analyze the data')
     })
   })
 })

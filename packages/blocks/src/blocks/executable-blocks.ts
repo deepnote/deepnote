@@ -16,6 +16,7 @@ export const INPUT_BLOCK_TYPES = new Set([
 ])
 
 const executableBlockTypes = new Set([
+  'agent',
   'code',
   'sql',
   'notebook-function',

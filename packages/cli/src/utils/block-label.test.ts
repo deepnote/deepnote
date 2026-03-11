@@ -113,6 +113,95 @@ describe('getBlockLabel', () => {
     })
   })
 
+  describe('agent blocks', () => {
+    const agentMetadata = { deepnote_model: 'auto' as const, deepnote_max_iterations: 10 }
+
+    it('returns first line of prompt', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'agent',
+        content: 'Analyze the dataset and create a summary',
+        metadata: agentMetadata,
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      expect(getBlockLabel(block)).toBe('prompt: Analyze the dataset and create a summary')
+    })
+
+    it('returns first non-empty line for multiline prompt', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'agent',
+        content: 'First line of prompt\nSecond line\nThird line',
+        metadata: agentMetadata,
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      expect(getBlockLabel(block)).toBe('prompt: First line of prompt')
+    })
+
+    it('skips empty lines to find first non-empty line', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'agent',
+        content: '\n\n  \nActual prompt starts here',
+        metadata: agentMetadata,
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      expect(getBlockLabel(block)).toBe('prompt: Actual prompt starts here')
+    })
+
+    it('returns "agent (empty)" for empty content', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'agent',
+        content: '',
+        metadata: agentMetadata,
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      expect(getBlockLabel(block)).toBe('agent (empty prompt)')
+    })
+
+    it('returns "agent (empty)" for whitespace-only content', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'agent',
+        content: '  \n  \n  ',
+        metadata: agentMetadata,
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      expect(getBlockLabel(block)).toBe('agent (empty prompt)')
+    })
+
+    it('returns "agent (empty)" for undefined content', () => {
+      const block = {
+        id: 'test-id',
+        type: 'agent',
+        metadata: agentMetadata,
+        sortingKey: 'a',
+        blockGroup: 'group',
+      } as DeepnoteBlock
+      expect(getBlockLabel(block)).toBe('agent (empty prompt)')
+    })
+
+    it('truncates long prompts', () => {
+      const block: DeepnoteBlock = {
+        id: 'test-id',
+        type: 'agent',
+        content: 'This is a very long agent prompt that should be truncated because it exceeds fifty characters',
+        metadata: agentMetadata,
+        sortingKey: 'a',
+        blockGroup: 'group',
+      }
+      const label = getBlockLabel(block)
+      expect(label.length).toBe(50)
+      expect(label.endsWith('…')).toBe(true)
+    })
+  })
+
   describe('sql blocks', () => {
     it('returns first line of SQL', () => {
       const block: DeepnoteBlock = {

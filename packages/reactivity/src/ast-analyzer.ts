@@ -14,6 +14,7 @@ export class AstAnalyzerInternalError extends Error {
 }
 
 const AST_ANALYZER_SUPPORTED_CELL_TYPES_LIST = [
+  'agent',
   'code',
   'sql',
   'button',
