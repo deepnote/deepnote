@@ -250,7 +250,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       ...mcpTools,
     },
     stopWhen: stepCountIs(maxTurns),
-    ...(baseURL ? {} : { providerOptions: {} }),
+    ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
   })
 
   context.onLog?.(
