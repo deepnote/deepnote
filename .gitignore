@@ -1,12 +1,36 @@
+!packages/**/*.png
+!packages/**/*.png
 .DS_Store
+.DS_Store
+.env
+.env
 .npmrc
+.npmrc
+.pnpm-store
+.pnpm-store
+.qlty/cache
 .qlty/cache
 .qlty/logs
+.qlty/logs
+.qlty/out
 .qlty/out
 .qlty/plugin_cachedir
+.qlty/plugin_cachedir
 .qlty/results
+.qlty/results
+*.png
+*.png
 *.tsbuildinfo
+*.tsbuildinfo
+# Generated demo artifacts
+# Generated demo artifacts
+coverage
 coverage
 dist
+dist
+examples/report.md
+examples/report.md
+examples/snapshots/*_T*.snapshot.deepnote
+examples/snapshots/*_T*.snapshot.deepnote
 node_modules
-.pnpm-store
+node_modules

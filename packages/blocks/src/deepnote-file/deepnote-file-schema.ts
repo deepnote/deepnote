@@ -228,18 +228,6 @@ const buttonBlockSchema = z.object({
     .default({}),
 })
 
-const agentBlockSchema = z.object({
-  ...executableBlockFields,
-  type: z.literal('agent'),
-  content: z.string().optional(),
-  metadata: executableBlockMetadataSchema
-    .extend({
-      deepnote_variable_name: z.string().optional(),
-      deepnote_agent_model: z.string().optional(),
-    })
-    .default({}),
-})
-
 const bigNumberBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('big-number'),
@@ -254,6 +242,27 @@ const bigNumberBlockSchema = z.object({
       deepnote_big_number_comparison_value: z.string().optional(),
       deepnote_big_number_comparison_type: z.string().optional(),
       deepnote_big_number_comparison_format: z.string().optional(),
+    })
+    .default({}),
+})
+
+export const mcpServerSchema = z.object({
+  name: z.string(),
+  command: z.string(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string()).optional(),
+})
+
+export type McpServerConfig = z.infer<typeof mcpServerSchema>
+
+const agentBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('agent'),
+  content: z.string().optional(),
+  metadata: executableBlockMetadataSchema
+    .extend({
+      deepnote_agent_model: z.string().default('auto'),
+      deepnote_mcp_servers: z.array(mcpServerSchema).optional(),
     })
     .default({}),
 })
@@ -576,6 +585,7 @@ export const deepnoteFileSchema = z.object({
             pythonVersion: z.string().optional(),
           })
           .optional(),
+        mcpServers: z.array(mcpServerSchema).optional(),
         requirements: z.array(z.string()).optional(),
         sqlCacheMaxAge: z.number().optional(),
       })

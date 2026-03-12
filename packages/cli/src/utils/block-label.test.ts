@@ -114,12 +114,14 @@ describe('getBlockLabel', () => {
   })
 
   describe('agent blocks', () => {
+    const agentMetadata = { deepnote_agent_model: 'auto' as const }
+
     it('returns first line of prompt', () => {
       const block: DeepnoteBlock = {
         id: 'test-id',
         type: 'agent',
         content: 'Analyze the dataset and create a summary',
-        metadata: {},
+        metadata: agentMetadata,
         sortingKey: 'a',
         blockGroup: 'group',
       }
@@ -131,7 +133,7 @@ describe('getBlockLabel', () => {
         id: 'test-id',
         type: 'agent',
         content: 'First line of prompt\nSecond line\nThird line',
-        metadata: {},
+        metadata: agentMetadata,
         sortingKey: 'a',
         blockGroup: 'group',
       }
@@ -143,7 +145,7 @@ describe('getBlockLabel', () => {
         id: 'test-id',
         type: 'agent',
         content: '\n\n  \nActual prompt starts here',
-        metadata: {},
+        metadata: agentMetadata,
         sortingKey: 'a',
         blockGroup: 'group',
       }
@@ -155,7 +157,7 @@ describe('getBlockLabel', () => {
         id: 'test-id',
         type: 'agent',
         content: '',
-        metadata: {},
+        metadata: agentMetadata,
         sortingKey: 'a',
         blockGroup: 'group',
       }
@@ -167,7 +169,7 @@ describe('getBlockLabel', () => {
         id: 'test-id',
         type: 'agent',
         content: '  \n  \n  ',
-        metadata: {},
+        metadata: agentMetadata,
         sortingKey: 'a',
         blockGroup: 'group',
       }
@@ -178,7 +180,7 @@ describe('getBlockLabel', () => {
       const block = {
         id: 'test-id',
         type: 'agent',
-        metadata: {},
+        metadata: agentMetadata,
         sortingKey: 'a',
         blockGroup: 'group',
       } as DeepnoteBlock
@@ -190,7 +192,7 @@ describe('getBlockLabel', () => {
         id: 'test-id',
         type: 'agent',
         content: 'This is a very long agent prompt that should be truncated because it exceeds fifty characters',
-        metadata: {},
+        metadata: agentMetadata,
         sortingKey: 'a',
         blockGroup: 'group',
       }

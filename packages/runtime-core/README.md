@@ -63,7 +63,8 @@ try {
 
 - Notebook / block filtering: `notebookName`, `blockId`, `blockIds`
 - Input injection before execution: `inputs`
-- Callbacks: `onBlockStart`, `onBlockDone`, `onOutput`, `onServerStarting`, `onServerReady`
+- Database integration metadata for agent block awareness: `integrations`
+- Callbacks: `onBlockStart`, `onBlockDone`, `onOutput`, `onAgentEvent`, `onServerStarting`, `onServerReady`
 
 ## Result shape
 
