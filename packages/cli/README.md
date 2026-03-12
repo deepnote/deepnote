@@ -196,7 +196,11 @@ The `--prompt` flag appends an agent block to the notebook (or creates one from 
 
 - `OPENAI_API_KEY` environment variable must be set (works with any OpenAI-compatible API)
 - Optionally set `OPENAI_BASE_URL` for non-OpenAI providers (Ollama, LiteLLM, etc.)
-- Optionally set `OPENAI_MODEL` to override the default model (`gpt-5`)
+- Model selection precedence:
+  - If the agent block sets `deepnote_agent_model` to a specific model, that model is used.
+  - If `deepnote_agent_model` is `"auto"` (or omitted), `OPENAI_MODEL` is used when set.
+  - If neither a block-specific model nor `OPENAI_MODEL` is set, the runtime falls back to `gpt-5`.
+  - `OPENAI_BASE_URL` only changes the provider endpoint; it does not change the precedence above or the final `gpt-5` fallback.
 
 When database integrations are configured, the agent is automatically made aware of them and can query them using `deepnote-toolkit`.
 

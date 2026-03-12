@@ -26,11 +26,11 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
 
 **Environment variables:**
 
-| Variable          | Required | Description                                               |
-| ----------------- | -------- | --------------------------------------------------------- |
-| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                              |
-| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)  |
-| `OPENAI_MODEL`    | no       | Default model name (overridden by `deepnote_agent_model`) |
+| Variable          | Required | Description                                                                               |
+| ----------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                                                              |
+| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)                                  |
+| `OPENAI_MODEL`    | no       | Model used when `deepnote_agent_model` is `"auto"`; otherwise `deepnote_agent_model` wins |
 
 **Built-in agent tools:**
 
