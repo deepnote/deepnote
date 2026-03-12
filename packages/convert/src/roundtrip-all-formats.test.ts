@@ -726,6 +726,7 @@ describe('Agent block roundtrip', () => {
 
     // Agent-specific metadata should be preserved
     expect(roundtrippedBlocks[1].metadata?.deepnote_agent_model).toBe('gpt-4')
+    expect(roundtrippedBlocks[2].metadata?.deepnote_agent_model).toBe('auto')
 
     // Surrounding code blocks should be unchanged
     expect(roundtrippedBlocks[0].type).toBe('code')

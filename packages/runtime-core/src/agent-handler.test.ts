@@ -3,14 +3,27 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildSystemPrompt, mergeMcpConfigs, resolveEnvVars, serializeNotebookContext } from './agent-handler'
 
 describe('resolveEnvVars', () => {
+  let prevTestHost: string | undefined
+  let prevTestPort: string | undefined
+
   beforeEach(() => {
+    prevTestHost = process.env.TEST_HOST
+    prevTestPort = process.env.TEST_PORT
     process.env.TEST_HOST = 'localhost'
     process.env.TEST_PORT = '5432'
   })
 
   afterEach(() => {
-    delete process.env.TEST_HOST
-    delete process.env.TEST_PORT
+    if (prevTestHost === undefined) {
+      delete process.env.TEST_HOST
+    } else {
+      process.env.TEST_HOST = prevTestHost
+    }
+    if (prevTestPort === undefined) {
+      delete process.env.TEST_PORT
+    } else {
+      process.env.TEST_PORT = prevTestPort
+    }
   })
 
   it('returns undefined for undefined input', () => {
