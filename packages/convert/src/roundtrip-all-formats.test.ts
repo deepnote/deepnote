@@ -666,7 +666,9 @@ describe('Agent block roundtrip', () => {
               type: 'agent',
               sortingKey: '2',
               content: 'Line one of the prompt\nLine two of the prompt',
-              metadata: {},
+              metadata: {
+                deepnote_agent_model: 'auto',
+              },
             },
             {
               id: 'code-2',

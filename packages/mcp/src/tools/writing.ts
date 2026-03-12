@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { type DeepnoteBlock, type DeepnoteFile, deepnoteBlockSchema, serializeDeepnoteFile } from '@deepnote/blocks'
+import { executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { generateSortingKey, loadDeepnoteFile, saveDeepnoteFile } from '../utils.js'
@@ -410,17 +411,13 @@ function createBlock(
   }
 
   // Add execution fields for executable blocks
-  const candidate =
-    ['agent', 'code', 'sql', 'notebook-function', 'visualization'].includes(spec.type) ||
-    spec.type.startsWith('input-') ||
-    spec.type === 'button' ||
-    spec.type === 'big-number'
-      ? {
-          ...base,
-          executionCount: null,
-          outputs: [],
-        }
-      : base
+  const candidate = executableBlockTypeSet.has(spec.type)
+    ? {
+        ...base,
+        executionCount: null,
+        outputs: [],
+      }
+    : base
 
   const parsed = deepnoteBlockSchema.safeParse(candidate)
   if (!parsed.success) {

@@ -138,20 +138,21 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option                  | Description                                                      | Default        |
-| ----------------------- | ---------------------------------------------------------------- | -------------- |
-| `--python <path>`       | Path to Python interpreter or virtual environment                | auto-detected  |
-| `--cwd <path>`          | Working directory for execution                                  | file directory |
-| `--notebook <name>`     | Run only the specified notebook                                  | all notebooks  |
-| `--block <id>`          | Run only the specified block                                     | all blocks     |
-| `-i, --input <key=val>` | Set input variable value (can be repeated)                       |                |
-| `--list-inputs`         | List input variables without running                             | `false`        |
-| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                          | text           |
-| `--dry-run`             | Show execution plan without running                              | `false`        |
-| `--top`                 | Display resource usage (CPU/memory) during execution             | `false`        |
-| `--profile`             | Show per-block timing and memory summary                         | `false`        |
-| `--open`                | Open project in Deepnote Cloud after successful execution        | `false`        |
-| `--context`             | Include analysis context in output (requires `-o json/toon/llm`) | `false`        |
+| Option                  | Description                                                              | Default        |
+| ----------------------- | ------------------------------------------------------------------------ | -------------- |
+| `--python <path>`       | Path to Python interpreter or virtual environment                        | auto-detected  |
+| `--cwd <path>`          | Working directory for execution                                          | file directory |
+| `--notebook <name>`     | Run only the specified notebook                                          | all notebooks  |
+| `--block <id>`          | Run only the specified block                                             | all blocks     |
+| `-i, --input <key=val>` | Set input variable value (can be repeated)                               |                |
+| `--list-inputs`         | List input variables without running                                     | `false`        |
+| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`) |                |
+| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                  | text           |
+| `--dry-run`             | Show execution plan without running                                      | `false`        |
+| `--top`                 | Display resource usage (CPU/memory) during execution                     | `false`        |
+| `--profile`             | Show per-block timing and memory summary                                 | `false`        |
+| `--open`                | Open project in Deepnote Cloud after successful execution                | `false`        |
+| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)         | `false`        |
 
 **Examples:**
 
@@ -179,7 +180,25 @@ deepnote run my-project.deepnote --output toon
 
 # Preview what would be executed without running
 deepnote run my-project.deepnote --dry-run
+
+# Run an agent with a prompt (appends an agent block to the file)
+OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
+
+# Run an agent block standalone (no file needed)
+OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 ```
+
+#### Agent Block (`--prompt` and agent blocks)
+
+The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.
+
+**Requirements:**
+
+- `OPENAI_API_KEY` environment variable must be set (works with any OpenAI-compatible API)
+- Optionally set `OPENAI_BASE_URL` for non-OpenAI providers (Ollama, LiteLLM, etc.)
+- Optionally set `OPENAI_MODEL` to override the default model (`gpt-5`)
+
+When database integrations are configured, the agent is automatically made aware of them and can query them using `deepnote-toolkit`.
 
 ### `lint <path>`
 

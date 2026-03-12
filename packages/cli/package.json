@@ -54,6 +54,8 @@
     "commander": "^14.0.2",
     "diff": "^8.0.3",
     "dotenv": "^17.2.3",
+    "marked": "^15.0.12",
+    "marked-terminal": "^7.3.0",
     "ora": "^9.0.0",
     "wrap-ansi": "^9.0.2",
     "yaml": "^2.8.1",
