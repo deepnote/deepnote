@@ -90,9 +90,9 @@ For example, see [3_integrations.deepnote](./3_integrations.deepnote) which incl
 - Username: `play`
 - Password: `******`
 
-### Agent Block
+### Agent blocks
 
-**agent blocks** let an AI agent read the notebook context, execute Python code, and add new blocks autonomously. You can use them in a `.deepnote` file or run ad-hoc from the CLI with `--prompt`.
+**Agent blocks** let an AI agent read the notebook context, execute Python code, and add new blocks autonomously. You can use them in a `.deepnote` file or run ad-hoc from the CLI with `--prompt`.
 
 **Prerequisites:** Set the `OPENAI_API_KEY` environment variable (works with any OpenAI-compatible API). Optionally set `OPENAI_BASE_URL` for non-OpenAI providers and `OPENAI_MODEL` to override the default model.
 
