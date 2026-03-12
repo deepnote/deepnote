@@ -154,6 +154,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
           command: s.command,
           args: s.args,
           env: resolveEnvVars(s.env),
+          stderr: 'pipe',
         }),
       })
     )
@@ -249,7 +250,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       ...mcpTools,
     },
     stopWhen: stepCountIs(maxTurns),
-    ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
+    ...(baseURL ? {} : { providerOptions: {} }),
   })
 
   context.onLog?.(
@@ -268,7 +269,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         context.onAgentEvent?.({ type: 'tool_called', toolName: part.toolName })
       } else if (part.type === 'tool-result') {
         const toolOutput = 'output' in part ? part.output : undefined
-        const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput)
+        const outputStr = typeof toolOutput === 'string' ? toolOutput : (JSON.stringify(toolOutput) ?? '')
         context.onAgentEvent?.({ type: 'tool_output', toolName: part.toolName, output: outputStr })
       }
     }

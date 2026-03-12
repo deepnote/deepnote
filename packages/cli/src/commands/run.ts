@@ -885,8 +885,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
   let agentStreamed = false
   let agentTextBuffer = ''
   let reasoningActive = false
-  let reasoningBuffer = ''
-  const REASONING_LINE_WIDTH = 120
+  let activeBlockId: string | null = null
 
   // Profiling: track memory before each block and collect profile data
   const showProfile = options.profile && !isMachineOutput
@@ -948,7 +947,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
           agentStreamed = false
           agentTextBuffer = ''
           reasoningActive = false
-          reasoningBuffer = ''
+          activeBlockId = block.id
           const c = getChalk()
           process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
         }
@@ -994,7 +993,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
           }
         }
 
-        if (!isMachineOutput) {
+        if (!isMachineOutput && (!activeBlockId || result.blockId === activeBlockId)) {
           const c = getChalk()
           const prefix = agentStreamed ? '\n' : ''
           if (result.success) {
@@ -1028,18 +1027,10 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
             if (event.type === 'reasoning_delta') {
               if (!reasoningActive) {
                 reasoningActive = true
+                process.stdout.write(`\n${c.dim('  [thinking] The agent is thinking...')}`)
               }
-              reasoningBuffer += event.text.replace(/\n/g, ' ')
-              const prefix = '  [thinking] '
-              const maxText = REASONING_LINE_WIDTH - prefix.length
-              const visible = reasoningBuffer.slice(-maxText)
-              process.stderr.write(`\r\x1b[K${c.dim(`${prefix}${visible}`)}`)
             } else {
-              if (reasoningActive) {
-                reasoningActive = false
-                reasoningBuffer = ''
-                process.stderr.write('\r\x1b[K')
-              }
+              reasoningActive = false
               if (event.type === 'tool_called') {
                 process.stdout.write(`\n${c.dim(`  -> ${event.toolName}()`)}`)
               } else if (event.type === 'tool_output') {

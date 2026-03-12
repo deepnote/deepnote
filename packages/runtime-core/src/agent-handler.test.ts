@@ -57,7 +57,11 @@ describe('resolveEnvVars', () => {
   })
 })
 
-function makeFile(overrides?: { blocks?: unknown[]; notebookName?: string; settings?: unknown }): DeepnoteFile {
+function makeFile(overrides?: {
+  blocks?: DeepnoteFile['project']['notebooks'][0]['blocks']
+  notebookName?: string
+  settings?: DeepnoteFile['project']['settings']
+}): DeepnoteFile {
   return {
     metadata: { createdAt: '2026-01-01T00:00:00Z' },
     project: {
@@ -67,10 +71,10 @@ function makeFile(overrides?: { blocks?: unknown[]; notebookName?: string; setti
         {
           id: 'nb1',
           name: overrides?.notebookName ?? 'Notebook 1',
-          blocks: (overrides?.blocks as DeepnoteFile['project']['notebooks'][0]['blocks']) ?? [],
+          blocks: overrides?.blocks ?? [],
         },
       ],
-      settings: overrides?.settings as DeepnoteFile['project']['settings'],
+      settings: overrides?.settings,
     },
     version: '1.0.0',
   }

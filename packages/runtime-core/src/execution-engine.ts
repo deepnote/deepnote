@@ -238,6 +238,22 @@ export class ExecutionEngine {
           // Report outputs from blocks added by the agent block
           for (const bo of agentResult.blockOutputs) {
             collectedOutputs.set(bo.blockId, { outputs: bo.outputs, executionCount: bo.executionCount })
+
+            for (const output of bo.outputs as IOutput[]) {
+              options.onOutput?.(bo.blockId, output)
+            }
+
+            const addedBlock = notebook.blocks.find(b => b.id === bo.blockId)
+            if (addedBlock) {
+              await options.onBlockDone?.({
+                blockId: bo.blockId,
+                blockType: addedBlock.type,
+                success: true,
+                outputs: bo.outputs as IOutput[],
+                executionCount: bo.executionCount,
+                durationMs: 0,
+              })
+            }
           }
 
           const blockResult: BlockExecutionResult = {
