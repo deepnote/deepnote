@@ -1,7 +1,7 @@
 import { createMCPClient } from '@ai-sdk/mcp'
 import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
 import { createOpenAI } from '@ai-sdk/openai'
-import type { AgentBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
+import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { extractOutputsText } from '@deepnote/blocks'
 import { stepCountIs, ToolLoopAgent, tool } from 'ai'
 import { z } from 'zod'
@@ -45,11 +45,54 @@ export function serializeNotebookContext(
   collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
 ): string {
   const notebook = file.project.notebooks[notebookIndex]
-  if (!notebook) return 'Empty notebook.'
+  if (notebook == null) {
+    return 'Empty notebook.'
+  }
 
-  const lines: string[] = [`# Notebook: ${notebook.name}`, '']
+  const blocksWithAttachedOutputs = createBlocksWithAttachedOutputsFromCollectedOutputs({
+    blocks: notebook.blocks,
+    collectedOutputs,
+  })
+  return serializeNotebookContextFromBlocks({
+    blocks: blocksWithAttachedOutputs,
+    notebookName: notebook.name,
+  })
+}
 
-  for (const block of notebook.blocks) {
+export function createBlocksWithAttachedOutputsFromCollectedOutputs({
+  blocks,
+  collectedOutputs,
+}: {
+  blocks: DeepnoteBlock[]
+  collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
+}): DeepnoteBlock[] {
+  return blocks.map(block => {
+    const outputs = collectedOutputs.get(block.id)
+    if (outputs != null && outputs.outputs.length > 0) {
+      const outputs = collectedOutputs.get(block.id)
+      if (outputs) {
+        return { ...block, outputs: outputs.outputs }
+      }
+    }
+    return block
+  })
+}
+
+export function serializeNotebookContextFromBlocks({
+  blocks,
+  notebookName,
+}: {
+  blocks: DeepnoteBlock[]
+  notebookName: string | null
+}): string {
+  const lines: string[] = []
+
+  if (notebookName) {
+    lines.push(`# Notebook: ${notebookName}\n`)
+    lines.push('')
+  }
+
+  for (const block of blocks) {
     lines.push(`## Block [${block.type}] (id: ${block.id.slice(0, 8)})`)
 
     if (block.content) {
@@ -58,10 +101,10 @@ export function serializeNotebookContext(
       lines.push('```')
     }
 
-    const outputs = collectedOutputs.get(block.id)
-    if (outputs && outputs.outputs.length > 0) {
+    // const outputs = collectedOutputs.get(block.id)
+    if ('outputs' in block && block.outputs && block.outputs.length > 0) {
       lines.push('### Output:')
-      const text = extractOutputsText(outputs.outputs)
+      const text = extractOutputsText(block.outputs)
       if (text) lines.push(text)
     }
 
