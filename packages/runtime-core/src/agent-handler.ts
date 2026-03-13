@@ -1,12 +1,10 @@
-import { randomUUID } from 'node:crypto'
 import { createMCPClient } from '@ai-sdk/mcp'
 import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
 import { createOpenAI } from '@ai-sdk/openai'
-import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
-import { extractOutputsText, generateSortingKey } from '@deepnote/blocks'
+import type { AgentBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
+import { extractOutputsText } from '@deepnote/blocks'
 import { stepCountIs, ToolLoopAgent, tool } from 'ai'
 import { z } from 'zod'
-import type { KernelClient } from './kernel-client'
 
 export type AgentStreamEvent =
   | { type: 'tool_called'; toolName: string }
@@ -14,21 +12,22 @@ export type AgentStreamEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'reasoning_delta'; text: string }
 
+export type AddAndExecuteCodeBlockResult = { success: true; error?: never } | { success: false; error: Error }
+export type AddMarkdownBlockResult = { success: true; error?: never } | { success: false; error: Error }
+
 export interface AgentBlockContext {
-  kernel: KernelClient
-  file: DeepnoteFile
-  notebookIndex: number
-  agentBlockIndex: number
-  collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
+  openAiToken: string
+  mcpServers: McpServerConfig[]
+  notebookContext: string
+  addAndExecuteCodeBlock: (args: { code: string }) => Promise<AddAndExecuteCodeBlockResult>
+  addMarkdownBlock: (args: { content: string }) => Promise<AddMarkdownBlockResult>
   onLog?: (message: string) => void
-  onAgentEvent?: (event: AgentStreamEvent) => void
+  onAgentEvent?: (event: AgentStreamEvent) => Promise<void>
   integrations?: Array<{ id: string; name: string; type: string }>
 }
 
 export interface AgentBlockResult {
   finalOutput: string
-  addedBlockIds: string[]
-  blockOutputs: Array<{ blockId: string; outputs: unknown[]; executionCount: number | null }>
 }
 
 export function resolveEnvVars(env: Record<string, string> | undefined): Record<string, string> | undefined {
@@ -112,16 +111,8 @@ ${integrations.map(i => `- "${i.name}" (${i.type}, id: ${i.id})`).join('\n')}`
 }
 
 export async function executeAgentBlock(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error(
-      'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
-        'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
-    )
-  }
-
   const openai = createOpenAI({
-    apiKey,
+    apiKey: context.openAiToken,
     baseURL: process.env.OPENAI_BASE_URL,
   })
 
@@ -137,15 +128,8 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   const baseURL = process.env.OPENAI_BASE_URL
   const model = baseURL ? openai.chat(modelName) : openai(modelName)
 
-  const { file } = context
-  const notebook = file.project.notebooks[context.notebookIndex]
-  if (!notebook) {
-    throw new Error(`Notebook at index ${context.notebookIndex} not found`)
-  }
-
-  const projectMcpServers = file.project.settings?.mcpServers ?? []
   const blockMcpServers = block.metadata.deepnote_mcp_servers ?? []
-  const mergedMcpConfig = mergeMcpConfigs(projectMcpServers, blockMcpServers)
+  const mergedMcpConfig = mergeMcpConfigs(context.mcpServers, blockMcpServers)
 
   const mcpClients = await Promise.all(
     mergedMcpConfig.map(s =>
@@ -160,55 +144,13 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     )
   )
 
-  let insertIndex = context.agentBlockIndex + 1
-  const addedBlockIds: string[] = []
-  const blockOutputs: AgentBlockResult['blockOutputs'] = []
-
   const addCodeBlockTool = tool({
     description:
       'Add a Python code block to the notebook and execute it. Returns stdout, stderr, and execution results.',
     inputSchema: z.object({
       code: z.string().describe('Python code to execute'),
     }),
-    execute: async ({ code }) => {
-      context.onLog?.('  [agent] Adding code block and executing...')
-
-      const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
-        id: randomUUID().replace(/-/g, ''),
-        blockGroup: randomUUID().replace(/-/g, ''),
-        sortingKey: generateSortingKey(insertIndex),
-        type: 'code',
-        content: code,
-        metadata: {},
-        executionCount: null,
-        outputs: [],
-      }
-
-      notebook.blocks.splice(insertIndex, 0, newBlock)
-      insertIndex++
-      addedBlockIds.push(newBlock.id)
-
-      try {
-        const result = await context.kernel.execute(code)
-
-        blockOutputs.push({
-          blockId: newBlock.id,
-          outputs: result.outputs,
-          executionCount: result.executionCount,
-        })
-
-        context.collectedOutputs.set(newBlock.id, {
-          outputs: result.outputs,
-          executionCount: result.executionCount,
-        })
-
-        const outputText = extractOutputsText(result.outputs, { includeTraceback: true }) || '(no output)'
-        return result.success ? `Output:\n${outputText}` : `Execution failed:\n${outputText}`
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        return `Execution error: ${message}`
-      }
-    },
+    execute: context.addAndExecuteCodeBlock,
   })
 
   const addMarkdownBlockTool = tool({
@@ -216,34 +158,15 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     inputSchema: z.object({
       content: z.string().describe('Markdown content'),
     }),
-    execute: async ({ content: mdContent }) => {
-      context.onLog?.('  [agent] Adding markdown block')
-
-      const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
-        id: randomUUID().replace(/-/g, ''),
-        blockGroup: randomUUID().replace(/-/g, ''),
-        sortingKey: generateSortingKey(insertIndex),
-        type: 'markdown',
-        content: mdContent,
-        metadata: {},
-      }
-
-      notebook.blocks.splice(insertIndex, 0, newBlock)
-      insertIndex++
-      addedBlockIds.push(newBlock.id)
-
-      return 'Markdown block added.'
-    },
+    execute: context.addMarkdownBlock,
   })
 
   const mcpToolSets = await Promise.all(mcpClients.map(client => client.tools()))
   const mcpTools: Record<string, unknown> = Object.assign({}, ...mcpToolSets)
 
-  const notebookContext = serializeNotebookContext(file, context.notebookIndex, context.collectedOutputs)
-
   const agent = new ToolLoopAgent({
     model,
-    instructions: buildSystemPrompt(notebookContext, context.integrations),
+    instructions: buildSystemPrompt(context.notebookContext, context.integrations),
     tools: {
       add_code_block: addCodeBlockTool,
       add_markdown_block: addMarkdownBlockTool,
@@ -278,8 +201,6 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
 
     return {
       finalOutput: finalText ?? '',
-      addedBlockIds,
-      blockOutputs,
     }
   } finally {
     for (const client of mcpClients) {

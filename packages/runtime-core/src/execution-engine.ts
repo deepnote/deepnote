@@ -1,14 +1,24 @@
+import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
 import {
   createPythonCode,
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
+  extractOutputsText,
+  generateSortingKey,
   isAgentBlock,
   isExecutableBlock,
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
-import { type AgentBlockContext, type AgentStreamEvent, executeAgentBlock } from './agent-handler'
+import {
+  type AddAndExecuteCodeBlockResult,
+  type AddMarkdownBlockResult,
+  type AgentBlockContext,
+  type AgentStreamEvent,
+  executeAgentBlock,
+  serializeNotebookContext,
+} from './agent-handler'
 import { toPythonLiteral } from './javascript'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
@@ -53,7 +63,7 @@ export interface ExecutionOptions {
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
-  onAgentEvent?: (event: AgentStreamEvent) => void
+  onAgentEvent?: (event: AgentStreamEvent) => Promise<void>
   onServerStarting?: () => void
   onServerReady?: () => void
   integrations?: Array<{ id: string; name: string; type: string }>
@@ -139,7 +149,8 @@ export class ExecutionEngine {
    * Run a parsed DeepnoteFile.
    */
   async runProject(file: DeepnoteFile, options: ExecutionOptions = {}): Promise<ExecutionSummary> {
-    if (!this.kernel) {
+    const kernel = this.kernel
+    if (kernel == null) {
       throw new Error('Engine not started. Call start() first.')
     }
 
@@ -223,12 +234,86 @@ export class ExecutionEngine {
             throw new Error(`Agent block "${block.id}" not found in notebook`)
           }
 
+          const apiKey = process.env.OPENAI_API_KEY
+          if (!apiKey) {
+            throw new Error(
+              'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
+                'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
+            )
+          }
+
+          const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
+
+          let insertIndex = agentBlockIndex + 1
+          const addedBlockIds: string[] = []
+          const blockOutputs: Array<{ blockId: string; outputs: unknown[]; executionCount: number | null }> = []
+
+          const projectMcpServers = file.project.settings?.mcpServers ?? []
+
+          const addAndExecuteCodeBlock = async ({ code }: { code: string }): Promise<AddAndExecuteCodeBlockResult> => {
+            const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
+              id: randomUUID().replace(/-/g, ''),
+              blockGroup: randomUUID().replace(/-/g, ''),
+              sortingKey: generateSortingKey(insertIndex),
+              type: 'code',
+              content: code,
+              metadata: {},
+              executionCount: null,
+              outputs: [],
+            }
+
+            notebook.blocks.splice(insertIndex, 0, newBlock)
+            insertIndex++
+            addedBlockIds.push(newBlock.id)
+
+            try {
+              const result = await kernel.execute(code)
+
+              blockOutputs.push({
+                blockId: newBlock.id,
+                outputs: result.outputs,
+                executionCount: result.executionCount,
+              })
+
+              collectedOutputs.set(newBlock.id, {
+                outputs: result.outputs,
+                executionCount: result.executionCount,
+              })
+
+              const outputText = extractOutputsText(result.outputs, { includeTraceback: true }) || '(no output)'
+              return result.success ? { success: true } : { success: false, error: new Error(outputText) }
+            } catch (error) {
+              return { success: false, error: error instanceof Error ? error : new Error(String(error)) }
+            }
+          }
+
+          const addMarkdownBlock = async ({
+            content: mdContent,
+          }: {
+            content: string
+          }): Promise<AddMarkdownBlockResult> => {
+            const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
+              id: randomUUID().replace(/-/g, ''),
+              blockGroup: randomUUID().replace(/-/g, ''),
+              sortingKey: generateSortingKey(insertIndex),
+              type: 'markdown',
+              content: mdContent,
+              metadata: {},
+            }
+
+            notebook.blocks.splice(insertIndex, 0, newBlock)
+            insertIndex++
+            addedBlockIds.push(newBlock.id)
+
+            return { success: true }
+          }
+
           const agentContext: AgentBlockContext = {
-            kernel: this.kernel,
-            file,
-            notebookIndex,
-            agentBlockIndex,
-            collectedOutputs,
+            openAiToken: apiKey,
+            mcpServers: projectMcpServers,
+            notebookContext,
+            addAndExecuteCodeBlock,
+            addMarkdownBlock,
             onAgentEvent: options.onAgentEvent,
             integrations: options.integrations,
           }
@@ -236,7 +321,7 @@ export class ExecutionEngine {
           const agentResult = await executeAgentBlock(block, agentContext)
 
           // Report outputs from blocks added by the agent block
-          for (const bo of agentResult.blockOutputs) {
+          for (const bo of blockOutputs) {
             collectedOutputs.set(bo.blockId, { outputs: bo.outputs, executionCount: bo.executionCount })
 
             for (const output of bo.outputs as IOutput[]) {
@@ -269,7 +354,7 @@ export class ExecutionEngine {
           executedBlocks++
         } else {
           const code = createPythonCode(block)
-          const result = await this.kernel.execute(code, {
+          const result = await kernel.execute(code, {
             onOutput: output => options.onOutput?.(block.id, output),
           })
 

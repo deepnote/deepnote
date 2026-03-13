@@ -1021,7 +1021,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
       },
 
       onAgentEvent: !isMachineOutput
-        ? (event: AgentStreamEvent) => {
+        ? async (event: AgentStreamEvent) => {
             agentStreamed = true
             const c = getChalk()
             if (event.type === 'reasoning_delta') {
