@@ -22,7 +22,7 @@ export interface AgentBlockContext {
   addAndExecuteCodeBlock: (args: { code: string }) => Promise<AddAndExecuteCodeBlockResult>
   addMarkdownBlock: (args: { content: string }) => Promise<AddMarkdownBlockResult>
   onLog?: (message: string) => void
-  onAgentEvent?: (event: AgentStreamEvent) => Promise<void>
+  onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
   integrations?: Array<{ id: string; name: string; type: string }>
 }
 
@@ -69,10 +69,7 @@ export function createBlocksWithAttachedOutputsFromCollectedOutputs({
   return blocks.map(block => {
     const outputs = collectedOutputs.get(block.id)
     if (outputs != null && outputs.outputs.length > 0) {
-      const outputs = collectedOutputs.get(block.id)
-      if (outputs) {
-        return { ...block, outputs: outputs.outputs }
-      }
+      return { ...block, outputs: outputs.outputs }
     }
     return block
   })
@@ -101,7 +98,6 @@ export function serializeNotebookContextFromBlocks({
       lines.push('```')
     }
 
-    // const outputs = collectedOutputs.get(block.id)
     if ('outputs' in block && block.outputs && block.outputs.length > 0) {
       lines.push('### Output:')
       const text = extractOutputsText(block.outputs)
@@ -228,15 +224,15 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
 
     for await (const part of streamResult.fullStream) {
       if (part.type === 'text-delta') {
-        context.onAgentEvent?.({ type: 'text_delta', text: part.text })
+        await context.onAgentEvent?.({ type: 'text_delta', text: part.text })
       } else if (part.type === 'reasoning-delta') {
-        context.onAgentEvent?.({ type: 'reasoning_delta', text: part.text })
+        await context.onAgentEvent?.({ type: 'reasoning_delta', text: part.text })
       } else if (part.type === 'tool-call') {
-        context.onAgentEvent?.({ type: 'tool_called', toolName: part.toolName })
+        await context.onAgentEvent?.({ type: 'tool_called', toolName: part.toolName })
       } else if (part.type === 'tool-result') {
         const toolOutput = 'output' in part ? part.output : undefined
         const outputStr = typeof toolOutput === 'string' ? toolOutput : (JSON.stringify(toolOutput) ?? '')
-        context.onAgentEvent?.({ type: 'tool_output', toolName: part.toolName, output: outputStr })
+        await context.onAgentEvent?.({ type: 'tool_output', toolName: part.toolName, output: outputStr })
       }
     }
 
