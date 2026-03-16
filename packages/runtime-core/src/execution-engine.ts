@@ -23,7 +23,6 @@ export const executableBlockTypes: ExecutableBlock['type'][] = [
   'visualization',
   'button',
   'big-number',
-  'agent',
   'input-text',
   'input-textarea',
   'input-checkbox',
