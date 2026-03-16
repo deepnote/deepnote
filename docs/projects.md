@@ -26,7 +26,7 @@ Let's move to the newly created Project panel now. Notice that the left panel ha
 
 ### Learning the most important bits
 
-The Project sidebar on the left contains sections for your notebooks, integrations, files, the environment, terminals, and more. Let's learn about each of these in detail.
+The Project sidebar on the left contains sections for your notebooks, integrations, files, the environment, and more. Let's learn about each of these in detail.
 
 ![Important Bits.jpg](https://media.graphassets.com/h9lkwiibTeSNaquQx2If)
 <br></br><br></br>
@@ -73,7 +73,7 @@ First, click on the ⚙️ icon. You should now see your environment configurati
 
 #### Terminals
 
-We all need a CLI every now and then, even if we are notebook lovers. Well, you can create as many terminals as you like in the **Terminal** section. Read more about terminals [here](https://deepnote.com/docs/terminal).
+We all need a CLI every now and then, even if we are notebook lovers. You can create terminals by clicking the **+** button in the **Notebooks** section and selecting **Create a new terminal** from the dropdown menu. Terminals appear below your notebooks in the same section. Read more about terminals [here](https://deepnote.com/docs/terminal).
 
 ### Project templates
 
