@@ -1,10 +1,8 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile, generateSortingKey, serializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
 import { PYTHON_BUILTINS } from '@deepnote/reactivity'
-
-export { generateSortingKey }
 
 export async function loadDeepnoteFile(filePath: string): Promise<DeepnoteFile> {
   const absolutePath = path.resolve(filePath)

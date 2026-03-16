@@ -242,11 +242,13 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       finalOutput: finalText ?? '',
     }
   } finally {
-    for (const client of mcpClients) {
+    for (const [index, client] of mcpClients.entries()) {
       try {
         await client.close()
-      } catch {
-        // best-effort cleanup
+      } catch (error) {
+        const serverName = mergedMcpConfig[index]?.name ?? `server-${index + 1}`
+        const message = error instanceof Error ? error.message : String(error)
+        context.onLog?.(`[agent] Failed to close MCP client "${serverName}": ${message}`)
       }
     }
   }

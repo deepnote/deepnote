@@ -1,9 +1,15 @@
 import { randomUUID } from 'node:crypto'
-import { type DeepnoteBlock, type DeepnoteFile, deepnoteBlockSchema, serializeDeepnoteFile } from '@deepnote/blocks'
+import {
+  type DeepnoteBlock,
+  type DeepnoteFile,
+  deepnoteBlockSchema,
+  generateSortingKey,
+  serializeDeepnoteFile,
+} from '@deepnote/blocks'
 import { executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
-import { generateSortingKey, loadDeepnoteFile, saveDeepnoteFile } from '../utils.js'
+import { loadDeepnoteFile, saveDeepnoteFile } from '../utils.js'
 
 /**
  * Find a block by ID or ID prefix. Returns the block or undefined.

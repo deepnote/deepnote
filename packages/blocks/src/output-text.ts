@@ -1,24 +1,37 @@
+import { z } from 'zod'
+
 export interface ExtractOutputTextOptions {
   /** Include traceback lines (with ANSI escapes stripped) for error outputs. */
   includeTraceback?: boolean
 }
+
+const unknownObjectSchema = z.object({}).passthrough()
 
 /**
  * Extract a human-readable text string from a single Jupyter-style output object.
  * Returns null if the output type is unrecognized or has no textual representation.
  */
 export function extractOutputText(output: unknown, options?: ExtractOutputTextOptions): string | null {
-  const out = output as Record<string, unknown>
+  const outResult = unknownObjectSchema.safeParse(output)
+  if (!outResult.success) return null
+  const out = outResult.data
 
   if (out.output_type === 'stream' && typeof out.text === 'string') {
     return out.text
   }
 
   if (out.output_type === 'execute_result' || out.output_type === 'display_data') {
-    const data = out.data as Record<string, unknown> | undefined
-    if (data?.['text/plain']) return String(data['text/plain'])
-    if (data?.['text/html']) return '[HTML output]'
-    if (data?.['image/png'] || data?.['image/jpeg']) return '[Image output]'
+    const dataResult = unknownObjectSchema.safeParse(out.data)
+    const data = dataResult.success ? dataResult.data : undefined
+    if (data?.['text/plain']) {
+      return String(data['text/plain'])
+    }
+    if (data?.['text/html']) {
+      return '[HTML output]'
+    }
+    if (data?.['image/png'] || data?.['image/jpeg']) {
+      return '[Image output]'
+    }
   }
 
   if (out.output_type === 'error') {
