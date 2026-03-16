@@ -16,9 +16,15 @@ export function extractOutputText(output: unknown, options?: ExtractOutputTextOp
 
   if (out.output_type === 'execute_result' || out.output_type === 'display_data') {
     const data = out.data as Record<string, unknown> | undefined
-    if (data?.['text/plain']) return String(data['text/plain'])
-    if (data?.['text/html']) return '[HTML output]'
-    if (data?.['image/png'] || data?.['image/jpeg']) return '[Image output]'
+    if (data?.['text/plain']) {
+      return String(data['text/plain'])
+    }
+    if (data?.['text/html']) {
+      return '[HTML output]'
+    }
+    if (data?.['image/png'] || data?.['image/jpeg']) {
+      return '[Image output]'
+    }
   }
 
   if (out.output_type === 'error') {
