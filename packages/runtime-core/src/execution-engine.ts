@@ -45,6 +45,15 @@ export const executableBlockTypes: ExecutableBlock['type'][] = [
 
 export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
+function createErrorOutput(error: Error): IOutput {
+  return {
+    output_type: 'error',
+    ename: error.name || 'Error',
+    evalue: error.message,
+    traceback: [],
+  }
+}
+
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
   notebookName?: string
@@ -377,16 +386,17 @@ export class ExecutionEngine {
           }
         }
       } catch (error) {
+        const executionError = error instanceof Error ? error : new Error(String(error))
         failedBlocks++
         executedBlocks++
         const blockResult: BlockExecutionResult = {
           blockId: block.id,
           blockType: block.type,
           success: false,
-          outputs: [],
+          outputs: [createErrorOutput(executionError)],
           executionCount: null,
           durationMs: Date.now() - blockStart,
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: executionError,
         }
         await options.onBlockDone?.(blockResult)
         break

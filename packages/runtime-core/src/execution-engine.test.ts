@@ -914,11 +914,28 @@ describe('ExecutionEngine', () => {
 
     it('handles agent block failure gracefully', async () => {
       mockExecuteAgentBlock.mockRejectedValue(new Error('OPENAI_API_KEY not set'))
+      const onBlockDone = vi.fn()
 
       await engine.start()
-      const summary = await engine.runProject(AGENT_FIXTURE)
+      const summary = await engine.runProject(AGENT_FIXTURE, { onBlockDone })
 
       expect(summary.failedBlocks).toBe(1)
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockType: 'agent',
+          success: false,
+          outputs: [
+            expect.objectContaining({
+              output_type: 'error',
+              ename: 'Error',
+              evalue: 'OPENAI_API_KEY not set',
+            }),
+          ],
+          error: expect.objectContaining({
+            message: 'OPENAI_API_KEY not set',
+          }),
+        })
+      )
     })
 
     it('includes agent block in total block count', async () => {
