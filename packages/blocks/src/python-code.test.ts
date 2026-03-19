@@ -29,7 +29,7 @@ describe('createPythonCode', () => {
         content: 'Analyze the dataset and create a summary',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: {},
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -44,7 +44,7 @@ describe('createPythonCode', () => {
         content: 'First line\nSecond line\nThird line',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: {},
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -59,7 +59,7 @@ describe('createPythonCode', () => {
         content: '',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: {},
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -74,7 +74,7 @@ describe('createPythonCode', () => {
         content: '   \n  \n  ',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: {},
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -88,7 +88,7 @@ describe('createPythonCode', () => {
         type: 'agent',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: {},
+        metadata: { deepnote_agent_model: 'auto' },
       }
 
       const result = createPythonCode(block)
@@ -978,6 +978,25 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual('')
+    })
+  })
+
+  describe('Agent blocks', () => {
+    it('returns comment-based code for agent block', () => {
+      const block: AgentBlock = {
+        id: '123',
+        type: 'agent',
+        content: 'Analyze the data',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_agent_model: 'gpt-5',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('# [agent block] System prompt:\n# Analyze the data')
     })
   })
 })

@@ -38,6 +38,7 @@
   "useGitignore": true,
   "version": "0.2",
   "words": [
+    "agentic",
     "asname",
     "awsathena",
     "bijective",
@@ -98,6 +99,7 @@
     "noreferrer",
     "nosemgrep",
     "numpy",
+    "Ollama",
     "opencode",
     "oss",
     "Papermill",

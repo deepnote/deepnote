@@ -1,5 +1,7 @@
 export type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 export type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@jupyterlab/nbformat'
+export type { AgentBlockContext, AgentBlockResult, AgentStreamEvent } from './agent-handler'
+export { executeAgentBlock } from './agent-handler'
 export type { ExecutionOptions } from './execution-engine'
 export { ExecutionEngine, executableBlockTypeSet, executableBlockTypes } from './execution-engine'
 export type { ExecutionCallbacks, ExecutionResult } from './kernel-client'
