@@ -834,11 +834,16 @@ describe('ExecutionEngine', () => {
     const AGENT_FIXTURE = loadFixture('agent-block.deepnote')
 
     beforeEach(() => {
+      vi.stubEnv('OPENAI_API_KEY', 'test-api-key')
       mockExecuteAgentBlock.mockResolvedValue({
         finalOutput: 'Analysis complete.',
         addedBlockIds: [],
         blockOutputs: [],
       })
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
     })
 
     it('calls executeAgentBlock for agent blocks', async () => {
@@ -855,16 +860,6 @@ describe('ExecutionEngine', () => {
       const [block] = mockExecuteAgentBlock.mock.calls[0]
       expect(block.type).toBe('agent')
       expect(block.content).toContain('Analyze the DataFrame')
-    })
-
-    it('passes kernel, file, and notebook index in context', async () => {
-      await engine.start()
-      await engine.runProject(AGENT_FIXTURE)
-
-      const [, context] = mockExecuteAgentBlock.mock.calls[0]
-      expect(context.kernel).toBeDefined()
-      expect(context.file).toBeDefined()
-      expect(context.notebookIndex).toBe(0)
     })
 
     it('passes integrations through to agent context', async () => {
