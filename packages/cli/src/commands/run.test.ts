@@ -2470,6 +2470,117 @@ describe('run command', () => {
     })
   })
 
+  describe('--prompt flag', () => {
+    let program: Command
+    let action: (path: string | undefined, options: RunOptions) => Promise<void>
+    let programErrorSpy: Mock
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+      vi.restoreAllMocks()
+      vi.unstubAllEnvs()
+
+      delete process.env[DEEPNOTE_TOKEN_ENV]
+      mockGetBlockDependencies.mockResolvedValue([])
+      mockGetUpstreamBlocks.mockResolvedValue({
+        status: 'success',
+        blocksToExecuteWithDeps: [],
+        newlyComputedBlocksContentDeps: [],
+      })
+      mockParseIntegrationsFile.mockResolvedValue({ integrations: [], issues: [] })
+      mockInjectIntegrationEnvVars.mockReturnValue([])
+      mockSaveExecutionSnapshot.mockResolvedValue({
+        snapshotPath: '/mock/snapshot.snapshot.deepnote',
+        timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',
+      })
+
+      program = new Command()
+      program.exitOverride()
+      action = createRunAction(program)
+
+      vi.spyOn(console, 'log').mockImplementation(() => {})
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+      programErrorSpy = vi.spyOn(program, 'error').mockImplementation(() => {
+        throw new Error('program.error called')
+      })
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.unstubAllGlobals()
+    })
+
+    it('errors when neither path nor --prompt is provided', async () => {
+      await expect(action(undefined, {})).rejects.toThrow('program.error called')
+      expect(programErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Missing required argument'),
+        expect.objectContaining({ exitCode: 2 })
+      )
+    })
+
+    it('creates in-memory file and runs with --prompt and no path', async () => {
+      setupSuccessfulRun()
+
+      await action(undefined, { prompt: 'Say hello' })
+
+      expect(mockRunProject).toHaveBeenCalledTimes(1)
+      const [file] = mockRunProject.mock.calls[0]
+      expect(file.project.notebooks).toHaveLength(1)
+      expect(file.project.notebooks[0].blocks).toHaveLength(1)
+      expect(file.project.notebooks[0].blocks[0].type).toBe('agent')
+      expect(file.project.notebooks[0].blocks[0].content).toBe('Say hello')
+    })
+
+    it('appends agent block to existing file with --prompt and path', async () => {
+      setupSuccessfulRun()
+
+      await action(HELLO_WORLD_FILE, { prompt: 'Analyze data' })
+
+      expect(mockRunProject).toHaveBeenCalledTimes(1)
+      const [file] = mockRunProject.mock.calls[0]
+      const blocks = file.project.notebooks[file.project.notebooks.length - 1].blocks
+      const lastBlock = blocks[blocks.length - 1]
+      expect(lastBlock.type).toBe('agent')
+      expect(lastBlock.content).toBe('Analyze data')
+    })
+
+    it('passes integrations to engine when --prompt is used', async () => {
+      const mockIntegrations = [
+        {
+          id: 'pg-1',
+          name: 'Postgres',
+          type: 'pgsql',
+          metadata: { host: 'localhost', port: '5432', database: 'db', user: 'u' },
+        },
+      ] as DatabaseIntegrationConfig[]
+      mockParseIntegrationsFile.mockResolvedValue({ integrations: mockIntegrations, issues: [] })
+      setupSuccessfulRun()
+
+      await action(undefined, { prompt: 'Query the DB' })
+
+      expect(mockRunProject).toHaveBeenCalledTimes(1)
+      const [, options] = mockRunProject.mock.calls[0]
+      expect(options.integrations).toEqual([{ id: 'pg-1', name: 'Postgres', type: 'pgsql' }])
+    })
+
+    it('--list-inputs errors without a path', async () => {
+      await expect(action(undefined, { prompt: 'test', listInputs: true })).rejects.toThrow('program.error called')
+      expect(programErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('--list-inputs requires a file path'),
+        expect.objectContaining({ exitCode: 2 })
+      )
+    })
+
+    it('--dry-run errors without a path', async () => {
+      await expect(action(undefined, { prompt: 'test', dryRun: true })).rejects.toThrow('program.error called')
+      expect(programErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('--dry-run requires a file path'),
+        expect.objectContaining({ exitCode: 2 })
+      )
+    })
+  })
+
   describe('applyInputOverrides', () => {
     function makeInputBlock(varName: string, value: string) {
       return {
