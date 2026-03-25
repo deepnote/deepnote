@@ -94,10 +94,10 @@ describe('add-integration redshift', () => {
           type: redshift
           name: My Redshift
           metadata:
-            authMethod: username-and-password
             host: redshift.example.com
             port: "5439"
             database: my_database
+            authMethod: username-and-password
             user: redshift-user
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
       "
@@ -158,10 +158,10 @@ describe('add-integration redshift', () => {
           type: redshift
           name: My Redshift
           metadata:
-            authMethod: iam-role
             host: redshift.example.com
             port: "5439"
             database: my_database
+            authMethod: iam-role
             roleArn: arn:aws:iam::123456789:role/MyRole
             roleExternalId: my-external-id
             roleNonce: my-nonce
@@ -204,10 +204,10 @@ describe('add-integration redshift', () => {
           type: redshift
           name: My Redshift
           metadata:
-            authMethod: individual-credentials
             host: redshift.example.com
             port: "5439"
             database: my_database
+            authMethod: individual-credentials
       "
     `)
   })

@@ -94,10 +94,10 @@ describe('add-integration trino', () => {
           type: trino
           name: My Trino
           metadata:
-            authMethod: password
             host: trino.example.com
             port: "443"
             database: my_catalog
+            authMethod: password
             user: trino-user
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
       "
@@ -164,10 +164,10 @@ describe('add-integration trino', () => {
           type: trino
           name: My Trino
           metadata:
-            authMethod: trino-oauth
             host: trino.example.com
             port: "443"
             database: my_catalog
+            authMethod: trino-oauth
             clientId: my-client-id
             clientSecret: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CLIENTSECRET
             authUrl: https://accounts.google.com/o/oauth2/v2/auth
@@ -241,10 +241,10 @@ describe('add-integration trino', () => {
           type: trino
           name: My Trino
           metadata:
-            authMethod: password
             host: trino.example.com
             port: "443"
             database: my_catalog
+            authMethod: password
             user: trino-user
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
             sshEnabled: true
