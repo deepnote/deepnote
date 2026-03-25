@@ -1078,7 +1078,7 @@ function createRunProjectCallbacks({
 
     onAgentEvent: isMachineOutput
       ? undefined
-      : (event: AgentStreamEvent) => {
+      : async (event: AgentStreamEvent) => {
           state.agentStreamed = true
           const c = getChalk()
           if (event.type === 'reasoning_delta') {

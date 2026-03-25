@@ -3,6 +3,7 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AddAndExecuteCodeBlockResult, AddMarkdownBlockResult, AgentBlockContext } from './agent-handler'
 
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
 const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient, mockExecuteAgentBlock } =
@@ -834,11 +835,16 @@ describe('ExecutionEngine', () => {
     const AGENT_FIXTURE = loadFixture('agent-block.deepnote')
 
     beforeEach(() => {
+      vi.stubEnv('OPENAI_API_KEY', 'test-api-key')
       mockExecuteAgentBlock.mockResolvedValue({
         finalOutput: 'Analysis complete.',
         addedBlockIds: [],
         blockOutputs: [],
       })
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
     })
 
     it('calls executeAgentBlock for agent blocks', async () => {
@@ -857,16 +863,6 @@ describe('ExecutionEngine', () => {
       expect(block.content).toContain('Analyze the DataFrame')
     })
 
-    it('passes kernel, file, and notebook index in context', async () => {
-      await engine.start()
-      await engine.runProject(AGENT_FIXTURE)
-
-      const [, context] = mockExecuteAgentBlock.mock.calls[0]
-      expect(context.kernel).toBeDefined()
-      expect(context.file).toBeDefined()
-      expect(context.notebookIndex).toBe(0)
-    })
-
     it('passes integrations through to agent context', async () => {
       const integrations = [{ id: 'pg-1', name: 'Postgres', type: 'pgsql' }]
       await engine.start()
@@ -883,6 +879,144 @@ describe('ExecutionEngine', () => {
 
       const [, context] = mockExecuteAgentBlock.mock.calls[0]
       expect(context.onAgentEvent).toBe(onAgentEvent)
+    })
+
+    it('lets agent context helpers add code and markdown blocks and report added code outputs', async () => {
+      const project = structuredClone(AGENT_FIXTURE)
+      const helperCode = 'print("Agent-created block")'
+      const helperMarkdown = '## Agent summary'
+      const helperOutput: IOutput = {
+        output_type: 'stream',
+        name: 'stdout',
+        text: 'Agent-created block\n',
+      }
+      const onBlockDone = vi.fn()
+      const onOutput = vi.fn()
+      let addCodeResult: AddAndExecuteCodeBlockResult | undefined
+      let addMarkdownResult: AddMarkdownBlockResult | undefined
+      let agentContext: AgentBlockContext | undefined
+
+      mockKernelClient.execute.mockImplementation((code: string) => {
+        if (code.includes('df = pd.DataFrame')) {
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        }
+        if (code === helperCode) {
+          return Promise.resolve({ success: true, outputs: [helperOutput], executionCount: 2 })
+        }
+        return Promise.reject(new Error(`Unexpected code: ${code}`))
+      })
+
+      mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+        agentContext = context
+
+        const codeResult = await context.addAndExecuteCodeBlock({ code: helperCode })
+        addCodeResult = codeResult
+
+        const markdownResult = await context.addMarkdownBlock({ content: helperMarkdown })
+        addMarkdownResult = markdownResult
+
+        return { finalOutput: 'Agent helper complete.' }
+      })
+
+      await engine.start()
+      const summary = await engine.runProject(project, { onBlockDone, onOutput })
+      const analysisNotebook = project.project.notebooks.find(notebook => notebook.name === 'Analysis')
+
+      if (!analysisNotebook) {
+        throw new Error('Notebook "Analysis" not found in test data')
+      }
+
+      const addedCodeBlock = analysisNotebook.blocks[3]
+      const addedMarkdownBlock = analysisNotebook.blocks[4]
+
+      if (!addedCodeBlock || !addedMarkdownBlock) {
+        throw new Error('Expected agent helper blocks to be inserted')
+      }
+
+      expect(summary.failedBlocks).toBe(0)
+      expect(agentContext?.notebookContext).toContain('df = pd.DataFrame')
+      expect(addCodeResult).toEqual({ success: true })
+      expect(addMarkdownResult).toEqual({ success: true })
+      expect(mockKernelClient.execute).toHaveBeenNthCalledWith(2, helperCode)
+      expect(analysisNotebook.blocks).toHaveLength(5)
+      expect(addedCodeBlock).toEqual(expect.objectContaining({ type: 'code', content: helperCode }))
+      expect(addedMarkdownBlock).toEqual(expect.objectContaining({ type: 'markdown', content: helperMarkdown }))
+      expect(onOutput).toHaveBeenCalledWith(addedCodeBlock.id, helperOutput)
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockId: addedCodeBlock.id,
+          blockType: 'code',
+          success: true,
+          outputs: [helperOutput],
+          executionCount: 2,
+          durationMs: 0,
+        })
+      )
+
+      const agentResult = onBlockDone.mock.calls.find(
+        (args: unknown[]) => (args[0] as { blockType: string }).blockType === 'agent'
+      )
+      expect(agentResult).toBeDefined()
+      expect(agentResult?.[0].outputs[0]).toEqual(
+        expect.objectContaining({ output_type: 'stream', text: 'Agent helper complete.' })
+      )
+    })
+
+    it('surfaces addAndExecuteCodeBlock failures when kernel execution rejects', async () => {
+      const project = structuredClone(AGENT_FIXTURE)
+      const helperCode = 'print("Agent-created block")'
+      const onBlockDone = vi.fn()
+      let addCodeResult: AddAndExecuteCodeBlockResult | undefined
+
+      mockKernelClient.execute.mockImplementation((code: string) => {
+        if (code.includes('df = pd.DataFrame')) {
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        }
+        if (code === helperCode) {
+          return Promise.reject(new Error('Kernel crash'))
+        }
+        return Promise.reject(new Error(`Unexpected code: ${code}`))
+      })
+
+      mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+        const result = await context.addAndExecuteCodeBlock({ code: helperCode })
+        addCodeResult = result
+
+        if (!result.success) {
+          throw result.error
+        }
+
+        return { finalOutput: 'Unreachable' }
+      })
+
+      await engine.start()
+      const summary = await engine.runProject(project, { onBlockDone })
+      const analysisNotebook = project.project.notebooks.find(notebook => notebook.name === 'Analysis')
+
+      if (!analysisNotebook) {
+        throw new Error('Notebook "Analysis" not found in test data')
+      }
+
+      const addedCodeBlock = analysisNotebook.blocks[3]
+      if (!addedCodeBlock) {
+        throw new Error('Expected failed agent code block to be inserted')
+      }
+
+      expect(summary.failedBlocks).toBe(1)
+      expect(mockKernelClient.execute).toHaveBeenNthCalledWith(2, helperCode)
+      expect(addCodeResult).toEqual({
+        success: false,
+        error: expect.objectContaining({ message: 'Kernel crash' }),
+      })
+      expect(addedCodeBlock).toEqual(expect.objectContaining({ type: 'code', content: helperCode }))
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockType: 'agent',
+          success: false,
+          outputs: [expect.objectContaining({ output_type: 'error', evalue: 'Kernel crash' })],
+          error: expect.objectContaining({ message: 'Kernel crash' }),
+        })
+      )
     })
 
     it('executes code blocks before agent block in order', async () => {
