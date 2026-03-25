@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({
+vi.mock('../../../output', () => ({
   debug: vi.fn(),
   log: vi.fn(),
   output: vi.fn(),
@@ -314,7 +314,9 @@ integrations:
       "
     `)
 
-    expect(envContent).toContain('MONGO_ID_001__CONNECTION_STRING=mongodb://new-user:new-pass@new-mongo.example.com:27017/new-db')
+    expect(envContent).toContain(
+      'MONGO_ID_001__CONNECTION_STRING=mongodb://new-user:new-pass@new-mongo.example.com:27017/new-db'
+    )
     expect(envContent).toContain('MONGO_ID_001__PASSWORD=new-pass')
   })
 
@@ -392,8 +394,12 @@ integrations:
       "
     `)
 
-    expect(envContent).toContain('MONGO_ID_001__RAWCONNECTIONSTRING=mongodb+srv://atlas-user:atlas-pass@cluster0.example.net/prod-db')
-    expect(envContent).toContain('MONGO_ID_001__CONNECTION_STRING=mongodb+srv://atlas-user:atlas-pass@cluster0.example.net/prod-db')
+    expect(envContent).toContain(
+      'MONGO_ID_001__RAWCONNECTIONSTRING=mongodb+srv://atlas-user:atlas-pass@cluster0.example.net/prod-db'
+    )
+    expect(envContent).toContain(
+      'MONGO_ID_001__CONNECTION_STRING=mongodb+srv://atlas-user:atlas-pass@cluster0.example.net/prod-db'
+    )
   })
 
   it('edits mongodb integration adding SSL', async () => {
