@@ -264,4 +264,150 @@ integrations:
       "
     `)
   })
+
+  it('clears password defaults when switching auth method to IAM Role', async () => {
+    const filePath = join(tempDir, 'integrations.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, EXISTING_PASSWORD_YAML)
+    await writeFile(envFilePath, 'RS_ID_001__PASSWORD=old-pass\n')
+
+    const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'rs-id-001' })
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Integration name: (Production Redshift)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Host: (redshift.example.com)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Port: (5439)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Database: (my_database)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Authentication method:')
+    screen.type('IAM Role')
+    screen.keypress('enter')
+
+    await screen.next()
+    const roleArnScreen = screen.getScreen()
+    expect(roleArnScreen).toContain('Role ARN:')
+    expect(roleArnScreen).not.toContain('redshift-user')
+    expect(roleArnScreen).not.toContain('User:')
+    screen.type('arn:aws:iam::999999999:role/NewRole')
+    screen.keypress('enter')
+
+    await screen.next()
+    const externalIdScreen = screen.getScreen()
+    expect(externalIdScreen).toContain('External ID:')
+    expect(externalIdScreen).not.toContain('my-external-id')
+    screen.type('new-external-id')
+    screen.keypress('enter')
+
+    await screen.next()
+    const nonceScreen = screen.getScreen()
+    expect(nonceScreen).toContain('Nonce:')
+    expect(nonceScreen).not.toContain('my-nonce')
+    screen.type('new-nonce')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSH tunnel: (y/N)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+    screen.keypress('enter')
+
+    await promise
+
+    const yamlContent = await readFile(filePath, 'utf-8')
+    expect(yamlContent).toMatchInlineSnapshot(`
+      "#yaml-language-server: $schema=https://example.com/schema.json
+
+      integrations:
+        - id: rs-id-001
+          name: Production Redshift
+          type: redshift
+          federated_auth_method: null
+          metadata:
+            host: redshift.example.com
+            port: "5439"
+            database: my_database
+            authMethod: iam-role
+            roleArn: arn:aws:iam::999999999:role/NewRole
+            roleExternalId: new-external-id
+            roleNonce: new-nonce
+      "
+    `)
+  })
+
+  it('clears IAM Role defaults when switching auth method to Individual Credentials', async () => {
+    const filePath = join(tempDir, 'integrations.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, EXISTING_IAM_YAML)
+    await writeFile(envFilePath, '')
+
+    const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'rs-id-002' })
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Integration name: (IAM Redshift)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Host: (redshift.example.com)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Port: (5439)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Database: (my_database)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Authentication method:')
+    screen.type('Individual')
+    screen.keypress('enter')
+
+    await screen.next()
+    const sshScreen = screen.getScreen()
+    expect(sshScreen).toContain('Enable SSH tunnel: (y/N)')
+    expect(sshScreen).not.toContain('Role ARN')
+    expect(sshScreen).not.toContain('External ID')
+    expect(sshScreen).not.toContain('Nonce')
+
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+    screen.keypress('enter')
+
+    await promise
+
+    const yamlContent = await readFile(filePath, 'utf-8')
+    expect(yamlContent).toMatchInlineSnapshot(`
+      "#yaml-language-server: $schema=https://example.com/schema.json
+
+      integrations:
+        - id: rs-id-002
+          name: IAM Redshift
+          type: redshift
+          federated_auth_method: null
+          metadata:
+            host: redshift.example.com
+            port: "5439"
+            database: my_database
+            authMethod: individual-credentials
+      "
+    `)
+  })
 })

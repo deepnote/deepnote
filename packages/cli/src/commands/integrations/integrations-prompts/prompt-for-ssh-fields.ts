@@ -9,7 +9,7 @@ export async function promptForSshFields(defaultValues?: {
   sshHost?: string
   sshPort?: string
   sshUser?: string
-}): Promise<{ sshEnabled: true; sshHost?: string; sshPort?: string; sshUser?: string } | null> {
+}): Promise<{ sshEnabled: true; sshHost: string; sshPort: string; sshUser: string } | null> {
   const sshEnabled = await promptForBooleanField({
     label: 'Enable SSH tunnel:',
     defaultValue: defaultValues?.sshEnabled ?? false,

@@ -1,4 +1,3 @@
-import { debug } from '../../output'
 import {
   type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
@@ -14,7 +13,7 @@ import z from 'zod'
 import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { SCHEMA_COMMENT, updateIntegrationMetadataMap } from '../../integrations/merge-integrations'
-import { log, output } from '../../output'
+import { debug, log, output } from '../../output'
 import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
 import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'

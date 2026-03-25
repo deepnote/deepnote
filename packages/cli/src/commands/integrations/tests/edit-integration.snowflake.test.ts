@@ -48,6 +48,25 @@ integrations:
       role: OKTA_ROLE
 `
 
+  const EXISTING_AZURE_AD_YAML = `#yaml-language-server: $schema=https://example.com/schema.json
+
+integrations:
+  - id: sf-id-004
+    name: Azure AD Snowflake
+    type: snowflake
+    federated_auth_method: null
+    metadata:
+      accountName: test-account.us-east-1
+      authMethod: azure
+      clientId: azure-client-id
+      clientSecret: env:SF_ID_004__CLIENTSECRET
+      resource: https://mysnowflake.snowflakecomputing.com
+      tenant: my-azure-tenant-id
+      warehouse: azure_warehouse
+      database: AZURE_DB
+      role: AZURE_ROLE
+`
+
   const EXISTING_KEY_PAIR_YAML = `#yaml-language-server: $schema=https://example.com/schema.json
 
 integrations:
@@ -272,6 +291,84 @@ integrations:
       "
     `)
     expect(envContent).toEqual('SF_ID_002__PRIVATEKEY=PRIVATE_KEY_PLACEHOLDER\n')
+  })
+
+  it('edits snowflake Azure AD integration keeping all defaults', async () => {
+    const filePath = join(tempDir, 'integrations.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, EXISTING_AZURE_AD_YAML)
+    await writeFile(envFilePath, 'SF_ID_004__CLIENTSECRET=azure-client-secret\n')
+
+    const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'sf-id-004' })
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Integration name: (Azure AD Snowflake)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Account Name: (test-account.us-east-1)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Authentication method:')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Client ID: (azure-client-id)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Client Secret:')
+    screen.type('azure-client-secret')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Resource: (https://mysnowflake.snowflakecomputing.com)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Tenant: (my-azure-tenant-id)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Warehouse: (azure_warehouse)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Database: (AZURE_DB)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Role: (AZURE_ROLE)')
+    screen.keypress('enter')
+
+    await promise
+
+    const yamlContent = await readFile(filePath, 'utf-8')
+    expect(yamlContent).toMatchInlineSnapshot(`
+      "#yaml-language-server: $schema=https://example.com/schema.json
+
+      integrations:
+        - id: sf-id-004
+          name: Azure AD Snowflake
+          type: snowflake
+          federated_auth_method: null
+          metadata:
+            accountName: test-account.us-east-1
+            authMethod: azure
+            clientId: azure-client-id
+            clientSecret: env:SF_ID_004__CLIENTSECRET
+            resource: https://mysnowflake.snowflakecomputing.com
+            tenant: my-azure-tenant-id
+            warehouse: azure_warehouse
+            database: AZURE_DB
+            role: AZURE_ROLE
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toEqual('SF_ID_004__CLIENTSECRET=azure-client-secret\n')
   })
 
   it('clears okta defaults when switching auth method to native snowflake', async () => {
