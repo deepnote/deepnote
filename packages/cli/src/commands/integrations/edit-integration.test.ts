@@ -207,11 +207,11 @@ integrations:
     await screen.next()
     expect(screen.getScreen()).toContain('Select integration to edit:')
 
-    // The cursor should initially be on the first item (Production DB)
+    // All three integrations should be listed
     const initial = screen.getScreen()
     expect(initial).toContain('Production DB (pgsql)')
-    expect(initial).not.toContain('Data Warehouse (redshift)')
     expect(initial).toContain('Analytics Snowflake (snowflake)')
+    expect(initial).toContain('Data Warehouse (redshift)')
 
     // Type "Data" — the select prompt matches by startsWith and moves the
     // cursor to "Data Warehouse (redshift)".
