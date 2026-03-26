@@ -1,6 +1,6 @@
 ---
 title: How to set up Deepnote locally
-description: Learn how to work with Deepnote notebooks on your local machine using VSCode, Cursor, or custom implementations.
+description: Learn how to work with Deepnote notebooks on your local machine using VS Code, Cursor, or custom implementations.
 noIndex: false
 noContent: false
 ---
