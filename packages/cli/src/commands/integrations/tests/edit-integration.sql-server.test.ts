@@ -98,6 +98,12 @@ integrations:
             password: env:ID001__PASSWORD
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ID001__PASSWORD=secret-pass
+      "
+    `)
   })
 
   it('updates host and database when user types new values', async () => {

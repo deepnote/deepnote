@@ -179,7 +179,7 @@ describe('add-integration mindsdb', () => {
     `)
   })
 
-  it('creates integration with SSL enabled', async () => {
+  it('creates mindsdb integration with SSL enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssl.yaml')
     const envFilePath = join(tempDir, '.env')
     const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'

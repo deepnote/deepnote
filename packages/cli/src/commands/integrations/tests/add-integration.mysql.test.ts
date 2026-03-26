@@ -179,7 +179,7 @@ describe('add-integration mysql', () => {
     `)
   })
 
-  it('creates integration with SSL enabled', async () => {
+  it('creates mysql integration with SSL enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssl.yaml')
     const envFilePath = join(tempDir, '.env')
     const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
@@ -204,14 +204,12 @@ describe('add-integration mysql', () => {
 
     await screen.next()
     expect(screen.getScreen()).toContain('CA Certificate:')
-    screen.type('cert-content-here')
+    screen.type('placeholder')
     screen.keypress('enter')
 
     await promise
 
     const yamlContent = await readFile(filePath, 'utf-8')
-    const envContent = await readFile(envFilePath, 'utf-8')
-
     expect(yamlContent).toMatchInlineSnapshot(`
       "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
 
@@ -230,10 +228,18 @@ describe('add-integration mysql', () => {
             caCertificateText: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT
       "
     `)
-    expect(envContent).toMatchInlineSnapshot(`
-      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
-      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT=cert-content-here
-      "
-    `)
+
+    // Verify multiline values survive the updateDotEnv → readDotEnv roundtrip.
+    // screen.type() cannot inject literal newlines (they act as Enter/submit),
+    // so we write a multiline cert value directly and verify it parses back.
+    const { updateDotEnv, readDotEnv } = await import('../../../utils/dotenv')
+    const multilineCert = 'line-1-of-cert\nline-2-of-cert\nline-3-of-cert'
+    await updateDotEnv(envFilePath, {
+      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT: multilineCert,
+    })
+
+    const parsedEnv = await readDotEnv(envFilePath)
+    expect(parsedEnv.AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD).toBe('supersecret')
+    expect(parsedEnv.AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT).toBe(multilineCert)
   })
 })

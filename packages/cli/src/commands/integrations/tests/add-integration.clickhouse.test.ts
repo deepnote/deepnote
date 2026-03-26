@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -142,6 +143,8 @@ describe('add-integration clickhouse', () => {
             user: ch-user
       "
     `)
+
+    expect(existsSync(envFilePath)).toBe(false)
   })
 
   it('creates clickhouse integration with SSH tunnel enabled', async () => {

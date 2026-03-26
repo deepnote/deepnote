@@ -152,6 +152,7 @@ describe('add-integration pgsql', () => {
     await promise
 
     const yamlContent = await readFile(filePath, 'utf-8')
+    const envContent = await readFile(envFilePath, 'utf-8')
 
     expect(yamlContent).toMatchInlineSnapshot(`
       "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
@@ -171,6 +172,10 @@ describe('add-integration pgsql', () => {
             database: new-db
             user: new-user
             password: env:NEW_UUID_1234_5678_ABCD1234ABCD__PASSWORD
+      "
+    `)
+    expect(envContent).toMatchInlineSnapshot(`
+      "NEW_UUID_1234_5678_ABCD1234ABCD__PASSWORD=new-pass
       "
     `)
   })
