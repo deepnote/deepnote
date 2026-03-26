@@ -11,6 +11,10 @@ vi.mock('../../../output', () => ({
   error: vi.fn(),
 }))
 
+vi.mock('../../../utils/process-env', () => ({
+  getProcessEnv: () => ({}),
+}))
+
 import { editIntegration } from '../edit-integration'
 
 describe('edit-integration mysql', () => {

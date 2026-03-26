@@ -11,6 +11,10 @@ vi.mock('../../../output', () => ({
   error: vi.fn(),
 }))
 
+vi.mock('../../../utils/process-env', () => ({
+  getProcessEnv: () => ({}),
+}))
+
 import { editIntegration } from '../edit-integration'
 
 describe('edit-integration mindsdb', () => {
@@ -100,6 +104,12 @@ integrations:
             database: mydb
             user: db-user
             password: env:ID001__PASSWORD
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ID001__PASSWORD=secret-pass
       "
     `)
   })

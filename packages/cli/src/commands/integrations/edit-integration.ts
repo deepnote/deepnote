@@ -16,6 +16,7 @@ import { SCHEMA_COMMENT, updateIntegrationMetadataMap } from '../../integrations
 import { debug, log, output } from '../../output'
 import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
 import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
+import { getProcessEnv } from '../../utils/process-env'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForIntegrationName } from './add-integration'
 import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
@@ -285,7 +286,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   // Read .env vars and merge with process.env (process.env takes priority, matching
   // the original semantics) so env: refs can be resolved before schema parsing.
   const dotEnvVars = await readDotEnv(envFilePath)
-  const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...process.env }
+  const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...getProcessEnv() }
 
   let integrationRawJson = found.toJSON()
   try {
