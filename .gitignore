@@ -15,3 +15,4 @@ dist
 examples/report.md
 examples/snapshots/*_T*.snapshot.deepnote
 node_modules
+.ipynb_checkpoints
