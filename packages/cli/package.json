@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/cli",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Command-line interface for running Deepnote projects locally and on Deepnote Cloud",
   "keywords": [
     "cli",
@@ -58,7 +58,7 @@
     "marked-terminal": "^7.3.0",
     "ora": "^9.0.0",
     "wrap-ansi": "^9.0.2",
-    "yaml": "^2.8.1",
+    "yaml": "^2.8.3",
     "zod": "3.25.76"
   },
   "devDependencies": {
