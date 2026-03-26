@@ -27,7 +27,7 @@ deepnote-convert your_notebook.ipynb
 
 ## Opening a Deepnote Project
 
-To open a `.deepnote` project, you can use multiple ways, opening in your favorite editor [VSCode](https://code.visualstudio.com/), [Cursor](https://cursor.dev/), or [Windsurf](https://windsurf.com/), reading it in [JupyterLab](https://jupyter.org/), or opening it in [Deepnote Cloud](https://deepnote.com/).
+To open a `.deepnote` project, you can use multiple ways, opening in your favorite editor [VSCode](https://code.visualstudio.com/), [Cursor](https://cursor.dev/), or [Windsurf](https://windsurf.com/), or opening it in [Deepnote Cloud](https://deepnote.com/).
 
 For this example, we will use VS Code, but the steps are same for Cursor and Windsurf.
 
@@ -39,7 +39,7 @@ For this example, we will use VS Code, but the steps are same for Cursor and Win
 
 ## Running a Deepnote Project
 
-To run a Deepnote project, you can use any of the ways mentioned above (except JupyterLab, which is currently read-only).
+To run a Deepnote project, you can use any of the ways mentioned above.
 
 To run this example, follow these steps:
 

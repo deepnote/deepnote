@@ -1,6 +1,6 @@
 ---
 title: How to set up Deepnote locally
-description: Learn how to work with Deepnote notebooks on your local machine using VSCode, Cursor, JupyterLab, or custom implementations.
+description: Learn how to work with Deepnote notebooks on your local machine using VSCode, Cursor, or custom implementations.
 noIndex: false
 noContent: false
 ---
@@ -14,7 +14,6 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
 | **VS Code/Cursor/Windsurf extensions**        | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
-| **JupyterLab extension**                      | Quick viewing             | ❌ No     | ❌ No   | Easy       |
 | **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
 | **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
@@ -100,87 +99,6 @@ Open the Command Palette and type `Deepnote` to see all available commands:
 - [GitHub repository](https://github.com/deepnote/vscode-deepnote)
 - [Architecture documentation](https://github.com/deepnote/vscode-deepnote/blob/main/architecture.md)
 - [Contributing guide](https://github.com/deepnote/vscode-deepnote/blob/main/CONTRIBUTING.md)
-
-## JupyterLab extension (read-only)
-
-The **JupyterLab Deepnote** extension allows you to view `.deepnote` files in JupyterLab in read-only mode. This is perfect for quickly exploring Deepnote projects without needing full editing capabilities.
-
-### Features
-
-- 📂 **Open Deepnote files** - View `.deepnote` project files in JupyterLab
-- 📓 **Multi-notebook support** - Switch between notebooks within a single file
-- 👁️ **Read-only mode** - View content safely without modifications
-- 🔄 **Seamless integration** - Works natively with JupyterLab's interface
-- 🎨 **Block support** - Renders Deepnote blocks as Jupyter cells
-
-### Limitations
-
-- ❌ **No editing** - Currently not possible to modify cell content
-- ❌ **No execution** - Currently not possible to run code or SQL queries
-- ❌ **No saving** - Currently not possible to save changes back to `.deepnote` files
-
-This extension is ideal for:
-
-- Quickly reviewing Deepnote projects
-- Sharing read-only notebooks with collaborators
-- Exploring Deepnote files without risk of modification
-
-### Installation
-
-**Requirements:**
-
-- Python 3.10 or higher
-- JupyterLab 4.0.0 or higher
-
-**Install via pip:**
-
-```bash
-pip install jupyterlab-deepnote
-```
-
-The extension will be automatically enabled after installation.
-
-### Verify Installation
-
-```bash
-# Check server extension
-jupyter server extension list
-
-# Check frontend extension
-jupyter labextension list
-```
-
-You should see `jupyterlab_deepnote` listed in both outputs.
-
-### Usage
-
-1. **Launch JupyterLab**:
-
-   ```bash
-   jupyter lab
-   ```
-
-2. **Open a `.deepnote` file**:
-   - Use the file browser to navigate to your `.deepnote` file
-   - Double-click the file to open it in the notebook viewer
-
-3. **Switch between notebooks** (if the file contains multiple notebooks):
-   - Use the notebook picker dropdown in the toolbar
-   - Select the notebook you want to view
-
-### Supported Content
-
-The extension converts Deepnote blocks to Jupyter cells, supporting:
-
-- Code cells (Python and other languages)
-- Markdown cells
-- Cell outputs and visualizations
-
-### Learn More
-
-- [GitHub Repository](https://github.com/deepnote/jupyterlab-deepnote)
-- [PyPI Package](https://pypi.org/project/jupyterlab-deepnote/)
-- [Contributing Guide](https://github.com/deepnote/jupyterlab-deepnote/blob/main/CONTRIBUTING.md)
 
 ## Deepnote Toolkit (advanced)
 
@@ -299,18 +217,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code/Cursor/Windsurf Extensions | JupyterLab Extension | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | ---------------------------------- | -------------------- | ---------------- | -------------------- |
-| **View notebooks**          | ✅                                 | ✅                   | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                                 | ❌                   | ✅               | ✅                   |
-| **Execute code**            | ✅                                 | ❌                   | ✅               | ✅                   |
-| **SQL blocks**              | ✅                                 | ❌                   | ✅               | ✅                   |
-| **Database integrations**   | ✅                                 | ❌                   | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                                 | ❌                   | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                                 | ❌                   | ❌               | ✅                   |
-| **Offline mode**            | ✅                                 | ✅                   | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited                         | ❌                   | ✅               | ✅                   |
-| **AI features**             | ❌                                 | ❌                   | ❌               | ✅                   |
+| Feature                     | VS Code/Cursor/Windsurf Extensions | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ---------------------------------- | ---------------- | -------------------- |
+| **View notebooks**          | ✅                                 | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                                 | ✅               | ✅                   |
+| **Execute code**            | ✅                                 | ✅               | ✅                   |
+| **SQL blocks**              | ✅                                 | ✅               | ✅                   |
+| **Database integrations**   | ✅                                 | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                                 | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                                 | ❌               | ✅                   |
+| **Offline mode**            | ✅                                 | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                         | ✅               | ✅                   |
+| **AI features**             | ❌                                 | ❌               | ✅                   |
 
 \*Coming soon
 
@@ -330,7 +248,6 @@ If you encounter issues with any local setup option:
 - [Deepnote community](https://github.com/deepnote/deepnote/discussions)
 - [Deepnote Documentation](https://deepnote.com/docs)
 - [VS Code Extension Issues](https://github.com/deepnote/vscode-deepnote/issues)
-- [JupyterLab Extension Issues](https://github.com/deepnote/jupyterlab-deepnote/issues)
 - [Deepnote Toolkit Issues](https://github.com/deepnote/deepnote-toolkit/issues)
 
 ---
