@@ -229,6 +229,13 @@ describe('add-integration mysql', () => {
       "
     `)
 
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
+      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT=placeholder
+      "
+    `)
+
     // Verify multiline values survive the updateDotEnv → readDotEnv roundtrip.
     // screen.type() cannot inject literal newlines (they act as Enter/submit),
     // so we write a multiline cert value directly and verify it parses back.

@@ -100,6 +100,12 @@ integrations:
             token: env:DB_ID_001__TOKEN
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "DB_ID_001__TOKEN=secret-token
+      "
+    `)
   })
 
   it('updates host and http path when user types new values', async () => {
@@ -163,6 +169,12 @@ integrations:
             port: "443"
             httpPath: /sql/2.0/warehouses/xyz789
             token: env:DB_ID_001__TOKEN
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "DB_ID_001__TOKEN=secret-token
       "
     `)
   })
@@ -245,6 +257,12 @@ integrations:
             sshHost: bastion.example.com
             sshPort: "22"
             sshUser: tunnel-user
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "DB_ID_001__TOKEN=secret-token
       "
     `)
   })

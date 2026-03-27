@@ -159,6 +159,12 @@ integrations:
             role: SYSADMIN
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "SF_ID_001__PASSWORD=old-pass
+      "
+    `)
   })
 
   it('updates account name when user types new value', async () => {
@@ -224,6 +230,12 @@ integrations:
             warehouse: my_warehouse
             database: MY_DB
             role: SYSADMIN
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "SF_ID_001__PASSWORD=old-pass
       "
     `)
   })
