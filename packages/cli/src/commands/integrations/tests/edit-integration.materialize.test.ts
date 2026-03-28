@@ -269,5 +269,11 @@ integrations:
             sshUser: tunnel-user
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "MZ_ID_001__PASSWORD=secret-pass
+      "
+    `)
   })
 })
