@@ -1,6 +1,12 @@
 import type { DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { buildSystemPrompt, mergeMcpConfigs, resolveEnvVars, serializeNotebookContext } from './agent-handler'
+import {
+  buildSystemPrompt,
+  mergeMcpConfigs,
+  resolveAgentProvider,
+  resolveEnvVars,
+  serializeNotebookContext,
+} from './agent-handler'
 
 describe('resolveEnvVars', () => {
   let prevTestHost: string | undefined
@@ -318,5 +324,130 @@ describe('mergeMcpConfigs', () => {
     const result = mergeMcpConfigs([serverA], [serverC])
     expect(result).toHaveLength(2)
     expect(result.map(s => s.name).sort()).toEqual(['server-a', 'server-c'])
+  })
+})
+
+describe('resolveAgentProvider', () => {
+  let savedOpenaiKey: string | undefined
+  let savedOpenaiBaseUrl: string | undefined
+  let savedOpenaiModel: string | undefined
+  let savedMinimaxKey: string | undefined
+  let savedMinimaxBaseUrl: string | undefined
+  let savedMinimaxModel: string | undefined
+
+  beforeEach(() => {
+    savedOpenaiKey = process.env.OPENAI_API_KEY
+    savedOpenaiBaseUrl = process.env.OPENAI_BASE_URL
+    savedOpenaiModel = process.env.OPENAI_MODEL
+    savedMinimaxKey = process.env.MINIMAX_API_KEY
+    savedMinimaxBaseUrl = process.env.MINIMAX_BASE_URL
+    savedMinimaxModel = process.env.MINIMAX_MODEL
+    delete process.env.OPENAI_API_KEY
+    delete process.env.OPENAI_BASE_URL
+    delete process.env.OPENAI_MODEL
+    delete process.env.MINIMAX_API_KEY
+    delete process.env.MINIMAX_BASE_URL
+    delete process.env.MINIMAX_MODEL
+  })
+
+  afterEach(() => {
+    const restore = (key: string, value: string | undefined) => {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+    restore('OPENAI_API_KEY', savedOpenaiKey)
+    restore('OPENAI_BASE_URL', savedOpenaiBaseUrl)
+    restore('OPENAI_MODEL', savedOpenaiModel)
+    restore('MINIMAX_API_KEY', savedMinimaxKey)
+    restore('MINIMAX_BASE_URL', savedMinimaxBaseUrl)
+    restore('MINIMAX_MODEL', savedMinimaxModel)
+  })
+
+  it('throws when no API key is set', () => {
+    expect(() => resolveAgentProvider('auto')).toThrow('An API key is required for agent blocks')
+  })
+
+  it('selects OpenAI when OPENAI_API_KEY is set', () => {
+    process.env.OPENAI_API_KEY = 'sk-test'
+    const result = resolveAgentProvider('auto')
+    expect(result.providerName).toBe('openai')
+    expect(result.modelName).toBe('gpt-5')
+  })
+
+  it('uses OPENAI_MODEL env var for OpenAI default', () => {
+    process.env.OPENAI_API_KEY = 'sk-test'
+    process.env.OPENAI_MODEL = 'gpt-4o'
+    const result = resolveAgentProvider('auto')
+    expect(result.providerName).toBe('openai')
+    expect(result.modelName).toBe('gpt-4o')
+  })
+
+  it('uses explicit model over env var for OpenAI', () => {
+    process.env.OPENAI_API_KEY = 'sk-test'
+    process.env.OPENAI_MODEL = 'gpt-4o'
+    const result = resolveAgentProvider('o4-mini')
+    expect(result.modelName).toBe('o4-mini')
+  })
+
+  it('selects MiniMax when only MINIMAX_API_KEY is set', () => {
+    process.env.MINIMAX_API_KEY = 'mm-test'
+    const result = resolveAgentProvider('auto')
+    expect(result.providerName).toBe('minimax')
+    expect(result.modelName).toBe('MiniMax-M2.7')
+  })
+
+  it('uses MINIMAX_MODEL env var for MiniMax default', () => {
+    process.env.MINIMAX_API_KEY = 'mm-test'
+    process.env.MINIMAX_MODEL = 'MiniMax-M2.7-highspeed'
+    const result = resolveAgentProvider('auto')
+    expect(result.providerName).toBe('minimax')
+    expect(result.modelName).toBe('MiniMax-M2.7-highspeed')
+  })
+
+  it('uses explicit model over env var for MiniMax', () => {
+    process.env.MINIMAX_API_KEY = 'mm-test'
+    process.env.MINIMAX_MODEL = 'MiniMax-M2.7-highspeed'
+    const result = resolveAgentProvider('MiniMax-M2.5')
+    expect(result.modelName).toBe('MiniMax-M2.5')
+  })
+
+  it('prefers OpenAI when both keys are set', () => {
+    process.env.OPENAI_API_KEY = 'sk-test'
+    process.env.MINIMAX_API_KEY = 'mm-test'
+    const result = resolveAgentProvider('auto')
+    expect(result.providerName).toBe('openai')
+  })
+
+  it('error message mentions both providers', () => {
+    expect(() => resolveAgentProvider('auto')).toThrow('MINIMAX_API_KEY')
+    expect(() => resolveAgentProvider('auto')).toThrow('OPENAI_API_KEY')
+  })
+
+  it('returns a model object for OpenAI', () => {
+    process.env.OPENAI_API_KEY = 'sk-test'
+    const result = resolveAgentProvider('auto')
+    expect(result.model).toBeDefined()
+  })
+
+  it('returns a model object for MiniMax', () => {
+    process.env.MINIMAX_API_KEY = 'mm-test'
+    const result = resolveAgentProvider('auto')
+    expect(result.model).toBeDefined()
+  })
+
+  it('uses OPENAI_BASE_URL for chat completions fallback', () => {
+    process.env.OPENAI_API_KEY = 'sk-test'
+    process.env.OPENAI_BASE_URL = 'https://custom.api.example.com/v1'
+    const result = resolveAgentProvider('auto')
+    expect(result.providerName).toBe('openai')
+    expect(result.model).toBeDefined()
+  })
+
+  it('uses custom MINIMAX_BASE_URL when set', () => {
+    process.env.MINIMAX_API_KEY = 'mm-test'
+    process.env.MINIMAX_BASE_URL = 'https://custom-minimax.example.com/v1'
+    const result = resolveAgentProvider('auto')
+    expect(result.providerName).toBe('minimax')
+    expect(result.model).toBeDefined()
   })
 })

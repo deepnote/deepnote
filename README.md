@@ -64,6 +64,26 @@ Deepnote extends Jupyter in a number of ways. Here are the key differences:
 | **Compute**         | Managed cloud compute                      | Local resources only        |
 | **Integrations**    | Native database & API connections          | Manual configuration        |
 
+## AI provider configuration
+
+Agent blocks use LLM providers for AI-assisted data analysis. Configure the provider via environment variables:
+
+| Provider | API key env var   | Model env var   | Default model  | Base URL env var   |
+| -------- | ----------------- | --------------- | -------------- | ------------------ |
+| OpenAI   | `OPENAI_API_KEY`  | `OPENAI_MODEL`  | `gpt-5`        | `OPENAI_BASE_URL`  |
+| MiniMax  | `MINIMAX_API_KEY` | `MINIMAX_MODEL` | `MiniMax-M2.7` | `MINIMAX_BASE_URL` |
+
+When both keys are set, OpenAI takes priority. MiniMax connects via its OpenAI-compatible API at `https://api.minimax.io/v1`.
+
+```bash
+# Use OpenAI (default)
+export OPENAI_API_KEY=sk-...
+
+# Or use MiniMax
+export MINIMAX_API_KEY=...
+export MINIMAX_MODEL=MiniMax-M2.7-highspeed  # optional, defaults to MiniMax-M2.7
+```
+
 ## What's inside this repository
 
 Reusable packages and libraries powering Deepnote's notebook, runtime, and collaboration features.
