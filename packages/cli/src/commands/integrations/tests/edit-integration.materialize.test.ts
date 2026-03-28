@@ -108,6 +108,12 @@ integrations:
             cluster: default
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "MZ_ID_001__PASSWORD=secret-pass
+      "
+    `)
   })
 
   it('updates cluster when user types new value', async () => {
@@ -171,6 +177,12 @@ integrations:
             user: mz-user
             password: env:MZ_ID_001__PASSWORD
             cluster: prod-cluster
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "MZ_ID_001__PASSWORD=secret-pass
       "
     `)
   })

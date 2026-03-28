@@ -170,6 +170,12 @@ describe('add-integration alloydb', () => {
             sshUser: tunnel-user
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
+      "
+    `)
   })
   it('creates integration with SSL enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssl.yaml')

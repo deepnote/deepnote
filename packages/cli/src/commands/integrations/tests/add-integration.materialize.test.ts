@@ -142,6 +142,12 @@ describe('add-integration materialize', () => {
             cluster: prod-cluster
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
+      "
+    `)
   })
 
   it('creates materialize integration with SSH tunnel enabled', async () => {
@@ -194,6 +200,12 @@ describe('add-integration materialize', () => {
             sshHost: bastion.example.com
             sshPort: "22"
             sshUser: tunnel-user
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
       "
     `)
   })

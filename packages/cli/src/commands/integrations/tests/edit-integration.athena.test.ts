@@ -91,6 +91,12 @@ integrations:
             secret_access_key: env:ATH_ID_001__SECRET_ACCESS_KEY
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ATH_ID_001__SECRET_ACCESS_KEY=secret-key
+      "
+    `)
   })
 
   it('updates region when user types new value', async () => {

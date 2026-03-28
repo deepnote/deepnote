@@ -168,6 +168,12 @@ integrations:
             password: env:ID001__PASSWORD
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ID001__PASSWORD=secret-pass
+      "
+    `)
   })
 
   it('adds SSH fields when SSH is enabled on a plain integration', async () => {
@@ -245,6 +251,12 @@ integrations:
             sshHost: bastion.example.com
             sshPort: "22"
             sshUser: tunnel-user
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ID001__PASSWORD=secret-pass
       "
     `)
   })

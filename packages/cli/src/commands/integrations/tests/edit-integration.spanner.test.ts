@@ -87,6 +87,12 @@ integrations:
             service_account: env:SP_ID_001__SERVICE_ACCOUNT
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "SP_ID_001__SERVICE_ACCOUNT=service-account-data
+      "
+    `)
   })
 
   it('updates instance and enables data boost', async () => {

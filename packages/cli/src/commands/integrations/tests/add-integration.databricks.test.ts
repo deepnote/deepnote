@@ -185,5 +185,11 @@ describe('add-integration databricks', () => {
             sshUser: tunnel-user
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__TOKEN=my-databricks-token
+      "
+    `)
   })
 })

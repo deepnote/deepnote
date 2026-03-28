@@ -145,6 +145,7 @@ integrations:
             clientSecret: env:BQ_ID_001__CLIENTSECRET
       "
     `)
+    // BQ_ID_001__SERVICE_ACCOUNT is kept, as dotenv file is append-only
     expect(envContent).toMatchInlineSnapshot(`
       "BQ_ID_001__SERVICE_ACCOUNT={"type":"service_account"}
       BQ_ID_001__CLIENTSECRET=new-client-secret
