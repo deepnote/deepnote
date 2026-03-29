@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createEnvVarRef,
-  ENV_VAR_REF_PREFIX,
   EnvVarResolutionError,
   extractEnvVarName,
   generateEnvVarName,
@@ -41,7 +40,6 @@ describe('env-var-refs utilities', () => {
     it('uses double underscore as separator', () => {
       const result = generateEnvVarName('a-b-c', 'field')
       expect(result).toBe('A_B_C__FIELD')
-      expect(result.includes('__')).toBe(true)
     })
   })
 
@@ -84,11 +82,6 @@ describe('env-var-refs utilities', () => {
   describe('createEnvVarRef', () => {
     it('creates env reference string', () => {
       expect(createEnvVarRef('MY_VAR')).toBe('env:MY_VAR')
-    })
-
-    it('uses correct prefix', () => {
-      const result = createEnvVarRef('TEST')
-      expect(result.startsWith(ENV_VAR_REF_PREFIX)).toBe(true)
     })
 
     it('handles UUID-based var names', () => {

@@ -5,41 +5,42 @@ import {
   promptForRequiredStringPortField,
 } from '../../../utils/inquirer'
 import { promptForSshFields } from './prompt-for-ssh-fields'
-import { promptForSslFields } from './prompt-for-ssl-fields'
 
-export async function promptForFieldsPostgres({
+export async function promptForFieldsMaterialize({
   id,
   type,
   name,
   defaultValues,
 }: {
   id: string
-  type: 'pgsql'
+  type: 'materialize'
   name: string
-  defaultValues?: DatabaseIntegrationMetadataByType['pgsql']
+  defaultValues?: DatabaseIntegrationMetadataByType['materialize']
 }): Promise<DatabaseIntegrationConfig> {
   const host = await promptForRequiredStringField({ label: 'Host:', defaultValue: defaultValues?.host })
   const port = await promptForRequiredStringPortField({
     label: 'Port:',
-    defaultValue: defaultValues?.port ?? '5432',
+    defaultValue: defaultValues?.port ?? '6875',
   })
   const database = await promptForRequiredStringField({ label: 'Database:', defaultValue: defaultValues?.database })
   const user = await promptForRequiredStringField({ label: 'User:', defaultValue: defaultValues?.user })
   const password = await promptForRequiredSecretField({ label: 'Password:', defaultValue: defaultValues?.password })
+  const cluster = await promptForRequiredStringField({
+    label: 'Cluster:',
+    defaultValue: defaultValues?.cluster ?? 'default',
+  })
 
-  let metadata: DatabaseIntegrationMetadataByType['pgsql'] = {
+  let metadata: DatabaseIntegrationMetadataByType['materialize'] = {
     host,
     port,
     database,
     user,
     password,
+    cluster,
   }
 
   const sshFields = await promptForSshFields(defaultValues)
   metadata = { ...metadata, ...sshFields }
-
-  const sslFields = await promptForSslFields(defaultValues)
-  metadata = { ...metadata, ...sslFields }
 
   return {
     id,
