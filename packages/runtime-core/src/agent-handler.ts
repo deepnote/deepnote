@@ -111,31 +111,69 @@ ${integrations.map(i => `- "${i.name}" (${i.type}, id: ${i.id})`).join('\n')}`
   return prompt
 }
 
-export async function executeAgentBlock(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error(
-      'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
-        'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
-    )
+export interface ResolvedProvider {
+  model: ReturnType<ReturnType<typeof createOpenAI>> | ReturnType<ReturnType<typeof createOpenAI>['chat']>
+  modelName: string
+  providerName: string
+}
+
+/**
+ * Resolves which LLM provider to use for agent blocks.
+ *
+ * Provider selection order:
+ * 1. OpenAI — if OPENAI_API_KEY is set
+ * 2. MiniMax — if MINIMAX_API_KEY is set (OpenAI-compatible API)
+ *
+ * MiniMax models use the OpenAI-compatible endpoint at https://api.minimax.io/v1
+ * and always use the Chat Completions API (Responses API is not supported).
+ * Temperature is constrained to (0, 1] by the MiniMax API.
+ */
+export function resolveAgentProvider(agentModel: string): ResolvedProvider {
+  const openaiKey = process.env.OPENAI_API_KEY
+  const minimaxKey = process.env.MINIMAX_API_KEY
+
+  if (openaiKey) {
+    const provider = createOpenAI({
+      apiKey: openaiKey,
+      baseURL: process.env.OPENAI_BASE_URL,
+    })
+
+    const modelName = agentModel !== 'auto' ? agentModel : (process.env.OPENAI_MODEL ?? 'gpt-5')
+
+    // Use the Responses API for direct OpenAI access (supports reasoning
+    // summaries), but fall back to Chat Completions for custom base URLs
+    // since most OpenAI-compatible providers don't implement the Responses API.
+    const baseURL = process.env.OPENAI_BASE_URL
+    const model = baseURL ? provider.chat(modelName) : provider(modelName)
+
+    return { model, modelName, providerName: 'openai' }
   }
 
-  const openai = createOpenAI({
-    apiKey,
-    baseURL: process.env.OPENAI_BASE_URL,
-  })
+  if (minimaxKey) {
+    const provider = createOpenAI({
+      apiKey: minimaxKey,
+      baseURL: process.env.MINIMAX_BASE_URL ?? 'https://api.minimax.io/v1',
+    })
 
-  const modelName =
-    block.metadata.deepnote_agent_model !== 'auto'
-      ? block.metadata.deepnote_agent_model
-      : (process.env.OPENAI_MODEL ?? 'gpt-5')
+    const modelName = agentModel !== 'auto' ? agentModel : (process.env.MINIMAX_MODEL ?? 'MiniMax-M2.7')
+
+    // MiniMax uses the OpenAI-compatible Chat Completions API;
+    // the Responses API is not supported.
+    const model = provider.chat(modelName)
+
+    return { model, modelName, providerName: 'minimax' }
+  }
+
+  throw new Error(
+    'An API key is required for agent blocks.\n' +
+      'Set OPENAI_API_KEY for OpenAI (or any OpenAI-compatible provider via OPENAI_BASE_URL),\n' +
+      'or set MINIMAX_API_KEY to use MiniMax (models: MiniMax-M2.7, MiniMax-M2.7-highspeed).'
+  )
+}
+
+export async function executeAgentBlock(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
+  const { model, modelName, providerName } = resolveAgentProvider(block.metadata.deepnote_agent_model)
   const maxTurns = 10
-
-  // Use the Responses API for direct OpenAI access (supports reasoning
-  // summaries), but fall back to Chat Completions for custom base URLs
-  // since most OpenAI-compatible providers don't implement the Responses API.
-  const baseURL = process.env.OPENAI_BASE_URL
-  const model = baseURL ? openai.chat(modelName) : openai(modelName)
 
   const { file } = context
   const notebook = file.project.notebooks[context.notebookIndex]
@@ -250,11 +288,13 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       ...mcpTools,
     },
     stopWhen: stepCountIs(maxTurns),
-    ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
+    ...(providerName === 'openai' && !process.env.OPENAI_BASE_URL
+      ? { providerOptions: { openai: { reasoningSummary: 'auto' } } }
+      : {}),
   })
 
   context.onLog?.(
-    `[agent] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpClients.length}`
+    `[agent] Running agent with provider=${providerName}, model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpClients.length}`
   )
 
   try {
