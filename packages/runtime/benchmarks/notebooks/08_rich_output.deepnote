@@ -1,0 +1,33 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "bench-rich"
+  name: "Rich output benchmark"
+  notebooks:
+    - id: "nb-001"
+      name: "Rich"
+      executionMode: block
+      blocks:
+        - id: "b1"
+          type: code
+          content: |
+            class Table:
+                def __init__(self, data):
+                    self.data = data
+                def _repr_html_(self):
+                    rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in self.data.items())
+                    return f"<table>{rows}</table>"
+                def __repr__(self):
+                    return str(self.data)
+          sortingKey: "a0"
+        - id: "b2"
+          type: code
+          content: |
+            tables = []
+            for i in range(20):
+                t = Table({f"key_{j}": f"val_{i}_{j}" for j in range(10)})
+                display(t)
+                tables.append(t)
+          sortingKey: "a1"

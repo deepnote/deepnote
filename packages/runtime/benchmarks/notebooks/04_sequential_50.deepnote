@@ -1,0 +1,212 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "bench-seq50"
+  name: "50 sequential blocks"
+  notebooks:
+    - id: "nb-001"
+      name: "Sequential 50"
+      executionMode: block
+      blocks:
+        - id: "b01"
+          type: code
+          content: "v1 = 1"
+          sortingKey: "a00"
+        - id: "b02"
+          type: code
+          content: "v2 = v1 + 1"
+          sortingKey: "a01"
+        - id: "b03"
+          type: code
+          content: "v3 = v2 + 1"
+          sortingKey: "a02"
+        - id: "b04"
+          type: code
+          content: "v4 = v3 + 1"
+          sortingKey: "a03"
+        - id: "b05"
+          type: code
+          content: "v5 = v4 + 1"
+          sortingKey: "a04"
+        - id: "b06"
+          type: code
+          content: "v6 = v5 + 1"
+          sortingKey: "a05"
+        - id: "b07"
+          type: code
+          content: "v7 = v6 + 1"
+          sortingKey: "a06"
+        - id: "b08"
+          type: code
+          content: "v8 = v7 + 1"
+          sortingKey: "a07"
+        - id: "b09"
+          type: code
+          content: "v9 = v8 + 1"
+          sortingKey: "a08"
+        - id: "b10"
+          type: code
+          content: "v10 = v9 + 1"
+          sortingKey: "a09"
+        - id: "b11"
+          type: code
+          content: "v11 = v10 + 1"
+          sortingKey: "a10"
+        - id: "b12"
+          type: code
+          content: "v12 = v11 + 1"
+          sortingKey: "a11"
+        - id: "b13"
+          type: code
+          content: "v13 = v12 + 1"
+          sortingKey: "a12"
+        - id: "b14"
+          type: code
+          content: "v14 = v13 + 1"
+          sortingKey: "a13"
+        - id: "b15"
+          type: code
+          content: "v15 = v14 + 1"
+          sortingKey: "a14"
+        - id: "b16"
+          type: code
+          content: "v16 = v15 + 1"
+          sortingKey: "a15"
+        - id: "b17"
+          type: code
+          content: "v17 = v16 + 1"
+          sortingKey: "a16"
+        - id: "b18"
+          type: code
+          content: "v18 = v17 + 1"
+          sortingKey: "a17"
+        - id: "b19"
+          type: code
+          content: "v19 = v18 + 1"
+          sortingKey: "a18"
+        - id: "b20"
+          type: code
+          content: "v20 = v19 + 1"
+          sortingKey: "a19"
+        - id: "b21"
+          type: code
+          content: "v21 = v20 + 1"
+          sortingKey: "a20"
+        - id: "b22"
+          type: code
+          content: "v22 = v21 + 1"
+          sortingKey: "a21"
+        - id: "b23"
+          type: code
+          content: "v23 = v22 + 1"
+          sortingKey: "a22"
+        - id: "b24"
+          type: code
+          content: "v24 = v23 + 1"
+          sortingKey: "a23"
+        - id: "b25"
+          type: code
+          content: "v25 = v24 + 1"
+          sortingKey: "a24"
+        - id: "b26"
+          type: code
+          content: "v26 = v25 + 1"
+          sortingKey: "a25"
+        - id: "b27"
+          type: code
+          content: "v27 = v26 + 1"
+          sortingKey: "a26"
+        - id: "b28"
+          type: code
+          content: "v28 = v27 + 1"
+          sortingKey: "a27"
+        - id: "b29"
+          type: code
+          content: "v29 = v28 + 1"
+          sortingKey: "a28"
+        - id: "b30"
+          type: code
+          content: "v30 = v29 + 1"
+          sortingKey: "a29"
+        - id: "b31"
+          type: code
+          content: "v31 = v30 + 1"
+          sortingKey: "a30"
+        - id: "b32"
+          type: code
+          content: "v32 = v31 + 1"
+          sortingKey: "a31"
+        - id: "b33"
+          type: code
+          content: "v33 = v32 + 1"
+          sortingKey: "a32"
+        - id: "b34"
+          type: code
+          content: "v34 = v33 + 1"
+          sortingKey: "a33"
+        - id: "b35"
+          type: code
+          content: "v35 = v34 + 1"
+          sortingKey: "a34"
+        - id: "b36"
+          type: code
+          content: "v36 = v35 + 1"
+          sortingKey: "a35"
+        - id: "b37"
+          type: code
+          content: "v37 = v36 + 1"
+          sortingKey: "a36"
+        - id: "b38"
+          type: code
+          content: "v38 = v37 + 1"
+          sortingKey: "a37"
+        - id: "b39"
+          type: code
+          content: "v39 = v38 + 1"
+          sortingKey: "a38"
+        - id: "b40"
+          type: code
+          content: "v40 = v39 + 1"
+          sortingKey: "a39"
+        - id: "b41"
+          type: code
+          content: "v41 = v40 + 1"
+          sortingKey: "a40"
+        - id: "b42"
+          type: code
+          content: "v42 = v41 + 1"
+          sortingKey: "a41"
+        - id: "b43"
+          type: code
+          content: "v43 = v42 + 1"
+          sortingKey: "a42"
+        - id: "b44"
+          type: code
+          content: "v44 = v43 + 1"
+          sortingKey: "a43"
+        - id: "b45"
+          type: code
+          content: "v45 = v44 + 1"
+          sortingKey: "a44"
+        - id: "b46"
+          type: code
+          content: "v46 = v45 + 1"
+          sortingKey: "a45"
+        - id: "b47"
+          type: code
+          content: "v47 = v46 + 1"
+          sortingKey: "a46"
+        - id: "b48"
+          type: code
+          content: "v48 = v47 + 1"
+          sortingKey: "a47"
+        - id: "b49"
+          type: code
+          content: "v49 = v48 + 1"
+          sortingKey: "a48"
+        - id: "b50"
+          type: code
+          content: "v50 = v49 + 1"
+          sortingKey: "a49"

@@ -1,0 +1,45 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "bench-imports"
+  name: "Import benchmark"
+  notebooks:
+    - id: "nb-001"
+      name: "Imports"
+      executionMode: block
+      blocks:
+        - id: "b1"
+          type: code
+          content: |
+            import os
+            import sys
+            import json
+            import hashlib
+            import collections
+            import itertools
+            import functools
+            import pathlib
+            import re
+            import math
+          sortingKey: "a0"
+        - id: "b2"
+          type: code
+          content: |
+            from datetime import datetime, timedelta
+            from typing import Any, Optional
+            from dataclasses import dataclass, field
+            from enum import Enum
+            from abc import ABC, abstractmethod
+          sortingKey: "a1"
+        - id: "b3"
+          type: code
+          content: |
+            result = {
+                "os_name": os.name,
+                "python_version": sys.version,
+                "pi": math.pi,
+                "now": str(datetime.now()),
+            }
+          sortingKey: "a2"

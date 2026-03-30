@@ -1,0 +1,30 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "a1b2c3d4-0000-0000-0000-000000000004"
+  name: "With error"
+  notebooks:
+    - id: "nb-001"
+      name: "Errors"
+      executionMode: block
+      blocks:
+        - id: "block-ok"
+          blockGroup: "block-ok"
+          type: code
+          content: |
+            x = 42
+          sortingKey: "a0"
+        - id: "block-fail"
+          blockGroup: "block-fail"
+          type: code
+          content: |
+            1 / 0
+          sortingKey: "a1"
+        - id: "block-after"
+          blockGroup: "block-after"
+          type: code
+          content: |
+            print("This should not run if stop_on_error")
+          sortingKey: "a2"

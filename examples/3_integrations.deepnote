@@ -89,3 +89,10 @@ project:
       name: Integrations
   settings: {}
 version: 1.0.0
+environment:
+  packages:
+    clickhouse-sqlalchemy: 0.3.2
+    matplotlib: 3.8.0
+    pandas: 2.1.0
+  python:
+    version: 3.12.0

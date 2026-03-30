@@ -1,0 +1,121 @@
+[
+  {
+    "bench": "Import",
+    "ours_median": 0.04785391502082348,
+    "ours_min": 0.04404177889227867,
+    "theirs_median": 11.74054155126214,
+    "theirs_min": 11.305457912385464
+  },
+  {
+    "bench": "Init",
+    "ours_median": 0.0008749775588512421,
+    "ours_min": 0.0008330680429935455,
+    "theirs_median": 10.878645349293947,
+    "theirs_min": 10.563416872173548
+  },
+  {
+    "bench": "Cell: pass (noop)",
+    "ours_median": 0.005520647391676903,
+    "ours_min": 0.005125068128108978,
+    "theirs_median": 11.406645411625504,
+    "theirs_min": 11.112415697425604
+  },
+  {
+    "bench": "Cell: assignment",
+    "ours_median": 0.008979346603155136,
+    "ours_min": 0.008416827768087387,
+    "theirs_median": 12.251561973243952,
+    "theirs_min": 11.131875216960907
+  },
+  {
+    "bench": "Cell: print",
+    "ours_median": 0.016062520444393158,
+    "ours_min": 0.015374738723039627,
+    "theirs_median": 11.57395844347775,
+    "theirs_min": 11.01641682907939
+  },
+  {
+    "bench": "Cell: list comprehension",
+    "ours_median": 0.037791673094034195,
+    "ours_min": 0.03641704097390175,
+    "theirs_median": 12.664813082665205,
+    "theirs_min": 11.513750068843365
+  },
+  {
+    "bench": "Cell: function def + call",
+    "ours_median": 0.05112495273351669,
+    "ours_min": 0.04966743290424347,
+    "theirs_median": 16.03572885505855,
+    "theirs_min": 11.660207994282246
+  },
+  {
+    "bench": "Cell: import",
+    "ours_median": 0.007020775228738785,
+    "ours_min": 0.006750226020812988,
+    "theirs_median": 12.032228987663984,
+    "theirs_min": 11.489500291645527
+  },
+  {
+    "bench": "Notebook: 01_startup",
+    "ours_median": 0.016062753275036812,
+    "ours_min": 0.015249941498041153,
+    "theirs_median": 12.80724979005754,
+    "theirs_min": 11.978957802057266
+  },
+  {
+    "bench": "Notebook: 02_hello_world",
+    "ours_median": 0.031062401831150055,
+    "ours_min": 0.028207898139953613,
+    "theirs_median": 12.202854501083493,
+    "theirs_min": 11.53979217633605
+  },
+  {
+    "bench": "Notebook: 03_sequential_10",
+    "ours_median": 0.2708539832383394,
+    "ours_min": 0.26183342561125755,
+    "theirs_median": 13.589229201897979,
+    "theirs_min": 12.626874726265669
+  },
+  {
+    "bench": "Notebook: 04_sequential_50",
+    "ours_median": 1.599541399627924,
+    "ours_min": 1.5946249477565289,
+    "theirs_median": 16.982771223410964,
+    "theirs_min": 14.963707886636257
+  },
+  {
+    "bench": "Notebook: 05_computation",
+    "ours_median": 1.0883952490985394,
+    "ours_min": 1.0542497038841248,
+    "theirs_median": 13.666103826835752,
+    "theirs_min": 12.914500199258327
+  },
+  {
+    "bench": "Notebook: 06_output_heavy",
+    "ours_median": 0.18956279382109642,
+    "ours_min": 0.18395762890577316,
+    "theirs_median": 14.731292147189379,
+    "theirs_min": 12.994874734431505
+  },
+  {
+    "bench": "Notebook: 07_imports",
+    "ours_median": 0.23662415333092213,
+    "ours_min": 0.23237476125359535,
+    "theirs_median": 14.814354479312897,
+    "theirs_min": 12.98758340999484
+  },
+  {
+    "bench": "Notebook: 08_rich_output",
+    "ours_median": 0.46518747694790363,
+    "ours_min": 0.45562535524368286,
+    "theirs_median": 15.507270814850926,
+    "theirs_min": 14.680707827210426
+  },
+  {
+    "bench": "Output 1000 prints",
+    "ours_median": 0.21683331578969955,
+    "ours_min": 0.20716572180390358,
+    "theirs_median": 1.0265626478940248,
+    "theirs_min": 1.0149581357836723
+  }
+]

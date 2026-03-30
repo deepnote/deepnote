@@ -84,6 +84,7 @@ export interface RunOptions {
   input?: string[]
   listInputs?: boolean
   output?: OutputFormat
+  direct?: boolean
   dryRun?: boolean
   top?: boolean
   profile?: boolean
@@ -853,6 +854,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
   const engine = new ExecutionEngine({
     pythonEnv,
     workingDirectory,
+    mode: options.direct ? 'direct' : 'jupyter',
   })
   const restoreConsoleDebug = suppressMachineOutputDebugNoise(isMachineOutput)
   let engineStarted = false
@@ -955,7 +957,7 @@ function suppressMachineOutputDebugNoise(isMachineOutput: boolean): () => void {
 
 async function startExecutionEngine(engine: ExecutionEngine, isMachineOutput: boolean): Promise<void> {
   if (!isMachineOutput) {
-    log(getChalk().dim('Starting deepnote-toolkit server...'))
+    log(getChalk().dim(engine.isDirect ? 'Starting direct Python runner...' : 'Starting deepnote-toolkit server...'))
   }
 
   try {
@@ -974,7 +976,9 @@ async function startExecutionEngine(engine: ExecutionEngine, isMachineOutput: bo
     }
 
     throw new Error(
-      `Failed to start server: ${message}\n\nMake sure deepnote-toolkit is installed:\n  pip install deepnote-toolkit[server]`
+      engine.isDirect
+        ? `Failed to start direct runner: ${message}\n\nMake sure Python is available.`
+        : `Failed to start server: ${message}\n\nMake sure deepnote-toolkit is installed:\n  pip install deepnote-toolkit[server]`
     )
   }
 

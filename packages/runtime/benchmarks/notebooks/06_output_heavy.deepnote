@@ -1,0 +1,24 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "bench-output"
+  name: "Output heavy benchmark"
+  notebooks:
+    - id: "nb-001"
+      name: "Output"
+      executionMode: block
+      blocks:
+        - id: "b1"
+          type: code
+          content: |
+            for i in range(100):
+                print(f"Line {i}: {'x' * 80}")
+          sortingKey: "a0"
+        - id: "b2"
+          type: code
+          content: |
+            for i in range(100):
+                print(f"Line {i}: {'y' * 80}")
+          sortingKey: "a1"

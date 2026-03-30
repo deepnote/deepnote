@@ -9,10 +9,11 @@ import {
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { type AgentBlockContext, type AgentStreamEvent, executeAgentBlock } from './agent-handler'
+import { DirectRunner } from './direct-runner'
 import { toPythonLiteral } from './javascript'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
-import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
+import type { BlockExecutionResult, ExecutionSummary, ICodeExecutor, RuntimeConfig } from './types'
 
 // Re-export for backwards compatibility - these are now defined in @deepnote/blocks
 export const executableBlockTypes: ExecutableBlock['type'][] = [
@@ -88,44 +89,69 @@ export interface ExecutionOptions {
  */
 export class ExecutionEngine {
   private server: ServerInfo | null = null
-  private kernel: KernelClient | null = null
+  private executor: ICodeExecutor | null = null
 
   constructor(private readonly config: RuntimeConfig) {}
 
   /**
    * Get the Jupyter server port (available after start() is called).
+   * Returns null in direct mode.
    */
   get serverPort(): number | null {
     return this.server?.jupyterPort ?? null
   }
 
   /**
-   * Start the deepnote-toolkit server and connect to the kernel.
+   * Whether this engine is using direct execution mode.
+   */
+  get isDirect(): boolean {
+    return this.config.mode === 'direct'
+  }
+
+  /**
+   * Start the execution backend.
+   * In 'jupyter' mode: starts deepnote-toolkit server and connects via WebSocket.
+   * In 'direct' mode: starts a lightweight Python subprocess.
    */
   async start(): Promise<void> {
-    this.server = await startServer({
-      pythonEnv: this.config.pythonEnv,
-      workingDirectory: this.config.workingDirectory,
-      port: this.config.serverPort,
-      env: this.config.env,
-    })
+    if (this.config.mode === 'direct') {
+      const runner = new DirectRunner({
+        workingDirectory: this.config.workingDirectory,
+        env: this.config.env,
+      })
+      try {
+        await runner.connect(this.config.pythonEnv)
+        this.executor = runner
+      } catch (error) {
+        await runner.disconnect()
+        throw error
+      }
+    } else {
+      this.server = await startServer({
+        pythonEnv: this.config.pythonEnv,
+        workingDirectory: this.config.workingDirectory,
+        port: this.config.serverPort,
+        env: this.config.env,
+      })
 
-    try {
-      this.kernel = new KernelClient()
-      await this.kernel.connect(this.server.url)
-    } catch (error) {
-      await this.stop()
-      throw error
+      try {
+        const kernel = new KernelClient()
+        await kernel.connect(this.server.url)
+        this.executor = kernel
+      } catch (error) {
+        await this.stop()
+        throw error
+      }
     }
   }
 
   /**
-   * Stop the server and disconnect from the kernel.
+   * Stop the execution backend and clean up.
    */
   async stop(): Promise<void> {
-    if (this.kernel) {
-      await this.kernel.disconnect()
-      this.kernel = null
+    if (this.executor) {
+      await this.executor.disconnect()
+      this.executor = null
     }
     if (this.server) {
       await stopServer(this.server)
@@ -147,7 +173,7 @@ export class ExecutionEngine {
    * Run a parsed DeepnoteFile.
    */
   async runProject(file: DeepnoteFile, options: ExecutionOptions = {}): Promise<ExecutionSummary> {
-    if (!this.kernel) {
+    if (!this.executor) {
       throw new Error('Engine not started. Call start() first.')
     }
 
@@ -232,7 +258,7 @@ export class ExecutionEngine {
           }
 
           const agentContext: AgentBlockContext = {
-            kernel: this.kernel,
+            kernel: this.executor,
             file,
             notebookIndex,
             agentBlockIndex,
@@ -277,7 +303,7 @@ export class ExecutionEngine {
           executedBlocks++
         } else {
           const code = createPythonCode(block)
-          const result = await this.kernel.execute(code, {
+          const result = await this.executor.execute(code, {
             onOutput: output => options.onOutput?.(block.id, output),
           })
 
@@ -364,7 +390,7 @@ export class ExecutionEngine {
    * Converts values to Python literals and executes assignment statements.
    */
   private async injectInputs(inputs: Record<string, unknown>): Promise<void> {
-    if (!this.kernel) {
+    if (!this.executor) {
       throw new Error('Engine not started. Call start() first.')
     }
 
@@ -380,7 +406,7 @@ export class ExecutionEngine {
 
     if (assignments.length > 0) {
       const code = assignments.join('\n')
-      const result = await this.kernel.execute(code)
+      const result = await this.executor.execute(code)
       if (!result.success) {
         const errorOutput = result.outputs.find(o => o.output_type === 'error')
         const errorMsg = errorOutput && 'evalue' in errorOutput ? String(errorOutput.evalue) : 'Failed to inject inputs'

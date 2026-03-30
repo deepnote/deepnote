@@ -1,0 +1,52 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "bench-seq10"
+  name: "10 sequential blocks"
+  notebooks:
+    - id: "nb-001"
+      name: "Sequential"
+      executionMode: block
+      blocks:
+        - id: "b01"
+          type: code
+          content: "a = 1"
+          sortingKey: "a00"
+        - id: "b02"
+          type: code
+          content: "b = a + 1"
+          sortingKey: "a01"
+        - id: "b03"
+          type: code
+          content: "c = b + 1"
+          sortingKey: "a02"
+        - id: "b04"
+          type: code
+          content: "d = c + 1"
+          sortingKey: "a03"
+        - id: "b05"
+          type: code
+          content: "e = d + 1"
+          sortingKey: "a04"
+        - id: "b06"
+          type: code
+          content: "f = e + 1"
+          sortingKey: "a05"
+        - id: "b07"
+          type: code
+          content: "g = f + 1"
+          sortingKey: "a06"
+        - id: "b08"
+          type: code
+          content: "h = g + 1"
+          sortingKey: "a07"
+        - id: "b09"
+          type: code
+          content: "i = h + 1"
+          sortingKey: "a08"
+        - id: "b10"
+          type: code
+          content: "j = i + 1"
+          sortingKey: "a09"

@@ -1,0 +1,45 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "a1b2c3d4-0000-0000-0000-000000000002"
+  name: "With inputs"
+  notebooks:
+    - id: "nb-001"
+      name: "Interactive"
+      executionMode: block
+      blocks:
+        - id: "input-greeting"
+          blockGroup: "input-greeting"
+          type: input-text
+          metadata:
+            deepnote_variable_name: greeting
+            deepnote_input_label: "Greeting"
+            deepnote_variable_value: "Hello"
+          sortingKey: "a0"
+        - id: "input-count"
+          blockGroup: "input-count"
+          type: input-slider
+          metadata:
+            deepnote_variable_name: count
+            deepnote_input_label: "Count"
+            deepnote_variable_value: 3
+            deepnote_input_min: 1
+            deepnote_input_max: 10
+            deepnote_input_step: 1
+          sortingKey: "a1"
+        - id: "block-use-inputs"
+          blockGroup: "block-use-inputs"
+          type: code
+          content: |
+            for i in range(count):
+                print(f"{greeting} #{i+1}")
+          sortingKey: "a2"
+        - id: "block-summary"
+          blockGroup: "block-summary"
+          type: code
+          content: |
+            summary = f"Said '{greeting}' {count} times"
+            summary
+          sortingKey: "a3"

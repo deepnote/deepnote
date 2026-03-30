@@ -1,0 +1,29 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "a1b2c3d4-0000-0000-0000-000000000003"
+  name: "Multi notebook"
+  notebooks:
+    - id: "nb-001"
+      name: "Setup"
+      executionMode: block
+      blocks:
+        - id: "block-setup"
+          blockGroup: "block-setup"
+          type: code
+          content: |
+            data = [1, 2, 3]
+          sortingKey: "a0"
+    - id: "nb-002"
+      name: "Analysis"
+      executionMode: block
+      blocks:
+        - id: "block-analysis"
+          blockGroup: "block-analysis"
+          type: code
+          content: |
+            total = sum(data)
+            total
+          sortingKey: "a0"

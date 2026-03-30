@@ -1,0 +1,135 @@
+[
+  {
+    "section": "in-process",
+    "notebook": "01_startup",
+    "deepnote_median_ms": 0.017,
+    "deepnote_min_ms": 0.015,
+    "jupyter_median_ms": 665.76,
+    "jupyter_min_ms": 610.619
+  },
+  {
+    "section": "in-process",
+    "notebook": "02_hello_world",
+    "deepnote_median_ms": 0.038,
+    "deepnote_min_ms": 0.035,
+    "jupyter_median_ms": 621.075,
+    "jupyter_min_ms": 548.682
+  },
+  {
+    "section": "in-process",
+    "notebook": "03_sequential_10",
+    "deepnote_median_ms": 0.288,
+    "deepnote_min_ms": 0.284,
+    "jupyter_median_ms": 687.334,
+    "jupyter_min_ms": 588.066
+  },
+  {
+    "section": "in-process",
+    "notebook": "04_sequential_50",
+    "deepnote_median_ms": 1.608,
+    "deepnote_min_ms": 1.576,
+    "jupyter_median_ms": 801.514,
+    "jupyter_min_ms": 683.321
+  },
+  {
+    "section": "in-process",
+    "notebook": "05_computation",
+    "deepnote_median_ms": 1.101,
+    "deepnote_min_ms": 1.039,
+    "jupyter_median_ms": 697.136,
+    "jupyter_min_ms": 692.719
+  },
+  {
+    "section": "in-process",
+    "notebook": "06_output_heavy",
+    "deepnote_median_ms": 0.204,
+    "deepnote_min_ms": 0.202,
+    "jupyter_median_ms": 686.54,
+    "jupyter_min_ms": 583.633
+  },
+  {
+    "section": "in-process",
+    "notebook": "07_imports",
+    "deepnote_median_ms": 0.246,
+    "deepnote_min_ms": 0.221,
+    "jupyter_median_ms": 667.685,
+    "jupyter_min_ms": 621.129
+  },
+  {
+    "section": "in-process",
+    "notebook": "08_rich_output",
+    "deepnote_median_ms": 0.521,
+    "deepnote_min_ms": 0.52,
+    "jupyter_median_ms": 666.231,
+    "jupyter_min_ms": 563.781
+  },
+  {
+    "section": "subprocess",
+    "notebook": "01_startup",
+    "deepnote_median_ms": 55.7,
+    "deepnote_min_ms": 54.9,
+    "jupyter_median_ms": 1365.5,
+    "jupyter_min_ms": 1351.7
+  },
+  {
+    "section": "subprocess",
+    "notebook": "02_hello_world",
+    "deepnote_median_ms": 56.0,
+    "deepnote_min_ms": 55.4,
+    "jupyter_median_ms": 1398.3,
+    "jupyter_min_ms": 1340.8
+  },
+  {
+    "section": "subprocess",
+    "notebook": "03_sequential_10",
+    "deepnote_median_ms": 56.6,
+    "deepnote_min_ms": 56.1,
+    "jupyter_median_ms": 1398.9,
+    "jupyter_min_ms": 1375.3
+  },
+  {
+    "section": "subprocess",
+    "notebook": "04_sequential_50",
+    "deepnote_median_ms": 55.9,
+    "deepnote_min_ms": 54.4,
+    "jupyter_median_ms": 1471.7,
+    "jupyter_min_ms": 1465.7
+  },
+  {
+    "section": "subprocess",
+    "notebook": "05_computation",
+    "deepnote_median_ms": 56.7,
+    "deepnote_min_ms": 55.2,
+    "jupyter_median_ms": 1395.8,
+    "jupyter_min_ms": 1383.9
+  },
+  {
+    "section": "subprocess",
+    "notebook": "06_output_heavy",
+    "deepnote_median_ms": 58.2,
+    "deepnote_min_ms": 55.7,
+    "jupyter_median_ms": 1552.7,
+    "jupyter_min_ms": 1355.5
+  },
+  {
+    "section": "subprocess",
+    "notebook": "07_imports",
+    "deepnote_median_ms": 56.5,
+    "deepnote_min_ms": 56.2,
+    "jupyter_median_ms": 1350.4,
+    "jupyter_min_ms": 1346.6
+  },
+  {
+    "section": "subprocess",
+    "notebook": "08_rich_output",
+    "deepnote_median_ms": 56.3,
+    "deepnote_min_ms": 55.5,
+    "jupyter_median_ms": 1383.4,
+    "jupyter_min_ms": 1367.8
+  },
+  {
+    "section": "memory",
+    "deepnote_peak_mb": 27.7,
+    "jupyter_peak_mb": 92.3
+  }
+]

@@ -1,0 +1,18 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  name: "Hello world"
+  notebooks:
+    - id: "nb-001"
+      name: "Main"
+      executionMode: block
+      blocks:
+        - id: "block-001"
+          blockGroup: "block-001"
+          type: code
+          content: |
+            print("Hello, World!")
+          sortingKey: "a0"

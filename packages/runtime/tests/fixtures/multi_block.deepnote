@@ -1,0 +1,38 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "a1b2c3d4-0000-0000-0000-000000000001"
+  name: "Multi block"
+  notebooks:
+    - id: "nb-001"
+      name: "Analysis"
+      executionMode: block
+      blocks:
+        - id: "block-001"
+          blockGroup: "block-001"
+          type: code
+          content: |
+            x = 10
+            y = 20
+          sortingKey: "a0"
+        - id: "block-002"
+          blockGroup: "block-002"
+          type: code
+          content: |
+            z = x + y
+            print(f"Sum: {z}")
+          sortingKey: "a1"
+        - id: "block-003"
+          blockGroup: "block-003"
+          type: code
+          content: |
+            result = z * 2
+            result
+          sortingKey: "a2"
+        - id: "block-md"
+          blockGroup: "block-md"
+          type: markdown
+          content: "# This is a heading"
+          sortingKey: "a3"

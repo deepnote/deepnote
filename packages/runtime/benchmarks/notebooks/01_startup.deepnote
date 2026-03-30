@@ -1,0 +1,17 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "bench-startup"
+  name: "Startup benchmark"
+  notebooks:
+    - id: "nb-001"
+      name: "Startup"
+      executionMode: block
+      blocks:
+        - id: "b1"
+          type: code
+          content: |
+            pass
+          sortingKey: "a0"

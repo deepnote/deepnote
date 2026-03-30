@@ -2,18 +2,7 @@ import type { IDisplayData, IExecuteResult, IOutput } from '@jupyterlab/nbformat
 import { KernelManager, ServerConnection, SessionManager } from '@jupyterlab/services'
 import type { IKernelConnection } from '@jupyterlab/services/lib/kernel/kernel'
 import type { ISessionConnection } from '@jupyterlab/services/lib/session/session'
-
-export interface ExecutionResult {
-  success: boolean
-  outputs: IOutput[]
-  executionCount: number | null
-}
-
-export interface ExecutionCallbacks {
-  onOutput?: (output: IOutput) => void
-  onStart?: () => void
-  onDone?: (result: ExecutionResult) => void
-}
+import type { ExecutionCallbacks, ExecutionResult, ICodeExecutor } from './types'
 
 // Jupyter kernel WebSocket protocol to exclude from negotiation.
 // The v1 binary protocol uses DataView with getBigUint64 for message
@@ -43,7 +32,7 @@ export function createJsonWebSocketFactory(): typeof WebSocket {
 /**
  * Client for communicating with a Jupyter kernel via the Jupyter protocol.
  */
-export class KernelClient {
+export class KernelClient implements ICodeExecutor {
   private kernelManager: KernelManager | null = null
   private sessionManager: SessionManager | null = null
   private session: ISessionConnection | null = null

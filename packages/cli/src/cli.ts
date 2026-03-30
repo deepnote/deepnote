@@ -290,6 +290,7 @@ ${c.bold('Examples:')}
       'Output format: json, toon, llm',
       createFormatValidator(OUTPUT_FORMATS, TOON_LLM_RESOLUTION)
     )
+    .option('--direct', 'Use direct Python execution (faster, bypasses Jupyter server)')
     .option('--dry-run', 'Show what would be executed without running')
     .option('--top', 'Display resource usage (CPU, memory) during execution')
     .option('--profile', 'Show per-block timing and memory usage')

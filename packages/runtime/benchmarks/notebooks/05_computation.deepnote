@@ -1,0 +1,44 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "bench-compute"
+  name: "Computation benchmark"
+  notebooks:
+    - id: "nb-001"
+      name: "Compute"
+      executionMode: block
+      blocks:
+        - id: "b1"
+          type: code
+          content: |
+            data = list(range(10000))
+          sortingKey: "a0"
+        - id: "b2"
+          type: code
+          content: |
+            squared = [x**2 for x in data]
+          sortingKey: "a1"
+        - id: "b3"
+          type: code
+          content: |
+            total = sum(squared)
+            mean = total / len(squared)
+          sortingKey: "a2"
+        - id: "b4"
+          type: code
+          content: |
+            variance = sum((x - mean)**2 for x in squared) / len(squared)
+            std_dev = variance ** 0.5
+          sortingKey: "a3"
+        - id: "b5"
+          type: code
+          content: |
+            result = {
+                "count": len(data),
+                "sum": total,
+                "mean": mean,
+                "std_dev": std_dev,
+            }
+          sortingKey: "a4"

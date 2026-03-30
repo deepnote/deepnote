@@ -1,0 +1,20 @@
+version: "1.0.0"
+metadata:
+  createdAt: 1730735698208
+  modifiedAt: 1736850561964
+project:
+  id: "a1b2c3d4-0000-0000-0000-000000000005"
+  name: "Async code"
+  notebooks:
+    - id: "nb-001"
+      name: "Async"
+      executionMode: block
+      blocks:
+        - id: "block-async"
+          blockGroup: "block-async"
+          type: code
+          content: |
+            import asyncio
+            result = await asyncio.sleep(0, result="done")
+            print(f"Async result: {result}")
+          sortingKey: "a0"

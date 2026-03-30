@@ -6,7 +6,7 @@ import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@
 import { extractOutputsText, generateSortingKey } from '@deepnote/blocks'
 import { stepCountIs, ToolLoopAgent, tool } from 'ai'
 import { z } from 'zod'
-import type { KernelClient } from './kernel-client'
+import type { ICodeExecutor } from './types'
 
 export type AgentStreamEvent =
   | { type: 'tool_called'; toolName: string }
@@ -15,7 +15,7 @@ export type AgentStreamEvent =
   | { type: 'reasoning_delta'; text: string }
 
 export interface AgentBlockContext {
-  kernel: KernelClient
+  kernel: ICodeExecutor
   file: DeepnoteFile
   notebookIndex: number
   agentBlockIndex: number
