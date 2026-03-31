@@ -27,7 +27,7 @@ Deepnote makes it easy to take your explorations to production. For example:
 
 ### How to know if your scheduled notebook ran successfully
 
-If an exception is raised during the run, the run is considered as failed, otherwise it's successful. Please note that if an error is raised in a block, the subsequent blocks are not executed. In addition, you will find a log and snapshot of successful and/or failed runs in the _Version history_ Tab.
+If an exception is raised during the run, the run is considered as failed, otherwise it's successful. Please note that if an error is raised in a block, the subsequent blocks are not executed. Every run automatically creates a [run snapshot](/docs/run-snapshots) — an immutable record of the notebook's state after execution. You can review snapshots of successful and failed runs from the Runs sidebar or the project logs.
 
 ![Scheduling versions.jpg](https://media.graphassets.com/5NYCPGefRZScMa2R0l8S)
 
