@@ -23,9 +23,9 @@ Snapshots are read-only. They capture the notebook state at execution time and c
 
 You can access run snapshots from three places:
 
-- **Runs sidebar** — click **Runs** in the project topbar to open a sidebar listing recent runs with status indicators. Click any run to view its snapshot.
+- **Runs sidebar** — click **Runs** in the project top bar to open a sidebar listing recent runs with status indicators. Click any run to view its snapshot.
 - **Project logs** — the history tab shows past executions. Runs with available snapshots display a **View run** button.
-- **Logs & Analytics modal** — open the project topbar context menu and select **View analytics** to see execution history alongside snapshot access.
+- **Logs & Analytics modal** — open the project top bar context menu and select **View analytics** to see execution history alongside snapshot access.
 
 ## Use cases
 
