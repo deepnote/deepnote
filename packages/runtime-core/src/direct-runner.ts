@@ -1,12 +1,18 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface, type Interface as ReadlineInterface } from 'node:readline'
 import type { IDisplayData, IExecuteResult, IOutput } from '@jupyterlab/nbformat'
-import { randomUUID } from 'node:crypto'
 import { buildPythonEnv, resolvePythonExecutable } from './python-env'
-import type { ExecutionCallbacks, ExecutionResult, ICodeExecutor } from './types'
+import type {
+  AgentExecutionConfig,
+  AgentExecutionResult,
+  ExecutionCallbacks,
+  ExecutionResult,
+  ICodeExecutor,
+} from './types'
 
 const STARTUP_TIMEOUT_MS = 30_000
 
@@ -128,6 +134,48 @@ else:
             outputs.append({"output_type": "error", "ename": type(exc).__name__, "evalue": str(exc), "traceback": tb_lines})
             return {"id": request_id, "success": False, "outputs": outputs, "execution_count": count}
 
+def _handle_agent(request, request_id):
+    """Handle agent block execution natively in Python."""
+    global _execution_count
+    try:
+        from deepnote_runtime.agent import AgentRunner
+    except ImportError as e:
+        _send({"id": request_id, "type": "agent_error",
+               "error": f"Agent execution requires deepnote-runtime with openai: {e}"})
+        return
+
+    namespace = _namespace if _HAS_RUNTIME else _shared_globals
+
+    def receive_fn():
+        """Read a single message from stdin (for MCP callbacks)."""
+        line = sys.stdin.readline().strip()
+        if not line:
+            return {}
+        return json.loads(line)
+
+    runner = AgentRunner(
+        namespace=namespace,
+        execution_count=_execution_count,
+        send_fn=_send,
+        receive_fn=receive_fn,
+        code_cache=_code_cache if _HAS_RUNTIME else None,
+    )
+
+    try:
+        result = runner.run(request)
+        _execution_count = runner.execution_count
+        _send({"id": request_id, "type": "agent_complete", **result})
+    except Exception as e:
+        import traceback
+        _send({"id": request_id, "type": "agent_error",
+               "error": str(e), "error_type": type(e).__name__,
+               "traceback": traceback.format_exc()})
+
+_code_cache = None
+if _HAS_RUNTIME:
+    from deepnote_runtime.compiler import CodeCache
+    _code_cache = CodeCache()
+
 def main():
     _send({"type": "ready"})
     for line in sys.stdin:
@@ -143,6 +191,9 @@ def main():
         if request.get("command") == "shutdown":
             _send({"id": request_id, "type": "shutdown_ack"})
             break
+        if request.get("command") == "agent":
+            _handle_agent(request, request_id)
+            continue
         response = _execute_code(request.get("code", ""), request_id)
         _send(response)
     _protocol_fd.close()
@@ -171,10 +222,9 @@ function getScriptPath(): string {
 export class DirectRunner implements ICodeExecutor {
   private process: ChildProcess | null = null
   private protocolReader: ReadlineInterface | null = null
-  private pendingRequests = new Map<
-    string,
-    { resolve: (value: unknown) => void; reject: (reason: unknown) => void }
-  >()
+  private pendingRequests = new Map<string, { resolve: (value: unknown) => void; reject: (reason: unknown) => void }>()
+  /** Handler for streaming messages during agent execution */
+  private agentMessageHandler: ((msg: Record<string, unknown>) => void) | null = null
   private workingDirectory: string
   private env?: Record<string, string>
 
@@ -221,11 +271,17 @@ export class DirectRunner implements ICodeExecutor {
           return
         }
 
+        // Route agent streaming messages to the agent handler
+        if (this.agentMessageHandler && msg.type && msg.type !== 'shutdown_ack') {
+          this.agentMessageHandler(msg)
+          return
+        }
+
         const id = msg.id
-        if (id && this.pendingRequests.has(id)) {
-          const { resolve } = this.pendingRequests.get(id)!
+        const pending = id ? this.pendingRequests.get(id) : undefined
+        if (pending) {
           this.pendingRequests.delete(id)
-          resolve(msg)
+          pending.resolve(msg)
         }
       } catch {
         // Ignore malformed protocol messages
@@ -258,15 +314,13 @@ export class DirectRunner implements ICodeExecutor {
       }
 
       // Listen on protocol reader for ready signal
-      this.protocolReader!.on('line', onLine)
+      this.protocolReader?.on('line', onLine)
 
       // Handle early exit
-      this.process!.on('exit', (code, signal) => {
+      this.process?.on('exit', (code, signal) => {
         clearTimeout(timeout)
         reject(
-          new Error(
-            `Direct runner process exited unexpectedly (code=${code}, signal=${signal}).\nstderr: ${stderr}`
-          )
+          new Error(`Direct runner process exited unexpectedly (code=${code}, signal=${signal}).\nstderr: ${stderr}`)
         )
       })
     })
@@ -286,8 +340,8 @@ export class DirectRunner implements ICodeExecutor {
 
     const response = await new Promise<Record<string, unknown>>((resolve, reject) => {
       this.pendingRequests.set(id, { resolve: resolve as (v: unknown) => void, reject })
-      const request = JSON.stringify({ id, code }) + '\n'
-      this.process!.stdin!.write(request)
+      const request = `${JSON.stringify({ id, code })}\n`
+      this.process?.stdin?.write(request)
     })
 
     const outputs = (response.outputs as Array<Record<string, unknown>>) || []
@@ -308,6 +362,145 @@ export class DirectRunner implements ICodeExecutor {
   }
 
   /**
+   * Send a message to the Python subprocess via stdin.
+   */
+  private sendMessage(msg: Record<string, unknown>): void {
+    if (!this.process?.stdin) {
+      throw new Error('Direct runner not connected')
+    }
+    this.process.stdin.write(`${JSON.stringify(msg)}\n`)
+  }
+
+  /**
+   * Execute an agent block natively in the Python subprocess.
+   * The LLM loop runs in Python with in-process code execution.
+   */
+  async executeAgent(config: AgentExecutionConfig): Promise<AgentExecutionResult> {
+    if (!this.process || !this.process.stdin) {
+      throw new Error('Direct runner not connected. Call connect() first.')
+    }
+
+    const id = randomUUID()
+
+    return new Promise<AgentExecutionResult>((resolve, reject) => {
+      // Set up message handler for the duration of agent execution
+      this.agentMessageHandler = (msg: Record<string, unknown>) => {
+        const msgType = msg.type as string
+
+        switch (msgType) {
+          case 'agent_event': {
+            const event = msg.event as string
+            const data = msg.data as Record<string, unknown>
+            if (event === 'text_delta') {
+              config.onEvent?.({ type: 'text_delta', text: data.text as string })
+            } else if (event === 'reasoning_delta') {
+              config.onEvent?.({ type: 'reasoning_delta', text: data.text as string })
+            } else if (event === 'tool_called') {
+              config.onEvent?.({ type: 'tool_called', toolName: data.tool_name as string })
+            } else if (event === 'tool_output') {
+              config.onEvent?.({
+                type: 'tool_output',
+                toolName: data.tool_name as string,
+                output: data.output as string,
+              })
+            }
+            break
+          }
+
+          case 'agent_block_added': {
+            const block = msg.block as Record<string, unknown>
+            config.onBlockAdded?.({
+              blockId: block.block_id as string,
+              blockType: block.block_type as string,
+              content: block.content as string,
+              sortingKey: block.sorting_key as string,
+              insertIndex: block.insert_index as number,
+              outputs: (block.outputs as unknown[]) ?? [],
+              executionCount: (block.execution_count as number) ?? null,
+              success: (block.success as boolean) ?? true,
+            })
+            break
+          }
+
+          case 'mcp_call_request': {
+            const callbackId = msg.callback_id as string
+            const toolName = msg.tool_name as string
+            const args = msg.arguments as Record<string, unknown>
+
+            if (config.onMcpToolCall) {
+              config
+                .onMcpToolCall(toolName, args)
+                .then(result => {
+                  this.sendMessage({
+                    id,
+                    type: 'mcp_call_response',
+                    callback_id: callbackId,
+                    result,
+                  })
+                })
+                .catch(err => {
+                  this.sendMessage({
+                    id,
+                    type: 'mcp_call_response',
+                    callback_id: callbackId,
+                    result: `MCP tool error: ${err instanceof Error ? err.message : String(err)}`,
+                  })
+                })
+            } else {
+              this.sendMessage({
+                id,
+                type: 'mcp_call_response',
+                callback_id: callbackId,
+                result: `MCP tool "${toolName}" not available`,
+              })
+            }
+            break
+          }
+
+          case 'agent_complete': {
+            this.agentMessageHandler = null
+            const result: AgentExecutionResult = {
+              finalOutput: (msg.final_output as string) ?? '',
+              addedBlockIds: (msg.added_block_ids as string[]) ?? [],
+              blockOutputs: ((msg.block_outputs as Array<Record<string, unknown>>) ?? []).map(bo => ({
+                blockId: bo.block_id as string,
+                outputs: bo.outputs as unknown[],
+                executionCount: (bo.execution_count as number) ?? null,
+              })),
+              executionCount: (msg.execution_count as number) ?? null,
+            }
+            resolve(result)
+            break
+          }
+
+          case 'agent_error': {
+            this.agentMessageHandler = null
+            reject(new Error((msg.error as string) ?? 'Agent execution failed'))
+            break
+          }
+        }
+      }
+
+      // Send agent command to Python
+      const request = `${JSON.stringify({
+        id,
+        command: 'agent',
+        prompt: config.prompt,
+        model: config.model,
+        api_key: config.apiKey,
+        base_url: config.baseUrl,
+        max_turns: config.maxTurns,
+        system_prompt: config.systemPrompt,
+        mcp_tools: config.mcpTools,
+        request_id: id,
+        insert_index: config.insertIndex,
+      })}\n`
+
+      this.process?.stdin?.write(request)
+    })
+  }
+
+  /**
    * Shut down the Python subprocess.
    */
   async disconnect(): Promise<void> {
@@ -323,7 +516,7 @@ export class DirectRunner implements ICodeExecutor {
         })
         setTimeout(resolve, 2000) // Don't wait more than 2s
       })
-      this.process.stdin?.write(JSON.stringify({ id, command: 'shutdown' }) + '\n')
+      this.process.stdin?.write(`${JSON.stringify({ id, command: 'shutdown' })}\n`)
       this.process.stdin?.end()
       await shutdownPromise
     } catch {
@@ -346,7 +539,7 @@ export class DirectRunner implements ICodeExecutor {
           resolve()
         }, 2000)
 
-        this.process!.once('exit', () => {
+        this.process?.once('exit', () => {
           clearTimeout(timeout)
           resolve()
         })

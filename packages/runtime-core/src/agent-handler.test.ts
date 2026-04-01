@@ -1,6 +1,13 @@
 import type { DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { buildSystemPrompt, mergeMcpConfigs, resolveEnvVars, serializeNotebookContext } from './agent-handler'
+import {
+  buildSystemPrompt,
+  executeAgentBlock,
+  mergeMcpConfigs,
+  resolveEnvVars,
+  serializeNotebookContext,
+} from './agent-handler'
+import type { ICodeExecutor } from './types'
 
 describe('resolveEnvVars', () => {
   let prevTestHost: string | undefined
@@ -318,5 +325,105 @@ describe('mergeMcpConfigs', () => {
     const result = mergeMcpConfigs([serverA], [serverC])
     expect(result).toHaveLength(2)
     expect(result.map(s => s.name).sort()).toEqual(['server-a', 'server-c'])
+  })
+})
+
+describe('executeAgentBlock dispatch', () => {
+  it('chooses native path when executor has executeAgent method', async () => {
+    // An executor with executeAgent should trigger the native path,
+    // which will fail because OPENAI_API_KEY is not set — that's fine,
+    // the point is that it dispatches to the native path (not TS).
+    const mockExecutor = {
+      connect: async () => {},
+      execute: async () => ({ success: true, outputs: [], executionCount: null }),
+      disconnect: async () => {},
+      executeAgent: async () => ({
+        finalOutput: 'native result',
+        addedBlockIds: [],
+        blockOutputs: [],
+        executionCount: null,
+      }),
+    }
+
+    const file = makeFile({
+      blocks: [
+        {
+          id: 'agent-block-1234',
+          blockGroup: 'bg1',
+          sortingKey: 'a0',
+          type: 'agent',
+          content: 'Analyze the data',
+          metadata: { deepnote_agent_model: 'auto' },
+          executionCount: null,
+          outputs: [],
+        },
+      ],
+    })
+
+    const block = file.project.notebooks[0]?.blocks[0] as Extract<
+      DeepnoteFile['project']['notebooks'][0]['blocks'][0],
+      { type: 'agent' }
+    >
+
+    // Should fail due to missing OPENAI_API_KEY, not because of dispatch issues
+    const prevKey = process.env.OPENAI_API_KEY
+    try {
+      process.env.OPENAI_API_KEY = 'test-key'
+      const result = await executeAgentBlock(block, {
+        kernel: mockExecutor as unknown as ICodeExecutor,
+        file,
+        notebookIndex: 0,
+        agentBlockIndex: 0,
+        collectedOutputs: new Map(),
+      })
+      expect(result.finalOutput).toBe('native result')
+    } finally {
+      if (prevKey === undefined) {
+        delete process.env.OPENAI_API_KEY
+      } else {
+        process.env.OPENAI_API_KEY = prevKey
+      }
+    }
+  })
+
+  it('falls back to TS path when executor lacks executeAgent', async () => {
+    // A plain executor without executeAgent should use the TS fallback,
+    // which will fail because OPENAI_API_KEY is not set.
+    const mockExecutor = {
+      connect: async () => {},
+      execute: async () => ({ success: true, outputs: [], executionCount: null }),
+      disconnect: async () => {},
+    }
+
+    const file = makeFile({
+      blocks: [
+        {
+          id: 'agent-block-5678',
+          blockGroup: 'bg2',
+          sortingKey: 'a0',
+          type: 'agent',
+          content: 'Analyze',
+          metadata: { deepnote_agent_model: 'auto' },
+          executionCount: null,
+          outputs: [],
+        },
+      ],
+    })
+
+    const block = file.project.notebooks[0]?.blocks[0] as Extract<
+      DeepnoteFile['project']['notebooks'][0]['blocks'][0],
+      { type: 'agent' }
+    >
+
+    // Should throw about missing API key (from the TS path)
+    await expect(
+      executeAgentBlock(block, {
+        kernel: mockExecutor as unknown as ICodeExecutor,
+        file,
+        notebookIndex: 0,
+        agentBlockIndex: 0,
+        collectedOutputs: new Map(),
+      })
+    ).rejects.toThrow('OPENAI_API_KEY')
   })
 })

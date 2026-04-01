@@ -6,7 +6,7 @@ import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@
 import { extractOutputsText, generateSortingKey } from '@deepnote/blocks'
 import { stepCountIs, ToolLoopAgent, tool } from 'ai'
 import { z } from 'zod'
-import type { ICodeExecutor } from './types'
+import type { AddedBlockInfo, ICodeExecutor } from './types'
 
 export type AgentStreamEvent =
   | { type: 'tool_called'; toolName: string }
@@ -112,6 +112,167 @@ ${integrations.map(i => `- "${i.name}" (${i.type}, id: ${i.id})`).join('\n')}`
 }
 
 export async function executeAgentBlock(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
+  // Use native Python execution when the executor supports it (DirectRunner).
+  // Falls back to TypeScript orchestration for Jupyter/KernelClient mode.
+  if ('executeAgent' in context.kernel) {
+    return executeAgentBlockNative(block, context)
+  }
+  return executeAgentBlockTS(block, context)
+}
+
+/**
+ * Native Python agent execution — LLM calling + code execution happens
+ * in-process in the Python subprocess. Eliminates IPC round-trips for
+ * each generated code block.
+ */
+async function executeAgentBlockNative(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error(
+      'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
+        'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
+    )
+  }
+
+  const modelName =
+    block.metadata.deepnote_agent_model !== 'auto'
+      ? block.metadata.deepnote_agent_model
+      : (process.env.OPENAI_MODEL ?? 'gpt-5')
+
+  const { file } = context
+  const notebook = file.project.notebooks[context.notebookIndex]
+  if (!notebook) {
+    throw new Error(`Notebook at index ${context.notebookIndex} not found`)
+  }
+
+  const insertIndex = context.agentBlockIndex + 1
+  const addedBlockIds: string[] = []
+  const blockOutputs: AgentBlockResult['blockOutputs'] = []
+
+  // Resolve MCP tool schemas for Python
+  const projectMcpServers = file.project.settings?.mcpServers ?? []
+  const blockMcpServers = block.metadata.deepnote_mcp_servers ?? []
+  const mergedMcpConfig = mergeMcpConfigs(projectMcpServers, blockMcpServers)
+
+  const mcpClients = await Promise.all(
+    mergedMcpConfig.map(s =>
+      createMCPClient({
+        transport: new Experimental_StdioMCPTransport({
+          command: s.command,
+          args: s.args,
+          env: resolveEnvVars(s.env),
+          stderr: 'pipe',
+        }),
+      })
+    )
+  )
+
+  try {
+    // Resolve MCP tool definitions to plain JSON schemas
+    const mcpToolSets = await Promise.all(mcpClients.map(client => client.tools()))
+    const allMcpTools: Record<string, unknown> = Object.assign({}, ...mcpToolSets)
+
+    const mcpToolSchemas = Object.entries(allMcpTools).map(([name, t]) => {
+      const toolDef = t as { description?: string; parameters?: Record<string, unknown> }
+      return {
+        name,
+        description: toolDef.description ?? '',
+        inputSchema: toolDef.parameters ?? {},
+      }
+    })
+
+    const notebookContext = serializeNotebookContext(file, context.notebookIndex, context.collectedOutputs)
+    const systemPrompt = buildSystemPrompt(notebookContext, context.integrations)
+
+    context.onLog?.(`[agent] Running native agent with model=${modelName}, mcpServers=${mcpClients.length}`)
+
+    const executor = context.kernel as ICodeExecutor & {
+      executeAgent: (config: import('./types').AgentExecutionConfig) => Promise<import('./types').AgentExecutionResult>
+    }
+
+    const result = await executor.executeAgent({
+      prompt: block.content ?? '',
+      model: modelName,
+      apiKey,
+      baseUrl: process.env.OPENAI_BASE_URL,
+      maxTurns: 10,
+      systemPrompt,
+      insertIndex,
+      mcpTools: mcpToolSchemas.length > 0 ? mcpToolSchemas : undefined,
+      onEvent: event => context.onAgentEvent?.(event),
+      onBlockAdded: (info: AddedBlockInfo) => {
+        // Splice the new block into the notebook (same as TS path)
+        if (info.blockType === 'code') {
+          const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
+            id: info.blockId,
+            blockGroup: randomUUID().replace(/-/g, ''),
+            sortingKey: info.sortingKey,
+            type: 'code',
+            content: info.content,
+            metadata: {},
+            executionCount: info.executionCount,
+            outputs: info.outputs as Extract<DeepnoteBlock, { type: 'code' }>['outputs'],
+          }
+          notebook.blocks.splice(info.insertIndex, 0, newBlock)
+          addedBlockIds.push(info.blockId)
+          blockOutputs.push({
+            blockId: info.blockId,
+            outputs: info.outputs,
+            executionCount: info.executionCount,
+          })
+          context.collectedOutputs.set(info.blockId, {
+            outputs: info.outputs,
+            executionCount: info.executionCount,
+          })
+        } else if (info.blockType === 'markdown') {
+          const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
+            id: info.blockId,
+            blockGroup: randomUUID().replace(/-/g, ''),
+            sortingKey: info.sortingKey,
+            type: 'markdown',
+            content: info.content,
+            metadata: {},
+          }
+          notebook.blocks.splice(info.insertIndex, 0, newBlock)
+          addedBlockIds.push(info.blockId)
+        }
+      },
+      onMcpToolCall: async (toolName: string, args: Record<string, unknown>) => {
+        // Execute MCP tool via the TypeScript MCP client
+        const mcpTool = allMcpTools[toolName] as
+          | { execute?: (args: Record<string, unknown>) => Promise<unknown> }
+          | undefined
+        if (!mcpTool?.execute) {
+          return `MCP tool "${toolName}" not found`
+        }
+        const result = await mcpTool.execute(args)
+        return typeof result === 'string' ? result : JSON.stringify(result)
+      },
+    })
+
+    return {
+      finalOutput: result.finalOutput,
+      addedBlockIds,
+      blockOutputs,
+    }
+  } finally {
+    for (const [index, client] of mcpClients.entries()) {
+      try {
+        await client.close()
+      } catch (error) {
+        const serverName = mergedMcpConfig[index]?.name ?? `server-${index + 1}`
+        const message = error instanceof Error ? error.message : String(error)
+        context.onLog?.(`[agent] Failed to close MCP client "${serverName}": ${message}`)
+      }
+    }
+  }
+}
+
+/**
+ * TypeScript-orchestrated agent execution — fallback for Jupyter/KernelClient
+ * mode where the executor doesn't support native agent execution.
+ */
+async function executeAgentBlockTS(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     throw new Error(
@@ -254,7 +415,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   })
 
   context.onLog?.(
-    `[agent] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpClients.length}`
+    `[agent] Running TS agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpClients.length}`
   )
 
   try {

@@ -17,7 +17,7 @@ from deepnote_runtime.dependency import (
     DependencyGraph,
     analyze_block,
 )
-from deepnote_runtime.models import Block, BlockOutput, BlockType, Notebook
+from deepnote_runtime.models import Block, BlockOutput, BlockType, EXECUTABLE_BLOCK_TYPES, Notebook
 from deepnote_runtime.namespace import create_namespace
 from deepnote_runtime.output import OutputCapture, capture_output
 from deepnote_runtime.sql import execute_sql_block
@@ -237,6 +237,9 @@ class ReactiveEngine:
                 elif block.type == BlockType.VISUALIZATION:
                     result = self._execute_visualization_block(block)
                     capture.set_result(result)
+                elif block.type == BlockType.AGENT:
+                    result = self._execute_agent_block(block)
+                    capture.set_result(result)
                 else:
                     # Code blocks (default)
                     result = execute(
@@ -328,3 +331,77 @@ class ReactiveEngine:
         from deepnote_runtime.chart import execute_visualization_block
 
         return execute_visualization_block(block.metadata, self._namespace)
+
+    def _execute_agent_block(self, block: Block) -> Any:
+        """Execute an agent block — calls LLM and runs code in-process.
+
+        Requires the 'openai' package (pip install deepnote-runtime[agent]).
+        """
+        import os
+
+        from deepnote_runtime.agent import AgentRunner, _outputs_to_text
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY environment variable is required for agent blocks."
+            )
+
+        model_name = block.metadata.get("deepnote_agent_model", "auto")
+        if model_name == "auto":
+            model_name = os.environ.get("OPENAI_MODEL", "gpt-5")
+
+        # Build notebook context for the system prompt
+        context_lines = []
+        for b in block._notebook_blocks if hasattr(block, "_notebook_blocks") else []:
+            context_lines.append(f"## Block [{b.type.value}] (id: {b.id[:8]})")
+            if b.content:
+                context_lines.append("```")
+                context_lines.append(b.content)
+                context_lines.append("```")
+            if b.outputs:
+                context_lines.append("### Output:")
+                context_lines.append(_outputs_to_text(b.outputs))
+            context_lines.append("")
+        notebook_context = "\n".join(context_lines) or "(empty notebook)"
+
+        system_prompt = (
+            "You are a data science assistant working inside a Deepnote notebook.\n\n"
+            f"## Current notebook state\n\n{notebook_context}\n\n"
+            "## Instructions\n\n"
+            "- Use add_code_block to write and execute Python code. You will see the output.\n"
+            "- Use add_markdown_block to add explanations, section headers, or documentation.\n"
+            "- Analyze data step by step: load, explore, transform, visualize, summarize.\n"
+            "- If a code block errors, read the error and try a different approach.\n"
+            "- When you are done, provide a brief summary of what you did and found.\n"
+            "- Be concise in markdown blocks. Prefer code that shows results over long explanations."
+        )
+
+        # Silent send/receive for standalone execution (no IPC)
+        def noop_send(msg: dict) -> None:
+            pass
+
+        def noop_receive() -> dict:
+            return {}
+
+        runner = AgentRunner(
+            namespace=self._namespace,
+            execution_count=self._execution_count,
+            send_fn=noop_send,
+            receive_fn=noop_receive,
+            code_cache=self.code_cache,
+        )
+
+        result = runner.run({
+            "prompt": block.content,
+            "model": model_name,
+            "api_key": api_key,
+            "base_url": os.environ.get("OPENAI_BASE_URL"),
+            "max_turns": 10,
+            "system_prompt": system_prompt,
+            "insert_index": 0,
+        })
+
+        self._execution_count = runner.execution_count
+
+        return result.get("final_output", "")

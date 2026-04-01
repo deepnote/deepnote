@@ -58,6 +58,7 @@ EXECUTABLE_BLOCK_TYPES = frozenset({
     BlockType.BUTTON,
     BlockType.BIG_NUMBER,
     BlockType.VISUALIZATION,
+    BlockType.AGENT,
 })
 
 

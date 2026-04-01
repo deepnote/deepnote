@@ -50,3 +50,36 @@ export interface ExecutionSummary {
   failedBlocks: number
   totalDurationMs: number
 }
+
+/** Configuration for native Python agent execution via DirectRunner. */
+export interface AgentExecutionConfig {
+  prompt: string
+  model: string
+  apiKey: string
+  baseUrl?: string
+  maxTurns: number
+  systemPrompt: string
+  insertIndex: number
+  mcpTools?: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>
+  onEvent?: (event: import('./agent-handler').AgentStreamEvent) => void
+  onMcpToolCall?: (toolName: string, args: Record<string, unknown>) => Promise<string>
+  onBlockAdded?: (info: AddedBlockInfo) => void
+}
+
+export interface AddedBlockInfo {
+  blockId: string
+  blockType: string
+  content: string
+  sortingKey: string
+  insertIndex: number
+  outputs: unknown[]
+  executionCount: number | null
+  success: boolean
+}
+
+export interface AgentExecutionResult {
+  finalOutput: string
+  addedBlockIds: string[]
+  blockOutputs: Array<{ blockId: string; outputs: unknown[]; executionCount: number | null }>
+  executionCount: number | null
+}
