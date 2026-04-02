@@ -101,7 +101,7 @@ describe('federated-auth-tokens', () => {
     expect(result.issues.some(i => i.path.startsWith('tokens[2]'))).toBe(true)
   })
 
-  it('saveTokenForIntegration upserts by integrationId', async () => {
+  it('saveTokenForIntegration upsert by integrationId', async () => {
     const testPath = path.join(testDir, 'save-token.yaml')
     await fs.mkdir(path.dirname(testPath), { recursive: true })
 

@@ -10,9 +10,13 @@ vi.mock('../../output', () => ({
   error: vi.fn(),
 }))
 
-vi.mock('../../federated-auth/oauth-local-server', () => ({
-  runOAuthFlow: vi.fn(),
-}))
+vi.mock('../../federated-auth/oauth-local-server', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../federated-auth/oauth-local-server')>()
+  return {
+    ...actual,
+    runOAuthFlow: vi.fn(),
+  }
+})
 
 vi.mock('../../federated-auth/federated-auth-tokens', async importOriginal => {
   const actual = await importOriginal<typeof import('../../federated-auth/federated-auth-tokens')>()
@@ -100,6 +104,7 @@ describe('authIntegration', () => {
       tokenUrl: 'https://idp.example.com/token',
       clientId: 'my-client-id',
       clientSecret: 'my-client-secret',
+      port: 21337,
     })
 
     expect(mockSaveToken).toHaveBeenCalledOnce()

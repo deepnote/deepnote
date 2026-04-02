@@ -10,7 +10,7 @@ describe('federatedAuthTokenEntrySchema', () => {
     const valid: FederatedAuthTokenEntry = {
       integrationId: 'abc-123',
       accessToken: 'eyJhbG...',
-      refreshToken: 'dGhpcyBpcyBhIHJl...',
+      refreshToken: 'SOME-refresh-token...',
       expiresAt: '2026-02-25T15:30:00.000Z',
     }
     expect(federatedAuthTokenEntrySchema.parse(valid)).toEqual(valid)

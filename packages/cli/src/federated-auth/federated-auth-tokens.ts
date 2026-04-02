@@ -169,7 +169,7 @@ export async function getTokenForIntegration(
 
 /**
  * Save or update a token entry for an integration.
- * Upserts by integrationId - replaces existing or appends.
+ * Upsert by integrationId - replaces existing or appends.
  */
 export async function saveTokenForIntegration(entry: FederatedAuthTokenEntry, filePath?: string): Promise<void> {
   const resolvedPath = filePath ?? getDefaultTokensFilePath()
