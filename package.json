@@ -73,6 +73,7 @@
       "lodash@<4.17.23": "^4.17.23",
       "lodash-es@<4.17.23": "^4.17.23",
       "minimatch": ">=10.2.3",
+      "path-to-regexp": ">=8.4.0",
       "picomatch": ">=4.0.4",
       "rollup": ">=4.59.0",
       "smol-toml": ">=1.6.1",
