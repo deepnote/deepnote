@@ -1,7 +1,12 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { decodeUtf8NoBom, deserializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
+import {
+  decodeUtf8NoBom,
+  deserializeDeepnoteFile,
+  extractOutputsText,
+  serializeDeepnoteSnapshot,
+} from '@deepnote/blocks'
 import {
   convertJupyterNotebooksToDeepnote,
   convertMarimoAppsToDeepnote,
@@ -42,28 +47,8 @@ function summarizeBlockOutputs(
   for (const block of blockOutputs.slice(0, maxBlocks)) {
     if (!block.outputs || block.outputs.length === 0) continue
 
-    let outputText = ''
-    for (const output of block.outputs) {
-      const out = output as Record<string, unknown>
-
-      // Handle different output types
-      if (out.output_type === 'stream' && typeof out.text === 'string') {
-        outputText += out.text
-      } else if (out.output_type === 'execute_result' || out.output_type === 'display_data') {
-        const data = out.data as Record<string, unknown> | undefined
-        if (data?.['text/plain']) {
-          outputText += String(data['text/plain'])
-        } else if (data?.['text/html']) {
-          outputText += '[HTML output]'
-        } else if (data?.['image/png'] || data?.['image/jpeg']) {
-          outputText += '[Image output]'
-        }
-      } else if (out.output_type === 'error') {
-        const ename = out.ename || 'Error'
-        const evalue = out.evalue || ''
-        outputText += `${ename}: ${evalue}`
-      }
-    }
+    const outputText = extractOutputsText(block.outputs)
+    if (!outputText) continue
 
     const truncated = outputText.length > maxChars
     summaries.push({

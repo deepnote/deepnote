@@ -1,14 +1,18 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({
+vi.mock('../../../output', () => ({
   debug: vi.fn(),
   log: vi.fn(),
   output: vi.fn(),
   error: vi.fn(),
+}))
+
+vi.mock('../../../utils/process-env', () => ({
+  getProcessEnv: () => ({}),
 }))
 
 import { editIntegration } from '../edit-integration'
@@ -30,8 +34,7 @@ integrations:
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `edit-integration-mongodb-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'edit-integration-mongodb-test-'))
   })
 
   afterEach(async () => {
@@ -210,6 +213,196 @@ integrations:
             database: analytics
       "
     `)
+  })
+
+  it('switches from connection_string mode to credentials mode during edit', async () => {
+    const filePath = join(tempDir, 'integrations.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    const connectionStringYaml = `#yaml-language-server: $schema=https://example.com/schema.json
+
+integrations:
+  - id: mongo-id-001
+    name: Production Mongo
+    type: mongodb
+    federated_auth_method: null
+    metadata:
+      connection_string: env:MONGO_ID_001__CONNECTION_STRING
+      rawConnectionString: env:MONGO_ID_001__RAWCONNECTIONSTRING
+`
+
+    await writeFile(filePath, connectionStringYaml)
+    await writeFile(
+      envFilePath,
+      [
+        'MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@mongo.example.com:27017/analytics',
+        'MONGO_ID_001__RAWCONNECTIONSTRING=mongodb://mongo-admin:secret-pass@mongo.example.com:27017/analytics',
+        '',
+      ].join('\n')
+    )
+
+    const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'mongo-id-001' })
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Integration name: (Production Mongo)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Connection type:')
+    screen.type('Credentials')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Prefix:')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Host:')
+    screen.type('new-mongo.example.com')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Port:')
+    screen.type('27017')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('User:')
+    screen.type('new-user')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Password:')
+    screen.type('new-pass')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Database:')
+    screen.type('new-db')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Options:')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSH tunnel: (y/N)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+    screen.keypress('enter')
+
+    await promise
+
+    const yamlContent = await readFile(filePath, 'utf-8')
+    const envContent = await readFile(envFilePath, 'utf-8')
+
+    expect(yamlContent).toMatchInlineSnapshot(`
+      "#yaml-language-server: $schema=https://example.com/schema.json
+
+      integrations:
+        - id: mongo-id-001
+          name: Production Mongo
+          type: mongodb
+          federated_auth_method: null
+          metadata:
+            connection_string: env:MONGO_ID_001__CONNECTION_STRING
+            prefix: mongodb://
+            host: new-mongo.example.com
+            port: "27017"
+            user: new-user
+            password: env:MONGO_ID_001__PASSWORD
+            database: new-db
+      "
+    `)
+
+    expect(envContent).toContain(
+      'MONGO_ID_001__CONNECTION_STRING=mongodb://new-user:new-pass@new-mongo.example.com:27017/new-db'
+    )
+    expect(envContent).toContain('MONGO_ID_001__PASSWORD=new-pass')
+  })
+
+  it('switches from credentials mode to connection_string mode during edit', async () => {
+    const filePath = join(tempDir, 'integrations.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    const credentialsYaml = `#yaml-language-server: $schema=https://example.com/schema.json
+
+integrations:
+  - id: mongo-id-001
+    name: Production Mongo
+    type: mongodb
+    federated_auth_method: null
+    metadata:
+      connection_string: env:MONGO_ID_001__CONNECTION_STRING
+      prefix: mongodb://
+      host: mongo.example.com
+      port: "27017"
+      user: mongo-admin
+      password: env:MONGO_ID_001__PASSWORD
+      database: analytics
+`
+
+    await writeFile(filePath, credentialsYaml)
+    await writeFile(
+      envFilePath,
+      [
+        'MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@mongo.example.com:27017/analytics',
+        'MONGO_ID_001__PASSWORD=secret-pass',
+        '',
+      ].join('\n')
+    )
+
+    const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'mongo-id-001' })
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Integration name: (Production Mongo)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Connection type:')
+    screen.type('Connection string')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Connection string:')
+    screen.type('mongodb+srv://atlas-user:atlas-pass@cluster0.example.net/prod-db')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSH tunnel: (y/N)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+    screen.keypress('enter')
+
+    await promise
+
+    const yamlContent = await readFile(filePath, 'utf-8')
+    const envContent = await readFile(envFilePath, 'utf-8')
+
+    expect(yamlContent).toMatchInlineSnapshot(`
+      "#yaml-language-server: $schema=https://example.com/schema.json
+
+      integrations:
+        - id: mongo-id-001
+          name: Production Mongo
+          type: mongodb
+          federated_auth_method: null
+          metadata:
+            connection_string: env:MONGO_ID_001__CONNECTION_STRING
+            rawConnectionString: env:MONGO_ID_001__RAWCONNECTIONSTRING
+      "
+    `)
+
+    expect(envContent).toContain(
+      'MONGO_ID_001__RAWCONNECTIONSTRING=mongodb+srv://atlas-user:atlas-pass@cluster0.example.net/prod-db'
+    )
+    expect(envContent).toContain(
+      'MONGO_ID_001__CONNECTION_STRING=mongodb+srv://atlas-user:atlas-pass@cluster0.example.net/prod-db'
+    )
   })
 
   it('edits mongodb integration adding SSL', async () => {

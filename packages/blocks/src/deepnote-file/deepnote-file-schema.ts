@@ -246,6 +246,27 @@ const bigNumberBlockSchema = z.object({
     .default({}),
 })
 
+export const mcpServerSchema = z.object({
+  name: z.string(),
+  command: z.string(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string()).optional(),
+})
+
+export type McpServerConfig = z.infer<typeof mcpServerSchema>
+
+const agentBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('agent'),
+  content: z.string().optional(),
+  metadata: executableBlockMetadataSchema
+    .extend({
+      deepnote_agent_model: z.string().default('auto'),
+      deepnote_mcp_servers: z.array(mcpServerSchema).optional(),
+    })
+    .default({}),
+})
+
 // =============================================================================
 // Input block schemas
 // =============================================================================
@@ -381,6 +402,7 @@ export const deepnoteBlockSchema = z.discriminatedUnion('type', [
   textCellTodoBlockSchema,
   textCellCalloutBlockSchema,
   // Executable blocks
+  agentBlockSchema,
   codeBlockSchema,
   sqlBlockSchema,
   notebookFunctionBlockSchema,
@@ -414,6 +436,7 @@ export type TextCellPBlock = z.infer<typeof textCellPBlockSchema>
 export type TextCellBulletBlock = z.infer<typeof textCellBulletBlockSchema>
 export type TextCellTodoBlock = z.infer<typeof textCellTodoBlockSchema>
 export type TextCellCalloutBlock = z.infer<typeof textCellCalloutBlockSchema>
+export type AgentBlock = z.infer<typeof agentBlockSchema>
 export type CodeBlock = z.infer<typeof codeBlockSchema>
 export type SqlBlock = z.infer<typeof sqlBlockSchema>
 export type NotebookFunctionBlock = z.infer<typeof notebookFunctionBlockSchema>
@@ -442,6 +465,7 @@ export type InputBlock =
 
 /** Union of all executable block types */
 export type ExecutableBlock =
+  | AgentBlock
   | CodeBlock
   | SqlBlock
   | NotebookFunctionBlock
@@ -561,6 +585,7 @@ export const deepnoteFileSchema = z.object({
             pythonVersion: z.string().optional(),
           })
           .optional(),
+        mcpServers: z.array(mcpServerSchema).optional(),
         requirements: z.array(z.string()).optional(),
         sqlCacheMaxAge: z.number().optional(),
       })

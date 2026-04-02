@@ -1,10 +1,10 @@
 import {
   type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
-  TrinoAuthMethods,
   databaseIntegrationConfigSchema,
   isDatabaseIntegrationType,
   isFederatedAuthMethod,
+  TrinoAuthMethods,
 } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
@@ -94,9 +94,7 @@ function extractOAuthCredentials(integration: DatabaseIntegrationConfig): OAuthC
     case 'trino': {
       const { metadata } = integration
       if (metadata.authMethod !== TrinoAuthMethods.Oauth) {
-        throw new Error(
-          `Trino integration "${integration.name}" does not use OAuth authentication.`
-        )
+        throw new Error(`Trino integration "${integration.name}" does not use OAuth authentication.`)
       }
       return {
         authUrl: metadata.authUrl,
@@ -106,9 +104,7 @@ function extractOAuthCredentials(integration: DatabaseIntegrationConfig): OAuthC
       }
     }
     default:
-      throw new Error(
-        `Federated auth for ${integration.type} is not yet supported. Only Trino OAuth is supported.`
-      )
+      throw new Error(`Federated auth for ${integration.type} is not yet supported. Only Trino OAuth is supported.`)
   }
 }
 
@@ -145,12 +141,12 @@ export async function authIntegration(options: IntegrationsAuthOptions): Promise
   const dotEnvVars = await readDotEnv(envFilePath)
   const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...process.env }
 
-  const integrationRaw = resolveEnvVarRefsFromMap(found.map.toJSON(), envVars)
+  const integrationRaw = resolveEnvVarRefsFromMap(found.toJSON(), envVars)
 
   const configResult = databaseIntegrationConfigSchema.safeParse(integrationRaw)
   if (!configResult.success) {
     throw new Error(
-      `Integration "${found.map.get('id')}" failed validation: ${configResult.error.issues.map(i => i.message).join('; ')}`
+      `Integration "${found.get('id')}" failed validation: ${configResult.error.issues.map(i => i.message).join('; ')}`
     )
   }
 

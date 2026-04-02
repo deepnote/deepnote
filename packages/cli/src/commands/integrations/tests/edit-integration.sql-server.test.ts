@@ -1,14 +1,18 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({
+vi.mock('../../../output', () => ({
   debug: vi.fn(),
   log: vi.fn(),
   output: vi.fn(),
   error: vi.fn(),
+}))
+
+vi.mock('../../../utils/process-env', () => ({
+  getProcessEnv: () => ({}),
 }))
 
 import { editIntegration } from '../edit-integration'
@@ -34,8 +38,7 @@ integrations:
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `edit-integration-sql-server-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'edit-integration-sql-server-test-'))
   })
 
   afterEach(async () => {
@@ -98,6 +101,12 @@ integrations:
             password: env:ID001__PASSWORD
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ID001__PASSWORD=secret-pass
+      "
+    `)
   })
 
   it('updates host and database when user types new values', async () => {
@@ -157,6 +166,12 @@ integrations:
             database: analytics
             user: db-user
             password: env:ID001__PASSWORD
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ID001__PASSWORD=secret-pass
       "
     `)
   })
@@ -236,6 +251,12 @@ integrations:
             sshHost: bastion.example.com
             sshPort: "22"
             sshUser: tunnel-user
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ID001__PASSWORD=secret-pass
       "
     `)
   })

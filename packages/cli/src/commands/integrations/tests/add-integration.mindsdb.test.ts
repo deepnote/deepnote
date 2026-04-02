@@ -1,11 +1,11 @@
 import crypto from 'node:crypto'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({
+vi.mock('../../../output', () => ({
   debug: vi.fn(),
   log: vi.fn(),
   output: vi.fn(),
@@ -20,8 +20,7 @@ describe('add-integration mindsdb', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `add-integration-mindsdb-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'add-integration-mindsdb-test-'))
   })
 
   afterEach(async () => {
@@ -179,7 +178,7 @@ describe('add-integration mindsdb', () => {
     `)
   })
 
-  it('creates integration with SSL enabled', async () => {
+  it('creates mindsdb integration with SSL enabled', async () => {
     const filePath = join(tempDir, 'integrations-ssl.yaml')
     const envFilePath = join(tempDir, '.env')
     const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'

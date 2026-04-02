@@ -6,8 +6,103 @@ import {
   promptForRequiredSecretField,
   promptForRequiredStringField,
 } from '../../../utils/inquirer'
+import { assertNever } from '../../../utils/typescript'
 import { promptForSshFields } from './prompt-for-ssh-fields'
 import { promptForSslFields } from './prompt-for-ssl-fields'
+
+type TrinoMetadata = DatabaseIntegrationMetadataByType['trino']
+
+/** Password branch allows `authMethod: null` (see zod schema); discriminate by fields instead of optional authMethod. */
+type TrinoPasswordMetadata = Extract<TrinoMetadata, { user: string; password: string }>
+type TrinoOauthMetadata = Extract<TrinoMetadata, { authMethod: typeof TrinoAuthMethods.Oauth }>
+
+function isMatchingDefaultValues<T extends TrinoMetadata>(
+  defaultValues: TrinoMetadata | undefined,
+  authMethod: T['authMethod']
+): defaultValues is T {
+  if (!defaultValues) {
+    return false
+  }
+  const currentMethod = defaultValues.authMethod ?? TrinoAuthMethods.Password
+  return currentMethod === authMethod
+}
+
+interface TrinoPasswordAuth {
+  authMethod: typeof TrinoAuthMethods.Password
+  user: string
+  password: string
+}
+interface TrinoOauthAuth {
+  authMethod: typeof TrinoAuthMethods.Oauth
+  clientId: string
+  clientSecret: string
+  authUrl: string
+  tokenUrl: string
+}
+
+type TrinoAuthFieldsUnion = TrinoPasswordAuth | TrinoOauthAuth
+
+async function promptForPasswordAuth(defaultValues?: TrinoPasswordMetadata): Promise<TrinoPasswordAuth> {
+  const user = await promptForRequiredStringField({
+    label: 'User:',
+    defaultValue: defaultValues?.user,
+  })
+  const password = await promptForRequiredSecretField({
+    label: 'Password:',
+    defaultValue: defaultValues?.password,
+  })
+
+  return {
+    authMethod: TrinoAuthMethods.Password,
+    user,
+    password,
+  }
+}
+
+async function promptForOauthAuth(defaultValues?: TrinoOauthMetadata): Promise<TrinoOauthAuth> {
+  const clientId = await promptForRequiredStringField({
+    label: 'Client ID:',
+    defaultValue: defaultValues?.clientId,
+  })
+  const clientSecret = await promptForRequiredSecretField({
+    label: 'Client Secret:',
+    defaultValue: defaultValues?.clientSecret,
+  })
+  const authUrl = await promptForRequiredStringField({
+    label: 'Authorization URL:',
+    defaultValue: defaultValues?.authUrl,
+  })
+  const tokenUrl = await promptForRequiredStringField({
+    label: 'Token URL:',
+    defaultValue: defaultValues?.tokenUrl,
+  })
+
+  return {
+    authMethod: TrinoAuthMethods.Oauth,
+    clientId,
+    clientSecret,
+    authUrl,
+    tokenUrl,
+  }
+}
+
+async function promptForAuthFields(
+  authMethod: typeof TrinoAuthMethods.Password | typeof TrinoAuthMethods.Oauth,
+  defaultValues?: TrinoMetadata
+): Promise<TrinoAuthFieldsUnion> {
+  switch (authMethod) {
+    case TrinoAuthMethods.Password:
+      return promptForPasswordAuth(
+        isMatchingDefaultValues<TrinoPasswordMetadata>(defaultValues, authMethod) ? defaultValues : undefined
+      )
+    case TrinoAuthMethods.Oauth:
+      return promptForOauthAuth(
+        isMatchingDefaultValues<TrinoOauthMetadata>(defaultValues, authMethod) ? defaultValues : undefined
+      )
+    default:
+      return assertNever(authMethod)
+  }
+}
 
 export async function promptForFieldsTrino({
   id,
@@ -41,54 +136,13 @@ export async function promptForFieldsTrino({
     ],
   })
 
-  let metadata: DatabaseIntegrationMetadataByType['trino']
+  const authMetadata = await promptForAuthFields(authMethod, defaultValues)
 
-  if (authMethod === TrinoAuthMethods.Password) {
-    const user = await promptForRequiredStringField({
-      label: 'User:',
-      defaultValue: defaultValues && 'user' in defaultValues ? defaultValues.user : undefined,
-    })
-    const password = await promptForRequiredSecretField({
-      label: 'Password:',
-      defaultValue: defaultValues && 'password' in defaultValues ? defaultValues.password : undefined,
-    })
-
-    metadata = {
-      authMethod: TrinoAuthMethods.Password,
-      host,
-      port,
-      database,
-      user,
-      password,
-    }
-  } else {
-    const clientId = await promptForRequiredStringField({
-      label: 'Client ID:',
-      defaultValue: defaultValues && 'clientId' in defaultValues ? defaultValues.clientId : undefined,
-    })
-    const clientSecret = await promptForRequiredSecretField({
-      label: 'Client Secret:',
-      defaultValue: defaultValues && 'clientSecret' in defaultValues ? defaultValues.clientSecret : undefined,
-    })
-    const authUrl = await promptForRequiredStringField({
-      label: 'Authorization URL:',
-      defaultValue: defaultValues && 'authUrl' in defaultValues ? defaultValues.authUrl : undefined,
-    })
-    const tokenUrl = await promptForRequiredStringField({
-      label: 'Token URL:',
-      defaultValue: defaultValues && 'tokenUrl' in defaultValues ? defaultValues.tokenUrl : undefined,
-    })
-
-    metadata = {
-      authMethod: TrinoAuthMethods.Oauth,
-      host,
-      port,
-      database,
-      clientId,
-      clientSecret,
-      authUrl,
-      tokenUrl,
-    }
+  let metadata: TrinoMetadata = {
+    host,
+    port,
+    database,
+    ...authMetadata,
   }
 
   const sshFields = await promptForSshFields(defaultValues)

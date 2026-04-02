@@ -1,11 +1,11 @@
 import crypto from 'node:crypto'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+vi.mock('../../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
 
 import { createIntegration } from '../add-integration'
 
@@ -15,8 +15,7 @@ describe('add-integration redshift', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `add-integration-redshift-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'add-integration-redshift-test-'))
   })
 
   afterEach(async () => {
@@ -94,10 +93,10 @@ describe('add-integration redshift', () => {
           type: redshift
           name: My Redshift
           metadata:
-            authMethod: username-and-password
             host: redshift.example.com
             port: "5439"
             database: my_database
+            authMethod: username-and-password
             user: redshift-user
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
       "
@@ -158,10 +157,10 @@ describe('add-integration redshift', () => {
           type: redshift
           name: My Redshift
           metadata:
-            authMethod: iam-role
             host: redshift.example.com
             port: "5439"
             database: my_database
+            authMethod: iam-role
             roleArn: arn:aws:iam::123456789:role/MyRole
             roleExternalId: my-external-id
             roleNonce: my-nonce
@@ -204,10 +203,10 @@ describe('add-integration redshift', () => {
           type: redshift
           name: My Redshift
           metadata:
-            authMethod: individual-credentials
             host: redshift.example.com
             port: "5439"
             database: my_database
+            authMethod: individual-credentials
       "
     `)
   })

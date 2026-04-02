@@ -1,10 +1,14 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+vi.mock('../../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+
+vi.mock('../../../utils/process-env', () => ({
+  getProcessEnv: () => ({}),
+}))
 
 import { editIntegration } from '../edit-integration'
 
@@ -28,8 +32,7 @@ integrations:
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `edit-integration-athena-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'edit-integration-athena-test-'))
   })
 
   afterEach(async () => {
@@ -86,6 +89,12 @@ integrations:
             s3_output_path: s3://my-bucket/results/
             access_key_id: AWS_ACCESS_KEY_ID_VALUE
             secret_access_key: env:ATH_ID_001__SECRET_ACCESS_KEY
+      "
+    `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "ATH_ID_001__SECRET_ACCESS_KEY=secret-key
       "
     `)
   })

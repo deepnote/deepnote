@@ -60,6 +60,10 @@ export interface MarkdownCellMetadata {
 
 export type SeparatorBlockMetadata = object
 
+export interface BulletTextBlockMetadata extends TextBlockMetadata {
+  indent_level?: number
+}
+
 export interface TodoTextBlockMetadata extends TextBlockMetadata {
   checked?: boolean
 }
@@ -106,7 +110,9 @@ export function createMarkdownForTextBlock(block: TextBlock): string {
   }
 
   if (block.type === 'text-cell-bullet') {
-    return `- ${escapeMarkdown(content)}`
+    const metadata = block.metadata as BulletTextBlockMetadata
+    const indent = '  '.repeat(metadata?.indent_level ?? 0)
+    return `${indent}- ${escapeMarkdown(content)}`
   }
 
   if (block.type === 'text-cell-todo') {

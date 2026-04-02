@@ -1,11 +1,11 @@
 import crypto from 'node:crypto'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+vi.mock('../../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
 
 import { createIntegration } from '../add-integration'
 
@@ -15,8 +15,7 @@ describe('add-integration spanner', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `add-integration-spanner-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'add-integration-spanner-test-'))
   })
 
   afterEach(async () => {
@@ -112,5 +111,17 @@ describe('add-integration spanner', () => {
             service_account: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__SERVICE_ACCOUNT
       "
     `)
+
+    // Verify multiline values survive the updateDotEnv → readDotEnv roundtrip.
+    // screen.type() cannot inject literal newlines (they act as Enter/submit),
+    // so we write a multiline service account value directly and verify it parses back.
+    const { updateDotEnv, readDotEnv } = await import('../../../utils/dotenv')
+    const multilineServiceAccount = 'line-1-of-service-account\nline-2-of-service-account\nline-3-of-service-account'
+    await updateDotEnv(envFilePath, {
+      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__SERVICE_ACCOUNT: multilineServiceAccount,
+    })
+
+    const parsedEnv = await readDotEnv(envFilePath)
+    expect(parsedEnv.AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__SERVICE_ACCOUNT).toBe(multilineServiceAccount)
   })
 })

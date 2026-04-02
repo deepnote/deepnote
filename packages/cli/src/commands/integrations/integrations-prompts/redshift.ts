@@ -6,8 +6,109 @@ import {
   promptForRequiredSecretField,
   promptForRequiredStringField,
 } from '../../../utils/inquirer'
+import { assertNever } from '../../../utils/typescript'
 import { promptForSshFields } from './prompt-for-ssh-fields'
 import { promptForSslFields } from './prompt-for-ssl-fields'
+
+type RedshiftMetadata = DatabaseIntegrationMetadataByType['redshift']
+
+type RedshiftPasswordMetadata = Extract<
+  RedshiftMetadata,
+  { authMethod?: typeof DatabaseAuthMethods.UsernameAndPassword }
+>
+type RedshiftIamRoleMetadata = Extract<RedshiftMetadata, { authMethod: typeof AwsAuthMethods.IamRole }>
+
+function isMatchingDefaultValues<T extends RedshiftMetadata>(
+  defaultValues: RedshiftMetadata | undefined,
+  authMethod: T['authMethod']
+): defaultValues is T {
+  if (!defaultValues) {
+    return false
+  }
+  const currentMethod = defaultValues.authMethod ?? DatabaseAuthMethods.UsernameAndPassword
+  return currentMethod === authMethod
+}
+
+interface RedshiftPasswordAuth {
+  authMethod: typeof DatabaseAuthMethods.UsernameAndPassword
+  user: string
+  password: string
+}
+interface RedshiftIamRoleAuth {
+  authMethod: typeof AwsAuthMethods.IamRole
+  roleArn: string
+  roleExternalId: string
+  roleNonce: string
+}
+interface RedshiftIndividualCredentialsAuth {
+  authMethod: typeof DatabaseAuthMethods.IndividualCredentials
+}
+
+type RedshiftAuthFieldsUnion = RedshiftPasswordAuth | RedshiftIamRoleAuth | RedshiftIndividualCredentialsAuth
+
+async function promptForPasswordAuth(defaultValues?: RedshiftPasswordMetadata): Promise<RedshiftPasswordAuth> {
+  const user = await promptForRequiredStringField({
+    label: 'User:',
+    defaultValue: defaultValues?.user,
+  })
+  const password = await promptForRequiredSecretField({
+    label: 'Password:',
+    defaultValue: defaultValues?.password,
+  })
+
+  return {
+    authMethod: DatabaseAuthMethods.UsernameAndPassword,
+    user,
+    password,
+  }
+}
+
+async function promptForIamRoleAuth(defaultValues?: RedshiftIamRoleMetadata): Promise<RedshiftIamRoleAuth> {
+  const roleArn = await promptForRequiredStringField({
+    label: 'Role ARN:',
+    defaultValue: defaultValues?.roleArn,
+  })
+  const roleExternalId = await promptForRequiredStringField({
+    label: 'External ID:',
+    defaultValue: defaultValues?.roleExternalId,
+  })
+  const roleNonce = await promptForRequiredStringField({
+    label: 'Nonce:',
+    defaultValue: defaultValues?.roleNonce,
+  })
+
+  return {
+    authMethod: AwsAuthMethods.IamRole,
+    roleArn,
+    roleExternalId,
+    roleNonce,
+  }
+}
+
+async function promptForAuthFields(
+  authMethod:
+    | typeof DatabaseAuthMethods.UsernameAndPassword
+    | typeof AwsAuthMethods.IamRole
+    | typeof DatabaseAuthMethods.IndividualCredentials,
+  defaultValues?: RedshiftMetadata
+): Promise<RedshiftAuthFieldsUnion> {
+  switch (authMethod) {
+    case DatabaseAuthMethods.UsernameAndPassword:
+      return promptForPasswordAuth(
+        isMatchingDefaultValues<RedshiftPasswordMetadata>(defaultValues, authMethod) ? defaultValues : undefined
+      )
+    case AwsAuthMethods.IamRole:
+      return promptForIamRoleAuth(
+        isMatchingDefaultValues<RedshiftIamRoleMetadata>(defaultValues, authMethod) ? defaultValues : undefined
+      )
+    case DatabaseAuthMethods.IndividualCredentials:
+      return {
+        authMethod: DatabaseAuthMethods.IndividualCredentials,
+      }
+    default:
+      return assertNever(authMethod)
+  }
+}
 
 export async function promptForFieldsRedshift({
   id,
@@ -42,56 +143,13 @@ export async function promptForFieldsRedshift({
     ],
   })
 
-  let metadata: DatabaseIntegrationMetadataByType['redshift']
+  const authMetadata = await promptForAuthFields(authMethod, defaultValues)
 
-  if (authMethod === DatabaseAuthMethods.UsernameAndPassword) {
-    const user = await promptForRequiredStringField({
-      label: 'User:',
-      defaultValue: defaultValues && 'user' in defaultValues ? defaultValues.user : undefined,
-    })
-    const password = await promptForRequiredSecretField({
-      label: 'Password:',
-      defaultValue: defaultValues && 'password' in defaultValues ? defaultValues.password : undefined,
-    })
-
-    metadata = {
-      authMethod: DatabaseAuthMethods.UsernameAndPassword,
-      host,
-      port,
-      database,
-      user,
-      password,
-    }
-  } else if (authMethod === AwsAuthMethods.IamRole) {
-    const roleArn = await promptForRequiredStringField({
-      label: 'Role ARN:',
-      defaultValue: defaultValues && 'roleArn' in defaultValues ? defaultValues.roleArn : undefined,
-    })
-    const roleExternalId = await promptForRequiredStringField({
-      label: 'External ID:',
-      defaultValue: defaultValues && 'roleExternalId' in defaultValues ? defaultValues.roleExternalId : undefined,
-    })
-    const roleNonce = await promptForRequiredStringField({
-      label: 'Nonce:',
-      defaultValue: defaultValues && 'roleNonce' in defaultValues ? defaultValues.roleNonce : undefined,
-    })
-
-    metadata = {
-      authMethod: AwsAuthMethods.IamRole,
-      host,
-      port,
-      database,
-      roleArn,
-      roleExternalId,
-      roleNonce,
-    }
-  } else {
-    metadata = {
-      authMethod: DatabaseAuthMethods.IndividualCredentials,
-      host,
-      port,
-      database,
-    }
+  let metadata: RedshiftMetadata = {
+    host,
+    port,
+    database,
+    ...authMetadata,
   }
 
   const sshFields = await promptForSshFields(defaultValues)

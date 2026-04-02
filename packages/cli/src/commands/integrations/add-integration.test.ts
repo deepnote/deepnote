@@ -1,8 +1,5 @@
-import { mkdir, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../output', () => ({
   debug: vi.fn(),
@@ -14,17 +11,9 @@ vi.mock('../../output', () => ({
 import { promptForIntegrationName, promptForIntegrationType } from './add-integration'
 
 describe('add-integration shared prompts', () => {
-  let tempDir: string
-
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `add-integration-shared-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
-  })
-
-  afterEach(async () => {
-    await rm(tempDir, { recursive: true, force: true })
   })
 
   describe('promptForIntegrationType', () => {

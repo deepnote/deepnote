@@ -1,10 +1,14 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+vi.mock('../../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+
+vi.mock('../../../utils/process-env', () => ({
+  getProcessEnv: () => ({}),
+}))
 
 import { editIntegration } from '../edit-integration'
 
@@ -40,8 +44,7 @@ integrations:
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `edit-integration-big-query-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'edit-integration-big-query-test-'))
   })
 
   afterEach(async () => {
@@ -142,6 +145,7 @@ integrations:
             clientSecret: env:BQ_ID_001__CLIENTSECRET
       "
     `)
+    // BQ_ID_001__SERVICE_ACCOUNT is kept, as dotenv file is append-only
     expect(envContent).toMatchInlineSnapshot(`
       "BQ_ID_001__SERVICE_ACCOUNT={"type":"service_account"}
       BQ_ID_001__CLIENTSECRET=new-client-secret

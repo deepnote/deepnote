@@ -1,11 +1,11 @@
 import crypto from 'node:crypto'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+vi.mock('../../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
 
 import { createIntegration } from '../add-integration'
 
@@ -15,8 +15,7 @@ describe('add-integration trino', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `add-integration-trino-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'add-integration-trino-test-'))
   })
 
   afterEach(async () => {
@@ -94,10 +93,10 @@ describe('add-integration trino', () => {
           type: trino
           name: My Trino
           metadata:
-            authMethod: password
             host: trino.example.com
             port: "443"
             database: my_catalog
+            authMethod: password
             user: trino-user
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
       "
@@ -164,10 +163,10 @@ describe('add-integration trino', () => {
           type: trino
           name: My Trino
           metadata:
-            authMethod: trino-oauth
             host: trino.example.com
             port: "443"
             database: my_catalog
+            authMethod: trino-oauth
             clientId: my-client-id
             clientSecret: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CLIENTSECRET
             authUrl: https://accounts.google.com/o/oauth2/v2/auth
@@ -241,10 +240,10 @@ describe('add-integration trino', () => {
           type: trino
           name: My Trino
           metadata:
-            authMethod: password
             host: trino.example.com
             port: "443"
             database: my_catalog
+            authMethod: password
             user: trino-user
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
             sshEnabled: true

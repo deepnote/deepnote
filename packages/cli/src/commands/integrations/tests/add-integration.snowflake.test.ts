@@ -1,11 +1,11 @@
 import crypto from 'node:crypto'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
+vi.mock('../../../output', () => ({ debug: vi.fn(), log: vi.fn(), output: vi.fn(), error: vi.fn() }))
 
 import { createIntegration } from '../add-integration'
 
@@ -15,8 +15,7 @@ describe('add-integration snowflake', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `add-integration-snowflake-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'add-integration-snowflake-test-'))
   })
 
   afterEach(async () => {
@@ -232,6 +231,73 @@ describe('add-integration snowflake', () => {
     `)
     expect(envContent).toMatchInlineSnapshot(`
       "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PRIVATEKEY=FAKE_PRIVATE_KEY
+      "
+    `)
+  })
+
+  it('creates snowflake integration with Azure AD auth', async () => {
+    const filePath = join(tempDir, 'integrations-azure.yaml')
+    const envFilePath = join(tempDir, '.env')
+    const mockUUID: crypto.UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID)
+
+    const promise = createIntegration({ file: filePath, envFile: envFilePath })
+
+    await fillTypeAndName()
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Authentication method:')
+    screen.type('Azure AD')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Client ID:')
+    screen.type('azure-client-id')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Client Secret:')
+    screen.type('azure-client-secret')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Resource:')
+    screen.type('https://mysnowflake.snowflakecomputing.com')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Tenant:')
+    screen.type('my-azure-tenant-id')
+    screen.keypress('enter')
+
+    await fillOptionalFields('azure_warehouse', 'AZURE_DB', 'AZURE_ROLE')
+
+    await promise
+
+    const yamlContent = await readFile(filePath, 'utf-8')
+    const envContent = await readFile(envFilePath, 'utf-8')
+
+    expect(yamlContent).toMatchInlineSnapshot(`
+      "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
+
+      integrations:
+        - id: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+          type: snowflake
+          name: My Snowflake
+          metadata:
+            accountName: test-account.us-east-1
+            authMethod: azure
+            clientId: azure-client-id
+            clientSecret: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CLIENTSECRET
+            resource: https://mysnowflake.snowflakecomputing.com
+            tenant: my-azure-tenant-id
+            warehouse: azure_warehouse
+            database: AZURE_DB
+            role: AZURE_ROLE
+      "
+    `)
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CLIENTSECRET=azure-client-secret
       "
     `)
   })

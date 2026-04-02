@@ -1,11 +1,11 @@
 import crypto from 'node:crypto'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({
+vi.mock('../../../output', () => ({
   debug: vi.fn(),
   log: vi.fn(),
   output: vi.fn(),
@@ -20,8 +20,7 @@ describe('add-integration sql-server', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `add-integration-sql-server-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'add-integration-sql-server-test-'))
   })
 
   afterEach(async () => {
@@ -146,6 +145,8 @@ describe('add-integration sql-server', () => {
     await promise
 
     const yamlContent = await readFile(filePath, 'utf-8')
+    const envContent = await readFile(envFilePath, 'utf-8')
+
     expect(yamlContent).toMatchInlineSnapshot(`
       "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
 
@@ -163,6 +164,10 @@ describe('add-integration sql-server', () => {
             sshHost: bastion.example.com
             sshPort: "22"
             sshUser: tunnel-user
+      "
+    `)
+    expect(envContent).toMatchInlineSnapshot(`
+      "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
       "
     `)
   })

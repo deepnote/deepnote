@@ -1,14 +1,18 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../output', () => ({
+vi.mock('../../../output', () => ({
   debug: vi.fn(),
   log: vi.fn(),
   output: vi.fn(),
   error: vi.fn(),
+}))
+
+vi.mock('../../../utils/process-env', () => ({
+  getProcessEnv: () => ({}),
 }))
 
 import { editIntegration } from '../edit-integration'
@@ -47,8 +51,7 @@ integrations:
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
-    tempDir = join(tmpdir(), `edit-integration-pgsql-test-${Date.now()}`)
-    await mkdir(tempDir, { recursive: true })
+    tempDir = await mkdtemp(join(tmpdir(), 'edit-integration-pgsql-test-'))
   })
 
   afterEach(async () => {
@@ -293,6 +296,59 @@ integrations:
 
     const envContent = await readFile(envFilePath, 'utf-8')
     expect(envContent).toEqual(SINGLE_INTEGRATION_ENV)
+  })
+
+  it('preserves existing password when user presses Enter on secret field', async () => {
+    const filePath = join(tempDir, 'integrations.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, EXISTING_YAML)
+    await writeFile(envFilePath, EXISTING_ENV)
+
+    const promise = editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Integration name: (Production DB)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Host: (prod.example.com)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Port: (5432)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Database: (production)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('User: (admin)')
+    screen.keypress('enter')
+
+    // Press Enter without typing — should keep the existing secret
+    await screen.next()
+    expect(screen.getScreen()).toContain('Password:')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSH tunnel: (y/N)')
+    screen.keypress('enter')
+
+    await screen.next()
+    expect(screen.getScreen()).toContain('Enable SSL: (y/N)')
+    screen.keypress('enter')
+
+    await promise
+
+    const yamlContent = await readFile(filePath, 'utf-8')
+    expect(yamlContent).toEqual(EXISTING_YAML)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    // The password env var must still hold the original secret value,
+    // proving the defaultValue was returned by the prompt (hasDefault && !result.trim() branch).
+    expect(envContent).toEqual(EXISTING_ENV)
   })
 
   it('adds SSL fields when SSL is enabled on a plain integration', async () => {

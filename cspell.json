@@ -21,23 +21,13 @@
   "overrides": [
     {
       "filename": "**/*.md",
-      "words": [
-        "deepnote",
-        "jupyter",
-        "jupyterlab",
-        "ipynb",
-        "pnpm",
-        "monorepo",
-        "dockerised",
-        "vscode",
-        "windsurf",
-        "oss"
-      ]
+      "words": ["deepnote", "jupyter", "ipynb", "pnpm", "monorepo", "dockerised", "vscode", "windsurf", "oss"]
     }
   ],
   "useGitignore": true,
   "version": "0.2",
   "words": [
+    "agentic",
     "asname",
     "awsathena",
     "bijective",
@@ -76,7 +66,6 @@
     "isnull",
     "junie",
     "jupyter",
-    "jupyterlab",
     "Jupytext",
     "Kaggle",
     "keepalives",
@@ -85,7 +74,6 @@
     "kimi",
     "kiro",
     "kpis",
-    "labextension",
     "macchiato",
     "millis",
     "mindsdb",
@@ -98,6 +86,7 @@
     "noreferrer",
     "nosemgrep",
     "numpy",
+    "Ollama",
     "opencode",
     "oss",
     "Papermill",
@@ -130,6 +119,7 @@
     "Singleplayer",
     "sklearn",
     "slugified",
+    "smol",
     "soundcloud",
     "spëcial",
     "Spyder",

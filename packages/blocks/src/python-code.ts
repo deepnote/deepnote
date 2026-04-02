@@ -1,4 +1,5 @@
 import { UnsupportedBlockTypeError } from './blocks'
+import { createPythonCodeForAgentBlock, isAgentBlock } from './blocks/agent-blocks'
 import { createPythonCodeForBigNumberBlock, isBigNumberBlock } from './blocks/big-number-blocks'
 import { type ButtonExecutionContext, createPythonCodeForButtonBlock, isButtonBlock } from './blocks/button-blocks'
 import { createPythonCodeForCodeBlock, isCodeBlock } from './blocks/code-blocks'
@@ -26,6 +27,10 @@ import { createPythonCodeForVisualizationBlock, isVisualizationBlock } from './b
 import type { DeepnoteBlock } from './deepnote-file/deepnote-file-schema'
 
 export function createPythonCode(block: DeepnoteBlock, executionContext?: ButtonExecutionContext): string {
+  if (isAgentBlock(block)) {
+    return createPythonCodeForAgentBlock(block)
+  }
+
   if (isCodeBlock(block)) {
     return createPythonCodeForCodeBlock(block)
   }

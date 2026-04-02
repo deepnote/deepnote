@@ -296,6 +296,7 @@ ${c.bold('Examples:')}
     .option('--profile', 'Show per-block timing and memory usage')
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
     .option('--context', 'Include analysis context in machine-readable output (requires -o json/toon/llm)')
+    .option('--prompt <text>', 'Run an LLM agent block with the given prompt')
     .option('--url <url>', 'API base URL for fetching integrations', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for fetching integrations (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .addHelpText('after', () => {
@@ -346,6 +347,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Preview what would be executed without running')}
   $ deepnote run my-project.deepnote --dry-run
+
+  ${c.dim('# Run an LLM agent with a prompt (appends to existing file)')}
+  $ deepnote run my-project.deepnote --prompt "Analyze the data"
+
+  ${c.dim('# Run an LLM agent standalone (no file needed)')}
+  $ deepnote run --prompt "Write a hello world script"
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
