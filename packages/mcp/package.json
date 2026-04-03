@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/mcp",
-  "version": "0.2.2",
+  "version": "0.3.1",
   "description": "MCP server for AI-assisted Deepnote notebook creation and manipulation",
   "keywords": [
     "mcp",
@@ -49,7 +49,7 @@
     "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "yaml": "^2.8.0",
+    "yaml": "^2.8.3",
     "zod": "3.25.76"
   },
   "devDependencies": {
