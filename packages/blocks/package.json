@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/blocks",
-  "version": "4.2.0",
+  "version": "4.5.1",
   "description": "",
   "keywords": [],
   "repository": {
@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "ts-dedent": "^2.2.0",
-    "yaml": "^2.8.1",
+    "yaml": "^2.8.3",
     "zod": "3.25.76"
   },
   "engines": {

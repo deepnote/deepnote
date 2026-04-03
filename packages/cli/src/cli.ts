@@ -9,7 +9,10 @@ import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
 import { createDiffAction } from './commands/diff'
 import { createInspectAction } from './commands/inspect'
+import { createInstallSkillsAction } from './commands/install-skills'
 import { createIntegrationsPullAction, DEFAULT_API_URL } from './commands/integrations'
+import { createIntegrationsAddAction } from './commands/integrations/add-integration'
+import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
@@ -292,6 +295,9 @@ ${c.bold('Examples:')}
     .option('--profile', 'Show per-block timing and memory usage')
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
     .option('--context', 'Include analysis context in machine-readable output (requires -o json/toon/llm)')
+    .option('--prompt <text>', 'Run an LLM agent block with the given prompt')
+    .option('--url <url>', 'API base URL for fetching integrations', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for fetching integrations (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -340,6 +346,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Preview what would be executed without running')}
   $ deepnote run my-project.deepnote --dry-run
+
+  ${c.dim('# Run an LLM agent with a prompt (appends to existing file)')}
+  $ deepnote run my-project.deepnote --prompt "Analyze the data"
+
+  ${c.dim('# Run an LLM agent standalone (no file needed)')}
+  $ deepnote run --prompt "Write a hello world script"
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
@@ -651,6 +663,62 @@ ${c.bold('Examples:')}
     })
     .action(createLintAction(program))
 
+  // Install-skills command - install agent skill files
+  program
+    .command('install-skills')
+    .description('Install or update Deepnote agent skills for AI coding assistants')
+    .option('-g, --global', 'Install to user home directory instead of project')
+    .option('-a, --agent <agent>', 'Target a specific agent')
+    .option('--dry-run', 'Show what would be written without making changes')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Copies the Deepnote skill (SKILL.md + references) into agent skill directories
+  so AI coding assistants can understand .deepnote files.
+
+${c.bold('Supported Agents:')}
+  Claude Code      .claude/skills/
+  Cursor           .cursor/skills/
+  Windsurf         .windsurf/skills/
+  Cline            .cline/skills/
+  Roo Code         .roo/skills/
+  Augment          .augment/skills/
+  Continue         .continue/skills/
+  Antigravity      .agent/skills/
+  Trae             .trae/skills/
+  Goose            .goose/skills/
+  Junie            .junie/skills/
+  Kilo Code        .kilocode/skills/
+  Kiro             .kiro/skills/
+  GitHub Copilot   .agents/skills/
+  Codex            .agents/skills/
+  Gemini CLI       .agents/skills/
+  Amp              .agents/skills/
+  Kimi Code CLI    .agents/skills/
+  OpenCode         .agents/skills/
+
+${c.bold('Detection:')}
+  By default, installs for agents whose config directory exists (e.g. .claude/).
+  If none are detected, defaults to Claude Code.
+  Use --agent to target a specific agent regardless of detection.
+
+${c.bold('Examples:')}
+  ${c.dim('# Install for all detected agents in current project')}
+  $ deepnote install-skills
+
+  ${c.dim('# Install globally (user home directory)')}
+  $ deepnote install-skills --global
+
+  ${c.dim('# Install for a specific agent')}
+  $ deepnote install-skills --agent cursor
+
+  ${c.dim('# Preview without writing')}
+  $ deepnote install-skills --dry-run
+`
+    })
+    .action(createInstallSkillsAction(program))
+
   // Completion command - generate shell completions
   program
     .command('completion')
@@ -704,6 +772,8 @@ ${c.bold('Examples:')}
       return `
 ${c.bold('Subcommands:')}
   pull        Pull integrations from Deepnote API and merge with local file
+  add         Add a new database integration interactively
+  edit        Edit an existing database integration interactively
 
 ${c.bold('Examples:')}
   ${c.dim('# Pull integrations from Deepnote API')}
@@ -714,6 +784,15 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Pull to a custom file path')}
   $ deepnote integrations pull --file my-integrations.yaml
+
+  ${c.dim('# Add a new integration interactively')}
+  $ deepnote integrations add
+
+  ${c.dim('# Edit an existing integration (interactive picker)')}
+  $ deepnote integrations edit
+
+  ${c.dim('# Edit a specific integration by ID')}
+  $ deepnote integrations edit <integration-id>
 `
     })
 
@@ -725,6 +804,21 @@ ${c.bold('Examples:')}
     .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
     .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
     .action(createIntegrationsPullAction(program))
+
+  integrationsCmd
+    .command('add')
+    .description('Add a new database integration interactively')
+    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+    .action(createIntegrationsAddAction(program))
+
+  integrationsCmd
+    .command('edit')
+    .argument('[id]', 'Integration ID to edit (skips interactive selection)')
+    .description('Edit an existing database integration interactively')
+    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+    .action(createIntegrationsEditAction(program))
 }
 
 /**

@@ -40,4 +40,4 @@ where = ["src"]
 version = { attr = "deepnote_cli.__version__" }
 
 [tool.setuptools.package-data]
-deepnote_cli = ["bin/*"]
+deepnote_cli = ["bin/*", "skills/**/*"]

@@ -74,6 +74,12 @@ jobs:
       - name: Build Bun executable
         run: bun build packages/cli/dist/bin.js --compile --outfile packages/cli/pypi/src/deepnote_cli/bin/${{ steps.binary.outputs.name }}
 
+      - name: Copy bundled skills into PyPI package
+        shell: bash
+        run: |
+          rm -rf packages/cli/pypi/src/deepnote_cli/skills
+          cp -r packages/cli/dist/skills packages/cli/pypi/src/deepnote_cli/skills
+
       - name: Install Python build tools
         run: python -m pip install --upgrade pip build wheel setuptools
 

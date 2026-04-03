@@ -34,10 +34,6 @@ export function formatOutput(data: Record<string, unknown>, compact: boolean): s
   return JSON.stringify(data, null, 2)
 }
 
-export function generateSortingKey(index: number): string {
-  return String(index).padStart(6, '0')
-}
-
 export function isPythonBuiltin(name: string): boolean {
   return PYTHON_BUILTINS.has(name)
 }

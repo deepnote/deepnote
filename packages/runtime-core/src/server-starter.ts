@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import tcpPortUsed from 'tcp-port-used'
-import { resolvePythonExecutable } from './python-env'
+import { buildPythonEnv, resolvePythonExecutable } from './python-env'
 
 const DEFAULT_PORT = 8888
 const SERVER_STARTUP_TIMEOUT_MS = 120_000
@@ -40,8 +40,9 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
   const jupyterPort = await findConsecutiveAvailablePorts(port ?? DEFAULT_PORT)
   const lspPort = jupyterPort + 1
 
-  // Set up environment
-  const env = { ...process.env, ...options.env }
+  // Set up environment with correct Python paths (PATH, VIRTUAL_ENV)
+  const baseEnv: Record<string, string | undefined> = { ...process.env, ...options.env }
+  const env = await buildPythonEnv(pythonPath, baseEnv)
   env.DEEPNOTE_RUNTIME__RUNNING_IN_DETACHED_MODE = 'true'
   env.DEEPNOTE_ENFORCE_PIP_CONSTRAINTS = 'true'
 
@@ -125,7 +126,7 @@ export async function stopServer(info: ServerInfo): Promise<void> {
 /**
  * Find two consecutive available ports starting from the given port.
  */
-async function findConsecutiveAvailablePorts(startPort: number): Promise<number> {
+export async function findConsecutiveAvailablePorts(startPort: number): Promise<number> {
   const maxAttempts = 100
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -155,7 +156,7 @@ async function isPortInUse(port: number): Promise<boolean> {
 /**
  * Wait for the server to respond to health checks.
  */
-async function waitForServer(info: ServerInfo, timeoutMs: number): Promise<void> {
+export async function waitForServer(info: ServerInfo, timeoutMs: number): Promise<void> {
   const startTime = Date.now()
 
   while (Date.now() - startTime < timeoutMs) {

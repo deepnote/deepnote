@@ -1,13 +1,22 @@
 import { readFile } from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
-import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlock } from '@deepnote/blocks'
+import {
+  createPythonCode,
+  decodeUtf8NoBom,
+  deserializeDeepnoteFile,
+  isAgentBlock,
+  isExecutableBlock,
+} from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
+import { type AgentBlockContext, type AgentStreamEvent, executeAgentBlock } from './agent-handler'
+import { toPythonLiteral } from './javascript'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
 // Re-export for backwards compatibility - these are now defined in @deepnote/blocks
 export const executableBlockTypes: ExecutableBlock['type'][] = [
+  'agent',
   'code',
   'sql',
   'notebook-function',
@@ -26,6 +35,15 @@ export const executableBlockTypes: ExecutableBlock['type'][] = [
 
 export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
+function createErrorOutput(error: Error): IOutput {
+  return {
+    output_type: 'error',
+    ename: error.name || 'Error',
+    evalue: error.message,
+    traceback: [],
+  }
+}
+
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
   notebookName?: string
@@ -43,8 +61,10 @@ export interface ExecutionOptions {
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
+  onAgentEvent?: (event: AgentStreamEvent) => void
   onServerStarting?: () => void
   onServerReady?: () => void
+  integrations?: Array<{ id: string; name: string; type: string }>
 }
 
 /**
@@ -156,17 +176,24 @@ export class ExecutionEngine {
         ? new Set([options.blockId])
         : null
 
-    // Collect all executable blocks
-    const allExecutableBlocks: Array<{ block: DeepnoteBlock; notebookName: string }> = []
+    // Collect all executable blocks, tracking their notebook and position
+    const allExecutableBlocks: Array<{
+      block: DeepnoteBlock
+      notebookName: string
+      notebookIndex: number
+    }> = []
     for (const notebook of notebooks) {
       const sortedBlocks = this.sortBlocks(notebook.blocks)
       for (const block of sortedBlocks) {
         if (isExecutableBlock(block)) {
-          // Skip if filtering by block IDs and this isn't in the set
           if (blockIdFilter && !blockIdFilter.has(block.id)) {
             continue
           }
-          allExecutableBlocks.push({ block, notebookName: notebook.name })
+          allExecutableBlocks.push({
+            block,
+            notebookName: notebook.name,
+            notebookIndex: file.project.notebooks.indexOf(notebook),
+          })
         }
       }
     }
@@ -186,47 +213,105 @@ export class ExecutionEngine {
 
     const totalBlocks = allExecutableBlocks.length
 
+    // Track collected outputs for agent block context
+    const collectedOutputs = new Map<string, { outputs: unknown[]; executionCount: number | null }>()
+
     // Execute blocks sequentially
     for (let i = 0; i < allExecutableBlocks.length; i++) {
-      const { block } = allExecutableBlocks[i]
+      const { block, notebookIndex } = allExecutableBlocks[i]
       const blockStart = Date.now()
 
       await options.onBlockStart?.(block, i, totalBlocks)
 
       try {
-        const code = createPythonCode(block)
-        const result = await this.kernel.execute(code, {
-          onOutput: output => options.onOutput?.(block.id, output),
-        })
+        if (isAgentBlock(block)) {
+          const notebook = file.project.notebooks[notebookIndex]
+          const agentBlockIndex = notebook?.blocks.findIndex(b => b.id === block.id) ?? -1
+          if (!notebook || agentBlockIndex < 0) {
+            throw new Error(`Agent block "${block.id}" not found in notebook`)
+          }
 
-        const blockResult: BlockExecutionResult = {
-          blockId: block.id,
-          blockType: block.type,
-          success: result.success,
-          outputs: result.outputs,
-          executionCount: result.executionCount,
-          durationMs: Date.now() - blockStart,
-        }
+          const agentContext: AgentBlockContext = {
+            kernel: this.kernel,
+            file,
+            notebookIndex,
+            agentBlockIndex,
+            collectedOutputs,
+            onAgentEvent: options.onAgentEvent,
+            integrations: options.integrations,
+          }
 
-        await options.onBlockDone?.(blockResult)
-        executedBlocks++
+          const agentResult = await executeAgentBlock(block, agentContext)
 
-        if (!result.success) {
-          failedBlocks++
-          // Fail-fast: stop on first error
-          break
+          // Report outputs from blocks added by the agent block
+          for (const bo of agentResult.blockOutputs) {
+            collectedOutputs.set(bo.blockId, { outputs: bo.outputs, executionCount: bo.executionCount })
+
+            for (const output of bo.outputs as IOutput[]) {
+              options.onOutput?.(bo.blockId, output)
+            }
+
+            const addedBlock = notebook.blocks.find(b => b.id === bo.blockId)
+            if (addedBlock) {
+              await options.onBlockDone?.({
+                blockId: bo.blockId,
+                blockType: addedBlock.type,
+                success: true,
+                outputs: bo.outputs as IOutput[],
+                executionCount: bo.executionCount,
+                durationMs: 0,
+              })
+            }
+          }
+
+          const blockResult: BlockExecutionResult = {
+            blockId: block.id,
+            blockType: block.type,
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: agentResult.finalOutput }] as IOutput[],
+            executionCount: null,
+            durationMs: Date.now() - blockStart,
+          }
+
+          await options.onBlockDone?.(blockResult)
+          executedBlocks++
+        } else {
+          const code = createPythonCode(block)
+          const result = await this.kernel.execute(code, {
+            onOutput: output => options.onOutput?.(block.id, output),
+          })
+
+          collectedOutputs.set(block.id, { outputs: result.outputs, executionCount: result.executionCount })
+
+          const blockResult: BlockExecutionResult = {
+            blockId: block.id,
+            blockType: block.type,
+            success: result.success,
+            outputs: result.outputs,
+            executionCount: result.executionCount,
+            durationMs: Date.now() - blockStart,
+          }
+
+          await options.onBlockDone?.(blockResult)
+          executedBlocks++
+
+          if (!result.success) {
+            failedBlocks++
+            break
+          }
         }
       } catch (error) {
+        const executionError = error instanceof Error ? error : new Error(String(error))
         failedBlocks++
         executedBlocks++
         const blockResult: BlockExecutionResult = {
           blockId: block.id,
           blockType: block.type,
           success: false,
-          outputs: [],
+          outputs: [createErrorOutput(executionError)],
           executionCount: null,
           durationMs: Date.now() - blockStart,
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: executionError,
         }
         await options.onBlockDone?.(blockResult)
         break
@@ -289,7 +374,7 @@ export class ExecutionEngine {
       if (!this.isValidPythonIdentifier(name)) {
         throw new Error(`Invalid variable name: "${name}". Must be a valid Python identifier.`)
       }
-      const pythonValue = this.toPythonLiteral(value)
+      const pythonValue = toPythonLiteral(value)
       assignments.push(`${name} = ${pythonValue}`)
     }
 
@@ -302,46 +387,5 @@ export class ExecutionEngine {
         throw new Error(`Failed to set input values: ${errorMsg}`)
       }
     }
-  }
-
-  /**
-   * Convert a JavaScript value to a Python literal.
-   */
-  private toPythonLiteral(value: unknown): string {
-    if (value === null || value === undefined) {
-      return 'None'
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'True' : 'False'
-    }
-    if (typeof value === 'number') {
-      if (!Number.isFinite(value)) {
-        throw new Error(`Cannot convert non-finite number to Python: ${value}`)
-      }
-      return String(value)
-    }
-    if (typeof value === 'string') {
-      // Escape for Python string literal
-      const escaped = value
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'")
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '\\r')
-        .replace(/\t/g, '\\t')
-        .replace(/\0/g, '\\x00')
-        // Escape other control characters (code points < 0x20 except already handled, and DEL 0x7F)
-        // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally escaping control chars
-        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, char => `\\x${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
-      return `'${escaped}'`
-    }
-    if (Array.isArray(value)) {
-      const elements = value.map(v => this.toPythonLiteral(v))
-      return `[${elements.join(', ')}]`
-    }
-    if (typeof value === 'object') {
-      const entries = Object.entries(value).map(([k, v]) => `${this.toPythonLiteral(k)}: ${this.toPythonLiteral(v)}`)
-      return `{${entries.join(', ')}}`
-    }
-    throw new Error(`Cannot convert value of type ${typeof value} to Python literal`)
   }
 }

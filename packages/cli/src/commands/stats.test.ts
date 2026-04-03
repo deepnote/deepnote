@@ -87,10 +87,9 @@ describe('stats command', () => {
 
       await action(filePath, DEFAULT_OPTIONS)
 
-      // Integrations file should have some imports (alias names from AST analysis)
       const output = getOutput(consoleSpy)
       expect(output).toContain('Imports')
-      expect(output).toContain('pd')
+      expect(output).toContain('pandas')
     })
   })
 
@@ -331,8 +330,8 @@ describe('stats command', () => {
       const output = getOutput(consoleSpy)
       const parsed = JSON.parse(output)
 
-      // imports should be an array (may be empty depending on file content)
       expect(Array.isArray(parsed.imports)).toBe(true)
+      expect(parsed.imports).toContain('pandas')
     })
   })
 

@@ -5,7 +5,7 @@ import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
 import { serializeDeepnoteFile, serializeDeepnoteSnapshot } from './serialize-deepnote-file'
 
 const createMinimalFile = (): DeepnoteFile => ({
-  version: '1.0',
+  version: '1.0.0',
   metadata: {
     createdAt: '2024-01-01T00:00:00.000Z',
   },
@@ -17,7 +17,7 @@ const createMinimalFile = (): DeepnoteFile => ({
 })
 
 const createFileWithBlocks = (): DeepnoteFile => ({
-  version: '1.0',
+  version: '1.0.0',
   metadata: {
     createdAt: '2024-01-01T00:00:00.000Z',
     modifiedAt: '2024-01-02T00:00:00.000Z',
@@ -40,7 +40,7 @@ const createFileWithBlocks = (): DeepnoteFile => ({
           {
             id: 'block-1',
             blockGroup: 'group-1',
-            sortingKey: '000001',
+            sortingKey: '000000',
             type: 'code',
             content: 'print("hello")',
             metadata: {},
@@ -48,7 +48,7 @@ const createFileWithBlocks = (): DeepnoteFile => ({
           {
             id: 'block-2',
             blockGroup: 'group-1',
-            sortingKey: '000002',
+            sortingKey: '000001',
             type: 'markdown',
             content: '# Title',
             metadata: {},
@@ -60,7 +60,7 @@ const createFileWithBlocks = (): DeepnoteFile => ({
 })
 
 const createSnapshot = (): DeepnoteSnapshot => ({
-  version: '1.0',
+  version: '1.0.0',
   metadata: {
     createdAt: '2024-01-01T00:00:00.000Z',
     modifiedAt: '2024-01-02T00:00:00.000Z',
@@ -93,7 +93,7 @@ const createSnapshot = (): DeepnoteSnapshot => ({
           {
             id: 'block-1',
             blockGroup: 'group-1',
-            sortingKey: '000001',
+            sortingKey: '000000',
             type: 'code',
             content: 'x = 1',
             metadata: {},
@@ -212,7 +212,7 @@ describe('serializeDeepnoteFile', () => {
             {
               id: 'block-1',
               blockGroup: 'group-1',
-              sortingKey: '000001',
+              sortingKey: '000000',
               type: 'code',
               content: longContent,
               metadata: {},
@@ -240,7 +240,7 @@ describe('serializeDeepnoteFile', () => {
             {
               id: 'block-1',
               blockGroup: 'group-1',
-              sortingKey: '000001',
+              sortingKey: '000000',
               type: 'code',
               content: 'x = "hello: world" # comment with {braces}',
               metadata: {},
@@ -266,7 +266,7 @@ describe('serializeDeepnoteFile', () => {
             {
               id: 'block-1',
               blockGroup: 'group-1',
-              sortingKey: '000001',
+              sortingKey: '000000',
               type: 'code',
               content: multilineContent,
               metadata: {},

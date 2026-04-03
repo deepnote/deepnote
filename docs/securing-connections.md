@@ -32,6 +32,9 @@ Deepnote has fixed IP addresses you will need to authorize.
 54.165.20.26
 54.235.42.8
 54.242.142.100
+138.199.245.32
+138.199.245.36
+148.251.31.233
 ```
 
 Here are quick-start guides for changing the firewall/security settings:

@@ -10,7 +10,7 @@ export const apiIntegrationSchema = z
     id: z.string(),
     name: z.string(),
     type: z.string(),
-    metadata: z.record(z.unknown()),
+    metadata: z.unknown(),
     is_public: z.boolean(),
     created_at: z.string(),
     updated_at: z.string(),
@@ -36,11 +36,20 @@ export type ApiResponse = z.infer<typeof apiResponseSchema>
  *
  * @param baseUrl - The base URL of the Deepnote API
  * @param token - The authentication token
+ * @param integrationIds - Optional list of integration IDs to fetch. When provided, only these integrations are returned.
  * @returns Array of integrations from the API
  * @throws ApiError if the request fails
  */
-export async function fetchIntegrations(baseUrl: string, token: string): Promise<ApiIntegration[]> {
-  const url = `${baseUrl}/v2/integrations`
+export async function fetchIntegrations(
+  baseUrl: string,
+  token: string,
+  integrationIds?: string[]
+): Promise<ApiIntegration[]> {
+  const endpoint = new URL(`${baseUrl}/v2/integrations`)
+  if (integrationIds && integrationIds.length > 0) {
+    endpoint.searchParams.set('integrationIds', integrationIds.join(','))
+  }
+  const url = endpoint.toString()
   debug(`Fetching integrations from ${url}`)
 
   const response = await fetch(url, {
