@@ -193,7 +193,6 @@ interface ProjectSetup {
 interface RunExecutionState {
   blockResults: BlockResult[]
   blockLabels: Map<string, string>
-  needsNewlineBeforeOutput: Set<string>
   blocksWithStreamedOutput: Set<string>
   agentStreamed: boolean
   agentTextBuffer: string
@@ -933,7 +932,6 @@ function createRunExecutionState(options: RunOptions, isMachineOutput: boolean):
   return {
     blockResults: [],
     blockLabels: new Map<string, string>(),
-    needsNewlineBeforeOutput: new Set<string>(),
     blocksWithStreamedOutput: new Set<string>(),
     agentStreamed: false,
     agentTextBuffer: '',
@@ -1034,7 +1032,6 @@ function createRunProjectCallbacks({
         state.activeBlockId = block.id
         const c = getChalk()
         process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
-        state.needsNewlineBeforeOutput.add(block.id)
       }
 
       await captureMemoryBeforeBlock(state, engine, block.id)
@@ -1045,7 +1042,7 @@ function createRunProjectCallbacks({
         return
       }
 
-      if (state.needsNewlineBeforeOutput.delete(blockId)) {
+      if (!state.blocksWithStreamedOutput.has(blockId)) {
         output('')
       }
 
@@ -1071,7 +1068,6 @@ function createRunProjectCallbacks({
       if (!isMachineOutput && (!state.activeBlockId || result.blockId === state.activeBlockId)) {
         const c = getChalk()
         const hadStreamedOutput = state.blocksWithStreamedOutput.delete(result.blockId)
-        state.needsNewlineBeforeOutput.delete(result.blockId)
         const prefix = state.agentStreamed || hadStreamedOutput ? '\n' : ''
         if (result.success) {
           output(`${prefix}${c.green('✓')}${c.dim(` (${result.durationMs}ms${memoryDeltaStr})`)}`)
