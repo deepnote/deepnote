@@ -590,6 +590,8 @@ describe('run command', () => {
         await action(HELLO_WORLD_FILE, {})
 
         // Output should include the streamed text and the status
+        const stdoutOutput = stdoutWriteSpy.mock.calls.map(call => call.join('')).join('')
+        expect(stdoutOutput).toContain('Hello World')
         const allOutput = getOutput(consoleLogSpy)
         expect(allOutput).toContain('✓')
       })
