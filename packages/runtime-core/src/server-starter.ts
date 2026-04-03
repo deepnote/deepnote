@@ -126,7 +126,7 @@ export async function stopServer(info: ServerInfo): Promise<void> {
 /**
  * Find two consecutive available ports starting from the given port.
  */
-async function findConsecutiveAvailablePorts(startPort: number): Promise<number> {
+export async function findConsecutiveAvailablePorts(startPort: number): Promise<number> {
   const maxAttempts = 100
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -156,7 +156,7 @@ async function isPortInUse(port: number): Promise<boolean> {
 /**
  * Wait for the server to respond to health checks.
  */
-async function waitForServer(info: ServerInfo, timeoutMs: number): Promise<void> {
+export async function waitForServer(info: ServerInfo, timeoutMs: number): Promise<void> {
   const startTime = Date.now()
 
   while (Date.now() - startTime < timeoutMs) {

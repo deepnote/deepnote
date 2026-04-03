@@ -27,7 +27,7 @@ deepnote-convert your_notebook.ipynb
 
 ## Opening a Deepnote Project
 
-To open a `.deepnote` project, you can use multiple ways, opening in your favorite editor [VSCode](https://code.visualstudio.com/), [Cursor](https://cursor.dev/), or [Windsurf](https://windsurf.com/), reading it in [JupyterLab](https://jupyter.org/), or opening it in [Deepnote Cloud](https://deepnote.com/).
+To open a `.deepnote` project, use your favorite editor—[VS Code](https://code.visualstudio.com/), [Cursor](https://cursor.dev/), or [Windsurf](https://windsurf.com/)—or open it in [Deepnote Cloud](https://deepnote.com/).
 
 For this example, we will use VS Code, but the steps are same for Cursor and Windsurf.
 
@@ -39,7 +39,7 @@ For this example, we will use VS Code, but the steps are same for Cursor and Win
 
 ## Running a Deepnote Project
 
-To run a Deepnote project, you can use any of the ways mentioned above (except JupyterLab, which is currently read-only).
+To run a Deepnote project, you can use any of the ways mentioned above.
 
 To run this example, follow these steps:
 
@@ -90,6 +90,25 @@ For example, see [3_integrations.deepnote](./3_integrations.deepnote) which incl
 - Username: `play`
 - Password: `******`
 
+### Agent blocks
+
+**Agent blocks** let an AI agent read the notebook context, execute Python code, and add new blocks autonomously. You can use them in a `.deepnote` file or run ad-hoc from the CLI with `--prompt`.
+
+**Prerequisites:** Set the `OPENAI_API_KEY` environment variable (works with any OpenAI-compatible API). Optionally set `OPENAI_BASE_URL` for non-OpenAI providers and `OPENAI_MODEL` to override the default model.
+
+```bash
+# Run the demo agent block notebook
+OPENAI_API_KEY=sk-... deepnote run examples/demo-agent-block.deepnote
+
+# Or run an agent standalone with --prompt (no file needed)
+OPENAI_API_KEY=sk-... deepnote run --prompt "Write a script that generates the Fibonacci sequence"
+
+# Append an agent to an existing notebook
+OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the data"
+```
+
+See [demo-agent-block.deepnote](./demo-agent-block.deepnote) for an example with MCP server configuration.
+
 ## What's next?
 
 You can have a look at the other examples in this folder:
@@ -97,5 +116,6 @@ You can have a look at the other examples in this folder:
 - `1_hello_world.deepnote` - Simple hello world example
 - `2_blocks.deepnote` - Examples of different block types
 - `3_integrations.deepnote` - Example with database integrations
+- `demo-agent-block.deepnote` - agent block with MCP server support
 
 For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.

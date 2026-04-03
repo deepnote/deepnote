@@ -1,11 +1,13 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
-import type { DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
-import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
+import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
+  type AgentStreamEvent,
   type BlockExecutionResult,
   detectDefaultPython,
   ExecutionEngine,
@@ -17,12 +19,21 @@ import {
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { DEFAULT_ENV_FILE } from '../constants'
+import { marked } from 'marked'
+import { markedTerminal } from 'marked-terminal'
+
+marked.use(markedTerminal())
+
+import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
+import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
+import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
+import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import { ApiError } from '../utils/api'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -35,6 +46,7 @@ import {
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { saveExecutionSnapshot } from '../utils/output-persistence'
+import { DEFAULT_API_URL } from './integrations'
 
 /**
  * Error thrown when required inputs are missing.
@@ -77,6 +89,9 @@ export interface RunOptions {
   profile?: boolean
   open?: boolean
   context?: boolean
+  prompt?: string
+  token?: string
+  url?: string
 }
 
 /** Result of a single block execution for JSON output */
@@ -172,6 +187,55 @@ interface ProjectSetup {
   inputs: Record<string, unknown>
   isMachineOutput: boolean
   convertedFile: ConvertedFile
+  allIntegrations: DatabaseIntegrationConfig[]
+}
+
+interface RunExecutionState {
+  blockResults: BlockResult[]
+  blockLabels: Map<string, string>
+  agentStreamed: boolean
+  agentTextBuffer: string
+  reasoningActive: boolean
+  activeBlockId: string | null
+  showProfile: boolean
+  showTop: boolean
+  blockProfiles: BlockProfile[]
+  memoryBefore: Map<string, number>
+}
+
+function createAgentBlock(prompt: string, sortIndex: number): AgentBlock {
+  return {
+    id: randomUUID().replace(/-/g, ''),
+    blockGroup: randomUUID().replace(/-/g, ''),
+    sortingKey: `z${String(sortIndex).padStart(6, '0')}`,
+    type: 'agent',
+    content: prompt,
+    metadata: {
+      deepnote_agent_model: 'auto',
+    },
+    executionCount: null,
+    outputs: [],
+  }
+}
+
+function createPromptOnlyFile(prompt: string): DeepnoteFile {
+  return {
+    metadata: {
+      createdAt: new Date().toISOString(),
+    },
+    project: {
+      id: randomUUID(),
+      name: 'Agent',
+      notebooks: [
+        {
+          id: randomUUID(),
+          name: 'Notebook',
+          blocks: [createAgentBlock(prompt, 0)],
+        },
+      ],
+    },
+    version: '1.0.0',
+  }
 }
 
 /**
@@ -184,27 +248,54 @@ interface ProjectSetup {
  * - .py - Percent or Marimo format (auto-converted)
  * - .qmd - Quarto document (auto-converted)
  */
-async function setupProject(path: string, options: RunOptions): Promise<ProjectSetup> {
+async function setupProject(path: string | undefined, options: RunOptions): Promise<ProjectSetup> {
   const isMachineOutput = options.output !== undefined
 
-  const convertedFile = await resolveAndConvertToDeepnote(path)
-  const { file, originalPath: absolutePath, wasConverted, format } = convertedFile
+  let file: DeepnoteFile
+  let absolutePath: string
+  let convertedFile: ConvertedFile
+  let workingDirectory: string
 
-  const workingDirectory = options.cwd ?? dirname(absolutePath)
+  if (!path && options.prompt) {
+    file = createPromptOnlyFile(options.prompt)
+    absolutePath = join(process.cwd(), 'prompt.deepnote')
+    workingDirectory = options.cwd ?? process.cwd()
+    convertedFile = { file, originalPath: absolutePath, format: 'deepnote', wasConverted: true }
+    if (!isMachineOutput) {
+      log(getChalk().dim('Running agent block...'))
+    }
+  } else {
+    if (!path) {
+      throw new Error('A file path is required when --prompt is not provided')
+    }
+    convertedFile = await resolveAndConvertToDeepnote(path)
+    const { originalPath, wasConverted, format } = convertedFile
+    file = convertedFile.file
+    absolutePath = originalPath
+    workingDirectory = options.cwd ?? dirname(absolutePath)
+    if (!isMachineOutput) {
+      if (wasConverted) {
+        log(getChalk().dim(`Converting ${format} file: ${absolutePath}...`))
+      } else {
+        log(getChalk().dim(`Parsing ${absolutePath}...`))
+      }
+    }
+  }
+
+  if (path && options.prompt) {
+    const lastNotebook = file.project.notebooks[file.project.notebooks.length - 1]
+    if (lastNotebook) {
+      lastNotebook.blocks.push(createAgentBlock(options.prompt, lastNotebook.blocks.length))
+    } else {
+      throw new Error('Cannot append prompt: file contains no notebooks')
+    }
+  }
 
   dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
 
   const pythonEnv = await resolvePythonExecutable(options.python ?? detectDefaultPython())
 
   const inputs = parseInputs(options.input)
-
-  if (!isMachineOutput) {
-    if (wasConverted) {
-      log(getChalk().dim(`Converting ${format} file: ${absolutePath}...`))
-    } else {
-      log(getChalk().dim(`Parsing ${absolutePath}...`))
-    }
-  }
 
   // Parse integrations file (if it exists)
   const integrationsFilePath = getDefaultIntegrationsFilePath(workingDirectory)
@@ -229,30 +320,24 @@ async function setupProject(path: string, options: RunOptions): Promise<ProjectS
 
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
+  // Fetch integrations from API if a token is available (--token flag or DEEPNOTE_TOKEN env var)
+  const requiredIds = collectRequiredIntegrationIds(file, options.notebook)
+  const allIntegrations = await fetchAndMergeApiIntegrations({
+    localIntegrations: parsedIntegrations.integrations,
+    requiredIds,
+    token: options.token ?? process.env[DEEPNOTE_TOKEN_ENV],
+    baseUrl: options.url ?? DEFAULT_API_URL,
+    isMachineOutput,
+  })
+
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
-  await validateRequirements(file, inputs, pythonEnv, parsedIntegrations.integrations, options.notebook)
+  await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
-  if (parsedIntegrations.integrations.length > 0) {
-    const { envVars, errors } = getEnvironmentVariablesForIntegrations(parsedIntegrations.integrations, {
-      projectRootDirectory: workingDirectory,
-    })
+  injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
-    // Log any errors from env var generation
-    for (const error of errors) {
-      debug(`Integration env var error: ${error.message}`)
-    }
-
-    // Inject env vars into process.env
-    for (const { name, value } of envVars) {
-      process.env[name] = value
-    }
-
-    debug(`Injected ${envVars.length} environment variables for integrations`)
-  }
-
-  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile }
+  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile, allIntegrations }
 }
 
 /**
@@ -387,20 +472,37 @@ async function resolveUpstreamExecutionBlockIds(
   return blockIds
 }
 
-export function createRunAction(program: Command): (path: string, options: RunOptions) => Promise<void> {
+export function createRunAction(program: Command): (path: string | undefined, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
-      debug(`Running file: ${path}`)
-      debug(`Options: ${JSON.stringify(options)}`)
+      if (!path && !options.prompt) {
+        program.error(getChalk().red('Missing required argument: path (or use --prompt)'), {
+          exitCode: ExitCode.InvalidUsage,
+        })
+      }
+
+      debug(`Running file: ${path ?? '(prompt-only)'}`)
+      const safeOptions = { ...options, token: options.token ? '[redacted]' : undefined }
+      debug(`Options: ${JSON.stringify(safeOptions)}`)
 
       // Handle --list-inputs
       if (options.listInputs) {
+        if (!path) {
+          program.error(getChalk().red('--list-inputs requires a file path'), {
+            exitCode: ExitCode.InvalidUsage,
+          })
+        }
         await listInputs(path, options)
         return
       }
 
       // Handle --dry-run
       if (options.dryRun) {
+        if (!path) {
+          program.error(getChalk().red('--dry-run requires a file path'), {
+            exitCode: ExitCode.InvalidUsage,
+          })
+        }
         await dryRunDeepnoteProject(path, options)
         return
       }
@@ -408,11 +510,13 @@ export function createRunAction(program: Command): (path: string, options: RunOp
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors, missing inputs, and missing integrations (user errors)
+      // Use InvalidUsage for file resolution errors, missing inputs, missing integrations, and API auth errors (user errors)
+      const isAuthApiError = error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
         error instanceof FileResolutionError ||
         error instanceof MissingInputError ||
-        error instanceof MissingIntegrationError
+        error instanceof MissingIntegrationError ||
+        isAuthApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
       if (options.output === 'json') {
@@ -655,26 +759,9 @@ async function validateRequirements(
   }
 
   // === Check for missing database integrations ===
-  // Built-in integrations that don't require external configuration
-  const builtInIntegrations = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
-
-  const missingIntegrations: Array<{ id: string }> = []
-  for (const block of allBlocks) {
-    if (block.type === 'sql') {
-      const metadata = block.metadata as Record<string, unknown>
-      const integrationId = metadata.sql_integration_id as string | undefined
-      if (integrationId && !builtInIntegrations.has(integrationId)) {
-        // Check if integration is configured in the integrations file
-        // Use lowercase for case-insensitive UUID matching
-        if (!integrations.some(i => i.id.toLowerCase() === integrationId.toLowerCase())) {
-          // Check if we haven't already recorded this integration
-          if (!missingIntegrations.some(i => i.id === integrationId)) {
-            missingIntegrations.push({ id: integrationId })
-          }
-        }
-      }
-    }
-  }
+  const requiredIds = collectRequiredIntegrationIds(file, notebookName)
+  const configuredIds = new Set(integrations.map(i => i.id.toLowerCase()))
+  const missingIntegrations = requiredIds.filter(id => !configuredIds.has(id.toLowerCase())).map(id => ({ id }))
 
   if (missingIntegrations.length > 0) {
     const integrationList = missingIntegrations.map(i => `  - ${i.id}`).join('\n')
@@ -753,8 +840,8 @@ async function validateRequirements(
   }
 }
 
-async function runDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file } =
+async function runDeepnoteProject(path: string | undefined, options: RunOptions): Promise<void> {
+  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file, allIntegrations } =
     await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
@@ -762,22 +849,111 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   // Apply CLI --input overrides to input block metadata
   applyInputOverrides(file, inputs)
 
-  // Collect block results for machine-readable output
-  const blockResults: BlockResult[] = []
-
-  // Create and start the execution engine
+  const state = createRunExecutionState(options, isMachineOutput)
   const engine = new ExecutionEngine({
     pythonEnv,
     workingDirectory,
   })
+  const restoreConsoleDebug = suppressMachineOutputDebugNoise(isMachineOutput)
+  let engineStarted = false
+  let metricsInterval: ReturnType<typeof setInterval> | null = null
 
-  // Suppress console.debug in machine output mode to prevent @jupyterlab/services
-  // "Starting WebSocket:" messages from contaminating stdout JSON output
+  try {
+    await startExecutionEngine(engine, isMachineOutput)
+    engineStarted = true
+    metricsInterval = await startMetricsMonitoring(engine, state.showTop)
+
+    // Track execution timing for snapshot
+    const executionStartedAt = new Date().toISOString()
+    const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+
+    // Use runProject instead of runFile since we may have converted the file in memory
+    const summary = await engine.runProject(file, {
+      notebookName: options.notebook,
+      blockId: options.block,
+      blockIds,
+      inputs,
+      integrations: allIntegrations.map(i => ({ id: i.id, name: i.name, type: i.type })),
+      ...createRunProjectCallbacks({ engine, isMachineOutput, state }),
+    })
+
+    await saveExecutionSnapshotBestEffort({
+      absolutePath,
+      convertedFile,
+      file,
+      blockResults: state.blockResults,
+      executionStartedAt,
+      isMachineOutput,
+    })
+
+    const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
+
+    if (isMachineOutput) {
+      const result = await buildMachineRunResult({
+        absolutePath,
+        file,
+        pythonEnv,
+        options,
+        summary,
+        blockResults: state.blockResults,
+      })
+
+      if (options.output === 'toon') {
+        outputToon(result, { showEfficiencyHint: true })
+      } else {
+        outputJson(result)
+      }
+    } else {
+      await outputHumanRunSummary(summary, state, engine)
+    }
+
+    process.exitCode = exitCode
+    await maybeOpenRunResultInCloud({
+      absolutePath,
+      convertedFile,
+      file,
+      isMachineOutput,
+      options,
+      summary,
+    })
+  } finally {
+    restoreConsoleDebug()
+    if (metricsInterval) {
+      clearInterval(metricsInterval)
+    }
+    if (engineStarted) {
+      await engine.stop()
+    }
+  }
+}
+
+function createRunExecutionState(options: RunOptions, isMachineOutput: boolean): RunExecutionState {
+  return {
+    blockResults: [],
+    blockLabels: new Map<string, string>(),
+    agentStreamed: false,
+    agentTextBuffer: '',
+    reasoningActive: false,
+    activeBlockId: null,
+    showProfile: Boolean(options.profile) && !isMachineOutput,
+    showTop: Boolean(options.top) && !isMachineOutput,
+    blockProfiles: [],
+    memoryBefore: new Map<string, number>(),
+  }
+}
+
+function suppressMachineOutputDebugNoise(isMachineOutput: boolean): () => void {
   const originalConsoleDebug = console.debug
   if (isMachineOutput) {
     console.debug = () => {}
   }
 
+  return () => {
+    console.debug = originalConsoleDebug
+  }
+}
+
+async function startExecutionEngine(engine: ExecutionEngine, isMachineOutput: boolean): Promise<void> {
   if (!isMachineOutput) {
     log(getChalk().dim('Starting deepnote-toolkit server...'))
   }
@@ -805,349 +981,413 @@ async function runDeepnoteProject(path: string, options: RunOptions): Promise<vo
   if (!isMachineOutput) {
     log(getChalk().dim('Server ready. Executing blocks...\n'))
   }
+}
 
-  // Track labels by block id for machine-readable output (safer than single variable if callbacks interleave)
-  const blockLabels = new Map<string, string>()
-
-  // Profiling: track memory before each block and collect profile data
-  const showProfile = options.profile && !isMachineOutput
-  const blockProfiles: BlockProfile[] = []
-  const memoryBefore = new Map<string, number>()
-
-  // Set up metrics monitoring if --top is enabled
-  const showTop = options.top && !isMachineOutput
-  let metricsInterval: ReturnType<typeof setInterval> | null = null
-
-  if (showTop && engine.serverPort) {
-    const port = engine.serverPort
-    // Show initial metrics
-    const initialMetrics = await fetchMetrics(port)
-    if (initialMetrics) {
-      displayMetrics(initialMetrics)
-      output('')
-    }
-
-    // Update metrics periodically during execution
-    metricsInterval = setInterval(async () => {
-      const metrics = await fetchMetrics(port)
-      if (metrics) {
-        // Move cursor up, clear line, display metrics, move back down
-        process.stdout.write('\x1b[s') // Save cursor position
-        displayMetrics(metrics)
-        process.stdout.write('\x1b[u') // Restore cursor position
-      }
-    }, 2000)
+async function startMetricsMonitoring(
+  engine: ExecutionEngine,
+  showTop: boolean
+): Promise<ReturnType<typeof setInterval> | null> {
+  if (!showTop || !engine.serverPort) {
+    return null
   }
 
-  // Track execution timing for snapshot
-  const executionStartedAt = new Date().toISOString()
+  const port = engine.serverPort
+  const initialMetrics = await fetchMetrics(port)
+  if (initialMetrics) {
+    displayMetrics(initialMetrics)
+    output('')
+  }
 
-  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  return setInterval(async () => {
+    const metrics = await fetchMetrics(port)
+    if (metrics) {
+      // Move cursor up, clear line, display metrics, move back down
+      process.stdout.write('\x1b[s') // Save cursor position
+      displayMetrics(metrics)
+      process.stdout.write('\x1b[u') // Restore cursor position
+    }
+  }, 2000)
+}
 
-  try {
-    // Use runProject instead of runFile since we may have converted the file in memory
-    const summary = await engine.runProject(file, {
-      notebookName: options.notebook,
-      blockId: options.block,
-      blockIds,
-      inputs,
+function createRunProjectCallbacks({
+  engine,
+  isMachineOutput,
+  state,
+}: {
+  engine: ExecutionEngine
+  isMachineOutput: boolean
+  state: RunExecutionState
+}) {
+  return {
+    onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
+      const label = getBlockLabel(block)
+      state.blockLabels.set(block.id, label)
+      await captureMemoryBeforeBlock(state, engine, block.id)
 
-      onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
-        const label = getBlockLabel(block)
-        blockLabels.set(block.id, label)
+      if (!isMachineOutput) {
+        state.agentStreamed = false
+        state.agentTextBuffer = ''
+        state.reasoningActive = false
+        state.activeBlockId = block.id
+        const c = getChalk()
+        process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
+      }
+    },
 
-        // Capture memory before block execution for profiling
-        if (showProfile && engine.serverPort) {
-          const metrics = await fetchMetrics(engine.serverPort)
-          if (metrics) {
-            memoryBefore.set(block.id, metrics.rss)
-          }
+    onBlockDone: async (result: BlockExecutionResult) => {
+      const label = state.blockLabels.get(result.blockId) ?? result.blockType
+      state.blockLabels.delete(result.blockId) // Clean up to avoid memory growth
+      state.blockResults.push({
+        id: result.blockId,
+        type: result.blockType,
+        label,
+        success: result.success,
+        durationMs: result.durationMs,
+        outputs: result.outputs,
+        error: result.error?.message,
+      })
+
+      const memoryDeltaStr = await recordBlockProfile(state, engine, result, label)
+
+      if (!isMachineOutput && (!state.activeBlockId || result.blockId === state.activeBlockId)) {
+        const c = getChalk()
+        const prefix = state.agentStreamed ? '\n' : ''
+        if (result.success) {
+          output(`${prefix}${c.green('✓')}${c.dim(` (${result.durationMs}ms${memoryDeltaStr})`)}`)
+        } else {
+          output(`${prefix}${c.red('✗')}`)
         }
 
-        if (!isMachineOutput) {
-          const c = getChalk()
-          process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
-        }
-      },
-
-      onBlockDone: async (result: BlockExecutionResult) => {
-        // Collect result for machine-readable output
-        const label = blockLabels.get(result.blockId) ?? result.blockType
-        blockLabels.delete(result.blockId) // Clean up to avoid memory growth
-        blockResults.push({
-          id: result.blockId,
-          type: result.blockType,
-          label,
-          success: result.success,
-          durationMs: result.durationMs,
-          outputs: result.outputs,
-          error: result.error?.message,
-        })
-
-        // Capture memory after block and calculate delta for profiling
-        let memoryDeltaStr = ''
-        if (showProfile && engine.serverPort) {
-          const hasBefore = memoryBefore.has(result.blockId)
-          const before = memoryBefore.get(result.blockId)
-          memoryBefore.delete(result.blockId) // Clean up
-
-          // Only compute delta if we have both before and after measurements
-          if (hasBefore && before !== undefined) {
-            const metrics = await fetchMetrics(engine.serverPort)
-            if (metrics) {
-              const delta = metrics.rss - before
-              memoryDeltaStr = `, ${formatMemoryDelta(delta)}`
-
-              blockProfiles.push({
-                id: result.blockId,
-                label,
-                durationMs: result.durationMs,
-                memoryBefore: before,
-                memoryAfter: metrics.rss,
-                memoryDelta: delta,
-              })
-            }
+        if (state.agentStreamed && state.agentTextBuffer) {
+          const rendered = marked.parse(state.agentTextBuffer)
+          if (typeof rendered === 'string') {
+            output('')
+            process.stdout.write(rendered)
           }
-        }
-
-        if (!isMachineOutput) {
-          const c = getChalk()
-          if (result.success) {
-            output(c.green('✓') + c.dim(` (${result.durationMs}ms${memoryDeltaStr})`))
-          } else {
-            output(c.red('✗'))
-          }
-
-          // Render outputs
+        } else {
           for (const blockOutput of result.outputs) {
             renderOutput(blockOutput)
           }
 
-          // Add blank line between blocks for readability
           if (result.outputs.length > 0) {
             output('')
           }
         }
-      },
+      }
+    },
+
+    onAgentEvent: isMachineOutput
+      ? undefined
+      : (event: AgentStreamEvent) => {
+          state.agentStreamed = true
+          const c = getChalk()
+          if (event.type === 'reasoning_delta') {
+            if (!state.reasoningActive) {
+              state.reasoningActive = true
+              process.stdout.write(`\n${c.dim('  [thinking] The agent is thinking...')}`)
+            }
+          } else {
+            state.reasoningActive = false
+            if (event.type === 'tool_called') {
+              process.stdout.write(`\n${c.dim(`  -> ${event.toolName}()`)}`)
+            } else if (event.type === 'tool_output') {
+              const failed = event.output.startsWith('Execution failed') || event.output.startsWith('Execution error')
+              const status = failed ? c.red('[failed]') : c.green('[ok]')
+              const contentLine = event.output
+                .split('\n')
+                .map(l => l.trim())
+                .find(l => l.length > 0 && l !== 'Output:')
+              const preview = contentLine
+                ? contentLine.length > 80
+                  ? `${contentLine.slice(0, 80)}...`
+                  : contentLine
+                : ''
+              process.stdout.write(` ${status}${preview ? c.dim(` ${preview}`) : ''}`)
+            } else if (event.type === 'text_delta') {
+              state.agentTextBuffer += event.text
+            }
+          }
+        },
+  }
+}
+
+async function captureMemoryBeforeBlock(
+  state: RunExecutionState,
+  engine: ExecutionEngine,
+  blockId: string
+): Promise<void> {
+  if (!state.showProfile || !engine.serverPort) {
+    return
+  }
+
+  const metrics = await fetchMetrics(engine.serverPort)
+  if (metrics) {
+    state.memoryBefore.set(blockId, metrics.rss)
+  }
+}
+
+async function recordBlockProfile(
+  state: RunExecutionState,
+  engine: ExecutionEngine,
+  result: BlockExecutionResult,
+  label: string
+): Promise<string> {
+  if (!state.showProfile || !engine.serverPort) {
+    return ''
+  }
+
+  const hasBefore = state.memoryBefore.has(result.blockId)
+  const before = state.memoryBefore.get(result.blockId)
+  state.memoryBefore.delete(result.blockId) // Clean up
+
+  if (!hasBefore || before === undefined) {
+    return ''
+  }
+
+  const metrics = await fetchMetrics(engine.serverPort)
+  if (!metrics) {
+    return ''
+  }
+
+  const delta = metrics.rss - before
+  state.blockProfiles.push({
+    id: result.blockId,
+    label,
+    durationMs: result.durationMs,
+    memoryBefore: before,
+    memoryAfter: metrics.rss,
+    memoryDelta: delta,
+  })
+
+  return `, ${formatMemoryDelta(delta)}`
+}
+
+async function saveExecutionSnapshotBestEffort({
+  absolutePath,
+  convertedFile,
+  file,
+  blockResults,
+  executionStartedAt,
+  isMachineOutput,
+}: {
+  absolutePath: string
+  convertedFile: ConvertedFile
+  file: DeepnoteFile
+  blockResults: BlockResult[]
+  executionStartedAt: string
+  isMachineOutput: boolean
+}): Promise<void> {
+  const executionFinishedAt = new Date().toISOString()
+
+  try {
+    const snapshotSourcePath = convertedFile.wasConverted
+      ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
+      : absolutePath
+
+    const { snapshotPath } = await saveExecutionSnapshot(snapshotSourcePath, file, blockResults, {
+      startedAt: executionStartedAt,
+      finishedAt: executionFinishedAt,
     })
 
-    // Save execution outputs to snapshot
-    const executionFinishedAt = new Date().toISOString()
-    try {
-      // Determine the source path for the snapshot
-      // For converted files, use the path where a .deepnote file would be (same dir as original)
-      const snapshotSourcePath = convertedFile.wasConverted
-        ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
-        : absolutePath
+    if (!isMachineOutput) {
+      debug(`Snapshot saved to: ${snapshotPath}`)
+    }
+  } catch (snapshotError) {
+    // Snapshot saving is best-effort; don't fail the run if it fails
+    debug(`Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`)
+  }
+}
 
-      const { snapshotPath } = await saveExecutionSnapshot(snapshotSourcePath, file, blockResults, {
-        startedAt: executionStartedAt,
-        finishedAt: executionFinishedAt,
+async function buildMachineRunResult({
+  absolutePath,
+  file,
+  pythonEnv,
+  options,
+  summary,
+  blockResults,
+}: {
+  absolutePath: string
+  file: DeepnoteFile
+  pythonEnv: string
+  options: RunOptions
+  summary: ExecutionSummary
+  blockResults: BlockResult[]
+}): Promise<RunResult> {
+  const result: RunResult = {
+    success: summary.failedBlocks === 0,
+    path: absolutePath,
+    executedBlocks: summary.executedBlocks,
+    totalBlocks: summary.totalBlocks,
+    failedBlocks: summary.failedBlocks,
+    totalDurationMs: summary.totalDurationMs,
+    blocks: blockResults,
+  }
+
+  const shouldIncludeContext = options.context || summary.failedBlocks > 0
+  if (!shouldIncludeContext) {
+    return result
+  }
+
+  try {
+    debug('Generating context info...')
+    const { stats, lint, dag } = await analyzeProject(file, {
+      notebook: options.notebook,
+      pythonInterpreter: pythonEnv,
+    })
+    const blockMap = buildBlockMap(file, { notebook: options.notebook })
+
+    if (options.context) {
+      result.project = {
+        stats,
+        issues: {
+          errors: lint.issueCount.errors,
+          warnings: lint.issueCount.warnings,
+          details: lint.issues.map(issue => ({
+            code: issue.code,
+            message: issue.message,
+            severity: issue.severity,
+            blockId: issue.blockId,
+            blockLabel: issue.blockLabel,
+          })),
+        },
+      }
+
+      const dagNodeMap = new Map(dag.nodes.map(n => [n.id, n]))
+      const issuesByBlock = new Map<string, typeof lint.issues>()
+      for (const issue of lint.issues) {
+        const arr = issuesByBlock.get(issue.blockId) ?? []
+        arr.push(issue)
+        issuesByBlock.set(issue.blockId, arr)
+      }
+
+      result.blocks = blockResults.map(block => {
+        const node = dagNodeMap.get(block.id)
+        const blockIssues = issuesByBlock.get(block.id) ?? []
+
+        return {
+          ...block,
+          defines: node?.outputVariables ?? [],
+          uses: node?.inputVariables ?? [],
+          issues:
+            blockIssues.length > 0
+              ? blockIssues.map(i => ({
+                  code: i.code,
+                  message: i.message,
+                  severity: i.severity,
+                }))
+              : undefined,
+        }
       })
-
-      if (!isMachineOutput) {
-        debug(`Snapshot saved to: ${snapshotPath}`)
-      }
-    } catch (snapshotError) {
-      // Snapshot saving is best-effort; don't fail the run if it fails
-      debug(
-        `Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`
-      )
     }
 
-    // Determine exit code based on failures
-    const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
-
-    if (isMachineOutput) {
-      // Output machine-readable result
-      const result: RunResult = {
-        success: summary.failedBlocks === 0,
-        path: absolutePath,
-        executedBlocks: summary.executedBlocks,
-        totalBlocks: summary.totalBlocks,
-        failedBlocks: summary.failedBlocks,
-        totalDurationMs: summary.totalDurationMs,
-        blocks: blockResults,
-      }
-
-      // Include context info if --context flag is set or there are failures
-      const shouldIncludeContext = options.context || summary.failedBlocks > 0
-
-      if (shouldIncludeContext) {
-        try {
-          debug('Generating context info...')
-          const { stats, lint, dag } = await analyzeProject(file, {
-            notebook: options.notebook,
-            pythonInterpreter: pythonEnv,
-          })
-          const blockMap = buildBlockMap(file, { notebook: options.notebook })
-
-          // Add project-level context if --context is set
-          if (options.context) {
-            result.project = {
-              stats,
-              issues: {
-                errors: lint.issueCount.errors,
-                warnings: lint.issueCount.warnings,
-                details: lint.issues.map(issue => ({
-                  code: issue.code,
-                  message: issue.message,
-                  severity: issue.severity,
-                  blockId: issue.blockId,
-                  blockLabel: issue.blockLabel,
-                })),
-              },
-            }
-
-            // Pre-build lookups for O(n) mapping
-            const dagNodeMap = new Map(dag.nodes.map(n => [n.id, n]))
-            const issuesByBlock = new Map<string, typeof lint.issues>()
-            for (const issue of lint.issues) {
-              const arr = issuesByBlock.get(issue.blockId) ?? []
-              arr.push(issue)
-              issuesByBlock.set(issue.blockId, arr)
-            }
-
-            // Enhance block results with context (defines, uses, issues)
-            const blocksWithContext: BlockWithContext[] = blockResults.map(block => {
-              const node = dagNodeMap.get(block.id)
-              const blockIssues = issuesByBlock.get(block.id) ?? []
-
-              return {
-                ...block,
-                defines: node?.outputVariables ?? [],
-                uses: node?.inputVariables ?? [],
-                issues:
-                  blockIssues.length > 0
-                    ? blockIssues.map(i => ({
-                        code: i.code,
-                        message: i.message,
-                        severity: i.severity,
-                      }))
-                    : undefined,
-              }
-            })
-            result.blocks = blocksWithContext
-          }
-
-          // Auto-diagnose failed blocks
-          if (summary.failedBlocks > 0) {
-            const failedBlockIds = blockResults.filter(b => !b.success).map(b => b.id)
-
-            result.failedBlockDiagnosis = failedBlockIds.map(blockId => {
-              const diagnosis = diagnoseBlockFailure(blockId, dag, lint, blockMap)
-              return {
-                blockId: diagnosis.blockId,
-                blockLabel: diagnosis.blockLabel,
-                upstream: diagnosis.upstream,
-                relatedIssues: diagnosis.relatedIssues.map(issue => ({
-                  code: issue.code,
-                  message: issue.message,
-                  severity: issue.severity,
-                })),
-                usedVariables: diagnosis.usedVariables,
-              }
-            })
-          }
-        } catch (analysisError) {
-          // Context/diagnosis is best-effort; don't fail the run if it fails
-          debug(`Analysis failed: ${analysisError instanceof Error ? analysisError.message : String(analysisError)}`)
+    if (summary.failedBlocks > 0) {
+      const failedBlockIds = blockResults.filter(block => !block.success).map(block => block.id)
+      result.failedBlockDiagnosis = failedBlockIds.map(blockId => {
+        const diagnosis = diagnoseBlockFailure(blockId, dag, lint, blockMap)
+        return {
+          blockId: diagnosis.blockId,
+          blockLabel: diagnosis.blockLabel,
+          upstream: diagnosis.upstream,
+          relatedIssues: diagnosis.relatedIssues.map(issue => ({
+            code: issue.code,
+            message: issue.message,
+            severity: issue.severity,
+          })),
+          usedVariables: diagnosis.usedVariables,
         }
-      }
-
-      if (options.output === 'toon') {
-        outputToon(result, { showEfficiencyHint: true })
-      } else {
-        outputJson(result)
-      }
-      process.exitCode = exitCode
-    } else {
-      const c = getChalk()
-      // Print summary
-      output(c.dim('─'.repeat(50)))
-
-      // Show final resource usage if --top was enabled
-      if (showTop && engine.serverPort) {
-        const finalMetrics = await fetchMetrics(engine.serverPort)
-        if (finalMetrics) {
-          output(c.bold('Final resource usage:'))
-          displayMetrics(finalMetrics)
-        }
-      }
-
-      // Show profile summary if --profile was enabled
-      if (showProfile && blockProfiles.length > 0) {
-        displayProfileSummary(blockProfiles)
-      }
-
-      if (summary.failedBlocks > 0) {
-        output(
-          c.red(
-            `Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`
-          )
-        )
-      } else {
-        const duration = (summary.totalDurationMs / 1000).toFixed(1)
-        output(c.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
-      }
-
-      process.exitCode = exitCode
+      })
     }
+  } catch (analysisError) {
+    // Context/diagnosis is best-effort; don't fail the run if it fails
+    debug(`Analysis failed: ${analysisError instanceof Error ? analysisError.message : String(analysisError)}`)
+  }
 
-    // Handle --open flag: open in Deepnote Cloud after successful execution
-    if (options.open && summary.failedBlocks === 0) {
-      let fileToOpen = absolutePath
-      let tempFile: string | null = null
+  return result
+}
 
-      // If the file was converted, we need to write a temp .deepnote file to upload
-      if (convertedFile.wasConverted) {
-        const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-run-'))
-        // Sanitize project name to prevent path traversal attacks
-        const rawName = file.project.name || 'project'
-        const safeName =
-          rawName
-            .replace(/[/\\]/g, '_') // Replace path separators
-            .replace(/\.\./g, '_') // Replace parent directory references
-            .replace(/^\.+/, '') || // Remove leading dots
-          'project' // Fallback if empty after sanitization
-        tempFile = join(tempDir, `${safeName}.deepnote`)
-        const yamlContent = serializeDeepnoteFile(file)
-        await fs.writeFile(tempFile, yamlContent, 'utf-8')
-        fileToOpen = tempFile
-        debug(`Created temp file for upload: ${tempFile}`)
-      }
+async function outputHumanRunSummary(
+  summary: ExecutionSummary,
+  state: RunExecutionState,
+  engine: ExecutionEngine
+): Promise<void> {
+  const c = getChalk()
+  output(c.dim('─'.repeat(50)))
 
-      try {
-        const c = getChalk()
-        if (!isMachineOutput) {
-          output('')
-        }
-        const result = await openDeepnoteFileInCloud(fileToOpen, { quiet: isMachineOutput })
-        if (!isMachineOutput) {
-          output(`${c.green('✓')} Opened in Deepnote Cloud`)
-          output(`${c.dim('URL:')} ${result.url}`)
-        }
-      } finally {
-        // Clean up temp file if created
-        if (tempFile) {
-          try {
-            await fs.rm(dirname(tempFile), { recursive: true })
-            debug(`Cleaned up temp directory: ${dirname(tempFile)}`)
-          } catch (cleanupError) {
-            // Log cleanup errors for debugging, but don't fail the operation
-            debug(
-              `Failed to clean up temp directory ${dirname(tempFile)}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-            )
-          }
-        }
-      }
+  if (state.showTop && engine.serverPort) {
+    const finalMetrics = await fetchMetrics(engine.serverPort)
+    if (finalMetrics) {
+      output(c.bold('Final resource usage:'))
+      displayMetrics(finalMetrics)
+    }
+  }
+
+  if (state.showProfile && state.blockProfiles.length > 0) {
+    displayProfileSummary(state.blockProfiles)
+  }
+
+  if (summary.failedBlocks > 0) {
+    output(
+      c.red(`Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`)
+    )
+  } else {
+    const duration = (summary.totalDurationMs / 1000).toFixed(1)
+    output(c.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
+  }
+}
+
+async function maybeOpenRunResultInCloud({
+  absolutePath,
+  convertedFile,
+  file,
+  isMachineOutput,
+  options,
+  summary,
+}: {
+  absolutePath: string
+  convertedFile: ConvertedFile
+  file: DeepnoteFile
+  isMachineOutput: boolean
+  options: RunOptions
+  summary: ExecutionSummary
+}): Promise<void> {
+  if (!options.open || summary.failedBlocks > 0) {
+    return
+  }
+
+  let fileToOpen = absolutePath
+  let tempFile: string | null = null
+
+  if (convertedFile.wasConverted) {
+    const tempDir = await fs.mkdtemp(join(os.tmpdir(), 'deepnote-run-'))
+    const rawName = file.project.name || 'project'
+    const safeName = rawName.replace(/[/\\]/g, '_').replace(/\.\./g, '_').replace(/^\.+/, '') || 'project'
+    tempFile = join(tempDir, `${safeName}.deepnote`)
+    const yamlContent = serializeDeepnoteFile(file)
+    await fs.writeFile(tempFile, yamlContent, 'utf-8')
+    fileToOpen = tempFile
+    debug(`Created temp file for upload: ${tempFile}`)
+  }
+
+  try {
+    const c = getChalk()
+    if (!isMachineOutput) {
+      output('')
+    }
+    const result = await openDeepnoteFileInCloud(fileToOpen, { quiet: isMachineOutput })
+    if (!isMachineOutput) {
+      output(`${c.green('✓')} Opened in Deepnote Cloud`)
+      output(`${c.dim('URL:')} ${result.url}`)
     }
   } finally {
-    console.debug = originalConsoleDebug
-    if (metricsInterval) {
-      clearInterval(metricsInterval)
-      metricsInterval = null
+    if (tempFile) {
+      try {
+        await fs.rm(dirname(tempFile), { recursive: true })
+        debug(`Cleaned up temp directory: ${dirname(tempFile)}`)
+      } catch (cleanupError) {
+        debug(
+          `Failed to clean up temp directory ${dirname(tempFile)}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        )
+      }
     }
-    await engine.stop()
   }
 }
