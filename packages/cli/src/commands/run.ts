@@ -1026,7 +1026,6 @@ function createRunProjectCallbacks({
     onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
       const label = getBlockLabel(block)
       state.blockLabels.set(block.id, label)
-      await captureMemoryBeforeBlock(state, engine, block.id)
 
       if (!isMachineOutput) {
         state.agentStreamed = false
@@ -1037,6 +1036,8 @@ function createRunProjectCallbacks({
         process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
         state.needsNewlineBeforeOutput.add(block.id)
       }
+
+      await captureMemoryBeforeBlock(state, engine, block.id)
     },
 
     onOutput: (blockId: string, blockOutput: IOutput) => {
