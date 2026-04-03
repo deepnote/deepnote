@@ -1,4 +1,3 @@
-!packages/**/*.png
 .DS_Store
 .env
 .npmrc
@@ -9,6 +8,7 @@
 .qlty/plugin_cachedir
 .qlty/results
 *.png
+!packages/**/*.png
 *.tsbuildinfo
 coverage
 dist
