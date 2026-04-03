@@ -190,11 +190,11 @@ function setupStreamingRun({
 }) {
   mockStart.mockResolvedValue(undefined)
   mockRunProject.mockImplementation(async (_file, options) => {
-    options?.onBlockStart?.(TEST_BLOCK, 0, 1)
+    await options?.onBlockStart?.(TEST_BLOCK, 0, 1)
     for (const blockOutput of streamedOutputs) {
-      options?.onOutput?.(TEST_BLOCK.id, blockOutput)
+      await options?.onOutput?.(TEST_BLOCK.id, blockOutput)
     }
-    options?.onBlockDone?.(result)
+    await options?.onBlockDone?.(result)
     return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: result.durationMs }
   })
   mockStop.mockResolvedValue(undefined)
@@ -614,7 +614,7 @@ describe('run command', () => {
             blockId: TEST_BLOCK.id,
             blockType: TEST_BLOCK.type,
             success: true,
-            outputs: [output],
+            outputs: [],
             executionCount: 1,
             durationMs: 50,
           },
@@ -644,6 +644,9 @@ describe('run command', () => {
         })
 
         await action(HELLO_WORLD_FILE, { output: 'json' })
+
+        const stdoutOutput = stdoutWriteSpy.mock.calls.map(call => call.join('')).join('')
+        expect(stdoutOutput).not.toContain('Hello World')
 
         // JSON output should still include outputs in the blocks array
         const allOutput = getOutput(consoleLogSpy)
