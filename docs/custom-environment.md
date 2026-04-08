@@ -81,9 +81,9 @@ You can use any publicly available Docker image from repositories like [Docker H
 
 **Team** and **Enterprise** users can connect to private image repositories from:
 
-- [Docker Hub](https://www.notion.so/docs/docker-hub)
-- [Google Container Registry](https://www.notion.so/docs/google-container-registry)
-- [Amazon ECR](https://www.notion.so/docs/amazon-ecr)
+- [Docker Hub](https://deepnote.com/docs/docker-hub)
+- [Google Container Registry](https://deepnote.com/docs/google-container-registry)
+- [Amazon ECR](https://deepnote.com/docs/amazon-ecr)
 
 To use private repositories:
 
