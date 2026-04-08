@@ -129,6 +129,7 @@
     "strptime",
     "timedelta",
     "tolist",
+    "tpch",
     "Tpng",
     "trae",
     "typescript",

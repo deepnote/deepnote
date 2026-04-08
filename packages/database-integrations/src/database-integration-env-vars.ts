@@ -15,20 +15,34 @@ export interface EnvVar {
   value: string
 }
 
-export function getEnvironmentVariablesForIntegrations(
+/**
+ * Resolves a valid access token for a federated auth integration.
+ * The implementation is provided by the caller (e.g., the CLI package).
+ */
+export type FederatedAuthTokenResolver = (integration: DatabaseIntegrationConfig) => Promise<string | undefined>
+
+export interface GetEnvironmentVariablesForIntegrationsParams {
+  projectRootDirectory: string
+  snowflakePartnerIdentifier?: string
+  /**
+   * Optional resolver for federated auth tokens.
+   * When provided, federated auth integrations (e.g., Trino OAuth) will use this
+   * to obtain an access token and inject the SQL connection env var.
+   */
+  federatedAuthTokenResolver?: FederatedAuthTokenResolver
+}
+
+export async function getEnvironmentVariablesForIntegrations(
   integrations: Array<DatabaseIntegrationConfig>,
-  params: {
-    projectRootDirectory: string
-    snowflakePartnerIdentifier?: string
-  }
-): {
+  params: GetEnvironmentVariablesForIntegrationsParams
+): Promise<{
   envVars: Array<EnvVar>
   errors: Array<Error>
-} {
+}> {
   const envVars: Array<EnvVar> = []
   const errors: Array<Error> = []
 
-  integrations.forEach(integration => {
+  for (const integration of integrations) {
     const namePrefix = convertToEnvironmentVariableName(integration.name)
 
     const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata)
@@ -61,18 +75,47 @@ export function getEnvironmentVariablesForIntegrations(
 
     // NOTE: MongoDB is not a SQL integration, we only set the normal integration env variables without the SQL alchemy config.
     if (integration.type !== 'mongodb') {
-      try {
-        const envVar = getEnvVarForSqlCells(integration, params)
-        if (envVar) {
-          envVarsForThisIntegration.push(envVar)
+      const isFederated =
+        integration.federated_auth_method != null && isFederatedAuthMethod(integration.federated_auth_method)
+
+      if (isFederated && params.federatedAuthTokenResolver) {
+        try {
+          const accessToken = await params.federatedAuthTokenResolver(integration)
+          if (accessToken && integration.type === 'trino' && integration.federated_auth_method === 'trino-oauth') {
+            const metadata = integration.metadata as Extract<
+              DatabaseIntegrationMetadataByType['trino'],
+              { authMethod: typeof TrinoAuthMethods.Oauth }
+            >
+            const sqlAlchemyInput = buildTrinoOAuthSqlAlchemyInput(
+              integration.id,
+              metadata,
+              accessToken,
+              params.projectRootDirectory
+            )
+            envVarsForThisIntegration.push({
+              name: getSqlEnvVarName(integration.id),
+              value: JSON.stringify({ integration_id: integration.id, ...sqlAlchemyInput }),
+            })
+          } else {
+            errors.push(new Error(`Unsupported federated auth method: ${integration.federated_auth_method}`))
+          }
+        } catch (error) {
+          errors.push(error as Error)
         }
-      } catch (error) {
-        errors.push(error as Error)
+      } else if (!isFederated) {
+        try {
+          const envVar = getEnvVarForSqlCells(integration, params)
+          if (envVar) {
+            envVarsForThisIntegration.push(envVar)
+          }
+        } catch (error) {
+          errors.push(error as Error)
+        }
       }
     }
 
     envVars.push(...envVarsForThisIntegration.filter(envVar => !!envVar.name))
-  })
+  }
 
   return { envVars, errors }
 }
@@ -496,6 +539,42 @@ const getTrinoEnvVars = (
     param_style: 'qmark',
   }
 
+  return input
+}
+
+/**
+ * Build SqlAlchemy input for Trino with OAuth access token.
+ * Used when federated auth tokens are available (e.g., from CLI tokens file).
+ */
+export function buildTrinoOAuthSqlAlchemyInput(
+  integrationId: string,
+  metadata: Extract<DatabaseIntegrationMetadataByType['trino'], { authMethod: typeof TrinoAuthMethods.Oauth }>,
+  accessToken: string,
+  projectRootDirectory: string
+): SqlAlchemyInput {
+  const port = metadata.port ?? '8443'
+  const input: SqlAlchemyInput = {
+    url: `trino://${metadata.host}:${port}/${encodeURIComponent(metadata.database)}`,
+    params: {
+      connect_args: {
+        http_headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        http_scheme: 'https',
+        client_tags: ['deepnote/toolkit'],
+        ...(metadata.caCertificateName
+          ? {
+              verify: getCACertificatePath({
+                projectRoot: projectRootDirectory,
+                integrationId,
+                caCertificateName: metadata.caCertificateName,
+              }),
+            }
+          : {}),
+      },
+    },
+    param_style: 'qmark',
+  }
   return input
 }
 

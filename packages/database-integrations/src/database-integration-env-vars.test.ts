@@ -1,22 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import {
   BigQueryServiceAccountParseError,
+  buildTrinoOAuthSqlAlchemyInput,
   getEnvironmentVariablesForIntegrations,
   getSqlEnvVarName,
   SpannerServiceAccountParseError,
 } from './database-integration-env-vars'
 import type { TrinoAuthMethod } from './sql-integration-auth-methods'
 
-describe('Database integration env variables', () => {
+describe('Database integration env variables', async () => {
   const getSqlAlchemyInputVar = (envVars: Array<{ name: string; value: string }>, integrationId: string) => {
     const json = envVars.find(envVar => envVar.name === getSqlEnvVarName(integrationId))?.value
     return json ? JSON.parse(json) : undefined
   }
 
-  describe('getEnvironmentVariablesForIntegrations', () => {
-    describe('AlloyDB', () => {
-      it('should generate a SQL Alchemy env var with postgresql URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+  describe('getEnvironmentVariablesForIntegrations', async () => {
+    describe('AlloyDB', async () => {
+      it('should generate a SQL Alchemy env var with postgresql URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'alloydb',
@@ -44,8 +45,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with postgresql URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with postgresql URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'alloydb',
@@ -83,8 +84,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should include sslmode=verify-ca if a CA certificate is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should include sslmode=verify-ca if a CA certificate is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'alloydb',
@@ -111,8 +112,8 @@ describe('Database integration env variables', () => {
         )
       })
 
-      it('should include sslmode=require if SSL is enabled but no CA is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should include sslmode=require if SSL is enabled but no CA is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'alloydb',
@@ -136,8 +137,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.params.connect_args.sslmode).toBe('require')
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'alloydb',
@@ -159,8 +160,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('postgresql://my-user:my-password@my-host/my-database')
       })
 
-      it('should exclude caCertificateText from env vars', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should exclude caCertificateText from env vars', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'alloydb',
@@ -196,8 +197,8 @@ describe('Database integration env variables', () => {
         )
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'alloydb',
@@ -239,9 +240,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Athena', () => {
-      it('should generate a SQL Alchemy env var with awsathena+rest URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Athena', async () => {
+      it('should generate a SQL Alchemy env var with awsathena+rest URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'athena',
@@ -268,8 +269,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with awsathena+rest URL and workgroup', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with awsathena+rest URL and workgroup', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'athena',
@@ -297,8 +298,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'athena',
@@ -335,9 +336,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('BigQuery', () => {
-      it('should generate a SQL Alchemy env var with bigquery URL for service account', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('BigQuery', async () => {
+      it('should generate a SQL Alchemy env var with bigquery URL for service account', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -386,8 +387,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with bigquery URL for service account even when federated_auth_method is set to service-account', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with bigquery URL for service account even when federated_auth_method is set to service-account', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -437,8 +438,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should return an error if service account is not valid JSON', () => {
-        const { errors } = getEnvironmentVariablesForIntegrations(
+      it('should return an error if service account is not valid JSON', async () => {
+        const { errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -457,7 +458,7 @@ describe('Database integration env variables', () => {
         expect(errors[0]).toBeInstanceOf(BigQueryServiceAccountParseError)
       })
 
-      it('should generate a SQL Alchemy env var for legacy service account', () => {
+      it('should generate a SQL Alchemy env var for legacy service account', async () => {
         const metadata = {
           service_account: JSON.stringify({
             type: 'service_account',
@@ -473,7 +474,7 @@ describe('Database integration env variables', () => {
           }),
         }
 
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -497,8 +498,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not generate a SQL Alchemy env var for google oauth', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not generate a SQL Alchemy env var for google oauth', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -521,9 +522,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('ClickHouse', () => {
-      it('should generate a SQL Alchemy env var with clickhouse URL and SSL disabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('ClickHouse', async () => {
+      it('should generate a SQL Alchemy env var with clickhouse URL and SSL disabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'clickhouse',
@@ -552,8 +553,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with clickhouse URL and SSL enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with clickhouse URL and SSL enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'clickhouse',
@@ -583,8 +584,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not default the port in clickhouse URL when not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in clickhouse URL when not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'clickhouse',
@@ -606,8 +607,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('clickhouse://my-user:my-password@my-host/my-database?protocol=https')
       })
 
-      it('should allow missing password', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should allow missing password', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'clickhouse',
@@ -628,8 +629,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('clickhouse://my-user@my-host/my-database?protocol=https')
       })
 
-      it('should request CA certificate verification when CA certificate is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should request CA certificate verification when CA certificate is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'clickhouse',
@@ -658,8 +659,8 @@ describe('Database integration env variables', () => {
         )
       })
 
-      it('should generate a SQL Alchemy env var with clickhouse URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with clickhouse URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'clickhouse',
@@ -698,9 +699,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Databricks', () => {
-      it('should generate a SQL Alchemy env var with databricks+connector URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Databricks', async () => {
+      it('should generate a SQL Alchemy env var with databricks+connector URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'databricks',
@@ -732,8 +733,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with databricks+connector URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with databricks+connector URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'databricks',
@@ -775,9 +776,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Dremio', () => {
-      it('should generate a SQL Alchemy env var with dremio+flight URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Dremio', async () => {
+      it('should generate a SQL Alchemy env var with dremio+flight URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'dremio',
@@ -805,8 +806,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with dremio+flight URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with dremio+flight URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'dremio',
@@ -843,8 +844,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'dremio',
@@ -881,9 +882,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('MariaDB', () => {
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('MariaDB', async () => {
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mariadb',
@@ -912,8 +913,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mariadb',
@@ -951,8 +952,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and a CA', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and a CA', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mariadb',
@@ -989,8 +990,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSL enabled when CA is not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSL enabled when CA is not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mariadb',
@@ -1025,8 +1026,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mariadb',
@@ -1048,8 +1049,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('mysql+pymysql://my-user:my-password@my-host/my-database')
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mariadb',
@@ -1086,9 +1087,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('MindsDB', () => {
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('MindsDB', async () => {
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mindsdb',
@@ -1116,8 +1117,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mindsdb',
@@ -1154,8 +1155,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and a CA', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and a CA', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mindsdb',
@@ -1191,8 +1192,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSL enabled when CA is not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSL enabled when CA is not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mindsdb',
@@ -1226,8 +1227,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mindsdb',
@@ -1249,8 +1250,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('mysql+pymysql://my-user:my-password@my-host/my-database')
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mindsdb',
@@ -1287,9 +1288,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('MySQL', () => {
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('MySQL', async () => {
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mysql',
@@ -1317,8 +1318,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mysql',
@@ -1355,8 +1356,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and a CA', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and a CA', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mysql',
@@ -1392,8 +1393,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSL enabled when CA is not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mysql+pymysql URL and SSL enabled when CA is not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mysql',
@@ -1427,8 +1428,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mysql',
@@ -1450,8 +1451,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('mysql+pymysql://my-user:my-password@my-host/my-database')
       })
 
-      it('should exclude caCertificateText from env vars', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should exclude caCertificateText from env vars', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mysql',
@@ -1487,8 +1488,8 @@ describe('Database integration env variables', () => {
         )
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mysql',
@@ -1525,9 +1526,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Materialize', () => {
-      it('should generate a SQL Alchemy env var with postgres URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Materialize', async () => {
+      it('should generate a SQL Alchemy env var with postgres URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'materialize',
@@ -1557,8 +1558,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with postgres URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with postgres URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'materialize',
@@ -1597,8 +1598,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with postgres URL and a CA', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with postgres URL and a CA', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'materialize',
@@ -1634,8 +1635,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'materialize',
@@ -1661,9 +1662,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Pandas DataFrame SQL', () => {
-      it('should generate a SQL Alchemy env var with DuckDB URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Pandas DataFrame SQL', async () => {
+      it('should generate a SQL Alchemy env var with DuckDB URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pandas-dataframe',
@@ -1686,9 +1687,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('PostgreSQL', () => {
-      it('should generate a SQL Alchemy env var with postgresql URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('PostgreSQL', async () => {
+      it('should generate a SQL Alchemy env var with postgresql URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pgsql',
@@ -1717,8 +1718,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with postgresql URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with postgresql URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pgsql',
@@ -1756,8 +1757,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should include sslmode=verify-ca if a CA certificate is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should include sslmode=verify-ca if a CA certificate is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pgsql',
@@ -1784,8 +1785,8 @@ describe('Database integration env variables', () => {
         )
       })
 
-      it('should include sslmode=require if SSL is enabled but no CA is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should include sslmode=require if SSL is enabled but no CA is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pgsql',
@@ -1809,8 +1810,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.params.connect_args.sslmode).toBe('require')
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pgsql',
@@ -1832,8 +1833,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('postgresql://my-user:my-password@my-host/my-database')
       })
 
-      it('should exclude caCertificateText from env vars', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should exclude caCertificateText from env vars', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pgsql',
@@ -1869,8 +1870,8 @@ describe('Database integration env variables', () => {
         )
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'pgsql',
@@ -1912,9 +1913,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Redshift', () => {
-      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL for username and password', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Redshift', async () => {
+      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL for username and password', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -1944,8 +1945,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL for username and password even when federated_auth_method is set to username-and-password', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL for username and password even when federated_auth_method is set to username-and-password', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -1976,8 +1977,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2016,8 +2017,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL and IAM params for IAM role', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with redshift+psycopg2 URL and IAM params for IAM role', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2052,8 +2053,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not generate a SQL Alchemy env var for individual credentials', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not generate a SQL Alchemy env var for individual credentials', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2075,8 +2076,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput).toBeUndefined()
       })
 
-      it('should include keepalives in connect arguments', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should include keepalives in connect arguments', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2103,8 +2104,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.params.connect_args.keepalives_count).toBe(5)
       })
 
-      it('should include SSL mode and certificate path in connect arguments if CA is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should include SSL mode and certificate path in connect arguments if CA is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2132,8 +2133,8 @@ describe('Database integration env variables', () => {
         )
       })
 
-      it('should set sslmode to "require" if SSL is enabled but no CA is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should set sslmode to "require" if SSL is enabled but no CA is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2158,8 +2159,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.params.connect_args.sslmode).toBe('require')
       })
 
-      it('should set sslmode to "prefer" if SSL is not enabled and no CA is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should set sslmode to "prefer" if SSL is not enabled and no CA is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2183,8 +2184,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.params.connect_args.sslmode).toBe('prefer')
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'redshift',
@@ -2207,8 +2208,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput.url).toBe('redshift+psycopg2://my-user:my-password@my-host/my-database')
       })
 
-      it('should support legacy integrations without authMethod', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should support legacy integrations without authMethod', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               'id': 'my-redshift',
@@ -2240,9 +2241,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Spanner', () => {
-      it('should generate a SQL Alchemy env var with spanner URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Spanner', async () => {
+      it('should generate a SQL Alchemy env var with spanner URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'spanner',
@@ -2269,8 +2270,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should return an error if the service account is invalid', () => {
-        const { errors } = getEnvironmentVariablesForIntegrations(
+      it('should return an error if the service account is invalid', async () => {
+        const { errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'spanner',
@@ -2291,8 +2292,8 @@ describe('Database integration env variables', () => {
         expect(errors[0]).toBeInstanceOf(SpannerServiceAccountParseError)
       })
 
-      it('should return an error if the service account is missing project_id', () => {
-        const { errors } = getEnvironmentVariablesForIntegrations(
+      it('should return an error if the service account is missing project_id', async () => {
+        const { errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'spanner',
@@ -2314,9 +2315,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Snowflake', () => {
-      it('should generate a SQL Alchemy env var with snowflake URL for password auth', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('Snowflake', async () => {
+      it('should generate a SQL Alchemy env var with snowflake URL for password auth', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'snowflake',
@@ -2344,8 +2345,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with snowflake URL for password auth even when federated_auth_method is set to password', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with snowflake URL for password auth even when federated_auth_method is set to password', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'snowflake',
@@ -2374,8 +2375,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not generate a SQL Alchemy env var with snowflake URL for key pair auth', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not generate a SQL Alchemy env var with snowflake URL for key pair auth', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'snowflake',
@@ -2396,8 +2397,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput).toBeUndefined()
       })
 
-      it('should generate a SQL Alchemy env var with snowflake URL for service account key pair auth', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with snowflake URL for service account key pair auth', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'snowflake',
@@ -2429,8 +2430,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with snowflake URL for service account key pair auth without passphrase', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with snowflake URL for service account key pair auth without passphrase', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'snowflake',
@@ -2460,8 +2461,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with snowflake URL for service account key pair auth with role', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with snowflake URL for service account key pair auth with role', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'snowflake',
@@ -2492,8 +2493,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with snowflake URL for legacy integration', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with snowflake URL for legacy integration', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'snowflake',
@@ -2527,9 +2528,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('SQL Server', () => {
-      it('should generate a SQL Alchemy env var with mssql+pymssql URL', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('SQL Server', async () => {
+      it('should generate a SQL Alchemy env var with mssql+pymssql URL', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'sql-server',
@@ -2558,8 +2559,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should generate a SQL Alchemy env var with mssql+pymssql URL and SSH enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a SQL Alchemy env var with mssql+pymssql URL and SSH enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'sql-server',
@@ -2597,8 +2598,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not default the port in the URL if not provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not default the port in the URL if not provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'sql-server',
@@ -2622,11 +2623,11 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('Trino', () => {
+    describe('Trino', async () => {
       it.each([null, undefined, 'password'] satisfies (TrinoAuthMethod | null | undefined)[])(
         'should generate a SQL Alchemy env var with trino URL for %s authMethod (backward compatibility)',
-        authMethod => {
-          const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+        async authMethod => {
+          const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
             [
               {
                 type: 'trino',
@@ -2660,8 +2661,8 @@ describe('Database integration env variables', () => {
         }
       )
 
-      it('should set http_scheme to https if SSL is enabled', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should set http_scheme to https if SSL is enabled', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'trino',
@@ -2689,8 +2690,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should set verify to the CA certificate path if a CA certificate is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should set verify to the CA certificate path if a CA certificate is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'trino',
@@ -2719,9 +2720,81 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('MongoDB', () => {
-      it('should not generate a SQL Alchemy env var', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('buildTrinoOAuthSqlAlchemyInput', async () => {
+      it('should build connection params with Bearer token in http_headers', async () => {
+        const result = buildTrinoOAuthSqlAlchemyInput(
+          'my-trino-oauth',
+          {
+            authMethod: 'trino-oauth',
+            host: 'trino.example.com',
+            port: '443',
+            database: 'tpch',
+            clientId: 'client',
+            clientSecret: 'secret',
+            authUrl: 'https://idp.example.com/authorize',
+            tokenUrl: 'https://idp.example.com/token',
+          },
+          'my-access-token',
+          '/path/to/project'
+        )
+        expect(result).toEqual({
+          url: 'trino://trino.example.com:443/tpch',
+          params: {
+            connect_args: {
+              http_headers: {
+                Authorization: 'Bearer my-access-token',
+              },
+              http_scheme: 'https',
+              client_tags: ['deepnote/toolkit'],
+            },
+          },
+          param_style: 'qmark',
+        })
+      })
+
+      it('should use default port 8443 when port is omitted', async () => {
+        const result = buildTrinoOAuthSqlAlchemyInput(
+          'my-trino',
+          {
+            authMethod: 'trino-oauth',
+            host: 'trino.example.com',
+            database: 'tpch',
+            clientId: 'c',
+            clientSecret: 's',
+            authUrl: 'https://idp/authorize',
+            tokenUrl: 'https://idp/token',
+          },
+          'token',
+          '/project'
+        )
+        expect(result.url).toBe('trino://trino.example.com:8443/tpch')
+      })
+
+      it('should add verify path when caCertificateName is provided', async () => {
+        const result = buildTrinoOAuthSqlAlchemyInput(
+          'my-trino',
+          {
+            authMethod: 'trino-oauth',
+            host: 'trino.example.com',
+            database: 'tpch',
+            clientId: 'c',
+            clientSecret: 's',
+            authUrl: 'https://idp/authorize',
+            tokenUrl: 'https://idp/token',
+            caCertificateName: 'ca.pem',
+          },
+          'token',
+          '/path/to/project'
+        )
+        expect(result.params.connect_args).toMatchObject({
+          verify: '/path/to/project/.deepnote/my-trino/ca.pem',
+        })
+      })
+    })
+
+    describe('MongoDB', async () => {
+      it('should not generate a SQL Alchemy env var', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mongodb',
@@ -2740,8 +2813,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput).toBeUndefined()
       })
 
-      it('should generate a connection string env var', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate a connection string env var', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mongodb',
@@ -2762,8 +2835,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should add SSL options to the connection string if SSL is enabled and a CA certificate is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should add SSL options to the connection string if SSL is enabled and a CA certificate is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mongodb',
@@ -2788,8 +2861,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not add SSL options to the connection string if SSL is enabled but no CA is provided', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not add SSL options to the connection string if SSL is enabled but no CA is provided', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'mongodb',
@@ -2812,9 +2885,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('top-level federated auth method', () => {
-      it('should not generate a SQL Alchemy env var for an integration with top-level federated auth method', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('top-level federated auth method', async () => {
+      it('should not generate a SQL Alchemy env var for an integration with top-level federated auth method', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -2835,8 +2908,8 @@ describe('Database integration env variables', () => {
         expect(sqlAlchemyInput).toBeUndefined()
       })
 
-      it('should generate env vars for metadata for an integration with top-level federated auth method', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata for an integration with top-level federated auth method', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -2860,9 +2933,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('edge cases with integration names', () => {
-      it('should prefix metadata env vars with _ when the name starts with a number', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    describe('edge cases with integration names', async () => {
+      it('should prefix metadata env vars with _ when the name starts with a number', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -2884,8 +2957,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should replace non-alphanumeric characters with _ in metadata env vars', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should replace non-alphanumeric characters with _ in metadata env vars', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -2907,8 +2980,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not trim whitespace characters in metadata env vars', () => {
-        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+      it('should not trim whitespace characters in metadata env vars', async () => {
+        const { envVars, errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               type: 'big-query',
@@ -2931,9 +3004,9 @@ describe('Database integration env variables', () => {
       })
     })
 
-    describe('unknown integration type', () => {
-      it('should return an error', () => {
-        const { errors } = getEnvironmentVariablesForIntegrations(
+    describe('unknown integration type', async () => {
+      it('should return an error', async () => {
+        const { errors } = await getEnvironmentVariablesForIntegrations(
           [
             {
               // @ts-expect-error we are testing the unknown type
@@ -2950,8 +3023,8 @@ describe('Database integration env variables', () => {
         expect(errors[0].message).toBe('Unexpected value: [object Object]')
       })
 
-      it('should generate env vars for metadata', () => {
-        const { envVars } = getEnvironmentVariablesForIntegrations(
+      it('should generate env vars for metadata', async () => {
+        const { envVars } = await getEnvironmentVariablesForIntegrations(
           [
             {
               // @ts-expect-error we are testing the unknown type
@@ -2972,8 +3045,8 @@ describe('Database integration env variables', () => {
         })
       })
 
-      it('should not generate a SQL Alchemy env var', () => {
-        const { envVars } = getEnvironmentVariablesForIntegrations(
+      it('should not generate a SQL Alchemy env var', async () => {
+        const { envVars } = await getEnvironmentVariablesForIntegrations(
           [
             {
               // @ts-expect-error we are testing the unknown type

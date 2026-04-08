@@ -1,20 +1,24 @@
 import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
+import { getDefaultTokensFilePath, getValidFederatedAuthToken } from '../federated-auth/federated-auth-tokens'
 import { debug } from '../output'
 
 /**
  * Generate environment variables for the given integrations and inject them into process.env.
  * Returns the list of injected env var names (useful for testing/debugging).
  */
-export function injectIntegrationEnvVars(
+export async function injectIntegrationEnvVars(
   integrations: DatabaseIntegrationConfig[],
   workingDirectory: string
-): string[] {
+): Promise<string[]> {
   if (integrations.length === 0) {
     return []
   }
 
-  const { envVars, errors } = getEnvironmentVariablesForIntegrations(integrations, {
+  const tokensFilePath = getDefaultTokensFilePath()
+
+  const { envVars, errors } = await getEnvironmentVariablesForIntegrations(integrations, {
     projectRootDirectory: workingDirectory,
+    federatedAuthTokenResolver: integration => getValidFederatedAuthToken(integration, tokensFilePath),
   })
 
   // Log any errors from env var generation

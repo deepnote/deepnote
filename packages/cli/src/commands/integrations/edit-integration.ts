@@ -101,7 +101,7 @@ export async function promptSelectIntegration(summaries: IntegrationSummary[]): 
 /**
  * Find the YAML map node for an integration by its ID in the document's integrations sequence.
  */
-function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
+export function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
   const integrations = doc.get('integrations')
   if (!isSeq(integrations)) {
     return null
