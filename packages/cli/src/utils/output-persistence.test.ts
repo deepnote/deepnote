@@ -130,7 +130,11 @@ describe('output-persistence', () => {
       const result = getSnapshotPath(sourcePath, file)
 
       expect(result).toBe(
-        resolve('/path/to', 'snapshots', 'test-project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+        resolve(
+          '/path/to',
+          'snapshots',
+          'test-project_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
+        )
       )
     })
 
@@ -142,7 +146,11 @@ describe('output-persistence', () => {
       const result = getSnapshotPath(sourcePath, file)
 
       expect(result).toBe(
-        resolve('/path/to', 'snapshots', 'my-project-draft-1_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+        resolve(
+          '/path/to',
+          'snapshots',
+          'my-project-draft-1_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
+        )
       )
     })
 
@@ -154,7 +162,11 @@ describe('output-persistence', () => {
       const result = getSnapshotPath(sourcePath, file)
 
       expect(result).toBe(
-        resolve('/path/to', 'snapshots', 'project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
+        resolve(
+          '/path/to',
+          'snapshots',
+          'project_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
+        )
       )
     })
   })

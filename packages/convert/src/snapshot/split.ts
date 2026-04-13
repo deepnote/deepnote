@@ -30,7 +30,15 @@ export function slugifyProjectName(name: string): string {
  * @param timestamp - Timestamp string or 'latest'
  * @returns Filename in format '{slug}_{projectId}_{timestamp}.snapshot.deepnote'
  */
-export function generateSnapshotFilename(slug: string, projectId: string, timestamp: string = 'latest'): string {
+export function generateSnapshotFilename(
+  slug: string,
+  projectId: string,
+  notebookId?: string,
+  timestamp: string = 'latest'
+): string {
+  if (notebookId) {
+    return `${slug}_${projectId}_${notebookId}_${timestamp}.snapshot.deepnote`
+  }
   return `${slug}_${projectId}_${timestamp}.snapshot.deepnote`
 }
 
@@ -123,4 +131,72 @@ export function hasOutputs(file: DeepnoteFile): boolean {
     }
   }
   return false
+}
+
+/**
+ * Splits a multi-notebook DeepnoteFile into separate single-notebook files.
+ * Each result shares the same project metadata but contains only one notebook.
+ *
+ * @param file - The DeepnoteFile to split
+ * @returns Array of objects with notebook info and the single-notebook file
+ */
+export function splitByNotebooks(
+  file: DeepnoteFile
+): Array<{ notebook: { id: string; name: string }; file: DeepnoteFile }> {
+  if (file.project.notebooks.length === 0) {
+    return []
+  }
+  if (file.project.notebooks.length === 1) {
+    const nb = file.project.notebooks[0]
+    return [{ notebook: { id: nb.id, name: nb.name }, file }]
+  }
+  return file.project.notebooks.map(notebook => ({
+    notebook: { id: notebook.id, name: notebook.name },
+    file: {
+      ...file,
+      project: {
+        ...file.project,
+        notebooks: [notebook],
+      },
+    },
+  }))
+}
+
+/**
+ * Generates the output filename for a split notebook file.
+ *
+ * @param sourceFileStem - The original filename without extension (e.g., "foo")
+ * @param notebookName - The notebook name (e.g., "Dashboard")
+ * @returns Filename like "foo-dashboard.deepnote"
+ */
+export function generateSplitFilename(sourceFileStem: string, notebookName: string): string {
+  const notebookSlug = slugifyProjectName(notebookName)
+  return `${sourceFileStem}-${notebookSlug}.deepnote`
+}
+
+/**
+ * Splits a multi-notebook snapshot into separate per-notebook snapshots.
+ *
+ * @param snapshot - The snapshot to split
+ * @param notebookIds - The notebook IDs to extract
+ * @returns Map from notebookId to the per-notebook snapshot
+ */
+export function splitSnapshotByNotebooks(
+  snapshot: DeepnoteSnapshot,
+  notebookIds: string[]
+): Map<string, DeepnoteSnapshot> {
+  const result = new Map<string, DeepnoteSnapshot>()
+  for (const nbId of notebookIds) {
+    const notebook = snapshot.project.notebooks.find(nb => nb.id === nbId)
+    if (notebook) {
+      result.set(nbId, {
+        ...snapshot,
+        project: {
+          ...snapshot.project,
+          notebooks: [notebook],
+        },
+      })
+    }
+  }
+  return result
 }

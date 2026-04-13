@@ -1,6 +1,14 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import { generateSnapshotFilename, hasOutputs, slugifyProjectName, splitDeepnoteFile } from './split'
+import {
+  generateSnapshotFilename,
+  generateSplitFilename,
+  hasOutputs,
+  slugifyProjectName,
+  splitByNotebooks,
+  splitDeepnoteFile,
+  splitSnapshotByNotebooks,
+} from './split'
 
 describe('slugifyProjectName', () => {
   it('should convert to lowercase', () => {
@@ -56,6 +64,7 @@ describe('generateSnapshotFilename', () => {
     const filename = generateSnapshotFilename(
       'my-project',
       '2e814690-4f02-465c-8848-5567ab9253b7',
+      undefined,
       '2025-01-08T10-30-00'
     )
     expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7_2025-01-08T10-30-00.snapshot.deepnote')
@@ -426,5 +435,133 @@ describe('hasOutputs', () => {
     } as unknown as DeepnoteFile
 
     expect(hasOutputs(file)).toBe(true)
+  })
+})
+
+describe('generateSnapshotFilename with notebookId', () => {
+  it('should include notebookId in filename', () => {
+    const filename = generateSnapshotFilename(
+      'my-project',
+      '2e814690-4f02-465c-8848-5567ab9253b7',
+      'd8fd4cfe9ce04908a4ed611000d231e4'
+    )
+    expect(filename).toBe(
+      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_d8fd4cfe9ce04908a4ed611000d231e4_latest.snapshot.deepnote'
+    )
+  })
+
+  it('should include notebookId and custom timestamp', () => {
+    const filename = generateSnapshotFilename(
+      'my-project',
+      '2e814690-4f02-465c-8848-5567ab9253b7',
+      'd8fd4cfe9ce04908a4ed611000d231e4',
+      '2025-01-08T10-30-00'
+    )
+    expect(filename).toBe(
+      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_d8fd4cfe9ce04908a4ed611000d231e4_2025-01-08T10-30-00.snapshot.deepnote'
+    )
+  })
+})
+
+describe('splitByNotebooks', () => {
+  it('should return single entry for single-notebook file', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        notebooks: [
+          {
+            id: 'nb-1',
+            name: 'Notebook 1',
+            blocks: [{ id: 'b1', type: 'code', blockGroup: 'bg1', sortingKey: '0000', content: 'x=1', metadata: {} }],
+          },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file)
+    expect(result).toHaveLength(1)
+    expect(result[0].notebook.id).toBe('nb-1')
+  })
+
+  it('should split 2-notebook file into 2 entries with shared metadata', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        settings: { requirements: ['pandas'] },
+        integrations: [{ id: 'int-1', name: 'DB', type: 'pgsql' }],
+        notebooks: [
+          { id: 'nb-1', name: 'Dashboard', blocks: [] },
+          { id: 'nb-2', name: 'Data', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file)
+    expect(result).toHaveLength(2)
+    expect(result[0].notebook.id).toBe('nb-1')
+    expect(result[1].notebook.id).toBe('nb-2')
+    for (const entry of result) {
+      expect(entry.file.project.id).toBe('proj-1')
+      expect(entry.file.project.notebooks).toHaveLength(1)
+    }
+  })
+
+  it('should return empty array for no notebooks', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: { id: 'proj-1', name: 'Test', notebooks: [] },
+    }
+    expect(splitByNotebooks(file)).toHaveLength(0)
+  })
+})
+
+describe('generateSplitFilename', () => {
+  it('should create filename from stem and notebook name', () => {
+    expect(generateSplitFilename('foo', 'Dashboard')).toBe('foo-dashboard.deepnote')
+  })
+
+  it('should handle multi-word names', () => {
+    expect(generateSplitFilename('my-project', 'Data Analysis')).toBe('my-project-data-analysis.deepnote')
+  })
+})
+
+describe('splitSnapshotByNotebooks', () => {
+  it('should partition snapshot by notebook', () => {
+    const snapshot = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
+      environment: { hash: 'env-1' },
+      execution: { startedAt: '2025-01-01T00:00:00Z', finishedAt: '2025-01-01T00:01:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        notebooks: [
+          { id: 'nb-1', name: 'NB1', blocks: [] },
+          { id: 'nb-2', name: 'NB2', blocks: [] },
+        ],
+      },
+    } as any
+    const result = splitSnapshotByNotebooks(snapshot, ['nb-1', 'nb-2'])
+    expect(result.size).toBe(2)
+    expect(result.get('nb-1')!.project.notebooks).toHaveLength(1)
+    expect(result.get('nb-1')!.project.notebooks[0].id).toBe('nb-1')
+  })
+
+  it('should skip non-existent notebook IDs', () => {
+    const snapshot = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
+      environment: {},
+      execution: {},
+      project: { id: 'proj-1', name: 'Test', notebooks: [{ id: 'nb-1', name: 'NB1', blocks: [] }] },
+    } as any
+    const result = splitSnapshotByNotebooks(snapshot, ['nb-1', 'missing'])
+    expect(result.size).toBe(1)
+    expect(result.has('missing')).toBe(false)
   })
 })

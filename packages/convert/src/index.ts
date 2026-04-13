@@ -96,6 +96,7 @@ export {
   countBlocksWithOutputs,
   findSnapshotsForProject,
   generateSnapshotFilename,
+  generateSplitFilename,
   getSnapshotDir,
   hasOutputs,
   loadLatestSnapshot,
@@ -105,7 +106,9 @@ export {
   parseSourceFilePath,
   slugifyProjectName,
   snapshotExists,
+  splitByNotebooks,
   splitDeepnoteFile,
+  splitSnapshotByNotebooks,
 } from './snapshot'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'
 export type { MarimoApp, MarimoCell } from './types/marimo'

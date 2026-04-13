@@ -57,6 +57,25 @@ describe('parseSnapshotFilename', () => {
   it('should return null for non-snapshot files', () => {
     expect(parseSnapshotFilename('my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.deepnote')).toBeNull()
   })
+
+  it('should parse new-format filename with notebookId', () => {
+    const result = parseSnapshotFilename(
+      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_d8fd4cfe9ce04908a4ed611000d231e4_latest.snapshot.deepnote'
+    )
+    expect(result).toEqual({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      notebookId: 'd8fd4cfe9ce04908a4ed611000d231e4',
+      timestamp: 'latest',
+    })
+  })
+
+  it('should return undefined notebookId for old-format filename', () => {
+    const result = parseSnapshotFilename(
+      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote'
+    )
+    expect(result?.notebookId).toBeUndefined()
+  })
 })
 
 describe('getSnapshotDir', () => {
@@ -153,6 +172,35 @@ describe('findSnapshotsForProject', () => {
     vi.mocked(fs.readdir).mockRejectedValue(new Error('Permission denied'))
 
     await expect(findSnapshotsForProject('/path/to', 'test-id')).rejects.toThrow('Permission denied')
+  })
+
+  it('should filter by notebookId when provided', async () => {
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const nbId1 = 'd8fd4cfe9ce04908a4ed611000d231e4'
+    const nbId2 = 'e9fd5cfe0ce05908b5ed711000e341f5'
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: `my-project_${projectId}_latest.snapshot.deepnote`, isFile: () => true },
+      { name: `my-project_${projectId}_${nbId1}_latest.snapshot.deepnote`, isFile: () => true },
+      { name: `my-project_${projectId}_${nbId2}_latest.snapshot.deepnote`, isFile: () => true },
+    ] as unknown as Awaited<ReturnType<typeof fs.readdir>>)
+
+    const result = await findSnapshotsForProject('/path/to', projectId, { notebookId: nbId1 })
+    expect(result).toHaveLength(2)
+    const ids = result.map(s => s.notebookId)
+    expect(ids).toContain(nbId1)
+    expect(ids).toContain(undefined)
+  })
+
+  it('should return all snapshots when notebookId not provided', async () => {
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const nbId1 = 'd8fd4cfe9ce04908a4ed611000d231e4'
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: `my-project_${projectId}_latest.snapshot.deepnote`, isFile: () => true },
+      { name: `my-project_${projectId}_${nbId1}_latest.snapshot.deepnote`, isFile: () => true },
+    ] as unknown as Awaited<ReturnType<typeof fs.readdir>>)
+
+    const result = await findSnapshotsForProject('/path/to', projectId)
+    expect(result).toHaveLength(2)
   })
 })
 

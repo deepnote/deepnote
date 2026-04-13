@@ -8,7 +8,11 @@ import type { SnapshotInfo, SnapshotOptions } from './types'
 /** Default directory name for snapshots */
 const DEFAULT_SNAPSHOT_DIR = 'snapshots'
 
-/** Regex pattern for snapshot filenames */
+/** Regex pattern for snapshot filenames (new format with notebookId) */
+const SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK =
+  /^(.+)_([0-9a-f-]{36})_([0-9a-f]{32}|[0-9a-f-]{36})_(latest|[\dT:-]+)\.snapshot\.deepnote$/
+
+/** Regex pattern for snapshot filenames (legacy format without notebookId) */
 const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snapshot\.deepnote$/
 
 /**
@@ -17,7 +21,20 @@ const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snap
  * @param filename - The snapshot filename to parse
  * @returns Parsed components or null if filename doesn't match pattern
  */
-export function parseSnapshotFilename(filename: string): { slug: string; projectId: string; timestamp: string } | null {
+export function parseSnapshotFilename(
+  filename: string
+): { slug: string; projectId: string; notebookId?: string; timestamp: string } | null {
+  // Try new pattern first (with notebookId)
+  const matchNew = SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK.exec(filename)
+  if (matchNew) {
+    return {
+      slug: matchNew[1],
+      projectId: matchNew[2],
+      notebookId: matchNew[3],
+      timestamp: matchNew[4],
+    }
+  }
+  // Fall back to old pattern (without notebookId)
   const match = SNAPSHOT_FILENAME_PATTERN.exec(filename)
   if (!match) {
     return null
@@ -56,10 +73,17 @@ export async function findSnapshotsForProject(
 
       const parsed = parseSnapshotFilename(entry.name)
       if (parsed && parsed.projectId === projectId) {
+        // When notebookId filter is set:
+        // - skip new-format snapshots that don't match the notebook
+        // - accept old-format snapshots (no notebookId) as fallback
+        if (options.notebookId && parsed.notebookId && parsed.notebookId !== options.notebookId) {
+          continue
+        }
         snapshots.push({
           path: join(snapshotsPath, entry.name),
           slug: parsed.slug,
           projectId: parsed.projectId,
+          notebookId: parsed.notebookId,
           timestamp: parsed.timestamp,
         })
       }

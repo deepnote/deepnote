@@ -55,7 +55,8 @@ export async function writeDeepnoteFile(options: WriteDeepnoteFileOptions): Prom
   // Prepare snapshot path
   const snapshotDir = getSnapshotDir(outputPath)
   const slug = slugifyProjectName(projectName) || 'project'
-  const snapshotFilename = generateSnapshotFilename(slug, file.project.id)
+  const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
+  const snapshotFilename = generateSnapshotFilename(slug, file.project.id, notebookId)
   const snapshotPath = resolve(snapshotDir, snapshotFilename)
 
   // Serialize both files

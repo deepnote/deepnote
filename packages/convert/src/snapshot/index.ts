@@ -26,7 +26,15 @@ export {
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
 // Split utilities
-export { generateSnapshotFilename, hasOutputs, slugifyProjectName, splitDeepnoteFile } from './split'
+export {
+  generateSnapshotFilename,
+  generateSplitFilename,
+  hasOutputs,
+  slugifyProjectName,
+  splitByNotebooks,
+  splitDeepnoteFile,
+  splitSnapshotByNotebooks,
+} from './split'
 export type {
   BlockOutput,
   BlockWithOutputs,

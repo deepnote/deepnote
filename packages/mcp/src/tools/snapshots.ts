@@ -224,7 +224,8 @@ async function handleSnapshotList(args: Record<string, unknown>) {
     const file = deserializeDeepnoteFile(content)
     const projectId = file.project.id
 
-    const snapshotOptions = snapshotDir ? { snapshotDir } : {}
+    const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
+    const snapshotOptions = { ...(snapshotDir ? { snapshotDir } : {}), ...(notebookId ? { notebookId } : {}) }
     const snapshots = await findSnapshotsForProject(projectDir, projectId, snapshotOptions)
     const resolvedSnapshotDir = snapshotDir ? snapshotDir : path.join(projectDir, 'snapshots')
 
@@ -314,7 +315,8 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
     const content = await fs.readFile(absolutePath, 'utf-8')
     const file = deserializeDeepnoteFile(content)
     const projectId = file.project.id
-    const snapshotOptions = snapshotDir ? { snapshotDir } : {}
+    const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
+    const snapshotOptions = { ...(snapshotDir ? { snapshotDir } : {}), ...(notebookId ? { notebookId } : {}) }
     const snapshot = await loadLatestSnapshot(absolutePath, projectId, snapshotOptions)
 
     if (!snapshot) {
@@ -485,7 +487,8 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
       const absoluteSnapshotPath = path.resolve(snapshotPath)
       snapshot = await loadSnapshotFile(absoluteSnapshotPath)
     } else {
-      snapshot = await loadLatestSnapshot(absoluteSourcePath, source.project.id)
+      const nbId = source.project.notebooks.length === 1 ? source.project.notebooks[0].id : undefined
+      snapshot = await loadLatestSnapshot(absoluteSourcePath, source.project.id, nbId ? { notebookId: nbId } : {})
 
       if (!snapshot) {
         return {

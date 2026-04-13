@@ -363,7 +363,8 @@ async function convertDeepnoteToFormat(
     let deepnoteFile = deserializeDeepnoteFile(sourceContent)
 
     // Try to load and merge snapshot
-    const snapshot = await loadLatestSnapshot(absolutePath, deepnoteFile.project.id)
+    const nbId = deepnoteFile.project.notebooks.length === 1 ? deepnoteFile.project.notebooks[0].id : undefined
+    const snapshot = await loadLatestSnapshot(absolutePath, deepnoteFile.project.id, nbId ? { notebookId: nbId } : {})
     if (snapshot) {
       deepnoteFile = mergeSnapshotIntoSource(deepnoteFile, snapshot, { skipMismatched: true })
     }
