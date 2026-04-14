@@ -114,6 +114,7 @@ snapshots/
 ```
 
 **Naming:**
+
 - Single-notebook files: `{slug}_{projectId}_{notebookId}_{timestamp}.snapshot.deepnote`
 - Legacy/multi-notebook files: `{slug}_{projectId}_{timestamp}.snapshot.deepnote`
 
@@ -270,20 +271,20 @@ deepnote run project.deepnote -o json                  # JSON output
 
 ## CLI Quick Reference
 
-| Command                               | Description                                                |
-| ------------------------------------- | ---------------------------------------------------------- |
-| `deepnote run [path]`                 | Execute notebooks (.deepnote, .ipynb, .py, .qmd)           |
-| `deepnote convert <path>`             | Convert between formats (Jupyter, Quarto, Percent, Marimo) |
-| `deepnote inspect [path]`             | Display file metadata                                      |
-| `deepnote cat <path>`                 | Display block contents                                     |
-| `deepnote diff <a> <b>`               | Compare two files                                          |
-| `deepnote validate <path>`            | Schema validation                                          |
-| `deepnote lint <path>`                | Check for issues (variables, integrations, inputs)         |
-| `deepnote stats <path>`               | Project statistics                                         |
-| `deepnote analyze <path>`             | Comprehensive analysis with quality score                  |
-| `deepnote dag show\|vars\|downstream` | Dependency analysis                                        |
+| Command                               | Description                                                   |
+| ------------------------------------- | ------------------------------------------------------------- |
+| `deepnote run [path]`                 | Execute notebooks (.deepnote, .ipynb, .py, .qmd)              |
+| `deepnote convert <path>`             | Convert between formats (Jupyter, Quarto, Percent, Marimo)    |
+| `deepnote inspect [path]`             | Display file metadata                                         |
+| `deepnote cat <path>`                 | Display block contents                                        |
+| `deepnote diff <a> <b>`               | Compare two files                                             |
+| `deepnote validate <path>`            | Schema validation                                             |
+| `deepnote lint <path>`                | Check for issues (variables, integrations, inputs)            |
+| `deepnote stats <path>`               | Project statistics                                            |
+| `deepnote analyze <path>`             | Comprehensive analysis with quality score                     |
+| `deepnote dag show\|vars\|downstream` | Dependency analysis                                           |
 | `deepnote split <path>`               | Split multi-notebook file into separate single-notebook files |
-| `deepnote open <path>`                | Open in Deepnote Cloud                                     |
+| `deepnote open <path>`                | Open in Deepnote Cloud                                        |
 
 ### CLI Command References
 
