@@ -200,6 +200,44 @@ describe('findSnapshotsForProject', () => {
     const result = await findSnapshotsForProject('/path/to', projectId)
     expect(result).toHaveLength(2)
   })
+
+  it('should rank notebookId-matching snapshots above legacy snapshots regardless of readdir order', async () => {
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const nbId1 = 'd8fd4cfe9ce04908a4ed611000d231e4'
+    const legacyName = `my-project_${projectId}_latest.snapshot.deepnote`
+    const newFormatName = `my-project_${projectId}_${nbId1}_latest.snapshot.deepnote`
+
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: legacyName, isFile: () => true },
+      { name: newFormatName, isFile: () => true },
+    ] as unknown as Awaited<ReturnType<typeof fs.readdir>>)
+
+    const legacyFirst = await findSnapshotsForProject('/path/to', projectId, { notebookId: nbId1 })
+
+    expect(legacyFirst).toHaveLength(2)
+    expect(legacyFirst[0].notebookId).toBe(nbId1)
+
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: newFormatName, isFile: () => true },
+      { name: legacyName, isFile: () => true },
+    ] as unknown as Awaited<ReturnType<typeof fs.readdir>>)
+
+    const newFormatFirst = await findSnapshotsForProject('/path/to', projectId, { notebookId: nbId1 })
+
+    expect(newFormatFirst).toEqual(legacyFirst)
+  })
+
+  it('should fall back to legacy snapshot when no notebookId match exists', async () => {
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: `my-project_${projectId}_latest.snapshot.deepnote`, isFile: () => true },
+    ] as unknown as Awaited<ReturnType<typeof fs.readdir>>)
+
+    const result = await findSnapshotsForProject('/path/to', projectId, { notebookId: 'nb-xyz' })
+
+    expect(result).toHaveLength(1)
+    expect(result[0].notebookId).toBeUndefined()
+  })
 })
 
 describe('loadSnapshotFile', () => {

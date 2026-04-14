@@ -89,14 +89,25 @@ export async function findSnapshotsForProject(
       }
     }
 
-    // Sort: 'latest' first, then by timestamp descending
+    const filterNotebookId = options.notebookId
+
+    // Sort: when filtering by notebook, matching snapshots before legacy fallbacks;
+    // then 'latest' first; then by timestamp descending (stable tie-break for equal timestamps)
     snapshots.sort((a, b) => {
-      if (a.timestamp === 'latest') {
-        return -1
+      if (filterNotebookId) {
+        const aMatches = a.notebookId === filterNotebookId
+        const bMatches = b.notebookId === filterNotebookId
+        if (aMatches !== bMatches) {
+          return aMatches ? -1 : 1
+        }
       }
-      if (b.timestamp === 'latest') {
-        return 1
+
+      const aLatest = a.timestamp === 'latest'
+      const bLatest = b.timestamp === 'latest'
+      if (aLatest !== bLatest) {
+        return aLatest ? -1 : 1
       }
+
       return b.timestamp.localeCompare(a.timestamp)
     })
 
