@@ -267,10 +267,10 @@ async function saveExecutionSnapshot(
   const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
 
   const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const timestampedFilename = generateSnapshotFilename(slug, file.project.id, notebookId, timestamp)
+  const timestampedFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
   const timestampedSnapshotPath = path.resolve(snapshotDir, timestampedFilename)
 
-  const latestFilename = generateSnapshotFilename(slug, file.project.id, notebookId)
+  const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
   const snapshotPath = path.resolve(snapshotDir, latestFilename)
 
   // Create snapshot directory

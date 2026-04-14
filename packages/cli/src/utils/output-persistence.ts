@@ -107,10 +107,10 @@ export async function saveExecutionSnapshot(
   const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
 
   const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const timestampedFilename = generateSnapshotFilename(slug, file.project.id, notebookId, timestamp)
+  const timestampedFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
   const timestampedSnapshotPath = resolve(snapshotDir, timestampedFilename)
 
-  const latestFilename = generateSnapshotFilename(slug, file.project.id, notebookId)
+  const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
   const snapshotPath = resolve(snapshotDir, latestFilename)
 
   // Create snapshot directory if it doesn't exist
@@ -138,6 +138,6 @@ export function getSnapshotPath(sourcePath: string, file: DeepnoteFile): string 
   const snapshotDir = getSnapshotDir(sourcePath)
   const slug = slugifyProjectName(file.project.name) || 'project'
   const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
-  const snapshotFilename = generateSnapshotFilename(slug, file.project.id, notebookId)
+  const snapshotFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
   return resolve(snapshotDir, snapshotFilename)
 }

@@ -152,7 +152,7 @@ describe('Snapshot Integration', () => {
     await fs.mkdir(snapshotsDir, { recursive: true })
 
     const slug = slugifyProjectName(file.project.name)
-    const snapshotFilename = generateSnapshotFilename(slug, file.project.id)
+    const snapshotFilename = generateSnapshotFilename({ slug, projectId: file.project.id })
     const snapshotPath = join(snapshotsDir, snapshotFilename)
     await fs.writeFile(snapshotPath, serializeDeepnoteSnapshot(snapshot), 'utf-8')
 
@@ -182,7 +182,10 @@ describe('Snapshot Integration', () => {
     expect(slugifyProjectName('My Project 2.0')).toBe('my-project-2-0')
     expect(slugifyProjectName('---test---')).toBe('test')
 
-    const filename = generateSnapshotFilename('my-project', '2e814690-4f02-465c-8848-5567ab9253b7')
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+    })
     expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote')
 
     const parsed = parseSnapshotFilename(filename)

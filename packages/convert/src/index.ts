@@ -83,6 +83,7 @@ export {
 // Snapshot utilities
 export type {
   BlockOutput,
+  GenerateSnapshotFilenameParams,
   MergeOptions,
   NotebookSplitEntry,
   SnapshotHashInput,

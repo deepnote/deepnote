@@ -84,7 +84,12 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
               if (!nbSnapshot) continue
 
               const slug = slugifyProjectName(file.project.name) || 'project'
-              const snapshotFilename = generateSnapshotFilename(slug, file.project.id, notebook.id, snapInfo.timestamp)
+              const snapshotFilename = generateSnapshotFilename({
+                slug,
+                projectId: file.project.id,
+                notebookId: notebook.id,
+                timestamp: snapInfo.timestamp,
+              })
               const snapshotPath = join(snapshotDir, snapshotFilename)
               await fs.writeFile(snapshotPath, serializeDeepnoteSnapshot(nbSnapshot), 'utf-8')
             }

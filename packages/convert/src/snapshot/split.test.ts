@@ -1,4 +1,4 @@
-import type { DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import {
   generateSnapshotFilename,
@@ -55,18 +55,24 @@ describe('slugifyProjectName', () => {
 })
 
 describe('generateSnapshotFilename', () => {
+  it('should default to old format when only slug and projectId are set', () => {
+    expect(generateSnapshotFilename({ slug: 's', projectId: 'p' })).toBe('s_p_latest.snapshot.deepnote')
+  })
+
   it('should generate filename with latest timestamp by default', () => {
-    const filename = generateSnapshotFilename('my-project', '2e814690-4f02-465c-8848-5567ab9253b7')
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+    })
     expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote')
   })
 
   it('should generate filename with custom timestamp', () => {
-    const filename = generateSnapshotFilename(
-      'my-project',
-      '2e814690-4f02-465c-8848-5567ab9253b7',
-      undefined,
-      '2025-01-08T10-30-00'
-    )
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      timestamp: '2025-01-08T10-30-00',
+    })
     expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7_2025-01-08T10-30-00.snapshot.deepnote')
   })
 })
@@ -440,23 +446,23 @@ describe('hasOutputs', () => {
 
 describe('generateSnapshotFilename with notebookId', () => {
   it('should include notebookId in filename', () => {
-    const filename = generateSnapshotFilename(
-      'my-project',
-      '2e814690-4f02-465c-8848-5567ab9253b7',
-      'd8fd4cfe9ce04908a4ed611000d231e4'
-    )
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      notebookId: 'd8fd4cfe9ce04908a4ed611000d231e4',
+    })
     expect(filename).toBe(
       'my-project_2e814690-4f02-465c-8848-5567ab9253b7_d8fd4cfe9ce04908a4ed611000d231e4_latest.snapshot.deepnote'
     )
   })
 
   it('should include notebookId and custom timestamp', () => {
-    const filename = generateSnapshotFilename(
-      'my-project',
-      '2e814690-4f02-465c-8848-5567ab9253b7',
-      'd8fd4cfe9ce04908a4ed611000d231e4',
-      '2025-01-08T10-30-00'
-    )
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      notebookId: 'd8fd4cfe9ce04908a4ed611000d231e4',
+      timestamp: '2025-01-08T10-30-00',
+    })
     expect(filename).toBe(
       'my-project_2e814690-4f02-465c-8848-5567ab9253b7_d8fd4cfe9ce04908a4ed611000d231e4_2025-01-08T10-30-00.snapshot.deepnote'
     )
@@ -569,7 +575,7 @@ describe('generateSplitFilename', () => {
 
 describe('splitSnapshotByNotebooks', () => {
   it('should partition snapshot by notebook', () => {
-    const snapshot = {
+    const snapshot: DeepnoteSnapshot = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
       environment: { hash: 'env-1' },
@@ -582,21 +588,23 @@ describe('splitSnapshotByNotebooks', () => {
           { id: 'nb-2', name: 'NB2', blocks: [] },
         ],
       },
-    } as any
+    }
     const result = splitSnapshotByNotebooks(snapshot, ['nb-1', 'nb-2'])
     expect(result.size).toBe(2)
-    expect(result.get('nb-1')!.project.notebooks).toHaveLength(1)
-    expect(result.get('nb-1')!.project.notebooks[0].id).toBe('nb-1')
+    const nb1 = result.get('nb-1')
+    expect(nb1).toBeDefined()
+    expect(nb1?.project.notebooks).toHaveLength(1)
+    expect(nb1?.project.notebooks[0]?.id).toBe('nb-1')
   })
 
   it('should skip non-existent notebook IDs', () => {
-    const snapshot = {
+    const snapshot: DeepnoteSnapshot = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
       environment: {},
       execution: {},
       project: { id: 'proj-1', name: 'Test', notebooks: [{ id: 'nb-1', name: 'NB1', blocks: [] }] },
-    } as any
+    }
     const result = splitSnapshotByNotebooks(snapshot, ['nb-1', 'missing'])
     expect(result.size).toBe(1)
     expect(result.has('missing')).toBe(false)

@@ -26,6 +26,7 @@ export {
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
 // Split utilities
+export type { GenerateSnapshotFilenameParams } from './split'
 export {
   generateSnapshotFilename,
   generateSplitFilename,
