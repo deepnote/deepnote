@@ -1,4 +1,4 @@
-import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import {
   generateSnapshotFilename,
@@ -126,7 +126,7 @@ describe('splitDeepnoteFile', () => {
   })
 
   it('should handle file with undefined metadata', () => {
-    const file = {
+    const file: Omit<DeepnoteFile, 'metadata'> & { metadata: undefined } = {
       version: '1.0.0',
       metadata: undefined,
       project: {
@@ -149,9 +149,12 @@ describe('splitDeepnoteFile', () => {
           },
         ],
       },
-    } as unknown as DeepnoteFile
+    }
 
-    expect(() => splitDeepnoteFile(file)).not.toThrow()
+    // biome-ignore lint/suspicious/noExplicitAny: testing with undefined metadata
+    const corruptedFile: any = file
+
+    expect(() => splitDeepnoteFile(corruptedFile)).not.toThrow()
   })
 
   it('should remove outputs from source', () => {
@@ -342,8 +345,7 @@ describe('hasOutputs', () => {
   // Issue 4: Test that hasOutputs ignores non-executable blocks
   it('should return false if only non-executable blocks have outputs', () => {
     // Testing runtime behavior where markdown blocks may have stray outputs
-    // Cast to unknown first since markdown blocks shouldn't have outputs in the type
-    const file = {
+    const file: DeepnoteFile = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z' },
       project: {
@@ -355,19 +357,22 @@ describe('hasOutputs', () => {
             name: 'Notebook',
             blocks: [
               {
-                id: 'block-1',
-                type: 'markdown', // Non-executable
-                blockGroup: 'bg-1',
-                sortingKey: '0000',
-                content: '# Hello',
-                outputs: [{ output_type: 'stream', name: 'stdout', text: ['stray'] }],
-                metadata: {},
+                ...({
+                  id: 'block-1',
+                  type: 'markdown', // Non-executable
+                  blockGroup: 'bg-1',
+                  sortingKey: '0000',
+                  content: '# Hello',
+
+                  metadata: {},
+                } satisfies DeepnoteBlock),
+                ...{ outputs: [{ output_type: 'stream', name: 'stdout', text: ['stray'] }] },
               },
             ],
           },
         ],
       },
-    } as unknown as DeepnoteFile
+    }
 
     expect(hasOutputs(file)).toBe(false)
   })
@@ -404,8 +409,7 @@ describe('hasOutputs', () => {
 
   it('should return true when mixed blocks and only executable has outputs', () => {
     // Testing runtime behavior where markdown blocks may have stray outputs
-    // Cast to unknown first since markdown blocks shouldn't have outputs in the type
-    const file = {
+    const file: DeepnoteFile = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z' },
       project: {
@@ -417,13 +421,15 @@ describe('hasOutputs', () => {
             name: 'Notebook',
             blocks: [
               {
-                id: 'block-1',
-                type: 'markdown', // Non-executable with stray outputs
-                blockGroup: 'bg-1',
-                sortingKey: '0000',
-                content: '# Title',
-                outputs: [{ output_type: 'stream', name: 'stdout', text: ['stray'] }],
-                metadata: {},
+                ...({
+                  id: 'block-1',
+                  type: 'markdown', // Non-executable with stray outputs
+                  blockGroup: 'bg-1',
+                  sortingKey: '0000',
+                  content: '# Title',
+                  metadata: {},
+                } satisfies DeepnoteBlock),
+                ...{ outputs: [{ output_type: 'stream', name: 'stdout', text: ['stray'] }] },
               },
               {
                 id: 'block-2',
@@ -438,7 +444,7 @@ describe('hasOutputs', () => {
           },
         ],
       },
-    } as unknown as DeepnoteFile
+    }
 
     expect(hasOutputs(file)).toBe(true)
   })
