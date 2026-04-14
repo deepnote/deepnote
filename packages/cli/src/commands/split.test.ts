@@ -199,4 +199,30 @@ describe('split command', () => {
     const files = (await fs.readdir(tempDir)).filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote').sort()
     expect(files).toEqual(['project-dashboard-2.deepnote', 'project-dashboard.deepnote'])
   })
+
+  it('should print a warning when a snapshot fails to split but still write the notebook files', async () => {
+    // Arrange
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const file = createMultiNotebookFile(['Dashboard', 'Data'])
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+
+    const snapshotsDir = path.join(tempDir, 'snapshots')
+    await fs.mkdir(snapshotsDir, { recursive: true })
+    const corruptSnapshotName = `my-project_${projectId}_latest.snapshot.deepnote`
+    await fs.writeFile(path.join(snapshotsDir, corruptSnapshotName), 'not: valid: yaml: [', 'utf-8')
+
+    // Act
+    const action = createSplitAction(program)
+    await action(inputPath, {})
+
+    // Assert
+    const splitNames = ['project-dashboard.deepnote', 'project-data.deepnote']
+    for (const name of splitNames) {
+      await expect(fs.access(path.join(tempDir, name))).resolves.toBeUndefined()
+    }
+
+    const logged = consoleSpy.mock.calls.map(args => args.join(' ')).join('\n')
+    expect(logged.includes('Warning') || logged.includes('could not be split')).toBe(true)
+  })
 })

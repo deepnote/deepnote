@@ -73,6 +73,7 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
       if (existingSnapshots.length > 0) {
         const snapshotDir = join(outputDir, 'snapshots')
         await fs.mkdir(snapshotDir, { recursive: true })
+        const snapshotFailures: { path: string; message: string }[] = []
 
         for (const snapInfo of existingSnapshots) {
           try {
@@ -94,9 +95,19 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
               await fs.writeFile(snapshotPath, serializeDeepnoteSnapshot(nbSnapshot), 'utf-8')
             }
           } catch (err) {
-            debug(`Failed to split snapshot ${snapInfo.path}: ${err instanceof Error ? err.message : String(err)}`)
+            const message = err instanceof Error ? err.message : String(err)
+            snapshotFailures.push({ path: snapInfo.path, message })
           }
         }
+
+        if (snapshotFailures.length > 0) {
+          output(`\n  ${c.yellow('Warning: one or more snapshots could not be split:')}`)
+          for (const failure of snapshotFailures) {
+            output(`  ${c.yellow('•')} ${failure.path}`)
+            output(`    ${c.dim(failure.message)}`)
+          }
+        }
+
         output(`\n  ${c.dim(`Split ${existingSnapshots.length} snapshot(s) into ${snapshotDir}`)}`)
       }
 
