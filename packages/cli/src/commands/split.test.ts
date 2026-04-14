@@ -125,6 +125,39 @@ describe('split command', () => {
     expect(deepnoteFiles).toHaveLength(3)
   })
 
+  it('should produce one split file per non-init notebook and skip the init notebook', async () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: '2e814690-4f02-465c-8848-5567ab9253b7',
+        name: 'Test Project',
+        initNotebookId: 'nb-init',
+        notebooks: [
+          { id: 'nb-init', name: 'Init', blocks: [] },
+          { id: 'nb-a', name: 'Alpha', blocks: [] },
+          { id: 'nb-b', name: 'Beta', blocks: [] },
+        ],
+      },
+    }
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+
+    const action = createSplitAction(program)
+    await action(inputPath, {})
+
+    const files = await fs.readdir(tempDir)
+    const deepnoteFiles = files.filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote')
+    expect(deepnoteFiles).toHaveLength(2)
+    for (const name of deepnoteFiles) {
+      const stem = path.basename(name, '.deepnote')
+      expect(stem.includes('init')).toBe(false)
+      const parsed = deserializeDeepnoteFile(await fs.readFile(path.join(tempDir, name), 'utf-8'))
+      expect(parsed.project.notebooks).toHaveLength(2)
+      expect(parsed.project.notebooks[0]?.id).toBe('nb-init')
+    }
+  })
+
   it('should fail if output files exist without --force', async () => {
     const file = createMultiNotebookFile(['Dashboard', 'Data'])
     const inputPath = path.join(tempDir, 'project.deepnote')

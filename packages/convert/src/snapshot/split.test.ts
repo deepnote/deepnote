@@ -2,7 +2,6 @@ import type { DeepnoteBlock, DeepnoteFile, DeepnoteSnapshot } from '@deepnote/bl
 import { describe, expect, it } from 'vitest'
 import {
   generateSnapshotFilename,
-  generateSplitFilename,
   hasOutputs,
   slugifyProjectName,
   splitByNotebooks,
@@ -567,15 +566,104 @@ describe('splitByNotebooks', () => {
     const result = splitByNotebooks(file, 'p')
     expect(result.map(e => e.outputFilename)).toEqual(['p-dashboard.deepnote', 'p-dashboard-2.deepnote'])
   })
-})
 
-describe('generateSplitFilename', () => {
-  it('should create filename from stem and notebook name', () => {
-    expect(generateSplitFilename('foo', 'Dashboard')).toBe('foo-dashboard.deepnote')
+  it('should duplicate the init notebook into every non-init split file', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        initNotebookId: 'nb-init',
+        notebooks: [
+          { id: 'nb-init', name: 'Init', blocks: [] },
+          { id: 'nb-main-a', name: 'Main A', blocks: [] },
+          { id: 'nb-main-b', name: 'Main B', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file, 'stem')
+    expect(result).toHaveLength(2)
+    for (const entry of result) {
+      expect(entry.file.project.notebooks).toHaveLength(2)
+      expect(entry.file.project.notebooks[0]?.id).toBe('nb-init')
+      expect(entry.file.project.initNotebookId).toBe('nb-init')
+    }
   })
 
-  it('should handle multi-word names', () => {
-    expect(generateSplitFilename('my-project', 'Data Analysis')).toBe('my-project-data-analysis.deepnote')
+  it('should not create a standalone file for the init notebook', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        initNotebookId: 'nb-init',
+        notebooks: [
+          { id: 'nb-init', name: 'Init', blocks: [] },
+          { id: 'nb-main-a', name: 'Main A', blocks: [] },
+          { id: 'nb-main-b', name: 'Main B', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file, 'stem')
+    expect(result.map(e => e.notebook.id).sort()).toEqual(['nb-main-a', 'nb-main-b'].sort())
+  })
+
+  it('should return an empty array when the file contains only the init notebook', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        initNotebookId: 'nb-init',
+        notebooks: [{ id: 'nb-init', name: 'Init', blocks: [] }],
+      },
+    }
+    expect(splitByNotebooks(file, 'stem')).toEqual([])
+  })
+
+  it('should split all notebooks normally when no initNotebookId is set', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        notebooks: [
+          { id: 'nb-a', name: 'A', blocks: [] },
+          { id: 'nb-b', name: 'B', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file, 's')
+    expect(result).toHaveLength(2)
+    for (const entry of result) {
+      expect(entry.file.project.notebooks).toHaveLength(1)
+    }
+  })
+
+  it('should split all notebooks normally when initNotebookId points to a missing notebook', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        initNotebookId: 'missing',
+        notebooks: [
+          { id: 'nb-a', name: 'A', blocks: [] },
+          { id: 'nb-b', name: 'B', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file, 's')
+    expect(result).toHaveLength(2)
+    expect(result.map(e => e.notebook.id).sort()).toEqual(['nb-a', 'nb-b'].sort())
+    for (const entry of result) {
+      expect(entry.file.project.notebooks).toHaveLength(1)
+    }
   })
 })
 

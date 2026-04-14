@@ -98,7 +98,6 @@ export {
   countBlocksWithOutputs,
   findSnapshotsForProject,
   generateSnapshotFilename,
-  generateSplitFilename,
   getSnapshotDir,
   hasOutputs,
   loadLatestSnapshot,

@@ -29,7 +29,6 @@ export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
 export type { GenerateSnapshotFilenameParams } from './split'
 export {
   generateSnapshotFilename,
-  generateSplitFilename,
   hasOutputs,
   slugifyProjectName,
   splitByNotebooks,

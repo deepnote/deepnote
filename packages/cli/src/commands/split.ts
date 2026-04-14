@@ -31,24 +31,21 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
       const content = await fs.readFile(absolutePath, 'utf-8')
       const file = deserializeDeepnoteFile(content)
 
-      if (file.project.notebooks.length <= 1) {
-        const c = getChalk()
+      const sourceDir = dirname(absolutePath)
+      const sourceStem = basename(absolutePath, '.deepnote')
+      const splits = splitByNotebooks(file, sourceStem)
+      const c = getChalk()
+      if (splits.length === 0 || (splits.length === 1 && file.project.notebooks.length === 1)) {
         output(c.yellow('File contains only one notebook — nothing to split.'))
         return
       }
 
-      const sourceDir = dirname(absolutePath)
-      const sourceStem = basename(absolutePath, '.deepnote')
       const outputDir = options.output ? resolve(options.output) : sourceDir
 
       // Ensure output directory exists
       await fs.mkdir(outputDir, { recursive: true })
 
-      // Split into separate files (unique outputFilename per entry)
-      const splits = splitByNotebooks(file, sourceStem)
-
       // Write split files
-      const c = getChalk()
       const writtenFiles: string[] = []
       const force = Boolean(options.force)
       for (const split of splits) {
@@ -66,8 +63,13 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
         output(`  ${c.green('✓')} ${basename(outPath)}`)
       }
 
-      // Handle existing snapshots
-      const notebookIds = splits.map(s => s.notebook.id)
+      // Handle existing snapshots — include init notebook data when present so each split matches [init, main]
+      const initNotebookId = file.project.initNotebookId
+      const initNotebookInProject =
+        initNotebookId === undefined ? undefined : file.project.notebooks.find(nb => nb.id === initNotebookId)
+      const snapshotNotebookIds = Array.from(
+        new Set([...(initNotebookInProject ? [initNotebookInProject.id] : []), ...splits.map(s => s.notebook.id)])
+      )
       const existingSnapshots = await findSnapshotsForProject(sourceDir, file.project.id)
 
       if (existingSnapshots.length > 0) {
@@ -78,11 +80,27 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
         for (const snapInfo of existingSnapshots) {
           try {
             const snapshot = await loadSnapshotFile(snapInfo.path)
-            const splitSnapshots = splitSnapshotByNotebooks(snapshot, notebookIds)
+            const splitSnapshots = splitSnapshotByNotebooks(snapshot, snapshotNotebookIds)
 
             for (const { notebook } of splits) {
-              const nbSnapshot = splitSnapshots.get(notebook.id)
-              if (!nbSnapshot) continue
+              const mainSnapshot = splitSnapshots.get(notebook.id)
+              if (!mainSnapshot) continue
+
+              let nbSnapshot = mainSnapshot
+              if (initNotebookInProject !== undefined) {
+                const initSnapshot = splitSnapshots.get(initNotebookInProject.id)
+                if (initSnapshot) {
+                  const initNb = initSnapshot.project.notebooks[0]
+                  const mainNb = mainSnapshot.project.notebooks[0]
+                  nbSnapshot = {
+                    ...mainSnapshot,
+                    project: {
+                      ...mainSnapshot.project,
+                      notebooks: [initNb, mainNb],
+                    },
+                  }
+                }
+              }
 
               const slug = slugifyProjectName(file.project.name) || 'project'
               const snapshotFilename = generateSnapshotFilename({

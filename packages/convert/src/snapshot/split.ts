@@ -135,18 +135,6 @@ export function hasOutputs(file: DeepnoteFile): boolean {
   return false
 }
 
-/**
- * Generates the output filename for a split notebook file.
- *
- * @param sourceFileStem - The original filename without extension (e.g., "foo")
- * @param notebookName - The notebook name (e.g., "Dashboard")
- * @returns Filename like "foo-dashboard.deepnote"
- */
-export function generateSplitFilename(sourceFileStem: string, notebookName: string): string {
-  const notebookSlug = slugifyProjectName(notebookName)
-  return `${sourceFileStem}-${notebookSlug}.deepnote`
-}
-
 const SPLIT_DEEPNOTE_EXT = '.deepnote'
 
 /**
@@ -177,9 +165,12 @@ function allocateUniqueNotebookSplitFilename(sourceFileStem: string, notebookNam
 }
 
 /**
- * Splits a multi-notebook DeepnoteFile into separate single-notebook files.
- * Each result shares the same project metadata but contains only one notebook.
- * Assigns a unique {@link NotebookSplitEntry.outputFilename} per entry (numeric suffix before `.deepnote` when slug collisions occur).
+ * Splits a multi-notebook DeepnoteFile into separate files, one per user-facing notebook.
+ * When {@link DeepnoteFile.project.initNotebookId} resolves to a notebook in the project,
+ * that init notebook is excluded from the splittable set and prepended to every split so
+ * `initNotebookId` remains valid. Each {@link NotebookSplitEntry.notebook} still identifies
+ * the non-init notebook the entry is built around. Assigns a unique
+ * {@link NotebookSplitEntry.outputFilename} per entry (numeric suffix before `.deepnote` when slug collisions occur).
  *
  * @param file - The DeepnoteFile to split
  * @param sourceFileStem - Basename of the source file without the `.deepnote` extension
@@ -189,16 +180,27 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
   if (notebooks.length === 0) {
     return []
   }
+
+  const initNotebookId = file.project.initNotebookId
+  const initNotebook = initNotebookId === undefined ? undefined : notebooks.find(nb => nb.id === initNotebookId)
+
+  const splittable = initNotebook === undefined ? notebooks : notebooks.filter(nb => nb.id !== initNotebook.id)
+
+  if (splittable.length === 0) {
+    return []
+  }
+
   const used = new Set<string>()
-  return notebooks.map(notebook => {
+  return splittable.map(notebook => {
     const outputFilename = allocateUniqueNotebookSplitFilename(sourceFileStem, notebook.name, used)
+    const splitNotebooks = initNotebook === undefined ? [notebook] : [initNotebook, notebook]
     return {
       notebook: { id: notebook.id, name: notebook.name },
       file: {
         ...file,
         project: {
           ...file.project,
-          notebooks: [notebook],
+          notebooks: splitNotebooks,
         },
       },
       outputFilename,
