@@ -88,6 +88,8 @@ export type {
   NotebookSplitEntry,
   SnapshotHashInput,
   SnapshotInfo,
+  SnapshotNotebookIdFileInput,
+  SnapshotNotebookIdProjectInput,
   SnapshotOptions,
   SplitResult,
 } from './snapshot'
@@ -105,6 +107,7 @@ export {
   mergeSnapshotIntoSource,
   parseSnapshotFilename,
   parseSourceFilePath,
+  resolveSnapshotNotebookId,
   slugifyProjectName,
   snapshotExists,
   splitByNotebooks,

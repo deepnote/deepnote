@@ -4,9 +4,12 @@ import type { DeepnoteSnapshot } from '@deepnote/blocks'
 import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import {
   findSnapshotsForProject,
+  generateSnapshotFilename,
   loadLatestSnapshot,
   loadSnapshotFile,
   mergeSnapshotIntoSource,
+  resolveSnapshotNotebookId,
+  slugifyProjectName,
   splitDeepnoteFile,
 } from '@deepnote/convert'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
@@ -224,7 +227,7 @@ async function handleSnapshotList(args: Record<string, unknown>) {
     const file = deserializeDeepnoteFile(content)
     const projectId = file.project.id
 
-    const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
+    const notebookId = resolveSnapshotNotebookId(file)
     const snapshotOptions = { ...(snapshotDir ? { snapshotDir } : {}), ...(notebookId ? { notebookId } : {}) }
     const snapshots = await findSnapshotsForProject(projectDir, projectId, snapshotOptions)
     const resolvedSnapshotDir = snapshotDir ? snapshotDir : path.join(projectDir, 'snapshots')
@@ -315,7 +318,7 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
     const content = await fs.readFile(absolutePath, 'utf-8')
     const file = deserializeDeepnoteFile(content)
     const projectId = file.project.id
-    const notebookId = file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
+    const notebookId = resolveSnapshotNotebookId(file)
     const snapshotOptions = { ...(snapshotDir ? { snapshotDir } : {}), ...(notebookId ? { notebookId } : {}) }
     const snapshot = await loadLatestSnapshot(absolutePath, projectId, snapshotOptions)
 
@@ -400,15 +403,14 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
 
     // Generate timestamp-based filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-    const slug = file.project.name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-
-    const snapshotFilename = `${slug}_${file.project.id}_${timestamp}.snapshot.deepnote`
+    const slug = slugifyProjectName(file.project.name) || 'project'
+    const notebookId = resolveSnapshotNotebookId(file)
+    const snapshotFilename = generateSnapshotFilename({
+      slug,
+      projectId: file.project.id,
+      notebookId,
+      timestamp,
+    })
     const snapshotPath = path.join(defaultSnapshotDir, snapshotFilename)
 
     // Count outputs being extracted
@@ -429,7 +431,7 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     // Update latest snapshot
     let latestPath: string | undefined
     if (keepLatest) {
-      const latestFilename = `${slug}_${file.project.id}_latest.snapshot.deepnote`
+      const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
       latestPath = path.join(defaultSnapshotDir, latestFilename)
       await fs.writeFile(latestPath, snapshotContent, 'utf-8')
     }
@@ -487,7 +489,7 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
       const absoluteSnapshotPath = path.resolve(snapshotPath)
       snapshot = await loadSnapshotFile(absoluteSnapshotPath)
     } else {
-      const nbId = source.project.notebooks.length === 1 ? source.project.notebooks[0].id : undefined
+      const nbId = resolveSnapshotNotebookId(source)
       snapshot = await loadLatestSnapshot(absoluteSourcePath, source.project.id, nbId ? { notebookId: nbId } : {})
 
       if (!snapshot) {

@@ -17,7 +17,7 @@ import { readAndConvertIpynbFiles } from './jupyter-to-deepnote'
 import { readAndConvertMarimoFiles } from './marimo-to-deepnote'
 import { readAndConvertPercentFiles } from './percent-to-deepnote'
 import { readAndConvertQuartoFiles } from './quarto-to-deepnote'
-import { loadLatestSnapshot, mergeSnapshotIntoSource } from './snapshot'
+import { loadLatestSnapshot, mergeSnapshotIntoSource, resolveSnapshotNotebookId } from './snapshot'
 import { writeDeepnoteFile } from './write-deepnote-file'
 
 interface ConvertOptions {
@@ -363,7 +363,7 @@ async function convertDeepnoteToFormat(
     let deepnoteFile = deserializeDeepnoteFile(sourceContent)
 
     // Try to load and merge snapshot
-    const nbId = deepnoteFile.project.notebooks.length === 1 ? deepnoteFile.project.notebooks[0].id : undefined
+    const nbId = resolveSnapshotNotebookId(deepnoteFile)
     const snapshot = await loadLatestSnapshot(absolutePath, deepnoteFile.project.id, nbId ? { notebookId: nbId } : {})
     if (snapshot) {
       deepnoteFile = mergeSnapshotIntoSource(deepnoteFile, snapshot, { skipMismatched: true })

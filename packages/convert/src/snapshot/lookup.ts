@@ -8,9 +8,16 @@ import type { SnapshotInfo, SnapshotOptions } from './types'
 /** Default directory name for snapshots */
 const DEFAULT_SNAPSHOT_DIR = 'snapshots'
 
+/**
+ * Notebook id: UUID (with hyphens), 32-char hex id, or any non-empty id of letters, digits,
+ * hyphens, and underscores (e.g. `notebook-1`), matching what snapshot writers embed today.
+ */
+const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[a-zA-Z0-9][a-zA-Z0-9_-]*)'
+
 /** Regex pattern for snapshot filenames (new format with notebookId) */
-const SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK =
-  /^(.+)_([0-9a-f-]{36})_([0-9a-f]{32}|[0-9a-f-]{36})_(latest|[\dT:-]+)\.snapshot\.deepnote$/
+const SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK = new RegExp(
+  `^(.+)_([0-9a-f-]{36})_${SNAPSHOT_NOTEBOOK_ID_PATTERN}_(latest|[\\dT:-]+)\\.snapshot\\.deepnote$`
+)
 
 /** Regex pattern for snapshot filenames (legacy format without notebookId) */
 const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snapshot\.deepnote$/

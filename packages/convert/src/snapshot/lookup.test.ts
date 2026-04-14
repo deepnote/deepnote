@@ -70,6 +70,20 @@ describe('parseSnapshotFilename', () => {
     })
   })
 
+  it('should parse notebook-aware snapshot filenames whose notebook id is not UUID-shaped', () => {
+    // Catches: parseSnapshotFilename only accepted hex UUID notebook segments, so filenames written with ids such as nb-1 could never be parsed for discovery or load.
+    const result = parseSnapshotFilename(
+      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_nb-1_latest.snapshot.deepnote'
+    )
+
+    expect(result).toEqual({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      notebookId: 'nb-1',
+      timestamp: 'latest',
+    })
+  })
+
   it('should return undefined notebookId for old-format filename', () => {
     const result = parseSnapshotFilename('my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote')
     expect(result?.notebookId).toBeUndefined()
@@ -320,6 +334,38 @@ project:
     vi.mocked(fs.readFile).mockResolvedValue(snapshotContent)
 
     const result = await loadLatestSnapshot('/path/to/project.deepnote', projectId)
+
+    expect(result).not.toBeNull()
+    expect(result?.project.id).toBe(projectId)
+  })
+
+  it('should discover and load a notebook-scoped latest snapshot when the notebook id is notebook-1', async () => {
+    // Catches: findSnapshotsForProject and loadLatestSnapshot skipped notebook-aware files whose ids were not hex UUIDs, so snapshots saved with human-readable notebook ids vanished from lookup.
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const snapshotName = `my-project_${projectId}_notebook-1_latest.snapshot.deepnote`
+    vi.mocked(fs.readdir).mockResolvedValue([{ name: snapshotName, isFile: () => true }] as unknown as Awaited<
+      ReturnType<typeof fs.readdir>
+    >)
+
+    const snapshotContent = `
+version: "1.0.0"
+metadata:
+  createdAt: "2025-01-01T00:00:00Z"
+  snapshotHash: "sha256:abc123"
+environment: {}
+execution: {}
+project:
+  id: "${projectId}"
+  name: "Test Project"
+  notebooks: []
+  integrations: []
+  settings: {}
+`
+    vi.mocked(fs.readFile).mockResolvedValue(snapshotContent)
+
+    const result = await loadLatestSnapshot('/path/to/project.deepnote', projectId, {
+      notebookId: 'notebook-1',
+    })
 
     expect(result).not.toBeNull()
     expect(result?.project.id).toBe(projectId)

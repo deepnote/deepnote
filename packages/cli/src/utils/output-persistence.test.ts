@@ -266,5 +266,70 @@ describe('output-persistence', () => {
         { output_type: 'stream', name: 'stdout', text: 'first\n' },
       ])
     })
+
+    it('saveExecutionSnapshot embeds the main notebook id in snapshot filenames when the source file lists init and main notebooks', async () => {
+      // Catches: snapshot paths used legacy project-wide names whenever notebooks.length was not 1, so init+main split files dropped the main notebook id from filenames and collided across splits.
+      const projectId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      const initNotebookId = '22222222-2222-2222-2222-222222222222'
+      const mainNotebookId = '33333333-3333-3333-3333-333333333333'
+      const file: DeepnoteFile = {
+        version: '1.0.0',
+        metadata: { createdAt: '2025-01-01T00:00:00Z' },
+        environment: {},
+        project: {
+          id: projectId,
+          name: 'Init Main Project',
+          initNotebookId,
+          notebooks: [
+            {
+              id: initNotebookId,
+              name: 'Init',
+              blocks: [
+                {
+                  id: 'blk-init-md',
+                  type: 'markdown',
+                  content: 'init',
+                  sortingKey: 'a0',
+                  blockGroup: 'group-1',
+                  metadata: {},
+                },
+              ],
+            },
+            {
+              id: mainNotebookId,
+              name: 'Main',
+              blocks: [
+                {
+                  id: 'blk-main-code',
+                  type: 'code',
+                  content: 'print(1)',
+                  sortingKey: 'a1',
+                  blockGroup: 'group-1',
+                  metadata: {},
+                },
+              ],
+            },
+          ],
+        },
+      }
+
+      const sourcePath = join(tempDir, 'split.deepnote')
+      const outputs: BlockExecutionOutput[] = [
+        {
+          id: 'blk-main-code',
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'persisted\n' }],
+          executionCount: 1,
+        },
+      ]
+      const timing = {
+        startedAt: '2024-01-01T00:00:00.000Z',
+        finishedAt: '2024-01-01T00:00:05.000Z',
+      }
+
+      const result = await saveExecutionSnapshot(sourcePath, file, outputs, timing)
+
+      expect(result.snapshotPath).toContain(`_${projectId}_${mainNotebookId}_`)
+      expect(result.timestampedSnapshotPath).toContain(`_${projectId}_${mainNotebookId}_`)
+    })
   })
 })

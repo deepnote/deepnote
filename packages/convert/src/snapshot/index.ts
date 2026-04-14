@@ -25,6 +25,8 @@ export {
 
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
+export type { SnapshotNotebookIdFileInput, SnapshotNotebookIdProjectInput } from './snapshot-notebook-id'
+export { resolveSnapshotNotebookId } from './snapshot-notebook-id'
 // Split utilities
 export type { GenerateSnapshotFilenameParams } from './split'
 export {

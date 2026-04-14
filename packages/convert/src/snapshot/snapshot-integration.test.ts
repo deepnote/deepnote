@@ -6,6 +6,7 @@ import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapsh
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { findSnapshotsForProject, loadLatestSnapshot, parseSnapshotFilename } from './lookup'
 import { mergeSnapshotIntoSource } from './merge'
+import { resolveSnapshotNotebookId } from './snapshot-notebook-id'
 import { generateSnapshotFilename, slugifyProjectName, splitDeepnoteFile } from './split'
 
 describe('Snapshot Integration', () => {
@@ -211,5 +212,103 @@ describe('Snapshot Integration', () => {
 
     const snapshot = await loadLatestSnapshot(sourcePath, 'test-id')
     expect(snapshot).toBeNull()
+  })
+
+  it('loadLatestSnapshot scoped by resolveSnapshotNotebookId returns the snapshot for that split file only when sibling files share one project id', async () => {
+    // Catches: split outputs that share project.id used legacy snapshot names, so each split file could load the other notebook’s snapshot from the shared snapshots directory.
+    const sharedProjectId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const slug = slugifyProjectName('Shared Split Project')
+
+    const initNotebookId = '11111111-1111-1111-1111-111111111111'
+    const mainNotebookIdAlpha = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+    const mainNotebookIdBeta = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+
+    const buildSplitFile = (mainNotebookId: string, stdoutMarker: string): DeepnoteFile => ({
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      environment: { hash: 'env-shared' },
+      execution: { startedAt: '2025-01-01T00:00:00Z', finishedAt: '2025-01-01T00:01:00Z' },
+      project: {
+        id: sharedProjectId,
+        name: 'Shared Split Project',
+        initNotebookId,
+        notebooks: [
+          {
+            id: initNotebookId,
+            name: 'Init',
+            blocks: [
+              {
+                id: 'blk-init',
+                type: 'markdown',
+                content: 'init',
+                sortingKey: '0000',
+                blockGroup: 'bg',
+                metadata: {},
+              },
+            ],
+          },
+          {
+            id: mainNotebookId,
+            name: 'Main',
+            blocks: [
+              {
+                id: 'blk-main',
+                type: 'code',
+                blockGroup: 'bg',
+                sortingKey: '0001',
+                content: 'print("x")',
+                outputs: [{ output_type: 'stream', name: 'stdout', text: [stdoutMarker] }],
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    const fileA = buildSplitFile(mainNotebookIdAlpha, 'marker-alpha\n')
+    const fileB = buildSplitFile(mainNotebookIdBeta, 'marker-beta\n')
+
+    const sourcePathA = join(tempDir, 'split-alpha.deepnote')
+    const sourcePathB = join(tempDir, 'split-beta.deepnote')
+    await fs.writeFile(sourcePathA, serializeDeepnoteFile(fileA), 'utf-8')
+    await fs.writeFile(sourcePathB, serializeDeepnoteFile(fileB), 'utf-8')
+
+    const snapshotsDir = join(tempDir, 'snapshots')
+    await fs.mkdir(snapshotsDir, { recursive: true })
+
+    const { snapshot: snapshotA } = splitDeepnoteFile(fileA)
+    const { snapshot: snapshotB } = splitDeepnoteFile(fileB)
+
+    const nameA = generateSnapshotFilename({
+      slug,
+      projectId: sharedProjectId,
+      notebookId: mainNotebookIdAlpha,
+    })
+    const nameB = generateSnapshotFilename({
+      slug,
+      projectId: sharedProjectId,
+      notebookId: mainNotebookIdBeta,
+    })
+    await fs.writeFile(join(snapshotsDir, nameA), serializeDeepnoteSnapshot(snapshotA), 'utf-8')
+    await fs.writeFile(join(snapshotsDir, nameB), serializeDeepnoteSnapshot(snapshotB), 'utf-8')
+
+    const loadedA = await loadLatestSnapshot(sourcePathA, sharedProjectId, {
+      notebookId: resolveSnapshotNotebookId(fileA),
+    })
+    const loadedB = await loadLatestSnapshot(sourcePathB, sharedProjectId, {
+      notebookId: resolveSnapshotNotebookId(fileB),
+    })
+
+    expect(loadedA).not.toBeNull()
+    expect(loadedB).not.toBeNull()
+    if (!loadedA || !loadedB) {
+      throw new Error('expected snapshots')
+    }
+
+    const outA = loadedA.project.notebooks[1].blocks[0] as { outputs?: Array<{ text?: string[] }> }
+    const outB = loadedB.project.notebooks[1].blocks[0] as { outputs?: Array<{ text?: string[] }> }
+    expect(outA.outputs?.[0]?.text?.[0]).toBe('marker-alpha\n')
+    expect(outB.outputs?.[0]?.text?.[0]).toBe('marker-beta\n')
   })
 })
