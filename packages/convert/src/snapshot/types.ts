@@ -21,6 +21,16 @@ export interface SplitResult {
 }
 
 /**
+ * One notebook slice from {@link splitByNotebooks} with a unique output filename.
+ */
+export interface NotebookSplitEntry {
+  notebook: { id: string; name: string }
+  file: DeepnoteFile
+  /** Basename for the split file (e.g. `my-project-dashboard.deepnote`) */
+  outputFilename: string
+}
+
+/**
  * Block output information stored in a snapshot
  */
 export interface BlockOutput {

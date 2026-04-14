@@ -4,7 +4,6 @@ import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapsh
 import {
   findSnapshotsForProject,
   generateSnapshotFilename,
-  generateSplitFilename,
   loadSnapshotFile,
   slugifyProjectName,
   splitByNotebooks,
@@ -13,7 +12,7 @@ import {
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output } from '../output'
-import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { FileResolutionError, isErrnoException, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface SplitOptions {
   output?: string
@@ -45,35 +44,26 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
       // Ensure output directory exists
       await fs.mkdir(outputDir, { recursive: true })
 
-      // Split into separate files
-      const splits = splitByNotebooks(file)
-
-      // Check for existing output files (unless --force)
-      if (!options.force) {
-        for (const { notebook } of splits) {
-          const outName = generateSplitFilename(sourceStem, notebook.name)
-          const outPath = join(outputDir, outName)
-          try {
-            await fs.access(outPath)
-            throw new Error(`Output file already exists: ${outPath}. Use --force to overwrite.`)
-          } catch (err) {
-            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-              throw err
-            }
-          }
-        }
-      }
+      // Split into separate files (unique outputFilename per entry)
+      const splits = splitByNotebooks(file, sourceStem)
 
       // Write split files
       const c = getChalk()
       const writtenFiles: string[] = []
-      for (const { notebook, file: splitFile } of splits) {
-        const outName = generateSplitFilename(sourceStem, notebook.name)
-        const outPath = join(outputDir, outName)
-        const yaml = serializeDeepnoteFile(splitFile)
-        await fs.writeFile(outPath, yaml, 'utf-8')
+      const force = Boolean(options.force)
+      for (const split of splits) {
+        const outPath = join(outputDir, split.outputFilename)
+        const yaml = serializeDeepnoteFile(split.file)
+        try {
+          await fs.writeFile(outPath, yaml, { encoding: 'utf-8', flag: force ? 'w' : 'wx' })
+        } catch (err) {
+          if (!force && isErrnoException(err, 'EEXIST')) {
+            throw new Error(`Output file already exists: ${outPath}. Use --force to overwrite.`)
+          }
+          throw err
+        }
         writtenFiles.push(outPath)
-        output(`  ${c.green('✓')} ${outName}`)
+        output(`  ${c.green('✓')} ${basename(outPath)}`)
       }
 
       // Handle existing snapshots

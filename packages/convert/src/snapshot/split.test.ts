@@ -480,9 +480,10 @@ describe('splitByNotebooks', () => {
         ],
       },
     }
-    const result = splitByNotebooks(file)
+    const result = splitByNotebooks(file, 'my-stem')
     expect(result).toHaveLength(1)
     expect(result[0].notebook.id).toBe('nb-1')
+    expect(result[0].outputFilename).toBe('my-stem-notebook-1.deepnote')
   })
 
   it('should split 2-notebook file into 2 entries with shared metadata', () => {
@@ -500,10 +501,12 @@ describe('splitByNotebooks', () => {
         ],
       },
     }
-    const result = splitByNotebooks(file)
+    const result = splitByNotebooks(file, 'project')
     expect(result).toHaveLength(2)
     expect(result[0].notebook.id).toBe('nb-1')
     expect(result[1].notebook.id).toBe('nb-2')
+    expect(result[0].outputFilename).toBe('project-dashboard.deepnote')
+    expect(result[1].outputFilename).toBe('project-data.deepnote')
     for (const entry of result) {
       expect(entry.file.project.id).toBe('proj-1')
       expect(entry.file.project.notebooks).toHaveLength(1)
@@ -516,7 +519,41 @@ describe('splitByNotebooks', () => {
       metadata: { createdAt: '2025-01-01T00:00:00Z' },
       project: { id: 'proj-1', name: 'Test', notebooks: [] },
     }
-    expect(splitByNotebooks(file)).toHaveLength(0)
+    expect(splitByNotebooks(file, 'unused')).toHaveLength(0)
+  })
+
+  it('should disambiguate output filenames when notebook names differ only by case', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        notebooks: [
+          { id: 'nb-1', name: 'Dashboard', blocks: [] },
+          { id: 'nb-2', name: 'DASHBOARD', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file, 'p')
+    expect(result.map(e => e.outputFilename)).toEqual(['p-dashboard.deepnote', 'p-dashboard-2.deepnote'])
+  })
+
+  it('should disambiguate output filenames when notebook names differ only by punctuation', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        notebooks: [
+          { id: 'nb-1', name: 'Dashboard!', blocks: [] },
+          { id: 'nb-2', name: 'Dashboard?', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file, 'p')
+    expect(result.map(e => e.outputFilename)).toEqual(['p-dashboard.deepnote', 'p-dashboard-2.deepnote'])
   })
 })
 

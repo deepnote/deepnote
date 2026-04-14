@@ -71,9 +71,7 @@ describe('parseSnapshotFilename', () => {
   })
 
   it('should return undefined notebookId for old-format filename', () => {
-    const result = parseSnapshotFilename(
-      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote'
-    )
+    const result = parseSnapshotFilename('my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote')
     expect(result?.notebookId).toBeUndefined()
   })
 })

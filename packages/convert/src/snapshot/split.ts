@@ -1,7 +1,7 @@
 import type { DeepnoteBlock, DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { isExecutableBlockType } from '@deepnote/blocks'
 import { addContentHashes, computeSnapshotHash } from './hash'
-import type { SplitResult } from './types'
+import type { NotebookSplitEntry, SplitResult } from './types'
 
 /**
  * Creates a slug from a project name.
@@ -134,35 +134,6 @@ export function hasOutputs(file: DeepnoteFile): boolean {
 }
 
 /**
- * Splits a multi-notebook DeepnoteFile into separate single-notebook files.
- * Each result shares the same project metadata but contains only one notebook.
- *
- * @param file - The DeepnoteFile to split
- * @returns Array of objects with notebook info and the single-notebook file
- */
-export function splitByNotebooks(
-  file: DeepnoteFile
-): Array<{ notebook: { id: string; name: string }; file: DeepnoteFile }> {
-  if (file.project.notebooks.length === 0) {
-    return []
-  }
-  if (file.project.notebooks.length === 1) {
-    const nb = file.project.notebooks[0]
-    return [{ notebook: { id: nb.id, name: nb.name }, file }]
-  }
-  return file.project.notebooks.map(notebook => ({
-    notebook: { id: notebook.id, name: notebook.name },
-    file: {
-      ...file,
-      project: {
-        ...file.project,
-        notebooks: [notebook],
-      },
-    },
-  }))
-}
-
-/**
  * Generates the output filename for a split notebook file.
  *
  * @param sourceFileStem - The original filename without extension (e.g., "foo")
@@ -172,6 +143,65 @@ export function splitByNotebooks(
 export function generateSplitFilename(sourceFileStem: string, notebookName: string): string {
   const notebookSlug = slugifyProjectName(notebookName)
   return `${sourceFileStem}-${notebookSlug}.deepnote`
+}
+
+const SPLIT_DEEPNOTE_EXT = '.deepnote'
+
+/**
+ * Picks a unique split output basename: `{stem}-{slug}.deepnote`, then `{stem}-{slug}-2.deepnote`, etc.
+ */
+function allocateUniqueNotebookSplitFilename(sourceFileStem: string, notebookName: string, used: Set<string>): string {
+  const slug = slugifyProjectName(notebookName)
+  const pathStem = `${sourceFileStem}-${slug}`
+  const filenameForSuffix = (suffixNum: number): string =>
+    suffixNum <= 1 ? `${pathStem}${SPLIT_DEEPNOTE_EXT}` : `${pathStem}-${suffixNum}${SPLIT_DEEPNOTE_EXT}`
+
+  let candidate = filenameForSuffix(1)
+  if (!used.has(candidate)) {
+    used.add(candidate)
+    return candidate
+  }
+  const maxSuffix = 10_000
+  for (let n = 2; n <= maxSuffix; n += 1) {
+    candidate = filenameForSuffix(n)
+    if (!used.has(candidate)) {
+      used.add(candidate)
+      return candidate
+    }
+  }
+  throw new Error(
+    `Could not allocate a unique split filename for "${pathStem}${SPLIT_DEEPNOTE_EXT}" after ${maxSuffix} attempts.`
+  )
+}
+
+/**
+ * Splits a multi-notebook DeepnoteFile into separate single-notebook files.
+ * Each result shares the same project metadata but contains only one notebook.
+ * Assigns a unique {@link NotebookSplitEntry.outputFilename} per entry (numeric suffix before `.deepnote` when slug collisions occur).
+ *
+ * @param file - The DeepnoteFile to split
+ * @param sourceFileStem - Basename of the source file without the `.deepnote` extension
+ */
+export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): NotebookSplitEntry[] {
+  const notebooks = file.project.notebooks
+  if (notebooks.length === 0) {
+    return []
+  }
+  const used = new Set<string>()
+  return notebooks.map(notebook => {
+    const outputFilename = allocateUniqueNotebookSplitFilename(sourceFileStem, notebook.name, used)
+    return {
+      notebook: { id: notebook.id, name: notebook.name },
+      file: {
+        ...file,
+        project: {
+          ...file.project,
+          notebooks: [notebook],
+        },
+      },
+      outputFilename,
+    }
+  })
 }
 
 /**

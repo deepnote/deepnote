@@ -40,6 +40,7 @@ export type {
   BlockWithOutputs,
   ExecutableBlockFields,
   MergeOptions,
+  NotebookSplitEntry,
   SnapshotEnvironment,
   SnapshotExecution,
   SnapshotInfo,

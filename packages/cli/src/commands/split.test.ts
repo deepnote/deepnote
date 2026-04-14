@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
 import { Command } from 'commander'
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createSplitAction } from './split'
 
@@ -154,5 +154,49 @@ describe('split command', () => {
     expect(content).not.toBe('existing')
     const parsed = deserializeDeepnoteFile(content)
     expect(parsed.project.notebooks).toHaveLength(1)
+  })
+
+  it('should disambiguate split filenames when two notebook names collide on slugified filename', async () => {
+    // Arrange
+    const file = createMultiNotebookFile(['Dashboard', 'DASHBOARD'])
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    try {
+      // Act
+      const action = createSplitAction(program)
+      await action(inputPath, {})
+
+      // Assert
+      expect(exitSpy).not.toHaveBeenCalled()
+    } finally {
+      exitSpy.mockRestore()
+    }
+
+    const files = (await fs.readdir(tempDir)).filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote').sort()
+    expect(files).toEqual(['project-dashboard-2.deepnote', 'project-dashboard.deepnote'])
+  })
+
+  it('should disambiguate split filenames when notebook names differ only by punctuation', async () => {
+    // Arrange
+    const file = createMultiNotebookFile(['Dashboard!', 'Dashboard?'])
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    try {
+      // Act
+      const action = createSplitAction(program)
+      await action(inputPath, {})
+
+      // Assert
+      expect(exitSpy).not.toHaveBeenCalled()
+    } finally {
+      exitSpy.mockRestore()
+    }
+
+    const files = (await fs.readdir(tempDir)).filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote').sort()
+    expect(files).toEqual(['project-dashboard-2.deepnote', 'project-dashboard.deepnote'])
   })
 })
