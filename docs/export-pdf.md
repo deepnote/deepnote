@@ -17,6 +17,8 @@ You can export a notebook to PDF directly from the project toolbar in just a few
 4. Choose **PDF with code** or **PDF without code**.
 
 - **PDF with code** includes code cells in the exported PDF.
-![Exported PDF with code included](../assets/docs/export-pdf/pdf-with-code.webp)
+
+  ![Exported PDF with code included](../assets/docs/export-pdf/pdf-with-code.webp)
 - **PDF without code** excludes code cells from the exported PDF.
-![Exported PDF without code](../assets/docs/export-pdf/pdf-without-code.webp)
+
+  ![Exported PDF without code](../assets/docs/export-pdf/pdf-without-code.webp)
