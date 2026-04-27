@@ -253,7 +253,6 @@ export class ExecutionEngine {
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
           let insertIndex = agentBlockIndex + 1
-          const addedBlockIds: string[] = []
           const blockOutputs: Array<{ blockId: string; outputs: unknown[]; executionCount: number | null }> = []
 
           const projectMcpServers = file.project.settings?.mcpServers ?? []
@@ -272,7 +271,6 @@ export class ExecutionEngine {
 
             notebook.blocks.splice(insertIndex, 0, newBlock)
             insertIndex++
-            addedBlockIds.push(newBlock.id)
 
             try {
               const result = await kernel.execute(code)
@@ -311,7 +309,6 @@ export class ExecutionEngine {
 
             notebook.blocks.splice(insertIndex, 0, newBlock)
             insertIndex++
-            addedBlockIds.push(newBlock.id)
 
             return { success: true }
           }

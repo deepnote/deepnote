@@ -838,8 +838,6 @@ describe('ExecutionEngine', () => {
       vi.stubEnv('OPENAI_API_KEY', 'test-api-key')
       mockExecuteAgentBlock.mockResolvedValue({
         finalOutput: 'Analysis complete.',
-        addedBlockIds: [],
-        blockOutputs: [],
       })
     })
 
@@ -1027,7 +1025,7 @@ describe('ExecutionEngine', () => {
       })
       mockExecuteAgentBlock.mockImplementation(() => {
         executionOrder.push('agent')
-        return Promise.resolve({ finalOutput: '', addedBlockIds: [], blockOutputs: [] })
+        return Promise.resolve({ finalOutput: '' })
       })
 
       await engine.start()
@@ -1096,7 +1094,7 @@ describe('ExecutionEngine', () => {
           ) => {
             capturedContext = context
             await context.addAndExecuteCodeBlock({ code: 'print("from agent")' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1126,7 +1124,7 @@ describe('ExecutionEngine', () => {
             context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
           ) => {
             codeBlockResult = await context.addAndExecuteCodeBlock({ code: 'print("agent code")' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1154,7 +1152,7 @@ describe('ExecutionEngine', () => {
             context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
           ) => {
             await context.addAndExecuteCodeBlock({ code: 'x = 42' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1194,7 +1192,7 @@ describe('ExecutionEngine', () => {
             context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
           ) => {
             await context.addAndExecuteCodeBlock({ code: 'print("stream")' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1224,7 +1222,7 @@ describe('ExecutionEngine', () => {
             context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<{ success: boolean; error?: Error }> }
           ) => {
             results.push(await context.addAndExecuteCodeBlock({ code: 'bad code' }))
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1252,7 +1250,7 @@ describe('ExecutionEngine', () => {
             context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<{ success: boolean; error?: Error }> }
           ) => {
             results.push(await context.addAndExecuteCodeBlock({ code: 'crash()' }))
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1279,7 +1277,7 @@ describe('ExecutionEngine', () => {
           ) => {
             await context.addAndExecuteCodeBlock({ code: 'step_1()' })
             await context.addAndExecuteCodeBlock({ code: 'step_2()' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1300,7 +1298,7 @@ describe('ExecutionEngine', () => {
             context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }
           ) => {
             await context.addMarkdownBlock({ content: '# Summary\nResults are good.' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1318,7 +1316,7 @@ describe('ExecutionEngine', () => {
             context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }
           ) => {
             markdownResult = await context.addMarkdownBlock({ content: '## Analysis' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1337,7 +1335,7 @@ describe('ExecutionEngine', () => {
             context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }
           ) => {
             await context.addMarkdownBlock({ content: 'Just markdown' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
@@ -1370,7 +1368,7 @@ describe('ExecutionEngine', () => {
             mdResult1 = await context.addMarkdownBlock({ content: '## Step 1' })
             await context.addAndExecuteCodeBlock({ code: 'compute()' })
             mdResult2 = await context.addMarkdownBlock({ content: '## Step 2' })
-            return { finalOutput: 'Done.', addedBlockIds: [], blockOutputs: [] }
+            return { finalOutput: 'Done.' }
           }
         )
 
