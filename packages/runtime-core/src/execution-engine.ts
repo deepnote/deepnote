@@ -12,8 +12,6 @@ import {
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import {
-  type AddAndExecuteCodeBlockResult,
-  type AddMarkdownBlockResult,
   type AgentBlockContext,
   type AgentStreamEvent,
   executeAgentBlock,
@@ -257,7 +255,7 @@ export class ExecutionEngine {
 
           const projectMcpServers = file.project.settings?.mcpServers ?? []
 
-          const addAndExecuteCodeBlock = async ({ code }: { code: string }): Promise<AddAndExecuteCodeBlockResult> => {
+          const addAndExecuteCodeBlock = async ({ code }: { code: string }): Promise<string> => {
             const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
               id: randomUUID().replace(/-/g, ''),
               blockGroup: randomUUID().replace(/-/g, ''),
@@ -287,17 +285,14 @@ export class ExecutionEngine {
               })
 
               const outputText = extractOutputsText(result.outputs, { includeTraceback: true }) || '(no output)'
-              return result.success ? { success: true } : { success: false, error: new Error(outputText) }
+              return result.success ? `Output:\n${outputText}` : `Execution failed:\n${outputText}`
             } catch (error) {
-              return { success: false, error: error instanceof Error ? error : new Error(String(error)) }
+              const message = error instanceof Error ? error.message : String(error)
+              return `Execution error: ${message}`
             }
           }
 
-          const addMarkdownBlock = async ({
-            content: mdContent,
-          }: {
-            content: string
-          }): Promise<AddMarkdownBlockResult> => {
+          const addMarkdownBlock = async ({ content: mdContent }: { content: string }): Promise<string> => {
             const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
               id: randomUUID().replace(/-/g, ''),
               blockGroup: randomUUID().replace(/-/g, ''),
@@ -310,7 +305,7 @@ export class ExecutionEngine {
             notebook.blocks.splice(insertIndex, 0, newBlock)
             insertIndex++
 
-            return { success: true }
+            return 'Markdown block added.'
           }
 
           const agentContext: AgentBlockContext = {

@@ -12,15 +12,12 @@ export type AgentStreamEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'reasoning_delta'; text: string }
 
-export type AddAndExecuteCodeBlockResult = { success: true; error?: never } | { success: false; error: Error }
-export type AddMarkdownBlockResult = { success: true; error?: never } | { success: false; error: Error }
-
 export interface AgentBlockContext {
   openAiToken: string
   mcpServers: McpServerConfig[]
   notebookContext: string
-  addAndExecuteCodeBlock: (args: { code: string }) => Promise<AddAndExecuteCodeBlockResult>
-  addMarkdownBlock: (args: { content: string }) => Promise<AddMarkdownBlockResult>
+  addAndExecuteCodeBlock: (args: { code: string }) => Promise<string>
+  addMarkdownBlock: (args: { content: string }) => Promise<string>
   onLog?: (message: string) => void
   onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
   integrations?: Array<{ id: string; name: string; type: string }>

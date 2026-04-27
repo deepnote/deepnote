@@ -3,7 +3,7 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AddAndExecuteCodeBlockResult, AddMarkdownBlockResult, AgentBlockContext } from './agent-handler'
+import type { AgentBlockContext } from './agent-handler'
 
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
 const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient, mockExecuteAgentBlock } =
@@ -890,8 +890,8 @@ describe('ExecutionEngine', () => {
       }
       const onBlockDone = vi.fn()
       const onOutput = vi.fn()
-      let addCodeResult: AddAndExecuteCodeBlockResult | undefined
-      let addMarkdownResult: AddMarkdownBlockResult | undefined
+      let addCodeResult: string | undefined
+      let addMarkdownResult: string | undefined
       let agentContext: AgentBlockContext | undefined
 
       mockKernelClient.execute.mockImplementation((code: string) => {
@@ -933,8 +933,8 @@ describe('ExecutionEngine', () => {
 
       expect(summary.failedBlocks).toBe(0)
       expect(agentContext?.notebookContext).toContain('df = pd.DataFrame')
-      expect(addCodeResult).toEqual({ success: true })
-      expect(addMarkdownResult).toEqual({ success: true })
+      expect(addCodeResult).toContain('Agent-created block')
+      expect(addMarkdownResult).toBe('Markdown block added.')
       expect(mockKernelClient.execute).toHaveBeenNthCalledWith(2, helperCode)
       expect(analysisNotebook.blocks).toHaveLength(5)
       expect(addedCodeBlock).toEqual(expect.objectContaining({ type: 'code', content: helperCode }))
@@ -964,7 +964,7 @@ describe('ExecutionEngine', () => {
       const project = structuredClone(AGENT_FIXTURE)
       const helperCode = 'print("Agent-created block")'
       const onBlockDone = vi.fn()
-      let addCodeResult: AddAndExecuteCodeBlockResult | undefined
+      let addCodeResult: string | undefined
 
       mockKernelClient.execute.mockImplementation((code: string) => {
         if (code.includes('df = pd.DataFrame')) {
@@ -980,8 +980,8 @@ describe('ExecutionEngine', () => {
         const result = await context.addAndExecuteCodeBlock({ code: helperCode })
         addCodeResult = result
 
-        if (!result.success) {
-          throw result.error
+        if (result.startsWith('Execution failed') || result.startsWith('Execution error')) {
+          throw new Error(result)
         }
 
         return { finalOutput: 'Unreachable' }
@@ -1002,17 +1002,14 @@ describe('ExecutionEngine', () => {
 
       expect(summary.failedBlocks).toBe(1)
       expect(mockKernelClient.execute).toHaveBeenNthCalledWith(2, helperCode)
-      expect(addCodeResult).toEqual({
-        success: false,
-        error: expect.objectContaining({ message: 'Kernel crash' }),
-      })
+      expect(addCodeResult).toBe('Execution error: Kernel crash')
       expect(addedCodeBlock).toEqual(expect.objectContaining({ type: 'code', content: helperCode }))
       expect(onBlockDone).toHaveBeenCalledWith(
         expect.objectContaining({
           blockType: 'agent',
           success: false,
-          outputs: [expect.objectContaining({ output_type: 'error', evalue: 'Kernel crash' })],
-          error: expect.objectContaining({ message: 'Kernel crash' }),
+          outputs: [expect.objectContaining({ output_type: 'error', evalue: 'Execution error: Kernel crash' })],
+          error: expect.objectContaining({ message: 'Execution error: Kernel crash' }),
         })
       )
     })
@@ -1131,7 +1128,7 @@ describe('ExecutionEngine', () => {
         await engine.start()
         await engine.runProject(AGENT_FIXTURE)
 
-        expect(codeBlockResult).toEqual({ success: true })
+        expect(codeBlockResult).toBe('Output:\nagent code\n')
       })
 
       it('emits onBlockDone for the added code block', async () => {
@@ -1215,24 +1212,18 @@ describe('ExecutionEngine', () => {
           return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
         })
 
-        const results: Array<{ success: boolean; error?: Error }> = []
-        mockExecuteAgentBlock.mockImplementation(
-          async (
-            _block: unknown,
-            context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<{ success: boolean; error?: Error }> }
-          ) => {
-            results.push(await context.addAndExecuteCodeBlock({ code: 'bad code' }))
-            return { finalOutput: 'Done.' }
-          }
-        )
+        const results: string[] = []
+        mockExecuteAgentBlock.mockImplementation(async (_block: unknown, context: AgentBlockContext) => {
+          results.push(await context.addAndExecuteCodeBlock({ code: 'bad code' }))
+          return { finalOutput: 'Done.' }
+        })
 
         await engine.start()
         await engine.runProject(AGENT_FIXTURE)
 
         expect(results).toHaveLength(1)
-        expect(results[0].success).toBe(false)
-        expect(results[0].error).toBeInstanceOf(Error)
-        expect(results[0].error?.message).toContain('invalid syntax')
+        expect(results[0]).toMatch(/^Execution failed:/)
+        expect(results[0]).toContain('invalid syntax')
       })
 
       it('surfaces kernel.execute rejection as failure', async () => {
@@ -1243,24 +1234,17 @@ describe('ExecutionEngine', () => {
           return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
         })
 
-        const results: Array<{ success: boolean; error?: Error }> = []
-        mockExecuteAgentBlock.mockImplementation(
-          async (
-            _block: unknown,
-            context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<{ success: boolean; error?: Error }> }
-          ) => {
-            results.push(await context.addAndExecuteCodeBlock({ code: 'crash()' }))
-            return { finalOutput: 'Done.' }
-          }
-        )
+        const results: string[] = []
+        mockExecuteAgentBlock.mockImplementation(async (_block: unknown, context: AgentBlockContext) => {
+          results.push(await context.addAndExecuteCodeBlock({ code: 'crash()' }))
+          return { finalOutput: 'Done.' }
+        })
 
         await engine.start()
         await engine.runProject(AGENT_FIXTURE)
 
         expect(results).toHaveLength(1)
-        expect(results[0].success).toBe(false)
-        expect(results[0].error).toBeInstanceOf(Error)
-        expect(results[0].error?.message).toBe('Kernel crashed')
+        expect(results[0]).toBe('Execution error: Kernel crashed')
       })
 
       it('inserts multiple code blocks in order', async () => {
@@ -1323,7 +1307,7 @@ describe('ExecutionEngine', () => {
         await engine.start()
         await engine.runProject(AGENT_FIXTURE)
 
-        expect(markdownResult).toEqual({ success: true })
+        expect(markdownResult).toBe('Markdown block added.')
       })
 
       it('does not invoke kernel.execute for markdown blocks', async () => {
@@ -1375,8 +1359,8 @@ describe('ExecutionEngine', () => {
         await engine.start()
         await engine.runProject(AGENT_FIXTURE)
 
-        expect(mdResult1).toEqual({ success: true })
-        expect(mdResult2).toEqual({ success: true })
+        expect(mdResult1).toBe('Markdown block added.')
+        expect(mdResult2).toBe('Markdown block added.')
         expect(executedCodes).toContain('compute()')
       })
     })
