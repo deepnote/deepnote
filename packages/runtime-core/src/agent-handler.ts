@@ -64,9 +64,12 @@ export function createBlocksWithAttachedOutputsFromCollectedOutputs({
   collectedOutputs: Map<string, { outputs: unknown[]; executionCount: number | null }>
 }): DeepnoteBlock[] {
   return blocks.map(block => {
-    const outputs = collectedOutputs.get(block.id)
-    if (outputs != null) {
-      return { ...block, outputs: outputs.outputs }
+    const collected = collectedOutputs.get(block.id)
+    if (collected != null) {
+      return { ...block, outputs: collected.outputs }
+    }
+    if ('outputs' in block) {
+      return { ...block, outputs: [] }
     }
     return block
   })
