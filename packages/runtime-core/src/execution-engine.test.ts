@@ -1158,7 +1158,9 @@ describe('ExecutionEngine', () => {
         await engine.runProject(AGENT_FIXTURE, { onBlockDone })
 
         const addedBlockDone = onBlockDone.mock.calls.find(
-          (args: unknown[]) => (args[0] as { blockType: string }).blockType === 'code' && (args[0] as { executionCount: number | null }).executionCount === 3
+          (args: unknown[]) =>
+            (args[0] as { blockType: string }).blockType === 'code' &&
+            (args[0] as { executionCount: number | null }).executionCount === 3
         )
         expect(addedBlockDone).toBeDefined()
         expect(addedBlockDone?.[0]).toEqual(
@@ -1197,7 +1199,10 @@ describe('ExecutionEngine', () => {
         await engine.start()
         await engine.runProject(AGENT_FIXTURE, { onOutput })
 
-        expect(onOutput).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ output_type: 'stream', text: 'streamed\n' }))
+        expect(onOutput).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({ output_type: 'stream', text: 'streamed\n' })
+        )
       })
 
       it('returns failure when kernel execution fails', async () => {
@@ -1205,7 +1210,9 @@ describe('ExecutionEngine', () => {
           if (code === 'bad code') {
             return Promise.resolve({
               success: false,
-              outputs: [{ output_type: 'error', ename: 'SyntaxError', evalue: 'invalid syntax', traceback: ['Traceback...'] }],
+              outputs: [
+                { output_type: 'error', ename: 'SyntaxError', evalue: 'invalid syntax', traceback: ['Traceback...'] },
+              ],
               executionCount: 2,
             })
           }
@@ -1277,10 +1284,7 @@ describe('ExecutionEngine', () => {
     describe('context.addMarkdownBlock', () => {
       it('inserts a markdown block into the notebook', async () => {
         mockExecuteAgentBlock.mockImplementation(
-          async (
-            _block: unknown,
-            context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }
-          ) => {
+          async (_block: unknown, context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }) => {
             await context.addMarkdownBlock({ content: '# Summary\nResults are good.' })
             return { finalOutput: 'Done.' }
           }
@@ -1295,10 +1299,7 @@ describe('ExecutionEngine', () => {
       it('returns success result', async () => {
         let markdownResult: unknown = null
         mockExecuteAgentBlock.mockImplementation(
-          async (
-            _block: unknown,
-            context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }
-          ) => {
+          async (_block: unknown, context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }) => {
             markdownResult = await context.addMarkdownBlock({ content: '## Analysis' })
             return { finalOutput: 'Done.' }
           }
@@ -1314,10 +1315,7 @@ describe('ExecutionEngine', () => {
         mockKernelClient.execute.mockClear()
 
         mockExecuteAgentBlock.mockImplementation(
-          async (
-            _block: unknown,
-            context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }
-          ) => {
+          async (_block: unknown, context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }) => {
             await context.addMarkdownBlock({ content: 'Just markdown' })
             return { finalOutput: 'Done.' }
           }
