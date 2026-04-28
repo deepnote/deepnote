@@ -77,14 +77,9 @@ export function serializeNotebookContextFromBlocks({
   notebookName,
 }: {
   blocks: DeepnoteBlock[]
-  notebookName: string | null
+  notebookName: string
 }): string {
-  const lines: string[] = []
-
-  if (notebookName) {
-    lines.push(`# Notebook: ${notebookName}\n`)
-    lines.push('')
-  }
+  const lines: string[] = [`# Notebook: ${notebookName}`, '']
 
   for (const block of blocks) {
     lines.push(`## Block [${block.type}] (id: ${block.id.slice(0, 8)})`)
