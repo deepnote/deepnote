@@ -69,7 +69,7 @@ export interface ExecutionOptions {
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
-  onAgentEvent?: (event: AgentStreamEvent) => Promise<void>
+  onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
   onServerStarting?: () => void
   onServerReady?: () => void
   integrations?: Array<{ id: string; name: string; type: string }>
