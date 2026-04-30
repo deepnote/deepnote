@@ -190,7 +190,7 @@ jobs:
       # Only upload coverage from the pinned version to avoid duplicate reports
       - name: Upload coverage to Codecov
         if: ${{ success() && matrix.node-version == 'nvmrc' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
