@@ -46,6 +46,7 @@ export async function fetchIntegrations(
   integrationIds?: string[]
 ): Promise<ApiIntegration[]> {
   const endpoint = new URL(`${baseUrl}/v2/integrations`)
+  endpoint.searchParams.set('includeMetadata', 'true')
   if (integrationIds && integrationIds.length > 0) {
     endpoint.searchParams.set('integrationIds', integrationIds.join(','))
   }
