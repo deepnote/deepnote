@@ -62,21 +62,25 @@
   },
   "pnpm": {
     "overrides": {
-      "@hono/node-server": ">=1.19.10",
+      "@hono/node-server": ">=1.19.13",
       "@isaacs/brace-expansion": ">=5.0.1",
       "ajv": ">=8.18.0",
+      "brace-expansion": ">=5.0.5",
+      "defu": ">=6.1.5",
       "diff": ">=8.0.3",
       "express-rate-limit": ">=8.2.2",
       "flatted": ">=3.4.2",
       "glob": ">=11.1.0",
-      "hono": ">=4.12.7",
+      "hono": ">=4.12.14",
       "lodash": ">=4.18.0",
       "lodash-es": ">=4.18.0",
       "minimatch": ">=10.2.3",
       "path-to-regexp": ">=8.4.0",
       "picomatch": ">=4.0.4",
+      "postcss": ">=8.5.10",
       "rollup": ">=4.59.0",
       "smol-toml": ">=1.6.1",
+      "vite": ">=7.3.2",
       "yaml": ">=2.8.3"
     },
     "patchedDependencies": {
