@@ -65,6 +65,12 @@ pnpm build
 
 ### Code Quality Standards
 
+#### After applying changes
+
+Always format code after applying changes
+
+1. **Fix format** - `pnpm biome:check:fix` - Run Biome fix
+
 #### Before Committing
 
 Always run these checks before considering work complete:
