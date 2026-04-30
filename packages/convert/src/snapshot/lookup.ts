@@ -8,7 +8,18 @@ import type { SnapshotInfo, SnapshotOptions } from './types'
 /** Default directory name for snapshots */
 const DEFAULT_SNAPSHOT_DIR = 'snapshots'
 
-/** Regex pattern for snapshot filenames */
+/**
+ * Notebook id: UUID (with hyphens), 32-char hex id, or any non-empty id of letters, digits,
+ * hyphens, and underscores (e.g. `notebook-1`), matching what snapshot writers embed today.
+ */
+const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[a-zA-Z0-9][a-zA-Z0-9_-]*)'
+
+/** Regex pattern for snapshot filenames (new format with notebookId) */
+const SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK = new RegExp(
+  `^(.+)_([0-9a-f-]{36})_${SNAPSHOT_NOTEBOOK_ID_PATTERN}_(latest|[\\dT:-]+)\\.snapshot\\.deepnote$`
+)
+
+/** Regex pattern for snapshot filenames (legacy format without notebookId) */
 const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snapshot\.deepnote$/
 
 /**
@@ -17,7 +28,20 @@ const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snap
  * @param filename - The snapshot filename to parse
  * @returns Parsed components or null if filename doesn't match pattern
  */
-export function parseSnapshotFilename(filename: string): { slug: string; projectId: string; timestamp: string } | null {
+export function parseSnapshotFilename(
+  filename: string
+): { slug: string; projectId: string; notebookId?: string; timestamp: string } | null {
+  // Try new pattern first (with notebookId)
+  const matchNew = SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK.exec(filename)
+  if (matchNew) {
+    return {
+      slug: matchNew[1],
+      projectId: matchNew[2],
+      notebookId: matchNew[3],
+      timestamp: matchNew[4],
+    }
+  }
+  // Fall back to old pattern (without notebookId)
   const match = SNAPSHOT_FILENAME_PATTERN.exec(filename)
   if (!match) {
     return null
@@ -56,23 +80,41 @@ export async function findSnapshotsForProject(
 
       const parsed = parseSnapshotFilename(entry.name)
       if (parsed && parsed.projectId === projectId) {
+        // When notebookId filter is set:
+        // - skip new-format snapshots that don't match the notebook
+        // - accept old-format snapshots (no notebookId) as fallback
+        if (options.notebookId && parsed.notebookId && parsed.notebookId !== options.notebookId) {
+          continue
+        }
         snapshots.push({
           path: join(snapshotsPath, entry.name),
           slug: parsed.slug,
           projectId: parsed.projectId,
+          notebookId: parsed.notebookId,
           timestamp: parsed.timestamp,
         })
       }
     }
 
-    // Sort: 'latest' first, then by timestamp descending
+    const filterNotebookId = options.notebookId
+
+    // Sort: when filtering by notebook, matching snapshots before legacy fallbacks;
+    // then 'latest' first; then by timestamp descending (stable tie-break for equal timestamps)
     snapshots.sort((a, b) => {
-      if (a.timestamp === 'latest') {
-        return -1
+      if (filterNotebookId) {
+        const aMatches = a.notebookId === filterNotebookId
+        const bMatches = b.notebookId === filterNotebookId
+        if (aMatches !== bMatches) {
+          return aMatches ? -1 : 1
+        }
       }
-      if (b.timestamp === 'latest') {
-        return 1
+
+      const aLatest = a.timestamp === 'latest'
+      const bLatest = b.timestamp === 'latest'
+      if (aLatest !== bLatest) {
+        return aLatest ? -1 : 1
       }
+
       return b.timestamp.localeCompare(a.timestamp)
     })
 

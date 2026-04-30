@@ -83,9 +83,13 @@ export {
 // Snapshot utilities
 export type {
   BlockOutput,
+  GenerateSnapshotFilenameParams,
   MergeOptions,
+  NotebookSplitEntry,
   SnapshotHashInput,
   SnapshotInfo,
+  SnapshotNotebookIdFileInput,
+  SnapshotNotebookIdProjectInput,
   SnapshotOptions,
   SplitResult,
 } from './snapshot'
@@ -103,9 +107,12 @@ export {
   mergeSnapshotIntoSource,
   parseSnapshotFilename,
   parseSourceFilePath,
+  resolveSnapshotNotebookId,
   slugifyProjectName,
   snapshotExists,
+  splitByNotebooks,
   splitDeepnoteFile,
+  splitSnapshotByNotebooks,
 } from './snapshot'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'
 export type { MarimoApp, MarimoCell } from './types/marimo'

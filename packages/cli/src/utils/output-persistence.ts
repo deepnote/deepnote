@@ -2,7 +2,13 @@ import fs from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
-import { generateSnapshotFilename, getSnapshotDir, slugifyProjectName, splitDeepnoteFile } from '@deepnote/convert'
+import {
+  generateSnapshotFilename,
+  getSnapshotDir,
+  resolveSnapshotNotebookId,
+  slugifyProjectName,
+  splitDeepnoteFile,
+} from '@deepnote/convert'
 import type { IOutput } from '@deepnote/runtime-core'
 import { debug } from '../output'
 
@@ -104,12 +110,13 @@ export async function saveExecutionSnapshot(
   // Determine snapshot paths
   const snapshotDir = getSnapshotDir(sourcePath)
   const slug = slugifyProjectName(file.project.name) || 'project'
+  const notebookId = resolveSnapshotNotebookId(file)
 
   const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const timestampedFilename = generateSnapshotFilename(slug, file.project.id, timestamp)
+  const timestampedFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
   const timestampedSnapshotPath = resolve(snapshotDir, timestampedFilename)
 
-  const latestFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
+  const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
   const snapshotPath = resolve(snapshotDir, latestFilename)
 
   // Create snapshot directory if it doesn't exist
@@ -136,6 +143,7 @@ export async function saveExecutionSnapshot(
 export function getSnapshotPath(sourcePath: string, file: DeepnoteFile): string {
   const snapshotDir = getSnapshotDir(sourcePath)
   const slug = slugifyProjectName(file.project.name) || 'project'
-  const snapshotFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
+  const notebookId = resolveSnapshotNotebookId(file)
+  const snapshotFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
   return resolve(snapshotDir, snapshotFilename)
 }

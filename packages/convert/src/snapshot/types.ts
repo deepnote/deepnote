@@ -6,6 +6,8 @@ import type { DeepnoteFile, DeepnoteSnapshot, Environment, Execution } from '@de
 export interface SnapshotOptions {
   /** Directory where snapshot files are stored (default: 'snapshots') */
   snapshotDir?: string
+  /** When provided, prefer snapshots matching this notebook ID */
+  notebookId?: string
 }
 
 /**
@@ -16,6 +18,16 @@ export interface SplitResult {
   source: DeepnoteFile
   /** The snapshot file containing outputs */
   snapshot: DeepnoteSnapshot
+}
+
+/**
+ * One notebook slice from {@link splitByNotebooks} with a unique output filename.
+ */
+export interface NotebookSplitEntry {
+  notebook: { id: string; name: string }
+  file: DeepnoteFile
+  /** Basename for the split file (e.g. `my-project-dashboard.deepnote`) */
+  outputFilename: string
 }
 
 /**
@@ -46,6 +58,8 @@ export interface SnapshotInfo {
   slug: string
   /** Project ID */
   projectId: string
+  /** Notebook ID (present for new-format snapshots) */
+  notebookId?: string
   /** Timestamp or 'latest' */
   timestamp: string
 }

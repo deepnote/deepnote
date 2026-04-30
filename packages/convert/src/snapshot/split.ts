@@ -1,7 +1,7 @@
 import type { DeepnoteBlock, DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { isExecutableBlockType } from '@deepnote/blocks'
 import { addContentHashes, computeSnapshotHash } from './hash'
-import type { SplitResult } from './types'
+import type { NotebookSplitEntry, SplitResult } from './types'
 
 /**
  * Creates a slug from a project name.
@@ -22,15 +22,25 @@ export function slugifyProjectName(name: string): string {
     .replace(/^-|-$/g, '')
 }
 
+/** Arguments for {@link generateSnapshotFilename}. */
+export interface GenerateSnapshotFilenameParams {
+  slug: string
+  projectId: string
+  notebookId?: string
+  timestamp?: string
+}
+
 /**
  * Generates a snapshot filename from project info.
  *
- * @param slug - The project name slug
- * @param projectId - The project UUID
- * @param timestamp - Timestamp string or 'latest'
+ * @param params - Slug, project id, and optional notebook id and timestamp (defaults timestamp to `'latest'`)
  * @returns Filename in format '{slug}_{projectId}_{timestamp}.snapshot.deepnote'
  */
-export function generateSnapshotFilename(slug: string, projectId: string, timestamp: string = 'latest'): string {
+export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams): string {
+  const { slug, projectId, notebookId, timestamp = 'latest' } = params
+  if (notebookId) {
+    return `${slug}_${projectId}_${notebookId}_${timestamp}.snapshot.deepnote`
+  }
   return `${slug}_${projectId}_${timestamp}.snapshot.deepnote`
 }
 
@@ -123,4 +133,104 @@ export function hasOutputs(file: DeepnoteFile): boolean {
     }
   }
   return false
+}
+
+const SPLIT_DEEPNOTE_EXT = '.deepnote'
+
+/**
+ * Picks a unique split output basename: `{stem}-{slug}.deepnote`, then `{stem}-{slug}-2.deepnote`, etc.
+ */
+function allocateUniqueNotebookSplitFilename(sourceFileStem: string, notebookName: string, used: Set<string>): string {
+  const slug = slugifyProjectName(notebookName)
+  const pathStem = `${sourceFileStem}-${slug}`
+  const filenameForSuffix = (suffixNum: number): string =>
+    suffixNum <= 1 ? `${pathStem}${SPLIT_DEEPNOTE_EXT}` : `${pathStem}-${suffixNum}${SPLIT_DEEPNOTE_EXT}`
+
+  let candidate = filenameForSuffix(1)
+  if (!used.has(candidate)) {
+    used.add(candidate)
+    return candidate
+  }
+  const maxSuffix = 10_000
+  for (let n = 2; n <= maxSuffix; n += 1) {
+    candidate = filenameForSuffix(n)
+    if (!used.has(candidate)) {
+      used.add(candidate)
+      return candidate
+    }
+  }
+  throw new Error(
+    `Could not allocate a unique split filename for "${pathStem}${SPLIT_DEEPNOTE_EXT}" after ${maxSuffix} attempts.`
+  )
+}
+
+/**
+ * Splits a multi-notebook DeepnoteFile into separate files, one per user-facing notebook.
+ * When {@link DeepnoteFile.project.initNotebookId} resolves to a notebook in the project,
+ * that init notebook is excluded from the splittable set and prepended to every split so
+ * `initNotebookId` remains valid. Each {@link NotebookSplitEntry.notebook} still identifies
+ * the non-init notebook the entry is built around. Assigns a unique
+ * {@link NotebookSplitEntry.outputFilename} per entry (numeric suffix before `.deepnote` when slug collisions occur).
+ *
+ * @param file - The DeepnoteFile to split
+ * @param sourceFileStem - Basename of the source file without the `.deepnote` extension
+ */
+export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): NotebookSplitEntry[] {
+  const notebooks = file.project.notebooks
+  if (notebooks.length === 0) {
+    return []
+  }
+
+  const initNotebookId = file.project.initNotebookId
+  const initNotebook = initNotebookId === undefined ? undefined : notebooks.find(nb => nb.id === initNotebookId)
+
+  const splittable = initNotebook === undefined ? notebooks : notebooks.filter(nb => nb.id !== initNotebook.id)
+
+  if (splittable.length === 0) {
+    return []
+  }
+
+  const used = new Set<string>()
+  return splittable.map(notebook => {
+    const outputFilename = allocateUniqueNotebookSplitFilename(sourceFileStem, notebook.name, used)
+    const splitNotebooks = initNotebook === undefined ? [notebook] : [initNotebook, notebook]
+    return {
+      notebook: { id: notebook.id, name: notebook.name },
+      file: {
+        ...file,
+        project: {
+          ...file.project,
+          notebooks: splitNotebooks,
+        },
+      },
+      outputFilename,
+    }
+  })
+}
+
+/**
+ * Splits a multi-notebook snapshot into separate per-notebook snapshots.
+ *
+ * @param snapshot - The snapshot to split
+ * @param notebookIds - The notebook IDs to extract
+ * @returns Map from notebookId to the per-notebook snapshot
+ */
+export function splitSnapshotByNotebooks(
+  snapshot: DeepnoteSnapshot,
+  notebookIds: string[]
+): Map<string, DeepnoteSnapshot> {
+  const result = new Map<string, DeepnoteSnapshot>()
+  for (const nbId of notebookIds) {
+    const notebook = snapshot.project.notebooks.find(nb => nb.id === nbId)
+    if (notebook) {
+      result.set(nbId, {
+        ...snapshot,
+        project: {
+          ...snapshot.project,
+          notebooks: [notebook],
+        },
+      })
+    }
+  }
+  return result
 }

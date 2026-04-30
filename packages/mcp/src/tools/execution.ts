@@ -19,6 +19,7 @@ import {
   parseMarimoFormat,
   parsePercentFormat,
   parseQuartoFormat,
+  resolveSnapshotNotebookId,
   slugifyProjectName,
   splitDeepnoteFile,
 } from '@deepnote/convert'
@@ -264,12 +265,13 @@ async function saveExecutionSnapshot(
   // Determine snapshot paths
   const snapshotDir = getSnapshotDir(sourcePath)
   const slug = slugifyProjectName(file.project.name) || 'project'
+  const notebookId = resolveSnapshotNotebookId(file)
 
   const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const timestampedFilename = generateSnapshotFilename(slug, file.project.id, timestamp)
+  const timestampedFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
   const timestampedSnapshotPath = path.resolve(snapshotDir, timestampedFilename)
 
-  const latestFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
+  const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
   const snapshotPath = path.resolve(snapshotDir, latestFilename)
 
   // Create snapshot directory

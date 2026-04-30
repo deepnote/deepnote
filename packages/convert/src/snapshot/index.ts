@@ -25,13 +25,24 @@ export {
 
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
+export type { SnapshotNotebookIdFileInput, SnapshotNotebookIdProjectInput } from './snapshot-notebook-id'
+export { resolveSnapshotNotebookId } from './snapshot-notebook-id'
 // Split utilities
-export { generateSnapshotFilename, hasOutputs, slugifyProjectName, splitDeepnoteFile } from './split'
+export type { GenerateSnapshotFilenameParams } from './split'
+export {
+  generateSnapshotFilename,
+  hasOutputs,
+  slugifyProjectName,
+  splitByNotebooks,
+  splitDeepnoteFile,
+  splitSnapshotByNotebooks,
+} from './split'
 export type {
   BlockOutput,
   BlockWithOutputs,
   ExecutableBlockFields,
   MergeOptions,
+  NotebookSplitEntry,
   SnapshotEnvironment,
   SnapshotExecution,
   SnapshotInfo,

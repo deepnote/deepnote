@@ -314,6 +314,7 @@ describe('lint command', () => {
         'parse-error',
         'missing-integration',
         'missing-input',
+        'multi-notebook',
       ]
 
       for (const issue of parsed.issues) {

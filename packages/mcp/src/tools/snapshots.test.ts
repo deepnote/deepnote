@@ -1,6 +1,9 @@
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import type { DeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
+import { loadSnapshotFile } from '@deepnote/convert'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { handleSnapshotTool } from './snapshots'
 import { handleWritingTool } from './writing'
@@ -112,6 +115,84 @@ describe('snapshot tools handlers', () => {
       const response = await handleSnapshotTool('deepnote_snapshot_split', {})
       const result = extractResult(response)
       expect(result.error).toBe('path is required')
+    })
+
+    it('deepnote_snapshot_split writes notebook-scoped snapshot filenames for init plus main files and deepnote_snapshot_load reloads that snapshot from the source path', async () => {
+      // Catches: MCP snapshot split always emitted legacy project-wide filenames, so init+main split files could not roundtrip outputs through snapshot_load using the same naming as other tooling.
+      const initMainPath = path.join(tempDir, 'init-main.deepnote')
+      const initNotebookId = '44444444-4444-4444-4444-444444444444'
+      const mainNotebookId = '55555555-5555-5555-5555-555555555555'
+      const file: DeepnoteFile = {
+        version: '1.0.0',
+        metadata: { createdAt: '2025-01-01T00:00:00Z' },
+        environment: {},
+        project: {
+          id: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff',
+          name: 'MCP Init Main',
+          initNotebookId,
+          notebooks: [
+            {
+              id: initNotebookId,
+              name: 'Init',
+              blocks: [
+                {
+                  id: 'blk-init',
+                  type: 'markdown',
+                  content: 'init',
+                  sortingKey: 'a0',
+                  blockGroup: 'g',
+                  metadata: {},
+                },
+              ],
+            },
+            {
+              id: mainNotebookId,
+              name: 'Main',
+              blocks: [
+                {
+                  id: 'blk-main',
+                  type: 'code',
+                  blockGroup: 'g',
+                  sortingKey: 'a1',
+                  content: 'print("mcp")',
+                  outputs: [{ output_type: 'stream', name: 'stdout', text: ['mcp-out\n'] }],
+                  metadata: {},
+                },
+              ],
+            },
+          ],
+        },
+      }
+      await fs.writeFile(initMainPath, serializeDeepnoteFile(file), 'utf-8')
+
+      const snapshotDir = path.join(tempDir, 'snapshots-mcp')
+      const splitResponse = await handleSnapshotTool('deepnote_snapshot_split', {
+        path: initMainPath,
+        snapshotDir,
+      })
+      const splitResult = extractResult(splitResponse)
+      expect(splitResult.success).toBe(true)
+
+      const snapshotPath = splitResult.snapshotPath as string
+      const latestPath = splitResult.latestPath as string
+      expect(snapshotPath).toContain(`_${mainNotebookId}_`)
+      expect(latestPath).toContain(`_${mainNotebookId}_`)
+
+      const loadResponse = await handleSnapshotTool('deepnote_snapshot_load', {
+        path: initMainPath,
+        snapshotDir,
+      })
+      const loadResult = extractResult(loadResponse)
+      expect(loadResult.error).toBeUndefined()
+      expect(loadResult.blocksWithOutputs).toBeGreaterThan(0)
+
+      const reRead = deserializeDeepnoteFile(await fs.readFile(initMainPath, 'utf-8'))
+      const mainBlock = reRead.project.notebooks[1].blocks[0] as { outputs?: unknown[] }
+      expect(mainBlock.outputs).toBeUndefined()
+
+      const latestSnapshot = await loadSnapshotFile(latestPath)
+      const latestMain = latestSnapshot.project.notebooks[1].blocks[0] as { outputs?: unknown[] }
+      expect(latestMain.outputs).toBeDefined()
     })
   })
 
