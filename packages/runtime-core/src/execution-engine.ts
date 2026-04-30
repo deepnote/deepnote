@@ -1,14 +1,22 @@
+import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
 import {
   createPythonCode,
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
+  extractOutputsText,
+  generateSortingKey,
   isAgentBlock,
   isExecutableBlock,
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
-import { type AgentBlockContext, type AgentStreamEvent, executeAgentBlock } from './agent-handler'
+import {
+  type AgentBlockContext,
+  type AgentStreamEvent,
+  executeAgentBlock,
+  serializeNotebookContext,
+} from './agent-handler'
 import { toPythonLiteral } from './javascript'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
@@ -61,7 +69,7 @@ export interface ExecutionOptions {
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
-  onAgentEvent?: (event: AgentStreamEvent) => void
+  onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
   onServerStarting?: () => void
   onServerReady?: () => void
   integrations?: Array<{ id: string; name: string; type: string }>
@@ -147,7 +155,8 @@ export class ExecutionEngine {
    * Run a parsed DeepnoteFile.
    */
   async runProject(file: DeepnoteFile, options: ExecutionOptions = {}): Promise<ExecutionSummary> {
-    if (!this.kernel) {
+    const kernel = this.kernel
+    if (kernel == null) {
       throw new Error('Engine not started. Call start() first.')
     }
 
@@ -231,36 +240,123 @@ export class ExecutionEngine {
             throw new Error(`Agent block "${block.id}" not found in notebook`)
           }
 
+          const apiKey = process.env.OPENAI_API_KEY
+          if (!apiKey) {
+            throw new Error(
+              'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
+                'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
+            )
+          }
+
+          const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
+
+          let insertIndex = agentBlockIndex + 1
+          const blockOutputs: Array<{
+            blockId: string
+            outputs: IOutput[]
+            executionCount: number | null
+            success: boolean
+          }> = []
+
+          const projectMcpServers = file.project.settings?.mcpServers ?? []
+
+          const addAndExecuteCodeBlock = async ({ code }: { code: string }): Promise<string> => {
+            const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
+              id: randomUUID().replace(/-/g, ''),
+              blockGroup: randomUUID().replace(/-/g, ''),
+              sortingKey: generateSortingKey(insertIndex),
+              type: 'code',
+              content: code,
+              metadata: {},
+              executionCount: null,
+              outputs: [],
+            }
+
+            notebook.blocks.splice(insertIndex, 0, newBlock)
+            insertIndex++
+
+            try {
+              const result = await kernel.execute(code)
+
+              blockOutputs.push({
+                blockId: newBlock.id,
+                outputs: result.outputs,
+                executionCount: result.executionCount,
+                success: result.success,
+              })
+
+              collectedOutputs.set(newBlock.id, {
+                outputs: result.outputs,
+                executionCount: result.executionCount,
+              })
+
+              const outputText = extractOutputsText(result.outputs, { includeTraceback: true }) || '(no output)'
+              return result.success ? `Output:\n${outputText}` : `Execution failed:\n${outputText}`
+            } catch (error) {
+              const executionError = error instanceof Error ? error : new Error(String(error))
+              const errorOutputs: IOutput[] = [createErrorOutput(executionError)]
+
+              blockOutputs.push({
+                blockId: newBlock.id,
+                outputs: errorOutputs,
+                executionCount: null,
+                success: false,
+              })
+
+              collectedOutputs.set(newBlock.id, { outputs: errorOutputs, executionCount: null })
+
+              return `Execution error: ${executionError.message}`
+            }
+          }
+
+          const addMarkdownBlock = async ({ content: mdContent }: { content: string }): Promise<string> => {
+            const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
+              id: randomUUID().replace(/-/g, ''),
+              blockGroup: randomUUID().replace(/-/g, ''),
+              sortingKey: generateSortingKey(insertIndex),
+              type: 'markdown',
+              content: mdContent,
+              metadata: {},
+            }
+
+            notebook.blocks.splice(insertIndex, 0, newBlock)
+            insertIndex++
+
+            return 'Markdown block added.'
+          }
+
           const agentContext: AgentBlockContext = {
-            kernel: this.kernel,
-            file,
-            notebookIndex,
-            agentBlockIndex,
-            collectedOutputs,
+            openAiToken: apiKey,
+            mcpServers: projectMcpServers,
+            notebookContext,
+            addAndExecuteCodeBlock,
+            addMarkdownBlock,
             onAgentEvent: options.onAgentEvent,
             integrations: options.integrations,
           }
 
-          const agentResult = await executeAgentBlock(block, agentContext)
+          let agentResult: { finalOutput: string }
+          try {
+            agentResult = await executeAgentBlock(block, agentContext)
+          } finally {
+            // Always report added blocks — even if the agent threw partway through —
+            // so consumers see completion for blocks that were inserted into the notebook.
+            for (const bo of blockOutputs) {
+              for (const output of bo.outputs) {
+                options.onOutput?.(bo.blockId, output)
+              }
 
-          // Report outputs from blocks added by the agent block
-          for (const bo of agentResult.blockOutputs) {
-            collectedOutputs.set(bo.blockId, { outputs: bo.outputs, executionCount: bo.executionCount })
-
-            for (const output of bo.outputs as IOutput[]) {
-              options.onOutput?.(bo.blockId, output)
-            }
-
-            const addedBlock = notebook.blocks.find(b => b.id === bo.blockId)
-            if (addedBlock) {
-              await options.onBlockDone?.({
-                blockId: bo.blockId,
-                blockType: addedBlock.type,
-                success: true,
-                outputs: bo.outputs as IOutput[],
-                executionCount: bo.executionCount,
-                durationMs: 0,
-              })
+              const addedBlock = notebook.blocks.find(b => b.id === bo.blockId)
+              if (addedBlock) {
+                await options.onBlockDone?.({
+                  blockId: bo.blockId,
+                  blockType: addedBlock.type,
+                  success: bo.success,
+                  outputs: bo.outputs,
+                  executionCount: bo.executionCount,
+                  durationMs: 0,
+                })
+              }
             }
           }
 
@@ -277,7 +373,7 @@ export class ExecutionEngine {
           executedBlocks++
         } else {
           const code = createPythonCode(block)
-          const result = await this.kernel.execute(code, {
+          const result = await kernel.execute(code, {
             onOutput: output => options.onOutput?.(block.id, output),
           })
 

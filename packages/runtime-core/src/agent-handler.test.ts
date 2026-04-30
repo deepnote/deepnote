@@ -1,6 +1,13 @@
 import type { DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { buildSystemPrompt, mergeMcpConfigs, resolveEnvVars, serializeNotebookContext } from './agent-handler'
+import {
+  buildSystemPrompt,
+  createBlocksWithAttachedOutputsFromCollectedOutputs,
+  mergeMcpConfigs,
+  resolveEnvVars,
+  serializeNotebookContext,
+  serializeNotebookContextFromBlocks,
+} from './agent-handler'
 
 describe('resolveEnvVars', () => {
   let prevTestHost: string | undefined
@@ -249,6 +256,175 @@ describe('serializeNotebookContext', () => {
     const result = serializeNotebookContext(file, 0, new Map())
     expect(result).toContain('## Block [markdown]')
     expect(result).not.toContain('```')
+  })
+
+  it('does not serialize saved block outputs when collectedOutputs has no matching entry', () => {
+    const file = makeFile({
+      blocks: [
+        {
+          id: 'saved-only-1234',
+          blockGroup: 'bg1',
+          sortingKey: 'a0',
+          type: 'code',
+          content: 'print("stale")',
+          metadata: {},
+          executionCount: 1,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'stale saved output\n' }],
+        },
+      ],
+    })
+    const result = serializeNotebookContext(file, 0, new Map())
+    expect(result).not.toContain('### Output:')
+    expect(result).not.toContain('stale saved output')
+  })
+
+  it('serializes only collected outputs when block has stale saved outputs', () => {
+    const file = makeFile({
+      blocks: [
+        {
+          id: 'collected-block-12',
+          blockGroup: 'bg1',
+          sortingKey: 'a0',
+          type: 'code',
+          content: 'print("fresh")',
+          metadata: {},
+          executionCount: 1,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'stale saved output\n' }],
+        },
+      ],
+    })
+    const collected = new Map<string, { outputs: unknown[]; executionCount: number | null }>()
+    collected.set('collected-block-12', {
+      outputs: [{ output_type: 'stream', name: 'stdout', text: 'fresh output\n' }],
+      executionCount: 2,
+    })
+    const result = serializeNotebookContext(file, 0, collected)
+    expect(result).toContain('### Output:')
+    expect(result).toContain('fresh output')
+    expect(result).not.toContain('stale saved output')
+  })
+
+  it('with partial collectedOutputs only serializes collected outputs and ignores saved outputs from other blocks', () => {
+    const file = makeFile({
+      blocks: [
+        {
+          id: 'collected-block-12',
+          blockGroup: 'bg1',
+          sortingKey: 'a0',
+          type: 'code',
+          content: 'print("a")',
+          metadata: {},
+          executionCount: 1,
+          outputs: [],
+        },
+        {
+          id: 'skipped-saved-12',
+          blockGroup: 'bg2',
+          sortingKey: 'a1',
+          type: 'code',
+          content: 'print("b")',
+          metadata: {},
+          executionCount: 1,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'stale b output\n' }],
+        },
+      ],
+    })
+    const collected = new Map<string, { outputs: unknown[]; executionCount: number | null }>()
+    collected.set('collected-block-12', {
+      outputs: [{ output_type: 'stream', name: 'stdout', text: 'fresh a output\n' }],
+      executionCount: 2,
+    })
+    const result = serializeNotebookContext(file, 0, collected)
+    expect(result).toContain('fresh a output')
+    expect(result).not.toContain('stale b output')
+  })
+})
+
+describe('serializeNotebookContextFromBlocks', () => {
+  it('serializes block.outputs directly so non-runtime callers can include saved outputs', () => {
+    const result = serializeNotebookContextFromBlocks({
+      notebookName: 'Saved Notebook',
+      blocks: [
+        {
+          id: 'saved-block-1234',
+          blockGroup: 'bg1',
+          sortingKey: 'a0',
+          type: 'code',
+          content: 'print("saved")',
+          metadata: {},
+          executionCount: 1,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'saved-output-text\n' }],
+        },
+      ],
+    })
+    expect(result).toContain('# Notebook: Saved Notebook')
+    expect(result).toContain('### Output:')
+    expect(result).toContain('saved-output-text')
+  })
+})
+
+describe('createBlocksWithAttachedOutputsFromCollectedOutputs', () => {
+  it('strips saved outputs from executable blocks without a matching collected entry', () => {
+    const result = createBlocksWithAttachedOutputsFromCollectedOutputs({
+      blocks: [
+        {
+          id: 'saved-only-1234',
+          blockGroup: 'bg1',
+          sortingKey: 'a0',
+          type: 'code',
+          content: 'x = 1',
+          metadata: {},
+          executionCount: 1,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'stale\n' }],
+        },
+      ],
+      collectedOutputs: new Map(),
+    })
+    expect(result[0]).toMatchObject({ id: 'saved-only-1234', outputs: [] })
+  })
+
+  it('attaches collected outputs when the block has a matching entry', () => {
+    const collected = new Map<string, { outputs: unknown[]; executionCount: number | null }>()
+    collected.set('block-1234abcd56', {
+      outputs: [{ output_type: 'stream', name: 'stdout', text: 'fresh\n' }],
+      executionCount: 7,
+    })
+    const result = createBlocksWithAttachedOutputsFromCollectedOutputs({
+      blocks: [
+        {
+          id: 'block-1234abcd56',
+          blockGroup: 'bg1',
+          sortingKey: 'a0',
+          type: 'code',
+          content: 'print("hi")',
+          metadata: {},
+          executionCount: null,
+          outputs: [],
+        },
+      ],
+      collectedOutputs: collected,
+    })
+    expect(result[0]).toMatchObject({
+      id: 'block-1234abcd56',
+      outputs: [{ output_type: 'stream', name: 'stdout', text: 'fresh\n' }],
+    })
+  })
+
+  it('leaves non-executable blocks (no outputs field) untouched', () => {
+    const block = {
+      id: 'md-block-12345',
+      blockGroup: 'bg1',
+      sortingKey: 'a0',
+      type: 'markdown' as const,
+      content: '# Heading',
+      metadata: {},
+    }
+    const result = createBlocksWithAttachedOutputsFromCollectedOutputs({
+      blocks: [block],
+      collectedOutputs: new Map(),
+    })
+    expect(result[0]).toBe(block)
+    expect('outputs' in result[0]).toBe(false)
   })
 })
 
