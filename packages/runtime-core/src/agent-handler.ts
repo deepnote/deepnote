@@ -180,7 +180,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
 
   const addCodeBlockTool = tool({
     description:
-      'Add a Python code block to the notebook and execute it. Returns stdout, stderr, and execution results.',
+      'Add a Python code block to the notebook and execute it. Returns the combined output text or an error message.',
     inputSchema: z.object({
       code: z.string().describe('Python code to execute'),
     }),

@@ -251,7 +251,12 @@ export class ExecutionEngine {
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
           let insertIndex = agentBlockIndex + 1
-          const blockOutputs: Array<{ blockId: string; outputs: unknown[]; executionCount: number | null }> = []
+          const blockOutputs: Array<{
+            blockId: string
+            outputs: IOutput[]
+            executionCount: number | null
+            success: boolean
+          }> = []
 
           const projectMcpServers = file.project.settings?.mcpServers ?? []
 
@@ -277,6 +282,7 @@ export class ExecutionEngine {
                 blockId: newBlock.id,
                 outputs: result.outputs,
                 executionCount: result.executionCount,
+                success: result.success,
               })
 
               collectedOutputs.set(newBlock.id, {
@@ -287,8 +293,19 @@ export class ExecutionEngine {
               const outputText = extractOutputsText(result.outputs, { includeTraceback: true }) || '(no output)'
               return result.success ? `Output:\n${outputText}` : `Execution failed:\n${outputText}`
             } catch (error) {
-              const message = error instanceof Error ? error.message : String(error)
-              return `Execution error: ${message}`
+              const executionError = error instanceof Error ? error : new Error(String(error))
+              const errorOutputs: IOutput[] = [createErrorOutput(executionError)]
+
+              blockOutputs.push({
+                blockId: newBlock.id,
+                outputs: errorOutputs,
+                executionCount: null,
+                success: false,
+              })
+
+              collectedOutputs.set(newBlock.id, { outputs: errorOutputs, executionCount: null })
+
+              return `Execution error: ${executionError.message}`
             }
           }
 
@@ -318,26 +335,28 @@ export class ExecutionEngine {
             integrations: options.integrations,
           }
 
-          const agentResult = await executeAgentBlock(block, agentContext)
+          let agentResult: { finalOutput: string }
+          try {
+            agentResult = await executeAgentBlock(block, agentContext)
+          } finally {
+            // Always report added blocks — even if the agent threw partway through —
+            // so consumers see completion for blocks that were inserted into the notebook.
+            for (const bo of blockOutputs) {
+              for (const output of bo.outputs) {
+                options.onOutput?.(bo.blockId, output)
+              }
 
-          // Report outputs from blocks added by the agent block
-          for (const bo of blockOutputs) {
-            collectedOutputs.set(bo.blockId, { outputs: bo.outputs, executionCount: bo.executionCount })
-
-            for (const output of bo.outputs as IOutput[]) {
-              options.onOutput?.(bo.blockId, output)
-            }
-
-            const addedBlock = notebook.blocks.find(b => b.id === bo.blockId)
-            if (addedBlock) {
-              await options.onBlockDone?.({
-                blockId: bo.blockId,
-                blockType: addedBlock.type,
-                success: true,
-                outputs: bo.outputs as IOutput[],
-                executionCount: bo.executionCount,
-                durationMs: 0,
-              })
+              const addedBlock = notebook.blocks.find(b => b.id === bo.blockId)
+              if (addedBlock) {
+                await options.onBlockDone?.({
+                  blockId: bo.blockId,
+                  blockType: addedBlock.type,
+                  success: bo.success,
+                  outputs: bo.outputs,
+                  executionCount: bo.executionCount,
+                  durationMs: 0,
+                })
+              }
             }
           }
 

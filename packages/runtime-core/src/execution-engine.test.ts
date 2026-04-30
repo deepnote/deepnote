@@ -1006,6 +1006,15 @@ describe('ExecutionEngine', () => {
       expect(addedCodeBlock).toEqual(expect.objectContaining({ type: 'code', content: helperCode }))
       expect(onBlockDone).toHaveBeenCalledWith(
         expect.objectContaining({
+          blockId: addedCodeBlock.id,
+          blockType: 'code',
+          success: false,
+          outputs: [expect.objectContaining({ output_type: 'error', evalue: 'Kernel crash' })],
+          executionCount: null,
+        })
+      )
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
           blockType: 'agent',
           success: false,
           outputs: [expect.objectContaining({ output_type: 'error', evalue: 'Execution error: Kernel crash' })],
@@ -1225,12 +1234,28 @@ describe('ExecutionEngine', () => {
           return { finalOutput: 'Done.' }
         })
 
+        const onBlockDone = vi.fn()
         await engine.start()
-        await engine.runProject(AGENT_FIXTURE)
+        await engine.runProject(AGENT_FIXTURE, { onBlockDone })
 
         expect(results).toHaveLength(1)
         expect(results[0]).toMatch(/^Execution failed:/)
         expect(results[0]).toContain('invalid syntax')
+
+        const failedAddedBlock = onBlockDone.mock.calls.find(
+          (args: unknown[]) =>
+            (args[0] as { blockType: string }).blockType === 'code' &&
+            (args[0] as { success: boolean }).success === false
+        )
+        expect(failedAddedBlock).toBeDefined()
+        expect(failedAddedBlock?.[0]).toEqual(
+          expect.objectContaining({
+            blockType: 'code',
+            success: false,
+            executionCount: 2,
+            outputs: [expect.objectContaining({ output_type: 'error', evalue: 'invalid syntax' })],
+          })
+        )
       })
 
       it('surfaces kernel.execute rejection as failure', async () => {
