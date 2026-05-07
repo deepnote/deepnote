@@ -63,14 +63,14 @@ For storage integrations, such as S3, Google Drive, or Shared Datasets, you can 
 
 For integrations that rely on specific environment variables (such as database integrations like Snowflake, Postgres, or BigQuery), you need to include a specific code snippet at the beginning of your Streamlit app to populate the app with the required environment variables:
 
-```
+```python
 import deepnote_toolkit
 deepnote_toolkit.set_integration_env()
 ```
 
 An example app that connects to the demo Snowflake integration and renders a DataFrame could look like this:
 
-```
+```python
 import streamlit as st
 import os
 import snowflake.connector
