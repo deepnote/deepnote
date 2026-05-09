@@ -8,7 +8,7 @@ Understanding user interactions with your content is crucial for improving engag
 
 Analytics provide insights into the usage of your notebooks and apps, allowing you to track the most successful ones or identify those that are no longer in use and can be safely removed. You can also use the analytics to check the executions of the apps, which can help you justify hardware costs.
 
-![analytics.gif](../assets/docs/pYS3fLSUQpuzzCRuYVrf.gif)
+<VideoLoop src="../assets/docs/pYS3fLSUQpuzzCRuYVrf.mp4" />
 
 ### Available data
 

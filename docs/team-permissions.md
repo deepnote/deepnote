@@ -70,5 +70,5 @@ _How can I lock a project?_
 
 From within a project, you can set the workspace member permissions to **View** in "one fell swoop". Note that **Admins** will always be able to edit projects. If the option is set to "Full access" then all members of a workspace will follow their respective roles according to the **Workspace** settings.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F8tQwVGDySVsBRdGxxgnK%2Fread.gif](../assets/docs/jSLTgSiyT82Rlbi01ftl.gif)
+<VideoLoop src="../assets/docs/jSLTgSiyT82Rlbi01ftl.mp4" />
 ![domain-invites.png](../assets/docs/xSw2tP5T8GaZNqTVbsVN.webp)

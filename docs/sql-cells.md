@@ -30,7 +30,7 @@ SQL blocks only work within Python notebooks
 Apart from querying a database, you can also use SQL blocks to query your DataFrames or even tabular files like CSV or Excel. To do that, create a SQL block and select the "DataFrame SQL" option as the data source.
 DataFrame SQL blocks can also be created by drag and dropping a CSV file from your filesystem (this also works for already uploaded files in the left sidebar). By executing that SQL block, the contents of the CSV file will be loaded into a DataFrame variable.
 
-![Creating a DataFrame SQL block](../assets/docs/qQ3uTPjHSydkFQUvUlb9.gif)
+<VideoLoop src="../assets/docs/qQ3uTPjHSydkFQUvUlb9.mp4" />
 
 Here's an example of querying a DataFrame variable`df`:
 
@@ -108,7 +108,7 @@ The result is stored as `large_pizzas` which can then be used downstream in anot
 
 To inspect the compiled SQL query that get's executed, use the "Show compiled SQL query" in the block actions:
 
-![Compiled SQL](../assets/docs/jB7WL0zSSOrqiSYjPP1V.gif)
+<VideoLoop src="../assets/docs/jB7WL0zSSOrqiSYjPP1V.mp4" />
 
 <Callout status="warning">
 Query chaining only works for single `SELECT` statements. This includes the use of CTEs but statements like `INSERT`, `UPDATE` or `DELETE` are not supported.

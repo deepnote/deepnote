@@ -33,15 +33,15 @@ This will affect code completions in all your notebooks, but other workspace mem
 
 Once it's enabled, you can see code suggestions appearing real-time as you type in **code or SQL blocks**. You can accept suggestions by pressing `Tab`.
 
-![outliers (1).gif](../assets/docs/C46TjJ8QPqLlhDH0Oi3U.gif)
+<VideoLoop src="../assets/docs/C46TjJ8QPqLlhDH0Oi3U.mp4" />
 
 Suggestions are **context-aware**: the content in previous code and text blocks in the notebook will be taken into account to provide more relevant suggestions. You can try to prompt code suggestions by providing a textual description of what you want to achieve. You can put that in a text block or in a comment in the code as well.
 
-![visualization (1).gif](../assets/docs/GO6HEOFFQOO659C6sxeh.gif)
+<VideoLoop src="../assets/docs/GO6HEOFFQOO659C6sxeh.mp4" />
 
 Suggestions work in **SQL blocks** as well. Similarly to Python code, SQL query completions also utilize your notebook as context, along with any relevant SQL blocks using the same integration in other notebooks within your workspace. This means that the more details you have in your notebook and the more work you do with the given data source, the more relevant the suggestions will become.
 
-![2023-08-15 15.32.02 (1).gif](../assets/docs/L7sdHuk4TXy4n6yXweof.gif)
+<VideoLoop src="../assets/docs/L7sdHuk4TXy4n6yXweof.mp4" />
 
 _Watch it all come together in our 3-minute demo below._
 

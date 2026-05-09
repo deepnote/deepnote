@@ -9,4 +9,4 @@ Code can be complicated. Whether it's long, uses an unfamiliar framework, or was
 
 For future reference, you may want to save this explanation in a new text block. To do this, just click on the **Add as text block** button.
 
-![2024-03-11 17.06.19.gif](../assets/docs/M6VpdrIxS8CZoujrryxO.gif)
+<VideoLoop src="../assets/docs/M6VpdrIxS8CZoujrryxO.mp4" />

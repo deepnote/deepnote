@@ -14,7 +14,7 @@ Deepnote is a great place to define your metrics, and with the new **modules** f
 
 We recommend creating a separate notebook for each metric definition. Use SQL or Python blocks to retrieve the data and text blocks to document each metric and its change history. Then publish these notebooks as modules that can be imported into any analysis.
 
-![2025-03-11 17.39.25 (1) (1).gif](../assets/docs/jzB9hGk4Ti6nJMtLCEkT.gif)
+<VideoLoop src="../assets/docs/jzB9hGk4Ti6nJMtLCEkT.mp4" />
 
 Modules ensure that everyone on your team calculates metrics the same way, eliminating inconsistencies and building trust in your data. When a metric definition needs to be updated, you only need to change it in one place, and the update propagates automatically to all notebooks using that module.
 

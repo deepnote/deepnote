@@ -81,7 +81,7 @@ df
 
 After reading your Notion databases, performing analyses using the data, and creating visualizations, you might want to bring your Notion blocks back into Notion. That's where [shared blocks](/docs/sharing-and-embedding-blocks) come into play. Deepnote allows for the sharing and embedding of individual blocks. It's up to you whether you want to include the code and output or only one of the two.
 
-![Embedding Deepnote blocks into a Notion page](../assets/docs/hYvEAUk3TOhQoxZklVQu.gif)
+<VideoLoop src="../assets/docs/hYvEAUk3TOhQoxZklVQu.mp4" />
 
 ### Next steps
 

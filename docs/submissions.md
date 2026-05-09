@@ -10,7 +10,7 @@ There are several ways to submit assignments in Deepnote. Here are a few options
 
 Many instructors accept assignments in the form of Jupyter notebooks, which are interactive documents that contain both code and text. To [export your work as a Jupyter notebook in Deepnote](https://deepnote.com/docs/export-notebook), click the "File" menu and select "Export." Choose the "Jupyter notebook" option, then select the cells you want to include in the export. You can then save the Jupyter notebook to your local computer and submit it as directed by your instructor.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F0keCWiqlWFSDNOshzpj5%2FCleanShot%202022-03-30%20at%2014.53.21.gif](../assets/docs/azGGNHSpTYCtGis0UO6O.gif)
+<VideoLoop src="../assets/docs/azGGNHSpTYCtGis0UO6O.mp4" />
 
 ## Share a link to your Deepnote project
 

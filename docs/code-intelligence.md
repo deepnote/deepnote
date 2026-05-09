@@ -10,13 +10,13 @@ Deepnote comes with code intelligence tools that are common in traditional IDEs.
 
 As you type, we show you the relevant functions, methods, and defined variables. You can also trigger the autocomplete any time by hitting 'Tab' key.
 
-![Autocomplete](../assets/docs/KrkSnm8iSGn7hjKrV6iB.gif)
+<VideoLoop src="../assets/docs/KrkSnm8iSGn7hjKrV6iB.mp4" />
 
 #### Function documentation and parameter names
 
 When you hover over a function, we surface its documentation if it is provided by the associated module. In addition, while filling out function parameters, you will see hints for the parameters you'll need. You can also trigger these hints by hitting <Keyboard>Shift + Tab</Keyboard>
 
-![function documentation and parameter names](../assets/docs/PkgJdy0TEaE7fEoxTP1g.gif)
+<VideoLoop src="../assets/docs/PkgJdy0TEaE7fEoxTP1g.mp4" />
 
 #### SQL autocomplete
 

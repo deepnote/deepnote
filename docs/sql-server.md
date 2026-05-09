@@ -17,7 +17,7 @@ Deepnote's SQL Server integration allows data teams to efficiently query their d
 
 ### How to connect to SQL Server (or Azure SQL, or Azure Synapse)
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FtzGi0pWdvxAFWs9CrTft%2Fss1.gif](../assets/docs/w3Z8ghDrS2qz0XqK8BNh.gif)
+<VideoLoop src="../assets/docs/w3Z8ghDrS2qz0XqK8BNh.mp4" />
 
 To create the integration, you'll need a few things:
 
@@ -37,7 +37,7 @@ If your connection is protected, you might need to add Deepnote's IP addresses t
 
 Once created, you'll be able to connect the SQL Server integration to any project within your workspace through the right-hand sidebar. The SQL Server integration comes with custom SQL Server SQL blocks that help streamline your analytics efforts. You can also convert any existing [SQL block](/docs/sql-cells) to a SQL Server block.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F5hjLnlfp2xfKhRqkaejm%2Fss2.gif](../assets/docs/QMu1OTdTS2mCtOhgHB4A.gif)
+<VideoLoop src="../assets/docs/QMu1OTdTS2mCtOhgHB4A.mp4" />
 
 As with all SQL blocks, the query results will be saved as a Pandas DataFrame and stored in the variable specified in the SQL block.
 

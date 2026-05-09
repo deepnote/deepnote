@@ -12,4 +12,4 @@ Deepnote's intuitive interface makes it easy for everyone to get up to speed qui
 
 Each group project can be shared with multiple students working on the assignment together. The easiest way to share the assignment with multiple students is to go to the project, click on the share button, select the desired access level, and distribute the link among the students in the group.<br />
 
-![EDU_group_work.gif](../assets/docs/a188WyxTzaT225UERnbX.gif)
+<VideoLoop src="../assets/docs/a188WyxTzaT225UERnbX.mp4" />

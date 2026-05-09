@@ -23,7 +23,7 @@ You can also add text blocks by clicking on the **Text** button at the bottom of
 
 Once you added a text block, you can apply formatting to the text via the formatting toolbar. Just highlight a piece of text and select from various styling options such as **bold**, *italic*, underline, ~~strikethrough~~, and `code`. You can add a hyperlink by clicking on the link button.
 
-![2022-09-21 08.27.07 (1).gif](../assets/docs/lpVktfSsS5Woz47Acr65.gif)
+<VideoLoop src="../assets/docs/lpVktfSsS5Woz47Acr65.mp4" />
 In addition to the formatting toolbar, keyboard shortcuts are also available for styling your text (eg. Cmd+B for bolding).
 
 💡 Pro tip: The quickest way to add a hyperlink is by copying a URL and then simply pasting it on the highlighted text (Cmd+V).
@@ -32,11 +32,11 @@ In addition to the formatting toolbar, keyboard shortcuts are also available for
 
 Besides formatting, you can also perform standard block operations available in the block sidebar, such as reordering, commenting, duplication, deletion, and so on. Reordering can also be done by drag-and-dropping the handle on the left-hand side of the block.
 
-![2022-09-21 08.16.18 (1).gif](../assets/docs/T7Qi2V1SFOY0wSJnOvAR.gif)
+<VideoLoop src="../assets/docs/T7Qi2V1SFOY0wSJnOvAR.mp4" />
 
 One of the most useful operations is to convert from one type of text block to another (for instance, change from paragraph to callout block). You can do this by clicking on the hamburger (Block action) menu and select the block type you’d like to convert to.
 
-![2022-09-20 09.43.13 (2) (1).gif](../assets/docs/GAPcEtQZRIONrtJMT790.gif)
+<VideoLoop src="../assets/docs/GAPcEtQZRIONrtJMT790.mp4" />
 
 💡 Pro tip: The callout block has additional styling options available in the Block action menu. You can select from four different colors to apply to your callouts.
 

@@ -8,7 +8,7 @@ Deepnote provides an easy way to explore the current variables present in a note
 
 For all variable types, you can click on the variable to show the variable's contents from within the notebook itself:
 
-![variable explorer animation](../assets/docs/ocP07hX7RmO2fzs5zyoQ.gif)
+<VideoLoop src="../assets/docs/ocP07hX7RmO2fzs5zyoQ.mp4" />
 
 ### Interactive DataFrame output
 
@@ -19,4 +19,4 @@ When displaying any **Pandas DataFrame**, Deepnote provides interactive controls
 - Paginate through your DataFrame and download it as a CSV file by using the controls at the bottom
 - Create a [no-code chart](/docs/chart-blocks) for the DataFrame by clicking the `visualize` button in the right-hand corner
 
-![Interactive DataFrame output](../assets/docs/nTbxtZv4R46eIJx61fUv.gif)
+<VideoLoop src="../assets/docs/nTbxtZv4R46eIJx61fUv.mp4" />

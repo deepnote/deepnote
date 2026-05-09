@@ -19,7 +19,7 @@ Deepnote's ClickHouse integration allows data teams to efficiently query very la
 
 To create a ClickHouse integration in Deepnote, open up the integrations overview and click on the ClickHouse tile.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FvlXvYvUYtEz0sTbDBcWt%2FScreen-Recording-2022-05-31-at-2%20(1).gif](../assets/docs/EbN8UwFNTLaUdL6mYlGM.gif)
+<VideoLoop src="../assets/docs/EbN8UwFNTLaUdL6mYlGM.mp4" />
 
 To create the integration, you'll need a few things:
 
@@ -37,7 +37,7 @@ If your connection is protected, you might need to allowlist Deepnote's IP addre
 
 Once created, you'll be able to connect the ClickHouse integration to any project within your workspace through the right-hand sidebar. The ClickHouse integration comes with custom ClickHouse SQL blocks that help streamline your analytics efforts. You can also convert any existing [SQL block](/docs/sql-cells) to a ClickHouse block.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FXEq6NlDbyPYBkypornU9%2FMy-Moviee.gif](../assets/docs/GwYoEpMdRYiuJyACFz9T.gif)
+<VideoLoop src="../assets/docs/GwYoEpMdRYiuJyACFz9T.mp4" />
 
 As with all SQL blocks, the query results will be saved as a DataFrame and stored in the variable specified in the SQL block.
 
