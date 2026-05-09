@@ -17,20 +17,20 @@ To get started:
 2. Select the data source you want to query
 3. Name the results variable
 
-![SQL selecting a data source](https://media.graphassets.com/QjvPRVWRBiZ1RhpZr0fS)
+![SQL selecting a data source](../assets/docs/QjvPRVWRBiZ1RhpZr0fS.webp)
 
 <Callout status="info">
 SQL blocks only work within Python notebooks
 </Callout>
 
-![SQL block](https://media.graphassets.com/3KbKnkM0Tk2vJprDHtbX)
+![SQL block](../assets/docs/3KbKnkM0Tk2vJprDHtbX.webp)
 
 ### Dataframe SQL
 
 Apart from querying a database, you can also use SQL blocks to query your DataFrames or even tabular files like CSV or Excel. To do that, create a SQL block and select the "DataFrame SQL" option as the data source.
 DataFrame SQL blocks can also be created by drag and dropping a CSV file from your filesystem (this also works for already uploaded files in the left sidebar). By executing that SQL block, the contents of the CSV file will be loaded into a DataFrame variable.
 
-![Creating a DataFrame SQL block](https://media.graphassets.com/qQ3uTPjHSydkFQUvUlb9)
+![Creating a DataFrame SQL block](../assets/docs/qQ3uTPjHSydkFQUvUlb9.gif)
 
 Here's an example of querying a DataFrame variable`df`:
 
@@ -54,7 +54,7 @@ DataFrame SQL uses duckdb under the hood. Visit the [duckdb reference](https://d
 
 When you execute a SQL query, Deepnote will display the result in a data table. The data table lets you get a sense of the data you're working with quickly through column descriptors such as breakdown of column values for categorical columns or summary statistics for numeric columns.
 
-![SQL block data table](https://media.graphassets.com/mkDfIkIRGeSv03vceC7a)
+![SQL block data table](../assets/docs/mkDfIkIRGeSv03vceC7a.webp)
 
 Have a look at the [data table documentation](/docs/data-tables) for more details on how to further modify the data table through things like column filtering, column renaming or conditional cell formatting.
 
@@ -70,7 +70,7 @@ SQL blocks offer two distinct output modes: **DataFrame** mode and **Query previ
 
 - Query preview mode, retrieves the first 100 rows of the result only, but instead of just creating a DataFrame, it will also store the source SQL code used to query that data. You can reference this query previews in your subsequent SQL blocks to build complex queries through query chaining. Using query preview mode let's you decide when to pull in the full results of the query into memory and leaving the data in the warehouse until then.
 
-![SQL output modes](https://media.graphassets.com/c5TNTJuTRcWjjoqnTG7r)
+![SQL output modes](../assets/docs/c5TNTJuTRcWjjoqnTG7r.webp)
 
 <Callout status="info">
 Under the hood, Deepnote appends a LIMIT clause to your query preview mode queries.
@@ -92,7 +92,7 @@ Q: Can I use query preview objects in other blocks?
 
 A: Yes, you can use query previews exactly as you would use a DataFrame. Actually, the `DeepnoteQueryPreview` object that is returned is a subclass of a Pandas DataFrame. This means you can also plot it in a Chart block. However, do keep in mind that the preview only contains first 100 rows.
 
-![SQL using DeepnoteQueryPreview](https://media.graphassets.com/WmfGCeTZRyC2eKRG6qdB)
+![SQL using DeepnoteQueryPreview](../assets/docs/WmfGCeTZRyC2eKRG6qdB.webp)
 
 ### Query chaining
 
@@ -100,15 +100,15 @@ Query chaining makes complex SQL development simpler and more efficient. Instead
 
 For example, let's say that we often query "large pizzas" from our Pizza Sales dataset. We can write a query and get back a preview of the first 100 results:
 
-![Query chaining part 1](https://media.graphassets.com/MKvWtEg1SC6zOoJupbZo)
+![Query chaining part 1](../assets/docs/MKvWtEg1SC6zOoJupbZo.webp)
 
 The result is stored as `large_pizzas` which can then be used downstream in another SQL block. Let's say that that we'd like to fetch some basic metrics for sales of large pizzas. We can reference the `large_pizzas` object as if it was a CTE:
 
-![Query chaining part 2](https://media.graphassets.com/2Ik4jEaSR5OoBCljfS60)
+![Query chaining part 2](../assets/docs/2Ik4jEaSR5OoBCljfS60.webp)
 
 To inspect the compiled SQL query that get's executed, use the "Show compiled SQL query" in the block actions:
 
-![Compiled SQL](https://media.graphassets.com/jB7WL0zSSOrqiSYjPP1V)
+![Compiled SQL](../assets/docs/jB7WL0zSSOrqiSYjPP1V.gif)
 
 <Callout status="warning">
 Query chaining only works for single `SELECT` statements. This includes the use of CTEs but statements like `INSERT`, `UPDATE` or `DELETE` are not supported.
@@ -118,7 +118,7 @@ Query chaining only works for single `SELECT` statements. This includes the use 
 
 With caching enabled, Deepnote automatically saves the results of your queries in SQL blocks. Returning these cached results for repeated queries can greatly improve performance in your notebooks and reduce the load on your database/warehouse. See [Query caching](/docs/sql-query-caching) for more information how to use and customize it to your needs.
 
-![Query caching](https://media.graphassets.com/X4AJhfoXQFuwpCSNJ2Y2)
+![Query caching](../assets/docs/X4AJhfoXQFuwpCSNJ2Y2.webp)
 
 ### SQL autocomplete
 
@@ -126,7 +126,7 @@ SQL blocks combine schema _Intellisense_ autocompletions and inline AI completio
 
 The built-in _Intellisense_ will offer relevant suggestions for your cursor position. This includes entities in your schema such as databases, tables or columns but also aliases, CTEs or query previews that you may have defined in your previous queries. The autocomplete will open automatically as you type. In addition to that, you can trigger it manually by using one of these keyboard shortcuts <Keyboard>Control + Space</Keyboard>, <Keyboard>Option + Space</Keyboard> or <Keyboard>⌘ + I</Keyboard>.
 
-![SQL Autocomplete](https://media.graphassets.com/wWGpYQjmQTWM2gPRxEQk)
+![SQL Autocomplete](../assets/docs/wWGpYQjmQTWM2gPRxEQk.webp)
 
 Generated AI completions fill in the gaps of schema completions by pulling in the context of your notebook as well as relevant SQL blocks from across your workspace to suggest outright entire SQL snippets.
 

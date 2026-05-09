@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-![snowpark integration](https://media.graphassets.com/7k7ADpFQT84m2MlQSvV8)
+![snowpark integration](../assets/docs/7k7ADpFQT84m2MlQSvV8.webp)
 
 <Callout status="info">
 **Want to get started right away?** Click [here](https://deepnote.com/launch?template=Snowpark%20and%20Deepnote) to jump into a ready-to-go notebook that demonstrates Snowpark

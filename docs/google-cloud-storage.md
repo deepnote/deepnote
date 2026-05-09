@@ -28,4 +28,4 @@ Make sure the [Cloud Storage API](https://cloud.google.com/endpoints/docs/openap
 2. In Deepnote, create a new Google Cloud Storage integration and enter the name of the bucket. Then copy the contents of the service account into the empty field.
 3. After the integration is created, you can connect it to any of your projects. The bucket will be mounted to your file system where you can easily access it.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FkAqRN3pXX0uFOQjZZiiD%2FScreen%20Shot%202022-03-30%20at%2012.55.12%20PM.png](https://media.graphassets.com/Gzv9fdXRQwqlzAkoiWxR)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FkAqRN3pXX0uFOQjZZiiD%2FScreen%20Shot%202022-03-30%20at%2012.55.12%20PM.png](../assets/docs/Gzv9fdXRQwqlzAkoiWxR.webp)

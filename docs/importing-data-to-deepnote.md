@@ -9,7 +9,7 @@ noContent: false
 
 You can upload files into the integrated file system by dragging them from your computer into the **FILES** section in the right sidebar. You can also click the **+** button to upload files from your computer or from a URL.
 
-![upload files.png](https://media.graphassets.com/ZG2hzoBoTbyNZImXNz8Q)
+![upload files.png](../assets/docs/ZG2hzoBoTbyNZImXNz8Q.webp)
 
 <br></br>
 
@@ -21,7 +21,7 @@ Note that Deepnote is compatible with core Jupyter functionality. Read our secti
 
 Pro tip: If you drag a CSV file into the notebook (either from your computer or from the file system), an [SQL block](/docs/sql-cells) with a prepopulated query will be created for you.
 
-![sql_csv.png](https://media.graphassets.com/OPw0PxhLRXe9FOGO72nq)
+![sql_csv.png](../assets/docs/OPw0PxhLRXe9FOGO72nq.webp)
 
 <Callout status="info">
 Note that the limit for uploading a file via a web interface is 100MB.

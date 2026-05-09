@@ -26,13 +26,13 @@ Turning a notebook into a module is a straightforward process:
 
 Open the notebook you want to convert into a module and click the **create module button** in the notebook's upper right corner. Confirm your intent by pressing the ‘**Publish as a module**’ button.
 
-![CleanShot 2025-03-12 at 10.27.05.png](https://media.graphassets.com/VrXQjqEHSlKuOPxdbnjY)
+![CleanShot 2025-03-12 at 10.27.05.png](../assets/docs/VrXQjqEHSlKuOPxdbnjY.webp)
 
 At this point, your notebook is turned into a module! However, to make it useful, there’s an extra step needed: you need to **select which blocks you want to export** as the output of the module. You can do this by going to a code or SQL block and clicking the **export block** action.
 
 Then you can give the exported block a descriptive name and you’re done!
 
-![CleanShot 2025-03-12 at 10.45.18.png](https://media.graphassets.com/mWb9QjvVQXCkuxpOaDzt)
+![CleanShot 2025-03-12 at 10.45.18.png](../assets/docs/mWb9QjvVQXCkuxpOaDzt.webp)
 
 You can export as many blocks as you wish from a single module. The **output of all exported blocks will be available** when others import your module.
 
@@ -42,13 +42,13 @@ It's important to note that exported outputs can differ based on the given block
 - In case of code blocks, the output will be the last returned variable within the code block
 - When exporting a function, ensure the function object is returned on the last line of the code block
 
-![CleanShot 2025-03-12 at 10.47.39.png](https://media.graphassets.com/APQrmKGSQSKRLdn82Dlp)
+![CleanShot 2025-03-12 at 10.47.39.png](../assets/docs/APQrmKGSQSKRLdn82Dlp.webp)
 
 **Adding Parameters**
 
 To make your module configurable, include input blocks in your notebook. These will automatically become parameters that users can set when importing your module. For example, if you add a select input linked to a SQL block, users of the module will be able to customize the returned results based on their selection (such as filtering by pricing plan).
 
-![CleanShot 2025-03-12 at 10.50.49.png](https://media.graphassets.com/IMAjlTv5TVyEo6PwxPA5)
+![CleanShot 2025-03-12 at 10.50.49.png](../assets/docs/IMAjlTv5TVyEo6PwxPA5.webp)
 
 ## Importing a Module
 
@@ -61,7 +61,7 @@ Using modules in your own notebooks is simple:
    - Choose which exported blocks to import
    - Optionally rename returned variables to fit your current notebook's naming conventions
 
-![2025-03-11 17.39.25 (1) (1).gif](https://media.graphassets.com/2nmctbQTUuzanKWXNsts)
+![2025-03-11 17.39.25 (1) (1).gif](../assets/docs/2nmctbQTUuzanKWXNsts.gif)
 
 When you run the module block, it executes in a **separate environment** and returns your selected exports. All returned variables are automatically added to your current notebook's memory, seamlessly integrating with your existing work.
 
@@ -81,7 +81,7 @@ This behavior differs from other module exports which execute in the module's ow
 
 Access all published modules through the **Modules section** in your workspace navigation sidebar. This centralized location makes it easy to discover and utilize the collective knowledge and tools created by your team.
 
-![CleanShot 2025-03-12 at 14.38.09.png](https://media.graphassets.com/x6lfbP6nQj0AlzQxbuJc)
+![CleanShot 2025-03-12 at 14.38.09.png](../assets/docs/x6lfbP6nQj0AlzQxbuJc.webp)
 
 The module library provides valuable information about each module:
 
@@ -97,7 +97,7 @@ If you wish to update a module, you can do so easily by modifying the source not
 
 In case there's a change affecting the configuration of the module (for instance, a new input parameter), these changes will be flagged visually in the module block before execution, giving you an opportunity to review and adjust the configuration as needed.
 
-![CleanShot 2025-03-12 at 14.48.22.png](https://media.graphassets.com/D6EWWrmJRqqAR2WhG3nQ)
+![CleanShot 2025-03-12 at 14.48.22.png](../assets/docs/D6EWWrmJRqqAR2WhG3nQ.webp)
 
 ## AI Support for Modules
 
@@ -107,7 +107,7 @@ Deepnote AI seamlessly integrates with modules, enhancing analytical capabilitie
 
 When you build a semantic layer with modules—defining your KPIs and metrics in a trusted, consistent way—you're not just helping your team, you're also teaching Deepnote AI. This integration creates a powerful workflow where AI leverages your established definitions rather than calculating metrics from scratch.
 
-![2025-03-20 11.00.02 (1).gif](https://media.graphassets.com/UounpvDOT3maVeztX8V9)
+![2025-03-20 11.00.02 (1).gif](../assets/docs/UounpvDOT3maVeztX8V9.gif)
 
 ### How It Works
 

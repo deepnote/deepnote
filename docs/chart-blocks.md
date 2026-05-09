@@ -19,17 +19,17 @@ For practical examples of how to use charts for exploratory analysis, check out 
 
 ## Adding a chart block
 
-<VideoLoop src="https://media.graphassets.com/zfPIemgaSuerKkxnvbVL" />
+<VideoLoop src="../assets/docs/zfPIemgaSuerKkxnvbVL.mp4" />
 
 You can add a chart block to your notebook by clicking on the **Visualize** button in the upper right corner of a Dataframe output table.
 
 Alternatively, you can also add a chart block by pressing the **Add block (+)** button in between blocks and selecting the **Chart** option from the menu.
 
-![Screenshot 2022-11-08 at 9.23.06.png](https://media.graphassets.com/3WSqMFGWTJabStyp9day)
+![Screenshot 2022-11-08 at 9.23.06.png](../assets/docs/3WSqMFGWTJabStyp9day.webp)
 
 ## Setting up the data
 
-<VideoLoop src="https://media.graphassets.com/CQysjgaRWfuPpuRfg6sA" />
+<VideoLoop src="../assets/docs/CQysjgaRWfuPpuRfg6sA.mp4" />
 
 To start, you need to select a DataFrame to visualize in the upper left corner. By default, your chart will be simple column chart, if you want to switch to different type (e.g. line chart or scatter), you can do so using dropdown in the top left corner.
 
@@ -43,11 +43,11 @@ Dimension and measure can correspond to different axes, depending on chart type.
 
 Not feeling like pointing and clicking today? We got you. As an alternative to manual setup, you can also ask Deepnote AI to create a chart for you. Open Chart AI by clicking **Chart AI** button on the top of the chart block, type in what you want to visualize, and hit **Submit**. In a few seconds, Deepnote AI will respond with a chart suggestion. You can accept it (**Done**) or reject (**Undo**) and adjust your description.
 
-<VideoLoop src="https://media.graphassets.com/yCGeQETZqFODHTDsOFbw" />
+<VideoLoop src="../assets/docs/yCGeQETZqFODHTDsOFbw.mp4" />
 
 The accepted chart will have all the configurations filled out for you. You can use it as a starting point and manually tweak things further. You can also request follow-up edits from Deepnote AI by typing in a new prompt to modify your existing chart.
 
-<VideoLoop src="https://media.graphassets.com/CYey9W5tQyCcdV6zH4Jk" />
+<VideoLoop src="../assets/docs/CYey9W5tQyCcdV6zH4Jk.mp4" />
 
 ## Adjusting how data is interpreted
 
@@ -85,15 +85,15 @@ Grouping allows you to add another dimension to your chart. But instead of makin
 
 Results will vary depending on selected chart type and data type of the column used for grouping. Grouping by nominal column will split chart into multiple elements, one for each value of the grouping column. If you selected stacked chart type, those elements will be stack one on top of another, otherwise they will be displayed side-by-side. Grouping by nominal field, for example, allows you to see monthly revenue for each store location instead of single total value.
 
-![Group by nominal field](https://media.graphassets.com/Yb5neGfRQeCCzv3ykNwK)
+![Group by nominal field](../assets/docs/Yb5neGfRQeCCzv3ykNwK.webp)
 
 Grouping by quantitative field with applied aggregation will change color of the element depending on the value of the column. For example, if you have "Sales by location" chart, you can add grouping by average value of order.
 
-![Group by numerical field](https://media.graphassets.com/jLihFDeTTqgInO4vcfWC)
+![Group by numerical field](../assets/docs/jLihFDeTTqgInO4vcfWC.webp)
 
 To change color palette you can click on color/palette badge next to the series name and select one from the built-in palettes.
 
-<VideoLoop src="https://media.graphassets.com/HOHBGWkRHC812iq2GNmC" />
+<VideoLoop src="../assets/docs/HOHBGWkRHC812iq2GNmC.mp4" />
 
 ## Filtering
 
@@ -105,19 +105,19 @@ Select data points to filter in/out in one of two ways.
 
 Once you selected some data, press the **Keep only** or **Exclude** buttons to filter in/out the selected data points on your chart. You can also combine multiple filtering steps to drill down even further.
 
-<VideoLoop src="https://media.graphassets.com/KC6hlTXPTCuIlpiWdNQV" />
+<VideoLoop src="../assets/docs/KC6hlTXPTCuIlpiWdNQV.mp4" />
 
 You can also apply **conditional filters** on your charts, giving you more precision and the ability to apply more complex filtering logic. Simply click the **Filter** button in the block actions menu, select the column you wish to filter, choose an operator and a value for your condition, and press **Apply**.
 
-<VideoLoop src="https://media.graphassets.com/p7WogC9QmqIYj1exF9VQ" />
+<VideoLoop src="../assets/docs/p7WogC9QmqIYj1exF9VQ.mp4" />
 
 Applied filters are always added to the Filters list, making them easy to remove or modify. You can also combine multiple conditional filters — just press the plus button in the Filters list to add a new filter for more complex filtering logic.
 
-<VideoLoop src="https://media.graphassets.com/oQd8gnR22ohfu3Q2hBqw" />
+<VideoLoop src="../assets/docs/oQd8gnR22ohfu3Q2hBqw.mp4" />
 
 Conditional filters are also available in Apps! By utilizing filters, your audience can easily slice and dice the plotted data themselves, enabling them to focus on particular aspects of interest. This greatly extends the self-serve capability of your Apps, making them more dynamic and eliminating the need to anticipate all filtering needs in advance.
 
-<VideoLoop src="https://media.graphassets.com/zfPIemgaSuerKkxnvbVL" />
+<VideoLoop src="../assets/docs/zfPIemgaSuerKkxnvbVL.mp4" />
 
 ## Combo charts
 
@@ -127,7 +127,7 @@ To add new series, click **+ Add series**. Some chart types (like donut or histo
 
 In addition to all the usual series settings, you can switch series type. Click on the icon right to the column dropdown and select one of compatible chart types. Additional series can be switched to use secondary measure axis by changing **Axis** settings. This is very handy to show correlation between series with values of different magnitudes.
 
-<VideoLoop src="https://media.graphassets.com/giLHonoFTyiZEhE8liU8" />
+<VideoLoop src="../assets/docs/giLHonoFTyiZEhE8liU8.mp4" />
 
 ## Custom tooltips
 
@@ -137,7 +137,7 @@ It’s perfect for highlighting more information for an unusual data point on a 
 
 Simply go to the **Tooltip** section and select which column you'd like to display.
 
-![Custom tooltip settings](https://media.graphassets.com/v7a8m59sRZezm7c256j6)
+![Custom tooltip settings](../assets/docs/v7a8m59sRZezm7c256j6.webp)
 
 ## Visual settings
 
@@ -157,13 +157,13 @@ For pie and donut charts you can also select if you want to display value labels
 
 In the **Style** section you can set formatting for labels on quantitative axes.
 
-<VideoLoop src="https://media.graphassets.com/sraOXSaDSMq80vG3ZOD0" />
+<VideoLoop src="../assets/docs/sraOXSaDSMq80vG3ZOD0.mp4" />
 
 ### Resizing charts
 
 Once you’ve finalized your chart, you can collapse the configuration sidebar to make the chart fill out the whole block. If you wish to present charts on larger displays, you can switch to full-width mode for your notebook. You can also vertically resize the chart by dragging the resize handle at the bottom of the chart canvas.
 
-<VideoLoop src="https://media.graphassets.com/OKU5JTVwSzadIOqC8BUs" />
+<VideoLoop src="../assets/docs/OKU5JTVwSzadIOqC8BUs.mp4" />
 
 ## Customize charts with code
 
@@ -171,7 +171,7 @@ If you need more flexibility to customize your charts, you can **duplicate your 
 
 This adds a new Python code block to your notebook, containing the configuration of your chart in the [Vega-lite](https://vega.github.io/vega-lite/) specification format. Vega-lite is very powerful and fairly easy to learn so it’s a great option if you need to create a finely customized or super advanced visualisation.
 
-<VideoLoop src="https://media.graphassets.com/GGVOfg2mSISnWCjbp6jy" />
+<VideoLoop src="../assets/docs/GGVOfg2mSISnWCjbp6jy.mp4" />
 
 ## Limitations
 

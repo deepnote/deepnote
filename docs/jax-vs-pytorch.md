@@ -13,7 +13,7 @@ Specialized libraries make it easier to build complex models by handling the tou
 ## PyTorch
 
 PyTorch is an open-source platform developed by Facebook's AI Research lab, famous for its user-friendly interface and powerful capabilities, making it ideal for researchers and developers. Users can create and modify neural networks in real-time thanks to its adaptable computation graph, which facilitates rapid experimentation and streamlines the debugging procedure.
-![pytorch_logo.png](https://media.graphassets.com/WuKqX0yJQemluAz2LOcG)
+![pytorch_logo.png](../assets/docs/WuKqX0yJQemluAz2LOcG.webp)
 The library focuses on performance by using GPU-accelerated performance and a wide array of tools, making it a go-to choice for areas like computer vision and natural language processing. PyTorch's dynamic computation graphs enable making changes to neural network architectures in real-time, it's highly beneficial for research as it allows for rapid improvements in model performance, particularly in natural language processing and computer vision tasks.
 
 ### Ideal use cases
@@ -25,12 +25,12 @@ The library focuses on performance by using GPU-accelerated performance and a wi
 ### Example
 
 This example shows how to build a simple neural network in PyTorch, using a fully connected layer to transform input data of size 10 to an output of size 1. A forward pass on random data calculates the mean squared error loss against target data.
-![jax_example_code.png](https://media.graphassets.com/DMXCsccYQCq4tijj1yl0)
+![jax_example_code.png](../assets/docs/DMXCsccYQCq4tijj1yl0.webp)
 
 ## JAX
 
 JAX is a open-source library created by Google that makes high-speed numerical computing and machine learning more accessible. It focuses on automatic differentiation and composability, allowing developers to build complex models easily. With its ability to work smoothly with NumPy and take advantage of GPUs and TPUs, JAX boosts performance during model training and inference.
-![jax.jpg](https://media.graphassets.com/75vRxf8FRhmHJJz2Mohl)
+![jax.jpg](../assets/docs/75vRxf8FRhmHJJz2Mohl.jpg)
 
 ### Ideal use cases
 
@@ -41,7 +41,7 @@ JAX is a open-source library created by Google that makes high-speed numerical c
 - **High-performance computing:** Utilizing JAX for complex computations that require enhanced performance.
 
 This example shows a basic neural network in JAX using a functional approach, where a dot product computes output, random input and target data are generated, and mean squared error loss is calculated, highlighting JAX's efficiency.
-![jax_ex_2.png](https://media.graphassets.com/Y8wxWgOBSCiw0wyhu6IW)
+![jax_ex_2.png](../assets/docs/Y8wxWgOBSCiw0wyhu6IW.webp)
 
 ## PyTorch vs. JAX: A quick comparison
 

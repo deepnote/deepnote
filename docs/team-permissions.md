@@ -8,7 +8,7 @@ Workspace members can have varying levels of permissions. These permissions appl
 
 To set permissions for team members, open "Settings and Members" in the left sidebar.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FIVquyBrpXfi3v7FzGHXH%2FScreen%20Shot%202022-03-31%20at%204.54.15%20PM.png](https://media.graphassets.com/c5RgzHFSJK8RpcNQxyJw)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FIVquyBrpXfi3v7FzGHXH%2FScreen%20Shot%202022-03-31%20at%204.54.15%20PM.png](../assets/docs/c5RgzHFSJK8RpcNQxyJw.webp)
 
 ### Levels of access
 
@@ -30,11 +30,11 @@ Additionally, users who do not have a role in the workspace, but are invited to 
 
 To simplify sharing projects with multiple users at the same time (for example, within the same department), you can organize workspace members into groups. To create and manage groups, navigate to **Settings & Members > Groups**. There are no restrictions on how many groups you can create.
 
-<ImageBorder variant="blue">![Screenshot 2025-02-10 at 17.12.10.png](https://media.graphassets.com/7YiaaQKIR8S7t14g7sVg)</ImageBorder>
+<ImageBorder variant="blue">![Screenshot 2025-02-10 at 17.12.10.png](../assets/docs/7YiaaQKIR8S7t14g7sVg.webp)</ImageBorder>
 
 You can share a project with a user group in the Sharing popover.
 
-<ImageBorder variant="blue">![groups-project-sharing.png](https://media.graphassets.com/ofCUNx6SSMqEPFKyOPXS)</ImageBorder>
+<ImageBorder variant="blue">![groups-project-sharing.png](../assets/docs/ofCUNx6SSMqEPFKyOPXS.webp)</ImageBorder>
 
 ### Domain invites
 
@@ -46,7 +46,7 @@ The option will not show up for workspaces where the domain is from a public ema
 
 If you need help changing the Owner's email or setting up a different Owner, please reach out to support.
 
-![domain-invites.png](https://media.graphassets.com/xSw2tP5T8GaZNqTVbsVN)
+![domain-invites.png](../assets/docs/xSw2tP5T8GaZNqTVbsVN.webp)
 
 ### Enforced SSO provider
 
@@ -56,7 +56,7 @@ This setting does not apply to project-specific individual sharing settings. Ind
 
 When the setting is disabled, it will offer Admins the SSO provider they are currently using to log in. To enforce a different SSO provider, sign out and sign back in using that SSO provider first.
 
-![Enforce SSO provider.png](https://media.graphassets.com/YET0c7BERhSzPFRlXF3b)
+![Enforce SSO provider.png](../assets/docs/YET0c7BERhSzPFRlXF3b.webp)
 
 ### FAQ
 
@@ -70,5 +70,5 @@ _How can I lock a project?_
 
 From within a project, you can set the workspace member permissions to **View** in "one fell swoop". Note that **Admins** will always be able to edit projects. If the option is set to "Full access" then all members of a workspace will follow their respective roles according to the **Workspace** settings.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F8tQwVGDySVsBRdGxxgnK%2Fread.gif](https://media.graphassets.com/jSLTgSiyT82Rlbi01ftl)
-![domain-invites.png](https://media.graphassets.com/xSw2tP5T8GaZNqTVbsVN)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F8tQwVGDySVsBRdGxxgnK%2Fread.gif](../assets/docs/jSLTgSiyT82Rlbi01ftl.gif)
+![domain-invites.png](../assets/docs/xSw2tP5T8GaZNqTVbsVN.webp)

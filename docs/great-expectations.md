@@ -17,7 +17,7 @@ Great Expectations (GE) is a tool for data testing and documentation. Onboarding
 
 All default Python environments in Deepnote come with preinstalled Pandas (learn more about all preinstalled packages [here](/docs/pre-installed-packages)). GE can be installed through a simple `!pip install great_expectations` . All that is needed to get started with GE, then, is to initialize GE via `!great_expectations --yes --v3-api init`. Note that both of these statements could also be run in a terminal within your Deepnote project (without the `!`, of course).
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FPus8irVJgvyrswZjsMRK%2FPUZZLE.png](https://media.graphassets.com/bYtaxTjqTo6i0LAR2LRk)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FPus8irVJgvyrswZjsMRK%2FPUZZLE.png](../assets/docs/bYtaxTjqTo6i0LAR2LRk.webp)
 
 ### How to use
 

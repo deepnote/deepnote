@@ -18,7 +18,7 @@ noContent: false
 
 If you need to quickly look up keyboard shortcuts in Deepnote, just start typing **shortcuts** in the command palette.
 </Callout>
-![shortcuts.png](https://media.graphassets.com/bBTtb1qSQf6fej7x6oEk)
+![shortcuts.png](../assets/docs/bBTtb1qSQf6fej7x6oEk.webp)
 
 ### 🧱 Block actions
 

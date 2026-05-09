@@ -21,11 +21,11 @@ Learn more about any of Deepnote's currently supported integrations by selecting
 
 To edit your existing integrations (and create new ones), open up the integrations overview from the left-hand sidebar. Alternatively, you can also find your way to the integrations overview via the integrations menu in the right-hand sidebar within each project.
 
-![Opening the integrations overview in Deepnote](https://media.graphassets.com/bJNx6rBXRJilCYxYcdbD)
+![Opening the integrations overview in Deepnote](../assets/docs/bJNx6rBXRJilCYxYcdbD.webp)
 
 As mentioned above, each integration can be connected to multiple projects within your workspace. It is important to remember that deleting an integration that is connected to multiple projects will remove the specified integration from all projects in that workspace.
 
-![Managing integrations in Deepnote](https://media.graphassets.com/DF2YWWwSne9pSULPMSVA)
+![Managing integrations in Deepnote](../assets/docs/DF2YWWwSne9pSULPMSVA.gif)
 
 <Callout status="info">
 Some integrations require your machine to restart (don't fret, you will be warned in advance). Note that this will terminate all running processes in the project.

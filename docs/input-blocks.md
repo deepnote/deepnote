@@ -16,7 +16,7 @@ Input blocks can also be used to create [interactive apps and dashboards](https:
 
 You can easily add an input block to your notebook by clicking the block adder between blocks. Alternatively, you can add input blocks by clicking the Input button at the bottom of your notebook or using the command palette.
 
-![input-adder.png](https://media.graphassets.com/BRAbFKI2RLqYfVC7kX7A)
+![input-adder.png](../assets/docs/BRAbFKI2RLqYfVC7kX7A.webp)
 
 Once you've added an input block, you can adjust various settings like variable name and display name. Explore more options for the given input type.
 
@@ -24,11 +24,11 @@ Once you've added an input block, you can adjust various settings like variable 
 
 You can use the inputs as variables within your code. For example, you can use the date input variable in the code block to filter DataFrame data.
 
-![date-input-example.png](https://media.graphassets.com/tGrNcUi1QzHmz33PhoHR)
+![date-input-example.png](../assets/docs/tGrNcUi1QzHmz33PhoHR.webp)
 
 You can also pass on input variables as parameters in your SQL blocks.
 
-![input-sql-example.png](https://media.graphassets.com/wEHOtXL1ShynEXVt1hY4)
+![input-sql-example.png](../assets/docs/wEHOtXL1ShynEXVt1hY4.webp)
 
 ### Using input variables in app
 
@@ -38,11 +38,11 @@ Even though all inputs work great both in the notebook and in the app some are p
 
 The file input block allows users to easily upload files to your app for further processing.
 
-![file-in-app-example.png](https://media.graphassets.com/4Mh9g5dTQRWDEqtKCp78)
+![file-in-app-example.png](../assets/docs/4Mh9g5dTQRWDEqtKCp78.webp)
 
 After uploading the file, the input variable will contain the path to the file. All files are stored in the _file_input_uploads_ folder within your projects and the maximum file size is 5GB. It's also possible to specify allowed file extensions and MIME types.
 
-![file-input-options.png](https://media.graphassets.com/iin2KOZSCCNdZd8alqAg)
+![file-input-options.png](../assets/docs/iin2KOZSCCNdZd8alqAg.webp)
 
 #### Button block
 
@@ -56,24 +56,24 @@ The "Set Variable" behavior enables you to create more dynamic apps, where outpu
 
 In the demo below, the 'Sales trends' button produces a timeseries chart, while the 'Reviews' button displays correlation data.
 
-![2024-11-06-2010.37.21.gif](https://media.graphassets.com/VVeLdkVeSom54VKrAyU8)
+![2024-11-06-2010.37.21.gif](../assets/docs/VVeLdkVeSom54VKrAyU8.gif)
 
 To enable this type of workflow, all you need to do is configure the button with a variable (eg. 'trends') and then use this variable in a code block as a condition.
 
-![CleanShot 2024-11-07 at 10.27.50 3.png](https://media.graphassets.com/i3Hk9Z7aTMCCrUwDxtN8)
-![CleanShot 2024-11-07 at 10.28.49 3.png](https://media.graphassets.com/YYd8ETBXTcSrl3mlBgQO)
+![CleanShot 2024-11-07 at 10.27.50 3.png](../assets/docs/i3Hk9Z7aTMCCrUwDxtN8.webp)
+![CleanShot 2024-11-07 at 10.28.49 3.png](../assets/docs/YYd8ETBXTcSrl3mlBgQO.webp)
 
 When building apps with **multiple input blocks that depend on each other**, you can use the Run button to create more controlled workflows. The button allows you to delay the execution of downstream code until you have all the necessary input values collected from the user - you just need to add a button variable condition to the code block.
 
-![CleanShot 2024-11-07 at 10.38.32.png](https://media.graphassets.com/afdn2ewrTxWzjXp81QKD)
+![CleanShot 2024-11-07 at 10.38.32.png](../assets/docs/afdn2ewrTxWzjXp81QKD.webp)
 
-![2024-11-06-2011.13.27.gif](https://media.graphassets.com/F2UWLLiTK6pg4TxJL5Hy)
+![2024-11-06-2011.13.27.gif](../assets/docs/F2UWLLiTK6pg4TxJL5Hy.gif)
 
 **2) Run Notebook**
 
 When the user clicks the button, the entire notebook is run. The same applies when the button block is used within an app—all blocks are executed. This behavior is useful for building forms where an explicit "Submit" button is needed, for example.
 
-![button-example.png](https://media.graphassets.com/OzDzFLCjQc2K9x8SDXj4)
+![button-example.png](../assets/docs/OzDzFLCjQc2K9x8SDXj4.webp)
 
 ### Empty input variables
 
@@ -96,7 +96,7 @@ Learn how to handle empty input values in SQL blocks in the [SQL block documenta
 
 Deepnote allows you to set defaults for all inputs except the file input. You can edit the default values by clicking on the options button next to the input.
 
-![Text Input Default Value](https://media.graphassets.com/aMWFtdnTcOOztpqKDEkS)
+![Text Input Default Value](../assets/docs/aMWFtdnTcOOztpqKDEkS.webp)
 
 Once you set a default value for an input, this value will be prepopulated in the inputs of your data app.
 
@@ -110,7 +110,7 @@ In some cases, you may want to dynamically generate the list of available values
 
 Once you select the variable, the values in the list will be then made available as user inputs in the select input dropdown.
 
-![2022-09-20 13.07.41.gif](https://media.graphassets.com/Kl3C7JoQKeefDuO73MDw)
+![2022-09-20 13.07.41.gif](../assets/docs/Kl3C7JoQKeefDuO73MDw.gif)
 
 Limits for using dynamic input variables:
 

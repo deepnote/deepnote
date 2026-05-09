@@ -21,7 +21,7 @@ Notebooks are made up of a series of blocks. Each major type of content or actio
 
 Blocks can easily be added to your notebook via the **add block** (**+**) menu or by selecting a block category from the bottom of your notebook.
 
-![Add_Blocks.jpg](https://media.graphassets.com/xDoSmuMScjmCkBDfUwqg)
+![Add_Blocks.jpg](../assets/docs/xDoSmuMScjmCkBDfUwqg.jpg)
 
 ### Executing blocks to generate results
 
@@ -31,13 +31,13 @@ In order to see output from your code, you need to execute the corresponding blo
 - Click the **Run** button on the block's sidebar menu.
 - Press **Cmd/Ctrl** + **Enter** on your keyboard while focused on a block.
 
-![Run_notebook.jpg](https://media.graphassets.com/Q4TOnFQrSyyaR96tKU0Z)
+![Run_notebook.jpg](../assets/docs/Q4TOnFQrSyyaR96tKU0Z.jpg)
 
 ### Exploring helpful block operations
 
 You can access a set of standard block operations in the block's sidebar menu. Besides executing them, you can also comment, share, and delete blocks. Even more options are available in the **block actions** menu, including duplicating or moving blocks up and down. Options can be specific to the given block type, so it’s always worth exploring this menu.
 
-![Block_Menu.jpg](https://media.graphassets.com/5QwWAyZPQgiqqFdgLgtY)
+![Block_Menu.jpg](../assets/docs/5QwWAyZPQgiqqFdgLgtY.jpg)
 
 ### Changing the working directory of a notebook
 

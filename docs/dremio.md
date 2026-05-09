@@ -15,7 +15,7 @@ Deepnote's Dremio integration allows data teams to efficiently query their data,
 
 ### How to connect to Dremio
 
-![Dremio_setup.png](https://media.graphassets.com/MyA8JXY1Q5GPsb8CBjJp)
+![Dremio_setup.png](../assets/docs/MyA8JXY1Q5GPsb8CBjJp.webp)
 
 To create the integration, you'll need a few things:
 

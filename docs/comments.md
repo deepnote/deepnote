@@ -13,13 +13,13 @@ Open the Comments sidebar by clicking on the Comments icon in the top menu on th
 
 To add a comment, click on the manilla colored comment button in the upper right-hand corner of a block. Type your comment and hit `Post`.
 
-![add a comment](https://media.graphassets.com/pGrzRQypQIObyDaOHCj5)
+![add a comment](../assets/docs/pGrzRQypQIObyDaOHCj5.gif)
 
 ### Edit or delete a comment
 
 To edit or delete a comment click on the comment and click`Edit` or `Delete`.
 
-![delete a comment](https://media.graphassets.com/uQBEsKgTQGd2Gl6R6ou1)
+![delete a comment](../assets/docs/uQBEsKgTQGd2Gl6R6ou1.gif)
 
 ### Resolve or unresolve threads
 
@@ -27,7 +27,7 @@ Once you comment on a thread, you will be subscribed to that thread and get upda
 
 In the Comments sidebar, use the toggle switches to search through previous resolved and unresolved comments. Clicking on a comment will take you to the associated block in the notebook.
 
-![resolve or unresolve threads](https://media.graphassets.com/6ohKa3eLTsG89C2s3G62)
+![resolve or unresolve threads](../assets/docs/6ohKa3eLTsG89C2s3G62.gif)
 
 ### Add a mention in comment
 

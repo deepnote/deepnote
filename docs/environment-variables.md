@@ -6,7 +6,7 @@ noContent: false
 
 You can set environment variables for a project by adding a special type of Integration. Go to **Integrations** in the **right-hand sidebar**, and then either modify an existing "Environment variables" integration or add a new one:
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2Fz86MzyybMGq4fmuWK23c%2FScreen%20Shot%202022-03-30%20at%203.37.14%20PM.png](https://media.graphassets.com/7HB8rqRSXuPSu4BfS96a)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2Fz86MzyybMGq4fmuWK23c%2FScreen%20Shot%202022-03-30%20at%203.37.14%20PM.png](../assets/docs/7HB8rqRSXuPSu4BfS96a.webp)
 
 Environment variables are a secure way to store secrets. They are stored encrypted, and decrypted only before mounting them into your project.
 

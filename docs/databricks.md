@@ -15,7 +15,7 @@ Deepnote's Databricks integration allows data teams to efficiently query their d
 
 ### How to connect to Databricks
 
-![databricks_modal.png](https://media.graphassets.com/Qz23S2MLSYe3PlSeTEjv)
+![databricks_modal.png](../assets/docs/Qz23S2MLSYe3PlSeTEjv.webp)
 
 To create the integration, you'll need a few things. Follow [Databricks guide](https://docs.databricks.com/integrations/jdbc-odbc-bi.html#get-connection-details-for-a-sql-warehouse) to get the connection details for a SQL warehouse.
 

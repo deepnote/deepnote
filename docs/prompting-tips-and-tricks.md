@@ -47,7 +47,7 @@ Read the first 100 rows from events.csv
 
 Leverage formatting for a clearer structure and highlighting the key parts of your prompt. For example, you can make use of operators to outline relationships between parts of the prompt or enclose a value in quotation marks to ask for literal values.
 
-![effective_prompting-text_formatting.gif](https://media.graphassets.com/PhCOmOTNSdC8rp3QrIoV)
+![effective_prompting-text_formatting.gif](../assets/docs/PhCOmOTNSdC8rp3QrIoV.gif)
 
 If the problem is complex, you can point out the necessary steps as individual bullet points or numbered points if they need to be completed in a certain order. We recommend breaking down your problem into subproblems and tackling these with individual prompts instead of all at once.
 
@@ -63,13 +63,13 @@ Use the following advanced techniques to fully utilize Deepnote AI’s abilities
 
 Deepnote AI factors in the contents of your notebook in its outputs. You can take advantage of this and write out relevant semantic information or business logic directly into your notebook so that Deepnote AI can follow these instructions. Bonus tip: try placing the most important instructions closer to where Deepnote AI is working to prioritize them within its context. This strategy works especially well in SQL blocks. Notice how Deepnote AI picks up on our search query for companies in the financial sector:
 
-![effective_prompting-additional_instructions.gif](https://media.graphassets.com/AuuKD2GSLqUHyUKx4YHl)
+![effective_prompting-additional_instructions.gif](../assets/docs/AuuKD2GSLqUHyUKx4YHl.gif)
 
 ### Referencing notebook variables and files
 
 One of the most powerful features of Deepnote AI is the ability to reference your existing variables and files directly in your prompts. Simply mention variables by name and Deepnote AI will pick them up, including their data type. In case of a DataFrame, Deepnote AI also has access to its columns and their respective data types. When referencing a file, Deepnote AI will check existing notebook variables and automatically import it if it’s missing.
 
-![effective_prompting-variable_referencing.gif](https://media.graphassets.com/7RxCHAc4S3edFX7vsbLw)
+![effective_prompting-variable_referencing.gif](../assets/docs/7RxCHAc4S3edFX7vsbLw.gif)
 
 ### Iterative prompting
 
@@ -83,7 +83,7 @@ It’s possible that Deepnote AI doesn’t get things right on its first try. If
 
    If you want to start from scratch, you can always trigger Deepnote AI again in the next block. This is also useful when you want Deepnote AI to continue whatever it was working on prior.
 
-![effective_prompting-continue_prompt.gif](https://media.graphassets.com/CwpNQV74SiDzV6whpMD7)
+![effective_prompting-continue_prompt.gif](../assets/docs/CwpNQV74SiDzV6whpMD7.gif)
 
 3. **Follow up on your previous prompts**
 

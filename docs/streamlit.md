@@ -19,7 +19,7 @@ There are two ways to get started with Streamlit in Deepnote:
 
 Once deployed, use the **Open app button** to see your app in its full shared state.
 
-![streamlit map.png](https://media.graphassets.com/rvep2fghRAS3hc1kxjFn)
+![streamlit map.png](../assets/docs/rvep2fghRAS3hc1kxjFn.webp)
 
 ## App status
 
@@ -35,7 +35,7 @@ When you make changes to your app's code, your updates will be reflected immedia
 
 Note: this means anyone viewing your app will see these changes as they happen. If you prefer to control when updates go live, you can disable automatic updates in the Streamlit settings (hamburger icon, Settings) by turning off the **Run on save** option.
 
-![streamlit_run_on_save.png](https://media.graphassets.com/xdgPwHaXROa9tJnIguzg)
+![streamlit_run_on_save.png](../assets/docs/xdgPwHaXROa9tJnIguzg.webp)
 
 ## Sharing an app
 
@@ -53,7 +53,7 @@ Streamlit apps often need data to visualize. Deepnote's notebook environment is 
 
 Need to update your data regularly? Take advantage of [notebook scheduling](https://deepnote.com/docs/scheduling) to automate your data preparation.
 
-![streamlit_using_csv.png](https://media.graphassets.com/jPOfyMQzQqutYX3HNaWn)
+![streamlit_using_csv.png](../assets/docs/jPOfyMQzQqutYX3HNaWn.webp)
 
 ## Using integrations
 

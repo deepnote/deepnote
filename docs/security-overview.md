@@ -5,8 +5,6 @@ noIndex: false
 noContent: false
 ---
 
-![Security overview](https://media.graphassets.com/fc18e1dd-05bc-4ec0-adf5-fd54a1a940ca)
-
 Deepnote is built on industry-leading security and privacy standards that keep our customer's data secure while connecting, querying, analyzing, and sharing. It offers a secure environment for teams to connect, analyze, and share data without compromising on data protection standards.
 
 As evidence of this, we've earned our SOC 2 Type II certification — a rigorous, third-party validation that our security practices and processes are built to meet the highest standards.
