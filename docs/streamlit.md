@@ -96,6 +96,52 @@ conn.close()
 st.dataframe(df)
 ```
 
+### Per-viewer authentication with OAuth integrations
+
+If your integration uses a federated authentication method (Snowflake OAuth, Snowflake with Okta, Snowflake with Azure AD, BigQuery with Google OAuth, or Trino OAuth), the static environment variables shown above are not populated, because each viewer of the app authenticates with their own credentials rather than reusing the project owner's.
+
+Use the helpers in `deepnote_toolkit.streamlit_data_apps` to obtain a database client scoped to the current viewer.
+
+A Snowflake app that connects via Snowflake OAuth and renders a DataFrame:
+
+```python
+import streamlit as st
+import pandas as pd
+from deepnote_toolkit.streamlit_data_apps import get_snowflake_connection
+
+INTEGRATION_ID = "<paste-integration-uuid-here>"
+
+st.header('Snowflake table')
+
+conn = get_snowflake_connection(INTEGRATION_ID)
+df = pd.read_sql("SELECT * FROM DEEPNOTE.DEMO.COMPANIES", conn)
+conn.close()
+
+st.dataframe(df)
+```
+
+A BigQuery app that connects via Google OAuth and renders a DataFrame:
+
+```python
+import streamlit as st
+from deepnote_toolkit.streamlit_data_apps import get_bigquery_client
+
+INTEGRATION_ID = "<paste-integration-uuid-here>"
+
+st.header('BigQuery table')
+
+client = get_bigquery_client(INTEGRATION_ID)
+df = client.query("SELECT * FROM `bigquery-public-data.usa_names.usa_1910_current` LIMIT 100").to_dataframe()
+
+st.dataframe(df)
+```
+
+You can find the integration UUID in the URL of the integration's settings page in your workspace.
+
+The first time a viewer opens an app that uses an OAuth integration they have not authenticated yet, the helper renders an **Authenticate <integration name>** button that opens the same OAuth flow used by notebooks and published apps. After completing the sign-in, they reload the app and the query runs with their identity. Snowflake queries automatically use each viewer's username and (for Okta-mapped roles) their custom-attribute role.
+
+If you need lower-level control, `get_federated_auth_token(integration_id)` returns the raw `{integrationType, accessToken, connectionParams}` payload, and `prompt_federated_auth(integration_id)` renders the authentication prompt without opening a connection.
+
 ## Customizing app environment
 
 Your Streamlit app shares its environment with your project. If you need to add specific Python libraries you can do so by:
@@ -109,4 +155,3 @@ Your Streamlit app shares its environment with your project. If you need to add 
 - The file upload widget in Streamlit apps is not working - fix is on the way.
 - Some Streamlit built-in features have limited functionality:
   - The **Record a screencast** feature is not available
-- Snowflake and BigQuery integrations with federated authorization (OAuth) are currently not supported
