@@ -94,7 +94,7 @@ integrations:
     type: pgsql
 ```
 
-Each integration has `id` (UUID), `name`, and `type`. Supported types: `alloydb`, `athena`, `big-query`, `clickhouse`, `databricks`, `dremio`, `mariadb`, `materialize`, `mindsdb`, `mongodb`, `mysql`, `pandas-dataframe`, `pgsql`, `redshift`, `snowflake`, `spanner`, `sql-server`, `trino`.
+Each integration has `id` (UUID), `name`, and `type`. Supported types: `alloydb`, `athena`, `big-query`, `clickhouse`, `databricks`, `dremio`, `mariadb`, `materialize`, `mindsdb`, `mongodb`, `mysql`, `pgsql`, `redshift`, `snowflake`, `spanner`, `sql-server`, `trino`. (Note: `pandas-dataframe` exists as a type but is not configurable via CLI.)
 
 SQL blocks reference integrations via `metadata.sql_integration_id`.
 

@@ -160,20 +160,6 @@ function getOutput(spy: Mock): string {
 }
 
 describe('run command', () => {
-  describe('createRunAction', () => {
-    it('returns a function', () => {
-      const program = new Command()
-      const action = createRunAction(program)
-      expect(typeof action).toBe('function')
-    })
-
-    it('returned function accepts path and options', () => {
-      const program = new Command()
-      const action = createRunAction(program)
-      expect(action.length).toBe(2)
-    })
-  })
-
   describe('runDeepnoteProject via createRunAction', () => {
     let program: Command
     let action: (path: string, options: RunOptions) => Promise<void>
@@ -548,7 +534,7 @@ describe('run command', () => {
       // Should print outputs and blank line (in non-JSON mode)
       const output = getOutput(consoleLogSpy)
       expect(output).toContain('✓')
-      expect(consoleLogSpy).toHaveBeenCalled()
+      expect(output).toContain('42')
     })
 
     it('calls program.error for non-existent file', async () => {

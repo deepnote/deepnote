@@ -4,10 +4,22 @@ noIndex: false
 noContent: false
 ---
 
-To export your notebook, follow these steps:
+You can export a notebook to PDF directly from the project toolbar in just a few clicks.
 
-1. Open the notebook, and [create an app](/docs/creating-apps) from it by clicking the "Create app" button in the top right corner.
-2. In the app editor, choose which blocks should be included in the PDF.
-3. After you are done, open your app in a new tab by clicking on the "View app" button in the right sidebar.
-4. Click on the "Export to PDF" button in the top right corner. This will open your browser's native print dialog to create the PDF. Elements like the top bar or sidebars are hidden in the printed version.
-5. (Optional) Delete the app.
+![Project toolbar with the notebook actions menu](../assets/docs/export-pdf/toolbar-option.webp)
+
+1. Open the notebook you want to export.
+2. Click the three-dot menu in the project toolbar.
+
+![Project context menu with Export as option](../assets/docs/export-pdf/project-context-menu.webp)
+
+3. Hover over **Export as**.
+4. Choose **PDF with code** or **PDF without code**.
+
+- **PDF with code** includes code cells in the exported PDF.
+
+  ![Exported PDF with code included](../assets/docs/export-pdf/pdf-with-code.webp)
+
+- **PDF without code** excludes code cells from the exported PDF.
+
+  ![Exported PDF without code](../assets/docs/export-pdf/pdf-without-code.webp)

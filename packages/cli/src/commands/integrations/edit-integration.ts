@@ -1,4 +1,3 @@
-import { debug } from 'node:console'
 import {
   type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
@@ -14,13 +13,29 @@ import z from 'zod'
 import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { SCHEMA_COMMENT, updateIntegrationMetadataMap } from '../../integrations/merge-integrations'
-import { log, output } from '../../output'
+import { debug, log, output } from '../../output'
 import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
 import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
+import { getProcessEnv } from '../../utils/process-env'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForIntegrationName } from './add-integration'
+import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
+import { promptForFieldsAthena } from './integrations-prompts/athena'
+import { promptForFieldsBigQuery } from './integrations-prompts/big-query'
+import { promptForFieldsClickhouse } from './integrations-prompts/clickhouse'
+import { promptForFieldsDatabricks } from './integrations-prompts/databricks'
+import { promptForFieldsDremio } from './integrations-prompts/dremio'
+import { promptForFieldsMariadb } from './integrations-prompts/mariadb'
+import { promptForFieldsMaterialize } from './integrations-prompts/materialize'
+import { promptForFieldsMindsdb } from './integrations-prompts/mindsdb'
 import { promptForFieldsMongodb } from './integrations-prompts/mongodb'
+import { promptForFieldsMysql } from './integrations-prompts/mysql'
 import { promptForFieldsPostgres } from './integrations-prompts/pgsql'
+import { promptForFieldsRedshift } from './integrations-prompts/redshift'
+import { promptForFieldsSnowflake } from './integrations-prompts/snowflake'
+import { promptForFieldsSpanner } from './integrations-prompts/spanner'
+import { promptForFieldsSqlServer } from './integrations-prompts/sql-server'
+import { promptForFieldsTrino } from './integrations-prompts/trino'
 
 export interface IntegrationsEditOptions {
   file?: string
@@ -86,19 +101,18 @@ export async function promptSelectIntegration(summaries: IntegrationSummary[]): 
 /**
  * Find the YAML map node for an integration by its ID in the document's integrations sequence.
  */
-function findIntegrationMapById(doc: Document, targetId: string): { map: YAMLMap; index: number } | null {
+function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
   const integrations = doc.get('integrations')
   if (!isSeq(integrations)) {
     return null
   }
 
-  for (let i = 0; i < integrations.items.length; i++) {
-    const item = integrations.items[i]
+  for (const item of integrations.items) {
     if (!isMap(item)) {
       continue
     }
     if (item.get('id') === targetId) {
-      return { map: item, index: i }
+      return item
     }
   }
   return null
@@ -110,8 +124,64 @@ export async function promptForIntegrationConfig(
   const newName = await promptForIntegrationName({ defaultValue: existingConfig.name })
 
   switch (existingConfig.type) {
-    case 'pgsql':
-      return promptForFieldsPostgres({
+    case 'alloydb':
+      return promptForFieldsAlloydb({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'athena':
+      return promptForFieldsAthena({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'big-query':
+      return promptForFieldsBigQuery({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'clickhouse':
+      return promptForFieldsClickhouse({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'databricks':
+      return promptForFieldsDatabricks({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'dremio':
+      return promptForFieldsDremio({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'mariadb':
+      return promptForFieldsMariadb({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'materialize':
+      return promptForFieldsMaterialize({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'mindsdb':
+      return promptForFieldsMindsdb({
         id: existingConfig.id,
         type: existingConfig.type,
         name: newName,
@@ -124,10 +194,60 @@ export async function promptForIntegrationConfig(
         name: newName,
         defaultValues: existingConfig.metadata,
       })
+    case 'mysql':
+      return promptForFieldsMysql({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'pandas-dataframe':
+      throw new Error('pandas-dataframe integrations cannot be configured via CLI')
+    case 'pgsql':
+      return promptForFieldsPostgres({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'redshift':
+      return promptForFieldsRedshift({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'snowflake':
+      return promptForFieldsSnowflake({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'spanner':
+      return promptForFieldsSpanner({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'sql-server':
+      return promptForFieldsSqlServer({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'trino':
+      return promptForFieldsTrino({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
     default:
-      throw new Error(
-        `Integration type "${existingConfig.type}" is not yet implemented. Only "pgsql" and "mongodb" are currently supported.`
-      )
+      existingConfig satisfies never
+      throw new Error(`Integration type ('${JSON.stringify(existingConfig)}') is not yet implemented.`)
   }
 }
 
@@ -158,7 +278,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   if (!found) {
     throw new Error(`Integration with ID "${targetId}" not found in ${filePath}`)
   }
-  const metadataMap = found.map.get('metadata')
+  const metadataMap = found.get('metadata')
   if (!isMap(metadataMap)) {
     throw new Error(`Metadata map not found for integration "${targetId}" in ${filePath}`)
   }
@@ -166,20 +286,20 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   // Read .env vars and merge with process.env (process.env takes priority, matching
   // the original semantics) so env: refs can be resolved before schema parsing.
   const dotEnvVars = await readDotEnv(envFilePath)
-  const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...process.env }
+  const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...getProcessEnv() }
 
-  let integrationRawJson = found.map.toJSON()
+  let integrationRawJson = found.toJSON()
   try {
     integrationRawJson = resolveEnvVarRefsFromMap(integrationRawJson, envVars)
   } catch (error) {
-    debug('Failed to resolve env: refs in integration metadata:', error)
+    debug(`Failed to resolve env: refs in integration metadata: ${error}`)
   }
 
   const existingConfigResult = databaseIntegrationConfigSchema.safeParse(integrationRawJson)
 
   if (!existingConfigResult.success) {
     throw new Error(
-      `Integration entry "${found.map.get('id')}" failed validation: ${existingConfigResult.error.issues.map(i => i.message).join('; ')}`
+      `Integration entry "${found.get('id')}" failed validation: ${existingConfigResult.error.issues.map(i => i.message).join('; ')}`
     )
   }
 
@@ -188,7 +308,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   const newConfig = await promptForIntegrationConfig(configForPrompt)
 
   // Update top-level fields on the integration map
-  found.map.set('name', newConfig.name)
+  found.set('name', newConfig.name)
 
   const secrets = updateIntegrationMetadataMap({
     metadataMap,
@@ -208,7 +328,7 @@ export async function editIntegration(options: IntegrationsEditOptions): Promise
   }
 
   if (doc.commentBefore == null || !doc.commentBefore.includes('yaml-language-server')) {
-    doc.commentBefore = SCHEMA_COMMENT
+    doc.commentBefore = doc.commentBefore ? `${SCHEMA_COMMENT}\n${doc.commentBefore}` : SCHEMA_COMMENT
   }
 
   const secretCount = Object.keys(secrets).length

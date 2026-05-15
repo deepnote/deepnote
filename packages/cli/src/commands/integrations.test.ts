@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Command } from 'commander'
@@ -262,8 +262,7 @@ describe('integrations command', () => {
     let tempDir: string
 
     beforeAll(async () => {
-      tempDir = join(tmpdir(), `dotenv-test-${Date.now()}`)
-      await mkdir(tempDir, { recursive: true })
+      tempDir = await mkdtemp(join(tmpdir(), 'dotenv-test-'))
     })
 
     afterAll(async () => {
@@ -358,8 +357,7 @@ describe('integrations command', () => {
         .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
         .action(createIntegrationsPullAction(program))
 
-      tempDir = join(tmpdir(), `integrations-pull-test-${Date.now()}`)
-      await mkdir(tempDir, { recursive: true })
+      tempDir = await mkdtemp(join(tmpdir(), 'integrations-pull-test-'))
     })
 
     afterEach(async () => {

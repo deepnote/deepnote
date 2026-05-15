@@ -16,13 +16,13 @@ PyTorch is an open-source platform developed by Facebook's AI Research lab, famo
 ![pytorch_logo.png](https://media.graphassets.com/WuKqX0yJQemluAz2LOcG)
 The library focuses on performance by using GPU-accelerated performance and a wide array of tools, making it a go-to choice for areas like computer vision and natural language processing. PyTorch's dynamic computation graphs enable making changes to neural network architectures in real-time, it's highly beneficial for research as it allows for rapid improvements in model performance, particularly in natural language processing and computer vision tasks.
 
-### Ideal use cases:
+### Ideal use cases
 
 - **Research and development:** Quick creation of cutting-edge algorithms through rapid prototyping.
 - **Computer vision:** Sophisticated image processing applications enabled by libraries such as torchvision.
 - **Natural language processing:** Effective management of ordered information for tasks such as sentiment analysis.
 
-### Example:
+### Example
 
 This example shows how to build a simple neural network in PyTorch, using a fully connected layer to transform input data of size 10 to an output of size 1. A forward pass on random data calculates the mean squared error loss against target data.
 ![jax_example_code.png](https://media.graphassets.com/DMXCsccYQCq4tijj1yl0)
@@ -32,7 +32,7 @@ This example shows how to build a simple neural network in PyTorch, using a full
 JAX is a open-source library created by Google that makes high-speed numerical computing and machine learning more accessible. It focuses on automatic differentiation and composability, allowing developers to build complex models easily. With its ability to work smoothly with NumPy and take advantage of GPUs and TPUs, JAX boosts performance during model training and inference.
 ![jax.jpg](https://media.graphassets.com/75vRxf8FRhmHJJz2Mohl)
 
-### Ideal use cases:
+### Ideal use cases
 
 - **Scientific research:** Speeding up simulations and model development in areas such as physics and biology.
 
