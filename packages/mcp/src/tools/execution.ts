@@ -1,34 +1,18 @@
-import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
+import { extractOutputsText } from '@deepnote/blocks'
 import {
-  decodeUtf8NoBom,
-  deserializeDeepnoteFile,
-  extractOutputsText,
-  serializeDeepnoteSnapshot,
-} from '@deepnote/blocks'
-import {
-  convertJupyterNotebooksToDeepnote,
-  convertMarimoAppsToDeepnote,
-  convertPercentNotebooksToDeepnote,
-  convertQuartoDocumentsToDeepnote,
-  detectFormat,
-  generateSnapshotFilename,
-  getSnapshotDir,
-  type JupyterNotebook,
-  parseMarimoFormat,
-  parsePercentFormat,
-  parseQuartoFormat,
-  slugifyProjectName,
-  splitDeepnoteFile,
+  type LoadedRunnableFile,
+  LoadRunnableFileError,
+  loadRunnableFile,
+  MissingInitNotebookError,
+  resolveAndComposeInit,
+  saveExecutionSnapshot as sharedSaveExecutionSnapshot,
 } from '@deepnote/convert'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { formatOutput } from '../utils.js'
-
-// Supported file extensions for running
-const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
 
 // Output summary limits
 const MAX_OUTPUT_CHARS_PER_BLOCK = 500
@@ -59,13 +43,6 @@ function summarizeBlockOutputs(
   }
 
   return summaries
-}
-
-interface ConvertedFile {
-  file: DeepnoteFile
-  originalPath: string
-  format: 'deepnote' | 'jupyter' | 'percent' | 'marimo' | 'quarto'
-  wasConverted: boolean
 }
 
 const nonEmptyStringSchema = z.string().refine(value => value.trim().length > 0, {
@@ -152,135 +129,52 @@ export const executionTools: Tool[] = [
 ]
 
 /**
- * Resolve and convert any supported notebook format to a DeepnoteFile.
+ * Result of resolving an MCP-runnable file plus optional init composition.
  */
-async function resolveAndConvertToDeepnote(filePath: string): Promise<ConvertedFile> {
-  const absolutePath = path.resolve(filePath)
-  const ext = path.extname(absolutePath).toLowerCase()
-  const filename = path.basename(absolutePath)
-  const projectName = path.basename(absolutePath, ext)
-
-  if (!RUNNABLE_EXTENSIONS.includes(ext as (typeof RUNNABLE_EXTENSIONS)[number])) {
-    throw new Error(
-      `Unsupported file type: ${ext || '(no extension)'}\n\n` +
-        `Supported formats:\n` +
-        `  .deepnote  - Deepnote project\n` +
-        `  .ipynb     - Jupyter Notebook\n` +
-        `  .py        - Percent format (# %%) or Marimo (@app.cell)\n` +
-        `  .qmd       - Quarto document`
-    )
-  }
-
-  // Native .deepnote file
-  if (ext === '.deepnote') {
-    const rawBytes = await fs.readFile(absolutePath)
-    const content = decodeUtf8NoBom(rawBytes)
-    const file = deserializeDeepnoteFile(content)
-    return { file, originalPath: absolutePath, format: 'deepnote', wasConverted: false }
-  }
-
-  const content = await fs.readFile(absolutePath, 'utf-8')
-
-  // Jupyter Notebook
-  if (ext === '.ipynb') {
-    const notebook = JSON.parse(content) as JupyterNotebook
-    const file = convertJupyterNotebooksToDeepnote([{ filename, notebook }], { projectName })
-    return { file, originalPath: absolutePath, format: 'jupyter', wasConverted: true }
-  }
-
-  // Quarto document
-  if (ext === '.qmd') {
-    const document = parseQuartoFormat(content)
-    const file = convertQuartoDocumentsToDeepnote([{ filename, document }], { projectName })
-    return { file, originalPath: absolutePath, format: 'quarto', wasConverted: true }
-  }
-
-  // Python file - detect percent or marimo
-  if (ext === '.py') {
-    const detectedFormat = detectFormat(absolutePath, content)
-
-    if (detectedFormat === 'marimo') {
-      const app = parseMarimoFormat(content)
-      const file = convertMarimoAppsToDeepnote([{ filename, app }], { projectName })
-      return { file, originalPath: absolutePath, format: 'marimo', wasConverted: true }
-    }
-
-    if (detectedFormat === 'percent') {
-      const notebook = parsePercentFormat(content)
-      const file = convertPercentNotebooksToDeepnote([{ filename, notebook }], { projectName })
-      return { file, originalPath: absolutePath, format: 'percent', wasConverted: true }
-    }
-
-    throw new Error(
-      `Could not detect Python notebook format for: ${absolutePath}\n\n` +
-        `The file must be either:\n` +
-        `  - Percent format: Use "# %%" cell markers\n` +
-        `  - Marimo format: Use @app.cell decorators`
-    )
-  }
-
-  throw new Error(`Unsupported file type: ${ext}`)
+interface ResolvedRunnableFile {
+  file: DeepnoteFile
+  originalPath: string
+  format: LoadedRunnableFile['format']
+  wasConverted: boolean
+  /** Block ids that came from the composed init notebook (empty when no prelude). */
+  initBlockIds: ReadonlySet<string>
+  /** Id of the init notebook when composed; otherwise undefined (engine filters by id). */
+  initNotebookId: string | undefined
+  /** Name of the init notebook when composed (kept for diagnostics). */
+  initNotebookName: string | undefined
+  /** Resolver advisory warnings (metadata divergence, etc.) to relay to the caller. */
+  warnings: string[]
 }
 
 /**
- * Save execution outputs to a snapshot file.
+ * Load and (when applicable) compose a sibling init notebook for a runnable
+ * file. For non-`.deepnote` formats this is a pass-through.
  */
-async function saveExecutionSnapshot(
-  sourcePath: string,
-  file: DeepnoteFile,
-  blockOutputs: Array<{ id: string; outputs: unknown[]; executionCount?: number | null }>,
-  timing: { startedAt: string; finishedAt: string }
-): Promise<{ snapshotPath: string }> {
-  // Build a map of outputs by block ID
-  const outputsByBlockId = new Map(blockOutputs.map(r => [r.id, r]))
-
-  // Merge outputs into the file
-  const fileWithOutputs: DeepnoteFile = {
-    ...file,
-    execution: {
-      startedAt: timing.startedAt,
-      finishedAt: timing.finishedAt,
-    },
-    project: {
-      ...file.project,
-      notebooks: file.project.notebooks.map(notebook => ({
-        ...notebook,
-        blocks: notebook.blocks.map(block => {
-          const result = outputsByBlockId.get(block.id)
-          if (!result) return block
-          return {
-            ...block,
-            outputs: result.outputs,
-            ...(result.executionCount != null ? { executionCount: result.executionCount } : {}),
-          }
-        }),
-      })),
-    },
+async function resolveRunnableWithInit(filePath: string): Promise<ResolvedRunnableFile> {
+  const loaded = await loadRunnableFile(filePath)
+  if (loaded.format !== 'deepnote' || loaded.file.project.initNotebookId === undefined) {
+    return {
+      file: loaded.file,
+      originalPath: loaded.originalPath,
+      format: loaded.format,
+      wasConverted: loaded.wasConverted,
+      initBlockIds: new Set(),
+      initNotebookId: undefined,
+      initNotebookName: undefined,
+      warnings: [],
+    }
   }
-
-  // Split into source and snapshot
-  const { snapshot } = splitDeepnoteFile(fileWithOutputs)
-
-  // Determine snapshot paths
-  const snapshotDir = getSnapshotDir(sourcePath)
-  const slug = slugifyProjectName(file.project.name) || 'project'
-
-  const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const timestampedFilename = generateSnapshotFilename(slug, file.project.id, timestamp)
-  const timestampedSnapshotPath = path.resolve(snapshotDir, timestampedFilename)
-
-  const latestFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
-  const snapshotPath = path.resolve(snapshotDir, latestFilename)
-
-  // Create snapshot directory
-  await fs.mkdir(snapshotDir, { recursive: true })
-
-  // Write timestamped snapshot first, then copy to latest to reduce corruption risk
-  const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
-  await fs.writeFile(timestampedSnapshotPath, snapshotYaml, 'utf-8')
-  await fs.copyFile(timestampedSnapshotPath, snapshotPath)
-
-  return { snapshotPath }
+  const resolved = await resolveAndComposeInit(loaded.file, loaded.originalPath)
+  return {
+    file: resolved.composed,
+    originalPath: loaded.originalPath,
+    format: loaded.format,
+    wasConverted: loaded.wasConverted,
+    initBlockIds: resolved.initBlockIds,
+    initNotebookId: resolved.initNotebookId,
+    initNotebookName: resolved.initNotebookName,
+    warnings: resolved.warnings,
+  }
 }
 
 async function handleRun(args: Record<string, unknown>) {
@@ -300,13 +194,21 @@ async function handleRun(args: Record<string, unknown>) {
   const includeOutputSummary = parsedArgs.data.includeOutputSummary !== false
   const compact = parsedArgs.data.compact
 
-  // Load file, auto-converting from other formats if needed
-  let convertedFile: ConvertedFile
+  // Load file (auto-converting from other formats if needed) and compose
+  // sibling init notebook for native .deepnote files.
+  let resolved: ResolvedRunnableFile
   try {
-    convertedFile = await resolveAndConvertToDeepnote(filePath)
+    resolved = await resolveRunnableWithInit(filePath)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const errorCode = getErrorCode(error)
+    let errorCode = getErrorCode(error)
+    if (errorCode === undefined) {
+      if (error instanceof MissingInitNotebookError) {
+        errorCode = error.kind === 'multiple' ? 'INIT_NOTEBOOK_AMBIGUOUS' : 'INIT_NOTEBOOK_MISSING'
+      } else if (error instanceof LoadRunnableFileError) {
+        errorCode = 'LOAD_RUNNABLE_FILE'
+      }
+    }
     return {
       content: [
         {
@@ -325,16 +227,23 @@ async function handleRun(args: Record<string, unknown>) {
     }
   }
 
-  const { file, originalPath, format, wasConverted } = convertedFile
+  const { file, originalPath, format, wasConverted, initBlockIds, initNotebookId, initNotebookName, warnings } =
+    resolved
 
-  // If blockId is specified, run just that block with its dependencies
+  // If blockId is specified, run just that block with its dependencies (and the prelude).
   if (blockIdFilter) {
     return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs, {
       dryRun: dryRun === true,
+      initBlockIds,
+      initNotebookId,
+      initNotebookName,
+      warnings,
+      wasConverted,
     })
   }
 
-  // Filter notebooks if specified, otherwise run all
+  // Filter notebooks if specified, otherwise run all. The init notebook (when
+  // composed) must always be in scope so it runs as a prelude.
   let notebooks = file.project.notebooks
   if (notebookFilter) {
     const found = file.project.notebooks.find(n => n.name === notebookFilter || n.id === notebookFilter)
@@ -344,7 +253,9 @@ async function handleRun(args: Record<string, unknown>) {
         isError: true,
       }
     }
-    notebooks = [found]
+    const initNotebook =
+      initNotebookId !== undefined ? file.project.notebooks.find(n => n.id === initNotebookId) : undefined
+    notebooks = initNotebook !== undefined && initNotebook.id !== found.id ? [initNotebook, found] : [found]
   }
 
   // Collect all executable blocks from target notebooks
@@ -361,7 +272,6 @@ async function handleRun(args: Record<string, unknown>) {
   }
 
   if (dryRun) {
-    // Show execution plan
     return {
       content: [
         {
@@ -379,6 +289,8 @@ async function handleRun(args: Record<string, unknown>) {
                 contentPreview: b.block.content?.slice(0, 50) || '',
               })),
               inputs: inputs || {},
+              ...(warnings.length > 0 ? { warnings } : {}),
+              ...(initNotebookName !== undefined ? { initNotebook: initNotebookName } : {}),
             },
             null,
             2
@@ -404,11 +316,23 @@ async function handleRun(args: Record<string, unknown>) {
   try {
     await engine.start()
 
+    // Resolve the engine notebookName: when a notebookFilter was given by name
+    // or id, translate to the notebook's name (engine matches the user-targeted
+    // notebook by name).
+    let engineNotebookName: string | undefined
+    let targetNotebookId: string | undefined
+    if (notebookFilter) {
+      const found = file.project.notebooks.find(n => n.name === notebookFilter || n.id === notebookFilter)
+      engineNotebookName = found?.name
+      targetNotebookId = found?.id
+    }
+
     const summary = await engine.runProject(file, {
-      notebookName: notebookFilter,
+      notebookName: engineNotebookName,
+      preludeNotebookIds:
+        initNotebookId !== undefined && targetNotebookId !== initNotebookId ? new Set([initNotebookId]) : undefined,
       inputs,
       onBlockDone: result => {
-        // Find which notebook this block belongs to
         const notebookName = executableBlocks.find(b => b.block.id === result.blockId)?.notebook || 'unknown'
         results.push({
           notebook: notebookName,
@@ -417,7 +341,6 @@ async function handleRun(args: Record<string, unknown>) {
           success: result.success,
           error: result.error?.message,
         })
-        // Collect outputs for snapshot
         blockOutputs.push({
           id: result.blockId,
           outputs: result.outputs || [],
@@ -428,24 +351,28 @@ async function handleRun(args: Record<string, unknown>) {
 
     const executionFinishedAt = new Date().toISOString()
 
-    // Save execution outputs to snapshot
-    // For converted files, use a path where the .deepnote equivalent would be
+    // Save execution outputs to snapshot.
+    // For converted files, use a path where the .deepnote equivalent would be.
     const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
 
     let snapshotPath: string | undefined
+    let initSnapshotPath: string | undefined
     try {
-      const snapshotResult = await saveExecutionSnapshot(snapshotSourcePath, file, blockOutputs, {
-        startedAt: executionStartedAt,
-        finishedAt: executionFinishedAt,
-      })
+      const snapshotResult = await sharedSaveExecutionSnapshot(
+        snapshotSourcePath,
+        file,
+        blockOutputs,
+        { startedAt: executionStartedAt, finishedAt: executionFinishedAt },
+        { initBlockIds }
+      )
       snapshotPath = snapshotResult.snapshotPath
+      initSnapshotPath = snapshotResult.initSnapshotPath
     } catch (error) {
       // Snapshot saving is best-effort, but log for debugging
       // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
       console.error('[deepnote-mcp] Failed to save execution snapshot:', error instanceof Error ? error.message : error)
     }
 
-    // Generate output summaries if requested
     const outputSummaries = includeOutputSummary ? summarizeBlockOutputs(blockOutputs) : undefined
 
     const responseData = {
@@ -459,6 +386,7 @@ async function handleRun(args: Record<string, unknown>) {
       format,
       wasConverted,
       snapshotPath,
+      initSnapshotPath,
       execution: compact
         ? undefined
         : {
@@ -467,6 +395,8 @@ async function handleRun(args: Record<string, unknown>) {
           },
       results: compact ? results.filter(r => !r.success || r.error) : results,
       ...(outputSummaries && outputSummaries.length > 0 ? { outputSummaries } : {}),
+      ...(warnings.length > 0 ? { warnings } : {}),
+      ...(initNotebookName !== undefined ? { initNotebook: initNotebookName } : {}),
       hint:
         snapshotPath && !includeOutputSummary
           ? 'Use deepnote_snapshot_load to inspect outputs, errors, and debug info'
@@ -503,11 +433,21 @@ async function handleRunBlock(
   notebookFilter: string | undefined,
   pythonPath: string | undefined,
   inputs: Record<string, unknown> | undefined,
-  options: { dryRun: boolean }
+  options: {
+    dryRun: boolean
+    initBlockIds: ReadonlySet<string>
+    initNotebookId: string | undefined
+    initNotebookName: string | undefined
+    warnings: string[]
+    wasConverted: boolean
+  }
 ) {
-  // Find the block
-  let targetBlock = null
-  let targetNotebook = null
+  const { initBlockIds, initNotebookId, initNotebookName, warnings, wasConverted } = options
+
+  // Find the block. If a notebookFilter is provided, only search inside that
+  // notebook (init notebook is always also searched separately for prelude).
+  let targetBlock: DeepnoteFile['project']['notebooks'][number]['blocks'][number] | null = null
+  let targetNotebook: DeepnoteFile['project']['notebooks'][number] | null = null
 
   for (const notebook of file.project.notebooks) {
     if (notebookFilter && notebook.name !== notebookFilter && notebook.id !== notebookFilter) {
@@ -528,7 +468,35 @@ async function handleRunBlock(
     }
   }
 
+  // Mirror the CLI's `assertExecutableBlockExists` check: passing a
+  // non-executable block id (e.g. markdown) into runProject results in
+  // executedBlocks=0 with no helpful error. Surface a clear error here
+  // instead so the agent can adjust its request.
+  if (!executableBlockTypeSet.has(targetBlock.type)) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Block "${targetBlock.id}" is not executable (type: ${targetBlock.type}).`,
+        },
+      ],
+      isError: true,
+    }
+  }
+
+  const initNotebook =
+    initNotebookId !== undefined ? file.project.notebooks.find(n => n.id === initNotebookId) : undefined
+
   if (options.dryRun) {
+    const preludeBlocks = initNotebook
+      ? initNotebook.blocks
+          .filter(b => initBlockIds.has(b.id))
+          .map(b => ({
+            notebook: initNotebook.name,
+            id: b.id.slice(0, 8),
+            type: b.type,
+          }))
+      : []
     return {
       content: [
         {
@@ -543,7 +511,10 @@ async function handleRunBlock(
                 fullId: targetBlock.id,
                 type: targetBlock.type,
               },
+              ...(preludeBlocks.length > 0 ? { preludeBlocks } : {}),
               inputs: inputs || {},
+              ...(warnings.length > 0 ? { warnings } : {}),
+              ...(initNotebookName !== undefined ? { initNotebook: initNotebookName } : {}),
             },
             null,
             2
@@ -553,21 +524,59 @@ async function handleRunBlock(
     }
   }
 
-  // Run the specific block
+  // Run the specific block (with init prelude when active).
   const workingDir = path.dirname(originalPath)
   const engine = new ExecutionEngine({
     pythonEnv: pythonPath || 'python',
     workingDirectory: workingDir,
   })
 
+  const blockOutputs: Array<{ id: string; outputs: unknown[]; executionCount?: number | null }> = []
+  const executionStartedAt = new Date().toISOString()
+
   try {
     await engine.start()
 
+    // Compose effective blockIds: init's executable blocks first, then the
+    // user-targeted block.
+    const effectiveBlockIds = initBlockIds.size > 0 ? [...initBlockIds, targetBlock.id] : undefined
+
     const summary = await engine.runProject(file, {
       notebookName: targetNotebook.name,
-      blockId: targetBlock.id,
+      blockId: effectiveBlockIds === undefined ? targetBlock.id : undefined,
+      blockIds: effectiveBlockIds,
+      preludeNotebookIds:
+        initNotebookId !== undefined && initNotebookId !== targetNotebook.id ? new Set([initNotebookId]) : undefined,
       inputs,
+      onBlockDone: result => {
+        blockOutputs.push({
+          id: result.blockId,
+          outputs: result.outputs || [],
+          executionCount: result.executionCount,
+        })
+      },
     })
+
+    const executionFinishedAt = new Date().toISOString()
+
+    // Save snapshot, including dual init+main when prelude is active.
+    const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
+    let snapshotPath: string | undefined
+    let initSnapshotPath: string | undefined
+    try {
+      const snapshotResult = await sharedSaveExecutionSnapshot(
+        snapshotSourcePath,
+        file,
+        blockOutputs,
+        { startedAt: executionStartedAt, finishedAt: executionFinishedAt },
+        { initBlockIds }
+      )
+      snapshotPath = snapshotResult.snapshotPath
+      initSnapshotPath = snapshotResult.initSnapshotPath
+    } catch (error) {
+      // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
+      console.error('[deepnote-mcp] Failed to save execution snapshot:', error instanceof Error ? error.message : error)
+    }
 
     return {
       content: [
@@ -582,6 +591,10 @@ async function handleRunBlock(
               executedBlocks: summary.executedBlocks,
               failedBlocks: summary.failedBlocks,
               durationMs: summary.totalDurationMs,
+              snapshotPath,
+              initSnapshotPath,
+              ...(warnings.length > 0 ? { warnings } : {}),
+              ...(initNotebookName !== undefined ? { initNotebook: initNotebookName } : {}),
             },
             null,
             2

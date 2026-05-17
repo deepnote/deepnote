@@ -15,6 +15,9 @@ A `.deepnote` file is a YAML-formatted document that represents an entire Deepno
 
 - **Project metadata** (creation date, modification date, version)
 - **One or more notebooks** with their blocks and execution state
+
+> **Tip:** While the format supports multiple notebooks per file, the recommended practice is one notebook per file. Use `deepnote split` to convert multi-notebook files into separate single-notebook files.
+
 - **Project settings** (environment configuration, dependencies, integrations)
 - **Execution modes** and working directories
 

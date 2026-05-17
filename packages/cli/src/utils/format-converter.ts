@@ -1,24 +1,18 @@
-import fs from 'node:fs/promises'
-import { basename } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
-import type { JupyterNotebook } from '@deepnote/convert'
 import {
-  convertJupyterNotebooksToDeepnote,
-  convertMarimoAppsToDeepnote,
-  convertPercentNotebooksToDeepnote,
-  convertQuartoDocumentsToDeepnote,
-  detectFormat,
-  parseMarimoFormat,
-  parsePercentFormat,
-  parseQuartoFormat,
+  type LoadedRunnableFile,
+  LoadRunnableFileError,
+  loadRunnableFile,
+  type RunnableExtension,
+  RUNNABLE_EXTENSIONS as SHARED_RUNNABLE_EXTENSIONS,
+  isRunnableExtension as sharedIsRunnableExtension,
 } from '@deepnote/convert'
 import { debug } from '../output'
 import { FileResolutionError, resolvePath } from './file-resolver'
 
-/** Supported file extensions for running */
-export const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
-export type RunnableExtension = (typeof RUNNABLE_EXTENSIONS)[number]
+/** Supported file extensions for running. */
+export const RUNNABLE_EXTENSIONS = SHARED_RUNNABLE_EXTENSIONS
+export type { RunnableExtension }
 
 export interface ConvertedFile {
   /** The DeepnoteFile content */
@@ -35,20 +29,21 @@ export interface ConvertedFile {
  * Check if a file extension is supported for running.
  */
 export function isRunnableExtension(ext: string): ext is RunnableExtension {
-  return RUNNABLE_EXTENSIONS.includes(ext.toLowerCase() as RunnableExtension)
+  return sharedIsRunnableExtension(ext)
 }
 
 /**
  * Resolve and convert any supported notebook format to a DeepnoteFile.
  *
- * Supported formats:
- * - .deepnote - Native format (no conversion)
- * - .ipynb - Jupyter Notebook
- * - .py - Percent format or Marimo (auto-detected)
- * - .qmd - Quarto document
+ * Wraps {@link loadRunnableFile} from `@deepnote/convert` with CLI-specific
+ * error wrapping and debug logging. The shared helper handles all parsing and
+ * format detection so CLI and MCP behave identically.
  *
- * @param path - Path to the file
- * @returns The converted DeepnoteFile with metadata about the conversion
+ * Supported formats:
+ * - `.deepnote` — Native format (no conversion)
+ * - `.ipynb` — Jupyter Notebook
+ * - `.py` — Percent format (`# %%`) or Marimo (`@app.cell`)
+ * - `.qmd` — Quarto document
  */
 export async function resolveAndConvertToDeepnote(path: string): Promise<ConvertedFile> {
   const { absolutePath, extension: ext, isDirectory } = await resolvePath(path)
@@ -70,143 +65,24 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
     )
   }
 
-  const filename = basename(absolutePath)
-  const projectName = basename(absolutePath, ext)
+  debug(`Loading runnable file: ${absolutePath}`)
 
-  // Native .deepnote file - no conversion needed
-  if (ext === '.deepnote') {
-    debug(`Loading native .deepnote file: ${absolutePath}`)
-
-    // Read file bytes
-    let rawBytes: Buffer
-    try {
-      rawBytes = await fs.readFile(absolutePath)
-    } catch (readError) {
-      const message = readError instanceof Error ? readError.message : String(readError)
-      throw new FileResolutionError(`Failed to read .deepnote file: ${absolutePath}\n\n` + `Read error: ${message}`)
+  let loaded: LoadedRunnableFile
+  try {
+    loaded = await loadRunnableFile(absolutePath)
+  } catch (error) {
+    // Re-wrap LoadRunnableFileError as FileResolutionError so existing CLI
+    // exit-code handling (InvalidUsage for user errors) keeps working.
+    if (error instanceof LoadRunnableFileError) {
+      throw new FileResolutionError(error.message)
     }
-
-    // Parse file content
-    let file: DeepnoteFile
-    try {
-      const content = decodeUtf8NoBom(rawBytes)
-      file = deserializeDeepnoteFile(content)
-    } catch (parseError) {
-      const message = parseError instanceof Error ? parseError.message : String(parseError)
-      throw new FileResolutionError(`Failed to parse .deepnote file: ${absolutePath}\n\n` + `Parse error: ${message}`)
-    }
-
-    return {
-      file,
-      originalPath: absolutePath,
-      format: 'deepnote',
-      wasConverted: false,
-    }
+    throw error
   }
 
-  // Read file content for conversion
-  const content = await fs.readFile(absolutePath, 'utf-8')
-
-  // Jupyter Notebook
-  if (ext === '.ipynb') {
-    debug(`Converting Jupyter notebook: ${absolutePath}`)
-
-    let notebook: JupyterNotebook
-    try {
-      notebook = JSON.parse(content) as JupyterNotebook
-    } catch (parseError) {
-      const message = parseError instanceof Error ? parseError.message : String(parseError)
-      throw new FileResolutionError(
-        `Invalid Jupyter notebook: ${absolutePath}\n\n` + `The file is not valid JSON. Parse error: ${message}`
-      )
-    }
-
-    const file = convertJupyterNotebooksToDeepnote([{ filename, notebook }], { projectName })
-    return {
-      file,
-      originalPath: absolutePath,
-      format: 'jupyter',
-      wasConverted: true,
-    }
+  return {
+    file: loaded.file,
+    originalPath: loaded.originalPath,
+    format: loaded.format,
+    wasConverted: loaded.wasConverted,
   }
-
-  // Quarto document
-  if (ext === '.qmd') {
-    debug(`Converting Quarto document: ${absolutePath}`)
-    let document: ReturnType<typeof parseQuartoFormat>
-    try {
-      document = parseQuartoFormat(content)
-    } catch (parseError) {
-      const message = parseError instanceof Error ? parseError.message : String(parseError)
-      throw new FileResolutionError(`Failed to parse Quarto document: ${absolutePath}\n\n` + `Parse error: ${message}`)
-    }
-    const file = convertQuartoDocumentsToDeepnote([{ filename, document }], { projectName })
-    return {
-      file,
-      originalPath: absolutePath,
-      format: 'quarto',
-      wasConverted: true,
-    }
-  }
-
-  // Python file - detect percent or marimo format
-  if (ext === '.py') {
-    let detectedFormat: ReturnType<typeof detectFormat>
-    try {
-      detectedFormat = detectFormat(absolutePath, content)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new FileResolutionError(`Could not detect Python notebook format for: ${absolutePath}\n\n${message}`)
-    }
-
-    if (detectedFormat === 'marimo') {
-      debug(`Converting Marimo notebook: ${absolutePath}`)
-      let app: ReturnType<typeof parseMarimoFormat>
-      try {
-        app = parseMarimoFormat(content)
-      } catch (parseError) {
-        const message = parseError instanceof Error ? parseError.message : String(parseError)
-        throw new FileResolutionError(
-          `Failed to parse Marimo notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
-        )
-      }
-      const file = convertMarimoAppsToDeepnote([{ filename, app }], { projectName })
-      return {
-        file,
-        originalPath: absolutePath,
-        format: 'marimo',
-        wasConverted: true,
-      }
-    }
-
-    if (detectedFormat === 'percent') {
-      debug(`Converting percent format notebook: ${absolutePath}`)
-      let notebook: ReturnType<typeof parsePercentFormat>
-      try {
-        notebook = parsePercentFormat(content)
-      } catch (parseError) {
-        const message = parseError instanceof Error ? parseError.message : String(parseError)
-        throw new FileResolutionError(
-          `Failed to parse percent format notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
-        )
-      }
-      const file = convertPercentNotebooksToDeepnote([{ filename, notebook }], { projectName })
-      return {
-        file,
-        originalPath: absolutePath,
-        format: 'percent',
-        wasConverted: true,
-      }
-    }
-
-    throw new FileResolutionError(
-      `Could not detect Python notebook format for: ${absolutePath}\n\n` +
-        `The file must be either:\n` +
-        `  - Percent format: Use "# %%" cell markers\n` +
-        `  - Marimo format: Use @app.cell decorators`
-    )
-  }
-
-  // This should never happen given the isRunnableExtension check above
-  throw new FileResolutionError(`Unsupported file type: ${ext}`)
 }

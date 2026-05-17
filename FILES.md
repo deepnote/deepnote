@@ -23,7 +23,7 @@ For the complete schema definition, see [`deepnote-file-schema.ts`](https://gith
 
 - **Portable**: Everything needed to understand and run the project is in one file
 - **Git-friendly**: YAML format produces meaningful diffs
-- **Multi-notebook**: A single project can contain multiple notebooks
+- **Multi-notebook**: A single project can contain multiple notebooks (recommended: one notebook per file; use `deepnote split` to separate)
 - **Environment-aware**: Can include Python version, packages, and other dependencies
 - **Integration-ready**: Stores database connections and other integrations
 

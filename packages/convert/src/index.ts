@@ -40,6 +40,9 @@ export {
   convertJupyterNotebookToBlocks,
   readAndConvertIpynbFiles,
 } from './jupyter-to-deepnote'
+// Shared runnable-file loader (used by CLI run/list-inputs and MCP execution)
+export type { LoadedRunnableFile, RunnableExtension, RunnableFormat } from './load-runnable-file'
+export { isRunnableExtension, LoadRunnableFileError, loadRunnableFile, RUNNABLE_EXTENSIONS } from './load-runnable-file'
 export type {
   ConvertMarimoAppOptions,
   ConvertMarimoAppsToDeepnoteOptions,
@@ -82,10 +85,19 @@ export {
 } from './quarto-to-deepnote'
 // Snapshot utilities
 export type {
+  BlockExecutionOutput,
   BlockOutput,
+  ExecutionTiming,
+  GenerateSnapshotFilenameParams,
   MergeOptions,
+  NotebookSplitEntry,
+  ResolveAndComposeInitResult,
+  SaveExecutionSnapshotOptions,
+  SaveExecutionSnapshotResult,
   SnapshotHashInput,
   SnapshotInfo,
+  SnapshotNotebookIdFileInput,
+  SnapshotNotebookIdProjectInput,
   SnapshotOptions,
   SplitResult,
 } from './snapshot'
@@ -97,15 +109,24 @@ export {
   findSnapshotsForProject,
   generateSnapshotFilename,
   getSnapshotDir,
+  getSnapshotPath,
   hasOutputs,
   loadLatestSnapshot,
   loadSnapshotFile,
+  MissingInitNotebookError,
+  mergeOutputsIntoFile,
   mergeSnapshotIntoSource,
   parseSnapshotFilename,
   parseSourceFilePath,
+  resolveAndComposeInit,
+  resolveSnapshotNotebookId,
+  saveExecutionSnapshot,
   slugifyProjectName,
   snapshotExists,
+  splitByNotebooks,
   splitDeepnoteFile,
+  splitSnapshotByNotebooks,
+  stripOutputsFromBlock,
 } from './snapshot'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'
 export type { MarimoApp, MarimoCell } from './types/marimo'

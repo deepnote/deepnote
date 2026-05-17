@@ -16,6 +16,7 @@ import { createIntegrationsEditAction } from './commands/integrations/edit-integ
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
+import { createSplitAction } from './commands/split'
 import { createStatsAction } from './commands/stats'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
@@ -451,6 +452,15 @@ ${c.bold('Examples:')}
 `
     })
     .action(createConvertAction(program))
+
+  // Split command - split multi-notebook files into separate files
+  program
+    .command('split')
+    .description('Split a multi-notebook .deepnote file into separate single-notebook files')
+    .argument('<path>', 'Path to a multi-notebook .deepnote file')
+    .option('-o, --output <dir>', 'Output directory for split files (default: same directory as input)')
+    .option('--force', 'Overwrite existing output files')
+    .action(createSplitAction(program))
 
   // Validate command - validate a .deepnote file against the schema
   program
