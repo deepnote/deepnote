@@ -46,8 +46,13 @@ export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams)
 
 /**
  * Removes output-related fields from a block, returning a clean source block.
+ *
+ * Used by {@link splitDeepnoteFile} when producing the source file (no
+ * outputs) and by the sibling-init resolver when borrowing init blocks from a
+ * disk-resident sibling so stale outputs don't leak into the composed
+ * in-memory file.
  */
-function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
+export function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
   if (!isExecutableBlockType(block.type)) {
     return block
   }
@@ -165,12 +170,17 @@ function allocateUniqueNotebookSplitFilename(sourceFileStem: string, notebookNam
 }
 
 /**
- * Splits a multi-notebook DeepnoteFile into separate files, one per user-facing notebook.
- * When {@link DeepnoteFile.project.initNotebookId} resolves to a notebook in the project,
- * that init notebook is excluded from the splittable set and prepended to every split so
- * `initNotebookId` remains valid. Each {@link NotebookSplitEntry.notebook} still identifies
- * the non-init notebook the entry is built around. Assigns a unique
- * {@link NotebookSplitEntry.outputFilename} per entry (numeric suffix before `.deepnote` when slug collisions occur).
+ * Splits a multi-notebook DeepnoteFile into separate files, one per notebook.
+ *
+ * When {@link DeepnoteFile.project.initNotebookId} resolves to a notebook in
+ * the project, that init notebook is emitted as its own standalone entry
+ * (`kind: 'init'`) rather than being duplicated into every other split. Each
+ * non-init notebook becomes its own entry (`kind: 'notebook'`) containing only
+ * that single notebook, while preserving `project.initNotebookId` so the
+ * sibling-init resolver can rebind it at run time.
+ *
+ * Assigns a unique {@link NotebookSplitEntry.outputFilename} per entry
+ * (numeric suffix before `.deepnote` when slug collisions occur).
  *
  * @param file - The DeepnoteFile to split
  * @param sourceFileStem - Basename of the source file without the `.deepnote` extension
@@ -184,28 +194,55 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
   const initNotebookId = file.project.initNotebookId
   const initNotebook = initNotebookId === undefined ? undefined : notebooks.find(nb => nb.id === initNotebookId)
 
-  const splittable = initNotebook === undefined ? notebooks : notebooks.filter(nb => nb.id !== initNotebook.id)
-
-  if (splittable.length === 0) {
+  // A file containing only the init notebook is already in single-notebook
+  // form; nothing meaningful to split.
+  if (initNotebook !== undefined && notebooks.length === 1) {
     return []
   }
 
   const used = new Set<string>()
-  return splittable.map(notebook => {
+  const result: NotebookSplitEntry[] = []
+
+  if (initNotebook !== undefined) {
+    const initFilename = allocateUniqueNotebookSplitFilename(sourceFileStem, initNotebook.name, used)
+    result.push({
+      notebook: { id: initNotebook.id, name: initNotebook.name },
+      file: {
+        ...file,
+        project: {
+          ...file.project,
+          notebooks: [initNotebook],
+        },
+      },
+      outputFilename: initFilename,
+      kind: 'init',
+    })
+  }
+
+  const mainNotebooks = initNotebook === undefined ? notebooks : notebooks.filter(nb => nb.id !== initNotebook.id)
+  if (mainNotebooks.length === 0) {
+    // No non-init notebooks to write — the standalone init entry alone is not
+    // useful, so return empty.
+    return []
+  }
+
+  for (const notebook of mainNotebooks) {
     const outputFilename = allocateUniqueNotebookSplitFilename(sourceFileStem, notebook.name, used)
-    const splitNotebooks = initNotebook === undefined ? [notebook] : [initNotebook, notebook]
-    return {
+    result.push({
       notebook: { id: notebook.id, name: notebook.name },
       file: {
         ...file,
         project: {
           ...file.project,
-          notebooks: splitNotebooks,
+          notebooks: [notebook],
         },
       },
       outputFilename,
-    }
-  })
+      kind: 'notebook',
+    })
+  }
+
+  return result
 }
 
 /**

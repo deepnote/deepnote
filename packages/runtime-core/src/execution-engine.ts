@@ -52,6 +52,21 @@ export interface ExecutionOptions {
   /** Run only the specified blocks (by ids). Takes precedence over blockId. */
   blockIds?: string[]
   /**
+   * Ids of additional notebooks that must always be included in the
+   * execution scope, even when {@link notebookName} is set. Used by callers
+   * to express "run init as a prelude" semantics: when the user filters to a
+   * specific notebook, init still needs to run first because the user's
+   * notebook depends on init's variables.
+   *
+   * Identified by id (not name) so that projects with two notebooks sharing
+   * the same name don't accidentally union both into engine scope.
+   *
+   * Init's executable block ids should also be passed via {@link blockIds}
+   * (alongside any user-targeted block ids) so `--block` filtering does not
+   * accidentally exclude init.
+   */
+  preludeNotebookIds?: ReadonlySet<string>
+  /**
    * Input values to inject before execution.
    * Keys are variable names, values are the values to assign.
    * These will be set before any blocks are executed.
@@ -160,12 +175,18 @@ export class ExecutionEngine {
     let executedBlocks = 0
     let failedBlocks = 0
 
-    // Filter notebooks if specified
+    // Filter notebooks if specified. Prelude notebook ids are always
+    // included (e.g. init notebook) so the user-facing filter does not strip
+    // notebooks that must run as a prelude. We match by id (not by name) to
+    // avoid collisions when two notebooks share a display name.
+    const preludeIds = options.preludeNotebookIds ?? new Set<string>()
     const notebooks = options.notebookName
-      ? file.project.notebooks.filter(n => n.name === options.notebookName)
+      ? file.project.notebooks.filter(n => n.name === options.notebookName || preludeIds.has(n.id))
       : file.project.notebooks
 
-    if (options.notebookName && notebooks.length === 0) {
+    // The target notebook itself must exist; matching only a prelude is not
+    // enough (it would silently drop the user's intended scope).
+    if (options.notebookName && notebooks.find(n => n.name === options.notebookName) === undefined) {
       throw new Error(`Notebook "${options.notebookName}" not found in project`)
     }
 

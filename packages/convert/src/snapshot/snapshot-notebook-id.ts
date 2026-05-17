@@ -14,9 +14,13 @@ export interface SnapshotNotebookIdFileInput {
  * Returns the notebook id used for notebook-scoped snapshot filenames and lookup.
  *
  * - Single-notebook files use that notebook's id.
- * - Split outputs from {@link splitByNotebooks} keep `[init, main]` in one file; the main
- *   (non-init) notebook id is used so snapshots stay distinct per user-facing notebook.
- * - Truly multi-notebook projects (without the init+main split shape) return `undefined`
+ * - Files in `[init, main]` shape (two notebooks where one matches `initNotebookId`)
+ *   key snapshot filenames off the main (non-init) notebook id so each main snapshot
+ *   stays distinct per user-facing notebook. In the separate-init-file model this
+ *   shape arises at execution time by composing the sibling init notebook in front
+ *   of the loaded main notebook; {@link splitByNotebooks} itself now emits one
+ *   single-notebook entry per notebook (init or main).
+ * - Truly multi-notebook projects (without the init+main shape) return `undefined`
  *   so callers keep legacy project-wide snapshot names.
  */
 export function resolveSnapshotNotebookId(file: SnapshotNotebookIdFileInput): string | undefined {

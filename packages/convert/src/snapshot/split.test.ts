@@ -567,7 +567,7 @@ describe('splitByNotebooks', () => {
     expect(result.map(e => e.outputFilename)).toEqual(['p-dashboard.deepnote', 'p-dashboard-2.deepnote'])
   })
 
-  it('should duplicate the init notebook into every non-init split file', () => {
+  it('should emit the init notebook as its own standalone split entry', () => {
     const file: DeepnoteFile = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z' },
@@ -583,15 +583,24 @@ describe('splitByNotebooks', () => {
       },
     }
     const result = splitByNotebooks(file, 'stem')
-    expect(result).toHaveLength(2)
-    for (const entry of result) {
-      expect(entry.file.project.notebooks).toHaveLength(2)
-      expect(entry.file.project.notebooks[0]?.id).toBe('nb-init')
+    expect(result).toHaveLength(3)
+    const initEntry = result.find(e => e.kind === 'init')
+    expect(initEntry).toBeDefined()
+    expect(initEntry?.file.project.notebooks).toHaveLength(1)
+    expect(initEntry?.file.project.notebooks[0]?.id).toBe('nb-init')
+    expect(initEntry?.file.project.initNotebookId).toBe('nb-init')
+
+    const mainEntries = result.filter(e => e.kind === 'notebook')
+    expect(mainEntries).toHaveLength(2)
+    for (const entry of mainEntries) {
+      expect(entry.file.project.notebooks).toHaveLength(1)
+      expect(entry.file.project.notebooks[0]?.id).not.toBe('nb-init')
+      // initNotebookId is preserved so the resolver can find the sibling init.
       expect(entry.file.project.initNotebookId).toBe('nb-init')
     }
   })
 
-  it('should not create a standalone file for the init notebook', () => {
+  it('should produce non-init entries containing only the non-init notebook', () => {
     const file: DeepnoteFile = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z' },
@@ -607,7 +616,11 @@ describe('splitByNotebooks', () => {
       },
     }
     const result = splitByNotebooks(file, 'stem')
-    expect(result.map(e => e.notebook.id).sort()).toEqual(['nb-main-a', 'nb-main-b'].sort())
+    const mainIds = result
+      .filter(e => e.kind === 'notebook')
+      .map(e => e.notebook.id)
+      .sort()
+    expect(mainIds).toEqual(['nb-main-a', 'nb-main-b'].sort())
   })
 
   it('should return an empty array when the file contains only the init notebook', () => {
@@ -664,6 +677,51 @@ describe('splitByNotebooks', () => {
     for (const entry of result) {
       expect(entry.file.project.notebooks).toHaveLength(1)
     }
+  })
+
+  it('should mark every non-init entry with kind "notebook"', () => {
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        notebooks: [
+          { id: 'nb-a', name: 'A', blocks: [] },
+          { id: 'nb-b', name: 'B', blocks: [] },
+        ],
+      },
+    }
+    const result = splitByNotebooks(file, 's')
+    for (const entry of result) {
+      expect(entry.kind).toBe('notebook')
+    }
+  })
+
+  it('should split snapshot one-to-one by notebook id (including init) for a composed run', () => {
+    // Verifies that splitSnapshotByNotebooks treats init like any other notebook id.
+    const snapshot: DeepnoteSnapshot = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
+      environment: { hash: 'env-1' },
+      execution: { startedAt: '2025-01-01T00:00:00Z', finishedAt: '2025-01-01T00:01:00Z' },
+      project: {
+        id: 'proj-1',
+        name: 'Test',
+        initNotebookId: 'nb-init',
+        notebooks: [
+          { id: 'nb-init', name: 'Init', blocks: [] },
+          { id: 'nb-main-a', name: 'Main A', blocks: [] },
+          { id: 'nb-main-b', name: 'Main B', blocks: [] },
+        ],
+      },
+    }
+    const result = splitSnapshotByNotebooks(snapshot, ['nb-init', 'nb-main-a', 'nb-main-b'])
+    expect(result.size).toBe(3)
+    expect(result.get('nb-init')?.project.notebooks).toHaveLength(1)
+    expect(result.get('nb-init')?.project.notebooks[0]?.id).toBe('nb-init')
+    expect(result.get('nb-main-a')?.project.notebooks[0]?.id).toBe('nb-main-a')
+    expect(result.get('nb-main-b')?.project.notebooks[0]?.id).toBe('nb-main-b')
   })
 })
 

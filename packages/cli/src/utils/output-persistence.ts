@@ -1,149 +1,90 @@
-import fs from 'node:fs/promises'
-import { resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import {
-  generateSnapshotFilename,
-  getSnapshotDir,
-  resolveSnapshotNotebookId,
-  slugifyProjectName,
-  splitDeepnoteFile,
+  type ExecutionTiming,
+  type SaveExecutionSnapshotOptions,
+  type SaveExecutionSnapshotResult,
+  type BlockExecutionOutput as SharedBlockExecutionOutput,
+  getSnapshotPath as sharedGetSnapshotPath,
+  mergeOutputsIntoFile as sharedMergeOutputsIntoFile,
+  saveExecutionSnapshot as sharedSaveExecutionSnapshot,
 } from '@deepnote/convert'
 import type { IOutput } from '@deepnote/runtime-core'
 import { debug } from '../output'
 
 /**
- * Result of a single block execution (subset of BlockResult from run.ts)
+ * Result of a single block execution (subset of BlockResult from run.ts).
+ *
+ * Same shape as the shared `BlockExecutionOutput` but narrows `outputs` to the
+ * runtime-core `IOutput` type so existing CLI callers keep their type-safety
+ * against runtime types.
  */
-export interface BlockExecutionOutput {
+export interface BlockExecutionOutputCli {
   id: string
   outputs: IOutput[]
   executionCount?: number | null
 }
 
 /**
- * Execution timing information
+ * Backwards-compatible alias used by tests and other CLI modules.
+ *
+ * Identical to {@link BlockExecutionOutputCli}.
  */
-export interface ExecutionTiming {
-  startedAt: string
-  finishedAt: string
-}
+export type BlockExecutionOutput = BlockExecutionOutputCli
 
-/**
- * Result of saving a snapshot
- */
+// Re-export the shared timing type so legacy imports continue to work.
+export type { ExecutionTiming }
+
+/** Result of saving a snapshot. Composed runs additionally set init paths. */
 export interface SaveSnapshotResult {
   snapshotPath: string
   timestampedSnapshotPath: string
+  /** Path to the init-only `latest` snapshot when this was a composed run. */
+  initSnapshotPath?: string
+  /** Path to the init-only timestamped snapshot when this was a composed run. */
+  initTimestampedSnapshotPath?: string
 }
 
-/**
- * Merges execution outputs into a DeepnoteFile.
- *
- * @param file - The original DeepnoteFile
- * @param blockOutputs - Outputs from executed blocks
- * @param timing - Execution start and end times
- * @returns A new DeepnoteFile with outputs merged in
- */
-export function mergeOutputsIntoFile(
-  file: DeepnoteFile,
-  blockOutputs: BlockExecutionOutput[],
-  timing: ExecutionTiming
-): DeepnoteFile {
-  const outputsByBlockId = new Map(blockOutputs.map(r => [r.id, r]))
-
-  return {
-    ...file,
-    execution: {
-      startedAt: timing.startedAt,
-      finishedAt: timing.finishedAt,
-    },
-    project: {
-      ...file.project,
-      notebooks: file.project.notebooks.map(notebook => ({
-        ...notebook,
-        blocks: notebook.blocks.map(block => {
-          const result = outputsByBlockId.get(block.id)
-          if (!result) return block
-
-          // Spread the block and then handle executionCount explicitly
-          // Cast to record to handle executionCount which may not exist on all block types
-          const blockRecord = block as Record<string, unknown>
-          const { executionCount: _prevExecutionCount, ...rest } = blockRecord
-          // Merge outputs into the block
-          return {
-            ...rest,
-            outputs: result.outputs,
-            // Only include executionCount if it's defined
-            ...(result.executionCount != null ? { executionCount: result.executionCount } : {}),
-          } as typeof block
-        }),
-      })),
-    },
-  }
-}
+/** Re-export the shared merge helper for CLI callers. */
+export const mergeOutputsIntoFile = sharedMergeOutputsIntoFile
 
 /**
  * Saves execution outputs to a snapshot file.
  *
- * Creates a snapshot file in the snapshots/ directory next to the source file.
- * The snapshot contains all block outputs and execution metadata.
- *
- * @param sourcePath - Path to the original source file (or where it would be if converted)
- * @param file - The DeepnoteFile (original, without outputs)
- * @param blockOutputs - Outputs from executed blocks
- * @param timing - Execution start and end times
- * @returns The path to the saved snapshot file
+ * Thin CLI wrapper over the shared `@deepnote/convert.saveExecutionSnapshot`:
+ * keeps debug logging and the legacy CLI return shape, while delegating the
+ * actual merge/serialize/atomic-write logic to the shared helper. When
+ * `options.initBlockIds` is set and non-empty, the helper additionally writes
+ * an init-only `[init]` snapshot — see the shared helper's docs for details.
  */
 export async function saveExecutionSnapshot(
   sourcePath: string,
   file: DeepnoteFile,
-  blockOutputs: BlockExecutionOutput[],
-  timing: ExecutionTiming
+  blockOutputs: BlockExecutionOutputCli[],
+  timing: ExecutionTiming,
+  options: SaveExecutionSnapshotOptions = {}
 ): Promise<SaveSnapshotResult> {
-  // Merge outputs into the file
-  const fileWithOutputs = mergeOutputsIntoFile(file, blockOutputs, timing)
+  const result: SaveExecutionSnapshotResult = await sharedSaveExecutionSnapshot(
+    sourcePath,
+    file,
+    blockOutputs as SharedBlockExecutionOutput[],
+    timing,
+    options
+  )
 
-  // Split into source and snapshot (we only need the snapshot)
-  const { snapshot } = splitDeepnoteFile(fileWithOutputs)
+  debug(`Saved execution snapshot to: ${result.timestampedSnapshotPath}`)
+  debug(`Updated latest snapshot: ${result.snapshotPath}`)
+  if (result.initSnapshotPath !== undefined) {
+    debug(`Saved init snapshot to: ${result.initTimestampedSnapshotPath}`)
+    debug(`Updated latest init snapshot: ${result.initSnapshotPath}`)
+  }
 
-  // Determine snapshot paths
-  const snapshotDir = getSnapshotDir(sourcePath)
-  const slug = slugifyProjectName(file.project.name) || 'project'
-  const notebookId = resolveSnapshotNotebookId(file)
-
-  const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const timestampedFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
-  const timestampedSnapshotPath = resolve(snapshotDir, timestampedFilename)
-
-  const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
-  const snapshotPath = resolve(snapshotDir, latestFilename)
-
-  // Create snapshot directory if it doesn't exist
-  await fs.mkdir(snapshotDir, { recursive: true })
-
-  // Write timestamped snapshot first, then copy to latest to reduce corruption risk
-  const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
-  await fs.writeFile(timestampedSnapshotPath, snapshotYaml, 'utf-8')
-  await fs.copyFile(timestampedSnapshotPath, snapshotPath)
-
-  debug(`Saved execution snapshot to: ${timestampedSnapshotPath}`)
-  debug(`Updated latest snapshot: ${snapshotPath}`)
-
-  return { snapshotPath, timestampedSnapshotPath }
+  return {
+    snapshotPath: result.snapshotPath,
+    timestampedSnapshotPath: result.timestampedSnapshotPath,
+    initSnapshotPath: result.initSnapshotPath,
+    initTimestampedSnapshotPath: result.initTimestampedSnapshotPath,
+  }
 }
 
-/**
- * Gets the path where a snapshot would be saved for a given source file.
- *
- * @param sourcePath - Path to the source file
- * @param file - The DeepnoteFile
- * @returns The snapshot file path
- */
-export function getSnapshotPath(sourcePath: string, file: DeepnoteFile): string {
-  const snapshotDir = getSnapshotDir(sourcePath)
-  const slug = slugifyProjectName(file.project.name) || 'project'
-  const notebookId = resolveSnapshotNotebookId(file)
-  const snapshotFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
-  return resolve(snapshotDir, snapshotFilename)
-}
+/** Returns the path where a snapshot would be saved for a given source file. */
+export const getSnapshotPath = sharedGetSnapshotPath

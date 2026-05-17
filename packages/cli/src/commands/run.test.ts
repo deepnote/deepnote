@@ -1906,6 +1906,431 @@ describe('run command', () => {
         expect(output).toContain('Input variables')
       })
     })
+
+    describe('sibling init resolution', () => {
+      const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
+      const INIT_NB_ID = 'init-nb-id'
+      const MAIN_NB_ID = 'main-nb-id'
+      const INIT_BLOCK_ID = 'init-block-1'
+      const MAIN_BLOCK_ID = 'main-block-1'
+      const INPUT_BLOCK_ID = 'init-input-block'
+      const SQL_INTEGRATION_ID = 'aaaa1111-2222-4333-8444-555566667777'
+
+      let testTempDir: string
+
+      function makeInitFile(): string {
+        return [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          `  id: ${PROJECT_ID}`,
+          '  name: Sibling Init Project',
+          `  initNotebookId: ${INIT_NB_ID}`,
+          '  notebooks:',
+          `    - id: ${INIT_NB_ID}`,
+          '      name: Init',
+          '      blocks:',
+          `        - id: ${INIT_BLOCK_ID}`,
+          '          type: code',
+          '          blockGroup: bg-init',
+          "          sortingKey: '0000'",
+          "          content: 'INIT_VAR = 1'",
+          '          metadata: {}',
+          '',
+        ].join('\n')
+      }
+
+      function makeMainFile(): string {
+        return [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          `  id: ${PROJECT_ID}`,
+          '  name: Sibling Init Project',
+          `  initNotebookId: ${INIT_NB_ID}`,
+          '  notebooks:',
+          `    - id: ${MAIN_NB_ID}`,
+          '      name: Main',
+          '      blocks:',
+          `        - id: ${MAIN_BLOCK_ID}`,
+          '          type: code',
+          '          blockGroup: bg-main',
+          "          sortingKey: '0000'",
+          "          content: 'print(INIT_VAR)'",
+          '          metadata: {}',
+          '',
+        ].join('\n')
+      }
+
+      function makeUnrelatedFile(): string {
+        return [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          '  id: 22222222-2222-4222-8222-222222222222',
+          '  name: Unrelated Project',
+          '  notebooks:',
+          '    - id: unrelated-nb',
+          '      name: Unrelated',
+          '      blocks: []',
+          '',
+        ].join('\n')
+      }
+
+      function makeOriginalUnsplitFile(): string {
+        return [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          `  id: ${PROJECT_ID}`,
+          '  name: Sibling Init Project',
+          `  initNotebookId: ${INIT_NB_ID}`,
+          '  notebooks:',
+          `    - id: ${INIT_NB_ID}`,
+          '      name: Init',
+          '      blocks:',
+          `        - id: ${INIT_BLOCK_ID}`,
+          '          type: code',
+          '          blockGroup: bg-init',
+          "          sortingKey: '0000'",
+          "          content: 'INIT_VAR = 1'",
+          '          metadata: {}',
+          `    - id: ${MAIN_NB_ID}`,
+          '      name: Main',
+          '      blocks:',
+          `        - id: ${MAIN_BLOCK_ID}`,
+          '          type: code',
+          '          blockGroup: bg-main',
+          "          sortingKey: '0000'",
+          "          content: 'print(INIT_VAR)'",
+          '          metadata: {}',
+          '',
+        ].join('\n')
+      }
+
+      beforeEach(async () => {
+        testTempDir = await fs.promises.mkdtemp(join(os.tmpdir(), 'sibling-init-'))
+      })
+
+      afterEach(async () => {
+        await fs.promises.rm(testTempDir, { recursive: true, force: true })
+      })
+
+      it('loads sibling init by metadata and runs both, ignoring unrelated .deepnote siblings', async () => {
+        setupSuccessfulRun()
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        const unrelatedPath = join(testTempDir, 'unrelated.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+        await fs.promises.writeFile(unrelatedPath, makeUnrelatedFile(), 'utf-8')
+
+        await action(mainPath, {})
+
+        expect(mockRunProject).toHaveBeenCalledTimes(1)
+        const passedFile = mockRunProject.mock.calls[0][0]
+        // The composed file should have init first, then main.
+        expect(passedFile.project.notebooks.map((n: { id: string }) => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
+      })
+
+      it('does not poison resolution when the original unsplit file is in the same directory', async () => {
+        setupSuccessfulRun()
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        // Original unsplit file (multiple notebooks) sits beside the split outputs.
+        const originalPath = join(testTempDir, 'project.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+        await fs.promises.writeFile(originalPath, makeOriginalUnsplitFile(), 'utf-8')
+
+        await action(mainPath, {})
+
+        // The resolver must reject the original unsplit file (rule b: more than
+        // one notebook) and pick the dedicated init file. The composed file
+        // should still be `[init, main]`, not poisoned.
+        expect(mockRunProject).toHaveBeenCalledTimes(1)
+        const passedFile = mockRunProject.mock.calls[0][0]
+        expect(passedFile.project.notebooks.map((n: { id: string }) => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
+      })
+
+      it('still runs the init prelude when --notebook=Main is set', async () => {
+        setupSuccessfulRun()
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        await action(mainPath, { notebook: 'Main' })
+
+        expect(mockRunProject).toHaveBeenCalledTimes(1)
+        const [, runOptions] = mockRunProject.mock.calls[0]
+        expect(runOptions.notebookName).toBe('Main')
+        // preludeNotebookIds must include the init notebook id so the engine's
+        // notebook filter does not strip init when --notebook is set. (Engine
+        // filters by id, not name, to avoid name-collision corner cases.)
+        expect(runOptions.preludeNotebookIds).toBeInstanceOf(Set)
+        expect([...runOptions.preludeNotebookIds]).toEqual([INIT_NB_ID])
+      })
+
+      it('prepends init block ids when --block=<id> is set', async () => {
+        setupSuccessfulRun()
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        await action(mainPath, { block: MAIN_BLOCK_ID })
+
+        expect(mockRunProject).toHaveBeenCalledTimes(1)
+        const [, runOptions] = mockRunProject.mock.calls[0]
+        expect(runOptions.blockId).toBe(MAIN_BLOCK_ID)
+        // blockIds must include the init block(s) before the user-targeted block.
+        expect(Array.isArray(runOptions.blockIds)).toBe(true)
+        expect(runOptions.blockIds).toContain(INIT_BLOCK_ID)
+        expect(runOptions.blockIds).toContain(MAIN_BLOCK_ID)
+        // Init block must come before main block in the resolved blockIds list.
+        const initIdx = runOptions.blockIds.indexOf(INIT_BLOCK_ID)
+        const mainIdx = runOptions.blockIds.indexOf(MAIN_BLOCK_ID)
+        expect(initIdx).toBeLessThan(mainIdx)
+        // preludeNotebookIds must also expand engine notebook scope.
+        expect(runOptions.preludeNotebookIds).toBeInstanceOf(Set)
+        expect([...runOptions.preludeNotebookIds]).toEqual([INIT_NB_ID])
+      })
+
+      it('--list-inputs lists init input blocks', async () => {
+        const initWithInput = [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          `  id: ${PROJECT_ID}`,
+          '  name: Sibling Init Project',
+          `  initNotebookId: ${INIT_NB_ID}`,
+          '  notebooks:',
+          `    - id: ${INIT_NB_ID}`,
+          '      name: Init',
+          '      blocks:',
+          `        - id: ${INPUT_BLOCK_ID}`,
+          '          type: input-text',
+          '          blockGroup: bg-init',
+          "          sortingKey: '0000'",
+          "          content: ''",
+          '          metadata:',
+          '            deepnote_variable_name: my_init_input',
+          "            deepnote_variable_value: 'hello'",
+          '',
+        ].join('\n')
+
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, initWithInput, 'utf-8')
+
+        await action(mainPath, { listInputs: true, output: 'json' })
+
+        const output = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(output)
+        const variableNames = parsed.inputs.map((i: { variableName: string }) => i.variableName)
+        expect(variableNames).toContain('my_init_input')
+      })
+
+      it('validateRequirements reports missing init inputs (with --notebook=Main set)', async () => {
+        // Init has an input block and a code block (in that order); main code block
+        // also references the init input variable. With --notebook=Main, validation
+        // must still detect missing init-required inputs because init runs as a prelude.
+        const initWithInputAndCode = [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          `  id: ${PROJECT_ID}`,
+          '  name: Sibling Init Project',
+          `  initNotebookId: ${INIT_NB_ID}`,
+          '  notebooks:',
+          `    - id: ${INIT_NB_ID}`,
+          '      name: Init',
+          '      blocks:',
+          `        - id: init-code-block`,
+          '          type: code',
+          '          blockGroup: bg-init',
+          "          sortingKey: 'a0'",
+          "          content: 'print(my_init_input)'",
+          '          metadata: {}',
+          `        - id: ${INPUT_BLOCK_ID}`,
+          '          type: input-text',
+          '          blockGroup: bg-init-input',
+          "          sortingKey: 'a1'",
+          "          content: ''",
+          '          metadata:',
+          '            deepnote_variable_name: my_init_input',
+          "            deepnote_variable_value: ''",
+          '',
+        ].join('\n')
+
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, initWithInputAndCode, 'utf-8')
+
+        // Mock dependency analysis: init's code block uses the input variable
+        // before the input is defined.
+        mockGetBlockDependencies.mockResolvedValue([
+          {
+            id: 'init-code-block',
+            usedVariables: ['my_init_input'],
+            definedVariables: [],
+            imports: [],
+            importedModules: [],
+            builtins: [],
+          },
+        ])
+
+        await expect(action(mainPath, { notebook: 'Main' })).rejects.toThrow('program.error called')
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('Missing required inputs')
+        expect(errorArg).toContain('my_init_input')
+      })
+
+      it('validateRequirements reports missing init integrations (with --notebook=Main set)', async () => {
+        const initWithSql = [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          `  id: ${PROJECT_ID}`,
+          '  name: Sibling Init Project',
+          `  initNotebookId: ${INIT_NB_ID}`,
+          '  notebooks:',
+          `    - id: ${INIT_NB_ID}`,
+          '      name: Init',
+          '      blocks:',
+          `        - id: init-sql-block`,
+          '          type: sql',
+          '          blockGroup: bg-init',
+          "          sortingKey: '0000'",
+          '          content: SELECT 1',
+          '          metadata:',
+          `            sql_integration_id: ${SQL_INTEGRATION_ID}`,
+          '            deepnote_variable_name: result',
+          '',
+        ].join('\n')
+
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, initWithSql, 'utf-8')
+
+        // No integrations file configured for the SQL integration referenced by init.
+        await expect(action(mainPath, { notebook: 'Main' })).rejects.toThrow('program.error called')
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('Missing database integration')
+        expect(errorArg).toContain(SQL_INTEGRATION_ID)
+      })
+
+      it('exits with exit code 2 and a clear error when init is missing', async () => {
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        // Only the main file exists — no init sibling.
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+
+        await action(mainPath, { output: 'json' })
+
+        const output = getOutput(consoleLogSpy)
+        const parsed = JSON.parse(output)
+        expect(parsed.success).toBe(false)
+        expect(parsed.error).toContain('Cannot resolve init notebook')
+        expect(parsed.error).toContain(INIT_NB_ID)
+        // FileResolution-class user error: exit code 2.
+        expect(process.exitCode).toBe(2)
+      })
+
+      it('writes two snapshots after a composed run: main has [init,main], init has [init], both with init outputs', async () => {
+        // Drive saveExecutionSnapshot through to verify shape (no mock).
+        mockSaveExecutionSnapshot.mockImplementation(
+          async (_sourcePath, file, blockOutputs, _timing, snapshotOptions) => {
+            // Verify the composed file has both notebooks
+            expect(file.project.notebooks.map(n => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
+            // Verify initBlockIds is non-empty (composed run signal)
+            expect(snapshotOptions?.initBlockIds).toBeDefined()
+            expect(snapshotOptions?.initBlockIds?.size).toBeGreaterThan(0)
+            // Verify the block outputs include both init and main outputs
+            const ids = blockOutputs.map(b => b.id)
+            expect(ids).toContain(INIT_BLOCK_ID)
+            expect(ids).toContain(MAIN_BLOCK_ID)
+            return {
+              snapshotPath: '/mock/main-snapshot.snapshot.deepnote',
+              timestampedSnapshotPath: '/mock/main-timestamped.snapshot.deepnote',
+              initSnapshotPath: '/mock/init-snapshot.snapshot.deepnote',
+              initTimestampedSnapshotPath: '/mock/init-timestamped.snapshot.deepnote',
+            }
+          }
+        )
+
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        // Drive callbacks so blockResults contains init + main outputs
+        // (the snapshot helper turns these into both snapshots' outputs).
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          await options?.onBlockStart?.(
+            {
+              id: INIT_BLOCK_ID,
+              type: 'code',
+              blockGroup: 'bg-init',
+              sortingKey: '0000',
+              metadata: {},
+            },
+            0,
+            2
+          )
+          await options?.onBlockDone?.({
+            blockId: INIT_BLOCK_ID,
+            blockType: 'code',
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: ['init-output'] }],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          await options?.onBlockStart?.(
+            {
+              id: MAIN_BLOCK_ID,
+              type: 'code',
+              blockGroup: 'bg-main',
+              sortingKey: '0000',
+              metadata: {},
+            },
+            1,
+            2
+          )
+          await options?.onBlockDone?.({
+            blockId: MAIN_BLOCK_ID,
+            blockType: 'code',
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: ['main-output'] }],
+            executionCount: 2,
+            durationMs: 50,
+          })
+          return { totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 100 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(mainPath, {})
+
+        expect(mockSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
+        const callArgs = mockSaveExecutionSnapshot.mock.calls[0]
+        const optionsArg = callArgs[4]
+        expect(optionsArg?.initBlockIds).toBeDefined()
+        expect(optionsArg?.initBlockIds?.has(INIT_BLOCK_ID)).toBe(true)
+      })
+    })
   })
 
   describe('MissingInputError', () => {

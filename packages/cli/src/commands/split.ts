@@ -45,7 +45,9 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
       // Ensure output directory exists
       await fs.mkdir(outputDir, { recursive: true })
 
-      // Write split files
+      // Each split entry is its own single-notebook file: init is one entry
+      // (kind: 'init'), each non-init notebook is one entry (kind: 'notebook')
+      // — see splitByNotebooks docs.
       const writtenFiles: string[] = []
       const force = Boolean(options.force)
       for (const split of splits) {
@@ -63,12 +65,21 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
         output(`  ${c.green('✓')} ${basename(outPath)}`)
       }
 
-      // Handle existing snapshots — include init notebook data when present so each split matches [init, main]
+      // Snapshot splitting: emit one snapshot per non-init notebook with
+      // `[init, main]` shape (so each main snapshot remains a complete record
+      // including init outputs), plus an init-only `[init]` snapshot for the
+      // standalone init file. Both shapes match the run-time snapshot model.
       const initNotebookId = file.project.initNotebookId
       const initNotebookInProject =
         initNotebookId === undefined ? undefined : file.project.notebooks.find(nb => nb.id === initNotebookId)
+      const initSplitEntry = splits.find(s => s.kind === 'init')
+      const mainSplitEntries = splits.filter(s => s.kind === 'notebook')
+
       const snapshotNotebookIds = Array.from(
-        new Set([...(initNotebookInProject ? [initNotebookInProject.id] : []), ...splits.map(s => s.notebook.id)])
+        new Set([
+          ...(initNotebookInProject ? [initNotebookInProject.id] : []),
+          ...mainSplitEntries.map(s => s.notebook.id),
+        ])
       )
       const existingSnapshots = await findSnapshotsForProject(sourceDir, file.project.id)
 
@@ -82,8 +93,10 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
             const snapshot = await loadSnapshotFile(snapInfo.path)
             const splitSnapshots = splitSnapshotByNotebooks(snapshot, snapshotNotebookIds)
 
-            for (const { notebook } of splits) {
-              const mainSnapshot = splitSnapshots.get(notebook.id)
+            // Main snapshots: keep [init, main] shape so each split file's
+            // snapshot remains a complete record of what would run.
+            for (const mainEntry of mainSplitEntries) {
+              const mainSnapshot = splitSnapshots.get(mainEntry.notebook.id)
               if (!mainSnapshot) continue
 
               let nbSnapshot = mainSnapshot
@@ -106,11 +119,28 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
               const snapshotFilename = generateSnapshotFilename({
                 slug,
                 projectId: file.project.id,
-                notebookId: notebook.id,
+                notebookId: mainEntry.notebook.id,
                 timestamp: snapInfo.timestamp,
               })
               const snapshotPath = join(snapshotDir, snapshotFilename)
               await fs.writeFile(snapshotPath, serializeDeepnoteSnapshot(nbSnapshot), 'utf-8')
+            }
+
+            // Init-only snapshot: [init] shape, keyed by init notebook id, for
+            // the standalone init file.
+            if (initSplitEntry !== undefined && initNotebookInProject !== undefined) {
+              const initSnapshot = splitSnapshots.get(initNotebookInProject.id)
+              if (initSnapshot) {
+                const slug = slugifyProjectName(file.project.name) || 'project'
+                const snapshotFilename = generateSnapshotFilename({
+                  slug,
+                  projectId: file.project.id,
+                  notebookId: initNotebookInProject.id,
+                  timestamp: snapInfo.timestamp,
+                })
+                const snapshotPath = join(snapshotDir, snapshotFilename)
+                await fs.writeFile(snapshotPath, serializeDeepnoteSnapshot(initSnapshot), 'utf-8')
+              }
             }
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err)

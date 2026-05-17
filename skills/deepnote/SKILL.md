@@ -283,7 +283,7 @@ deepnote run project.deepnote -o json                  # JSON output
 | `deepnote stats <path>`               | Project statistics                                            |
 | `deepnote analyze <path>`             | Comprehensive analysis with quality score                     |
 | `deepnote dag show\|vars\|downstream` | Dependency analysis                                           |
-| `deepnote split <path>`               | Split multi-notebook file into separate single-notebook files |
+| `deepnote split <path>`               | Split a multi-notebook file into one `.deepnote` per notebook. The init notebook (if any) becomes its own standalone file; each main file keeps `initNotebookId` so `deepnote run` resolves and runs the sibling init as a prelude. |
 | `deepnote open <path>`                | Open in Deepnote Cloud                                        |
 
 ### CLI Command References

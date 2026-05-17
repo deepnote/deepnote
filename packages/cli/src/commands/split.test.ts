@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
+import { loadSnapshotFile } from '@deepnote/convert'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
@@ -125,7 +126,7 @@ describe('split command', () => {
     expect(deepnoteFiles).toHaveLength(3)
   })
 
-  it('should produce one split file per non-init notebook and skip the init notebook', async () => {
+  it('should produce one split file per notebook including a standalone init file', async () => {
     const file: DeepnoteFile = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z' },
@@ -147,15 +148,26 @@ describe('split command', () => {
     await action(inputPath, {})
 
     const files = await fs.readdir(tempDir)
-    const deepnoteFiles = files.filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote')
-    expect(deepnoteFiles).toHaveLength(2)
+    const deepnoteFiles = files.filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote').sort()
+    // 1 init file + 2 main files
+    expect(deepnoteFiles).toHaveLength(3)
+
+    let initFiles = 0
+    let mainFiles = 0
     for (const name of deepnoteFiles) {
-      const stem = path.basename(name, '.deepnote')
-      expect(stem.includes('init')).toBe(false)
       const parsed = deserializeDeepnoteFile(await fs.readFile(path.join(tempDir, name), 'utf-8'))
-      expect(parsed.project.notebooks).toHaveLength(2)
-      expect(parsed.project.notebooks[0]?.id).toBe('nb-init')
+      expect(parsed.project.notebooks).toHaveLength(1)
+      const onlyId = parsed.project.notebooks[0]?.id
+      // initNotebookId is preserved on every split so the run-time resolver can find the sibling init.
+      expect(parsed.project.initNotebookId).toBe('nb-init')
+      if (onlyId === 'nb-init') {
+        initFiles += 1
+      } else {
+        mainFiles += 1
+      }
     }
+    expect(initFiles).toBe(1)
+    expect(mainFiles).toBe(2)
   })
 
   it('should fail if output files exist without --force', async () => {
@@ -231,6 +243,216 @@ describe('split command', () => {
 
     const files = (await fs.readdir(tempDir)).filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote').sort()
     expect(files).toEqual(['project-dashboard-2.deepnote', 'project-dashboard.deepnote'])
+  })
+
+  it('should leave no observable .tmp files in the output directory after a successful split', async () => {
+    const file = createMultiNotebookFile(['Dashboard', 'Data'])
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+
+    const action = createSplitAction(program)
+    await action(inputPath, {})
+
+    const files = await fs.readdir(tempDir)
+    const tempFiles = files.filter(f => f.endsWith('.tmp'))
+    expect(tempFiles).toEqual([])
+  })
+
+  it('should write each split file as one-notebook entry (no duplicated init)', async () => {
+    const initId = 'nb-init-id'
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: '2e814690-4f02-465c-8848-5567ab9253b7',
+        name: 'Test Project',
+        initNotebookId: initId,
+        notebooks: [
+          {
+            id: initId,
+            name: 'Init',
+            blocks: [
+              {
+                id: 'init-block',
+                type: 'code' as const,
+                blockGroup: 'bg-init',
+                sortingKey: '0000',
+                content: 'INIT_VAR = 1',
+                metadata: {},
+              },
+            ],
+          },
+          {
+            id: 'nb-main',
+            name: 'Main',
+            blocks: [
+              {
+                id: 'main-block',
+                type: 'code' as const,
+                blockGroup: 'bg-main',
+                sortingKey: '0000',
+                content: 'print(INIT_VAR)',
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    }
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+
+    const action = createSplitAction(program)
+    await action(inputPath, {})
+
+    const files = (await fs.readdir(tempDir)).filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote').sort()
+    expect(files).toHaveLength(2)
+
+    let initSeen = false
+    let mainSeen = false
+    for (const name of files) {
+      const parsed = deserializeDeepnoteFile(await fs.readFile(path.join(tempDir, name), 'utf-8'))
+      // The new model emits exactly one notebook per split file (no duplicated
+      // init) and preserves initNotebookId so the run-time resolver can find
+      // the sibling init.
+      expect(parsed.project.notebooks).toHaveLength(1)
+      expect(parsed.project.initNotebookId).toBe(initId)
+      const onlyId = parsed.project.notebooks[0].id
+      if (onlyId === initId) {
+        initSeen = true
+      } else if (onlyId === 'nb-main') {
+        mainSeen = true
+      }
+    }
+    expect(initSeen).toBe(true)
+    expect(mainSeen).toBe(true)
+  })
+
+  it('should emit a [init] snapshot for the standalone init file and [init,main] snapshot for each main file', async () => {
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const initId = 'nb-init-id'
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      project: {
+        id: projectId,
+        name: 'Test Project',
+        initNotebookId: initId,
+        notebooks: [
+          {
+            id: initId,
+            name: 'Init',
+            blocks: [
+              {
+                id: 'init-block',
+                type: 'code' as const,
+                blockGroup: 'bg-init',
+                sortingKey: '0000',
+                content: 'INIT_VAR = 1',
+                metadata: {},
+              },
+            ],
+          },
+          {
+            id: 'nb-main',
+            name: 'Main',
+            blocks: [
+              {
+                id: 'main-block',
+                type: 'code' as const,
+                blockGroup: 'bg-main',
+                sortingKey: '0000',
+                content: 'print(INIT_VAR)',
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    }
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+
+    // Pre-existing snapshot for the whole project, with outputs from a prior run.
+    const snapshot: DeepnoteSnapshot = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
+      environment: { hash: 'env-1' },
+      execution: { startedAt: '2025-01-01T00:00:00Z', finishedAt: '2025-01-01T00:01:00Z' },
+      project: {
+        id: projectId,
+        name: 'Test Project',
+        initNotebookId: initId,
+        notebooks: [
+          {
+            id: initId,
+            name: 'Init',
+            blocks: [
+              {
+                id: 'init-block',
+                type: 'code' as const,
+                blockGroup: 'bg-init',
+                sortingKey: '0000',
+                content: 'INIT_VAR = 1',
+                outputs: [{ output_type: 'stream', name: 'stdout', text: ['init-output'] }],
+                executionCount: 1,
+                metadata: {},
+              },
+            ],
+          },
+          {
+            id: 'nb-main',
+            name: 'Main',
+            blocks: [
+              {
+                id: 'main-block',
+                type: 'code' as const,
+                blockGroup: 'bg-main',
+                sortingKey: '0000',
+                content: 'print(INIT_VAR)',
+                outputs: [{ output_type: 'stream', name: 'stdout', text: ['1\n'] }],
+                executionCount: 2,
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    }
+    const snapshotsDir = path.join(tempDir, 'snapshots')
+    await fs.mkdir(snapshotsDir, { recursive: true })
+    const originalSnapshotName = `test-project_${projectId}_latest.snapshot.deepnote`
+    await fs.writeFile(path.join(snapshotsDir, originalSnapshotName), serializeDeepnoteSnapshot(snapshot), 'utf-8')
+
+    const action = createSplitAction(program)
+    await action(inputPath, {})
+
+    const snapshotFiles = (await fs.readdir(snapshotsDir)).filter(f => f.endsWith('.snapshot.deepnote'))
+    // Should now have at least the init snapshot and the main snapshot.
+    const initSnapshotName = snapshotFiles.find(f => f.includes(initId))
+    const mainSnapshotName = snapshotFiles.find(f => f.includes('nb-main'))
+    expect(initSnapshotName, `init snapshot present in ${JSON.stringify(snapshotFiles)}`).toBeTruthy()
+    expect(mainSnapshotName, `main snapshot present in ${JSON.stringify(snapshotFiles)}`).toBeTruthy()
+
+    // Init snapshot: [init] shape
+    if (initSnapshotName) {
+      const parsed = await loadSnapshotFile(path.join(snapshotsDir, initSnapshotName))
+      expect(parsed.project.notebooks).toHaveLength(1)
+      expect(parsed.project.notebooks[0].id).toBe(initId)
+    }
+
+    // Main snapshot: [init, main] shape so each main snapshot remains a complete
+    // record of what would run.
+    if (mainSnapshotName) {
+      const parsed = await loadSnapshotFile(path.join(snapshotsDir, mainSnapshotName))
+      expect(parsed.project.notebooks).toHaveLength(2)
+      const ids = parsed.project.notebooks.map(n => n.id).sort()
+      expect(ids).toEqual([initId, 'nb-main'].sort())
+    }
+
+    // No leftover .tmp files in snapshots dir either.
+    const tempFiles = (await fs.readdir(snapshotsDir)).filter(f => f.endsWith('.tmp'))
+    expect(tempFiles).toEqual([])
   })
 
   it('should print a warning when a snapshot fails to split but still write the notebook files', async () => {
