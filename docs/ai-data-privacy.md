@@ -15,7 +15,7 @@ Deepnote AI processes the content and metadata of the notebook via its partner L
 
 You have the option to control whether you would like to share the **outputs of block executions** with OpenAI. If you turn on the '**Provide access to block outputs**' switch, Deepnote AI will be able to read the outputs in your notebook, greatly enhancing the relevance of its suggestions.
 
-![deepnote ai outputs setting.png](https://media.graphassets.com/oSvfKdSTVu52VR599r9w)
+![deepnote ai outputs setting.png](../assets/docs/oSvfKdSTVu52VR599r9w.webp)
 
 <Callout status="warning">Please note that outputs can include **row-level data from your DataFrames** or other variables. If your outputs may include data you do not wish to process via an LLM provider, you can disable this option. You will still be able to take advantage of Deepnote AI features that do not depend on accessing outputs.</Callout>
 

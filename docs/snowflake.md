@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-![Snowflake cover.png](https://media.graphassets.com/X5pt4d9TSGsHFkxzGHCa)
+![Snowflake cover.png](../assets/docs/X5pt4d9TSGsHFkxzGHCa.webp)
 
 ## What can you do with the Snowflake integration?
 
@@ -23,12 +23,12 @@ Available on Team and Enterprise plans
 ## How to connect to Snowflake
 
 From the left-hand sidebar, under **Integrations**, click the **+** button and choose **Create new integration**.
-![Create new integration](https://media.graphassets.com/U4rUqFckSUObXKjdz7kt)
+![Create new integration](../assets/docs/U4rUqFckSUObXKjdz7kt.webp)
 
 <br></br>
 
 Select Snowflake from the list of integrations or search for it using the search bar.
-![Create Snowflake integration](https://media.graphassets.com/2QV1OQVRCK0BsVP9uAlN)
+![Create Snowflake integration](../assets/docs/2QV1OQVRCK0BsVP9uAlN.webp)
 
 <br></br>
 
@@ -37,7 +37,7 @@ Deepnote offers multiple authentication methods for connecting to Snowflake, giv
 ## Using Snowflake with username and password
 
 The standard way to connect is using username and password authentication. Fill out the fields in the pop-up form including your [account identifier for Snowflake](https://docs.snowflake.com/en/user-guide/admin-account-identifier) and enter a valid username and password.
-![Using Snowflake with username and password](https://media.graphassets.com/ZpqWyleHTba6LOwKMouI)
+![Using Snowflake with username and password](../assets/docs/ZpqWyleHTba6LOwKMouI.webp)
 
 This authentication method is straightforward and works well for individual use or when sharing credentials within a team is acceptable for your workflow.
 
@@ -83,7 +83,7 @@ Now that you're connected to Snowflake, you can do the following:
 Deepnote also provides [an integration with Snowpark](snowpark) that allows you to write code in the notebook but execute using the warehouse's compute resources.
 </Callout>
 
-![Using Snowflake in Deepnote](https://media.graphassets.com/EOyNjvLRkeiRGfmWyGLt)
+![Using Snowflake in Deepnote](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Allowing Deepnote to access Snowflake
 

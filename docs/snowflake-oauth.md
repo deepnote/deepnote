@@ -68,7 +68,7 @@ Deepnote will use the private URL when redirecting users to the SSO screen and t
 ### Using the the Snowflake OAuth integration
 
 In order to use the integration, every user will have to authenticate using their own Snowflake account. They can do it either by pressing the button on a SQL block with this integration, in the three-dot menu of the integration in the right sidebar, or by responding to a prompt when they execute a SQL block.
-![snowflake_authenticate_block.png](https://media.graphassets.com/GUtHOqwlQ6iQttm8NZOh)
+![snowflake_authenticate_block.png](../assets/docs/GUtHOqwlQ6iQttm8NZOh.webp)
 
 When you create an app from a notebook that uses the integration, every app user will need to authenticate with their own account. They will be prompted to sign in using Snowflake OAuth during the execution of the app. The results they see will depend on the permissions they have.
 

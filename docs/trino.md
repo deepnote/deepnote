@@ -15,7 +15,7 @@ Deepnote's Trino integration allows data teams to efficiently query their data, 
 
 ### How to connect to Trino
 
-![Deepnote bg (2).png](https://media.graphassets.com/Jf3JIutDQz2aeMMDd0x4)
+![Deepnote bg (2).png](../assets/docs/Jf3JIutDQz2aeMMDd0x4.webp)
 
 To create the integration, you'll need a few things:
 

@@ -28,7 +28,7 @@ To enable incoming connections for your workspace:
 
 When this setting is disabled, projects in the workspace cannot enable incoming connections.
 
-![allow_incoming_connections.png](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgkm0057gktn07myz749i9ng)
+![allow_incoming_connections.png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgkm0057gktn07myz749i9ng.webp)
 
 #### 2. Turn on incoming connections for individual projects
 
@@ -39,7 +39,7 @@ Once incoming connections are enabled at the workspace level, you can turn them 
 
 3. Toggle on **Incoming connections**.
 
-![project_incoming_connections.png](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgkm0055ga3307n4i9v6jyn0)
+![project_incoming_connections.png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgkm0055ga3307n4i9v6jyn0.webp)
 
 If you want to try it out, paste `!python -m http.server 8080` into a block and run it. If incoming connections have been enabled as described above, you should be able to paste the provided link into a browser to connect to the running webserver.
 

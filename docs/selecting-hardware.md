@@ -16,7 +16,7 @@ At this moment Deepnote does not support connecting to your own cloud-based reso
 
 To choose a different machine for your project (and monitor you machine's performance), click the arrow next to "Environments" in the right sidebar. There you will see an option to change your machine if desired. More powerful machines are available on paid plans. See [Pricing](/docs/pricing) or contact us for details.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FZlfuKKujBXo1jLVavUt6%2Fma.gif](https://media.graphassets.com/1tOtitPQRwG3IlOoziUB)
+<VideoLoop src="../assets/docs/1tOtitPQRwG3IlOoziUB.mp4" />
 
 # GPUs
 

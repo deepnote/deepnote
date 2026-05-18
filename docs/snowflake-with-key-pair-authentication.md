@@ -71,11 +71,11 @@ Setting up your Snowflake connection in Deepnote is straightforward. Navigate to
 
 Select "Key-pair (individual credentials)" as your authentication type. At this stage, you don't need to provide your username or private key information.
 
-![Setting up Snowflake integration in Deepnote](https://media.graphassets.com/BHWN4DZwQxSChWJcxhCe)
+![Setting up Snowflake integration in Deepnote](../assets/docs/BHWN4DZwQxSChWJcxhCe.webp)
 
 After creating the integration, you can connect it to your project. When you use the schema browser or run a query against your Snowflake database for the first time, Deepnote will prompt you to enter your username and private key. If you generated an encrypted private key, you'll also see an optional password field where you can enter your encryption password.
 
-![Connecting Snowflake integration in Deepnote](https://media.graphassets.com/TcO2af5pTHuBP2MPxdCe)
+![Connecting Snowflake integration in Deepnote](../assets/docs/TcO2af5pTHuBP2MPxdCe.webp)
 
 ### Service Account Key-pair Authentication
 
@@ -95,7 +95,7 @@ This authentication method is ideal when:
 
 With your integration configured and connected to your project, you're ready to work with your Snowflake data in Deepnote. You can write and run SQL queries against your Snowflake instance and explore your data structures using the schema browser. The key-pair authentication happens seamlessly in the background after you've provided your credentials.
 
-![Using Snowflake in Deepnote](https://media.graphassets.com/EOyNjvLRkeiRGfmWyGLt)
+![Using Snowflake in Deepnote](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Troubleshooting
 

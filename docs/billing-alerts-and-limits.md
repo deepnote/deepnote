@@ -8,7 +8,7 @@ Deepnote offers a simple mechanism to keep the costs for pay-as-you-go machines 
 
 ## Billing alerts
 
-![billing-alerts.png](https://media.graphassets.com/2BVOSUvTBawcdUufGpuP)
+![billing-alerts.png](../assets/docs/2BVOSUvTBawcdUufGpuP.webp)
 
 You can set up a billing alert in the **Billing & usage** section of the workspace settings. The dollar limit will apply for calendar months, which are the billing period for the pay-as-you-go machines. When the alert limit is reached, all admins in the workspace will receive an email notification.
 
@@ -16,7 +16,7 @@ The usage data is guaranteed to be correct to 30 minutes. It is possible that at
 
 ## Controlling the use of pay-as-you-go machines
 
-![disable-machines.png](https://media.graphassets.com/11sgzGPqTnSxY3lcfd8x)
+![disable-machines.png](../assets/docs/11sgzGPqTnSxY3lcfd8x.webp)
 
 By default, the editors and admins in the workspace can pick stronger pay-as-you-go machines for their projects. This enables them to complete more complex analysis on larger datasets.
 
