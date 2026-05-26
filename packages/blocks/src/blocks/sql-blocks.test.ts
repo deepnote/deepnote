@@ -72,7 +72,7 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
     `)
   })
 
-  it('falls back to input_1 when deepnote_variable_name sanitises to empty', () => {
+  it('falls back to input_1 when deepnote_variable_name sanitizes to empty', () => {
     const block: SqlBlock = {
       id: '1',
       type: 'sql',
@@ -105,7 +105,7 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
     `)
   })
 
-  it('sanitises deepnote_variable_name containing spaces and special characters', () => {
+  it('sanitizes deepnote_variable_name containing spaces and special characters', () => {
     const block: SqlBlock = {
       id: '1',
       type: 'sql',
@@ -113,7 +113,7 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
       blockGroup: 'g',
       sortingKey: 'a0',
       metadata: {
-        deepnote_variable_name: 'my df-name!',
+        deepnote_variable_name: 'my df name!',
       },
     }
 
@@ -127,14 +127,14 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
       else:
         _deepnote_current_table_attrs = '{}'
 
-      my_dfname = _dntk.execute_sql_with_connection_json(
+      my_df_name = _dntk.execute_sql_with_connection_json(
         'SELECT 1',
         '{}',
         audit_sql_comment='',
         sql_cache_mode='cache_disabled',
         return_variable_type='dataframe'
       )
-      my_dfname
+      my_df_name
     `)
   })
 
