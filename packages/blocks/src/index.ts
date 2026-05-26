@@ -1,10 +1,15 @@
 export { UnsupportedBlockTypeError } from './blocks'
 export { isAgentBlock } from './blocks/agent-blocks'
+export { createDataFrameConfig } from './blocks/data-frame'
 export { INPUT_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
+export { escapePythonString, sanitizePythonVariableName } from './blocks/python-utils'
+export type { SqlCacheMode, SqlCellVariableType } from './blocks/sql-blocks'
+export { createPythonCodeForSqlBlockWithConnectionJson } from './blocks/sql-blocks'
 export { convertToEnvironmentVariableName, getSqlEnvVarName } from './blocks/sql-utils'
 export type { TableState } from './blocks/table-state'
 export type {
   AgentBlock,
+  CodeBlock,
   DeepnoteBlock,
   DeepnoteFile,
   DeepnoteSnapshot,
@@ -15,6 +20,7 @@ export type {
   ExecutionSummary,
   McpServerConfig,
   SnapshotHashInput,
+  SqlBlock,
 } from './deepnote-file/deepnote-file-schema'
 export {
   deepnoteBlockSchema,
