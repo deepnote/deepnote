@@ -112,7 +112,7 @@ Integrations allow you to connect to data sources and other tools. To manage int
 
 Your credentials are stored encrypted. We also support enforcing SSL connections and SSH tunnels for secure access.
 
-#### Using integrations:
+#### Using integrations
 
 Once you've created an integration, you can query it from any SQL block in your projects. In a SQL block, click the "Data source" dropdown at the bottom of the block to choose between "DataFrame SQL" or one of your configured integrations.
 
@@ -126,7 +126,7 @@ The extension provides comprehensive IntelliSense features including auto-comple
 
 One of the things that makes you super productive in a Deepnote notebook is the ability to switch seamlessly between SQL and Python.
 
-#### SQL results as DataFrames:
+#### SQL results as DataFrames
 
 When you run a SQL block, a DataFrame with the query results is automatically created. You can configure the variable name in the "Variable" input at the bottom of the SQL block, then access it in your Python code blocks:
 
@@ -157,7 +157,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-#### Query DataFrames with SQL:
+#### Query DataFrames with SQL
 
 You can use the "DataFrame SQL" data source in SQL blocks (which uses DuckDB under the hood) to query DataFrames that have been defined in earlier code blocks:
 
@@ -178,7 +178,7 @@ ORDER BY
     average_spend
 ```
 
-#### Query files with SQL:
+#### Query files with SQL
 
 You can also query local files like CSV, Parquet, or JSON directly from a SQL block without loading them into a DataFrame first. Select "DataFrame SQL" as the data source (which uses DuckDB under the hood) and reference the file path in your query:
 
@@ -190,7 +190,7 @@ File paths are relative to the folder where your `.deepnote` file is located. Du
 
 ![Query files with SQL](../assets/examples/getting_started_with_deepnote_in_vscode/query_files_with_sql.png)
 
-#### Jinja templating in SQL:
+#### Jinja templating in SQL
 
 SQL blocks support Jinja-style templating with `{{ variable }}` syntax, letting you reference Python variables directly in your queries:
 
@@ -248,8 +248,6 @@ Access the extension settings by navigating to File → Preferences → Settings
 ### Python environment
 
 You can create and manage Python environments using the "Environments" panel. When creating an environment, you choose which Python interpreter to use and specify which packages need to be installed. The extension creates a virtual environment that can be reused across notebooks and projects.
-
----
 
 The Deepnote extension brings powerful notebook capabilities to your local development environment, combining the flexibility of Deepnote notebooks with the robust editing features of VS Code, Cursor, Windsurf, and Antigravity. Whether you're executing code or viewing rich outputs, the extension provides a seamless experience that enhances your data science workflow.
 

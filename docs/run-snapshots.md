@@ -27,6 +27,12 @@ You can access run snapshots from three places:
 - **Project logs** — the history tab shows past executions. Runs with available snapshots display a **View run** button.
 - **Logs & Analytics modal** — open the project top bar context menu and select **View analytics** to see execution history alongside snapshot access.
 
+![Runs sidebar showing recent run snapshots](../assets/docs/run-snapshots/run-snapshots-sidebar.webp)
+
+When you open a run, Deepnote displays the immutable snapshot in a modal so you can inspect the notebook exactly as it looked when that execution finished.
+
+![Run snapshot modal showing a completed notebook execution](../assets/docs/run-snapshots/run-snapshot-modal.webp)
+
 ## Use cases
 
 - **Debug failed scheduled runs** — see exactly what happened when a notebook failed overnight, including which block errored and what the outputs looked like before the failure

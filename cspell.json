@@ -43,6 +43,7 @@
     "dataframe",
     "dateutil",
     "deepnote",
+    "defu",
     "dntk",
     "dockerfiles",
     "dockerised",

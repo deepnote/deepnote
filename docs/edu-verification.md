@@ -33,7 +33,7 @@ If you already signed up using your personal or private email address, you can s
 
 ![In_app_EDU_verification.png](https://media.graphassets.com/2mhOb7BpSMuT9rQy9Zwx)
 
-## FAQs:
+## FAQs
 
 #### Am I eligible for Deepnote's free Education plan?
 
