@@ -38,7 +38,7 @@ Let's look at a practical example:
 
 **With custom instructions:**
 
-# Example instruction:
+# Example instruction
 
 "When you're going to be plotting multiple charts, always use plotly and subplots to plot them in one output. Also I want all of the charts to be green!"
 

@@ -6,7 +6,7 @@ noContent: false
 
 Deepnote provides key data analytics and ML Python libraries off the shelf, in the most recent version. All you have to do is import them into your project.
 
-#### The current list of pre-installed packages:
+#### The current list of pre-installed packages
 
 - `agate`
 - `arrow`
