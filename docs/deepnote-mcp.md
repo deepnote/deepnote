@@ -99,11 +99,9 @@ Thanks to the Deepnote connector, teams can bring trusted business context from 
 
 To connect Deepnote to Codex, the easiest way is to request a connection via ‘connect to deepnote mcp via [https://deepnote.com/mcp](https://deepnote.com/mcp)’. Codex will surface a UI for you to paste your Deepnote MCP token.
 
-<div align="center">
-  <img src="../assets/docs/deepnote-mcp/codex-deepnote-mcp-token-prompt.webp" alt="Codex displaying a secure prompt to paste a Deepnote MCP token." />
-</div>
+![Codex displaying a secure prompt to paste a Deepnote MCP token](../assets/docs/deepnote-mcp/codex-deepnote-mcp-token-prompt.webp)
 
-<p align="center"><em>Figure 1. Paste your Deepnote MCP token into the secure prompt surfaced by Codex.</em></p>
+_Figure 1. Paste your Deepnote MCP token into the secure prompt surfaced by Codex._
 
 ### Claude Desktop / Cursor (JSON config)
 
@@ -131,29 +129,23 @@ While Codex is the recommended OpenAI route when you want the [corresponding plu
 1. Open the Deepnote app in ChatGPT.
 2. Select **Sign in with Deepnote**.
 
-<div align="center">
-  <img src="../assets/docs/deepnote-mcp/chatgpt-deepnote-app-permission-dialog.webp" alt="ChatGPT displaying the Deepnote app permission dialog with a Sign in with Deepnote button." />
-</div>
+![ChatGPT displaying the Deepnote app permission dialog with a Sign in with Deepnote button](../assets/docs/deepnote-mcp/chatgpt-deepnote-app-permission-dialog.webp)
 
-<p align="center"><em>Figure 2. Review the Deepnote app permission dialog, then select <strong>Sign in with Deepnote</strong>.</em></p>
+_Figure 2. Review the Deepnote app permission dialog, then select **Sign in with Deepnote**._
 
 3. Choose the Deepnote workspace ChatGPT may access.
 
 4. Select **Authorize**.
 
-<div align="center">
-  <img src="../assets/docs/deepnote-mcp/deepnote-workspace-authorization-dialog.webp" alt="Deepnote authorization dialog for choosing a workspace and authorizing ChatGPT access." />
-</div>
+![Deepnote authorization dialog for choosing a workspace and authorizing ChatGPT access](../assets/docs/deepnote-mcp/deepnote-workspace-authorization-dialog.webp)
 
-<p align="center"><em>Figure 3. Choose the Deepnote workspace ChatGPT may access, then select <strong>Authorize</strong>.</em></p>
+_Figure 3. Choose the Deepnote workspace ChatGPT may access, then select **Authorize**._
 
 5. Start with a prompt that confirms workspace access.
 
-<div align="center">
-  <img src="../assets/docs/deepnote-mcp/chatgpt-deepnote-workspace-summary-prompt.webp" alt="ChatGPT prompt composer with Deepnote enabled and a starter workspace-summary request." />
-</div>
+![ChatGPT prompt composer with Deepnote enabled and a starter workspace-summary request](../assets/docs/deepnote-mcp/chatgpt-deepnote-workspace-summary-prompt.webp)
 
-<p align="center"><em>Figure 4. Send a starter prompt such as “Can you summarize my Deepnote workspace?” to confirm that the connection is working.</em></p>
+_Figure 4. Send a starter prompt such as “Can you summarize my Deepnote workspace?” to confirm that the connection is working._
 
 ## Verify the connection
 
