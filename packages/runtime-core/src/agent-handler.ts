@@ -18,7 +18,6 @@ export interface AgentBlockContext {
   notebookContext: string
   addAndExecuteCodeBlock: (args: { code: string }) => Promise<string>
   addMarkdownBlock: (args: { content: string }) => Promise<string>
-  onLog?: (message: string) => void
   onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
   integrations?: Array<{ id: string; name: string; type: string }>
 }
@@ -210,10 +209,6 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
   })
 
-  context.onLog?.(
-    `[agent] Running agent with model=${modelName}, maxTurns=${maxTurns}, mcpServers=${mcpClients.length}`
-  )
-
   try {
     const streamResult = await agent.stream({ prompt: block.content ?? '' })
 
@@ -243,7 +238,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       } catch (error) {
         const serverName = mergedMcpConfig[index]?.name ?? `server-${index + 1}`
         const message = error instanceof Error ? error.message : String(error)
-        context.onLog?.(`[agent] Failed to close MCP client "${serverName}": ${message}`)
+        console.error(`[agent] Failed to close MCP client "${serverName}": ${message}`)
       }
     }
   }
