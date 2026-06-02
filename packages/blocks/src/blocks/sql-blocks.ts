@@ -1,12 +1,17 @@
 import { dedent } from 'ts-dedent'
+import { z } from 'zod'
 
-import type { DeepnoteBlock, SqlBlock } from '../deepnote-file/deepnote-file-schema'
+import { type DeepnoteBlock, SQL_CELL_VARIABLE_TYPES, type SqlBlock } from '../deepnote-file/deepnote-file-schema'
+import { InvalidValueError } from '../errors'
 import { createDataFrameConfig } from './data-frame'
 import { escapePythonString, sanitizePythonVariableName } from './python-utils'
 import { convertToEnvironmentVariableName, getSqlEnvVarName } from './sql-utils'
 
-export type SqlCacheMode = 'cache_disabled' | 'always_write' | 'read_or_write'
-export type SqlCellVariableType = 'dataframe' | 'query_preview'
+export const SQL_CACHE_MODES = ['cache_disabled', 'always_write', 'read_or_write'] as const
+export type SqlCacheMode = (typeof SQL_CACHE_MODES)[number]
+const sqlCacheModeSchema = z.enum(SQL_CACHE_MODES)
+export type SqlCellVariableType = (typeof SQL_CELL_VARIABLE_TYPES)[number]
+const sqlCellVariableTypeSchema = z.enum(SQL_CELL_VARIABLE_TYPES)
 
 export function createPythonCodeForSqlBlock(block: SqlBlock): string {
   const query = block.content ?? ''
@@ -62,12 +67,12 @@ export function createPythonCodeForSqlBlockWithConnectionJson(
   const pythonVariableName = block.metadata?.deepnote_variable_name
   const sanitizedPythonVariableName =
     pythonVariableName !== undefined ? sanitizePythonVariableName(pythonVariableName) || 'input_1' : undefined
-  const returnVariableType: SqlCellVariableType = block.metadata?.deepnote_return_variable_type ?? 'dataframe'
+  const returnVariableType = assertSqlCellVariableType(block.metadata?.deepnote_return_variable_type ?? 'dataframe')
 
   const escapedQuery = escapePythonString(query)
   const escapedConnectionJson = escapePythonString(options.connectionJson)
   const escapedAuditComment = escapePythonString(options.auditComment ?? '')
-  const sqlCacheMode = options.sqlCacheMode ?? 'cache_disabled'
+  const sqlCacheMode = assertSqlCacheMode(options.sqlCacheMode ?? 'cache_disabled')
 
   const dataFrameConfig = createDataFrameConfig(block)
 
@@ -99,4 +104,23 @@ export function createPythonCodeForSqlBlockWithConnectionJson(
 
 export function isSqlBlock(block: DeepnoteBlock): block is SqlBlock {
   return block.type === 'sql'
+}
+
+function assertSqlCacheMode(value: string): SqlCacheMode {
+  const result = sqlCacheModeSchema.safeParse(value)
+  if (!result.success) {
+    throw new InvalidValueError(`Invalid sqlCacheMode: expected one of ${SQL_CACHE_MODES.join(', ')}`, { value })
+  }
+  return result.data
+}
+
+function assertSqlCellVariableType(value: string): SqlCellVariableType {
+  const result = sqlCellVariableTypeSchema.safeParse(value)
+  if (!result.success) {
+    throw new InvalidValueError(
+      `Invalid deepnote_return_variable_type: expected one of ${SQL_CELL_VARIABLE_TYPES.join(', ')}`,
+      { value }
+    )
+  }
+  return result.data
 }

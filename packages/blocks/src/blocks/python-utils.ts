@@ -1,6 +1,12 @@
 export function escapePythonString(value: string): string {
-  // We have to escape backslashes, single quotes, and newlines
-  const escaped = value.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('\n', '\\n')
+  // Escape characters that would otherwise terminate or invalidate a single-quoted
+  // Python string literal: backslash, single quote, LF, CR, and NUL.
+  const escaped = value
+    .replaceAll('\\', '\\\\')
+    .replaceAll("'", "\\'")
+    .replaceAll('\n', '\\n')
+    .replaceAll('\r', '\\r')
+    .replaceAll('\x00', '\\x00')
 
   // Wrap the escaped string in single quotes
   return `'${escaped}'`
