@@ -298,8 +298,13 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
     }
 
     // biome-ignore lint/suspicious/noExplicitAny: testing invalid block
-    const invalidBlock: any = block
-    invalidBlock.metadata.deepnote_return_variable_type = 'unexpected_value'
+    const invalidBlock: any = {
+      ...block,
+      metadata: {
+        ...block.metadata,
+        deepnote_return_variable_type: 'unexpected_value',
+      },
+    } as const
 
     expect(() =>
       createPythonCodeForSqlBlockWithConnectionJson(invalidBlock, {
