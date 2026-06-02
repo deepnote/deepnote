@@ -22,7 +22,7 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
 
     const result = createPythonCodeForSqlBlockWithConnectionJson(block, {
       connectionJson:
-        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"ya29.bigquery-oauth-token","project":"my-gcp-project"}}',
+        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"redacted","project":"my-gcp-project"}}',
     })
 
     expect(result).toEqual(dedent`
@@ -33,7 +33,7 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
 
       _dntk.execute_sql_with_connection_json(
         'SELECT 1',
-        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"ya29.bigquery-oauth-token","project":"my-gcp-project"}}',
+        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"redacted","project":"my-gcp-project"}}',
         audit_sql_comment='',
         sql_cache_mode='cache_disabled',
         return_variable_type='dataframe'
@@ -55,7 +55,7 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
 
     const result = createPythonCodeForSqlBlockWithConnectionJson(block, {
       connectionJson:
-        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"ya29.bigquery-oauth-token","project":"my-gcp-project"}}',
+        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"redacted","project":"my-gcp-project"}}',
     })
 
     expect(result).toEqual(dedent`
@@ -66,7 +66,7 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
 
       df_1 = _dntk.execute_sql_with_connection_json(
         'SELECT 1',
-        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"ya29.bigquery-oauth-token","project":"my-gcp-project"}}',
+        '{"url":"bigquery://?user_supplied_client=true","params":{"access_token":"redacted","project":"my-gcp-project"}}',
         audit_sql_comment='',
         sql_cache_mode='cache_disabled',
         return_variable_type='dataframe'
