@@ -15,6 +15,7 @@ While Deepnote's format offers enhanced features like input blocks, visualizatio
 - Publishing to repositories or documentation sites
 - Running in traditional Jupyter environments
 - Archiving or backup purposes
+- Producing a print-ready document: once exported, you can convert [ipynb files to PDF](https://deepnote.com/ipynb-to-pdf) for reviewers who prefer a static format
 
 ## Available export methods
 

@@ -43,7 +43,7 @@ describe('fetchIntegrations', () => {
     const result = await fetchIntegrations(mockBaseUrl, mockToken)
 
     expect(result).toEqual(mockIntegrations)
-    expect(global.fetch).toHaveBeenCalledWith(`${mockBaseUrl}/v2/integrations`, {
+    expect(global.fetch).toHaveBeenCalledWith(`${mockBaseUrl}/v2/integrations?includeMetadata=true`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${mockToken}`,

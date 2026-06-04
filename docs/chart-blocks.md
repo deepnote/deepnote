@@ -183,6 +183,4 @@ For example, imagine you're preparing a yearly sales report. You have DataFrames
 
 In the next chart, you might want to show the correlation between customer age and how much they spent last year. You have a DataFrame with 50,000 users and their spendings last year, and you intend to use a scatterplot to showcase this data. Since there is no aggregation, this will produce a chart with 50,000 data points. Rendering this many data points can cause browser performance issues and make the chart hard to use. So Deepnote will render only the first 5,000 data points to avoid this.
 
----
-
 Don't really want all those dimensions, measures, series? Just want to show important metrics in your app? Check out our [Big number](big-number-blocks) block! It looks excellent on dashboards.

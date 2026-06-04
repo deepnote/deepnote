@@ -241,15 +241,11 @@ If you encounter issues with any local setup option:
 3. **Ask in GitHub Discussions** for community support
 4. **Open an issue** with detailed information about your environment
 
----
-
 ### Useful links
 
 - [Deepnote community](https://github.com/deepnote/deepnote/discussions)
 - [Deepnote Documentation](https://deepnote.com/docs)
 - [VS Code Extension Issues](https://github.com/deepnote/vscode-deepnote/issues)
 - [Deepnote Toolkit Issues](https://github.com/deepnote/deepnote-toolkit/issues)
-
----
 
 **Note**: This documentation covers open-source and local development options. For the full cloud-based Deepnote experience with real-time collaboration, AI features, and managed infrastructure, visit [deepnote.com](https://deepnote.com).

@@ -19,7 +19,7 @@ The title JAX came from:
 - **JIT**(Just-in-time compilation): In JAX, functions are converted into basic operations (JAXPR) and evaluated like a small functional programming language. Here's an example of how JAX transforms a simple function:
   ![jax code1.png](https://media.graphassets.com/jTl922N6QfBrPTwazCT2)
 
-## Get started:
+## Get started
 
 The JAX can be installed based on the target hardware:
 

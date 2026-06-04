@@ -11,10 +11,11 @@ Custom AI Instructions is a new feature in Deepnote that allows you to personali
 
 ## **Accessing custom instructions**
 
-1. Navigate to Settings > Account (or go to your workspace settings and click on the "Account" tab)
-2. Look for the AI custom instructions input field
-3. Enter your desired instructions
-4. Click "Update" to save your changes
+1. Navigate to your workspace **Settings & Members** page
+2. Click on the **AI** tab
+3. Find the **Custom instructions** field in the **Deepnote Agent** card
+4. Enter your desired instructions
+5. Click "Update" to save your changes
 
 ## **Key features**
 
@@ -38,7 +39,7 @@ Let's look at a practical example:
 
 **With custom instructions:**
 
-# Example instruction:
+# Example instruction
 
 "When you're going to be plotting multiple charts, always use plotly and subplots to plot them in one output. Also I want all of the charts to be green!"
 

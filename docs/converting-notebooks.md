@@ -16,6 +16,7 @@ The `@deepnote/convert` package provides a command-line tool and programmatic AP
 - Preserve code, markdown, outputs, and execution counts
 - Create multi-notebook Deepnote projects
 - Convert Deepnote projects back to Jupyter notebooks via [deepnote.com](https://deepnote.com)
+- Convert [ipynb files to PDF](https://deepnote.com/ipynb-to-pdf) when you need a static, shareable document rather than an editable notebook
 
 ## How to install [@deepnote/convert](https://www.npmjs.com/package/@deepnote/convert)
 
