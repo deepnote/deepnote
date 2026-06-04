@@ -15,10 +15,7 @@ const sqlCellVariableTypeSchema = z.enum(SQL_CELL_VARIABLE_TYPES)
 
 export function createPythonCodeForSqlBlock(block: SqlBlock): string {
   const query = block.content ?? ''
-  const pythonVariableName = block.metadata?.deepnote_variable_name
-  const sanitizedPythonVariableName =
-    pythonVariableName !== undefined ? sanitizePythonVariableName(pythonVariableName) || 'input_1' : undefined
-  const returnVariableType = block.metadata?.deepnote_return_variable_type ?? 'dataframe'
+  const returnVariableType = assertSqlCellVariableType(block.metadata?.deepnote_return_variable_type ?? 'dataframe')
 
   const integrationId = block.metadata?.sql_integration_id
   const connectionEnvVarName = integrationId
@@ -26,8 +23,6 @@ export function createPythonCodeForSqlBlock(block: SqlBlock): string {
     : 'SQL_ALCHEMY_JSON_ENV_VAR'
 
   const escapedQuery = escapePythonString(query)
-
-  const dataFrameConfig = createDataFrameConfig(block)
 
   const executeSqlFunctionCall = dedent`
     _dntk.execute_sql(
@@ -39,22 +34,23 @@ export function createPythonCodeForSqlBlock(block: SqlBlock): string {
     )
   `
 
-  if (sanitizedPythonVariableName === undefined) {
-    return dedent`
-      ${dataFrameConfig}
-
-      ${executeSqlFunctionCall}
-    `
-  }
-
-  return dedent`
-    ${dataFrameConfig}
-
-    ${sanitizedPythonVariableName} = ${executeSqlFunctionCall}
-    ${sanitizedPythonVariableName}
-  `
+  return wrapSqlExecution(block, executeSqlFunctionCall)
 }
 
+/**
+ * Generates Python for a SQL block that connects via an inline connection-JSON
+ * literal instead of an env-var reference (the sibling of `createPythonCodeForSqlBlock`).
+ *
+ * Value sourcing is intentionally split:
+ * - `connectionJson`, `auditComment`, and `sqlCacheMode` come from `options` — they are
+ *   supplied by the caller / execution context and are not persisted on the block.
+ * - `returnVariableType` is read from `block.metadata.deepnote_return_variable_type`,
+ *   because it is part of the saved block definition.
+ *
+ * The query, `connectionJson`, and `auditComment` are escaped into single-quoted Python
+ * string literals. `sqlCacheMode` and `returnVariableType` are interpolated outside
+ * quotes, so they are validated against allowlists rather than escaped.
+ */
 export function createPythonCodeForSqlBlockWithConnectionJson(
   block: SqlBlock,
   options: {
@@ -64,17 +60,12 @@ export function createPythonCodeForSqlBlockWithConnectionJson(
   }
 ): string {
   const query = block.content ?? ''
-  const pythonVariableName = block.metadata?.deepnote_variable_name
-  const sanitizedPythonVariableName =
-    pythonVariableName !== undefined ? sanitizePythonVariableName(pythonVariableName) || 'input_1' : undefined
   const returnVariableType = assertSqlCellVariableType(block.metadata?.deepnote_return_variable_type ?? 'dataframe')
 
   const escapedQuery = escapePythonString(query)
   const escapedConnectionJson = escapePythonString(options.connectionJson)
   const escapedAuditComment = escapePythonString(options.auditComment ?? '')
   const sqlCacheMode = assertSqlCacheMode(options.sqlCacheMode ?? 'cache_disabled')
-
-  const dataFrameConfig = createDataFrameConfig(block)
 
   const executeSqlFunctionCall = dedent`
     _dntk.execute_sql_with_connection_json(
@@ -85,6 +76,22 @@ export function createPythonCodeForSqlBlockWithConnectionJson(
       return_variable_type='${returnVariableType}'
     )
   `
+
+  return wrapSqlExecution(block, executeSqlFunctionCall)
+}
+
+/**
+ * Wraps a generated `_dntk.execute_sql*` call with the shared dataframe-formatter
+ * prelude and, when the block defines a result variable name, an assignment plus a
+ * trailing echo of that variable. Both SQL helpers share this logic, including the
+ * `input_1` fallback applied to the result variable name.
+ */
+function wrapSqlExecution(block: SqlBlock, executeSqlFunctionCall: string): string {
+  const pythonVariableName = block.metadata?.deepnote_variable_name
+  const sanitizedPythonVariableName =
+    pythonVariableName !== undefined ? sanitizePythonVariableName(pythonVariableName) || 'input_1' : undefined
+
+  const dataFrameConfig = createDataFrameConfig(block)
 
   if (sanitizedPythonVariableName === undefined) {
     return dedent`

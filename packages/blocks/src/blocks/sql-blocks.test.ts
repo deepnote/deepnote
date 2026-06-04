@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { SqlBlock } from '../deepnote-file/deepnote-file-schema'
 import { InvalidValueError } from '../errors'
 import {
+  createPythonCodeForSqlBlock,
   createPythonCodeForSqlBlockWithConnectionJson,
   type SqlCacheMode,
   type SqlCellVariableType,
@@ -311,5 +312,67 @@ describe('createPythonCodeForSqlBlockWithConnectionJson', () => {
         connectionJson: '{}',
       })
     ).toThrow(InvalidValueError)
+  })
+})
+
+describe('createPythonCodeForSqlBlock', () => {
+  it('generates an execute_sql call with the default env var and dataframe return type', () => {
+    const block: SqlBlock = {
+      id: '1',
+      type: 'sql',
+      content: 'SELECT 1',
+      blockGroup: 'g',
+      sortingKey: 'a0',
+      metadata: {},
+    }
+
+    expect(createPythonCodeForSqlBlock(block)).toEqual(dedent`
+      if '_dntk' in globals():
+        _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+      else:
+        _deepnote_current_table_attrs = '{}'
+
+      _dntk.execute_sql(
+        'SELECT 1',
+        'SQL_ALCHEMY_JSON_ENV_VAR',
+        audit_sql_comment='',
+        sql_cache_mode='cache_disabled',
+        return_variable_type='dataframe'
+      )
+    `)
+  })
+
+  it('assigns and echoes the sanitized variable name when deepnote_variable_name is set', () => {
+    const block: SqlBlock = {
+      id: '1',
+      type: 'sql',
+      content: 'SELECT 1',
+      blockGroup: 'g',
+      sortingKey: 'a0',
+      metadata: {
+        deepnote_variable_name: 'my df name!',
+      },
+    }
+
+    const result = createPythonCodeForSqlBlock(block)
+
+    expect(result).toContain('my_df_name = _dntk.execute_sql(')
+    expect(result.trimEnd().endsWith('my_df_name')).toBe(true)
+  })
+
+  it('throws InvalidValueError when deepnote_return_variable_type is not in the allowlist', () => {
+    // biome-ignore lint/suspicious/noExplicitAny: testing invalid block
+    const invalidBlock: any = {
+      id: '1',
+      type: 'sql',
+      content: 'SELECT 1',
+      blockGroup: 'g',
+      sortingKey: 'a0',
+      metadata: {
+        deepnote_return_variable_type: 'unexpected_value',
+      },
+    }
+
+    expect(() => createPythonCodeForSqlBlock(invalidBlock)).toThrow(InvalidValueError)
   })
 })
