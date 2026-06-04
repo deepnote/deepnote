@@ -48,8 +48,10 @@ export function createPythonCodeForSqlBlock(block: SqlBlock): string {
  *   because it is part of the saved block definition.
  *
  * The query, `connectionJson`, and `auditComment` are escaped into single-quoted Python
- * string literals. `sqlCacheMode` and `returnVariableType` are interpolated outside
- * quotes, so they are validated against allowlists rather than escaped.
+ * string literals. `sqlCacheMode` and `returnVariableType` are interpolated into
+ * single-quoted literals without escaping; instead they are validated against fixed
+ * allowlists, so the only possible values are known-safe identifiers that cannot break
+ * out of the surrounding quotes.
  */
 export function createPythonCodeForSqlBlockWithConnectionJson(
   block: SqlBlock,

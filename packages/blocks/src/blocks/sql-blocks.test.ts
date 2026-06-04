@@ -361,8 +361,7 @@ describe('createPythonCodeForSqlBlock', () => {
   })
 
   it('throws InvalidValueError when deepnote_return_variable_type is not in the allowlist', () => {
-    // biome-ignore lint/suspicious/noExplicitAny: testing invalid block
-    const invalidBlock: any = {
+    const invalidBlock = {
       id: '1',
       type: 'sql',
       content: 'SELECT 1',
@@ -373,6 +372,6 @@ describe('createPythonCodeForSqlBlock', () => {
       },
     }
 
-    expect(() => createPythonCodeForSqlBlock(invalidBlock)).toThrow(InvalidValueError)
+    expect(() => createPythonCodeForSqlBlock(invalidBlock as unknown as SqlBlock)).toThrow(InvalidValueError)
   })
 })
