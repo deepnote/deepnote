@@ -32,7 +32,7 @@ Deepnote has its **blocks**(chart blocks, big numbers, input blocks and more) fo
 **Example: Adding a slider to control variables**
 
 Instead of using IPywidgets, you can add a native Deepnote slider to your notebook, which can adjust your data visualization dynamically.
-<VideoLoop src="../assets/docs/CcwUq7chTTWjVFytIFoB.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/CcwUq7chTTWjVFytIFoB.mp4" />
 
 In Deepnote, you can insert a **slider input block** next to the code blocks and use that to control elements like the frequency of the sine wave or the range of the x-axis, checkout [app with example](https://deepnote.com/app/deepnote/Slider-example-adb7a9d5-5f07-44a2-9364-8b34714521ba?utm_source=app-settings&utm_medium=product-shared-content&utm_campaign=data-app&utm_content=adb7a9d5-5f07-44a2-9364-8b34714521ba).
 

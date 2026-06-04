@@ -43,7 +43,7 @@ Let's look at a practical example:
 
 "When you're going to be plotting multiple charts, always use plotly and subplots to plot them in one output. Also I want all of the charts to be green!"
 
-<VideoLoop src="../assets/docs/YZ7UwPGUQGOUQnJOcEmd.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/YZ7UwPGUQGOUQnJOcEmd.mp4" />
 
 ### **Best practices**
 

@@ -13,13 +13,13 @@ Open the Comments sidebar by clicking on the Comments icon in the top menu on th
 
 To add a comment, click on the manilla colored comment button in the upper right-hand corner of a block. Type your comment and hit `Post`.
 
-<VideoLoop src="../assets/docs/pGrzRQypQIObyDaOHCj5.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/pGrzRQypQIObyDaOHCj5.mp4" />
 
 ### Edit or delete a comment
 
 To edit or delete a comment click on the comment and click`Edit` or `Delete`.
 
-<VideoLoop src="../assets/docs/uQBEsKgTQGd2Gl6R6ou1.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/uQBEsKgTQGd2Gl6R6ou1.mp4" />
 
 ### Resolve or unresolve threads
 
@@ -27,7 +27,7 @@ Once you comment on a thread, you will be subscribed to that thread and get upda
 
 In the Comments sidebar, use the toggle switches to search through previous resolved and unresolved comments. Clicking on a comment will take you to the associated block in the notebook.
 
-<VideoLoop src="../assets/docs/6ohKa3eLTsG89C2s3G62.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/6ohKa3eLTsG89C2s3G62.mp4" />
 
 ### Add a mention in comment
 

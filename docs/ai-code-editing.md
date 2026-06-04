@@ -7,7 +7,7 @@ noContent: false
 
 Need to revise your code, refactor it, or make it more readable? Deepnote AI can help edit any existing code. Just click on **Open Deepnote AI** in the block sidebar and simply tell Deepnote AI how you want your code to be edited.
 
-<VideoLoop src="../assets/docs/dnVYuRGoQveEYxSRgC0N.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/dnVYuRGoQveEYxSRgC0N.mp4" />
 
 Edited code will be displayed side by side of the original code in a diff view so you can easily see what's been changed. Press the **Run code** button to see the new code in action. If you're satisfied, press **Done** to accept the code. If the generated responses does not suit your needs, you can **Discard** all of the edits, returning to the state before you started editing with AI.
 
@@ -17,7 +17,7 @@ Edited code will be displayed side by side of the original code in a diff view s
 
 ### Iterating with follow-up prompts
 
-<VideoLoop src="../assets/docs/Zg7wRnddSmmmHcyPEtVs.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/Zg7wRnddSmmmHcyPEtVs.mp4" />
 
 If the suggested code does not suit your needs, you can immediately type in a new prompt as a follow-up to further edit it. Each prompt, including your follow-ups is added to the prompt edit history. If you wish to revert to a previous stage in your editing flow, you can simply click on the desired step from the list of your prompts, returning the block to that specific state. This allows you to effortlessly compare results across different prompts and continue with the most promising options.
 
@@ -27,4 +27,4 @@ If the suggested code does not suit your needs, you can immediately type in a ne
 
 You can also use Deepnote AI to edit your SQL queries. Just click on Deepnote AI in a SQL block and tell Deepnote AI how it should edit your existing SQL code. Behind the scenes, Deepnote AI will inspect and use your database schema to better understand the written SQL code. [Read more](https://deepnote.com/docs/sql-generation)
 
-<VideoLoop src="../assets/docs/Tj1weG0TTtaBZrjjvpNK.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/Tj1weG0TTtaBZrjjvpNK.mp4" />

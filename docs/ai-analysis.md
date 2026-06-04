@@ -34,7 +34,7 @@ After you type in a prompt, Auto AI will execute the blocks it creates and will 
 
 Running Auto AI is like inviting a virtual collaborator to your project: it can operate in your notebook independently of your presence. This means that once Auto AI is given a task, it will continue running and executing blocks even if you close Deepnote.
 
-<VideoLoop src="../assets/docs/HTQCWgKZR7SiMX80Sm8B.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/HTQCWgKZR7SiMX80Sm8B.mp4" />
 
 If you want to stop Auto AI before it finishes its task, you can always do so by clicking on the **Stop AI Generation** button at the status bar on the top of your notebook. This will immediately cancel all block generation and will cease any block executions in progress.
 
@@ -67,7 +67,7 @@ If you want to use Deepnote AI in generate mode to retain control over executing
 
 Once you are happy with your typed in instructions, submit them and let Deepnote AI tackle your task. Deepnote AI will start generating **Python and/or text blocks**, it can even generate multiple blocks at once!
 
-<VideoLoop src="../assets/docs/5lt95gUhSOC4CYRAj5F4.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/5lt95gUhSOC4CYRAj5F4.mp4" />
 
 The generation will stop automatically once Deepnote AI has finished with the given task, but you can always cancel the generation earlier from the status bar. The generated blocks are saved directly into your notebook and there is no need to explicitly accept them allowing you to immediately run them afterwards.
 
@@ -82,4 +82,4 @@ If you're not fully satisfied with the output, you can:
 
 **Pro tip**: you don't always need elaborate instructions as Deepnote AI has access to the contents of your notebook and is fully conversational. You can tell it to **`Continue`** or to **`Do task X`** and it will respond appropriately.
 
-<VideoLoop src="../assets/docs/V3lP15MSSSQVChE2PxC5.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/V3lP15MSSSQVChE2PxC5.mp4" />

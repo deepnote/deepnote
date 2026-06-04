@@ -61,7 +61,7 @@ Using modules in your own notebooks is simple:
    - Choose which exported blocks to import
    - Optionally rename returned variables to fit your current notebook's naming conventions
 
-<VideoLoop src="../assets/docs/2nmctbQTUuzanKWXNsts.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/2nmctbQTUuzanKWXNsts.mp4" />
 
 When you run the module block, it executes in a **separate environment** and returns your selected exports. All returned variables are automatically added to your current notebook's memory, seamlessly integrating with your existing work.
 
@@ -107,7 +107,7 @@ Deepnote AI seamlessly integrates with modules, enhancing analytical capabilitie
 
 When you build a semantic layer with modules—defining your KPIs and metrics in a trusted, consistent way—you're not just helping your team, you're also teaching Deepnote AI. This integration creates a powerful workflow where AI leverages your established definitions rather than calculating metrics from scratch.
 
-<VideoLoop src="../assets/docs/UounpvDOT3maVeztX8V9.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/UounpvDOT3maVeztX8V9.mp4" />
 
 ### How It Works
 

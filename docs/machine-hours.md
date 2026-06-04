@@ -18,13 +18,13 @@ Our goal is to provide an unlimited number of free machine hours for all workspa
 
 In the rare occasion that a workspace exceeds the free machine hours we provide, workspaces on the Team and Enterprise plans can purchase additional machine hours. The hourly cost of these machines can be found in the Machines menu.
 
-<VideoLoop src="../assets/docs/caOM1cDyQWyQR6Tkn4Im.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/caOM1cDyQWyQR6Tkn4Im.mp4" />
 
 ###### **How can I upgrade to more RAM or CPU?**
 
 Workspaces on the Team and Enterprise plans can choose to switch to stronger machines, with higher computation power and RAM. The hourly cost of these machines can be found in the Machines menu.
 
-<VideoLoop src="../assets/docs/caOM1cDyQWyQR6Tkn4Im.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/caOM1cDyQWyQR6Tkn4Im.mp4" />
 
 ###### **How much will I be charged for machines?**
 

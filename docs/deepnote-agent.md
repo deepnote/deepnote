@@ -34,7 +34,7 @@ Agent has two main modes:
 
 In Edit mode, you can request anything from straightforward edits (adding analysis, fixing a SQL query, editing code) to large, notebook-wide changes (refactoring variables, cleaning up blocks, fixing multiple errors, or adding documentation).
 
-<VideoLoop src="../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetyt3d7xbfk07k60puolljn.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetyt3d7xbfk07k60puolljn.mp4" />
 
 No matter the scope, Agent always:
 

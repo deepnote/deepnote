@@ -11,7 +11,7 @@ We all love a good bar chart or a scatter plot — they're great for deep dives 
 
 You can add a big number block by pressing the **add block (+)** button between blocks and selecting the "Big number" option from the menu.
 
-<VideoLoop src="../assets/docs/I4in5gzTQsCyUsXGxswx.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/I4in5gzTQsCyUsXGxswx.mp4" />
 
 The title block supports interpolating Python variables using Jinja-style brackets. For example: _"Sales in &#123;&#123;month&#125;&#125;"_.
 

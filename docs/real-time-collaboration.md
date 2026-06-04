@@ -12,7 +12,7 @@ In order to prevent inadvertent code changes, two collaborators cannot write int
 
 </Callout>
 
-<VideoLoop src="../assets/docs/mt5ifWXPS7e3K4aMQJm5.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/mt5ifWXPS7e3K4aMQJm5.mp4" />
 
 ### Jump to collaborator
 

@@ -16,4 +16,4 @@ And with Deepnote's workspaces and access control system, distributing your mate
  Deepnote tip: Utilize our duplication feature when distributing your learning curriculum among your entire classroom.
 </Callout>
 
-<VideoLoop src="../assets/docs/R1O8WDOvTgyNzUsGM6P1.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/R1O8WDOvTgyNzUsGM6P1.mp4" />

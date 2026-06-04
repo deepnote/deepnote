@@ -35,7 +35,7 @@ To sort DataFrame rows by particular column, click on its name, and from the col
 Clicked on column name, but got nothing? It seems you can’t modify this DataFrame. This might be the case for data tables in apps without the “Allow app to be run” setting enabled, or if the data table is inside an embedded cell.
 </Callout>
 
-<VideoLoop src="../assets/docs/K1ymyNmqTW2V5g1lGzlt.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/K1ymyNmqTW2V5g1lGzlt.mp4" />
 
 ## Filtering
 
@@ -43,7 +43,7 @@ To filter your DataFrame, click on **Filter** in the column menu and fill in req
 
 If DataFrame has at least one filter applied to it, you’ll see a list of applied filters on top of the data table. From there, you can edit, remove, and add new filters.
 
-<VideoLoop src="../assets/docs/rRUPVPP7QfW7gDSl3aaY.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/rRUPVPP7QfW7gDSl3aaY.mp4" />
 
 ## Cell formatting
 
@@ -51,7 +51,7 @@ To make data easier to digest, you can highlight important bits with a pop of co
 
 Here you can select if you want to apply single color formatting to cells that match a certain condition or if you want to apply color scale to all cells in a column.
 
-<VideoLoop src="../assets/docs/6qngCrpGQ4WvOa7DUyej.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/6qngCrpGQ4WvOa7DUyej.mp4" />
 
 ## Renaming column
 
@@ -59,28 +59,28 @@ To change column name, click **Rename** in the column menu and enter a new name.
 
 For columns with a custom name, there will be a **Reset name** button in the column menu that restores the original column name.
 
-<VideoLoop src="../assets/docs/GE4agCuMQcyD54NoOxYN.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/GE4agCuMQcyD54NoOxYN.mp4" />
 
 ## Hiding column
 
 In the same menu, you can click **Hide column** to hide it from the data table. To see a list of hidden columns, click on the **eye icon** in the top left corner of the data table. Clicking on a column in this list will make it visible again.
 
-<VideoLoop src="../assets/docs/AylhYjQkQFCnMR8lOfQS.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/AylhYjQkQFCnMR8lOfQS.mp4" />
 
 ## Reordering columns
 
 Columns can be rearranged just by dragging them around.
 
-<VideoLoop src="../assets/docs/ugEACzBDQtSb5QyKGmdE.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/ugEACzBDQtSb5QyKGmdE.mp4" />
 
 ## Text wrap
 
 By default, cells in the data table render data only in single line, so longer texts get trimmed. With **Wrap cells** enabled (you can find it in the column menu), text will be wrapped instead (up to 10 lines per cell).
 
-<VideoLoop src="../assets/docs/tSoJC51fR5uJkdMRHpl7.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/tSoJC51fR5uJkdMRHpl7.mp4" />
 
 ## Copying cell content
 
 You can always select a portion of text in a cell and press `Cmd + C` or `Ctrl + C` to copy it. To copy the whole content of the cell, you need to select it first by triple-clicking on it. Now, if you press `Cmd + C` or `Ctrl + C` (or use the context menu to copy), the whole content of the cell will be copied instead.
 
-<VideoLoop src="../assets/docs/DnkXoyQRcKiRsd8FfMFP.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/DnkXoyQRcKiRsd8FfMFP.mp4" />

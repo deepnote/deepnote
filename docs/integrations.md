@@ -25,7 +25,7 @@ To edit your existing integrations (and create new ones), open up the integratio
 
 As mentioned above, each integration can be connected to multiple projects within your workspace. It is important to remember that deleting an integration that is connected to multiple projects will remove the specified integration from all projects in that workspace.
 
-<VideoLoop src="../assets/docs/DF2YWWwSne9pSULPMSVA.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/DF2YWWwSne9pSULPMSVA.mp4" />
 
 <Callout status="info">
 Some integrations require your machine to restart (don't fret, you will be warned in advance). Note that this will terminate all running processes in the project.

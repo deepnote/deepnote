@@ -56,7 +56,7 @@ The "Set Variable" behavior enables you to create more dynamic apps, where outpu
 
 In the demo below, the 'Sales trends' button produces a timeseries chart, while the 'Reviews' button displays correlation data.
 
-<VideoLoop src="../assets/docs/VVeLdkVeSom54VKrAyU8.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/VVeLdkVeSom54VKrAyU8.mp4" />
 
 To enable this type of workflow, all you need to do is configure the button with a variable (eg. 'trends') and then use this variable in a code block as a condition.
 
@@ -67,7 +67,7 @@ When building apps with **multiple input blocks that depend on each other**, you
 
 ![CleanShot 2024-11-07 at 10.38.32.png](../assets/docs/afdn2ewrTxWzjXp81QKD.webp)
 
-<VideoLoop src="../assets/docs/F2UWLLiTK6pg4TxJL5Hy.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/F2UWLLiTK6pg4TxJL5Hy.mp4" />
 
 **2) Run Notebook**
 
@@ -110,7 +110,7 @@ In some cases, you may want to dynamically generate the list of available values
 
 Once you select the variable, the values in the list will be then made available as user inputs in the select input dropdown.
 
-<VideoLoop src="../assets/docs/Kl3C7JoQKeefDuO73MDw.mp4" />
+<VideoLoop src="https://raw.githubusercontent.com/deepnote/deepnote/main/assets/docs/Kl3C7JoQKeefDuO73MDw.mp4" />
 
 Limits for using dynamic input variables:
 
