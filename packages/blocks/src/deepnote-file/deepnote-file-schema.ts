@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+export const SQL_CELL_VARIABLE_TYPES = ['dataframe', 'query_preview'] as const
+
 // =============================================================================
 // Backward compatibility helpers
 // =============================================================================
@@ -178,7 +180,7 @@ const sqlBlockSchema = z.object({
   metadata: executableBlockMetadataSchema
     .extend({
       deepnote_variable_name: z.string().optional(),
-      deepnote_return_variable_type: z.enum(['dataframe', 'query_preview']).optional(),
+      deepnote_return_variable_type: z.enum(SQL_CELL_VARIABLE_TYPES).optional(),
       sql_integration_id: z.string().optional(),
       is_compiled_sql_query_visible: z.boolean().optional(),
       function_export_name: z.string().optional(),
