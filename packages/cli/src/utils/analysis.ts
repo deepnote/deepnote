@@ -493,13 +493,19 @@ interface IntegrationCheckResult {
 
 /**
  * Convert an integration ID to its environment variable name.
- * Note: This handles leading digits differently from @deepnote/blocks - we sanitize
- * the integrationId first, then prepend SQL_. This maintains compatibility with
- * existing env var names (e.g., "100abc" -> "SQL__100ABC" not "SQL_100ABC").
+ *
+ * This MUST stay byte-identical to `getSqlEnvVarName` in @deepnote/database-integrations,
+ * which produces the name that `lintFile` injects into `process.env` (and that the generated
+ * SQL Python reads at runtime). That helper prepends `SQL_` FIRST and then sanitizes, so the
+ * leading-digit rule is applied to the `SQL_` prefix (which never starts with a digit) rather
+ * than to the raw id. For example "100abc" -> "SQL_100ABC".
+ *
+ * Sanitizing the id before prepending `SQL_` would instead yield "SQL__100ABC" (the raw id gets
+ * its own leading underscore), which would never match the injected variable name and would
+ * cause configured integrations whose ids start with a digit to be falsely reported as missing.
  */
 export function getIntegrationEnvVarName(integrationId: string): string {
-  const sanitized = convertToEnvironmentVariableName(integrationId)
-  return `SQL_${sanitized}`
+  return convertToEnvironmentVariableName(`SQL_${integrationId}`)
 }
 
 /**

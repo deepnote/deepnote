@@ -1175,13 +1175,15 @@ describe('lint command - integrations file loading', () => {
         }
       }
 
-      // Create an integrations file that provides a clickhouse integration
-      // matching what the 3_integrations.deepnote example uses
+      // Create an integrations file that provides the exact integration id referenced by the
+      // SQL block in 3_integrations.deepnote. The id is digit-prefixed, which exercises the
+      // leading-digit env var naming rule that previously caused a false missing-integration.
+      const integrationId = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
       const intFile = join(tempDir, 'clickhouse-integration.yaml')
       await writeFile(
         intFile,
         `integrations:
-  - id: clickhouse
+  - id: ${integrationId}
     name: ClickHouse
     type: clickhouse
     metadata:
@@ -1201,8 +1203,9 @@ describe('lint command - integrations file loading', () => {
         const out = getOutput(consoleSpy)
         const parsed = JSON.parse(out)
 
-        // Verify that the clickhouse integration loaded from file is now considered configured
-        expect(parsed.integrations.missing).not.toContain('clickhouse')
+        // The integration loaded from the file must be considered configured, not missing.
+        expect(parsed.integrations.missing).not.toContain(integrationId)
+        expect(parsed.integrations.configured).toContain(integrationId)
       } finally {
         process.env = originalEnv
       }
