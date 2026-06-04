@@ -23,7 +23,7 @@ If you’re on a paid plan or Team trial, open Agent from:
 
 The chat window will open on the side. Expand it into a full sidebar for longer conversations, or collapse it to focus on your notebook.
 
-![deepnote_agent_buttons.png](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmetys7tox3op07n0w8o7ddfp)
+![deepnote_agent_buttons.png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetys7tox3op07n0w8o7ddfp.webp)
 
 ## Using Agent
 
@@ -34,7 +34,7 @@ Agent has two main modes:
 
 In Edit mode, you can request anything from straightforward edits (adding analysis, fixing a SQL query, editing code) to large, notebook-wide changes (refactoring variables, cleaning up blocks, fixing multiple errors, or adding documentation).
 
-![deepnote_agent_refactor.gif](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmetyt3d7xbfk07k60puolljn)
+<VideoLoop src="../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetyt3d7xbfk07k60puolljn.mp4" />
 
 No matter the scope, Agent always:
 
@@ -46,7 +46,7 @@ While running, Agent shows all changes in real time. You can click any action it
 
 When a run finishes, you’ll see a **summary of changes** with a **before-and-after diff view** for code edits. You can undo all changes from a run by clicking the bin icon. If you follow up with a new request, Agent continues from the updated state of your notebook.
 
-![accept changes agent (1).png](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmetz4wckxctz07n07wkxakss)
+![accept changes agent (1).png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetz4wckxctz07n07wkxakss.webp)
 
 ### Leaving feedback
 

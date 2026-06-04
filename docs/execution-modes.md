@@ -14,11 +14,11 @@ Deepnote offers two modes of execution:
 
 The default execution mode for a block in the notebook can be changed next to the "Run notebook" button.
 
-<ImageBorder variant="blue">![Screenshot 2024-04-23 at 10.15.40.png](https://media.graphassets.com/VHvdkG1DT862UHkNdg9t)</ImageBorder>
+<ImageBorder variant="blue">![Screenshot 2024-04-23 at 10.15.40.png](../assets/docs/VHvdkG1DT862UHkNdg9t.webp)</ImageBorder>
 
 The current execution mode is displayed within the "Run block" icon in the block actions. You can always override the default execution mode by selecting "Run this block only" or "Run dependent blocks" in the block actions.
 
-<ImageBorder variant="colorful">![Screenshot 2024-04-19 at 12.52.41.png](https://media.graphassets.com/vRTSDtYbSoWZiZemv3R9)</ImageBorder>
+<ImageBorder variant="colorful">![Screenshot 2024-04-19 at 12.52.41.png](../assets/docs/vRTSDtYbSoWZiZemv3R9.webp)</ImageBorder>
 
 ## How are block dependencies detected?
 

@@ -12,7 +12,7 @@ coverImage: w2F4ok5iRlyQ4maT5G3m
 
 Notion is an all-in-one workspace that allows for everything from simple note-taking to building knowledge libraries for entire organizations. Since Notion stores data in databases, you can actually query the data stored in Notion and analyze it using Deepnote. After visualizing your data, you can then go full-circle by bringing the plots back into Notion by embedding your Deepnote blocks into Notion pages.
 
-![Notion and Deepnote workflow](https://media.graphassets.com/LuOWv7d4Qku2NVuInmU6)
+![Notion and Deepnote workflow](../assets/docs/LuOWv7d4Qku2NVuInmU6.webp)
 
 ### How to set it up
 
@@ -81,7 +81,7 @@ df
 
 After reading your Notion databases, performing analyses using the data, and creating visualizations, you might want to bring your Notion blocks back into Notion. That's where [shared blocks](/docs/sharing-and-embedding-blocks) come into play. Deepnote allows for the sharing and embedding of individual blocks. It's up to you whether you want to include the code and output or only one of the two.
 
-![Embedding Deepnote blocks into a Notion page](https://media.graphassets.com/hYvEAUk3TOhQoxZklVQu)
+<VideoLoop src="../assets/docs/hYvEAUk3TOhQoxZklVQu.mp4" />
 
 ### Next steps
 

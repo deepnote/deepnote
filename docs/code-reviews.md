@@ -13,21 +13,21 @@ Enter Deepnote, the AI-powered data workspace designed to enhance collaboration,
 Deepnote allows users to add comments directly within notebooks. This feature is essential for providing feedback during the review process. Reviewers can highlight specific lines of code or sections of the notebook and leave detailed comments or suggestions. This real-time feedback mechanism ensures that issues are addressed promptly, fostering a collaborative environment.
 
 For example, if you spot a potential bug in a data processing block, you can immediately leave a comment, allowing the author to rectify it quickly. Comments will show in real-time, but the mail response will take some time. This interactive review process helps maintain code quality and reduces the chances of errors slipping through.
-![Capture Aug 21.png](https://media.graphassets.com/AOtaKcF9RsqUcoC2P3JQ)
+![Capture Aug 21.png](../assets/docs/AOtaKcF9RsqUcoC2P3JQ.webp)
 
 ### History
 
 The history feature in Deepnote tracks changes over time, allowing reviewers to see how a notebook has evolved. This is crucial for understanding the context of changes and ensuring that new code adheres to the project's standards. By reviewing the history, teams can ensure that all changes are deliberate and justified.
 
 With a clear historical record, it's easy to identify when and why certain changes were made, enhancing transparency and accountability in the development process.
-![Deepnote Screenshot Aug 21.png](https://media.graphassets.com/H87SmPZ3RFKQ1EzC5pYo)
+![Deepnote Screenshot Aug 21.png](../assets/docs/H87SmPZ3RFKQ1EzC5pYo.webp)
 
 ### Notebook locking
 
 Notebook locking prevents multiple users from editing the same notebook simultaneously, reducing the risk of conflicting changes. This feature is particularly useful during code reviews, as it ensures that the notebook remains stable while under review, and only authorized users can make changes.
 
 This helps prevent situations where multiple reviewers might inadvertently overwrite each other's feedback or edits, ensuring a smoother and more coherent review process.
-![Deepnote Screenshot Aug 21 (1).png](https://media.graphassets.com/rG54iTPSPuOVSy8qXGRT)
+![Deepnote Screenshot Aug 21 (1).png](../assets/docs/rG54iTPSPuOVSy8qXGRT.webp)
 
 ### Folder structure for workflow stages
 
@@ -45,7 +45,7 @@ By moving projects between these folders, you can create a clear, visual workflo
 Deepnote’s versioning capabilities allow you to track and manage different versions of a notebook. This is particularly useful when multiple people are contributing to the same project. Versioning ensures that you can always revert to previous versions if necessary and helps reviewers see the evolution of the code.
 
 This feature is crucial for maintaining a clear record of changes and ensuring that any issues introduced by recent changes can be quickly identified and resolved.
-![Aug 21 Screenshot from Notion.png](https://media.graphassets.com/Z1APPl5fQ1uvE8OoSdC4)
+![Aug 21 Screenshot from Notion.png](../assets/docs/Z1APPl5fQ1uvE8OoSdC4.webp)
 
 ### Pair programming with real-time collaboration
 
@@ -68,11 +68,11 @@ For teams using version control systems like [GitHub](https://deepnote.com/docs/
 For teams that need a more detailed comparison of notebook versions, nbdime is an excellent tool. It provides a clear, side-by-side comparison of notebook changes, making it easier to spot differences in code, outputs, and Markdown blocks. Deepnote’s integration with nbdime ensures that you can review changes efficiently without leaving the Deepnote environment.
 
 This tool is particularly useful for comprehensive reviews, ensuring that every change is thoroughly vetted before being merged into the main project.
-![Screenshot 2024-08-27 at 10.14.46.png](https://media.graphassets.com/IgZkGOgzT8OZWvhpbbMD)
+![Screenshot 2024-08-27 at 10.14.46.png](../assets/docs/IgZkGOgzT8OZWvhpbbMD.webp)
 
 ## Combining Deepnote with GitHub and ReviewNB
 
 To further enhance your code review workflow, consider integrating Deepnote with GitHub and [ReviewNB](https://www.reviewnb.com/). ReviewNB is a specialized tool for reviewing Jupyter Notebooks, and it provides a user-friendly interface for commenting on notebooks within GitHub pull requests. By combining these tools, you can create a seamless review process that leverages the strengths of each platform. This combination provides a robust framework for managing notebook reviews, ensuring that all feedback is captured and addressed efficiently.
-![Aug 27 Screenshot from Code Reviews.png](https://media.graphassets.com/g3aRnhWkTnWFQZ1j9oZd)
+![Aug 27 Screenshot from Code Reviews.png](../assets/docs/g3aRnhWkTnWFQZ1j9oZd.webp)
 
 From real-time collaboration to detailed version tracking and seamless integrations with popular version control systems, Deepnote offers everything you need to maintain high code quality and streamline your development process. Ready to take your code reviews to the next level? Start using Deepnote today and experience the difference in your team's productivity and code quality.

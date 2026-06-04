@@ -13,7 +13,7 @@ See how **Deepnote helps over 100 000 data analysts and scientists** worldwide f
 
 ### 1. It's more than just a notebook
 
-![Deepnote_Infographics.png](https://media.graphassets.com/BVxG2tMFTzCSmgwqILlM)
+![Deepnote_Infographics.png](../assets/docs/BVxG2tMFTzCSmgwqILlM.webp)
 
 - **Collaboration at its core:** Deepnote's cloud-based environment enables real-time collaboration and commenting, supported by robust version control, making teamwork seamless and efficient.
 
@@ -27,7 +27,7 @@ See how **Deepnote helps over 100 000 data analysts and scientists** worldwide f
 
 Explainable and transparent AI assistant — Deepnote has a deep understanding of your projects, data warehouses, and metadata. It provides precise and auditable AI assistance for your data work. Our notebook structure ensures that every AI suggestion is turned into transparent and reproducible results allowing data teams to trust in AI like never before.
 
-![AI.png](https://media.graphassets.com/GXT55Lu8RKuMoFygbDPN)
+![AI.png](../assets/docs/GXT55Lu8RKuMoFygbDPN.webp)
 
 - [**Speak naturally, code flawlessly:**](https://deepnote.com/docs/deepnote-ai) Picture this: you ask your data questions just like you'd chat with a colleague, and watch as the code materializes. Deepnote AI goes beyond writing code—it explains and corrects it, enabling your team to achieve wonders, even those new to coding.
 
@@ -37,7 +37,7 @@ Explainable and transparent AI assistant — Deepnote has a deep understanding 
 
 Deepnote features a built-in app functionality that allows you to arrange, format, and publish a selection of blocks as a dashboard, report or interactive app. [Explore what you can build in our library here](https://deepnote.com/explore)
 
-![App.png](https://media.graphassets.com/eKZQkqZ3THqjoKFjgTTF)
+![App.png](../assets/docs/eKZQkqZ3THqjoKFjgTTF.webp)
 
 - **Arrange your notebook into columns:** Put your charts side-by-side, group your inputs next to each other, and tailor your story for the best viewing experience.
 

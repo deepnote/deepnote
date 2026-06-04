@@ -21,17 +21,17 @@ Available on Team and Enterprise plans
 ## How to connect to Redshift
 
 From the right-hand panel, under **Integrations**, click the **+** button and choose **Create new integration**.
-![create_integration.png](https://media.graphassets.com/pIr2x2wQtyVUUAv6spVZ)
+![create_integration.png](../assets/docs/pIr2x2wQtyVUUAv6spVZ.webp)
 
 <br></br>
 
 Select Redshift from the list of integrations or search for it using the search bar.
-![redshift_create.png](https://media.graphassets.com/URRAjyZfS6O5tB97TbTa)
+![redshift_create.png](../assets/docs/URRAjyZfS6O5tB97TbTa.webp)
 
 <br></br>
 
 Fill out the fields in the pop-up form. You will need to know the Redshift hostname, which can be found on your AWS Redshift console.
-![redshift_modal.png](https://media.graphassets.com/TVXyXrdSqa0ID0RB9skT)
+![redshift_modal.png](../assets/docs/TVXyXrdSqa0ID0RB9skT.webp)
 
 <br></br>
 

@@ -22,15 +22,15 @@ Available on Team and Enterprise plans
 ### How to connect to Google BigQuery
 
 From the right-hand panel, under **Integrations**, click the **+** button and choose **Create new integration**.
-![create_integration.png](https://media.graphassets.com/pIr2x2wQtyVUUAv6spVZ)
+![create_integration.png](../assets/docs/pIr2x2wQtyVUUAv6spVZ.webp)
 <br></br>
 
 Select Google BigQuery from the list of integrations or search for it using the search bar.
-![google_select_int.png](https://media.graphassets.com/L0AQ9K9RSn2NCuUbtwPR)
+![google_select_int.png](../assets/docs/L0AQ9K9RSn2NCuUbtwPR.webp)
 <br></br>
 
 Fill out the fields in the pop up form. Importantly, you will need to select the desired authentication method and supply the related credentials (described below).
-![gbq_modal.png](https://media.graphassets.com/rKvTSWW8TvaPqaCJdsVb)
+![gbq_modal.png](../assets/docs/rKvTSWW8TvaPqaCJdsVb.webp)
 
 #### Authenticating with a service account
 
@@ -110,10 +110,10 @@ To leverage this feature, you must set up the necessary access permissions withi
 
 Once you have the required access, querying data from different projects is straightforward. In your SQL queries, use the `projectId.dataset.table` format to specify exactly where your data resides. This format allows you to seamlessly switch between datasets hosted in different projects without changing your connection settings.
 
-![big-query-1.png](https://media.graphassets.com/TSkzUZdIQfeK9229xSTj)
+![big-query-1.png](../assets/docs/TSkzUZdIQfeK9229xSTj.webp)
 
 Deepnote's schema explorer enhances your ability to browse through various projects and tables. With this tool, you can visually inspect the structure of your datasets, including the columns and their data types, across different GCP projects. This feature simplifies the process of understanding and navigating through your data, especially when dealing with multiple projects.
 
-![big-query-2.png](https://media.graphassets.com/XcgsadbwQUCt0q7cYUWt)
+![big-query-2.png](../assets/docs/XcgsadbwQUCt0q7cYUWt.webp)
 
 By utilizing these features, Deepnote users can effectively manage and analyze data across multiple GCP projects, making it a robust solution for complex data environments.

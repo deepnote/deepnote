@@ -11,7 +11,7 @@ Deepnote can fetch files from OneDrive, for example, Excel files that you collab
 
 [Open the template by following this link ->](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Fetch-OneDrive-files-in-Deepnote-7c6d212e-b26d-48ca-a3d0-fcd63f888999/%2Fnotebook.ipynb)
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FuBTyirnZvPcOcczBxtFa%2Fduplicate-notebook.png](https://media.graphassets.com/VoHNl6juQ5qUFurTn0DR)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FuBTyirnZvPcOcczBxtFa%2Fduplicate-notebook.png](../assets/docs/VoHNl6juQ5qUFurTn0DR.webp)
 
 Click the "duplicate" button on the top right corner to do this. Once you've got the template in your Deepnote workspace, you can download files from OneDrive.
 

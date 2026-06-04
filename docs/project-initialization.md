@@ -11,13 +11,13 @@ To create an 'Init' notebook:
 - Click on the **Environment** selector in the project sidebar.
 - Click on the **Create an initialization notebook** button at the **Custom initialization** section on the right.
 
-![create init notebook.png](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cme9ngrjydvfw07mx6gnvdyam)
+![create init notebook.png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cme9ngrjydvfw07mx6gnvdyam.webp)
 
 Alternatively, you can also simply create a new notebook by pressing the plus button in your Notebook list and name it as 'Init'.
 
 After creating it, the 'Init' notebook will be conveniently located at the top of your Notebook list.
 
-![init notebook.png](https://media.graphassets.com/fjaNIAvXSq17LnRqHvlW)
+![init notebook.png](../assets/docs/fjaNIAvXSq17LnRqHvlW.webp)
 
 The contents of this notebook will automatically execute each time your project starts up, providing an ideal place to set up your preferred environment.
 

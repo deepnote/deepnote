@@ -8,7 +8,7 @@ If you're looking for a data science tool for your student club, Deepnote's got 
 
 ## Join our data science family
 
-![Group 3917.png](https://media.graphassets.com/x0k8QAllQlGOPEgBNka3)
+![Group 3917.png](../assets/docs/x0k8QAllQlGOPEgBNka3.webp)
 
 Deepnote is easy to use and has several features that make it an ideal option for students and researchers, including:
 
@@ -50,4 +50,4 @@ You can use Deepnote to host your learning materials for the entire student club
  Deepnote tip: You can easily [embed your Deepnote blocks](https://deepnote.com/docs/sharing-and-embedding-blocks) into Notion or any other student club documentation you have.
 </Callout>
 
-![Screenshot 2022-12-23 at 10.51.50.png](https://media.graphassets.com/g7CS6M4R4ilzFRz3eefg)
+![Screenshot 2022-12-23 at 10.51.50.png](../assets/docs/g7CS6M4R4ilzFRz3eefg.webp)

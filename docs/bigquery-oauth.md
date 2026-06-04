@@ -38,7 +38,7 @@ To set up authentication to BigQuery via OAuth, navigate to the [Google Cloud co
 8. From the newly created Client, copy `CLIENT_ID` and `CLIENT_SECRET`
 
 👉 Now head back to Deepnote and add the Client ID, Client Secret, and Project ID to the Google Big Query integration pop up. You will of course need to make sure you've selected Google OAuth as the authentication method.
-![gbq_oauth_fill.png](https://media.graphassets.com/nStDWWqlQgGp73sYYZ6Y)
+![gbq_oauth_fill.png](../assets/docs/nStDWWqlQgGp73sYYZ6Y.webp)
 
 ### Querying data with user-specific authentication
 
@@ -48,7 +48,7 @@ Since every user will have to authenticate using their own Google account with t
 - 2. Clicking **Authenticate integration** from three-dot menu of the integration in the right sidebar
 - 3. Responding to a request for authentication when executing an SQL block
 
-![gbq_authenticate.png](https://media.graphassets.com/oQtF3hYJShWVLELDxB3T)
+![gbq_authenticate.png](../assets/docs/oQtF3hYJShWVLELDxB3T.webp)
 
 When you create an app from a notebook that uses the integration, every app user will need to authenticate with their own account. They will be prompted to sign in using Google during the execution of the app. The results they see will depend on the permissions they have.
 

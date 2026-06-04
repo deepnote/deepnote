@@ -10,7 +10,7 @@ Available on Team and Enterprise plans
 
 To add a connection to MongoDB, go to **Integrations** via the left sidebar, create a new MongoDB integration and enter your credentials:
 
-![mongo.png](https://media.graphassets.com/xJmtNalsRLKv245XcPkD)
+![mongo.png](../assets/docs/xJmtNalsRLKv245XcPkD.webp)
 
 Don't forget to connect the newly created "MongoDB" integration in the Integrations sidebar.
 
