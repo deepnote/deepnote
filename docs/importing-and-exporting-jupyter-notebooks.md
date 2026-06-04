@@ -29,6 +29,8 @@ To download a notebook as a `.ipynb` file, click the three dots next to the note
 
 ![Export_Notebooks.jpg](https://media.graphassets.com/hydWm3T3RNOROOzvq969)
 
+Need a different output format? You can also convert [Jupyter notebooks to PDF](https://deepnote.com/ipynb-to-pdf) when you want a readable document to share with stakeholders who don't need to run the code.
+
 <Callout status="info">
 
 While we do our best to maintain compatibility with Jupyter, specialized blocks in Deepnote cannot be represented exactly in Jupyter (e.g., SQL, chart, input, and rich text blocks). Upon export, queries in SQL blocks will be converted to a string representation and rich text blocks will be converted to Markdown.

@@ -18,4 +18,4 @@ If your instructor allows you to submit your work as a link, you can [share a li
 
 ## Export your work as a PDF or other static file
 
-If your instructor prefers a static file, such as a PDF, you can [export your Deepnote project as a PDF](https://deepnote.com/docs/export-pdf) or other file type. To do this, click the "File" menu and select "Export." Choose the file type you want to export to, then select the cells you want to include in the export. You can then save the file to your local computer and submit it as directed by your instructor.
+If your instructor prefers a static file, such as a PDF, you can [export your Deepnote project as a PDF](https://deepnote.com/docs/export-pdf) or other file type. To do this, click the "File" menu and select "Export." Choose the file type you want to export to, then select the cells you want to include in the export. You can then save the file to your local computer and submit it as directed by your instructor. If you already have a `.ipynb` file on your computer, you can also use Deepnote's [IPYNB to PDF](https://deepnote.com/ipynb-to-pdf) converter to generate a PDF directly in your browser before submitting.
