@@ -963,6 +963,7 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
+      expect(parsed.success).toBe(false)
       expect(parsed.integrationsFile.issues.length).toBeGreaterThan(0)
       expect(parsed.integrationsFile.integrationCount).toBe(0)
     })
@@ -1239,21 +1240,29 @@ describe('lint command - integrations file loading', () => {
       expect(parsed.integrationsFile.integrationCount).toBe(1)
     })
 
-    it('returns empty result when custom integrations file does not exist', async () => {
+    it('errors when an explicitly specified integrations file does not exist', async () => {
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
       const nonExistentFile = join(tempDir, 'does-not-exist.yaml')
 
       exitSpy.mockRestore()
-      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      let exitCode: number | undefined
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
 
-      await action(filePath, { output: 'json', integrationsFile: nonExistentFile })
+      await expect(action(filePath, { output: 'json', integrationsFile: nonExistentFile })).rejects.toThrow(
+        'process.exit called'
+      )
+
+      // FileResolutionError maps to ExitCode.InvalidUsage (2)
+      expect(exitCode).toBe(2)
 
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
-
-      expect(parsed.integrationsFile.integrationCount).toBe(0)
-      expect(parsed.integrationsFile.issues).toHaveLength(0)
+      expect(parsed.success).toBe(false)
+      expect(parsed.error).toContain('File not found')
     })
   })
 })

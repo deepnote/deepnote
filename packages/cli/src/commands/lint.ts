@@ -84,6 +84,20 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
 
   // Load and parse integrations file
   const integrationsFilePath = options.integrationsFile ?? getDefaultIntegrationsFilePath(fileDir)
+
+  // If the user explicitly specified an integrations file, fail loudly when it's missing
+  // (an absent implicit default file is fine — integrations are optional in that case).
+  if (options.integrationsFile) {
+    try {
+      await fs.stat(integrationsFilePath)
+    } catch (error) {
+      if (isErrnoENOENT(error)) {
+        throw new FileResolutionError(`File not found: ${integrationsFilePath}`)
+      }
+      throw error
+    }
+  }
+
   debug(`Loading integrations from: ${integrationsFilePath}`)
   const parsedIntegrations = await parseIntegrationsFile(integrationsFilePath)
 
@@ -112,6 +126,7 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
   return {
     path: absolutePath,
     ...lint,
+    success: lint.success && parsedIntegrations.issues.length === 0,
     integrationsFile: {
       path: integrationsFilePath,
       integrationCount: parsedIntegrations.integrations.length,
