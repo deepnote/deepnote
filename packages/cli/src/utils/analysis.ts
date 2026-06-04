@@ -4,12 +4,8 @@
  * by multiple commands (lint, stats, run --context, analyze).
  */
 
-import {
-  convertToEnvironmentVariableName,
-  type DeepnoteBlock,
-  type DeepnoteFile,
-  INPUT_BLOCK_TYPES,
-} from '@deepnote/blocks'
+import { type DeepnoteBlock, type DeepnoteFile, INPUT_BLOCK_TYPES } from '@deepnote/blocks'
+import { getSqlEnvVarName } from '@deepnote/database-integrations'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'
@@ -494,18 +490,14 @@ interface IntegrationCheckResult {
 /**
  * Convert an integration ID to its environment variable name.
  *
- * This MUST stay byte-identical to `getSqlEnvVarName` in @deepnote/database-integrations,
- * which produces the name that `lintFile` injects into `process.env` (and that the generated
- * SQL Python reads at runtime). That helper prepends `SQL_` FIRST and then sanitizes, so the
- * leading-digit rule is applied to the `SQL_` prefix (which never starts with a digit) rather
- * than to the raw id. For example "100abc" -> "SQL_100ABC".
- *
- * Sanitizing the id before prepending `SQL_` would instead yield "SQL__100ABC" (the raw id gets
- * its own leading underscore), which would never match the injected variable name and would
- * cause configured integrations whose ids start with a digit to be falsely reported as missing.
+ * Delegates to `getSqlEnvVarName` from @deepnote/database-integrations — the single source of
+ * truth that also produces the name `lintFile` injects into `process.env` (and that generated
+ * SQL Python reads at runtime). Sharing the helper guarantees the missing-integration check
+ * looks up exactly the variable that was injected, including for ids that start with a digit
+ * (e.g. "100abc" -> "SQL_100ABC", not "SQL__100ABC").
  */
 export function getIntegrationEnvVarName(integrationId: string): string {
-  return convertToEnvironmentVariableName(`SQL_${integrationId}`)
+  return getSqlEnvVarName(integrationId)
 }
 
 /**

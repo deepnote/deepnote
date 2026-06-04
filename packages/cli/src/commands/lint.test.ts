@@ -1,6 +1,6 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
@@ -20,6 +20,14 @@ function getOutput(spy: Mock<typeof console.log>): string {
 
 function getErrorOutput(spy: Mock<typeof console.error>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
+}
+
+/** Normalize the per-run temp dir (absolute and cwd-relative forms) so text snapshots are stable. */
+function withStableTmpPaths(text: string, tempDir: string): string {
+  // Replace the cwd-relative form first: the absolute tempDir is a substring of it, so
+  // replacing the absolute form first would leave a machine-dependent `../..` prefix behind.
+  const relTmp = relative(process.cwd(), tempDir)
+  return text.split(relTmp).join('<tmp>').split(tempDir).join('<tmp>')
 }
 
 describe('lint command', () => {
@@ -647,6 +655,7 @@ describe('lint command - linting integrations yaml directly', () => {
   })
 
   it('reports no issues for a valid integrations yaml file', async () => {
+    setOutputConfig({ color: false })
     const action = createLintAction(program)
     const intFile = join(tempDir, 'valid.yaml')
     await writeFile(
@@ -669,11 +678,12 @@ describe('lint command - linting integrations yaml directly', () => {
     await action(intFile, DEFAULT_OPTIONS)
 
     const textOutput = getOutput(consoleSpy)
-    expect(textOutput).toContain('No issues found')
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
   it('reports issues for invalid integration type in yaml file', async () => {
+    setOutputConfig({ color: false })
     const action = createLintAction(program)
     const intFile = join(tempDir, 'invalid-type.yaml')
     await writeFile(
@@ -692,13 +702,18 @@ describe('lint command - linting integrations yaml directly', () => {
     await action(intFile, DEFAULT_OPTIONS)
 
     const textOutput = getOutput(consoleSpy)
-    expect(textOutput).toContain('Configuration issues in')
-    expect(textOutput).toContain('Bad DB')
-    expect(textOutput).toContain('Summary:')
-    expect(textOutput).toContain('configuration error')
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+      "Configuration issues in <tmp>/invalid-type.yaml
+
+        ✖ invalid_union_discriminator: Integration "Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+          at integrations[0].type
+
+      Summary: 1 configuration error"
+    `)
   })
 
   it('reports issues for missing env var references', async () => {
+    setOutputConfig({ color: false })
     const action = createLintAction(program)
     const intFile = join(tempDir, 'missing-env.yaml')
     await writeFile(
@@ -721,11 +736,18 @@ describe('lint command - linting integrations yaml directly', () => {
     await action(intFile, DEFAULT_OPTIONS)
 
     const textOutput = getOutput(consoleSpy)
-    expect(textOutput).toContain('Configuration issues in')
-    expect(textOutput).toContain('LINT_DIRECT_MISSING_ENV_VAR_XYZ')
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+      "Configuration issues in <tmp>/missing-env.yaml
+
+        ✖ env_var_not_defined: Integration "PostgreSQL": Environment variable "LINT_DIRECT_MISSING_ENV_VAR_XYZ" is not defined at "metadata.password"
+          at integrations[0].metadata.password
+
+      Summary: 1 configuration error"
+    `)
   })
 
   it('resolves env var references when env var is set', async () => {
+    setOutputConfig({ color: false })
     vi.stubEnv('LINT_DIRECT_DB_PASSWORD', 'test-secret')
 
     const action = createLintAction(program)
@@ -750,7 +772,7 @@ describe('lint command - linting integrations yaml directly', () => {
     await action(intFile, DEFAULT_OPTIONS)
 
     const textOutput = getOutput(consoleSpy)
-    expect(textOutput).toContain('No issues found')
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
   })
 
   it('outputs valid JSON for a clean integrations yaml file', async () => {
@@ -765,10 +787,17 @@ describe('lint command - linting integrations yaml directly', () => {
 
     const out = getOutput(consoleSpy)
     const parsed = JSON.parse(out)
-    expect(parsed.success).toBe(true)
-    expect(parsed.integrationsFile).toBeDefined()
-    expect(parsed.integrationsFile.integrationCount).toBe(0)
-    expect(parsed.integrationsFile.issues).toHaveLength(0)
+    expect(parsed).toEqual({
+      path: intFile,
+      success: true,
+      issueCount: { errors: 0, warnings: 0, total: 0 },
+      issues: [],
+      integrationsFile: {
+        path: intFile,
+        integrationCount: 0,
+        issues: [],
+      },
+    })
   })
 
   it('outputs JSON with issues for an invalid integrations yaml file', async () => {
@@ -790,7 +819,23 @@ describe('lint command - linting integrations yaml directly', () => {
 
     const out = getOutput(consoleSpy)
     const parsed = JSON.parse(out)
-    expect(parsed.integrationsFile.issues.length).toBeGreaterThan(0)
+    expect(parsed).toEqual({
+      path: intFile,
+      success: false,
+      issueCount: { errors: 0, warnings: 0, total: 0 },
+      issues: [],
+      integrationsFile: {
+        path: intFile,
+        integrationCount: 0,
+        issues: [
+          {
+            path: 'integrations[0].type',
+            message: expect.stringContaining('Invalid discriminator value'),
+            code: 'invalid_union_discriminator',
+          },
+        ],
+      },
+    })
   })
 
   it('exits with error code when integrations yaml has issues', async () => {
@@ -818,15 +863,19 @@ describe('lint command - linting integrations yaml directly', () => {
   })
 
   it('shows error for non-existent yaml file', async () => {
+    setOutputConfig({ color: false })
     const action = createLintAction(program)
 
     await expect(action(join(tempDir, 'does-not-exist.yaml'), DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
 
     const errorOutput = getErrorOutput(consoleErrorSpy)
-    expect(errorOutput).toContain('File not found')
+    expect(withStableTmpPaths(errorOutput, tempDir)).toMatchInlineSnapshot(
+      `"File not found: <tmp>/does-not-exist.yaml"`
+    )
   })
 
   it('reports yaml parse errors with human-readable message', async () => {
+    setOutputConfig({ color: false })
     const action = createLintAction(program)
     const intFile = join(tempDir, 'bad-yaml.yaml')
     await writeFile(intFile, 'integrations:\n  - id: "unclosed string')
@@ -837,11 +886,21 @@ describe('lint command - linting integrations yaml directly', () => {
     await action(intFile, DEFAULT_OPTIONS)
 
     const textOutput = getOutput(consoleSpy)
-    expect(textOutput).toContain('Configuration issues in')
-    expect(textOutput).toContain('yaml_parse_error')
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+      "Configuration issues in <tmp>/bad-yaml.yaml
+
+        ✖ yaml_parse_error: Invalid YAML in integrations file: YAML parsing error: Missing closing "quote at line 2, column 25:
+
+        - id: "unclosed string
+                              ^
+
+
+      Summary: 1 configuration error"
+    `)
   })
 
   it('also works with .yml extension', async () => {
+    setOutputConfig({ color: false })
     const action = createLintAction(program)
     const intFile = join(tempDir, 'valid.yml')
     await writeFile(intFile, 'integrations: []')
@@ -852,7 +911,7 @@ describe('lint command - linting integrations yaml directly', () => {
     await action(intFile, DEFAULT_OPTIONS)
 
     const textOutput = getOutput(consoleSpy)
-    expect(textOutput).toContain('No issues found')
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
   })
 })
 
@@ -904,11 +963,19 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
-      expect(parsed.integrationsFile).toBeDefined()
-      expect(parsed.integrationsFile.path).toBe(intFile)
-      expect(parsed.integrationsFile.integrationCount).toBe(0)
-      expect(Array.isArray(parsed.integrationsFile.issues)).toBe(true)
-      expect(parsed.integrationsFile.issues).toHaveLength(0)
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [],
+        },
+      })
     })
 
     it('reports integrationCount when integrations are loaded', async () => {
@@ -937,8 +1004,19 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
-      expect(parsed.integrationsFile.integrationCount).toBe(1)
-      expect(parsed.integrationsFile.issues).toHaveLength(0)
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 1,
+          issues: [],
+        },
+      })
     })
 
     it('reports issues when integrations file has schema errors', async () => {
@@ -963,9 +1041,25 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
-      expect(parsed.success).toBe(false)
-      expect(parsed.integrationsFile.issues.length).toBeGreaterThan(0)
-      expect(parsed.integrationsFile.integrationCount).toBe(0)
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [
+            {
+              path: 'integrations[0].type',
+              message: expect.stringContaining('Invalid discriminator value'),
+              code: 'invalid_union_discriminator',
+            },
+          ],
+        },
+      })
     })
 
     it('reports issues when integrations file has YAML syntax errors', async () => {
@@ -982,8 +1076,25 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
-      expect(parsed.integrationsFile.issues.length).toBeGreaterThan(0)
-      expect(parsed.integrationsFile.issues[0].code).toBe('yaml_parse_error')
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [
+            {
+              path: '',
+              message: expect.stringContaining('Invalid YAML in integrations file'),
+              code: 'yaml_parse_error',
+            },
+          ],
+        },
+      })
     })
 
     it('reports issues when env var references are unresolved', async () => {
@@ -1012,9 +1123,25 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
-      expect(parsed.integrationsFile.issues.length).toBeGreaterThan(0)
-      expect(parsed.integrationsFile.issues[0].code).toBe('env_var_not_defined')
-      expect(parsed.integrationsFile.issues[0].message).toContain('LINT_TEST_MISSING_ENV_VAR_XYZ')
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [
+            {
+              path: 'integrations[0].metadata.password',
+              message: expect.stringContaining('LINT_TEST_MISSING_ENV_VAR_XYZ'),
+              code: 'env_var_not_defined',
+            },
+          ],
+        },
+      })
     })
 
     it('resolves env var references when env var is set', async () => {
@@ -1045,13 +1172,25 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
-      expect(parsed.integrationsFile.integrationCount).toBe(1)
-      expect(parsed.integrationsFile.issues).toHaveLength(0)
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 1,
+          issues: [],
+        },
+      })
     })
   })
 
   describe('text output with configuration issues', () => {
     it('shows configuration issues section when integrations file has errors', async () => {
+      setOutputConfig({ color: false })
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
       const intFile = join(tempDir, 'text-output-bad-integrations.yaml')
@@ -1071,13 +1210,18 @@ describe('lint command - integrations file loading', () => {
       await action(filePath, { integrationsFile: intFile })
 
       const textOutput = getOutput(consoleSpy)
-      expect(textOutput).toContain('Configuration issues in')
-      expect(textOutput).toContain('My Bad DB')
-      expect(textOutput).toContain('Summary:')
-      expect(textOutput).toContain('configuration error')
+      expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+        "Configuration issues in <tmp>/text-output-bad-integrations.yaml
+
+          ✖ invalid_union_discriminator: Integration "My Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+            at integrations[0].type
+
+        Summary: 1 configuration error"
+      `)
     })
 
     it('shows "No issues found" when both notebook and integrations file are clean', async () => {
+      setOutputConfig({ color: false })
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
       const intFile = join(tempDir, 'clean-integrations.yaml')
@@ -1089,10 +1233,11 @@ describe('lint command - integrations file loading', () => {
       await action(filePath, { integrationsFile: intFile })
 
       const textOutput = getOutput(consoleSpy)
-      expect(textOutput).toContain('No issues found')
+      expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
     })
 
     it('includes path info in configuration issues section', async () => {
+      setOutputConfig({ color: false })
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
       const intFile = join(tempDir, 'path-info-integrations.yaml')
@@ -1111,8 +1256,14 @@ describe('lint command - integrations file loading', () => {
       await action(filePath, { integrationsFile: intFile })
 
       const textOutput = getOutput(consoleSpy)
-      // Should show the path info for the issue
-      expect(textOutput).toContain('at integrations[0]')
+      expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+        "Configuration issues in <tmp>/path-info-integrations.yaml
+
+          ✖ invalid_union_discriminator: Integration "Bad": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+            at integrations[0].type
+
+        Summary: 1 configuration error"
+      `)
     })
   })
 
@@ -1239,8 +1390,19 @@ describe('lint command - integrations file loading', () => {
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
 
-      expect(parsed.integrationsFile.path).toBe(customIntFile)
-      expect(parsed.integrationsFile.integrationCount).toBe(1)
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: customIntFile,
+          integrationCount: 1,
+          issues: [],
+        },
+      })
     })
 
     it('errors when an explicitly specified integrations file does not exist', async () => {
@@ -1264,8 +1426,7 @@ describe('lint command - integrations file loading', () => {
 
       const out = getOutput(consoleSpy)
       const parsed = JSON.parse(out)
-      expect(parsed.success).toBe(false)
-      expect(parsed.error).toContain('File not found')
+      expect(parsed).toEqual({ success: false, error: expect.stringContaining('File not found') })
     })
   })
 })
