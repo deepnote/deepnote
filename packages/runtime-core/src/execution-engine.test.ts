@@ -3,6 +3,7 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AgentBlockContext } from './agent-handler'
 
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
 const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient, mockExecuteAgentBlock } =
@@ -834,11 +835,14 @@ describe('ExecutionEngine', () => {
     const AGENT_FIXTURE = loadFixture('agent-block.deepnote')
 
     beforeEach(() => {
+      vi.stubEnv('OPENAI_API_KEY', 'test-api-key')
       mockExecuteAgentBlock.mockResolvedValue({
         finalOutput: 'Analysis complete.',
-        addedBlockIds: [],
-        blockOutputs: [],
       })
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
     })
 
     it('calls executeAgentBlock for agent blocks', async () => {
@@ -855,16 +859,6 @@ describe('ExecutionEngine', () => {
       const [block] = mockExecuteAgentBlock.mock.calls[0]
       expect(block.type).toBe('agent')
       expect(block.content).toContain('Analyze the DataFrame')
-    })
-
-    it('passes kernel, file, and notebook index in context', async () => {
-      await engine.start()
-      await engine.runProject(AGENT_FIXTURE)
-
-      const [, context] = mockExecuteAgentBlock.mock.calls[0]
-      expect(context.kernel).toBeDefined()
-      expect(context.file).toBeDefined()
-      expect(context.notebookIndex).toBe(0)
     })
 
     it('passes integrations through to agent context', async () => {
@@ -885,6 +879,150 @@ describe('ExecutionEngine', () => {
       expect(context.onAgentEvent).toBe(onAgentEvent)
     })
 
+    it('lets agent context helpers add code and markdown blocks and report added code outputs', async () => {
+      const project = structuredClone(AGENT_FIXTURE)
+      const helperCode = 'print("Agent-created block")'
+      const helperMarkdown = '## Agent summary'
+      const helperOutput: IOutput = {
+        output_type: 'stream',
+        name: 'stdout',
+        text: 'Agent-created block\n',
+      }
+      const onBlockDone = vi.fn()
+      const onOutput = vi.fn()
+      let addCodeResult: string | undefined
+      let addMarkdownResult: string | undefined
+      let agentContext: AgentBlockContext | undefined
+
+      mockKernelClient.execute.mockImplementation((code: string) => {
+        if (code.includes('df = pd.DataFrame')) {
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        }
+        if (code === helperCode) {
+          return Promise.resolve({ success: true, outputs: [helperOutput], executionCount: 2 })
+        }
+        return Promise.reject(new Error(`Unexpected code: ${code}`))
+      })
+
+      mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+        agentContext = context
+
+        const codeResult = await context.addAndExecuteCodeBlock({ code: helperCode })
+        addCodeResult = codeResult
+
+        const markdownResult = await context.addMarkdownBlock({ content: helperMarkdown })
+        addMarkdownResult = markdownResult
+
+        return { finalOutput: 'Agent helper complete.' }
+      })
+
+      await engine.start()
+      const summary = await engine.runProject(project, { onBlockDone, onOutput })
+      const analysisNotebook = project.project.notebooks.find(notebook => notebook.name === 'Analysis')
+
+      if (!analysisNotebook) {
+        throw new Error('Notebook "Analysis" not found in test data')
+      }
+
+      const addedCodeBlock = analysisNotebook.blocks[3]
+      const addedMarkdownBlock = analysisNotebook.blocks[4]
+
+      if (!addedCodeBlock || !addedMarkdownBlock) {
+        throw new Error('Expected agent helper blocks to be inserted')
+      }
+
+      expect(summary.failedBlocks).toBe(0)
+      expect(agentContext?.notebookContext).toContain('df = pd.DataFrame')
+      expect(addCodeResult).toContain('Agent-created block')
+      expect(addMarkdownResult).toBe('Markdown block added.')
+      expect(mockKernelClient.execute).toHaveBeenNthCalledWith(2, helperCode)
+      expect(analysisNotebook.blocks).toHaveLength(5)
+      expect(addedCodeBlock).toEqual(expect.objectContaining({ type: 'code', content: helperCode }))
+      expect(addedMarkdownBlock).toEqual(expect.objectContaining({ type: 'markdown', content: helperMarkdown }))
+      expect(onOutput).toHaveBeenCalledWith(addedCodeBlock.id, helperOutput)
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockId: addedCodeBlock.id,
+          blockType: 'code',
+          success: true,
+          outputs: [helperOutput],
+          executionCount: 2,
+          durationMs: 0,
+        })
+      )
+
+      const agentResult = onBlockDone.mock.calls.find(
+        (args: unknown[]) => (args[0] as { blockType: string }).blockType === 'agent'
+      )
+      expect(agentResult).toBeDefined()
+      expect(agentResult?.[0].outputs[0]).toEqual(
+        expect.objectContaining({ output_type: 'stream', text: 'Agent helper complete.' })
+      )
+    })
+
+    it('surfaces addAndExecuteCodeBlock failures when kernel execution rejects', async () => {
+      const project = structuredClone(AGENT_FIXTURE)
+      const helperCode = 'print("Agent-created block")'
+      const onBlockDone = vi.fn()
+      let addCodeResult: string | undefined
+
+      mockKernelClient.execute.mockImplementation((code: string) => {
+        if (code.includes('df = pd.DataFrame')) {
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        }
+        if (code === helperCode) {
+          return Promise.reject(new Error('Kernel crash'))
+        }
+        return Promise.reject(new Error(`Unexpected code: ${code}`))
+      })
+
+      mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+        const result = await context.addAndExecuteCodeBlock({ code: helperCode })
+        addCodeResult = result
+
+        if (result.startsWith('Execution failed') || result.startsWith('Execution error')) {
+          throw new Error(result)
+        }
+
+        return { finalOutput: 'Unreachable' }
+      })
+
+      await engine.start()
+      const summary = await engine.runProject(project, { onBlockDone })
+      const analysisNotebook = project.project.notebooks.find(notebook => notebook.name === 'Analysis')
+
+      if (!analysisNotebook) {
+        throw new Error('Notebook "Analysis" not found in test data')
+      }
+
+      const addedCodeBlock = analysisNotebook.blocks[3]
+      if (!addedCodeBlock) {
+        throw new Error('Expected failed agent code block to be inserted')
+      }
+
+      expect(summary.failedBlocks).toBe(1)
+      expect(mockKernelClient.execute).toHaveBeenNthCalledWith(2, helperCode)
+      expect(addCodeResult).toBe('Execution error: Kernel crash')
+      expect(addedCodeBlock).toEqual(expect.objectContaining({ type: 'code', content: helperCode }))
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockId: addedCodeBlock.id,
+          blockType: 'code',
+          success: false,
+          outputs: [expect.objectContaining({ output_type: 'error', evalue: 'Kernel crash' })],
+          executionCount: null,
+        })
+      )
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockType: 'agent',
+          success: false,
+          outputs: [expect.objectContaining({ output_type: 'error', evalue: 'Execution error: Kernel crash' })],
+          error: expect.objectContaining({ message: 'Execution error: Kernel crash' }),
+        })
+      )
+    })
+
     it('executes code blocks before agent block in order', async () => {
       const executionOrder: string[] = []
       mockKernelClient.execute.mockImplementation(() => {
@@ -893,7 +1031,7 @@ describe('ExecutionEngine', () => {
       })
       mockExecuteAgentBlock.mockImplementation(() => {
         executionOrder.push('agent')
-        return Promise.resolve({ finalOutput: '', addedBlockIds: [], blockOutputs: [] })
+        return Promise.resolve({ finalOutput: '' })
       })
 
       await engine.start()
@@ -949,6 +1087,305 @@ describe('ExecutionEngine', () => {
 
       expect(summary.totalBlocks).toBe(2)
       expect(summary.executedBlocks).toBe(2)
+    })
+
+    describe('context.addAndExecuteCodeBlock', () => {
+      it('inserts a code block into the notebook and executes it via kernel', async () => {
+        let capturedContext: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> } | null = null
+
+        mockExecuteAgentBlock.mockImplementation(
+          async (
+            _block: unknown,
+            context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
+          ) => {
+            capturedContext = context
+            await context.addAndExecuteCodeBlock({ code: 'print("from agent")' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        expect(capturedContext).not.toBeNull()
+        expect(mockKernelClient.execute).toHaveBeenCalledWith('print("from agent")')
+      })
+
+      it('reports kernel execution result with outputs', async () => {
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          if (code === 'print("agent code")') {
+            return Promise.resolve({
+              success: true,
+              outputs: [{ output_type: 'stream', name: 'stdout', text: 'agent code\n' }],
+              executionCount: 5,
+            })
+          }
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        })
+
+        let codeBlockResult: unknown = null
+        mockExecuteAgentBlock.mockImplementation(
+          async (
+            _block: unknown,
+            context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
+          ) => {
+            codeBlockResult = await context.addAndExecuteCodeBlock({ code: 'print("agent code")' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        expect(codeBlockResult).toBe('Output:\nagent code\n')
+      })
+
+      it('emits onBlockDone for the added code block', async () => {
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          if (code === 'x = 42') {
+            return Promise.resolve({
+              success: true,
+              outputs: [],
+              executionCount: 3,
+            })
+          }
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        })
+
+        mockExecuteAgentBlock.mockImplementation(
+          async (
+            _block: unknown,
+            context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
+          ) => {
+            await context.addAndExecuteCodeBlock({ code: 'x = 42' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        const onBlockDone = vi.fn()
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE, { onBlockDone })
+
+        const addedBlockDone = onBlockDone.mock.calls.find(
+          (args: unknown[]) =>
+            (args[0] as { blockType: string }).blockType === 'code' &&
+            (args[0] as { executionCount: number | null }).executionCount === 3
+        )
+        expect(addedBlockDone).toBeDefined()
+        expect(addedBlockDone?.[0]).toEqual(
+          expect.objectContaining({
+            blockType: 'code',
+            success: true,
+            executionCount: 3,
+          })
+        )
+      })
+
+      it('emits onOutput for streaming outputs from the added code block', async () => {
+        const streamOutput = { output_type: 'stream', name: 'stdout', text: 'streamed\n' }
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          if (code === 'print("stream")') {
+            return Promise.resolve({
+              success: true,
+              outputs: [streamOutput],
+              executionCount: 2,
+            })
+          }
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        })
+
+        mockExecuteAgentBlock.mockImplementation(
+          async (
+            _block: unknown,
+            context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
+          ) => {
+            await context.addAndExecuteCodeBlock({ code: 'print("stream")' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        const onOutput = vi.fn()
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE, { onOutput })
+
+        expect(onOutput).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({ output_type: 'stream', text: 'streamed\n' })
+        )
+      })
+
+      it('returns failure when kernel execution fails', async () => {
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          if (code === 'bad code') {
+            return Promise.resolve({
+              success: false,
+              outputs: [
+                { output_type: 'error', ename: 'SyntaxError', evalue: 'invalid syntax', traceback: ['Traceback...'] },
+              ],
+              executionCount: 2,
+            })
+          }
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        })
+
+        const results: string[] = []
+        mockExecuteAgentBlock.mockImplementation(async (_block: unknown, context: AgentBlockContext) => {
+          results.push(await context.addAndExecuteCodeBlock({ code: 'bad code' }))
+          return { finalOutput: 'Done.' }
+        })
+
+        const onBlockDone = vi.fn()
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE, { onBlockDone })
+
+        expect(results).toHaveLength(1)
+        expect(results[0]).toMatch(/^Execution failed:/)
+        expect(results[0]).toContain('invalid syntax')
+
+        const failedAddedBlock = onBlockDone.mock.calls.find(
+          (args: unknown[]) =>
+            (args[0] as { blockType: string }).blockType === 'code' &&
+            (args[0] as { success: boolean }).success === false
+        )
+        expect(failedAddedBlock).toBeDefined()
+        expect(failedAddedBlock?.[0]).toEqual(
+          expect.objectContaining({
+            blockType: 'code',
+            success: false,
+            executionCount: 2,
+            outputs: [expect.objectContaining({ output_type: 'error', evalue: 'invalid syntax' })],
+          })
+        )
+      })
+
+      it('surfaces kernel.execute rejection as failure', async () => {
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          if (code === 'crash()') {
+            return Promise.reject(new Error('Kernel crashed'))
+          }
+          return Promise.resolve({ success: true, outputs: [], executionCount: 1 })
+        })
+
+        const results: string[] = []
+        mockExecuteAgentBlock.mockImplementation(async (_block: unknown, context: AgentBlockContext) => {
+          results.push(await context.addAndExecuteCodeBlock({ code: 'crash()' }))
+          return { finalOutput: 'Done.' }
+        })
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        expect(results).toHaveLength(1)
+        expect(results[0]).toBe('Execution error: Kernel crashed')
+      })
+
+      it('inserts multiple code blocks in order', async () => {
+        const executedCodes: string[] = []
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          executedCodes.push(code)
+          return Promise.resolve({ success: true, outputs: [], executionCount: executedCodes.length })
+        })
+
+        mockExecuteAgentBlock.mockImplementation(
+          async (
+            _block: unknown,
+            context: { addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown> }
+          ) => {
+            await context.addAndExecuteCodeBlock({ code: 'step_1()' })
+            await context.addAndExecuteCodeBlock({ code: 'step_2()' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        expect(executedCodes).toContain('step_1()')
+        expect(executedCodes).toContain('step_2()')
+        expect(executedCodes.indexOf('step_1()')).toBeLessThan(executedCodes.indexOf('step_2()'))
+      })
+    })
+
+    describe('context.addMarkdownBlock', () => {
+      it('inserts a markdown block into the notebook', async () => {
+        mockExecuteAgentBlock.mockImplementation(
+          async (_block: unknown, context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }) => {
+            await context.addMarkdownBlock({ content: '# Summary\nResults are good.' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        expect(mockKernelClient.execute).not.toHaveBeenCalledWith('# Summary\nResults are good.')
+      })
+
+      it('returns success result', async () => {
+        let markdownResult: unknown = null
+        mockExecuteAgentBlock.mockImplementation(
+          async (_block: unknown, context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }) => {
+            markdownResult = await context.addMarkdownBlock({ content: '## Analysis' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        expect(markdownResult).toBe('Markdown block added.')
+      })
+
+      it('does not invoke kernel.execute for markdown blocks', async () => {
+        mockKernelClient.execute.mockClear()
+
+        mockExecuteAgentBlock.mockImplementation(
+          async (_block: unknown, context: { addMarkdownBlock: (args: { content: string }) => Promise<unknown> }) => {
+            await context.addMarkdownBlock({ content: 'Just markdown' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        const markdownCalls = mockKernelClient.execute.mock.calls.filter(
+          (call: unknown[]) => call[0] === 'Just markdown'
+        )
+        expect(markdownCalls).toHaveLength(0)
+      })
+
+      it('can interleave markdown and code blocks', async () => {
+        const executedCodes: string[] = []
+        mockKernelClient.execute.mockImplementation((code: string) => {
+          executedCodes.push(code)
+          return Promise.resolve({ success: true, outputs: [], executionCount: executedCodes.length })
+        })
+
+        let mdResult1: unknown = null
+        let mdResult2: unknown = null
+        mockExecuteAgentBlock.mockImplementation(
+          async (
+            _block: unknown,
+            context: {
+              addAndExecuteCodeBlock: (args: { code: string }) => Promise<unknown>
+              addMarkdownBlock: (args: { content: string }) => Promise<unknown>
+            }
+          ) => {
+            mdResult1 = await context.addMarkdownBlock({ content: '## Step 1' })
+            await context.addAndExecuteCodeBlock({ code: 'compute()' })
+            mdResult2 = await context.addMarkdownBlock({ content: '## Step 2' })
+            return { finalOutput: 'Done.' }
+          }
+        )
+
+        await engine.start()
+        await engine.runProject(AGENT_FIXTURE)
+
+        expect(mdResult1).toBe('Markdown block added.')
+        expect(mdResult2).toBe('Markdown block added.')
+        expect(executedCodes).toContain('compute()')
+      })
     })
   })
 })
