@@ -1,13 +1,6 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import {
-  analyzeProject,
-  buildBlockMap,
-  checkForIssues,
-  computeProjectStats,
-  diagnoseBlockFailure,
-  getIntegrationEnvVarName,
-} from './analysis'
+import { analyzeProject, buildBlockMap, checkForIssues, computeProjectStats, diagnoseBlockFailure } from './analysis'
 
 // Helper to create a minimal DeepnoteFile for testing
 function createTestFile(
@@ -297,31 +290,6 @@ describe('analysis utilities', () => {
           else process.env[k] = v
         }
       }
-    })
-  })
-
-  describe('getIntegrationEnvVarName', () => {
-    it('produces a single-underscore name for digit-leading ids', () => {
-      // The `SQL_` prefix is applied before sanitizing, so the leading-digit rule never
-      // adds an extra underscore to the id itself.
-      expect(getIntegrationEnvVarName('100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d')).toBe(
-        'SQL_100EEF5B_8AD8_4D35_8E5E_3DFEEB387D4D'
-      )
-    })
-
-    it('matches the env var name injected by the SQL integration generator', () => {
-      // Must stay byte-identical to getSqlEnvVarName in @deepnote/database-integrations
-      // (the name lintFile injects into process.env). That helper is not exported from the
-      // package entry, so we assert the exact strings it produces instead of importing it.
-      expect(getIntegrationEnvVarName('100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d')).toBe(
-        'SQL_100EEF5B_8AD8_4D35_8E5E_3DFEEB387D4D'
-      )
-      expect(getIntegrationEnvVarName('clickhouse')).toBe('SQL_CLICKHOUSE')
-    })
-
-    it('leaves non-digit ids unchanged', () => {
-      expect(getIntegrationEnvVarName('my_db')).toBe('SQL_MY_DB')
-      expect(getIntegrationEnvVarName('clickhouse')).toBe('SQL_CLICKHOUSE')
     })
   })
 })

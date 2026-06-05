@@ -488,19 +488,6 @@ interface IntegrationCheckResult {
 }
 
 /**
- * Convert an integration ID to its environment variable name.
- *
- * Delegates to `getSqlEnvVarName` from @deepnote/database-integrations — the single source of
- * truth that also produces the name `lintFile` injects into `process.env` (and that generated
- * SQL Python reads at runtime). Sharing the helper guarantees the missing-integration check
- * looks up exactly the variable that was injected, including for ids that start with a digit
- * (e.g. "100abc" -> "SQL_100ABC", not "SQL__100ABC").
- */
-export function getIntegrationEnvVarName(integrationId: string): string {
-  return getSqlEnvVarName(integrationId)
-}
-
-/**
  * Check for SQL blocks using integrations that aren't configured.
  */
 function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string, BlockInfo>): IntegrationCheckResult {
@@ -522,7 +509,7 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     const info = blockMap.get(block.id)
     if (!info) continue
 
-    const envVarName = getIntegrationEnvVarName(integrationId)
+    const envVarName = getSqlEnvVarName(integrationId)
     const isConfigured = !!process.env[envVarName]
 
     if (isConfigured) {
@@ -536,7 +523,7 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
   }
 
   for (const [integrationId, usages] of integrationUsage) {
-    const envVarName = getIntegrationEnvVarName(integrationId)
+    const envVarName = getSqlEnvVarName(integrationId)
 
     for (const { blockId, info } of usages) {
       issues.push({
