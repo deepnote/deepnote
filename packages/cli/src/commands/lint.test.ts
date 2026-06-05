@@ -1,6 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
+import { getSqlEnvVarName } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { BUILTIN_INTEGRATIONS } from '../constants'
@@ -11,6 +12,10 @@ import { createLintAction, type LintOptions } from './lint'
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+
+// The (only) SQL integration id referenced by the SQL block in 3_integrations.deepnote. Tests that
+// want this integration to read as "missing" unset its generated SQL_* env var via vi.stubEnv.
+const INTEGRATIONS_FILE_SQL_INTEGRATION_ID = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: LintOptions = {}
@@ -28,7 +33,7 @@ function withStableTmpPaths(text: string, tempDir: string): string {
   // Replace the cwd-relative form first: the absolute tempDir is a substring of it, so
   // replacing the absolute form first would leave a machine-dependent `../..` prefix behind.
   const relTmp = relative(process.cwd(), tempDir)
-  return text.split(relTmp).join('<tmp>').split(tempDir).join('<tmp>')
+  return text.split(relTmp).join('<tmp>').split(tempDir).join('<tmp>').split(sep).join('/')
 }
 
 describe('lint command', () => {
@@ -51,6 +56,7 @@ describe('lint command', () => {
     consoleSpy.mockRestore()
     consoleErrorSpy.mockRestore()
     exitSpy.mockRestore()
+    vi.unstubAllEnvs()
   })
 
   describe('createLintAction', () => {
@@ -462,34 +468,24 @@ describe('lint command', () => {
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
 
-      // Ensure no SQL env vars are set
-      const originalEnv = { ...process.env }
-      for (const key of Object.keys(process.env)) {
-        if (key.startsWith('SQL_')) {
-          delete process.env[key]
-        }
-      }
+      // Ensure the SQL integration's env var is not set so it reads as missing
+      vi.stubEnv(getSqlEnvVarName(INTEGRATIONS_FILE_SQL_INTEGRATION_ID), undefined)
 
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      try {
-        await action(filePath, { output: 'json' })
+      await action(filePath, { output: 'json' })
 
-        const output = getOutput(consoleSpy)
-        const parsed = JSON.parse(output)
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
 
-        // The integrations file has SQL blocks with non-builtin integrations
-        // Without env vars, they should be missing
-        const missingIntegrationIssues = parsed.issues.filter((i: { code: string }) => i.code === 'missing-integration')
-        expect(Array.isArray(missingIntegrationIssues)).toBe(true)
-        // If integrations file uses external integrations, there should be issues
-        if (parsed.integrations.missing.length > 0) {
-          expect(missingIntegrationIssues.length).toBeGreaterThan(0)
-        }
-      } finally {
-        // Restore env
-        process.env = originalEnv
+      // The integrations file has SQL blocks with non-builtin integrations
+      // Without env vars, they should be missing
+      const missingIntegrationIssues = parsed.issues.filter((i: { code: string }) => i.code === 'missing-integration')
+      expect(Array.isArray(missingIntegrationIssues)).toBe(true)
+      // If integrations file uses external integrations, there should be issues
+      if (parsed.integrations.missing.length > 0) {
+        expect(missingIntegrationIssues.length).toBeGreaterThan(0)
       }
     })
 
@@ -822,7 +818,7 @@ describe('lint command - linting integrations yaml directly', () => {
     expect(parsed).toEqual({
       path: intFile,
       success: false,
-      issueCount: { errors: 0, warnings: 0, total: 0 },
+      issueCount: { errors: 1, warnings: 0, total: 1 },
       issues: [],
       integrationsFile: {
         path: intFile,
@@ -836,6 +832,10 @@ describe('lint command - linting integrations yaml directly', () => {
         ],
       },
     })
+    // issueCount must reflect the configuration issues (hard errors) so it stays consistent with
+    // `success: false` and `integrationsFile.issues` (direct-YAML path).
+    expect(parsed.issueCount.errors).toBe(parsed.integrationsFile.issues.length)
+    expect(parsed.issueCount.total).toBe(parsed.integrationsFile.issues.length)
   })
 
   it('exits with error code when integrations yaml has issues', async () => {
@@ -859,6 +859,51 @@ describe('lint command - linting integrations yaml directly', () => {
 
     await action(intFile, { output: 'json' })
 
+    expect(exitCode).toBe(1)
+  })
+
+  it('reports a generation error for a schema-valid but ungeneratable integration (invalid bigquery service account)', async () => {
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'bigquery-bad-service-account.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: bq
+    name: My BigQuery
+    type: big-query
+    metadata:
+      service_account: "this is not valid json"`
+    )
+
+    exitSpy.mockRestore()
+    let exitCode: number | undefined
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+      exitCode = typeof code === 'number' ? code : undefined
+      return undefined as never
+    })
+
+    await action(intFile, { output: 'json' })
+
+    const out = getOutput(consoleSpy)
+    const parsed = JSON.parse(out)
+    expect(parsed).toEqual({
+      path: intFile,
+      success: false,
+      issueCount: { errors: 1, warnings: 0, total: 1 },
+      issues: [],
+      integrationsFile: {
+        path: intFile,
+        integrationCount: 1,
+        issues: [
+          {
+            path: 'integrations[0].metadata',
+            message: expect.stringContaining('Failed to parse bigquery service account'),
+            code: 'big_query_service_account_parse_error',
+          },
+        ],
+      },
+    })
+    // The generation error must produce a non-zero exit code (it is a hard error).
     expect(exitCode).toBe(1)
   })
 
@@ -1044,7 +1089,7 @@ describe('lint command - integrations file loading', () => {
       expect(parsed).toEqual({
         path: filePath,
         success: false,
-        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issueCount: { errors: 1, warnings: 0, total: 1 },
         issues: [],
         integrations: { configured: [], missing: [] },
         inputs: { total: 0, withValues: 0, needingValues: [] },
@@ -1060,6 +1105,10 @@ describe('lint command - integrations file loading', () => {
           ],
         },
       })
+      // issueCount must reflect the configuration issues (hard errors) so it stays consistent with
+      // `success: false` and `integrationsFile.issues` (.deepnote + integrations-file path).
+      expect(parsed.issueCount.errors).toBe(parsed.integrationsFile.issues.length)
+      expect(parsed.issueCount.total).toBe(parsed.integrationsFile.issues.length)
     })
 
     it('reports issues when integrations file has YAML syntax errors', async () => {
@@ -1079,7 +1128,7 @@ describe('lint command - integrations file loading', () => {
       expect(parsed).toEqual({
         path: filePath,
         success: false,
-        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issueCount: { errors: 1, warnings: 0, total: 1 },
         issues: [],
         integrations: { configured: [], missing: [] },
         inputs: { total: 0, withValues: 0, needingValues: [] },
@@ -1126,7 +1175,7 @@ describe('lint command - integrations file loading', () => {
       expect(parsed).toEqual({
         path: filePath,
         success: false,
-        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issueCount: { errors: 1, warnings: 0, total: 1 },
         issues: [],
         integrations: { configured: [], missing: [] },
         inputs: { total: 0, withValues: 0, needingValues: [] },
@@ -1318,18 +1367,14 @@ describe('lint command - integrations file loading', () => {
       // Use the integrations example which has SQL blocks with non-builtin integrations
       const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
 
-      // Clear any SQL_ env vars so integrations would otherwise appear as missing
-      const originalEnv = { ...process.env }
-      for (const key of Object.keys(process.env)) {
-        if (key.startsWith('SQL_')) {
-          delete process.env[key]
-        }
-      }
-
       // Create an integrations file that provides the exact integration id referenced by the
       // SQL block in 3_integrations.deepnote. The id is digit-prefixed, which exercises the
       // leading-digit env var naming rule that previously caused a false missing-integration.
-      const integrationId = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
+      const integrationId = INTEGRATIONS_FILE_SQL_INTEGRATION_ID
+
+      // Clear the integration's SQL_ env var so it would otherwise appear as missing
+      vi.stubEnv(getSqlEnvVarName(integrationId), undefined)
+
       const intFile = join(tempDir, 'clickhouse-integration.yaml')
       await writeFile(
         intFile,
@@ -1348,18 +1393,85 @@ describe('lint command - integrations file loading', () => {
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      try {
-        await action(filePath, { output: 'json', integrationsFile: intFile })
+      await action(filePath, { output: 'json', integrationsFile: intFile })
 
-        const out = getOutput(consoleSpy)
-        const parsed = JSON.parse(out)
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
 
-        // The integration loaded from the file must be considered configured, not missing.
-        expect(parsed.integrations.missing).not.toContain(integrationId)
-        expect(parsed.integrations.configured).toContain(integrationId)
-      } finally {
-        process.env = originalEnv
-      }
+      // The integration loaded from the file must be considered configured, not missing.
+      expect(parsed.integrations.missing).not.toContain(integrationId)
+      expect(parsed.integrations.configured).toContain(integrationId)
+    })
+  })
+
+  describe('integration env var generation errors', () => {
+    it('reports a generation error for a schema-valid but ungeneratable integration (invalid bigquery service account)', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'bigquery-bad-service-account-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: bq
+    name: My BigQuery
+    type: big-query
+    metadata:
+      service_account: "this is not valid json"`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 1, warnings: 0, total: 1 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 1,
+          issues: [
+            {
+              path: 'integrations[0].metadata',
+              message: expect.stringContaining('Failed to parse bigquery service account'),
+              code: 'big_query_service_account_parse_error',
+            },
+          ],
+        },
+      })
+    })
+
+    it('exits with error code when an integration env var cannot be generated', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'bigquery-bad-service-account-exit.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: bq
+    name: My BigQuery
+    type: big-query
+    metadata:
+      service_account: "this is not valid json"`
+      )
+
+      exitSpy.mockRestore()
+      let exitCode: number | undefined
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        return undefined as never
+      })
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      expect(exitCode).toBe(1)
     })
   })
 
