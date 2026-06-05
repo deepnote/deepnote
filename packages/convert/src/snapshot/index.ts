@@ -1,4 +1,6 @@
 // Hash utilities
+
+export type { SnapshotHashInput } from '@deepnote/blocks'
 export { addContentHashes, computeContentHash, computeSnapshotHash } from './hash'
 // Lookup utilities
 export {

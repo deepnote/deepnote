@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
@@ -74,9 +75,10 @@ async function analyzeFile(path: string | undefined, options: AnalyzeOptions): P
   const deepnoteFile = deserializeDeepnoteFile(yamlContent)
 
   debug('Running analysis...')
+  const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
   const analysis = await analyzeProject(deepnoteFile, {
     notebook: options.notebook,
-    pythonInterpreter: options.python,
+    pythonInterpreter,
   })
 
   const blockMap = buildBlockMap(deepnoteFile, { notebook: options.notebook })

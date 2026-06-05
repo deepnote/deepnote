@@ -1,3 +1,6 @@
+/** Built-in integrations that don't require external configuration */
+export const BUILTIN_INTEGRATIONS = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
+
 /**
  * Default .env file name for storing secrets.
  */

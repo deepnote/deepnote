@@ -1,4 +1,4 @@
-import type { DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteFile, SnapshotHashInput } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { addContentHashes, computeContentHash, computeSnapshotHash } from './hash'
 
@@ -135,6 +135,69 @@ describe('computeSnapshotHash', () => {
 
     // Should be same since integrations are sorted
     expect(hash1).toBe(hash2)
+  })
+
+  it('should accept a minimal SnapshotHashInput without full DeepnoteFile fields', () => {
+    const minimal: SnapshotHashInput = {
+      version: '1.0.0',
+      environment: { hash: 'env-hash-456' },
+      project: {
+        integrations: [{ id: 'int-1', type: 'postgres' }],
+        notebooks: [
+          {
+            blocks: [{ id: 'block-1', contentHash: 'sha256:abc123' }, { id: 'block-2' }],
+          },
+        ],
+      },
+    }
+
+    const hash = computeSnapshotHash(minimal)
+    expect(hash).toMatch(/^sha256:[a-f0-9]{64}$/)
+  })
+
+  it('should produce the same hash for DeepnoteFile and equivalent SnapshotHashInput', () => {
+    const fullFile: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      environment: { hash: 'env-hash-789' },
+      project: {
+        id: 'proj-123',
+        name: 'Test Project',
+        integrations: [{ id: 'int-1', name: 'PostgreSQL', type: 'postgres' }],
+        notebooks: [
+          {
+            id: 'nb-1',
+            name: 'Notebook',
+            blocks: [
+              {
+                id: 'block-1',
+                type: 'code',
+                blockGroup: 'bg-1',
+                sortingKey: '0000',
+                content: 'print("hello")',
+                contentHash: 'sha256:abc123',
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    }
+
+    const minimal: SnapshotHashInput = {
+      version: '1.0.0',
+      environment: { hash: 'env-hash-789' },
+      project: {
+        integrations: [{ id: 'int-1', type: 'postgres' }],
+        notebooks: [
+          {
+            blocks: [{ id: 'block-1', contentHash: 'sha256:abc123' }],
+          },
+        ],
+      },
+    }
+
+    expect(computeSnapshotHash(fullFile)).toBe(computeSnapshotHash(minimal))
   })
 })
 

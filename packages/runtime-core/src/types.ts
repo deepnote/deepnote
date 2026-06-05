@@ -7,6 +7,8 @@ export interface RuntimeConfig {
   workingDirectory: string
   /** Optional port for the Jupyter server (auto-assigned if not provided) */
   serverPort?: number
+  /** Optional environment variables to pass to the server */
+  env?: Record<string, string>
 }
 
 export interface BlockExecutionResult {

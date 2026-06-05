@@ -1,6 +1,6 @@
 import { dedent } from 'ts-dedent'
 
-import type { DeepnoteBlock, NotebookFunctionBlock } from '../deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock, NotebookFunctionBlock } from '../deepnote-file/deepnote-file-schema'
 import { escapePythonString } from './python-utils'
 
 export function isNotebookFunctionBlock(block: DeepnoteBlock): block is NotebookFunctionBlock {

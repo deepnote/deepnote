@@ -1,0 +1,11 @@
+diff --git a/dist/terminal.js b/dist/terminal.js
+index f4118fea66be999124347b7f61deef1dacaa6d87..773861c85f4dceb645536fcec07dcd0dccf612b1 100644
+--- a/dist/terminal.js
++++ b/dist/terminal.js
+@@ -1,4 +1,5 @@
+-import { Terminal } from '@xterm/headless';
++import pkg from '@xterm/headless';
++const { Terminal } = pkg;
+ export async function interpretTerminalOutput(rawOutput, cols = 10_000, rows = 4000) {
+     const term = new Terminal({ cols, rows, allowProposedApi: true, convertEol: true });
+     await new Promise((resolve) => term.write(rawOutput, resolve));

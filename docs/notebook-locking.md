@@ -8,10 +8,10 @@ Accidental edits of notebooks happen, especially when the number of people in yo
 
 You can enable the notebook lock from the notebook's context menu.
 
-![locking-context-menu.png](https://media.graphassets.com/F2mbf6GDT2Se8CltB25w)
+![locking-context-menu.png](../assets/docs/F2mbf6GDT2Se8CltB25w.webp)
 
 The content of the locked notebook cannot be edited in any way, but it can still be run, shared, or commented on.
 
 All users who wish to edit the notebook must manually unlock it. The notebook is unlocked only for the specific user, meaning it remains locked for others. The notebook will revert to its locked state once the user navigates away or refreshes the browser.
 
-![locking-ribbon.png](https://media.graphassets.com/LBZgPC8TmePFZfIWX8cQ)
+![locking-ribbon.png](../assets/docs/LBZgPC8TmePFZfIWX8cQ.webp)

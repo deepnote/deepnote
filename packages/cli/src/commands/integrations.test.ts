@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Command } from 'commander'
@@ -9,18 +9,20 @@ import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
 
 // Mock fetchIntegrations before importing the command module
-const mockFetchIntegrations = vi.fn<(baseUrl: string, token: string) => Promise<ApiIntegration[]>>()
+const mockFetchIntegrations =
+  vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<ApiIntegration[]>>()
 vi.mock('../integrations/fetch-integrations', async importOriginal => {
   const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
   return {
     ...actual,
-    fetchIntegrations: (baseUrl: string, token: string) => mockFetchIntegrations(baseUrl, token),
+    fetchIntegrations: (...args: Parameters<typeof actual.fetchIntegrations>) => mockFetchIntegrations(...args),
   }
 })
 
 // Mock output functions to suppress console output during tests
+const mockDebug = vi.hoisted(() => vi.fn())
 vi.mock('../output', () => ({
-  debug: vi.fn(),
+  debug: mockDebug,
   log: vi.fn(),
   output: vi.fn(),
   error: vi.fn(),
@@ -260,8 +262,7 @@ describe('integrations command', () => {
     let tempDir: string
 
     beforeAll(async () => {
-      tempDir = join(tmpdir(), `dotenv-test-${Date.now()}`)
-      await mkdir(tempDir, { recursive: true })
+      tempDir = await mkdtemp(join(tmpdir(), 'dotenv-test-'))
     })
 
     afterAll(async () => {
@@ -356,8 +357,7 @@ describe('integrations command', () => {
         .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
         .action(createIntegrationsPullAction(program))
 
-      tempDir = join(tmpdir(), `integrations-pull-test-${Date.now()}`)
-      await mkdir(tempDir, { recursive: true })
+      tempDir = await mkdtemp(join(tmpdir(), 'integrations-pull-test-'))
     })
 
     afterEach(async () => {
@@ -727,6 +727,58 @@ integrations:
 
         expect(yamlFileExists).toBe(false)
         expect(envFileExists).toBe(false)
+      })
+
+      it('skips integration with invalid metadata (empty string) and writes only valid integrations', async () => {
+        const invalidIntegration = createMockIntegration({
+          id: 'invalid-metadata-id',
+          name: 'Invalid Metadata DB',
+          metadata: '',
+        })
+        const validIntegration = createMockIntegration({
+          id: 'valid-id',
+          name: 'Valid DB',
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([invalidIntegration, validIntegration])
+
+        const filePath = join(tempDir, 'test-invalid-metadata.yaml')
+        const envFilePath = join(tempDir, 'test-invalid-metadata.env')
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+
+        expect(yamlContent).not.toContain('invalid-metadata-id')
+        expect(yamlContent).toContain('valid-id')
+        expect(mockDebug).toHaveBeenCalledWith(
+          expect.stringContaining('Skipping invalid or unsupported integration "Invalid Metadata DB" (pgsql)')
+        )
+      })
+
+      it('skips integration with unsupported type "env" and writes only valid integrations', async () => {
+        const unsupportedIntegration = createMockIntegration({
+          id: '975b13fc-0d9b-4e30-afc8-ca43585e703c',
+          name: 'Comet ML',
+          type: 'env',
+        })
+        const validIntegration = createMockIntegration({
+          id: 'valid-id',
+          name: 'Valid DB',
+        })
+        mockFetchIntegrations.mockResolvedValueOnce([unsupportedIntegration, validIntegration])
+
+        const filePath = join(tempDir, 'test-unsupported-type.yaml')
+        const envFilePath = join(tempDir, 'test-unsupported-type.env')
+
+        await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+        const yamlContent = await readFile(filePath, 'utf-8')
+
+        expect(yamlContent).not.toContain('975b13fc-0d9b-4e30-afc8-ca43585e703c')
+        expect(yamlContent).toContain('valid-id')
+        expect(mockDebug).toHaveBeenCalledWith(
+          expect.stringContaining('Skipping invalid or unsupported integration "Comet ML" (env)')
+        )
       })
     })
 

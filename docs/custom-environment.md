@@ -58,7 +58,7 @@ RUN apt update && apt install -y ffmpeg libsm6 libxext6
 
 To use your local Dockerfile, simply select **Dockerfile** from the Environment dropdown.
 
-![CleanShot 2024-11-28 at 10.00.45.png](https://media.graphassets.com/CzaaCxT1QO5mqxUtXavA)
+![CleanShot 2024-11-28 at 10.00.45.png](../assets/docs/CzaaCxT1QO5mqxUtXavA.webp)
 
 When building from a local Dockerfile, only the following Docker instructions are supported:
 
@@ -81,9 +81,9 @@ You can use any publicly available Docker image from repositories like [Docker H
 
 **Team** and **Enterprise** users can connect to private image repositories from:
 
-- [Docker Hub](https://www.notion.so/docs/docker-hub)
-- [Google Container Registry](https://www.notion.so/docs/google-container-registry)
-- [Amazon ECR](https://www.notion.so/docs/amazon-ecr)
+- [Docker Hub](https://deepnote.com/docs/docker-hub)
+- [Google Container Registry](https://deepnote.com/docs/google-container-registry)
+- [Amazon ECR](https://deepnote.com/docs/amazon-ecr)
 
 To use private repositories:
 
@@ -91,7 +91,7 @@ To use private repositories:
 2. Add your credentials
 3. Connect the integration to projects where you need your private images
 
-![CleanShot 2024-11-28 at 10.14.03.png](https://media.graphassets.com/m8a18CpYRaCyRNQEF0bk)
+![CleanShot 2024-11-28 at 10.14.03.png](../assets/docs/m8a18CpYRaCyRNQEF0bk.webp)
 
 ## Keep environment settings
 

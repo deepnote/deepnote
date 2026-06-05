@@ -12,7 +12,7 @@ Amazon Athena is a serverless, interactive query service that makes it easy to a
 
 To add a connection to Amazon Athena, go to **Integrations** via the **right-hand sidebar**, create a new Athena integration, and enter your credentials:
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F8QGpvKLh2WvfCFVxSzTx%2FScreen%20Shot%202022-03-30%20at%2012.52.54%20PM.png](https://media.graphassets.com/vHgtxcwHTuSIcO4WsUg7)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F8QGpvKLh2WvfCFVxSzTx%2FScreen%20Shot%202022-03-30%20at%2012.52.54%20PM.png](../assets/docs/vHgtxcwHTuSIcO4WsUg7.webp)
 
 After that's done, connect the new integration to your project using the Integrations sidebar and query it using [SQL cells](/docs/sql-cells).
 
@@ -205,7 +205,7 @@ Now let's set up Deepnote to query Athena. You'll need administrator privileges 
    - **Secret Access Key**: The IAM user secret key you saved earlier
 6. Click **Create integration**
 
-![CleanShot 2025-03-11 at 10.29.27.png](https://media.graphassets.com/EMsLrPSSlmVENdEHSNSu)
+![CleanShot 2025-03-11 at 10.29.27.png](../assets/docs/EMsLrPSSlmVENdEHSNSu.webp)
 
 After creating the integration, you need to connect it to your project:
 
@@ -235,7 +235,7 @@ Now you're ready to analyze the NYC Airbnb data:
 5. Deepnote will display the results as a table below the SQL block
 6. You can now analyze the results or create visualizations directly in Deepnote
 
-![CleanShot 2025-03-11 at 10.58.49.png](https://media.graphassets.com/jOAJGgLQSbegUOonCyR4)
+![CleanShot 2025-03-11 at 10.58.49.png](../assets/docs/jOAJGgLQSbegUOonCyR4.webp)
 
 ### Sample Queries to Try
 

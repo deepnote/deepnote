@@ -18,9 +18,9 @@ If you need to speed up queries that run frequently, or trigger actions as soon 
 
 Add a Materialize integration from the sidebar, and simply fill in your connection info. You may now use supported Postgres functionality of Materialize from Python or Deepnote's SQL Blocks
 
-![Screenshot 2023-07-10 at 11.40.09.png](https://media.graphassets.com/dPSJ0ljrSaxXV2IzFhBy)
+![Screenshot 2023-07-10 at 11.40.09.png](../assets/docs/dPSJ0ljrSaxXV2IzFhBy.webp)
 
-![Screenshot 2023-07-10 at 11.36.37.png](https://media.graphassets.com/J5g9OAwOSIvnOMoOZFvw)
+![Screenshot 2023-07-10 at 11.36.37.png](../assets/docs/J5g9OAwOSIvnOMoOZFvw.webp)
 
 # Materialize documentation
 

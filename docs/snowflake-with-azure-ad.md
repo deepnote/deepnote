@@ -120,7 +120,7 @@ There are a number of steps to follow which will be described in the following s
 ### Using the the Snowflake integration with Azure AD
 
 In order to use the integration, every user will have to authenticate using their own Snowflake account. They can do it either by pressing the button on a SQL block with this integration, in the three-dot menu of the integration in the right sidebar, or by responding to a prompt when they execute a SQL block.
-![azure_ad_snowflake_auth.png](https://media.graphassets.com/Xhw4oFmScOKeEyqaQ0FR)
+![azure_ad_snowflake_auth.png](../assets/docs/Xhw4oFmScOKeEyqaQ0FR.webp)
 
 When you create an app from a notebook that uses the integration, every app user will need to authenticate with their own account. They will be prompted to sign in using Azure AD during the execution of the app. The results they see will depend on the permissions they have.
 

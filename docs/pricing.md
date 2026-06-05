@@ -25,12 +25,12 @@ _Example 2_: You created a workspace with 1 admin and 3 editors on January 1st 2
 
 ###### **How do I downgrade or cancel my plan?**
 
-You can downgrade or cancel your plan from the Plans page in your workspace settings. Once you downgrade, you will receive a refund for any unused days.
+You can downgrade or cancel your plan from the Plans page in your workspace settings. If you are on a monthly plan, you will receive a prorated refund for any unused days once you downgrade. Annual plans are not eligible for refunds upon downgrade or cancellation.
 
 ###### **Will I receive a refund if I downgrade or cancel my plan?**
 
 If you remove a paid seat, we won’t issue a prorated refund. However, someone else at your company can use their paid seat when it becomes available.
-If you downgrade or cancel your subscription, we will refund you a prorated amount for any unused days of the month. For example, if you cancel your subscription 15 days into the billing period, we will refund you 50% of the amount you were charged.
+If you are on a monthly plan and downgrade or cancel your subscription, we will refund you a prorated amount for any unused days of the month. Annual plans are not eligible for refunds upon downgrade or cancellation.
 
 ###### **Do you offer any plans or discounts for schools and NGOs?**
 

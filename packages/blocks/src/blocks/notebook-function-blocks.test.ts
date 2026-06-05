@@ -1,7 +1,7 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
-import type { CodeBlock, NotebookFunctionBlock } from '../deserialize-file/deepnote-file-schema'
+import type { CodeBlock, NotebookFunctionBlock } from '../deepnote-file/deepnote-file-schema'
 import { createPythonCodeForNotebookFunctionBlock, isNotebookFunctionBlock } from './notebook-function-blocks'
 
 describe('isNotebookFunctionBlock', () => {

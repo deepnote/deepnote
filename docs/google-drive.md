@@ -22,11 +22,11 @@ Let's set it all up and look at some examples of working with files from Google 
 
 First, click the **Integrations** section in the left panel and find the Google Drive entry in the list of native integrations (you can also create new integrations in the **Integrations** area in the right panel).
 
-![choose_gd.png](https://media.graphassets.com/D43WydjvRT6fAPBdq2cW)
+![choose_gd.png](../assets/docs/D43WydjvRT6fAPBdq2cW.webp)
 
 You will be taken through the authorization flow (via OAuth). Once Deepnote is authorized to access the files, connect the Google Drive to your desired project as shown below.
 
-![connect_gd_to_proj.png](https://media.graphassets.com/9ukMIblxTKGLZT0Wb55R)
+![connect_gd_to_proj.png](../assets/docs/9ukMIblxTKGLZT0Wb55R.webp)
 
 <Callout status="success">
 
@@ -45,7 +45,7 @@ Once Google Drive is connected to your project, it will be mounted to the `/data
 
 Here's an example using pandas to read a CSV from Google Drive into the notebook:
 
-![gd_data.png](https://media.graphassets.com/tmKxV9zJRMOMZqbqQHz0)
+![gd_data.png](../assets/docs/tmKxV9zJRMOMZqbqQHz0.webp)
 
 <Callout status="info">
 

@@ -32,7 +32,7 @@ Deepnote connects to GitHub through a [GitHub app](https://github.com/apps/deepn
 
 First, Click **"Add GitHub repositories"** to install the Deepnote GitHub app on your organization's or personal GitHub account.
 
-![GitHub1.png](https://media.graphassets.com/1lYJO7WvQIGtuwQzrOaD)
+![GitHub1.png](../assets/docs/1lYJO7WvQIGtuwQzrOaD.webp)
 
 In GitHub, you can configure the GitHub App to have access to all your organization's repositories or specific ones. This process only needs to be completed once per GitHub account or organization. Please note that if you use multiple workspaces, you have to complete the process for every workspace.
 
@@ -40,7 +40,7 @@ In case you want to add repositories from another GitHub organization, open the 
 
 Once the GitHub App is installed, you can select the repository you want to add to Deepnote. You can also specify a branch or commit that you want to use.
 
-![GitHub2.png](https://media.graphassets.com/p1SHGzKlTuq9575czGCC)
+![GitHub2.png](../assets/docs/p1SHGzKlTuq9575czGCC.webp)
 
 #### Troubleshooting
 

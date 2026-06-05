@@ -13,11 +13,26 @@ vi.mock('tcp-port-used', () => ({
 }))
 
 // Mock python-env to avoid filesystem checks in unit tests
-vi.mock('./python-env', () => ({
-  resolvePythonExecutable: vi.fn((venvPath: string) =>
-    Promise.resolve(venvPath === 'python' ? 'python' : `${venvPath}/bin/python`)
-  ),
-}))
+vi.mock('./python-env', async importOriginal => {
+  const { isBareSystemPython } = await importOriginal<typeof import('./python-env')>()
+  return {
+    isBareSystemPython,
+    resolvePythonExecutable: vi.fn((venvPath: string) =>
+      Promise.resolve(isBareSystemPython(venvPath) ? venvPath : `${venvPath}/bin/python`)
+    ),
+    buildPythonEnv: vi.fn(async (resolvedPath: string, baseEnv: Record<string, string | undefined> = {}) => {
+      const env = { ...baseEnv }
+      if (!isBareSystemPython(resolvedPath)) {
+        const binDir = resolvedPath.replace(/\/python[^/]*$/, '')
+        const pathDelim = process.platform === 'win32' ? ';' : ':'
+        const currentPath = env.PATH || ''
+        env.PATH = currentPath ? `${binDir}${pathDelim}${currentPath}` : binDir
+        env.VIRTUAL_ENV = binDir.replace(/\/bin$/, '')
+      }
+      return env
+    }),
+  }
+})
 
 // Import after mocking
 import { spawn } from 'node:child_process'
@@ -99,6 +114,25 @@ describe('server-starter', () => {
           }),
         })
       )
+    })
+
+    it('sets up Python environment with correct PATH and VIRTUAL_ENV', async () => {
+      const serverPromise = startServer({
+        pythonEnv: '/path/to/venv',
+        workingDirectory: '/project',
+        port: 9000,
+      })
+
+      await vi.advanceTimersByTimeAsync(100)
+      await serverPromise
+
+      const spawnCall = vi.mocked(spawn).mock.calls[0]
+      const env = spawnCall[2]?.env as Record<string, string | undefined>
+
+      // buildPythonEnv should set PATH to include the venv bin directory
+      expect(env.PATH).toContain('/path/to/venv/bin')
+      // buildPythonEnv should set VIRTUAL_ENV to the venv root
+      expect(env.VIRTUAL_ENV).toBe('/path/to/venv')
     })
 
     it('finds consecutive available ports starting from default', async () => {

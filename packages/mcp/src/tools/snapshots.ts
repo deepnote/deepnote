@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteSnapshot } from '@deepnote/blocks'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import {
   findSnapshotsForProject,
   loadLatestSnapshot,
@@ -10,7 +10,6 @@ import {
   splitDeepnoteFile,
 } from '@deepnote/convert'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
-import { stringify as serializeYaml } from 'yaml'
 import { z } from 'zod'
 
 function snapshotError(message: string) {
@@ -422,7 +421,7 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     }
 
     // Save snapshot
-    const snapshotContent = serializeYaml(snapshot)
+    const snapshotContent = serializeDeepnoteSnapshot(snapshot)
     await fs.writeFile(snapshotPath, snapshotContent, 'utf-8')
 
     // Update latest snapshot
@@ -434,7 +433,7 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     }
 
     // Update source file (without outputs)
-    const sourceContent = serializeYaml(source)
+    const sourceContent = serializeDeepnoteFile(source)
     await fs.writeFile(absolutePath, sourceContent, 'utf-8')
 
     return {
@@ -520,7 +519,7 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
 
     // Save result
     const finalPath = outputPath ? path.resolve(outputPath) : absoluteSourcePath
-    const mergedContent = serializeYaml(merged)
+    const mergedContent = serializeDeepnoteFile(merged)
     await fs.writeFile(finalPath, mergedContent, 'utf-8')
 
     return {

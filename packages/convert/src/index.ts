@@ -84,6 +84,7 @@ export {
 export type {
   BlockOutput,
   MergeOptions,
+  SnapshotHashInput,
   SnapshotInfo,
   SnapshotOptions,
   SplitResult,

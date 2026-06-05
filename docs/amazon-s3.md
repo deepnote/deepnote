@@ -13,7 +13,7 @@ With the S3 integration, you can access the files in your S3 buckets directly in
 
 ## How to connect to S3
 
-![s3-1.png](https://media.graphassets.com/aubHV6xDRCCGJMo0kkQ2)
+![s3-1.png](../assets/docs/aubHV6xDRCCGJMo0kkQ2.webp)
 
 First, you will need to [create a S3 bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html) or have access to an existing one.
 
@@ -35,7 +35,7 @@ You can learn how to create these credentials [here](https://repost.aws/knowledg
 
 Using an IAM role instead of access keys to connect to an S3 bucket is preferred for enhanced security and making it easier to manage. IAM roles offer temporary credentials that automatically rotate, reducing the risk of long-term credential exposure. This approach also simplifies permissions management, allowing for more granular access control to S3 resources based on the principle of least privilege. Moreover, it eliminates the need to store static credentials, reducing the potential for security breaches.
 
-![s3-2.png](https://media.graphassets.com/B5zOSnsQhulY5PzKUqpQ)
+![s3-2.png](../assets/docs/B5zOSnsQhulY5PzKUqpQ.webp)
 
 In the "Authentication" section, select the IAM role option in the dropdown menu.
 

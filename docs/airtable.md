@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-![Deepnote Airtable (2).png](https://media.graphassets.com/OcNFT0CBSf2nToz4dBEc)
+![Deepnote Airtable (2).png](../assets/docs/OcNFT0CBSf2nToz4dBEc.webp)
 Deepnote can query data from Airtable bases. Follow these docs to create your own notebook to connect to Airtable, query data, and visualize it.
 
 ### Connect to Airtable from Deepnote
@@ -30,7 +30,7 @@ Change the variable `AIRTABLE_BASE_ID` to match the base ID you just found.
 Change the variable `AIRTABLE_TABLE_NAME` to match the name of the table you want to fetch data from. This is the title of the tab in the Airtable UI.
 
 ![The name of the table is the name of the tab
-](https://media.graphassets.com/TSFs7UY2T8inndmVfANK)
+](../assets/docs/TSFs7UY2T8inndmVfANK.webp)
 
 #### Set your keys in the notebook
 
@@ -44,7 +44,7 @@ AIRTABLE_TABLE_NAME = 'your-table-name'
 
 For more security in your notebook, we strongly recommend to use [ environment variables](https://docs.deepnote.com/environment/environment-variables)
 
-![Screenshot 2024-07-18 at 16.23.22.png](https://media.graphassets.com/6PxGrLT9RHK5KFsCL4wA)
+![Screenshot 2024-07-18 at 16.23.22.png](../assets/docs/6PxGrLT9RHK5KFsCL4wA.webp)
 
 ### Get your Airtable table from API
 
@@ -131,7 +131,7 @@ If you want to do something more sophisticated, you can use visualization librar
 
 If you don't want to do it yourself, here is [template notebook](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Visualize-and-analyze-Airtable-data-in-Deepnote-89226e1d-380f-447a-924e-79271fc232ae/notebook/Notebook%201-f0abc3c611164a2fbcb56b8cabaab7b5)
 
-![Duplicate the Airtable template](https://media.graphassets.com/YP7kc59TlSvtVCL42nwG)
+![Duplicate the Airtable template](../assets/docs/YP7kc59TlSvtVCL42nwG.webp)
 
 Click the **Duplicate** button on the top right corner to do this. Once you've got the template in your Deepnote workspace, you can connect it to your Airtable base, don't forget to replace your own token and base id.
 

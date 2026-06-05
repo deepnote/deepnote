@@ -2,7 +2,7 @@ import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { getDiffFixturePath } from '../../../../test-fixtures/helpers/fixture-loader'
-import { resetOutputConfig } from '../output'
+import { resetOutputConfig, setOutputConfig } from '../output'
 import { createDiffAction, type DiffOptions } from './diff'
 
 // Test file paths relative to project root (tests are run from root)
@@ -31,6 +31,7 @@ describe('diff command', () => {
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     resetOutputConfig()
+    setOutputConfig({ color: false })
   })
 
   afterEach(() => {

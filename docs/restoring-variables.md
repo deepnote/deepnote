@@ -8,7 +8,7 @@ When you return to your notebook after your machine went offline (eg. due to a p
 
 If you wish to do so, click on the restore variables button displayed in the notebook's status bar at the top. This will restore **all the variables from your previous session** in the state they were at when your hardware was shut down.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FPbXFd40wc86xmOGCNS7x%2Fimage.png](https://media.graphassets.com/IDFZ08DSRZyKtKaaa37f)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FPbXFd40wc86xmOGCNS7x%2Fimage.png](../assets/docs/IDFZ08DSRZyKtKaaa37f.webp)
 
 There are a couple of limitations to keep in mind:
 

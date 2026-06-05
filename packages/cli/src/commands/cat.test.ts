@@ -2,8 +2,10 @@ import { join, resolve } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { ExitCode } from '../exit-codes'
 import { resetOutputConfig } from '../output'
 import { type CatOptions, createCatAction } from './cat'
+import { cleanupTempFile, createTempFile } from './test-helpers'
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -380,6 +382,58 @@ describe('cat command', () => {
         const parsed = JSON.parse(output)
         expect(parsed.success).toBe(false)
         expect(parsed.error).toContain('File not found')
+      } finally {
+        exitSpy.mockRestore()
+      }
+    })
+
+    it('exits with code 2 for file not found', async () => {
+      const action = createCatAction(program)
+      let exitCode: number | undefined
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
+
+      try {
+        await expect(action('non-existent-file.deepnote', DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+        expect(exitCode).toBe(ExitCode.InvalidUsage)
+      } finally {
+        exitSpy.mockRestore()
+      }
+    })
+
+    it('exits with code 2 for invalid YAML (parse error)', async () => {
+      const action = createCatAction(program)
+      let exitCode: number | undefined
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
+
+      const filePath = await createTempFile('invalid: [yaml')
+
+      try {
+        await expect(action(filePath, DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+        expect(exitCode).toBe(ExitCode.InvalidUsage)
+      } finally {
+        await cleanupTempFile(filePath)
+        exitSpy.mockRestore()
+      }
+    })
+
+    it('exits with code 2 for notebook not found', async () => {
+      const action = createCatAction(program)
+      const filePath = resolve(process.cwd(), BLOCKS_FILE)
+      let exitCode: number | undefined
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
+
+      try {
+        await expect(action(filePath, { notebook: 'Non-existent' })).rejects.toThrow('process.exit called')
+        expect(exitCode).toBe(ExitCode.InvalidUsage)
       } finally {
         exitSpy.mockRestore()
       }

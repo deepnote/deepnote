@@ -12,7 +12,7 @@ Deepnote can fetch blobs from Azure Blob Storage. Follow these docs to create yo
 
 [Open the template by following this link ->](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Fetch-blobs-from-Azure-in-Deepnote-4c7b1284-0ac9-48df-a35c-415db440d69c/%2Fnotebook.ipynb)
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FuBTyirnZvPcOcczBxtFa%2Fduplicate-notebook.png](https://media.graphassets.com/0ZPojAgrTtefUUQLT0JG)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FuBTyirnZvPcOcczBxtFa%2Fduplicate-notebook.png](../assets/docs/0ZPojAgrTtefUUQLT0JG.webp)
 
 Click the "duplicate" button on the top right corner to do this. Once you've got the template in your Deepnote workspace, you can connect it to your Synapse workspace.
 

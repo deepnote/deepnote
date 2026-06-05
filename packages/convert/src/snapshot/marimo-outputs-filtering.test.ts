@@ -24,7 +24,7 @@ describe('getMarimoOutputsFromCache - MIME value filtering', () => {
   it('should keep outputs with non-empty string MIME values', async () => {
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        version: '1.0',
+        version: '1.0.0',
         metadata: { marimo_version: '0.1.0' },
         cells: [
           {
@@ -44,7 +44,7 @@ describe('getMarimoOutputsFromCache - MIME value filtering', () => {
   it('should filter out outputs with only empty string MIME values', async () => {
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        version: '1.0',
+        version: '1.0.0',
         metadata: { marimo_version: '0.1.0' },
         cells: [
           {
@@ -64,7 +64,7 @@ describe('getMarimoOutputsFromCache - MIME value filtering', () => {
   it('should filter out outputs with only whitespace string MIME values', async () => {
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        version: '1.0',
+        version: '1.0.0',
         metadata: { marimo_version: '0.1.0' },
         cells: [
           {
@@ -85,7 +85,7 @@ describe('getMarimoOutputsFromCache - MIME value filtering', () => {
   it('should keep outputs with array MIME values (e.g., image data)', async () => {
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        version: '1.0',
+        version: '1.0.0',
         metadata: { marimo_version: '0.1.0' },
         cells: [
           {
@@ -113,7 +113,7 @@ describe('getMarimoOutputsFromCache - MIME value filtering', () => {
   it('should keep outputs with object MIME values', async () => {
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        version: '1.0',
+        version: '1.0.0',
         metadata: { marimo_version: '0.1.0' },
         cells: [
           {
@@ -141,7 +141,7 @@ describe('getMarimoOutputsFromCache - MIME value filtering', () => {
   it('should keep outputs with numeric MIME values', async () => {
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        version: '1.0',
+        version: '1.0.0',
         metadata: { marimo_version: '0.1.0' },
         cells: [
           {
@@ -166,7 +166,7 @@ describe('getMarimoOutputsFromCache - MIME value filtering', () => {
   it('should always keep stream outputs regardless of filtering', async () => {
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        version: '1.0',
+        version: '1.0.0',
         metadata: { marimo_version: '0.1.0' },
         cells: [
           {

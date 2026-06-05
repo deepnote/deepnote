@@ -4,11 +4,7 @@ import type { DeepnoteBlock } from '@deepnote/blocks'
 import { z } from 'zod'
 import { safelyCallChildProcessWithInputOutput } from './child-process-utils'
 
-const _dirname =
-  typeof __dirname !== 'undefined'
-    ? __dirname
-    : // @ts-expect-error: Safe ESM fallback; import.meta.url is only evaluated in ESM where __dirname is undefined.
-      path.dirname(fileURLToPath(import.meta.url))
+const _dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url))
 
 export class AstAnalyzerInternalError extends Error {
   constructor(message: string) {
@@ -40,6 +36,7 @@ export interface BlockContentDepsWithOrder {
   definedVariables: string[]
   usedVariables: string[]
   importedModules?: string[]
+  importedPackages?: string[]
   linesOfCode?: number
   error?: {
     type: string
@@ -56,6 +53,7 @@ const AstAnalyzerItemSchema = z.object({
   definedVariables: z.array(z.string()),
   usedVariables: z.array(z.string()),
   importedModules: z.array(z.string()).optional(),
+  importedPackages: z.array(z.string()).optional(),
   linesOfCode: z.number().optional(),
   error: z
     .object({

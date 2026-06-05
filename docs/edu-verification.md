@@ -16,12 +16,12 @@ There are three ways to verify your Education plan:
 
 When signing up to Deepnote for the first time, enter your valid school email address. A link will be sent to you from Deepnote asking you to verify your email address. Once you verify your email, you can create your first Deepnote workspace and access all your free benefits.<br/><br/>
 
-![EDU_verification_email.png](https://media.graphassets.com/1GNGPwOOSUeL7WIC3PXG)
+![EDU_verification_email.png](../assets/docs/1GNGPwOOSUeL7WIC3PXG.webp)
 
 ### 2.) Sign up with GitHub Student Developer Pack
 
 You can access Deepnote’s free Education plan by signing up with your GitHub account and accessing your GitHub Student Developer Pack. We’ll automatically verify your eligibility and link your GitHub account to your Deepnote account. Visit the GitHub Student Developer Pack to learn more.<br/><br/>
-![EDU_Github_signup.png](https://media.graphassets.com/3AFRhxYRCbbdWKoh4twO)
+![EDU_Github_signup.png](../assets/docs/3AFRhxYRCbbdWKoh4twO.webp)
 
 <Callout status="info">
  Sign up using your [GitHub Student account!](https://deepnote.com/github-student-pack)
@@ -31,9 +31,9 @@ You can access Deepnote’s free Education plan by signing up with your GitHub a
 
 If you already signed up using your personal or private email address, you can still get your free Education plan directly in the Deepnote app. Go to **Settings** -> **Upgrade** -> **Education plan** <br/><br/>
 
-![In_app_EDU_verification.png](https://media.graphassets.com/2mhOb7BpSMuT9rQy9Zwx)
+![In_app_EDU_verification.png](../assets/docs/2mhOb7BpSMuT9rQy9Zwx.webp)
 
-## FAQs:
+## FAQs
 
 #### Am I eligible for Deepnote's free Education plan?
 

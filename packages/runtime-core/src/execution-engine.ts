@@ -1,13 +1,30 @@
+import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
-import { createPythonCode, decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlock } from '@deepnote/blocks'
+import {
+  createPythonCode,
+  decodeUtf8NoBom,
+  deserializeDeepnoteFile,
+  extractOutputsText,
+  generateSortingKey,
+  isAgentBlock,
+  isExecutableBlock,
+} from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
+import {
+  type AgentBlockContext,
+  type AgentStreamEvent,
+  executeAgentBlock,
+  serializeNotebookContext,
+} from './agent-handler'
+import { toPythonLiteral } from './javascript'
 import { KernelClient } from './kernel-client'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
 // Re-export for backwards compatibility - these are now defined in @deepnote/blocks
 export const executableBlockTypes: ExecutableBlock['type'][] = [
+  'agent',
   'code',
   'sql',
   'notebook-function',
@@ -26,6 +43,15 @@ export const executableBlockTypes: ExecutableBlock['type'][] = [
 
 export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
+function createErrorOutput(error: Error): IOutput {
+  return {
+    output_type: 'error',
+    ename: error.name || 'Error',
+    evalue: error.message,
+    traceback: [],
+  }
+}
+
 export interface ExecutionOptions {
   /** Run only the specified notebook (by name) */
   notebookName?: string
@@ -43,8 +69,10 @@ export interface ExecutionOptions {
   onBlockStart?: (block: DeepnoteBlock, index: number, total: number) => void | Promise<void>
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
+  onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
   onServerStarting?: () => void
   onServerReady?: () => void
+  integrations?: Array<{ id: string; name: string; type: string }>
 }
 
 /**
@@ -87,6 +115,7 @@ export class ExecutionEngine {
       pythonEnv: this.config.pythonEnv,
       workingDirectory: this.config.workingDirectory,
       port: this.config.serverPort,
+      env: this.config.env,
     })
 
     try {
@@ -126,7 +155,8 @@ export class ExecutionEngine {
    * Run a parsed DeepnoteFile.
    */
   async runProject(file: DeepnoteFile, options: ExecutionOptions = {}): Promise<ExecutionSummary> {
-    if (!this.kernel) {
+    const kernel = this.kernel
+    if (kernel == null) {
       throw new Error('Engine not started. Call start() first.')
     }
 
@@ -155,17 +185,24 @@ export class ExecutionEngine {
         ? new Set([options.blockId])
         : null
 
-    // Collect all executable blocks
-    const allExecutableBlocks: Array<{ block: DeepnoteBlock; notebookName: string }> = []
+    // Collect all executable blocks, tracking their notebook and position
+    const allExecutableBlocks: Array<{
+      block: DeepnoteBlock
+      notebookName: string
+      notebookIndex: number
+    }> = []
     for (const notebook of notebooks) {
       const sortedBlocks = this.sortBlocks(notebook.blocks)
       for (const block of sortedBlocks) {
         if (isExecutableBlock(block)) {
-          // Skip if filtering by block IDs and this isn't in the set
           if (blockIdFilter && !blockIdFilter.has(block.id)) {
             continue
           }
-          allExecutableBlocks.push({ block, notebookName: notebook.name })
+          allExecutableBlocks.push({
+            block,
+            notebookName: notebook.name,
+            notebookIndex: file.project.notebooks.indexOf(notebook),
+          })
         }
       }
     }
@@ -185,47 +222,192 @@ export class ExecutionEngine {
 
     const totalBlocks = allExecutableBlocks.length
 
+    // Track collected outputs for agent block context
+    const collectedOutputs = new Map<string, { outputs: unknown[]; executionCount: number | null }>()
+
     // Execute blocks sequentially
     for (let i = 0; i < allExecutableBlocks.length; i++) {
-      const { block } = allExecutableBlocks[i]
+      const { block, notebookIndex } = allExecutableBlocks[i]
       const blockStart = Date.now()
 
       await options.onBlockStart?.(block, i, totalBlocks)
 
       try {
-        const code = createPythonCode(block)
-        const result = await this.kernel.execute(code, {
-          onOutput: output => options.onOutput?.(block.id, output),
-        })
+        if (isAgentBlock(block)) {
+          const notebook = file.project.notebooks[notebookIndex]
+          const agentBlockIndex = notebook?.blocks.findIndex(b => b.id === block.id) ?? -1
+          if (!notebook || agentBlockIndex < 0) {
+            throw new Error(`Agent block "${block.id}" not found in notebook`)
+          }
 
-        const blockResult: BlockExecutionResult = {
-          blockId: block.id,
-          blockType: block.type,
-          success: result.success,
-          outputs: result.outputs,
-          executionCount: result.executionCount,
-          durationMs: Date.now() - blockStart,
-        }
+          const apiKey = process.env.OPENAI_API_KEY
+          if (!apiKey) {
+            throw new Error(
+              'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
+                'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
+            )
+          }
 
-        await options.onBlockDone?.(blockResult)
-        executedBlocks++
+          const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
-        if (!result.success) {
-          failedBlocks++
-          // Fail-fast: stop on first error
-          break
+          let insertIndex = agentBlockIndex + 1
+          const blockOutputs: Array<{
+            blockId: string
+            outputs: IOutput[]
+            executionCount: number | null
+            success: boolean
+          }> = []
+
+          const projectMcpServers = file.project.settings?.mcpServers ?? []
+
+          const addAndExecuteCodeBlock = async ({ code }: { code: string }): Promise<string> => {
+            const newBlock: Extract<DeepnoteBlock, { type: 'code' }> = {
+              id: randomUUID().replace(/-/g, ''),
+              blockGroup: randomUUID().replace(/-/g, ''),
+              sortingKey: generateSortingKey(insertIndex),
+              type: 'code',
+              content: code,
+              metadata: {},
+              executionCount: null,
+              outputs: [],
+            }
+
+            notebook.blocks.splice(insertIndex, 0, newBlock)
+            insertIndex++
+
+            try {
+              const result = await kernel.execute(code)
+
+              blockOutputs.push({
+                blockId: newBlock.id,
+                outputs: result.outputs,
+                executionCount: result.executionCount,
+                success: result.success,
+              })
+
+              collectedOutputs.set(newBlock.id, {
+                outputs: result.outputs,
+                executionCount: result.executionCount,
+              })
+
+              const outputText = extractOutputsText(result.outputs, { includeTraceback: true }) || '(no output)'
+              return result.success ? `Output:\n${outputText}` : `Execution failed:\n${outputText}`
+            } catch (error) {
+              const executionError = error instanceof Error ? error : new Error(String(error))
+              const errorOutputs: IOutput[] = [createErrorOutput(executionError)]
+
+              blockOutputs.push({
+                blockId: newBlock.id,
+                outputs: errorOutputs,
+                executionCount: null,
+                success: false,
+              })
+
+              collectedOutputs.set(newBlock.id, { outputs: errorOutputs, executionCount: null })
+
+              return `Execution error: ${executionError.message}`
+            }
+          }
+
+          const addMarkdownBlock = async ({ content: mdContent }: { content: string }): Promise<string> => {
+            const newBlock: Extract<DeepnoteBlock, { type: 'markdown' }> = {
+              id: randomUUID().replace(/-/g, ''),
+              blockGroup: randomUUID().replace(/-/g, ''),
+              sortingKey: generateSortingKey(insertIndex),
+              type: 'markdown',
+              content: mdContent,
+              metadata: {},
+            }
+
+            notebook.blocks.splice(insertIndex, 0, newBlock)
+            insertIndex++
+
+            return 'Markdown block added.'
+          }
+
+          const agentContext: AgentBlockContext = {
+            openAiToken: apiKey,
+            mcpServers: projectMcpServers,
+            notebookContext,
+            addAndExecuteCodeBlock,
+            addMarkdownBlock,
+            onAgentEvent: options.onAgentEvent,
+            integrations: options.integrations,
+          }
+
+          let agentResult: { finalOutput: string }
+          try {
+            agentResult = await executeAgentBlock(block, agentContext)
+          } finally {
+            // Always report added blocks — even if the agent threw partway through —
+            // so consumers see completion for blocks that were inserted into the notebook.
+            for (const bo of blockOutputs) {
+              for (const output of bo.outputs) {
+                options.onOutput?.(bo.blockId, output)
+              }
+
+              const addedBlock = notebook.blocks.find(b => b.id === bo.blockId)
+              if (addedBlock) {
+                await options.onBlockDone?.({
+                  blockId: bo.blockId,
+                  blockType: addedBlock.type,
+                  success: bo.success,
+                  outputs: bo.outputs,
+                  executionCount: bo.executionCount,
+                  durationMs: 0,
+                })
+              }
+            }
+          }
+
+          const blockResult: BlockExecutionResult = {
+            blockId: block.id,
+            blockType: block.type,
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: agentResult.finalOutput }] as IOutput[],
+            executionCount: null,
+            durationMs: Date.now() - blockStart,
+          }
+
+          await options.onBlockDone?.(blockResult)
+          executedBlocks++
+        } else {
+          const code = createPythonCode(block)
+          const result = await kernel.execute(code, {
+            onOutput: output => options.onOutput?.(block.id, output),
+          })
+
+          collectedOutputs.set(block.id, { outputs: result.outputs, executionCount: result.executionCount })
+
+          const blockResult: BlockExecutionResult = {
+            blockId: block.id,
+            blockType: block.type,
+            success: result.success,
+            outputs: result.outputs,
+            executionCount: result.executionCount,
+            durationMs: Date.now() - blockStart,
+          }
+
+          await options.onBlockDone?.(blockResult)
+          executedBlocks++
+
+          if (!result.success) {
+            failedBlocks++
+            break
+          }
         }
       } catch (error) {
+        const executionError = error instanceof Error ? error : new Error(String(error))
         failedBlocks++
         executedBlocks++
         const blockResult: BlockExecutionResult = {
           blockId: block.id,
           blockType: block.type,
           success: false,
-          outputs: [],
+          outputs: [createErrorOutput(executionError)],
           executionCount: null,
           durationMs: Date.now() - blockStart,
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: executionError,
         }
         await options.onBlockDone?.(blockResult)
         break
@@ -288,7 +470,7 @@ export class ExecutionEngine {
       if (!this.isValidPythonIdentifier(name)) {
         throw new Error(`Invalid variable name: "${name}". Must be a valid Python identifier.`)
       }
-      const pythonValue = this.toPythonLiteral(value)
+      const pythonValue = toPythonLiteral(value)
       assignments.push(`${name} = ${pythonValue}`)
     }
 
@@ -301,46 +483,5 @@ export class ExecutionEngine {
         throw new Error(`Failed to set input values: ${errorMsg}`)
       }
     }
-  }
-
-  /**
-   * Convert a JavaScript value to a Python literal.
-   */
-  private toPythonLiteral(value: unknown): string {
-    if (value === null || value === undefined) {
-      return 'None'
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'True' : 'False'
-    }
-    if (typeof value === 'number') {
-      if (!Number.isFinite(value)) {
-        throw new Error(`Cannot convert non-finite number to Python: ${value}`)
-      }
-      return String(value)
-    }
-    if (typeof value === 'string') {
-      // Escape for Python string literal
-      const escaped = value
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'")
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '\\r')
-        .replace(/\t/g, '\\t')
-        .replace(/\0/g, '\\x00')
-        // Escape other control characters (code points < 0x20 except already handled, and DEL 0x7F)
-        // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally escaping control chars
-        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, char => `\\x${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
-      return `'${escaped}'`
-    }
-    if (Array.isArray(value)) {
-      const elements = value.map(v => this.toPythonLiteral(v))
-      return `[${elements.join(', ')}]`
-    }
-    if (typeof value === 'object') {
-      const entries = Object.entries(value).map(([k, v]) => `${this.toPythonLiteral(k)}: ${this.toPythonLiteral(v)}`)
-      return `{${entries.join(', ')}}`
-    }
-    throw new Error(`Cannot convert value of type ${typeof value} to Python literal`)
   }
 }

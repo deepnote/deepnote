@@ -17,6 +17,11 @@ export function getBlockLabel(block: DeepnoteBlock): string {
     return `input (${shortId(block.id)})`
   }
 
+  // For agent blocks, show first line of prompt
+  if (block.type === 'agent') {
+    return getAgentBlockLabel(block.content ?? '')
+  }
+
   // For code blocks, show first comment or first line of code
   if (block.type === 'code') {
     return getCodeBlockLabel(block.content ?? '')
@@ -39,6 +44,22 @@ export function getBlockLabel(block: DeepnoteBlock): string {
 
   // Default: show type and short ID
   return `${block.type} (${shortId(block.id)})`
+}
+
+/**
+ * Get label for an agent block - show first non-empty line of the prompt.
+ */
+function getAgentBlockLabel(content: string): string {
+  const lines = content.split('\n')
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed) {
+      return truncate(`prompt: ${trimmed}`, MAX_LABEL_LENGTH)
+    }
+  }
+
+  return 'agent (empty prompt)'
 }
 
 /**

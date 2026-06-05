@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, SnapshotHashInput } from '@deepnote/blocks'
 
 /**
  * Computes a SHA-256 hash of the given content.
@@ -19,7 +19,7 @@ export function computeContentHash(content: string): string {
  * @param file - The DeepnoteFile to compute hash for
  * @returns Hash string in format 'sha256:{hex}'
  */
-export function computeSnapshotHash(file: DeepnoteFile): string {
+export function computeSnapshotHash(file: SnapshotHashInput): string {
   const parts: string[] = []
 
   // Version

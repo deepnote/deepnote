@@ -20,3 +20,14 @@ export const ExitCode = {
 } as const
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode]
+
+/**
+ * Error thrown when a notebook or block is not found in a project.
+ * This is a user error (exit code 2), not a runtime error.
+ */
+export class NotFoundInProjectError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'NotFoundInProjectError'
+  }
+}

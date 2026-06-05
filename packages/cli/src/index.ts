@@ -33,5 +33,16 @@ export type { ExitCode as ExitCodeType } from './exit-codes'
 export { ExitCode } from './exit-codes'
 export type { OutputConfig } from './output'
 export { getOutputConfig, resetOutputConfig, setOutputConfig, shouldDisableColor } from './output'
+// Export analysis utilities for use by other packages (e.g., MCP)
+export type {
+  AnalysisOptions,
+  AnalysisResult,
+  BlockTypeStats,
+  LintIssue,
+  LintResult,
+  NotebookStats,
+  ProjectStats,
+} from './utils/analysis'
+export { analyzeProject, checkForIssues, computeProjectStats } from './utils/analysis'
 export { FileResolutionError, resolvePathToDeepnoteFile } from './utils/file-resolver'
 export { version } from './version'

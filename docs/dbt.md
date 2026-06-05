@@ -30,7 +30,7 @@ To set up dbt with Deepnote, follow these steps:
 
 1. `pip install dbt-core dbt-[adapter]`
 2. Create a new init notebook and add `!export DBT_PROFILES_DIR=/work/` into new block
-   ![Screenshot 2025-01-17 at 17.37.44.png](https://media.graphassets.com/VsUcB4H8S0GqbbH72AfD)
+   ![Screenshot 2025-01-17 at 17.37.44.png](../assets/docs/VsUcB4H8S0GqbbH72AfD.webp)
 
 3. Create profiles.yml and add your environment variables there, e.g. snowflake
 
@@ -159,17 +159,17 @@ If you want to share your catalog and organize it with Deepnote you can run `!db
 💡Note that this will open your connection to entire internet
 </aside>
 
-![Screenshot 2025-01-24 at 15.55.06.png](https://media.graphassets.com/UdEXzNKjTCWqT8tD1sFm)
+![Screenshot 2025-01-24 at 15.55.06.png](../assets/docs/UdEXzNKjTCWqT8tD1sFm.webp)
 
 Then you can share the url with your teammates or iframe it in the notebook.
 
-![Screenshot 2025-01-24 at 16.03.39.png](https://media.graphassets.com/9jKWMgxsRcWIewFqTGg7)
+![Screenshot 2025-01-24 at 16.03.39.png](../assets/docs/9jKWMgxsRcWIewFqTGg7.webp)
 
 ### Github integration
 
 If you are using Github for storing the models you can use [Github integration](https://deepnote.com/docs/github), if wish to see how to set it up [click here
 ](https://deepnote.com/workspace/Deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/dbt-demo-b0c962f8-96a6-4a1e-9182-9ba3b34bb5ae/notebook/5-Github-integration-aebe8acded9c49edb58e681999499173)
-![Screenshot 2025-02-10 at 14.53.36.png](https://media.graphassets.com/7WyNNzDWR3eKwbakIUs2)
+![Screenshot 2025-02-10 at 14.53.36.png](../assets/docs/7WyNNzDWR3eKwbakIUs2.webp)
 
 ### **Scheduling and automation**
 
@@ -177,6 +177,6 @@ If you are using Github for storing the models you can use [Github integration](
 - **Continuous monitoring:** Keep your data insights updated automatically.
 - **Advanced alerts:** Use Deepnote's Slack integration to receive alerts if model tests fail.
 
-![Screenshot 2025-01-20 at 18.20.41.png](https://media.graphassets.com/uPWmW6kRS2yZPqTmzBQH)
+![Screenshot 2025-01-20 at 18.20.41.png](../assets/docs/uPWmW6kRS2yZPqTmzBQH.webp)
 
 Explore the complete [models](https://deepnote.com/workspace/Deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/dbt-demo-005f82aa-d184-435e-9909-f2328681ca78/models/coffee_preferences_by_role.sql?project-sidebar=project&integrationId=9731b859-597b-4c7e-8b5f-720840f62afe) and [tests](https://deepnote.com/workspace/Deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/dbt-demo-005f82aa-d184-435e-9909-f2328681ca78/tests/not_null_coffee_data.yml?project-sidebar=project&integrationId=9731b859-597b-4c7e-8b5f-720840f62afe) in this project to see dbt in action. This example illustrates how dbt, combined with Deepnote, Snowflake and [Slack integration](https://deepnote.com/docs/slack) empowers data teams to streamline data transformations and maintain data quality. By automating these processes, you can focus on deriving insights and making data-driven decisions efficiently.

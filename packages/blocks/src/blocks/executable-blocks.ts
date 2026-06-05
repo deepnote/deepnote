@@ -1,4 +1,4 @@
-import type { DeepnoteBlock, ExecutableBlock } from '../deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock, ExecutableBlock } from '../deepnote-file/deepnote-file-schema'
 
 /**
  * Block types that represent user input widgets.
@@ -16,6 +16,7 @@ export const INPUT_BLOCK_TYPES = new Set([
 ])
 
 const executableBlockTypes = new Set([
+  'agent',
   'code',
   'sql',
   'notebook-function',

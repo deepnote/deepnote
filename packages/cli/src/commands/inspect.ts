@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
@@ -19,8 +19,9 @@ export function createInspectAction(
       await inspectDeepnoteFile(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors (user input), Error for runtime failures
-      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      // Use InvalidUsage for file resolution and parse errors (user input), Error for runtime failures
+      const exitCode =
+        error instanceof FileResolutionError || error instanceof ParseError ? ExitCode.InvalidUsage : ExitCode.Error
       if (options.output === 'json') {
         outputJson({ success: false, error: message })
       } else if (options.output === 'toon') {

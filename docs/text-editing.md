@@ -11,11 +11,11 @@ Deepnote features a **rich text editor**, making it very easy to add style and s
 
 You can add a text block by clicking on the **+** (add block) button. From there, you can select from a range of different text block types, including paragraph, headings, lists and callout blocks.
 
-![Screenshot 2022-09-20 at 16.48.30.png](https://media.graphassets.com/wbWbmLDkQN8l9Q0SSBez)
+![Screenshot 2022-09-20 at 16.48.30.png](../assets/docs/wbWbmLDkQN8l9Q0SSBez.webp)
 
 You can also add text blocks by clicking on the **Text** button at the bottom of your notebook.
 
-![Screenshot 2022-09-21 at 8.09.30.png](https://media.graphassets.com/hyExvs8jTdWHb90F3iSO)
+![Screenshot 2022-09-21 at 8.09.30.png](../assets/docs/hyExvs8jTdWHb90F3iSO.webp)
 
 💡 Pro tip: paragraph blocks can be easily converted into other block types by using Markdown-style shortcuts. Typing ‘-’ or ‘1.’ and pressing Space at the beginning of your paragraph will create a bulleted or numbered list. Other similar shortcuts include ‘#’ for heading; ‘|’ for callout; and ‘[ ]' for to-do blocks.
 
@@ -23,7 +23,7 @@ You can also add text blocks by clicking on the **Text** button at the bottom of
 
 Once you added a text block, you can apply formatting to the text via the formatting toolbar. Just highlight a piece of text and select from various styling options such as **bold**, *italic*, underline, ~~strikethrough~~, and `code`. You can add a hyperlink by clicking on the link button.
 
-![2022-09-21 08.27.07 (1).gif](https://media.graphassets.com/lpVktfSsS5Woz47Acr65)
+<VideoLoop src="../assets/docs/lpVktfSsS5Woz47Acr65.mp4" />
 In addition to the formatting toolbar, keyboard shortcuts are also available for styling your text (eg. Cmd+B for bolding).
 
 💡 Pro tip: The quickest way to add a hyperlink is by copying a URL and then simply pasting it on the highlighted text (Cmd+V).
@@ -32,11 +32,11 @@ In addition to the formatting toolbar, keyboard shortcuts are also available for
 
 Besides formatting, you can also perform standard block operations available in the block sidebar, such as reordering, commenting, duplication, deletion, and so on. Reordering can also be done by drag-and-dropping the handle on the left-hand side of the block.
 
-![2022-09-21 08.16.18 (1).gif](https://media.graphassets.com/T7Qi2V1SFOY0wSJnOvAR)
+<VideoLoop src="../assets/docs/T7Qi2V1SFOY0wSJnOvAR.mp4" />
 
 One of the most useful operations is to convert from one type of text block to another (for instance, change from paragraph to callout block). You can do this by clicking on the hamburger (Block action) menu and select the block type you’d like to convert to.
 
-![2022-09-20 09.43.13 (2) (1).gif](https://media.graphassets.com/GAPcEtQZRIONrtJMT790)
+<VideoLoop src="../assets/docs/GAPcEtQZRIONrtJMT790.mp4" />
 
 💡 Pro tip: The callout block has additional styling options available in the Block action menu. You can select from four different colors to apply to your callouts.
 
@@ -44,7 +44,7 @@ One of the most useful operations is to convert from one type of text block to a
 
 In some cases, you may wish to use some text editing option which is not (yet) supported by our native text blocks (eg. inserting a table or image). For these scenarios, you can rely on Markdown blocks. You can add these the same way as other text blocks: by clicking on **+** (add block menu) or by using the Text button at the notebook’s footer section.
 
-![Screenshot 2022-09-21 at 9.10.40.png](https://media.graphassets.com/YU9e3T2S9PIJSBS37CA5)
+![Screenshot 2022-09-21 at 9.10.40.png](../assets/docs/YU9e3T2S9PIJSBS37CA5.webp)
 
 When in editing mode, Markdown blocks feature two separate sections:
 

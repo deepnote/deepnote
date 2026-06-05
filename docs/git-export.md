@@ -26,13 +26,13 @@ To import code from GitHub and collaborate with your teammates, follow [this gui
 
 First, open **Version history** sidebar by clicking on the icon in the top right corner. Then click **Connect Git repository** and select GitHub.
 
-![Open version history menu](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q593lin07n4agr1u2x9)
+![Open version history menu](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q593lin07n4agr1u2x9.webp)
 
 Deepnote connects to GitHub through a [GitHub app](https://github.com/apps/deepnote).
 
 Click on **"Add GitHub repositories"** to install the Deepnote GitHub app on your organization's or personal GitHub account.
 
-![Add GitHub repositories](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q4q3k4d07my7bduz742)
+![Add GitHub repositories](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q4q3k4d07my7bduz742.webp)
 
 In GitHub, you can configure the GitHub App to have access to all your organization's repositories or specific ones. This process only needs to be completed once per GitHub account or organization. Please note that if you use multiple workspaces, you have to complete the process for every workspace.
 
@@ -42,7 +42,7 @@ Once the GitHub App is installed, you can select the repository you want to add 
 
 You also have the option to include notebook outputs in the export, as well as make exports automatic. If automatic export is enabled, Deepnote will export your project every time a new version is created.
 
-![Export settings](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q553lii07n4soq0yp8j)
+![Export settings](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q553lii07n4soq0yp8j.webp)
 
 ### Troubleshooting
 
@@ -71,19 +71,19 @@ Deepnote by default will connect to GitLab's cloud instance ([gitlab.com](https:
 
 First, open **Version history** sidebar by clicking on the icon in the top right corner. Then click **Connect Git repository** and select GitLab.
 
-![Open version history menu](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q593lin07n4agr1u2x9)
+![Open version history menu](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q593lin07n4agr1u2x9.webp)
 
 To use the GitLab integration, you need to connect your GitLab account to your Deepnote account. If you haven't done this already, you can do it directly from the export modal. You also need to have write permissions to the selected repository on GitLab.
 
 Notebooks can be exported to a repository only if it's connected to the current workspace. Workspace admins can manage connected repositories in the workspace settings. If your workspace doesn't have connected repositories yet, you will be prompted to add them.
 
-![Connect GitLab repositories](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q4q3li907n4rdy5cnn4)
+![Connect GitLab repositories](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q4q3li907n4rdy5cnn4.webp)
 
 Once you have a repository connected to the workspace, you can select it as an export destination. In addition to the repository, you need to specify the path where all the project notebooks will be exported and the branch where the changes will be committed and pushed. The branch you specify must already exist in the repository.
 
 You also have the option to include notebook outputs in the export, as well as make the export automatic. If automatic export is enabled, Deepnote will export the project every time a new version is created.
 
-![Export settings](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q5z3k4y07my0e0krly1)
+![Export settings](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q5z3k4y07my0e0krly1.webp)
 
 ### Managing connected GitLab account
 
@@ -97,13 +97,13 @@ To connect a new repository, you need to have GitLab connected to your account a
 
 Disconnecting the repository won't affect already configured export settings, but users won't be able to export affected projects without reconfiguration (unless you reconnect the repository).
 
-![Manage workspace GitLab repositories](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh79uo3ohi07myfyllcd8q)
+![Manage workspace GitLab repositories](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh79uo3ohi07myfyllcd8q.webp)
 
 ## Exporting notebooks
 
 To export all project notebooks to the connected repository, click the **Commit & push** button.
 
-![Commit & push button](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q4j3k4607my1zsjjwu4)
+![Commit & push button](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q4j3k4607my1zsjjwu4.webp)
 
 Add the commit message with a description, and export it.
 
@@ -113,4 +113,4 @@ The commits that Deepnote creates are based on the latest commit in the remote b
 
 Git exports are also integrated into Deepnote's [native versioning functionality](/docs/history). Each commit creates a new version of the project, which you can quickly preview or restore from the project version history.
 
-![Commit & push modal](https://us-west-2.graphassets.com/AaDC4FvhQQq2MDrtSUqtMz/cmgjh0q583k4t07my43hbquye)
+![Commit & push modal](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmgjh0q583k4t07my43hbquye.webp)

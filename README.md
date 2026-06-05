@@ -19,17 +19,17 @@ Get started with Deepnote in seconds:
 npx @deepnote/convert notebook.ipynb # This will convert the notebook and create notebook.deepnote
 ```
 
-Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [JupyterLab](https://pypi.org/project/jupyterlab-deepnote/)!
+Then open your `.deepnote` file in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote)!
 
 ## What is Deepnote?
 
-Deepnote is a successor of Jupyter. It uses the Deepnote kernel which is more powerful but still backwards compatible so you can seamlessly move between both, but adds an AI agent, sleek UI, new block types, and native data integrations. **Deepnote Open Source** offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
+Deepnote is a drop-in replacement for Jupyter. It uses the Deepnote kernel, which is more powerful but still backwards compatible, so you can seamlessly move between both, but it adds an AI agent, sleek UI, new block types, and native data integrations. **Deepnote Open Source** offers you everything you'd need to work locally before you scale your workflows in a team with **Deepnote Cloud**.
 
 Why Deepnote Open Source?
 
 - **Human-readable format:** The `.deepnote` YAML format replaces `.ipynb`'s messy JSON with clean, version-control and human-friendly structure for projects and notebooks. You can organize multiple notebooks, integrations, and settings into a single `.deepnote` project for better structure and collaboration.
 - **Block-based architecture:** Extend notebooks beyond code cells with blocks for SQL, inputs, charts, and much more — all defined and validated through the open `@deepnote/blocks` package.
-- **Work wherever:** Run notebooks locally in VS Code, JupyterLab, or anywhere else with the open-source Deepnote Toolkit. Once you want to work in a team on the same notebook with beefier compute - drag and drop your project into Deepnote Cloud.
+- **Work wherever:** Run notebooks locally in VS Code or anywhere else with the open-source Deepnote Toolkit. Once you want to work in a team on the same notebook with beefier compute - drag and drop your project into Deepnote Cloud.
 - **Reactive notebook execution:** Automatically re-runs dependent blocks when inputs or data change, ensuring notebooks stay consistent and reproducible without manual execution.
 - **Open and extendable:** Built on the Jupyter kernel for full compatibility with your existing notebooks.
 - **Effortless conversion:** Convert .ipynb notebooks into .deepnote projects and back again using the open `@deepnote/convert` CLI and API.
@@ -41,7 +41,6 @@ This open-source repository lets you, edit and run Deepnote notebooks directly i
 - **[VS Code extension](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)** - Full Deepnote support in Visual Studio Code
 - **[Cursor extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - AI-powered notebook editing in Cursor
 - **[Windsurf extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - Collaborative development in Windsurf
-- **[JupyterLab extension](https://pypi.org/project/jupyterlab-deepnote/)** - Read `.deepnote` files in JupyterLab with backwards compatibility
 
 ## Roadmap
 
@@ -107,7 +106,7 @@ If you use Deepnote in your research, please cite Deepnote using:
 
 - Join our [Community](https://github.com/deepnote/deepnote/discussions)!
 - [Open an issue](https://github.com/deepnote/deepnote/issues/new) for bug reports or feature requests
-- Check out source code of related repositories: [Deepnote VS Code extension](https://github.com/deepnote/vscode-deepnote), [Deepnote JupyterLab extension](https://github.com/deepnote/jupyterlab-deepnote) and [Deepnote Toolkit](https://github.com/deepnote/deepnote-toolkit).
+- Check out source code of related repositories: [Deepnote VS Code extension](https://github.com/deepnote/vscode-deepnote) and [Deepnote Toolkit](https://github.com/deepnote/deepnote-toolkit).
 - Check out our [documentation](https://deepnote.com/docs?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main)
 - Want a low-code experience? Visit [Deepnote Cloud](https://deepnote.com/?utm_source=github&utm_medium=github&utm_campaign=github&utm_content=readme_main) together with Deepnote AI agent
 

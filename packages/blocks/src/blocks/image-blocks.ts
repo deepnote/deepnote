@@ -1,4 +1,4 @@
-import type { DeepnoteBlock, ImageBlock } from '../deserialize-file/deepnote-file-schema'
+import type { DeepnoteBlock, ImageBlock } from '../deepnote-file/deepnote-file-schema'
 
 function escapeHtmlAttribute(value: string): string {
   return value

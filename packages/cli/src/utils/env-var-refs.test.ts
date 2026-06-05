@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createEnvVarRef,
-  ENV_VAR_REF_PREFIX,
   EnvVarResolutionError,
   extractEnvVarName,
   generateEnvVarName,
   isEnvVarRef,
   parseEnvVarRef,
   resolveEnvVarRefs,
+  resolveEnvVarRefsFromMap,
 } from './env-var-refs'
 
 describe('env-var-refs utilities', () => {
@@ -40,7 +40,6 @@ describe('env-var-refs utilities', () => {
     it('uses double underscore as separator', () => {
       const result = generateEnvVarName('a-b-c', 'field')
       expect(result).toBe('A_B_C__FIELD')
-      expect(result.includes('__')).toBe(true)
     })
   })
 
@@ -83,11 +82,6 @@ describe('env-var-refs utilities', () => {
   describe('createEnvVarRef', () => {
     it('creates env reference string', () => {
       expect(createEnvVarRef('MY_VAR')).toBe('env:MY_VAR')
-    })
-
-    it('uses correct prefix', () => {
-      const result = createEnvVarRef('TEST')
-      expect(result.startsWith(ENV_VAR_REF_PREFIX)).toBe(true)
     })
 
     it('handles UUID-based var names', () => {
@@ -133,6 +127,45 @@ describe('env-var-refs utilities', () => {
 
     it('returns null for empty reference', () => {
       expect(extractEnvVarName('env:')).toBeNull()
+    })
+  })
+
+  describe('resolveEnvVarRefsFromMap', () => {
+    it('resolves env var reference from explicit vars map', () => {
+      const vars = { MY_PASSWORD: 'secret123' }
+      expect(resolveEnvVarRefsFromMap('env:MY_PASSWORD', vars)).toBe('secret123')
+    })
+
+    it('throws when var is missing from map', () => {
+      expect(() => resolveEnvVarRefsFromMap('env:MISSING', {})).toThrow(EnvVarResolutionError)
+      expect(() => resolveEnvVarRefsFromMap('env:MISSING', {})).toThrow('Environment variable "MISSING" is not defined')
+    })
+
+    it('does not fall through to process.env', () => {
+      process.env.__RESOLVE_MAP_TEST__ = 'from-process'
+      try {
+        expect(() => resolveEnvVarRefsFromMap('env:__RESOLVE_MAP_TEST__', {})).toThrow(EnvVarResolutionError)
+      } finally {
+        delete process.env.__RESOLVE_MAP_TEST__
+      }
+    })
+
+    it('resolves nested object values from explicit map', () => {
+      const vars = { HOST: 'localhost', PASS: 'secret' }
+      const result = resolveEnvVarRefsFromMap({ host: 'env:HOST', password: 'env:PASS', port: 5432 }, vars)
+      expect(result).toEqual({ host: 'localhost', password: 'secret', port: 5432 })
+    })
+
+    it('resolves array values from explicit map', () => {
+      const vars = { A: 'val-a', B: 'val-b' }
+      const result = resolveEnvVarRefsFromMap(['env:A', 'plain', 'env:B'], vars)
+      expect(result).toEqual(['val-a', 'plain', 'val-b'])
+    })
+
+    it('includes currentPath in error messages', () => {
+      expect(() => resolveEnvVarRefsFromMap({ nested: { key: 'env:MISSING' } }, {})).toThrow(
+        'Environment variable "MISSING" is not defined at "nested.key"'
+      )
     })
   })
 

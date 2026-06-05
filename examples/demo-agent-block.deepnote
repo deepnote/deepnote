@@ -1,0 +1,99 @@
+metadata:
+  createdAt: 2026-03-03T00:00:00.000Z
+  snapshotHash: sha256:ed2500292c2fca375116484f886beb8da89082d9e58656cb8f71eefc3140d921
+  modifiedAt: '2026-03-03T13:00:22.842Z'
+project:
+  id: demo-llm-agentic
+  name: Agentic Analysis Demo
+  notebooks:
+    - blocks:
+        - blockGroup: b0000000000000000000000000000001
+          content: Quarterly Sales Analysis — Agentic Demo
+          id: a0000000000000000000000000000001
+          metadata: {}
+          sortingKey: a0
+          type: text-cell-h1
+          contentHash: sha256:229240314154c38946d7b93c9488c599a46b485516f7bf29ca1426dffcac0c88
+        - blockGroup: b0000000000000000000000000000002
+          content: |
+            This notebook demonstrates the **agent block**. The code below generates
+            a synthetic sales dataset. Then the agent autonomously explores the data,
+            creates visualizations, identifies trends, and writes a report — all by adding
+            new blocks to this notebook.
+          id: a0000000000000000000000000000002
+          metadata: {}
+          sortingKey: a1
+          type: markdown
+          contentHash: sha256:31dd46c96b52ead04b0ac37819dd372b39b54ea368f1b5d8ff712a8ebcb1adae
+        - blockGroup: b0000000000000000000000000000003
+          content: |
+            import pandas as pd
+            import numpy as np
+
+            np.random.seed(42)
+
+            regions = ['North America', 'Europe', 'Asia Pacific', 'Latin America']
+            products = ['Enterprise', 'Professional', 'Starter']
+            quarters = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025', 'Q1 2026']
+
+            rows = []
+            base_revenue = {'Enterprise': 50000, 'Professional': 20000, 'Starter': 5000}
+            growth_rate = {'North America': 1.08, 'Europe': 1.12, 'Asia Pacific': 1.20, 'Latin America': 1.15}
+
+            for qi, q in enumerate(quarters):
+                for region in regions:
+                    for product in products:
+                        base = base_revenue[product] * (growth_rate[region] ** qi)
+                        revenue = base * np.random.uniform(0.85, 1.15)
+                        deals = int(revenue / (base_revenue[product] * 0.01) * np.random.uniform(0.8, 1.2))
+                        churn = np.random.uniform(0.02, 0.12) if product != 'Starter' else np.random.uniform(0.08, 0.22)
+                        rows.append({
+                            'quarter': q, 'region': region, 'product': product,
+                            'revenue': round(revenue, 2), 'deals_closed': deals,
+                            'churn_rate': round(churn, 4)
+                        })
+
+            df = pd.DataFrame(rows)
+            print(f"Dataset: {len(df)} rows × {len(df.columns)} columns")
+            print(f"Quarters: {df['quarter'].nunique()} | Regions: {df['region'].nunique()} | Products: {df['product'].nunique()}")
+            print(f"\nTotal revenue: ${df['revenue'].sum():,.0f}")
+            print(f"\nSample rows:")
+            print(df.head(8).to_string(index=False))
+          id: a0000000000000000000000000000003
+          metadata: {}
+          sortingKey: a2
+          type: code
+          contentHash: sha256:1c4986dee40c59936363029ae29900156485aa1961ed620c5271d39d86208525
+        - blockGroup: b0000000000000000000000000000004
+          content: |
+            You are a senior data analyst. The code block above created a pandas DataFrame
+            called `df` with quarterly sales data across regions and products.
+
+            Perform a thorough exploratory analysis. You MUST do ALL of the following, each
+            as a separate code or markdown block:
+
+            1. Add a markdown block introducing your analysis plan
+            2. Create a grouped bar chart of revenue by quarter, colored by region (use matplotlib, save as PNG)
+            3. Create a line chart showing churn rate trends over quarters for each product tier
+            4. Compute a pivot table of average revenue by region × product and display it
+            5. Identify the single best-performing and worst-performing region+product combo and explain why
+            6. Use the filesystem MCP tool to save a final executive report as `examples/report.md`
+            7. Add a final markdown block with an executive summary containing 3 key takeaways and a recommendation
+
+            Use clean, publication-quality matplotlib charts with proper labels and titles.
+            Use `plt.tight_layout()` and `plt.savefig()` for each chart.
+          id: a0000000000000000000000000000004
+          metadata:
+            deepnote_agent_model: gpt-5
+            deepnote_mcp_servers:
+              - name: filesystem
+                command: npx
+                args:
+                  - '-y'
+                  - '@modelcontextprotocol/server-filesystem'
+                  - ./examples
+          sortingKey: a3
+          type: agent
+      id: notebook-1
+      name: Sales Analysis
+version: 1.0.0

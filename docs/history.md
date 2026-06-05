@@ -12,7 +12,7 @@ You will need edit- or admin-level access to the project in order to view its hi
 
 You can find the Project version history in the three-dot menu in the top-right corner of a project. You can preview older version of all notebooks inside of a project.
 
-![project version history](https://media.graphassets.com/EYHGtgSOarcr4CilcDQq)
+![project version history](../assets/docs/EYHGtgSOarcr4CilcDQq.webp)
 
 #### Version creation
 

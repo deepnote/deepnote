@@ -83,9 +83,9 @@ wandb.log({"test_accuracy": test_accuracy})
 
 In the log of a specific notebook or in a personal workspace on the W&B website, various characteristics of concrete project can be seen. Below are two figures showing an example of the progress of 10 runs related to loss and accuracy.
 
-![W&B Chart 12. 9. 2024 11_53_19.png](https://media.graphassets.com/eTSQgjnfSnGxFNq8hUgi)
+![W&B Chart 12. 9. 2024 11_53_19.png](../assets/docs/eTSQgjnfSnGxFNq8hUgi.webp)
 
-![W&B Chart 12. 9. 2024 11_52_48.png](https://media.graphassets.com/kxCCl6nQYW7CuZ0jxVds)
+![W&B Chart 12. 9. 2024 11_52_48.png](../assets/docs/kxCCl6nQYW7CuZ0jxVds.webp)
 ##Conclusion
 
 Weights & Biases is a powerful machine learning platform that simplifies experiment tracking, model evaluation and collaboration. Seamless integration with Deepnote provides a comprehensive solution for developers looking to build and refine models. Whether it's a through an simple setup process or powerful visualization tools, W&B helps users build better models faster.
