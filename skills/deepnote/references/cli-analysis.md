@@ -89,11 +89,11 @@ deepnote validate my-project.deepnote && echo "Valid!"
 
 Check a .deepnote file or integrations yaml file for issues. `[path]` is optional and defaults to the current directory. You can also lint an integrations yaml file (e.g. `.deepnote.env.yaml`) directly by passing it as the path argument, which validates the file structure, integration schemas, and environment variable references.
 
-| Option                       | Description                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------- |
-| `-o, --output <format>`      | Output format: `json`, `llm`                                                      |
-| `--notebook <name>`          | Lint only a specific notebook                                                     |
-| `--python <path>`            | Path to Python interpreter                                                        |
+| Option                       | Description                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| `-o, --output <format>`      | Output format: `json`, `llm`                                                         |
+| `--notebook <name>`          | Lint only a specific notebook                                                        |
+| `--python <path>`            | Path to Python interpreter                                                           |
 | `--integrations-file <path>` | Path to integrations env file (default: `.deepnote.env.yaml` next to .deepnote file) |
 
 **Checks performed:**
