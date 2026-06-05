@@ -19,6 +19,8 @@ export interface AgentBlockContext {
   addAndExecuteCodeBlock: (args: { code: string }) => Promise<string>
   addMarkdownBlock: (args: { content: string }) => Promise<string>
   onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
+  /** Optional sink for non-fatal warnings (e.g. MCP client cleanup failures). The host decides how to surface them. */
+  onWarning?: (message: string) => void
   integrations?: Array<{ id: string; name: string; type: string }>
 }
 
@@ -238,7 +240,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       } catch (error) {
         const serverName = mergedMcpConfig[index]?.name ?? `server-${index + 1}`
         const message = error instanceof Error ? error.message : String(error)
-        console.error(`[agent] Failed to close MCP client "${serverName}": ${message}`)
+        context.onWarning?.(`[agent] Failed to close MCP client "${serverName}": ${message}`)
       }
     }
   }
