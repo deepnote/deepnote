@@ -862,7 +862,7 @@ describe('lint command - linting integrations yaml directly', () => {
     expect(exitCode).toBe(1)
   })
 
-  it('reports a generation error for a schema-valid but ungeneratable integration (invalid bigquery service account)', async () => {
+  it('reports a generation error for a schema-valid but impossible to generate integration (invalid bigquery service account)', async () => {
     const action = createLintAction(program)
     const intFile = join(tempDir, 'bigquery-bad-service-account.yaml')
     await writeFile(
@@ -1405,7 +1405,7 @@ describe('lint command - integrations file loading', () => {
   })
 
   describe('integration env var generation errors', () => {
-    it('reports a generation error for a schema-valid but ungeneratable integration (invalid bigquery service account)', async () => {
+    it('reports a generation error for a schema-valid but impossible to generate integration (invalid bigquery service account)', async () => {
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
       const intFile = join(tempDir, 'bigquery-bad-service-account-integrations.yaml')

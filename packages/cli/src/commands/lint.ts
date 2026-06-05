@@ -191,7 +191,7 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
 
     // Generate integration env vars and inject them into process.env so checkMissingIntegrations
     // works correctly. Generation failures (e.g. invalid BigQuery/Spanner service_account JSON) are
-    // surfaced as configuration issues so a schema-valid-but-ungeneratable integration doesn't lint green.
+    // surfaced as configuration issues so a schema-valid-but-impossible to generate integration doesn't lint green.
     const integrationsIssues = [...parsedIntegrations.issues]
     if (parsedIntegrations.integrations.length > 0) {
       const { envVars, issues } = generateIntegrationEnvVars(parsedIntegrations.integrations, fileDir)
@@ -262,7 +262,7 @@ async function lintIntegrationsFile(filePath: string): Promise<LintFileResult> {
 
     debug(`Parsed ${parsedIntegrations.integrations.length} integrations, ${parsedIntegrations.issues.length} issues`)
 
-    // Also run env var generation so schema-valid-but-ungeneratable integrations (e.g. invalid
+    // Also run env var generation so schema-valid-but-impossible to generate integrations (e.g. invalid
     // BigQuery/Spanner service_account JSON) are caught here too, not just on the .deepnote path.
     const integrationsIssues = [...parsedIntegrations.issues]
     if (parsedIntegrations.integrations.length > 0) {
