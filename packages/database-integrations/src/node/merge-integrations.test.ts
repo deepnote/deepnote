@@ -4,16 +4,13 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   type ApiIntegration,
-  mergeApiIntegrationsIntoDocument,
-  readIntegrationsDocument,
-  writeIntegrationsFile,
-} from '../commands/integrations'
-import {
   addIntegrationToSeq,
   createNewDocument,
   getOrCreateIntegrationsFromDocument,
+  mergeApiIntegrationsIntoDocument,
   mergeProcessedIntegrations,
-} from './merge-integrations'
+} from '../index'
+import { readIntegrationsDocument, writeIntegrationsFile } from './index'
 
 // Helper to create a mock API integration
 function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiIntegration {

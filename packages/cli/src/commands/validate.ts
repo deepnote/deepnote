@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deepnoteFileSchema, ParseError, parseYaml } from '@deepnote/blocks'
+import type { ValidationIssue } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
 import type { ZodIssue } from 'zod'
 import { ExitCode } from '../exit-codes'
@@ -10,11 +11,7 @@ export interface ValidateOptions {
   output?: OutputFormat
 }
 
-export interface ValidationIssue {
-  path: string
-  message: string
-  code: string
-}
+export type { ValidationIssue }
 
 export interface ValidationResult {
   success: true

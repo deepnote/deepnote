@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { resolveEnvVarRefs } from '../node'
 import {
   createEnvVarRef,
   EnvVarResolutionError,
@@ -6,7 +7,6 @@ import {
   generateEnvVarName,
   isEnvVarRef,
   parseEnvVarRef,
-  resolveEnvVarRefs,
   resolveEnvVarRefsFromMap,
 } from './env-var-refs'
 

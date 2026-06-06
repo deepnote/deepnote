@@ -1,8 +1,8 @@
-import fs from 'node:fs/promises'
-import path from 'node:path'
+import { DEFAULT_API_URL } from '@deepnote/database-integrations'
+import { readIntegrationsDocument, writeIntegrationsFile } from '@deepnote/database-integrations/node'
 import chalk from 'chalk'
 import type { Command } from 'commander'
-import { type Document, isSeq, parseDocument } from 'yaml'
+import { isSeq } from 'yaml'
 import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { fetchIntegrations } from '../integrations/fetch-integrations'
@@ -11,7 +11,6 @@ import { debug, log, output } from '../output'
 import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
 import { updateDotEnv } from '../utils/dotenv'
-import { isErrnoENOENT } from '../utils/file-resolver'
 
 // Re-export merge logic functions for backward compatibility
 export {
@@ -33,7 +32,11 @@ export {
 /**
  * Default API base URL.
  */
-export const DEFAULT_API_URL = 'https://api.deepnote.com'
+export { DEFAULT_API_URL }
+
+// Re-export document read/write helpers (now in @deepnote/database-integrations/node)
+// for backward compatibility.
+export { readIntegrationsDocument, writeIntegrationsFile }
 
 // Re-export API types for backward compatibility
 export type { ApiIntegration, ApiResponse } from '../integrations/fetch-integrations'
@@ -66,50 +69,6 @@ function resolveToken(options: IntegrationsPullOptions): string {
 }
 
 /**
- * Read existing integrations file as a YAML Document.
- * Returns null if file doesn't exist or is empty.
- * This preserves comments and formatting for later manipulation.
- */
-export async function readIntegrationsDocument(filePath: string): Promise<Document | null> {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8')
-
-    // Handle empty file
-    if (!content.trim()) {
-      return null
-    }
-
-    const doc = parseDocument(content, {
-      strict: true,
-      version: '1.2',
-    })
-
-    return doc
-  } catch (error) {
-    if (isErrnoENOENT(error)) {
-      return null
-    }
-    throw error
-  }
-}
-
-/**
- * Write integrations document to the YAML file.
- * Uses doc.toString() to preserve comments and formatting.
- */
-export async function writeIntegrationsFile(filePath: string, doc: Document): Promise<void> {
-  const yamlContent = doc.toString({
-    lineWidth: 0, // Don't wrap long lines
-  })
-
-  // Ensure parent directory exists
-  const dir = path.dirname(filePath)
-  await fs.mkdir(dir, { recursive: true })
-
-  await fs.writeFile(filePath, yamlContent, 'utf-8')
-}
-
-/**
  * Execute the integrations pull command.
  */
 async function pullIntegrations(options: IntegrationsPullOptions): Promise<void> {
@@ -136,7 +95,17 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
   const doc = existingDoc ?? createNewDocument()
 
   // Merge API integrations into document and extract secrets
-  const { secrets, stats } = mergeApiIntegrationsIntoDocument(doc, fetchedIntegrations)
+  const { secrets, stats, skipped } = mergeApiIntegrationsIntoDocument(doc, fetchedIntegrations)
+
+  // Log any invalid or unsupported integrations that were skipped (debug mode only)
+  for (const skippedIntegration of skipped) {
+    debug(
+      `Skipping invalid or unsupported integration "${skippedIntegration.name}" (${skippedIntegration.type}) [${skippedIntegration.id}]:`
+    )
+    for (const issue of skippedIntegration.issues) {
+      debug(`  ${issue.code} [${issue.path.join('.')}]: ${issue.message}`)
+    }
+  }
 
   // Ensure schema comment is set
   if (doc.commentBefore == null || !doc.commentBefore.includes('yaml-language-server')) {

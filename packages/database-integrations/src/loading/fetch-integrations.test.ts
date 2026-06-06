@@ -1,5 +1,5 @@
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError } from '../utils/api'
+import { ApiError } from './api-error'
 import { type ApiIntegration, apiResponseSchema, fetchIntegrations } from './fetch-integrations'
 
 // Mock the output module to suppress debug logs during tests

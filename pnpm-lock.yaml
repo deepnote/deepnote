@@ -194,6 +194,12 @@ importers:
 
   packages/database-integrations:
     dependencies:
+      '@deepnote/blocks':
+        specifier: workspace:*
+        version: link:../blocks
+      yaml:
+        specifier: '>=2.8.3'
+        version: 2.8.3
       zod:
         specifier: 3.25.76
         version: 3.25.76

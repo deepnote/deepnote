@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from './parse-integrations'
+import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from './index'
 
 describe('parseIntegrationsFile', () => {
   let tempDir: string

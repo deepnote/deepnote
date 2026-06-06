@@ -1,17 +1,8 @@
-/** Built-in integrations that don't require external configuration */
-export const BUILTIN_INTEGRATIONS = new Set(['deepnote-dataframe-sql', 'pandas-dataframe'])
-
-/**
- * Default .env file name for storing secrets.
- */
-export const DEFAULT_ENV_FILE = '.env' as const
-
-/**
- * Default integrations file name.
- */
-export const DEFAULT_INTEGRATIONS_FILE = '.deepnote.env.yaml' as const
-
-/**
- * Environment variable name for the Deepnote API token.
- */
-export const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN' as const
+// Integration-related constants now live in @deepnote/database-integrations so they can
+// be shared with the VS Code extension. Re-exported here for backward compatibility.
+export {
+  BUILTIN_INTEGRATIONS,
+  DEEPNOTE_TOKEN_ENV,
+  DEFAULT_ENV_FILE,
+  DEFAULT_INTEGRATIONS_FILE,
+} from '@deepnote/database-integrations'
