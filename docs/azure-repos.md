@@ -15,11 +15,11 @@ Every project in Deepnote comes with a filesystem and a terminal. This makes it 
 
 First, you need to get credentials for your repository. In the Azure Repo, navigate to the clone section:
 
-<ImageBorder variant="blue">![azure-deepnote-01.png](https://media.graphassets.com/FsMXfkbaQvC75zP4j7qj)</ImageBorder>
+<ImageBorder variant="blue">![azure-deepnote-01.png](../assets/docs/FsMXfkbaQvC75zP4j7qj.webp)</ImageBorder>
 
 Click on "Generate git credentials". This will generate a one-time access token that will be used for this repository by Deepnote.
 
-<ImageBorder  variant="blue">![azure-repos-01.png](https://media.graphassets.com/x0B3tpvRjSA7y6LEyzJ6)</ImageBorder>
+<ImageBorder  variant="blue">![azure-repos-01.png](../assets/docs/x0B3tpvRjSA7y6LEyzJ6.webp)</ImageBorder>
 
 Copy the repository URL and the access token.
 

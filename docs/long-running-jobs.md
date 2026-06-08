@@ -41,7 +41,7 @@ A project is considered inactive when there are no code changes or executions wi
 
 Users on **Team plan or higher** can customize the behavior above and prevent the hardware being automatically turned off after 15 minutes of inactivity. This can be useful if you're unsure when your long-running job finishes and want to keep its state preserved (such as Python variables or terminal outputs). You can currently set the grace period to one of the following options:
 
-![CleanShot 2024-09-02 at 13.40.22.png](https://media.graphassets.com/42MuYiWFTgu8tu2HsciO)
+![CleanShot 2024-09-02 at 13.40.22.png](../assets/docs/42MuYiWFTgu8tu2HsciO.webp)
 
 #### Long-running executions
 

@@ -16,19 +16,19 @@ Go to [supabase.com](https://supabase.com/) and create a free account, and start
 
 ### Step 2: Get your database credentials ready
 
-![Supabase credentials](https://media.graphassets.com/R1viC2QvqEjetTO9FLzw)
+![Supabase credentials](../assets/docs/R1viC2QvqEjetTO9FLzw.webp)
 
 You will need the connections details for the database: host, database, port, user and password. You can find them in the settings of your Supabase project, in the Database section.
 
 ### Step 3: Create a Postgres integration in Deepnote
 
-![ Create a Postgres integration in Deepnote](https://media.graphassets.com/GtjwnTvWTlVWEXTZwtCr)
+![ Create a Postgres integration in Deepnote](../assets/docs/GtjwnTvWTlVWEXTZwtCr.webp)
 
 Open Integrations in the left side bar, and select the Postgres integration. You will be prompted for the credentials from the previous step.
 
 ### Step 4: Create a new project, and start querying your data
 
-![Create a new project](https://media.graphassets.com/LvtKgFIQTKdtwhKqWrRg)
+![Create a new project](../assets/docs/LvtKgFIQTKdtwhKqWrRg.webp)
 
 When you create a new project, navigate to Integrations in the right side bar, and connect your database. This will allow you to:
 

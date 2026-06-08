@@ -10,7 +10,7 @@ In order to improve user experience, we are deprecating Personal workspaces and 
 
 Until now, when you signed up for Deepnote, whether you were creating your own team or joining an existing team, you would also have a special Personal workspace which had your name.
 
-![image.png](https://media.graphassets.com/nQJxMeTduS0XPplp57tQ)
+![image.png](../assets/docs/nQJxMeTduS0XPplp57tQ.webp)
 
 Starting November 28, 2022, we will be migrating all Personal spaces to the Free plan. **You will continue to have access to your workspace, as well as all your projects.** The only difference is that your projects will be migrated to a workspace on the Free plan.
 
@@ -25,7 +25,7 @@ We found that many users were confused about the difference between personal wor
 3. You can also rename your Personal workspace, just like any other workspace you use.
 4. The _Shared with me_ tab is going away. If you want to visit projects that were shared with you, you can find them via the Workspace menu in the top left. For every project that is shared with you, you will show up as a guest in that workspace.
 
-![image.png](https://media.graphassets.com/02ti5ahQZWUAnudmKUKQ)
+![image.png](../assets/docs/02ti5ahQZWUAnudmKUKQ.webp)
 
 ### What will happen to my public profile?
 

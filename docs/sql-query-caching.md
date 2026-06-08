@@ -7,7 +7,7 @@ noContent: false
 
 With caching enabled, Deepnote automatically saves the results of your queries in SQL blocks. Returning these cached results for repeated queries can greatly improve performance in your notebooks and reduce the load on your database/warehouse.
 
-![cached result.png](https://media.graphassets.com/Q0DD32wgQKycYhNhtVOj)
+![cached result.png](../assets/docs/Q0DD32wgQKycYhNhtVOj.webp)
 
 Main benefits:
 
@@ -23,7 +23,7 @@ Main benefits:
 
 In order to take advantage of SQL caching, you need to have this feature enabled for your workspace. Go to **Settings & Members** and click on **Project settings**.
 
-![caching settings.png](https://media.graphassets.com/22WC5oxMR36CGgyI8YVn)
+![caching settings.png](../assets/docs/22WC5oxMR36CGgyI8YVn.webp)
 
 When **SQL caching** is turned **on** (default state), the results of all your SQL block queries are automatically stored in the cache. This process happens seamlessly in the background without affecting the visibility of cached results. It's important to note that you will only see cached results returning in your SQL blocks **if you specifically enable their usage within the project you are working on**.
 
@@ -33,11 +33,11 @@ When the setting is turned **off**, query results are not saved to the cache, an
 
 To turn on the usage of cached results, navigate to the **Environment** section in the right-hand sidebar of the project and toggle the **SQL cache** setting to **on**. This enables returning cached results for **all SQL blocks across all integrations** in that project.
 
-![caching settings.png](https://media.graphassets.com/moOaHWgaRlmfSjdxYwou)
+![caching settings.png](../assets/docs/moOaHWgaRlmfSjdxYwou.webp)
 
 Alternatively, when you run longer queries in a project with caching disabled, Deepnote will offer you a convenient shortcut to turn on the usage of cache for the given project right from the given SQL block.
 
-![caching pill.png](https://media.graphassets.com/NfUBQoW9QAyiClbFPXyK)
+![caching pill.png](../assets/docs/NfUBQoW9QAyiClbFPXyK.webp)
 
 ## How does caching work?
 
@@ -54,11 +54,11 @@ When caching is enabled for a project, running the whole notebook or executing i
 
 1. In the dropdown options of the **Run notebook** button, select **Run notebook without cache** to execute the notebook without utilizing cached results.
 
-![run notebook without cache.png](https://media.graphassets.com/xi2IGwPcRxIO7ePNMbnw)
+![run notebook without cache.png](../assets/docs/xi2IGwPcRxIO7ePNMbnw.webp)
 
 2. In the block sidebar, select **Run without cache.** Clicking on this option forces the specific SQL block to pull fresh results from the warehouse.
 
-![run block no cache.png](https://media.graphassets.com/BZA4LjtHQbieZAeq1MOQ)
+![run block no cache.png](../assets/docs/BZA4LjtHQbieZAeq1MOQ.webp)
 
 These options are only displayed if project-level caching is enabled.
 

@@ -14,7 +14,7 @@ Designed to be intuitive and user-friendly, Deepnote gives you a wide range of f
 Our Education plan is **100% free** for students, teachers, and researchers who connect their accounts to school email addresses. The free Education plan provides access to most of the Team plan features other than advanced computing machines, Scheduling and Deepnote AI.
 </Callout>
 
-![CTA@2x.jpg](https://media.graphassets.com/6oUQY8vzRmg2n5omQiyg)
+![CTA@2x.jpg](../assets/docs/6oUQY8vzRmg2n5omQiyg.jpg)
 
 ## The challenges we're tackling
 

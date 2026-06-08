@@ -23,13 +23,13 @@ Deepnote makes it easy to take your explorations to production. For example:
 2. Configure the frequency at which you would like the notebook to run and then click **Save.**
 3. Additionally, you can also configure notifications for successful and failed runs, either by email or into Slack.
 
-![Scheduling notifications.jpg](https://media.graphassets.com/5vnhJjTRfuHyBA0aJTNC)
+![Scheduling notifications.jpg](../assets/docs/5vnhJjTRfuHyBA0aJTNC.jpg)
 
 ### How to know if your scheduled notebook ran successfully
 
 If an exception is raised during the run, the run is considered failed; otherwise, it's successful. Please note that if an error is raised in a block, the subsequent blocks are not executed. Every run automatically creates a [run snapshot](/docs/run-snapshots) — an immutable record of the notebook's state after execution. You can review snapshots of successful and failed runs from the Runs sidebar or the project logs.
 
-![Scheduling versions.jpg](https://media.graphassets.com/5NYCPGefRZScMa2R0l8S)
+![Scheduling versions.jpg](../assets/docs/5NYCPGefRZScMa2R0l8S.jpg)
 
 ### Alerts
 

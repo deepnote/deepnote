@@ -48,7 +48,7 @@ Here are quick-start guides for changing the firewall/security settings:
 
 You can connect to selected data warehouses and database integrations via a secure SSH tunnel that is configurable in the **Integrations** menu. Deepnote automatically generates a public SSH key for your workspace that you can add it to the authorized keys file (`~/.ssh/authorized_keys`) on your SSH bastion.
 
-![ssh_db.png](https://media.graphassets.com/8w7FUd7gQzOWJHHUTp5f)
+![ssh_db.png](../assets/docs/8w7FUd7gQzOWJHHUTp5f.webp)
 
 If you query a database with SSH configured from an SQL block, Deepnote will automatically create an SSH tunnel.
 
@@ -77,7 +77,7 @@ Deepnote automatically generates a public SSH key for your workspace. You can co
 
 When you connect the integration to the project, the SSH tunnel starts in the background and exposes the host and port that you can use to access your data. Here's an example, along with code that demonstrates how to use the SSH Tunnel integration to query a private API that provides daily candles for a given ticker.
 
-![ssh-tunnel-integration](https://media.graphassets.com/zzHYzL5ARd2FiVaE9t2s)
+![ssh-tunnel-integration](../assets/docs/zzHYzL5ARd2FiVaE9t2s.webp)
 
 ```python
 
@@ -101,7 +101,7 @@ print(response.content)
 
 To find the environment variable names for your integration, you can open the three-dot menu of the integration in the right sidebar and click "How to use".
 
-![SSH.png](https://media.graphassets.com/OFXUnZSI2YGRu8cJAhIQ)
+![SSH.png](../assets/docs/OFXUnZSI2YGRu8cJAhIQ.webp)
 
 In order to use SSH to connect to SQL databases with a native integration in Deepnote we recommend using the integration setting.
 
@@ -119,8 +119,8 @@ By default, Deepnote will always connect using the `preferred` mode. It will try
 
 To make sure SSL is used, enable the setting when creating a new integration or editing an existing one. This will put the connection in `required` mode. In this state, encryption is enforced but the certificate of the server is not validated. If the database is not configured to use SSL, the connection will fail.
 
-![required_ssl.png](https://media.graphassets.com/P9zPUr1mTt2SzMJ3lUwP)
+![required_ssl.png](../assets/docs/P9zPUr1mTt2SzMJ3lUwP.webp)
 
 To run in `strict` mode, you can upload a CA Certificate for your database or warehouse. We'll verify that the server's certificate is valid.
 
-![strict_ssl.png](https://media.graphassets.com/1O7BvaAyQwa42wvkPvT2)
+![strict_ssl.png](../assets/docs/1O7BvaAyQwa42wvkPvT2.webp)

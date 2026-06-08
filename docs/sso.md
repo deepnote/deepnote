@@ -20,11 +20,11 @@ Deepnote supports single sign-on (SSO) via SAML and OIDC, such as Google, Okta, 
 
 After our support has activated Single Sign-On for your company You can go to [deepnote.com/sign-in](https://deepnote.com/sign-in) and select **Sign In with SSO.**
 
-![sign_with_sso.png](https://media.graphassets.com/lR0KlANWRiMKs51MHpsg)
+![sign_with_sso.png](../assets/docs/lR0KlANWRiMKs51MHpsg.webp)
 
 You will be prompted to enter your email address.
 
-![sso_email_add.png](https://media.graphassets.com/TVlJPbKgRcmIJrq8eZsu)
+![sso_email_add.png](../assets/docs/TVlJPbKgRcmIJrq8eZsu.webp)
 
 After supplying your company email address, click on **Continue with SSO**
  and you will be redirected to your Identity provider sign-in page.

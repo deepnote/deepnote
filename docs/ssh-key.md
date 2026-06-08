@@ -12,7 +12,7 @@ SSH key integration is the recommended way to store SSH keys in Deepnote. When y
 
 This integration is useful if you already have a private key you want to use to connect to a private network, and you are not able to add the public key of your Deepnote workspace to the remote resource.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2Ftx9JBkYu6gwXGSzSeJpH%2FScreen%20Shot%202022-03-30%20at%203.45.17%20PM.png](https://media.graphassets.com/HcZgT1zlTXy35hinmgpH)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2Ftx9JBkYu6gwXGSzSeJpH%2FScreen%20Shot%202022-03-30%20at%203.45.17%20PM.png](../assets/docs/HcZgT1zlTXy35hinmgpH.webp)
 
 Copy the private key (commonly stored as `.pem` file) to the text box and give descriptive name to the integration (eg. AWS Redshift Tunnel key). After the integration is created, connect it to your project. Below is an example of using the key with an `ssh-agent`.
 

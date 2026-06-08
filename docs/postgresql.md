@@ -8,7 +8,7 @@ noContent: false
 
 To add a connection to PostgreSQL, go to **Integrations** via the **right-hand sidebar**, create a new PostgreSQL integration and enter credentials:
 
-![pg.png](https://media.graphassets.com/daU32gzMSFOGQbHw9EL3)
+![pg.png](../assets/docs/daU32gzMSFOGQbHw9EL3.webp)
 
 Don't forget to connect the newly created "PostgreSQL" integration in the Integrations sidebar.
 
@@ -22,7 +22,7 @@ If your connection is protected, you might need to add Deepnote's IP addresses t
 
 The fastest way to query your connected postgres database is to use a [SQL cell](/docs/sql-cells). You can create one by clicking "+ Block" or at the bottom of a notebook.
 
-![image.png](https://media.graphassets.com/KMoRPKCNQamVvyoUJIJx)
+![image.png](../assets/docs/KMoRPKCNQamVvyoUJIJx.webp)
 
 A text input cell and a SQL cell work together
 

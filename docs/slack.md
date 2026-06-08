@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-![Integrate Deepnote with Slack](https://media.graphassets.com/PMwmFr1oR1uSia6YPisw)
+![Integrate Deepnote with Slack](../assets/docs/PMwmFr1oR1uSia6YPisw.webp)
 
 Slack is the collaboration hub that brings the right people, information, and tools together to get work done. In Deepnote, you can use the built-in integration for Slack to report on your scheduled notebook runs and keep you and your stakeholders up-to-date with the recent work. Deepnote lets you execute your notebooks on daily, weekly, or hourly basis. This is useful if you would like to process data or update a dashboard at a regular frequency.
 
@@ -12,7 +12,7 @@ Slack is the collaboration hub that brings the right people, information, and to
 Scheduling is available on Team and Enterprise plans.
 </Callout>
 
-![Slack notifications workflow](https://media.graphassets.com/j91ucjbJSrevlU9eImzN)
+![Slack notifications workflow](../assets/docs/j91ucjbJSrevlU9eImzN.webp)
 
 ## How to schedule a notebook and get notified in Slack
 

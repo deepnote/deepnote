@@ -16,7 +16,7 @@ You'll need to use the access token created with this app to access API v2. You 
 
 Create a new Environment variable integration in Deepnote, and add the access token.
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FEemnuVUJ7L37bsgsNTd3%2FScreen%20Shot%202022-03-30%20at%2010.59.24%20AM.png](https://media.graphassets.com/eOOCJnXaRW2l3gQMCh73)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FEemnuVUJ7L37bsgsNTd3%2FScreen%20Shot%202022-03-30%20at%2010.59.24%20AM.png](../assets/docs/eOOCJnXaRW2l3gQMCh73.webp)
 
 ### 2. Try it out
 

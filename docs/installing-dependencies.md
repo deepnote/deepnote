@@ -14,7 +14,7 @@ There are 3 major ways of installing system-level dependencies and Python packag
 
 Simply run `pip install <package_name>` or `apt install <library>`, either in the terminal or with the `!` prefix in a notebook.
 
-![CleanShot 2024-11-28 at 09.10.08.png](https://media.graphassets.com/YxhpDdlTSCF37EZzcZTQ)
+![CleanShot 2024-11-28 at 09.10.08.png](../assets/docs/YxhpDdlTSCF37EZzcZTQ.webp)
 
 If you are in a [conda environment](https://deepnote.com/docs/conda-environment), you can also run `conda install <package_name>`.
 
@@ -42,7 +42,7 @@ Navigate to your project's **Machine** section in the project sidebar.
 - Click on the environment selection menu.
 - Click on the **Create initialization notebook** button.
 
-![CleanShot 2024-11-28 at 08.58.46.png](https://media.graphassets.com/JFHU4qtsSdCDWINAo66C)
+![CleanShot 2024-11-28 at 08.58.46.png](../assets/docs/JFHU4qtsSdCDWINAo66C.webp)
 
 After creating it, the 'Init' notebook will be conveniently located at the top of your Notebook list. The contents of this notebook will automatically execute each time your project starts up, providing an ideal place to set up your preferred environment.
 

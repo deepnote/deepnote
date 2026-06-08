@@ -12,7 +12,7 @@ Deepnote comes with a pre-built conda environment which allows users to instantl
 
 Simply select "Anaconda - Python 3.11" from Deepnote's environment dropdown (as shown below). You now have access to the pre-installed packages listed below as well the conda CLI.
 
-![conda.gif](https://media.graphassets.com/Oyygz8pnS7K7ibNWoyZA)
+<VideoLoop src="../assets/docs/Oyygz8pnS7K7ibNWoyZA.mp4" />
 
 ### Installing packages from the Anaconda repository
 
