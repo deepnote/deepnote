@@ -111,5 +111,11 @@ integrations:
             service_account: env:CS_ID_001__SERVICE_ACCOUNT
       "
     `)
+
+    const envContent = await readFile(envFilePath, 'utf-8')
+    expect(envContent).toMatchInlineSnapshot(`
+      "CS_ID_001__SERVICE_ACCOUNT=new-service-account-data
+      "
+    `)
   })
 })
