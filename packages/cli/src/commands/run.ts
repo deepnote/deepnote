@@ -532,6 +532,23 @@ async function buildEngineExecutionScope(args: {
   const { file, options, initBlockIds, initNotebookId, initNotebookName, pythonEnv } = args
   const additionalNotebookNames = initNotebookName !== undefined ? [initNotebookName] : []
 
+  // Validate the user's --block target before init prelude ids are folded into
+  // the engine filter. The engine (and the dry-run collector) only validate the
+  // target when the filter yields zero executable blocks; for a split/init file
+  // the executable init blocks keep that count non-zero, so a misspelled or
+  // non-executable --block would otherwise be silently dropped while only init
+  // runs — exiting 0 without ever running the requested block. Plain files
+  // without init are still validated downstream, so we only need to guard the
+  // init case here; this covers both the run and dry-run paths, which share this
+  // builder.
+  if (options.block && initBlockIds.size > 0) {
+    const blockScopeNotebooks = getNotebooksForExecutionScope(file, {
+      notebook: options.notebook,
+      additionalNotebookNames,
+    })
+    assertExecutableBlockExists(options.block, blockScopeNotebooks)
+  }
+
   const upstreamBlockIds = await resolveUpstreamExecutionBlockIds(
     file,
     {

@@ -2101,6 +2101,76 @@ describe('run command', () => {
         expect([...runOptions.preludeNotebookIds]).toEqual([INIT_NB_ID])
       })
 
+      it('rejects a misspelled --block instead of silently running only init', async () => {
+        // Regression: with a split/init file, a bad --block used to be dropped
+        // while the executable init blocks still ran, exiting 0 without running
+        // the requested block. It must now fail loudly and not run anything.
+        setupSuccessfulRun()
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        await expect(action(mainPath, { block: 'nonexistent-block-id' })).rejects.toThrow('program.error called')
+
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('Block "nonexistent-block-id" not found')
+        // Must NOT have silently executed only the init prelude.
+        expect(mockRunProject).not.toHaveBeenCalled()
+      })
+
+      it('rejects a non-executable --block target on a split/init file', async () => {
+        setupSuccessfulRun()
+        const mainWithMarkdown = [
+          'version: 1.0.0',
+          'metadata:',
+          "  createdAt: '2025-01-01T00:00:00Z'",
+          'project:',
+          `  id: ${PROJECT_ID}`,
+          '  name: Sibling Init Project',
+          `  initNotebookId: ${INIT_NB_ID}`,
+          '  notebooks:',
+          `    - id: ${MAIN_NB_ID}`,
+          '      name: Main',
+          '      blocks:',
+          '        - id: main-markdown-1',
+          '          type: markdown',
+          '          blockGroup: bg-main',
+          "          sortingKey: '0000'",
+          "          content: '# heading'",
+          '          metadata: {}',
+          '',
+        ].join('\n')
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, mainWithMarkdown, 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        await expect(action(mainPath, { block: 'main-markdown-1' })).rejects.toThrow('program.error called')
+
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('not executable')
+        expect(mockRunProject).not.toHaveBeenCalled()
+      })
+
+      it('rejects a misspelled --block in --dry-run instead of printing an init-only plan', async () => {
+        setupSuccessfulRun()
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        await expect(action(mainPath, { dryRun: true, block: 'nonexistent-block-id' })).rejects.toThrow(
+          'program.error called'
+        )
+
+        expect(programErrorSpy).toHaveBeenCalled()
+        const errorArg = programErrorSpy.mock.calls[0][0]
+        expect(errorArg).toContain('Block "nonexistent-block-id" not found')
+      })
+
       it('--list-inputs lists init input blocks', async () => {
         const initWithInput = [
           'version: 1.0.0',
