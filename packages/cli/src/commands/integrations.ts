@@ -1,45 +1,21 @@
-import { DEFAULT_API_URL } from '@deepnote/database-integrations'
-import { readIntegrationsDocument, writeIntegrationsFile } from '@deepnote/database-integrations/node'
+import {
+  ApiError,
+  createNewDocument,
+  DEEPNOTE_TOKEN_ENV,
+  DEFAULT_API_URL,
+  DEFAULT_ENV_FILE,
+  DEFAULT_INTEGRATIONS_FILE,
+  fetchIntegrations,
+  mergeApiIntegrationsIntoDocument,
+  SCHEMA_COMMENT,
+} from '@deepnote/database-integrations'
+import { readIntegrationsDocument, updateDotEnv, writeIntegrationsFile } from '@deepnote/database-integrations/node'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { isSeq } from 'yaml'
-import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { fetchIntegrations } from '../integrations/fetch-integrations'
-import { createNewDocument, mergeApiIntegrationsIntoDocument, SCHEMA_COMMENT } from '../integrations/merge-integrations'
 import { debug, log, output } from '../output'
-import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
-import { updateDotEnv } from '../utils/dotenv'
-
-// Re-export merge logic functions for backward compatibility
-export {
-  addIntegrationToSeq,
-  type ConvertApiIntegrationsResult,
-  convertApiIntegrations,
-  createNewDocument,
-  getOrCreateIntegrationMetadata,
-  getOrCreateIntegrationsFromDocument,
-  InvalidIntegrationError,
-  InvalidIntegrationsTypeError,
-  type MergeResult,
-  mergeApiIntegrationsIntoDocument,
-  mergeProcessedIntegrations,
-  updateIntegrationInDocument,
-  updateIntegrationMetadataMap,
-} from '../integrations/merge-integrations'
-
-/**
- * Default API base URL.
- */
-export { DEFAULT_API_URL }
-
-// Re-export document read/write helpers (now in @deepnote/database-integrations/node)
-// for backward compatibility.
-export { readIntegrationsDocument, writeIntegrationsFile }
-
-// Re-export API types for backward compatibility
-export type { ApiIntegration, ApiResponse } from '../integrations/fetch-integrations'
 
 // ============================================================================
 // Options Interface

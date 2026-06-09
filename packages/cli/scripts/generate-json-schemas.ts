@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { integrationsFileSchema } from '../src/integrations/integrations-file-schemas'
+import { integrationsFileSchema } from '@deepnote/database-integrations'
 
 async function run() {
   // Dynamic import avoids tsc resolving zod-to-json-schema's deeply nested generics

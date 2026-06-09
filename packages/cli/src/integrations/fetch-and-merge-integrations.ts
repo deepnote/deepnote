@@ -1,7 +1,9 @@
-import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
+import {
+  convertApiIntegrations,
+  type DatabaseIntegrationConfig,
+  fetchIntegrations,
+} from '@deepnote/database-integrations'
 import { debug, getChalk, log } from '../output'
-import { fetchIntegrations } from './fetch-integrations'
-import { convertApiIntegrations } from './merge-integrations'
 
 /**
  * Fetch integrations from the API and merge them with locally configured integrations.

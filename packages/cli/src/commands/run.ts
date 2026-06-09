@@ -4,7 +4,13 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
-import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
+import {
+  ApiError,
+  type DatabaseIntegrationConfig,
+  DEEPNOTE_TOKEN_ENV,
+  DEFAULT_API_URL,
+  DEFAULT_ENV_FILE,
+} from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
   type AgentStreamEvent,
@@ -24,16 +30,17 @@ import { markedTerminal } from 'marked-terminal'
 
 marked.use(markedTerminal())
 
-import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
+import {
+  getDefaultIntegrationsFilePath,
+  injectIntegrationEnvVars,
+  parseIntegrationsFile,
+} from '@deepnote/database-integrations/node'
 import { ExitCode } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
-import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
-import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
-import { ApiError } from '../utils/api'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -46,7 +53,6 @@ import {
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { saveExecutionSnapshot } from '../utils/output-persistence'
-import { DEFAULT_API_URL } from './integrations'
 
 /**
  * Error thrown when required inputs are missing.

@@ -1,18 +1,16 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { ApiError, type ApiIntegration, apiResponseSchema } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiResponseSchema } from '../integrations'
-import type { ApiIntegration } from '../integrations/fetch-integrations'
-import { ApiError } from '../utils/api'
 import { MissingTokenError } from '../utils/auth'
 
 // Mock fetchIntegrations before importing the command module
 const mockFetchIntegrations =
   vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<ApiIntegration[]>>()
-vi.mock('../integrations/fetch-integrations', async importOriginal => {
-  const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
+vi.mock('@deepnote/database-integrations', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/database-integrations')>()
   return {
     ...actual,
     fetchIntegrations: (...args: Parameters<typeof actual.fetchIntegrations>) => mockFetchIntegrations(...args),
@@ -29,9 +27,14 @@ vi.mock('../output', () => ({
 }))
 
 import { existsSync } from 'node:fs'
-import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../constants'
+import {
+  DEEPNOTE_TOKEN_ENV,
+  DEFAULT_API_URL,
+  DEFAULT_ENV_FILE,
+  DEFAULT_INTEGRATIONS_FILE,
+} from '@deepnote/database-integrations'
 // Import after mocks are set up
-import { createIntegrationsPullAction, DEFAULT_API_URL } from './integrations'
+import { createIntegrationsPullAction } from './integrations'
 
 describe('integrations command', () => {
   beforeEach(() => {
@@ -129,36 +132,36 @@ describe('integrations command', () => {
 
   describe('Env var reference utilities', () => {
     it('generates correct env var name format', async () => {
-      const { generateEnvVarName } = await import('../utils/env-var-refs')
+      const { generateEnvVarName } = await import('@deepnote/database-integrations')
       const result = generateEnvVarName('85d8c83c-0a53-42a0-93e7-6f7808ef2081', 'password')
       expect(result).toBe('85D8C83C_0A53_42A0_93E7_6F7808EF2081__PASSWORD')
     })
 
     it('creates env var reference string', async () => {
-      const { createEnvVarRef } = await import('../utils/env-var-refs')
+      const { createEnvVarRef } = await import('@deepnote/database-integrations')
       const ref = createEnvVarRef('MY_VAR')
       expect(ref).toBe('env:MY_VAR')
     })
 
     it('parses env var reference', async () => {
-      const { parseEnvVarRef } = await import('../utils/env-var-refs')
+      const { parseEnvVarRef } = await import('@deepnote/database-integrations')
       const result = parseEnvVarRef('env:MY_VAR')
       expect(result).toEqual({ prefix: 'env', varName: 'MY_VAR' })
     })
 
     it('returns null for non-reference', async () => {
-      const { parseEnvVarRef } = await import('../utils/env-var-refs')
+      const { parseEnvVarRef } = await import('@deepnote/database-integrations')
       expect(parseEnvVarRef('password123')).toBeNull()
     })
 
     it('extracts env var name from reference', async () => {
-      const { extractEnvVarName } = await import('../utils/env-var-refs')
+      const { extractEnvVarName } = await import('@deepnote/database-integrations')
       expect(extractEnvVarName('env:MY_PASS')).toBe('MY_PASS')
       expect(extractEnvVarName('plaintext')).toBeNull()
     })
 
     it('handles invalid env: reference', async () => {
-      const { extractEnvVarName, generateEnvVarName } = await import('../utils/env-var-refs')
+      const { extractEnvVarName, generateEnvVarName } = await import('@deepnote/database-integrations')
 
       const invalidRef = 'env:'
       const result = extractEnvVarName(invalidRef)
@@ -169,13 +172,13 @@ describe('integrations command', () => {
     })
 
     it('handles field paths with underscores', async () => {
-      const { generateEnvVarName } = await import('../utils/env-var-refs')
+      const { generateEnvVarName } = await import('@deepnote/database-integrations')
       const name = generateEnvVarName('abc-123', 'secret_access_key')
       expect(name).toBe('ABC_123__SECRET_ACCESS_KEY')
     })
 
     it('handles field paths with camelCase', async () => {
-      const { generateEnvVarName } = await import('../utils/env-var-refs')
+      const { generateEnvVarName } = await import('@deepnote/database-integrations')
       const name = generateEnvVarName('abc', 'clientSecret')
       expect(name).toBe('ABC__CLIENTSECRET')
     })
@@ -216,7 +219,7 @@ describe('integrations command', () => {
 
   describe('Custom env var preservation', () => {
     it('preserves custom env var name from existing YAML', async () => {
-      const { extractEnvVarName, generateEnvVarName, createEnvVarRef } = await import('../utils/env-var-refs')
+      const { extractEnvVarName, generateEnvVarName, createEnvVarRef } = await import('@deepnote/database-integrations')
 
       const existingRef = 'env:MY_CUSTOM_PASSWORD'
       const existingEnvVarName = extractEnvVarName(existingRef)
@@ -230,7 +233,7 @@ describe('integrations command', () => {
     })
 
     it('generates auto name when no existing reference', async () => {
-      const { extractEnvVarName, generateEnvVarName } = await import('../utils/env-var-refs')
+      const { extractEnvVarName, generateEnvVarName } = await import('@deepnote/database-integrations')
 
       const existingValue = 'plaintext_password'
       const existingEnvVarName = extractEnvVarName(existingValue)
@@ -244,7 +247,7 @@ describe('integrations command', () => {
 
   describe('Multiple integrations handling', () => {
     it('generates unique env var names for different integrations', async () => {
-      const { generateEnvVarName } = await import('../utils/env-var-refs')
+      const { generateEnvVarName } = await import('@deepnote/database-integrations')
 
       const id1 = '11111111-1111-1111-1111-111111111111'
       const id2 = '22222222-2222-2222-2222-222222222222'
@@ -270,7 +273,7 @@ describe('integrations command', () => {
     })
 
     it('creates .env file with secrets', async () => {
-      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
       const envPath = join(tempDir, 'secrets.env')
 
       await updateDotEnv(envPath, { MY_SECRET: 'secret123' })
@@ -279,7 +282,7 @@ describe('integrations command', () => {
     })
 
     it('preserves existing .env variables', async () => {
-      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
       const envPath = join(tempDir, 'preserve.env')
 
       await writeFile(envPath, 'EXISTING=keep\n')
@@ -291,7 +294,7 @@ describe('integrations command', () => {
     })
 
     it('updates existing env var value', async () => {
-      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
       const envPath = join(tempDir, 'update.env')
 
       await writeFile(envPath, 'MY_VAR=old\n')
@@ -302,7 +305,7 @@ describe('integrations command', () => {
     })
 
     it('handles special characters in values', async () => {
-      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
+      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
       const envPath = join(tempDir, 'special.env')
 
       await updateDotEnv(envPath, { PASS: 'p$ss#word=123' })

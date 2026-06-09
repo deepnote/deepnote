@@ -11,8 +11,6 @@ export interface ValidateOptions {
   output?: OutputFormat
 }
 
-export type { ValidationIssue }
-
 export interface ValidationResult {
   success: true
   path: string

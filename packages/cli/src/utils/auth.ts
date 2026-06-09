@@ -1,4 +1,4 @@
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
+import { DEEPNOTE_TOKEN_ENV } from '@deepnote/database-integrations'
 
 /**
  * Error thrown when authentication token is missing.

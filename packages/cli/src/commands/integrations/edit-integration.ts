@@ -1,23 +1,29 @@
 import {
   type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
+  DEFAULT_ENV_FILE,
+  DEFAULT_INTEGRATIONS_FILE,
   databaseIntegrationConfigSchema,
   getSecretFieldPaths,
   isDatabaseIntegrationType,
+  resolveEnvVarRefsFromMap,
+  SCHEMA_COMMENT,
+  updateIntegrationMetadataMap,
 } from '@deepnote/database-integrations'
+import {
+  readDotEnv,
+  readIntegrationsDocument,
+  updateDotEnv,
+  writeIntegrationsFile,
+} from '@deepnote/database-integrations/node'
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
 import z from 'zod'
-import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
-import { SCHEMA_COMMENT, updateIntegrationMetadataMap } from '../../integrations/merge-integrations'
 import { debug, log, output } from '../../output'
-import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
-import { resolveEnvVarRefsFromMap } from '../../utils/env-var-refs'
 import { getProcessEnv } from '../../utils/process-env'
-import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForIntegrationName } from './add-integration'
 import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
 import { promptForFieldsAthena } from './integrations-prompts/athena'
