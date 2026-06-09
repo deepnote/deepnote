@@ -43,8 +43,9 @@ export function getDefaultIntegrationsFilePath(deepnoteFileDir: string): string 
  *
  * Reads and decodes the file, then delegates to the pure `parseIntegrations`.
  * `env:` references are resolved against (in priority order): an explicit
- * `options.env` map, else a `.env` file at `options.envFilePath` merged over
- * `process.env`, else `process.env` alone.
+ * `options.env` map, else `process.env` overlaid on a `.env` file at
+ * `options.envFilePath` (real environment variables win over `.env`), else
+ * `process.env` alone.
  *
  * A missing file is not an error — it yields an empty result.
  */
@@ -72,7 +73,7 @@ export async function parseIntegrationsFile(
   if (!env) {
     if (options.envFilePath) {
       const fileEnv = await readDotEnv(options.envFilePath)
-      env = { ...process.env, ...fileEnv }
+      env = { ...fileEnv, ...process.env }
     } else {
       env = process.env
     }
