@@ -194,7 +194,10 @@ function allocateUniqueNotebookSplitFilename(sourceFileStem: string, notebookNam
  * (`kind: 'init'`) rather than being duplicated into every other split. Each
  * non-init notebook becomes its own entry (`kind: 'notebook'`) containing only
  * that single notebook, while preserving `project.initNotebookId` so the
- * sibling-init resolver can rebind it at run time.
+ * sibling-init resolver can rebind it at run time. If `initNotebookId` is set
+ * but matches no notebook in the file, it is dropped from the emitted entries:
+ * there is no init to rebind, and a dangling id would make `deepnote run` fail
+ * sibling-init resolution.
  *
  * Assigns a unique {@link NotebookSplitEntry.outputFilename} per entry
  * (numeric suffix before `.deepnote` when slug collisions occur).
@@ -243,17 +246,22 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
     return []
   }
 
+  // When initNotebookId is set but matches no notebook in this file, no init
+  // entry was emitted above and there is nothing for the sibling-init resolver
+  // to rebind at run time. Leaving the dangling id on the splits would make
+  // `deepnote run` attempt sibling-init resolution and fail, so drop it and
+  // treat the outputs as plain no-init files.
+  const hasDanglingInit = initNotebookId !== undefined && initNotebook === undefined
+
   for (const notebook of mainNotebooks) {
     const outputFilename = allocateUniqueNotebookSplitFilename(sourceFileStem, notebook.name, used)
+    const project = { ...file.project, notebooks: [notebook] }
+    if (hasDanglingInit) {
+      delete project.initNotebookId
+    }
     result.push({
       notebook: { id: notebook.id, name: notebook.name },
-      file: {
-        ...file,
-        project: {
-          ...file.project,
-          notebooks: [notebook],
-        },
-      },
+      file: { ...file, project },
       outputFilename,
       kind: 'notebook',
     })

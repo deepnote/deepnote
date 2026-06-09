@@ -722,6 +722,9 @@ describe('splitByNotebooks', () => {
     expect(result.map(e => e.notebook.id).sort()).toEqual(['nb-a', 'nb-b'].sort())
     for (const entry of result) {
       expect(entry.file.project.notebooks).toHaveLength(1)
+      // The dangling initNotebookId must be dropped so `deepnote run` treats
+      // these as plain no-init files instead of failing sibling-init resolution.
+      expect(entry.file.project.initNotebookId).toBeUndefined()
     }
   })
 
