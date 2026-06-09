@@ -179,6 +179,25 @@ describe('SQL integration metadata schemas', () => {
     })
   })
 
+  describe('Cloud SQL', () => {
+    it('should validate valid metadata', () => {
+      const result = databaseMetadataSchemasByType['cloud-sql'].safeParse({
+        service_account: '{ "type": "service_account", "project_id": "example" }',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).toStrictEqual({
+        service_account: '{ "type": "service_account", "project_id": "example" }',
+      })
+    })
+
+    it('should fail on metadata with missing service account', () => {
+      const result = databaseMetadataSchemasByType['cloud-sql'].safeParse({})
+
+      expect(result.success).toBe(false)
+    })
+  })
+
   describe('Databricks', () => {
     it('should validate valid metadata', () => {
       const result = databaseMetadataSchemasByType.databricks.safeParse({

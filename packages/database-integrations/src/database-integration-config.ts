@@ -41,6 +41,11 @@ export const databaseIntegrationConfigSchema = z.discriminatedUnion('type', [
     federated_auth_method: z.null().optional(),
   }),
   commonIntegrationConfig.extend({
+    type: z.literal('cloud-sql'),
+    metadata: databaseMetadataSchemasByType['cloud-sql'],
+    federated_auth_method: z.null().optional(),
+  }),
+  commonIntegrationConfig.extend({
     type: z.literal('databricks'),
     metadata: databaseMetadataSchemasByType.databricks,
     federated_auth_method: z.null().optional(),
