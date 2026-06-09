@@ -474,6 +474,52 @@ describe('generateSnapshotFilename with notebookId', () => {
   })
 })
 
+describe('generateSnapshotFilename path-component sanitization', () => {
+  it('neutralizes path traversal in notebookId', () => {
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      notebookId: '../evil',
+    })
+    expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7____evil_latest.snapshot.deepnote')
+    expect(filename).not.toContain('/')
+    expect(filename).not.toContain('..')
+  })
+
+  it('neutralizes path separators in slug and projectId', () => {
+    const filename = generateSnapshotFilename({
+      slug: '../etc',
+      projectId: 'a/b',
+      notebookId: 'nb',
+    })
+    expect(filename).toBe('___etc_a_b_nb_latest.snapshot.deepnote')
+    expect(filename).not.toContain('/')
+    expect(filename).not.toContain('..')
+  })
+
+  it('leaves legitimate UUID, hex, and slug ids unchanged', () => {
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      notebookId: 'd8fd4cfe9ce04908a4ed611000d231e4',
+      timestamp: '2025-01-08T10-30-00',
+    })
+    expect(filename).toBe(
+      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_d8fd4cfe9ce04908a4ed611000d231e4_2025-01-08T10-30-00.snapshot.deepnote'
+    )
+  })
+
+  it('preserves the backslash-free, separator-free invariant for Windows separators', () => {
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      notebookId: '..\\..\\win',
+    })
+    expect(filename).not.toContain('\\')
+    expect(filename).not.toContain('..')
+  })
+})
+
 describe('splitByNotebooks', () => {
   it('should return single entry for single-notebook file', () => {
     const file: DeepnoteFile = {

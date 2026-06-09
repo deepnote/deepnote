@@ -31,6 +31,21 @@ export interface GenerateSnapshotFilenameParams {
 }
 
 /**
+ * Sanitizes a single path component for use in a snapshot filename.
+ *
+ * The slug, project id, and notebook id all originate from untrusted
+ * `.deepnote` files (parsed as arbitrary strings) and are interpolated into a
+ * filename that callers join to the snapshots directory and write to disk. A
+ * value containing path separators or `..` could otherwise escape that
+ * directory (path traversal). Replacing every character outside
+ * `[A-Za-z0-9_-]` with `_` neutralizes traversal while being a no-op for the
+ * ids snapshot readers expect (UUIDs, 32-char hex, `notebook-1`).
+ */
+function sanitizeFilenameComponent(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+/**
  * Generates a snapshot filename from project info.
  *
  * @param params - Slug, project id, and optional notebook id and timestamp (defaults timestamp to `'latest'`)
@@ -38,10 +53,12 @@ export interface GenerateSnapshotFilenameParams {
  */
 export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams): string {
   const { slug, projectId, notebookId, timestamp = 'latest' } = params
+  const safeSlug = sanitizeFilenameComponent(slug)
+  const safeProjectId = sanitizeFilenameComponent(projectId)
   if (notebookId) {
-    return `${slug}_${projectId}_${notebookId}_${timestamp}.snapshot.deepnote`
+    return `${safeSlug}_${safeProjectId}_${sanitizeFilenameComponent(notebookId)}_${timestamp}.snapshot.deepnote`
   }
-  return `${slug}_${projectId}_${timestamp}.snapshot.deepnote`
+  return `${safeSlug}_${safeProjectId}_${timestamp}.snapshot.deepnote`
 }
 
 /**
