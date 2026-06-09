@@ -47,6 +47,10 @@ const clickhouseMetadataSchema = z.object({
   caCertificateText: z.string().optional(),
 })
 
+const cloudSqlMetadataSchema = z.object({
+  service_account: z.string(),
+})
+
 const databricksMetadataSchema = z.object({
   host: z.string(),
   httpPath: z.string(),
@@ -301,6 +305,7 @@ export const databaseMetadataSchemasByType = {
   'athena': athenaMetadataSchema,
   'big-query': bigqueryMetadataSchema,
   'clickhouse': clickhouseMetadataSchema,
+  'cloud-sql': cloudSqlMetadataSchema,
   'databricks': databricksMetadataSchema,
   'dremio': dremioMetadataSchema,
   'mariadb': mariadbMetadataSchema,

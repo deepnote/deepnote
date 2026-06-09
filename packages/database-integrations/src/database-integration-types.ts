@@ -3,6 +3,7 @@ export const sqlIntegrationTypes = [
   'athena',
   'big-query',
   'clickhouse',
+  'cloud-sql',
   'databricks',
   'dremio',
   'mariadb',
