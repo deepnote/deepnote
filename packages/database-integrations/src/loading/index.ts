@@ -1,7 +1,6 @@
 export * from './api-error'
 export * from './constants'
 export * from './env-var-refs'
-export * from './fetch-and-merge-integrations'
 export * from './fetch-integrations'
 export * from './integrations-document'
 export * from './integrations-file-schema'
