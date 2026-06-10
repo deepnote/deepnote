@@ -462,7 +462,7 @@ describe('parseIntegrationsFile', () => {
       const envFilePath = join(tempDir, 'dotenv-only.env')
       await writeFile(envFilePath, 'DOTENV_ONLY_PASSWORD=secret-from-dotenv\n')
 
-      const filePath = join(tempDir, 'envfile-refs.yaml')
+      const filePath = join(tempDir, 'env-file-refs.yaml')
       await writeFile(
         filePath,
         `integrations:
@@ -492,7 +492,7 @@ describe('parseIntegrationsFile', () => {
       const envFilePath = join(tempDir, 'dotenv-override.env')
       await writeFile(envFilePath, 'OVERRIDE_PASSWORD=stale-secret-from-dotenv\n')
 
-      const filePath = join(tempDir, 'envfile-override.yaml')
+      const filePath = join(tempDir, 'env-file-override.yaml')
       await writeFile(
         filePath,
         `integrations:
