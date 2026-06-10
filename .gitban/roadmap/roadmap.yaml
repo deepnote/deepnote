@@ -1,0 +1,1039 @@
+schema_version: 3.0.0
+document_version: 0.1.0
+last_updated: '2026-06-09'
+metadata:
+  maintained_by: Deepnote team + OSS contributors
+  review_frequency: per-release
+  related_docs:
+    - README.md
+    - FILES.md
+    - CONTRIBUTING.md
+    - AGENTS.md
+  tools:
+    roadmap_tracking: roadmap.yaml
+    task_tracking: gitban cards
+    Gitban_mcp: https://github.com/muunkky/gitban-mcp
+milestones:
+  m1:
+    id: m1
+    title: Deepnote Open Source toolchain
+    description: 'The shipped open-source foundation: a family of npm/PyPI packages
+      and a CLI that let anyone read, write, validate, convert, run, and AI-author
+      the open .deepnote notebook format locally — independent of Deepnote Cloud.
+      Spans @deepnote/{blocks,convert,cli,runtime-core,reactivity,database-integrations,mcp},
+      the .deepnote file-format specification, snapshots, the documentation corpus,
+      and the engineering foundation. Backfilled from ~280 merged PRs and the issue/epic
+      history (Sept 2025 – Jun 2026).'
+    status: in_progress
+    start_date: '2025-09-01'
+    stories:
+      s1:
+        id: s1
+        title: The .deepnote format is open, fully specified, and
+          machine-validated
+        description: 'Anyone — human or tool — can read, write, and validate .deepnote
+          files with confidence. The format is published, the block vocabulary is
+          rich, and a shared Zod/JSON schema rejects malformed files while keeping
+          the serialized YAML canonical across round-trips. — Dev setup: baseline
+          toolchain only — Node 22.21.0 (nvm use), pnpm 10.19 (corepack enable), Docker;
+          run `pnpm install --frozen-lockfile` then verify with `pnpm test / typecheck
+          / lintAndFormat / spell-check`. @deepnote/blocks is pure TypeScript + Zod;
+          no Python, databases, or services required.'
+        status: done
+        success_criteria:
+          - The .deepnote and .snapshot.deepnote formats have a published
+            specification (FILES.md)
+          - A discriminated-union Zod schema validates every block type and
+            rejects malformed files
+          - Serialized YAML is canonical and stable across read/write
+            round-trips
+          - The block vocabulary covers code, SQL, inputs, display/charts, and
+            rich text
+        projects:
+          file-format-spec:
+            id: file-format-spec
+            title: .deepnote file-format specification
+            description: The human-readable specification and canonical
+              constraints for .deepnote (project + notebooks) and
+              .snapshot.deepnote files — YAML structure, block model, snapshot
+              management, and provenance.
+            status: done
+            docs_ref: FILES.md
+            features:
+              format-documentation:
+                id: format-documentation
+                title: Published format specification (FILES.md)
+                description: 'Complete spec of the .deepnote and .snapshot.deepnote
+                  formats: schema, block types, snapshot model, contentHash provenance.'
+                sequence: 1
+                status: done
+                docs_ref: FILES.md
+                notes: 'Shipped via PRs #204, #216, #79, #78'
+              canonical-yaml-constraints:
+                id: canonical-yaml-constraints
+                title: Canonical YAML constraints (parser + validator)
+                description: Defined and enforced canonical constraints on the
+                  .deepnote YAML form so files serialize consistently and stay
+                  diff-friendly.
+                sequence: 2
+                status: done
+                notes: 'Shipped via PRs #185, #306 (unify serialized formatting)'
+              schema-strictness:
+                id: schema-strictness
+                title: Strictness & required-field enforcement
+                description: Tightened format checking, including the temporary
+                  blockGroup-required constraint for Cloud import compatibility.
+                sequence: 3
+                status: done
+                notes: 'PRs #186, #191, #192; tracks issue #191'
+          blocks-package:
+            id: blocks-package
+            title: '@deepnote/blocks — block model & codegen engine'
+            description: TypeScript types, Zod schema, serialization, and
+              code/markdown generation for all Deepnote block types. The
+              canonical library every other package builds on. Current version
+              4.5.1.
+            status: done
+            docs_ref: packages/blocks/README.md
+            features:
+              block-schema-zod:
+                id: block-schema-zod
+                title: Zod block schema & deserializer
+                description: deepnoteFileSchema and DeepnoteBlock type derived
+                  from a strict discriminated-union Zod schema; deserializer for
+                  reading files.
+                sequence: 1
+                status: done
+                notes: 'PRs #28, #71, #98, #29, #201 (discriminated union), #209 (optional
+                  contentHash prefix)'
+              python-codegen:
+                id: python-codegen
+                title: Python code generation
+                description: Convert blocks (code, SQL, inputs, big-number) into
+                  executable Python; exported codegen helpers for reuse.
+                sequence: 2
+                status: done
+                notes: 'PRs #25, #379 (export codegen helpers + SQL block types),
+                  #391 (dedupe SQL codegen)'
+              markdown-conversion:
+                id: markdown-conversion
+                title: Markdown conversion
+                description: Convert text blocks to/from markdown, including
+                  heading, bullet (with indent), todo, and callout cells.
+                sequence: 3
+                status: done
+                notes: 'PRs #25, #29, #347 (bullet indent support)'
+              serialization:
+                id: serialization
+                title: .deepnote serialization functions
+                description: Functions to serialize block trees back to
+                  canonical .deepnote files with unified formatting.
+                sequence: 4
+                status: done
+                notes: 'PRs #294, #306'
+              dual-module-and-errors:
+                id: dual-module-and-errors
+                title: Dual ESM/CJS build & typed errors
+                description: Dual ESM+CommonJS distribution and distinct
+                  exception classes (e.g. UnsupportedBlockTypeError) instead of
+                  generic Error.
+                sequence: 5
+                status: done
+                notes: 'PRs #27, #268, #223'
+          block-vocabulary:
+            id: block-vocabulary
+            title: Block type vocabulary
+            description: 'The full set of Deepnote block families that make notebooks
+              richer than plain code cells: code & SQL, interactive inputs, display/visualization,
+              and rich text.'
+            status: done
+            docs_ref: skills/deepnote/references/blocks-code-and-sql.md
+            features:
+              code-and-sql-blocks:
+                id: code-and-sql-blocks
+                title: Code & SQL blocks
+                description: Python code execution and SQL query blocks with
+                  variable assignment, return-type validation, and per-block
+                  table state.
+                sequence: 1
+                status: done
+                notes: 'PRs #34 (table state), #391 (SQL codegen/return type)'
+              input-blocks:
+                id: input-blocks
+                title: Interactive input blocks
+                description: text, textarea, checkbox, select (single/multi),
+                  slider, file, date, and date-range inputs that feed downstream
+                  blocks as variables.
+                sequence: 2
+                status: done
+                docs_ref: skills/deepnote/references/blocks-input.md
+              display-blocks:
+                id: display-blocks
+                title: Display & visualization blocks
+                description: Vega-Lite visualizations, big-number KPIs (Jinja2
+                  templated), buttons, images, and separators.
+                sequence: 3
+                status: done
+                docs_ref: skills/deepnote/references/blocks-display.md
+                notes: 'PRs #45 (chart selection behavior)'
+              text-blocks:
+                id: text-blocks
+                title: Rich text blocks
+                description: Headings (h1–h3), paragraphs, bullet lists, todo
+                  checkboxes, and callouts.
+                sequence: 4
+                status: done
+                docs_ref: skills/deepnote/references/blocks-text.md
+        docs_ref: FILES.md
+        sequence: 1
+      s2:
+        id: s2
+        title: Notebooks convert losslessly between Deepnote and other formats
+        description: 'A user can bring a notebook from anywhere — Jupyter, Quarto,
+          Percent, or Marimo — into the .deepnote format, edit it locally, and export
+          it back, with platform-specific metadata and user edits preserved across
+          the round-trip. — Dev setup: baseline toolchain only (Node 22.21.0, pnpm
+          10.19, Docker; `pnpm install --frozen-lockfile`). @deepnote/convert is pure
+          TypeScript; round-trip fixtures live under test-fixtures/. No Python or
+          live services required.'
+        status: done
+        success_criteria:
+          - Any supported format converts to .deepnote and back via one CLI/API
+          - Jupyter .ipynb round-trips preserve platform metadata (Colab,
+            SageMaker, Kaggle, Azure ML)
+          - Format is auto-detected; Percent vs Marimo disambiguated
+            automatically
+          - User edits are preserved when re-converting Jupyter to Deepnote
+        docs_ref: packages/convert/README.md
+        sequence: 2
+        projects:
+          convert-package:
+            id: convert-package
+            title: '@deepnote/convert — bidirectional format converter'
+            description: CLI tool and library for bidirectional conversion
+              between .deepnote and Jupyter, Quarto, Percent, and Marimo.
+              Current version 3.2.2.
+            status: done
+            docs_ref: packages/convert/README.md
+            features:
+              jupyter-bidirectional:
+                id: jupyter-bidirectional
+                title: Bidirectional Jupyter (.ipynb) conversion
+                description: Convert .ipynb → .deepnote and .deepnote → .ipynb
+                  with per-block export and metadata preservation; preserves
+                  user edits on re-convert.
+                sequence: 1
+                status: done
+                notes: 'Issue #159; PRs #46, #167, #215 (per-block export), #257 (preserve
+                  user edits), #193 (platform metadata)'
+              quarto-percent-marimo:
+                id: quarto-percent-marimo
+                title: Quarto, Percent & Marimo support
+                description: 'Convert to/from Quarto (.qmd), Percent (.py # %%), and
+                  Marimo (.py @app.cell) formats.'
+                sequence: 2
+                status: done
+                notes: 'PRs #190, #250'
+              format-detection:
+                id: format-detection
+                title: Automatic format detection
+                description: detectFormat + NotebookFormat exports auto-detect
+                  input format and disambiguate Percent vs Marimo .py files.
+                sequence: 3
+                status: done
+                notes: 'PR #210'
+              notebook-functions:
+                id: notebook-functions
+                title: Notebook function support
+                description: Conversion support for Deepnote notebook-function
+                  blocks.
+                sequence: 4
+                status: done
+                notes: 'PR #250'
+              dual-module-build:
+                id: dual-module-build
+                title: Dual ESM/CJS build
+                description: Dual ESM+CommonJS distribution; replaced uuid with
+                  crypto.randomUUID for CJS compatibility.
+                sequence: 5
+                status: done
+                notes: 'PRs #211, #214'
+      s3:
+        id: s3
+        title: Outputs are separated from source for clean diffs and verifiable
+          provenance
+        description: 'A user gets clean, version-control-friendly notebooks: source
+          code lives in the .deepnote file while execution outputs live in companion
+          .snapshot.deepnote files. contentHash links each output back to the exact
+          code that produced it, so provenance is verifiable. — Dev setup: baseline
+          toolchain only (Node 22.21.0, pnpm 10.19, Docker; `pnpm install --frozen-lockfile`).
+          Snapshot logic spans the blocks/convert/cli packages but is pure TypeScript
+          — no Python needed unless you regenerate snapshots via an actual notebook
+          run (that path needs the s5 runtime).'
+        status: done
+        success_criteria:
+          - Outputs are stored in .snapshot.deepnote files, separate from source
+          - contentHash verifies which code produced each output
+          - Snapshots are created automatically on convert and run
+          - Both _latest and timestamped snapshots are produced on run
+        docs_ref: FILES.md
+        sequence: 3
+        depends_on:
+          - s1
+        projects:
+          snapshots:
+            id: snapshots
+            title: Snapshot model (outputs + provenance)
+            description: The snapshot subsystem that separates outputs from
+              source and provides code provenance via content hashing.
+              Cross-cuts the blocks, convert, and cli packages.
+            status: done
+            docs_ref: FILES.md
+            notes: 'Epic: issue #187 (Snapshots); issue #160 (separate runtime metadata
+              and outputs)'
+            features:
+              snapshot-file-format:
+                id: snapshot-file-format
+                title: Snapshot fields & file format
+                description: Added snapshot fields to the .deepnote file format
+                  and defined the .snapshot.deepnote companion format separating
+                  outputs from source.
+                sequence: 1
+                status: done
+                notes: 'Issues #187, #160; PRs #184, #204'
+              snapshot-creation-on-convert:
+                id: snapshot-creation-on-convert
+                title: Snapshot creation on convert
+                description: Convert generates snapshots when importing
+                  notebooks so existing outputs are preserved out-of-band.
+                sequence: 2
+                status: done
+                notes: 'PR #225'
+              content-hash-provenance:
+                id: content-hash-provenance
+                title: contentHash provenance
+                description: computeSnapshotHash links outputs to the exact
+                  source that produced them; input type widened to accept
+                  minimal data; optional hash prefix.
+                sequence: 3
+                status: done
+                notes: 'PRs #290, #209'
+              timestamped-snapshots:
+                id: timestamped-snapshots
+                title: Timestamped snapshots on run
+                description: deepnote run produces both _latest and timestamped
+                  snapshots (fixes a bug where only _latest was written).
+                sequence: 4
+                status: done
+                notes: 'Issue #309; PR #320'
+      s4:
+        id: s4
+        title: Notebooks connect to data through SQL and database integrations
+        description: 'A user can define and use SQL blocks against any of ~18 supported
+          databases and warehouses, with the right authentication methods, SSL support,
+          and validated connection metadata — the same integration model used by Deepnote
+          Cloud, available locally. — Dev setup: @deepnote/database-integrations is
+          pure TypeScript types + Zod schemas, so package/unit work needs the baseline
+          toolchain only (Node 22.21.0, pnpm 10.19; `pnpm install --frozen-lockfile`)
+          — no databases or credentials. End-to-end verification through the CLI is
+          optional and needs a live DB: Docker for Postgres/MySQL/Mongo, or a cloud
+          account + auth (BigQuery OAuth/service account, Snowflake, Redshift) with
+          SSL certs / SSH tunnel where required (see docs/<integration>.md).'
+        status: done
+        success_criteria:
+          - ~18 database/warehouse integration types are defined and selectable
+          - Each integration declares valid authentication methods and metadata
+            schema
+          - SSL-capable integrations are correctly identified and configurable
+          - Integration metadata is validated by Zod schemas with backward
+            compatibility for legacy configs
+        docs_ref: packages/database-integrations/README.md
+        sequence: 4
+        projects:
+          database-integrations-package:
+            id: database-integrations-package
+            title: '@deepnote/database-integrations'
+            description: TypeScript types, runtime catalogs, and Zod metadata
+              schemas for Deepnote SQL/database integrations. Current version
+              1.4.3.
+            status: done
+            docs_ref: packages/database-integrations/README.md
+            features:
+              integration-type-catalog:
+                id: integration-type-catalog
+                title: Integration type catalog
+                description: 'Catalog of supported integrations: Athena, Redshift,
+                  ClickHouse, Databricks, Dremio, AlloyDB, BigQuery, Spanner, MariaDB,
+                  Materialize, SQL Server, MindsDB, MongoDB, MySQL, PostgreSQL, Snowflake,
+                  Trino, and pandas DataFrame SQL. Exposes DatabaseIntegrationType
+                  and SQL/SSL subsets.'
+                sequence: 1
+                status: done
+                notes: 'PR #70 (package created); ongoing additions'
+              auth-method-schemas:
+                id: auth-method-schemas
+                title: Authentication method schemas
+                description: Per-integration auth method definitions including
+                  Trino auth methods, BigQuery/Snowflake federated auth, and
+                  backward compatibility for legacy auth configs.
+                sequence: 2
+                status: done
+                notes: 'PRs #150, #158, #168 (Trino), #166/#156 (BigQuery legacy),
+                  #127 (Snowflake federated), #146 (Redshift legacy)'
+              ssl-and-connection-args:
+                id: ssl-and-connection-args
+                title: SSL support & connection args
+                description: databaseIntegrationTypesWithSslSupport plus
+                  connection-arg handling (e.g. Trino client_tags, SSH options
+                  typing).
+                sequence: 3
+                status: done
+                notes: 'PRs #123, #135, #176'
+              metadata-zod-schemas:
+                id: metadata-zod-schemas
+                title: Metadata Zod schemas & config validation
+                description: databaseMetadataSchemasByType and
+                  databaseIntegrationConfigSchema validate integration metadata
+                  by type.
+                sequence: 4
+                status: done
+                notes: 'PRs #124, #142'
+              case-insensitive-id-filtering:
+                id: case-insensitive-id-filtering
+                title: Case-insensitive built-in integration ID filtering
+                description: 'Known gap: built-in integration ID filtering should
+                  be normalized to be case-insensitive.'
+                sequence: 5
+                status: done
+                notes: 'Closed by card 234rnd / PR deepnote/deepnote#399 (Closes #325).
+                  Single shared isBuiltinIntegration() helper normalizes built-in
+                  ID matching to be case-insensitive across collect-integrations.ts
+                  and analysis.ts. Out-of-scope external-ID case-insensitivity tracked
+                  in backlog card ca0ios.'
+                cards_ref: 234rnd (done); ca0ios (backlog follow-up)
+      s5:
+        id: s5
+        title: Deepnote projects run locally from the command line
+        description: "A user can install one CLI and run, inspect, lint, validate,
+          convert, diff, and analyze .deepnote (and .ipynb/.py/.qmd) files locally
+          — with reactive execution that re-runs only the dependent blocks, venv auto-detection,
+          and on-the-fly database integration credentials. Powered by a reusable execution
+          engine and a dependency-graph (reactivity) library. — Dev setup: baseline
+          toolchain PLUS Python, since execution is delegated to a Python kernel.
+          Install Python 3, then `pip install jinja2` (reactivity's AST analyzer spawns
+          python3; jinja2 parses SQL variable deps) and create a venv with `pip install
+          \"deepnote-toolkit[server]\"` (runtime-core's ExecutionEngine boots the
+          toolkit server). Point pythonEnv/--python at that venv. Bun is only for
+          the PyPI release build, not local dev."
+        status: in_progress
+        success_criteria:
+          - deepnote run executes any supported notebook format locally
+          - Reactive execution re-runs only blocks downstream of a change
+          - The CLI ships to both npm and PyPI (pip install deepnote-cli)
+          - MCP/CLI parity for lint, stats, and exit codes
+          - The execution engine is reusable outside the CLI (e.g. in the VS
+            Code extension)
+        docs_ref: packages/cli/README.md
+        sequence: 5
+        depends_on:
+          - s1
+          - s2
+        projects:
+          cli-package:
+            id: cli-package
+            title: '@deepnote/cli — local command surface'
+            description: 'Command-line interface to run Deepnote projects locally
+              and on Cloud. Commands: run, inspect, cat, lint, stats, validate, diff,
+              dag, analyze, convert, open, integrations, install-skills. Ships to
+              npm and PyPI. Current version 0.6.1 (active development).'
+            status: in_progress
+            docs_ref: packages/cli/README.md
+            notes: 'Epic: issue #218 (Deepnote CLI); PR #219 (skeleton)'
+            features:
+              run-command:
+                id: run-command
+                title: run command
+                description: Execute .deepnote/.ipynb/.py/.qmd files locally
+                  with --input overrides, --list-inputs, --dry-run, --open,
+                  --top/--profile, and correct exit codes for missing
+                  inputs/integrations.
+                sequence: 1
+                status: done
+                notes: 'PRs #220, #231, #240, #252, #236, #232, #303'
+              inspection-commands:
+                id: inspection-commands
+                title: Inspection commands (inspect, cat, stats, lint, validate,
+                  diff, dag)
+                description: Read-only tooling to inspect block contents, show
+                  stats, lint for issues, validate against schema, diff two
+                  files, and render the reactivity DAG.
+                sequence: 2
+                status: done
+                notes: 'PRs #227, #230, #242, #243, #109, #249, #241 (smart file discovery)'
+              convert-command:
+                id: convert-command
+                title: convert command
+                description: Notebook format conversion exposed through the CLI,
+                  wrapping @deepnote/convert.
+                sequence: 3
+                status: done
+                notes: 'PR #228'
+              analyze-and-llm-output:
+                id: analyze-and-llm-output
+                title: analyze command & LLM-optimized output
+                description: analyze command with import/context features, plus
+                  LLM-friendly output formats (TOON, llm) for feeding notebooks
+                  to models.
+                sequence: 4
+                status: done
+                notes: 'PRs #254, #238 (TOON), #263 (llm output), #315'
+              integrations-management:
+                id: integrations-management
+                title: integrations command
+                description: 'Manage database integrations from the CLI: add/edit
+                  (Postgres, Mongo, and more), pull credentials on the fly during
+                  execution, with graceful error handling.'
+                sequence: 5
+                status: done
+                notes: 'PRs #248, #275, #287, #321, #276, #313'
+              venv-support:
+                id: venv-support
+                title: venv detection & Python environment selection
+                description: Smart virtualenv auto-detection and --python
+                  selection so notebooks run in the right Python environment.
+                sequence: 6
+                status: done
+                notes: 'Issue #180; PRs #234, #312, #314'
+              skill-install:
+                id: skill-install
+                title: Deepnote skill installation
+                description: Bundles and installs a Deepnote agent skill
+                  (skills/deepnote) so AI coding tools learn the format and CLI.
+                sequence: 7
+                status: done
+                notes: 'PR #277; skill resolution fix #314'
+              cli-mcp-parity:
+                id: cli-mcp-parity
+                title: CLI/MCP parity & standardized exit codes
+                description: Standardized exit codes and lint/stats parity
+                  between the CLI and the MCP server.
+                sequence: 8
+                status: done
+                notes: 'PRs #300, #301'
+              h2-dot-escaping-bug:
+                id: h2-dot-escaping-bug
+                title: Fix compounding dot-escaping in text-cell-h2
+                description: 'Known bug: text-cell-h2 dot escaping compounds on each
+                  run.'
+                sequence: 9
+                status: todo
+                notes: 'Open issue #323'
+          runtime-core-package:
+            id: runtime-core-package
+            title: '@deepnote/runtime-core — execution engine'
+            description: Core runtime for executing Deepnote projects via an
+              ExecutionEngine, backed by deepnote-toolkit[server]. Designed to
+              be reused across the CLI and the VS Code extension. Current
+              version 0.3.0 (active development).
+            status: in_progress
+            docs_ref: packages/runtime-core/README.md
+            notes: 'Open epic: issue #162 (make Deepnote a first-class notebook runtime)'
+            features:
+              execution-engine:
+                id: execution-engine
+                title: ExecutionEngine
+                description: Start/stop a Python runtime and run a .deepnote
+                  file block-by-block with onBlockStart/onBlockDone callbacks
+                  and an execution summary.
+                sequence: 1
+                status: done
+                notes: 'PRs #280, #317'
+              reactive-block-execution:
+                id: reactive-block-execution
+                title: Reactive single-block execution
+                description: Running a single block also runs its dependent
+                  upstream blocks so the notebook stays consistent.
+                sequence: 2
+                status: done
+                notes: 'PR #272'
+              helper-exports-and-reuse:
+                id: helper-exports-and-reuse
+                title: Reusable helper exports
+                description: Exported runtime-core helpers and refactored the
+                  agent-block runner so the runtime can be reused in the VS Code
+                  extension.
+                sequence: 3
+                status: done
+                notes: 'PRs #339, #342, #370'
+              jupyter-ws-bun-compat:
+                id: jupyter-ws-bun-compat
+                title: Jupyter WebSocket / Bun compatibility
+                description: Disabled the Jupyter binary WebSocket protocol for
+                  Bun compatibility.
+                sequence: 4
+                status: done
+                notes: 'PR #324'
+          reactivity-package:
+            id: reactivity-package
+            title: '@deepnote/reactivity — dependency graph'
+            description: Builds a DAG of block dependencies via a Python AST
+              analyzer to power reactive execution. Open-sourced from Deepnote's
+              internal codebase. Current version 1.2.0.
+            status: done
+            docs_ref: packages/reactivity/README.md
+            notes: 'Issue #195; PR #196 (open-source the reactivity library)'
+            features:
+              dependency-dag:
+                id: dependency-dag
+                title: Dependency DAG (getDagForBlocks)
+                description: Analyzes block content and builds a directed
+                  acyclic graph of variable defs/uses across Python, SQL,
+                  button, big-number, notebook-function, and input blocks;
+                  supports partial DAGs.
+                sequence: 1
+                status: done
+                notes: 'PR #196'
+              reactive-downstream:
+                id: reactive-downstream
+                title: Downstream computation (getDownstreamBlocks)
+                description: Identifies all blocks that must re-run when
+                  upstream blocks change — the core of reactive execution.
+                sequence: 2
+                status: done
+              ast-analyzer:
+                id: ast-analyzer
+                title: Python AST analyzer
+                description: Ships a Python (jinja2-backed) AST analyzer in the
+                  distribution; pythonInterpreter override supported.
+                sequence: 3
+                status: done
+                notes: 'PR #200'
+      s6:
+        id: s6
+        title: AI agents can author, edit, and execute Deepnote notebooks
+        description: 'An AI coding agent (in Cursor, Claude, etc.) can create, convert,
+          enhance, fix, and run Deepnote notebooks through a purpose-built MCP server,
+          and notebooks themselves can contain agent blocks that an LLM executes at
+          runtime — making Deepnote AI-native locally. — Dev setup: baseline toolchain
+          for the @deepnote/mcp server (pure TypeScript). To exercise it live, wire
+          it into an MCP client (Cursor/Claude) per packages/mcp/README.md. Agent-block
+          execution runs through runtime-core, so it inherits the s5 Python prereqs
+          (Python 3, jinja2, a deepnote-toolkit[server] venv) and needs an AI provider
+          key/credentials for the LLM.'
+        status: in_progress
+        success_criteria:
+          - An MCP server exposes bounded, contract-first tools for notebook
+            create/edit/convert/execute
+          - MCP prompts provide reusable workflows (debug_execution,
+            create_notebook, convert_and_enhance)
+          - Notebooks support an agent block type that runs against an LLM at
+            runtime
+          - MCP and CLI stay at parity for shared operations
+        sequence: 6
+        depends_on:
+          - s1
+          - s5
+        projects:
+          mcp-server:
+            id: mcp-server
+            title: '@deepnote/mcp — MCP server'
+            description: 'Model Context Protocol server for AI-assisted Deepnote notebook
+              creation, editing, conversion, and execution. Follows MCP best practices:
+              server instructions, bounded toolsets, contracts-first, reusable prompts.
+              Current version 0.3.2 (active development).'
+            status: in_progress
+            docs_ref: packages/mcp/README.md
+            notes: 'PR #273 (v1)'
+            features:
+              mcp-tooling:
+                id: mcp-tooling
+                title: Bounded MCP toolset
+                description: Focused tools for
+                  create/enhance/fix/convert/execute with explicit schemas; tool
+                  set culled to let the model do the looping and to optimize
+                  token usage.
+                sequence: 1
+                status: done
+                notes: 'PRs #273, #258, #259, #271'
+              mcp-prompts:
+                id: mcp-prompts
+                title: MCP workflow prompts
+                description: 'Reusable prompt templates: debug_execution, create_notebook,
+                  convert_and_enhance.'
+                sequence: 2
+                status: done
+                notes: 'PR #273; docs PRs #385, #386'
+              block-group-handling:
+                id: block-group-handling
+                title: Block-group handling
+                description: Create blocks in new block groups; ongoing work on
+                  blockGroup layout fidelity when importing MCP-generated
+                  notebooks into Deepnote Cloud.
+                sequence: 3
+                status: in_progress
+                notes: 'PR #310; open issue #289'
+              shared-env-with-vscode:
+                id: shared-env-with-vscode
+                title: Shared environment with VS Code extension
+                description: 'Known gap: no way to share the selected environment
+                  between the VS Code extension and the MCP server.'
+                sequence: 4
+                status: todo
+                notes: 'Open issue #288'
+          agentic-notebooks:
+            id: agentic-notebooks
+            title: Agentic notebooks (agent block)
+            description: An agent block type that an LLM executes at runtime,
+              added to the block model and wired through the execution engine.
+              Currently a proof-of-concept maturing toward production.
+            status: in_progress
+            docs_ref: skills/deepnote/references/blocks-agent.md
+            features:
+              agent-block-type:
+                id: agent-block-type
+                title: agent block type
+                description: Defined the agent block type in the block model.
+                sequence: 1
+                status: done
+                notes: 'PR #336; issue #181'
+              agentic-block-poc:
+                id: agentic-block-poc
+                title: Agentic block proof-of-concept
+                description: Spike demonstrating an agent block executing within
+                  a notebook run.
+                sequence: 2
+                status: done
+                notes: 'PR #341 (spike)'
+              runtime-agent-execution:
+                id: runtime-agent-execution
+                title: Runtime agent-block execution
+                description: Run-agent-block logic in runtime-core with failure
+                  reporting via onBlockDone; some implementation extracted into
+                  the CLI for VS Code reuse.
+                sequence: 3
+                status: in_progress
+                notes: 'PRs #342, #369, #370; #340 (removed agent block from reactivity)'
+      s7:
+        id: s7
+        title: Users can self-serve through comprehensive product and developer
+          documentation
+        description: 'A user can learn the format, the CLI, the integrations, the
+          AI features, and best practices from an in-repo documentation corpus (165+
+          guides), runnable example notebooks, and an installable agent skill — without
+          leaving their editor. — Dev setup: docs and skill references are Markdown
+          — baseline toolchain only, validated by Prettier + cspell (`pnpm prettier:check`,
+          `pnpm spell-check`); add new terms to cspell.json / docs-dictionary.txt.
+          Running the example notebooks end-to-end needs the s5 Python runtime.'
+        status: in_progress
+        success_criteria:
+          - The .deepnote format, CLI commands, and block types are documented
+          - Integration guides cover the supported databases and services
+          - AI/agent features are documented for both humans and coding agents
+          - Runnable example notebooks demonstrate core capabilities
+        docs_ref: docs/
+        sequence: 7
+        projects:
+          product-docs:
+            id: product-docs
+            title: Product & feature documentation
+            description: 'The docs/ corpus (165+ markdown guides) imported into the
+              monorepo and continuously maintained: feature guides, integration guides,
+              AI features, file-format docs, and security/policy pages. Media is now
+              hosted in-repo after the GraphCMS migration.'
+            status: in_progress
+            docs_ref: docs/
+            features:
+              format-and-cli-docs:
+                id: format-and-cli-docs
+                title: Format, CLI & getting-started docs
+                description: Guides for the .deepnote format, conversion,
+                  projects/terminal, snapshots, and getting started (hello
+                  world).
+                sequence: 1
+                status: done
+                notes: 'PRs #56 (docs import), #79–#85, #112, #204, #334, #353, #343'
+              integration-docs:
+                id: integration-docs
+                title: Integration guides
+                description: Per-integration documentation (BigQuery OAuth,
+                  Redshift, Athena, ClickHouse, Databricks, S3, Streamlit OAuth,
+                  GitLab, etc.).
+                sequence: 2
+                status: done
+                notes: 'PRs #177, #374, #375, #322'
+              ai-feature-docs:
+                id: ai-feature-docs
+                title: AI feature & MCP documentation
+                description: Docs for AI analysis, code completion/editing,
+                  custom models, data privacy, the Deepnote agent, and the
+                  Deepnote MCP server.
+                sequence: 3
+                status: done
+                notes: 'PRs #385, #386, #380, #365'
+              media-in-repo:
+                id: media-in-repo
+                title: In-repo media hosting (GraphCMS migration)
+                description: Migrated documentation media off GraphCMS to host
+                  it in-repo.
+                sequence: 4
+                status: done
+                notes: 'PR #373'
+          examples-and-skills:
+            id: examples-and-skills
+            title: Example notebooks & agent skill
+            description: Runnable .deepnote examples and the installable
+              Deepnote agent skill that teaches AI tools the format, blocks, and
+              CLI.
+            status: done
+            docs_ref: examples/README.md
+            features:
+              example-notebooks:
+                id: example-notebooks
+                title: Example notebooks
+                description: 'Curated examples: hello world, blocks, integrations,
+                  inline outputs, charts/widgets, inputs, housing-price prediction,
+                  agent-block demo, and MCP-generated demos.'
+                sequence: 1
+                status: done
+                notes: 'PRs #202, #113, #256; cleanup #245, #247'
+              deepnote-skill:
+                id: deepnote-skill
+                title: Deepnote agent skill
+                description: skills/deepnote SKILL.md plus references for blocks
+                  (code/sql/input/display/text/agent) and CLI
+                  (run/convert/analysis/utility) that coding agents install via
+                  the CLI.
+                sequence: 2
+                status: done
+                notes: 'PR #277'
+      s8:
+        id: s8
+        title: The project has a healthy, secure, automated engineering
+          foundation
+        description: 'Contributors work in a well-tooled pnpm monorepo: consistent
+          linting/formatting (Biome), multi-version CI with coverage gates, automated
+          npm + PyPI publishing, dependency automation (Renovate), license checking,
+          and a continuously-patched security posture. — Dev setup: baseline toolchain
+          (Node 22.21.0, pnpm 10.19; `pnpm install --frozen-lockfile`). Reproduce
+          CI locally with `pnpm lintAndFormat / test / typecheck / spell-check` and
+          qlty (`qlty check`). Release/publish secrets (NPM_TOKEN, PyPI trusted publishing,
+          CODECOV_TOKEN) are maintainer-only — not required for local work.'
+        status: in_progress
+        success_criteria:
+          - A pnpm workspace hosts all packages with shared tooling
+          - CI runs lint, typecheck, test, and spell-check across multiple Node
+            versions with coverage
+          - Packages publish automatically to npm (and the CLI to PyPI)
+          - Dependencies are auto-updated and audited; security advisories are
+            patched promptly
+        docs_ref: CONTRIBUTING.md
+        sequence: 8
+        projects:
+          monorepo-and-ci:
+            id: monorepo-and-ci
+            title: Monorepo, tooling & CI/CD
+            description: pnpm workspace, Biome lint/format, vitest,
+              spell-checking, multi-node CI, coverage (Codecov), and automated
+              publishing to npm and PyPI.
+            status: done
+            docs_ref: CONTRIBUTING.md
+            features:
+              monorepo-setup:
+                id: monorepo-setup
+                title: Monorepo structure & open-source import
+                description: pnpm workspace hosting the seven packages; initial
+                  import of code and docs into the public monorepo; Node/pnpm
+                  version requirements.
+                sequence: 1
+                status: done
+                notes: 'PRs #56, #151, #57'
+              linting-and-formatting:
+                id: linting-and-formatting
+                title: Biome linting & formatting
+                description: Decided on and configured Biome (over ESLint) with
+                  org-convention rules and pre-push hooks
+                  (lint/format/typecheck/test/spell-check).
+                sequence: 2
+                status: done
+                notes: 'Issue #8; PRs #20, #49, #194'
+              ci-pipeline:
+                id: ci-pipeline
+                title: Multi-version CI & coverage
+                description: CI running across multiple Node versions with pnpm
+                  audit checks and Codecov coverage targets.
+                sequence: 3
+                status: done
+                notes: 'Issue #152; PRs #207, #36, #22, #41'
+              publishing:
+                id: publishing
+                title: npm & PyPI publishing
+                description: Automated CD publishing packages to npm from their
+                  own dirs, plus PyPI release of the CLI (pip install
+                  deepnote-cli).
+                sequence: 4
+                status: done
+                notes: 'PRs #73, #33, #30, #282, #281'
+          dependency-and-security:
+            id: dependency-and-security
+            title: Dependency automation & security
+            description: Renovate-driven dependency pinning/updates, license
+              checking in CI, and an ongoing cadence of pnpm-audit and advisory
+              patches.
+            status: in_progress
+            docs_ref: SECURITY.md
+            features:
+              renovate-automation:
+                id: renovate-automation
+                title: Renovate dependency automation
+                description: Renovate enabled for automated dependency pinning
+                  and updates, with a dependency dashboard.
+                sequence: 1
+                status: done
+                notes: 'Issue #7; open dashboard #13; PRs #14, #32'
+              license-checking:
+                id: license-checking
+                title: License checking in CI
+                description: CI job that checks dependency licenses; full Apache
+                  license added.
+                sequence: 2
+                status: done
+                notes: 'Issue #17; PRs #18, #72'
+              security-patching:
+                id: security-patching
+                title: Ongoing security advisory patching
+                description: Continuous patching of pnpm-audit findings and GHSA
+                  advisories via overrides (hono, path-to-regexp, lodash,
+                  rollup, minimatch, ajv, MCP SDK transitive deps, etc.).
+                sequence: 3
+                status: in_progress
+                notes: 'Ongoing; PRs #393, #387, #376, #368, #354, #350, #338, #333,
+                  #332, #307, #295, #292'
+    metadata:
+      maintained_by: Deepnote team + OSS contributors
+      review_frequency: per-release
+      related_docs:
+        - README.md
+        - FILES.md
+        - CONTRIBUTING.md
+        - AGENTS.md
+  m2:
+    id: m2
+    title: The local Deepnote experience
+    description: "The forward-looking milestone from the README roadmap and open epics:
+      bring the full Deepnote Cloud experience to the user's own machine — the familiar
+      UI running locally, a local AI agent that edits notebooks, bring-your-own AI
+      keys, and your own compute — while maturing Deepnote into a first-class, multi-kernel
+      notebook runtime. Not yet started; captured here as strategic context derived
+      from README.md and open issues #162 and #154."
+    status: todo
+    metadata:
+      maintained_by: Deepnote team
+      related_docs:
+        - README.md
+    stories:
+      s1:
+        id: s1
+        title: Users run the familiar Deepnote Cloud UI locally
+        description: A user can take the UI they know from Deepnote Cloud and
+          run it on their own machine against local projects and compute.
+        status: todo
+        sequence: 1
+        success_criteria:
+          - The Deepnote Cloud UI runs locally against .deepnote projects
+          - Local UI uses the open runtime-core execution engine
+        projects:
+          local-ui:
+            id: local-ui
+            title: Local Deepnote UI
+            description: 'Stub: bring the Deepnote Cloud UI to a locally-runnable
+              surface. Design not yet started.'
+            status: todo
+            notes: 'Source: README.md roadmap. Depends on a mature runtime-core (m1/s5).'
+            features: {}
+      s2:
+        id: s2
+        title: Users edit notebooks with a local AI agent
+        description: A user can edit notebooks with an AI agent running locally
+          — building on the agent block and MCP foundations from m1.
+        status: todo
+        sequence: 2
+        depends_on:
+          - s1
+        success_criteria:
+          - A local AI agent can read, edit, and run notebook blocks
+          - Builds on the agent block type and MCP server from m1/s6
+        projects:
+          local-ai-agent:
+            id: local-ai-agent
+            title: Local AI agent for notebooks
+            description: 'Stub: a locally-running AI agent that edits and executes
+              notebooks. Matures the agentic-notebooks POC from m1/s6.'
+            status: todo
+            notes: 'Source: README.md roadmap; issue #181. Builds on m1/s6 agentic-notebooks.'
+            features: {}
+      s3:
+        id: s3
+        title: Users bring their own keys for AI services
+        description: A user can configure their own API keys for AI providers so
+          AI features run under their own accounts and billing.
+        status: todo
+        sequence: 3
+        success_criteria:
+          - Users can configure their own AI provider API keys
+          - AI features (completion, editing, agent) use the user-provided keys
+        projects:
+          byo-keys:
+            id: byo-keys
+            title: Bring-your-own AI keys
+            description: 'Stub: configuration surface for user-supplied AI provider
+              credentials. Design not yet started.'
+            status: todo
+            notes: 'Source: README.md roadmap.'
+            features: {}
+      s4:
+        id: s4
+        title: Users run their own compute
+        description: A user can run notebooks on their own compute — local or
+          self-hosted — rather than only Deepnote Cloud's managed compute.
+        status: todo
+        sequence: 4
+        success_criteria:
+          - Notebooks execute on user-provided local or self-hosted compute
+          - Compute selection integrates with the local runtime
+        projects:
+          own-compute:
+            id: own-compute
+            title: Bring-your-own compute
+            description: 'Stub: run notebooks on user-owned compute backends. Design
+              not yet started.'
+            status: todo
+            notes: 'Source: README.md roadmap.'
+            features: {}
+      s5:
+        id: s5
+        title: Deepnote is a first-class, multi-kernel notebook runtime
+        description: Deepnote matures from a CLI-driven runner into a robust,
+          first-class notebook runtime that supports kernels beyond Python.
+        status: todo
+        sequence: 5
+        success_criteria:
+          - The runtime is robust and reusable enough to be considered
+            first-class
+          - Alternative language kernels (beyond Python) are supported
+        projects:
+          first-class-runtime:
+            id: first-class-runtime
+            title: First-class runtime maturation
+            description: 'Stub: open epic to make Deepnote a first-class notebook
+              runtime. Continues runtime-core (m1/s5) work.'
+            status: todo
+            notes: 'Open epic: issue #162. Continues m1/s5 runtime-core-package.'
+            features: {}
+          alternative-kernels:
+            id: alternative-kernels
+            title: Alternative language kernels
+            description: 'Stub: support notebook kernels for languages beyond Python
+              (feature-scope issue).'
+            status: todo
+            notes: 'Open issue #154 (Feature Scope: Alternative Language Kernels).'
+            features: {}

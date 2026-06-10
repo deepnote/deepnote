@@ -1,0 +1,395 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Project Roadmap",
+  "description": "Schema for validating a multi-version project roadmap document.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "document_version",
+    "last_updated",
+    "metadata",
+    "milestones"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "The version of the schema itself."
+    },
+    "document_version": {
+      "type": "string",
+      "description": "The version of the roadmap document."
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "The date the document was last updated."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "High-level metadata about the roadmap document itself.",
+      "required": [
+        "maintained_by",
+        "review_frequency",
+        "related_docs",
+        "tools"
+      ],
+      "properties": {
+        "maintained_by": {
+          "type": "string",
+          "description": "The team or individual responsible for maintaining the roadmap."
+        },
+        "review_frequency": {
+          "type": "string",
+          "description": "How often the roadmap is reviewed and updated (e.g., 'Monthly')."
+        },
+        "related_docs": {
+          "type": "array",
+          "description": "A list of paths to related documentation.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tools": {
+          "type": "object",
+          "description": "Tools used for managing the project and its tasks.",
+          "required": [
+            "roadmap_tracking",
+            "task_tracking",
+            "Gitban_mcp"
+          ],
+          "properties": {
+            "roadmap_tracking": {
+              "type": "string"
+            },
+            "task_tracking": {
+              "type": "string"
+            },
+            "Gitban_mcp": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "milestones": {
+      "type": "object",
+      "description": "A map of roadmap milestones, e.g., 'm1', 'm2'.",
+      "patternProperties": {
+        "^m\\d+$": {
+          "$ref": "#/$defs/milestone"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "type": "string",
+      "description": "Roadmap node status. `verifying` means code-complete-pending-verification; see docs/adr/ADR-050-roadmap-verifying-status.md.",
+      "enum": [
+        "done",
+        "in_progress",
+        "todo",
+        "verifying"
+      ]
+    },
+    "feature": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "description",
+        "sequence",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "tdd_spec": {
+          "type": "string"
+        },
+        "docs_ref": {
+          "type": "string",
+          "description": "Path to a related document (PRD, ADR, design doc, etc.)."
+        },
+        "sprints_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to sprint tag(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "cards_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to card ID(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-form notes for this node."
+        },
+        "actual_completion_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Actual completion date (YYYY-MM-DD)."
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "description",
+        "status",
+        "features"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "docs_ref": {
+          "type": "string",
+          "description": "Path to a related document (PRD, ADR, design doc, etc.)."
+        },
+        "sprints_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to sprint tag(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "cards_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to card ID(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "features": {
+          "type": "object",
+          "description": "A map of features associated with this project.",
+          "patternProperties": {
+            "^[a-z]+(-[a-z]+)*$": {
+              "$ref": "#/$defs/feature"
+            }
+          }
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-form notes for this node."
+        },
+        "actual_completion_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Actual completion date (YYYY-MM-DD)."
+        }
+      }
+    },
+    "story": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "description",
+        "status",
+        "success_criteria",
+        "projects"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "docs_ref": {
+          "type": "string",
+          "description": "Path to a related document (PRD, ADR, design doc, etc.)."
+        },
+        "sprints_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to sprint tag(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "cards_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to card ID(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "due_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "success_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "projects": {
+          "type": "object",
+          "description": "A map of projects associated with this story.",
+          "patternProperties": {
+            "^[a-z]+(-[a-z]+)*$": {
+              "$ref": "#/$defs/project"
+            }
+          }
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-form notes for this node."
+        },
+        "actual_completion_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Actual completion date (YYYY-MM-DD)."
+        }
+      }
+    },
+    "milestone": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "description",
+        "status",
+        "stories"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "docs_ref": {
+          "type": "string",
+          "description": "Path to a related document (PRD, ADR, design doc, etc.)."
+        },
+        "sprints_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to sprint tag(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "cards_ref": {
+          "type": "string",
+          "description": "Optional open-string reference to card ID(s) advancing this node. Modeled on `docs_ref`. No format validation; stale refs allowed. See ADR-052."
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "target_completion": {
+          "type": "string",
+          "format": "date"
+        },
+        "stories": {
+          "type": "object",
+          "description": "A map of stories associated with this milestone.",
+          "patternProperties": {
+            "^s\\d+$": {
+              "$ref": "#/$defs/story"
+            }
+          }
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-form notes for this node."
+        },
+        "actual_completion_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Actual completion date (YYYY-MM-DD)."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,410 @@
+{
+  "applied_migrations": {
+    "0002": {
+      "applied_at": "2026-06-10T00:21:23Z",
+      "deploy_generation": 1
+    }
+  },
+  "artifacts": {
+    ".claude/agents/gitban-adr-reviewer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "b515ef8d57bbf8ba23eb604996e16347a8bb74a7cf87a5ff685924876cab737a",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-adr-reviewer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-adr-writer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "88cdcf82649a78b11f91ca388f02dfcebd8f19678be3feb44f7a7d0659d8eca3",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-adr-writer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-design-doc-reviewer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "292b23d6efda00c586eedc9ee6e8c0cfd612bfc13722e7a91497ab6911d40e6e",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-design-doc-reviewer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-design-doc-writer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "be7a2f461e415c05adae49a45fc4cea0edefee2bacd19b44e7fdfbaf5f476a74",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-design-doc-writer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-dispatcher.md": {
+      "deploy_generation": 1,
+      "golden_sha": "c1499753aa4fd8d16c9e826e4777413638f7810134d8d1db40dbdbc2542ece5b",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-dispatcher.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-executor.md": {
+      "deploy_generation": 1,
+      "golden_sha": "65874ca829d58adef3e8e3e8587bf26c154eccfb098545b45bfe16e730287c59",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-executor.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-planner.md": {
+      "deploy_generation": 1,
+      "golden_sha": "c248e18f3d3a5fa5fcea42961a9875f503bbc61011b9687665fabc69becdd5d3",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-planner.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-pr.md": {
+      "deploy_generation": 1,
+      "golden_sha": "d9a4eb9ff534503d8aa0c84f3df25341cfd3b35a72481bca04be7832a302c090",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-pr.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-prd-reviewer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "edfedfa39494bd22232e31e01984d401a43b29f8c3154c2f108c3203f6cd7f8e",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-prd-reviewer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-prd-writer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "12b745bf937e23f2f1c113df17a4596d3ef441871faf134078b23f317afb048b",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-prd-writer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-reviewer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "9267a6fbcf783ad981bc3a3362001d7b7d37e515b9a7c326aa7c3ae8df7a802f",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-reviewer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-roadmap-navigator.md": {
+      "deploy_generation": 1,
+      "golden_sha": "2b0064cdc3dc6d98d13e05c509e3c9326ff2d850c0cc7db10616870782579ae3",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-roadmap-navigator.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-router.md": {
+      "deploy_generation": 1,
+      "golden_sha": "c818e832ad06955094c38c4d95f680c3e0fa8702c906838fd84b534ea6e4d2d8",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-router.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-sprint-architect.md": {
+      "deploy_generation": 1,
+      "golden_sha": "f33e977c09182ef24d9f8b9de90fa72b9c8c7925066d4710af46f74893866796",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-sprint-architect.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-sprint-closeout-reviewer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "0c822cf4032f130e3f2055bae2c4f176c65b5c4dab6600beef01a33b30666b4e",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-sprint-closeout-reviewer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-sprint-reviewer.md": {
+      "deploy_generation": 1,
+      "golden_sha": "eace8e7e1fa8b2259fe7dada8e92cd01a3322dc013c5cd44487080616a653564",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-sprint-reviewer.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/agents/gitban-sprintmaster.md": {
+      "deploy_generation": 1,
+      "golden_sha": "0091cf7c7861408085e9e10db7822b751ffc124e2b0a7f53f8e501f2da0a2551",
+      "history": [],
+      "source": "claude_scaffold/agents/gitban-sprintmaster.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-adr-reviewer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "bb04e45025a515da9ccd03363b0f94f12aa0dd65ee5fa9530655b8c5238fe704",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-adr-reviewer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-adr-writer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "6405271820a386e75d5c60325afaf25433a5900eee7efe4f62a79db4b7efbb02",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-adr-writer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-design-doc-reviewer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "3ab6d69edd1068e6eff379f878cc68ddac4579e4c0eca9e2290e98157745627e",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-design-doc-reviewer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-design-doc-writer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "ec5e4d98102297c6c7d6091a5136236ca9afd924fb09e45c4a90610a992b2a40",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-design-doc-writer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-dispatcher/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "fcbbafaf2cf2885e3aceedc5f6479ef1a7acdb02ad08c1247093a6e930304585",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-dispatcher/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-executor/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "0bdca190be25931c250e386f46cc9b25d423e86550f7b611d37cd09690ec75aa",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-executor/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-planner/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "fb3198913c6260d5471daf507651b6b623a5201916119533d5c20ea9b8e91559",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-planner/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-pr/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "9434bb8dcf56ce1a0541720eb15d70d78c98156170923673b6e309014cdc5b95",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-pr/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-prd-reviewer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "6cef2587f14dc9e3375af1d9700eb0c9cf3063bd525e933527f3809f349761e5",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-prd-reviewer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-prd-writer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "c118b752c542278b8f8db4a800abcc0196d3f8778732474afcacb790d21e1a00",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-prd-writer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-reviewer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "d6fb33c5d2e92d27fcd275558b0925456e09a7c4bd9fd22ad4c40fa70b56cd4f",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-reviewer/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-roadmap-navigator/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "8bddd173a9e52b8147ca6bed8bac494db70b9ba64351331be210902882059c76",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-roadmap-navigator/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-router/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "ef2aa563939fa067a150a50e77b67425b0e3b543070c19124a9f1c06280b4d26",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-router/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-sprint-architect/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "a54033eeff4eef6468503f57f9cbf499061a4543765f8315c9e1a48cf5598ff6",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-sprint-architect/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-sprint-closeout-reviewer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "9455ee2c4ad09ace1a12742faa41061616dec58f3c3fcfb18d1fbdb615d28656",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-sprint-closeout-reviewer/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-sprint-reviewer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "d7f32abb70f8d818949d81202dc62fa1498e51cb4f89a353058be40c37fb965a",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-sprint-reviewer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-sprintmaster/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "4bc5a7807db3a0d15b19516b039ab47b5bd21a12858ee075fb1abe399e0a62d6",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-sprintmaster/SKILL.md.j2",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".claude/skills/gitban-technical-content-writer/SKILL.md": {
+      "deploy_generation": 1,
+      "golden_sha": "47549e31af09a7715b754a9e968ecedb6180a4e41503b1e3908e55237845825e",
+      "history": [],
+      "source": "claude_scaffold/skills/gitban-technical-content-writer/SKILL.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/docs/development-lifecycle.md": {
+      "deploy_generation": 1,
+      "golden_sha": "a0b1ca88506d24cea5d3a4d6eeaee8fea91da66f530c89057655335aaac89568",
+      "history": [],
+      "source": "claude_scaffold/docs/development-lifecycle.md",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/agent-log.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "813a7dd200d11c16f5eb074d2a76855e9776655f875d38f3bce29871e0c8ed14",
+      "history": [],
+      "source": "claude_scaffold/hooks/agent-log.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/agent-trace.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "b3bd616a5fa7032f6b79397068bb7ee54d62a07c69c389de40d5de0799f65063",
+      "history": [],
+      "source": "claude_scaffold/hooks/agent-trace.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/agent-watchdog.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "ad963dfc489a5f4de1db169009284cb6634754e9c49269c335a377be5c99d7af",
+      "history": [],
+      "source": "claude_scaffold/hooks/agent-watchdog.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/cwd-pin-check.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "fcde5b8c5d8ff6cc518961db2a53dd60d0b58b1ac8436e62b31d717cf659b72b",
+      "history": [],
+      "source": "claude_scaffold/hooks/cwd-pin-check.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/lib/gitban-hook-input.sh": {
+      "deploy_generation": 1,
+      "golden_sha": "0b693ae1fd63b6c1f0fc628c51c605c28b6f5d7ce81ddb1e8399fee812c27f68",
+      "history": [],
+      "source": "claude_scaffold/hooks/lib/gitban-hook-input.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/lib/selftest_fixtures.json": {
+      "deploy_generation": 1,
+      "golden_sha": "d18b777ef75da70c423ddef762d8abae9e17fb4daf1636db0c14d13f13a43d7e",
+      "history": [],
+      "source": "claude_scaffold/hooks/lib/selftest_fixtures.json",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/post-bash-log.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "a0a78d4b1f06f83d3a0989a813c6f63f8188f992bc29ef11ad3ca448088dfc1d",
+      "history": [],
+      "source": "claude_scaffold/hooks/post-bash-log.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/pre-bash-log.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "e245637206f0bce2aa42a453ad8a7b9947d9783bc19c0930b7ac3b436924d2cb",
+      "history": [],
+      "source": "claude_scaffold/hooks/pre-bash-log.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/prune-orphan-worktrees.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "286b337cea78d35eaae2887635cb1b1bdccab8226845c587a53b42b218987f75",
+      "history": [],
+      "source": "claude_scaffold/hooks/prune-orphan-worktrees.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/validate-no-direct-card-edit.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "aa43cbb1779ff8257c883a172d620a5b8443d234774571a10385a44d0254e9bc",
+      "history": [],
+      "source": "claude_scaffold/hooks/validate-no-direct-card-edit.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/validate-no-direct-gitban-state-edit.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "e7653b6672af1794f1d1be93b6697215f4d866736e72db9bd3eb4635dd684174",
+      "history": [],
+      "source": "claude_scaffold/hooks/validate-no-direct-gitban-state-edit.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    },
+    ".gitban/hooks/worktree-create.sh": {
+      "deploy_generation": 1,
+      "exec_bit_expectation": "100755",
+      "golden_sha": "447c5f5c606fba318873041fa897ad767b36e353b83cf64cafe0d4c25c9fc1ea",
+      "history": [],
+      "source": "claude_scaffold/hooks/worktree-create.sh",
+      "source_gitban_version": "2.0.0a1",
+      "status": "managed"
+    }
+  },
+  "deploy_generation": 1,
+  "deployed_at": "2026-06-10T00:17:37Z",
+  "gitban_version": "2.0.0a1",
+  "hash_form": "sha256-of-lf-normalized-utf8-bytes",
+  "manifest_format": 1,
+  "scaffold_version": "2.0.0a1"
+}

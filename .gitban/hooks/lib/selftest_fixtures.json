@@ -1,0 +1,75 @@
+{
+  "_comment": [
+    "Synthetic PreToolUse payload fixtures driven by `_run_hook_selftest`",
+    "(gitban/mcp/tools/templates.py). Each entry names a shipped PreToolUse",
+    "hook plus the positive / negative / bypass cases that exercise the",
+    "documented contract. The runner pipes `payload` to `bash <hook>` and",
+    "asserts the named `expect_exit`. The `must_emit_audit_row` flag on",
+    "bypass cases asserts a one-row append to .gitban/audit/bypasses_consumed.jsonl",
+    "(L1 follow-up). Hooks not listed here are excluded from the install-time",
+    "self-test by design — log-only / trace-only hooks have no block/pass",
+    "contract to validate.",
+    "",
+    "Per-hook case count is intentionally lean (one positive, one negative,",
+    "one bypass) so the full matrix stays inside the install-time budget on",
+    "Windows Git Bash where each `bash <hook>` invocation costs ~1-3s of",
+    "process-startup overhead. The deep regression coverage lives in",
+    "`tests/hooks/test_validate_no_direct_*` and `tests/hooks/test_cwd_pin_check.py`."
+  ],
+  "schema_version": 1,
+  "hooks": {
+    "validate-no-direct-card-edit.sh": {
+      "cases": [
+        {
+          "name": "positive_windows_paired_backslash_card_path_blocks",
+          "kind": "positive",
+          "expect_exit": 2,
+          "payload": "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"C:\\\\Users\\\\dev\\\\.gitban\\\\cards\\\\foo.md\",\"content\":\"x\"}}"
+        },
+        {
+          "name": "negative_unprotected_path_passes",
+          "kind": "negative",
+          "expect_exit": 0,
+          "payload": "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/repo/src/foo.py\",\"content\":\"x\"}}"
+        },
+        {
+          "name": "bypass_consumes_sentinel_audit_row_emitted",
+          "kind": "bypass",
+          "expect_exit": 0,
+          "must_emit_audit_row": true,
+          "sentinel": {
+            "hook": "validate-no-direct-card-edit",
+            "target": "/repo/.gitban/cards/foo.md"
+          },
+          "payload": "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/repo/.gitban/cards/foo.md\",\"content\":\"x\"}}"
+        }
+      ]
+    },
+    "validate-no-direct-gitban-state-edit.sh": {
+      "cases": [
+        {
+          "name": "positive_roadmap_write_blocks",
+          "kind": "positive",
+          "expect_exit": 2,
+          "payload": "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/repo/.gitban/roadmap/roadmap.yaml\",\"content\":\"x\"}}"
+        },
+        {
+          "name": "negative_git_add_roadmap_passes",
+          "kind": "negative",
+          "expect_exit": 0,
+          "payload": "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git add .gitban/roadmap/roadmap.yaml\"}}"
+        }
+      ]
+    },
+    "cwd-pin-check.sh": {
+      "cases": [
+        {
+          "name": "negative_read_class_git_log_passes",
+          "kind": "negative",
+          "expect_exit": 0,
+          "payload": "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"git log --oneline -10\"}}"
+        }
+      ]
+    }
+  }
+}
