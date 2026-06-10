@@ -1,6 +1,5 @@
 export * from './api-error'
 export * from './constants'
-export * from './dotenv'
 export * from './env-var-refs'
 export * from './fetch-and-merge-integrations'
 export * from './fetch-integrations'

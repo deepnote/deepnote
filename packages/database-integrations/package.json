@@ -15,11 +15,6 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
-    },
-    "./node": {
-      "import": "./dist/node/index.js",
-      "require": "./dist/node/index.cjs",
-      "types": "./dist/node/index.d.ts"
     }
   },
   "main": "./dist/index.cjs",

@@ -1,7 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   type ApiIntegration,
   addIntegrationToSeq,
@@ -9,8 +8,9 @@ import {
   getOrCreateIntegrationsFromDocument,
   mergeApiIntegrationsIntoDocument,
   mergeProcessedIntegrations,
-} from '../index'
-import { readIntegrationsDocument, writeIntegrationsFile } from './index'
+} from '@deepnote/database-integrations'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { readIntegrationsDocument, writeIntegrationsFile } from './integrations-document'
 
 // Helper to create a mock API integration
 function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiIntegration {

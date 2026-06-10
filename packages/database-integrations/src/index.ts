@@ -25,8 +25,9 @@ export {
   type SqlIntegrationType,
   sqlIntegrationTypes,
 } from './database-integration-types'
-// Integration loading: parsing, secret resolution, cloud fetch, and YAML/.env write-back.
-// Browser-safe (no Node `fs`/`process`). Filesystem wrappers live in `@deepnote/database-integrations/node`.
+// Integration loading: parsing, secret resolution, cloud fetch, and YAML write-back.
+// Browser-safe (no Node `fs`/`process`). Consumers supply their own filesystem and
+// `.env` wrappers (the CLI does this in `src/integrations` and `src/utils/dotenv.ts`).
 export * from './loading'
 export {
   getSecretFieldPaths,

@@ -238,7 +238,7 @@ describe('add-integration mysql', () => {
     // Verify multiline values survive the updateDotEnv → readDotEnv roundtrip.
     // screen.type() cannot inject literal newlines (they act as Enter/submit),
     // so we write a multiline cert value directly and verify it parses back.
-    const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
+    const { updateDotEnv, readDotEnv } = await import('../../../utils/dotenv')
     const multilineCert = 'line-1-of-cert\nline-2-of-cert\nline-3-of-cert'
     await updateDotEnv(envFilePath, {
       AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT: multilineCert,

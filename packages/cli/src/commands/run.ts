@@ -30,14 +30,11 @@ import { markedTerminal } from 'marked-terminal'
 
 marked.use(markedTerminal())
 
-import {
-  getDefaultIntegrationsFilePath,
-  injectIntegrationEnvVars,
-  parseIntegrationsFile,
-} from '@deepnote/database-integrations/node'
 import { ExitCode } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
+import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
+import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'

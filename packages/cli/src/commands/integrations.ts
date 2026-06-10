@@ -9,13 +9,14 @@ import {
   mergeApiIntegrationsIntoDocument,
   SCHEMA_COMMENT,
 } from '@deepnote/database-integrations'
-import { readIntegrationsDocument, updateDotEnv, writeIntegrationsFile } from '@deepnote/database-integrations/node'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { isSeq } from 'yaml'
 import { ExitCode } from '../exit-codes'
+import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations/integrations-document'
 import { debug, log, output } from '../output'
 import { MissingTokenError } from '../utils/auth'
+import { updateDotEnv } from '../utils/dotenv'
 
 // ============================================================================
 // Options Interface

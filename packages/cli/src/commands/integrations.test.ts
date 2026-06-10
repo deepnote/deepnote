@@ -273,7 +273,7 @@ describe('integrations command', () => {
     })
 
     it('creates .env file with secrets', async () => {
-      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
       const envPath = join(tempDir, 'secrets.env')
 
       await updateDotEnv(envPath, { MY_SECRET: 'secret123' })
@@ -282,7 +282,7 @@ describe('integrations command', () => {
     })
 
     it('preserves existing .env variables', async () => {
-      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
       const envPath = join(tempDir, 'preserve.env')
 
       await writeFile(envPath, 'EXISTING=keep\n')
@@ -294,7 +294,7 @@ describe('integrations command', () => {
     })
 
     it('updates existing env var value', async () => {
-      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
       const envPath = join(tempDir, 'update.env')
 
       await writeFile(envPath, 'MY_VAR=old\n')
@@ -305,7 +305,7 @@ describe('integrations command', () => {
     })
 
     it('handles special characters in values', async () => {
-      const { updateDotEnv, readDotEnv } = await import('@deepnote/database-integrations/node')
+      const { updateDotEnv, readDotEnv } = await import('../utils/dotenv')
       const envPath = join(tempDir, 'special.env')
 
       await updateDotEnv(envPath, { PASS: 'p$ss#word=123' })

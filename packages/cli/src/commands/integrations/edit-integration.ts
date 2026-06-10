@@ -10,19 +10,15 @@ import {
   SCHEMA_COMMENT,
   updateIntegrationMetadataMap,
 } from '@deepnote/database-integrations'
-import {
-  readDotEnv,
-  readIntegrationsDocument,
-  updateDotEnv,
-  writeIntegrationsFile,
-} from '@deepnote/database-integrations/node'
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
 import z from 'zod'
 import { ExitCode } from '../../exit-codes'
+import { readIntegrationsDocument, writeIntegrationsFile } from '../../integrations/integrations-document'
 import { debug, log, output } from '../../output'
+import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
 import { getProcessEnv } from '../../utils/process-env'
 import { promptForIntegrationName } from './add-integration'
 import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'

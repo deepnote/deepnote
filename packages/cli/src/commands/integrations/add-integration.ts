@@ -10,12 +10,13 @@ import {
   getOrCreateIntegrationsFromDocument,
   SCHEMA_COMMENT,
 } from '@deepnote/database-integrations'
-import { readIntegrationsDocument, updateDotEnv, writeIntegrationsFile } from '@deepnote/database-integrations/node'
 import { input, select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { ExitCode } from '../../exit-codes'
+import { readIntegrationsDocument, writeIntegrationsFile } from '../../integrations/integrations-document'
 import { log, output } from '../../output'
+import { updateDotEnv } from '../../utils/dotenv'
 import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
 import { promptForFieldsAthena } from './integrations-prompts/athena'
 import { promptForFieldsBigQuery } from './integrations-prompts/big-query'

@@ -1,8 +1,9 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  // Two entry points: the browser-safe root and the Node-only filesystem helpers.
-  entry: ['src/index.ts', 'src/node/index.ts'],
+  // Single browser-safe entry point. Filesystem/`process` wrappers are the
+  // consumer's responsibility (e.g. the CLI, or the VS Code extension host).
+  entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
   dts: true,
 })
