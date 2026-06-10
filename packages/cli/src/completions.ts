@@ -62,6 +62,10 @@ _deepnote_completions() {
                 COMPREPLY=( $(compgen -W "json llm" -- "\${cur}") )
                 return 0
                 ;;
+            split)
+                COMPREPLY=( $(compgen -d -- "\${cur}") )
+                return 0
+                ;;
         esac
     fi
 
