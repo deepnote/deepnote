@@ -6,12 +6,12 @@ import {
   ApiError,
   type ApiIntegration,
   type DatabaseIntegrationConfig,
-  DEEPNOTE_TOKEN_ENV,
   DEFAULT_API_URL,
   DEFAULT_INTEGRATIONS_FILE,
 } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import type { saveExecutionSnapshot } from '../utils/output-persistence'
 
 // Create mock engine functions

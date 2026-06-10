@@ -7,8 +7,5 @@ export const DEFAULT_ENV_FILE = '.env' as const
 /** Default integrations file name. */
 export const DEFAULT_INTEGRATIONS_FILE = '.deepnote.env.yaml' as const
 
-/** Environment variable name for the Deepnote API token. */
-export const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN' as const
-
 /** Default Deepnote API base URL. */
 export const DEFAULT_API_URL = 'https://api.deepnote.com' as const

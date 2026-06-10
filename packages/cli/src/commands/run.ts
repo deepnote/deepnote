@@ -7,7 +7,6 @@ import { serializeDeepnoteFile } from '@deepnote/blocks'
 import {
   ApiError,
   type DatabaseIntegrationConfig,
-  DEEPNOTE_TOKEN_ENV,
   DEFAULT_API_URL,
   DEFAULT_ENV_FILE,
 } from '@deepnote/database-integrations'
@@ -30,6 +29,7 @@ import { markedTerminal } from 'marked-terminal'
 
 marked.use(markedTerminal())
 
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'

@@ -3,7 +3,6 @@ import path from 'node:path'
 import {
   ApiError,
   createNewDocument,
-  DEEPNOTE_TOKEN_ENV,
   DEFAULT_API_URL,
   DEFAULT_ENV_FILE,
   DEFAULT_INTEGRATIONS_FILE,
@@ -16,6 +15,7 @@ import {
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { type Document, isSeq } from 'yaml'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, log, output } from '../output'
 import { MissingTokenError } from '../utils/auth'

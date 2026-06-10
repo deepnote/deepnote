@@ -27,12 +27,8 @@ vi.mock('../output', () => ({
 }))
 
 import { existsSync } from 'node:fs'
-import {
-  DEEPNOTE_TOKEN_ENV,
-  DEFAULT_API_URL,
-  DEFAULT_ENV_FILE,
-  DEFAULT_INTEGRATIONS_FILE,
-} from '@deepnote/database-integrations'
+import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 // Import after mocks are set up
 import { createIntegrationsPullAction } from './integrations'
 

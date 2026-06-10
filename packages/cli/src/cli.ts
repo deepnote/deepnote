@@ -1,9 +1,4 @@
-import {
-  DEEPNOTE_TOKEN_ENV,
-  DEFAULT_API_URL,
-  DEFAULT_ENV_FILE,
-  DEFAULT_INTEGRATIONS_FILE,
-} from '@deepnote/database-integrations'
+import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
 import chalk from 'chalk'
 import { Command } from 'commander'
 // Note: We keep 'chalk' import for:
@@ -25,6 +20,7 @@ import { createRunAction } from './commands/run'
 import { createStatsAction } from './commands/stats'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
+import { DEEPNOTE_TOKEN_ENV } from './constants'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
 import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
