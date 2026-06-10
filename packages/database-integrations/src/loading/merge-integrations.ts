@@ -84,11 +84,7 @@ export function getOrCreateIntegrationsFromDocument(doc: Document): YAMLSeq<unkn
   return integrations
 }
 
-export function getOrCreateIntegrationMetadata(
-  doc: Document,
-  _integrationId: string,
-  integrationMap: YAMLMap
-): YAMLMap {
+export function getOrCreateIntegrationMetadata(doc: Document, integrationMap: YAMLMap): YAMLMap {
   // Get existing metadata to check for custom env var names before updating
   const existingMetadata = integrationMap.get('metadata', true)
 
@@ -172,7 +168,7 @@ export function updateIntegrationInDocument(
   // Get secret field paths for this integration type
   const secretPaths = getSecretFieldPaths(type)
 
-  const metadataMap = getOrCreateIntegrationMetadata(doc, id, integrationMap)
+  const metadataMap = getOrCreateIntegrationMetadata(doc, integrationMap)
 
   const secrets = updateIntegrationMetadataMap({
     metadataMap,
