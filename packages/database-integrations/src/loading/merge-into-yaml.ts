@@ -2,24 +2,14 @@ import type { ApiIntegration } from './fetch-integrations'
 import { parseIntegrationsDocument, serializeIntegrationsDocument } from './integrations-document'
 import {
   createNewDocument,
+  type IntegrationsDocumentMergeResult,
   mergeApiIntegrationsIntoDocument,
   SCHEMA_COMMENT,
-  type SkippedApiIntegration,
 } from './merge-integrations'
 
-export interface MergeApiIntegrationsIntoYamlResult {
+export interface IntegrationsYamlDocumentMergeResult extends IntegrationsDocumentMergeResult {
   /** The updated YAML content (comments and formatting preserved). */
   content: string
-  /** Extracted secrets, keyed by generated env var name. */
-  secrets: Record<string, string>
-  /** Merge statistics. */
-  stats: {
-    existingCount: number
-    newCount: number
-    updatedCount: number
-  }
-  /** API integrations skipped because they were invalid or unsupported. */
-  skipped: SkippedApiIntegration[]
 }
 
 /**
@@ -37,7 +27,7 @@ export interface MergeApiIntegrationsIntoYamlResult {
 export function mergeApiIntegrationsIntoYaml(
   existingContent: string | null,
   apiIntegrations: ApiIntegration[]
-): MergeApiIntegrationsIntoYamlResult {
+): IntegrationsYamlDocumentMergeResult {
   const doc = (existingContent != null ? parseIntegrationsDocument(existingContent) : null) ?? createNewDocument()
 
   const { secrets, stats, skipped } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)

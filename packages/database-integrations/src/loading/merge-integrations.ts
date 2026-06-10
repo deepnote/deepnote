@@ -40,15 +40,21 @@ export interface SkippedApiIntegration {
 }
 
 /**
- * Result of merging API integrations into a document.
+ * Result of merging processed integrations into a document.
  */
-export interface MergeResult {
+export interface IntegrationsMergeResult {
   secrets: Record<string, string>
   stats: {
     existingCount: number
     newCount: number
     updatedCount: number
   }
+}
+
+/**
+ * Result of merging API integrations into a document.
+ */
+export interface IntegrationsDocumentMergeResult extends IntegrationsMergeResult {
   /** API integrations skipped because they were invalid or unsupported. */
   skipped: SkippedApiIntegration[]
 }
@@ -247,7 +253,7 @@ export function mergeProcessedIntegrations(
   doc: Document,
   integrationsSeq: YAMLSeq,
   processedIntegrations: DatabaseIntegrationConfig[]
-): MergeResult {
+): IntegrationsMergeResult {
   // Get existing integrations count
   const existingCount = integrationsSeq.items.length
   // Track counts
@@ -276,7 +282,7 @@ export function mergeProcessedIntegrations(
     }
   }
 
-  return { secrets, stats: { existingCount, newCount, updatedCount }, skipped: [] }
+  return { secrets, stats: { existingCount, newCount, updatedCount } }
 }
 
 /**
@@ -339,7 +345,10 @@ export function convertApiIntegrations(apiIntegrations: ApiIntegration[]): Conve
  * @param apiIntegrations - Integrations fetched from the API
  * @returns The extracted secrets and merge statistics
  */
-export function mergeApiIntegrationsIntoDocument(doc: Document, apiIntegrations: ApiIntegration[]): MergeResult {
+export function mergeApiIntegrationsIntoDocument(
+  doc: Document,
+  apiIntegrations: ApiIntegration[]
+): IntegrationsDocumentMergeResult {
   const integrationsSeq = getOrCreateIntegrationsFromDocument(doc)
 
   // Convert API integrations to DatabaseIntegrationConfig, collecting invalid/unsupported ones
@@ -364,5 +373,6 @@ export function mergeApiIntegrationsIntoDocument(doc: Document, apiIntegrations:
 
   // Merge integrations and extract secrets in a single pass
   // This preserves custom env var names by checking existing values before updating
-  return { ...mergeProcessedIntegrations(doc, integrationsSeq, databaseIntegrations), skipped }
+  const mergeResult = mergeProcessedIntegrations(doc, integrationsSeq, databaseIntegrations)
+  return { ...mergeResult, skipped }
 }
