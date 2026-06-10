@@ -2,10 +2,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
-import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import {
   ApiError,
   type ApiIntegration,
+  type DatabaseIntegrationConfig,
   DEEPNOTE_TOKEN_ENV,
   DEFAULT_API_URL,
   DEFAULT_INTEGRATIONS_FILE,
@@ -56,8 +56,14 @@ vi.mock('@deepnote/reactivity', () => {
   }
 })
 
-// Mock integration parsing + env-var injection (CLI filesystem wrappers around @deepnote/database-integrations)
+// Mock integrations module for testing integration validation
 const mockParseIntegrationsFile = vi.fn()
+vi.mock('../integrations/parse-integrations', () => {
+  return {
+    parseIntegrationsFile: (...args: unknown[]) => mockParseIntegrationsFile(...args),
+    getDefaultIntegrationsFilePath: (dir: string) => join(dir, DEFAULT_INTEGRATIONS_FILE),
+  }
+})
 // Mock fetchIntegrations for API integration tests
 const mockFetchIntegrations =
   vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<ApiIntegration[]>>()
@@ -72,10 +78,6 @@ vi.mock('@deepnote/database-integrations', async importOriginal => {
 // Mock injectIntegrationEnvVars for testing integration env var injection
 const mockInjectIntegrationEnvVars = vi.fn<(integrations: unknown[], workingDirectory: string) => string[]>()
 mockInjectIntegrationEnvVars.mockReturnValue([])
-vi.mock('../integrations/parse-integrations', () => ({
-  parseIntegrationsFile: (...args: unknown[]) => mockParseIntegrationsFile(...args),
-  getDefaultIntegrationsFilePath: (dir: string) => join(dir, DEFAULT_INTEGRATIONS_FILE),
-}))
 vi.mock('../integrations/inject-integration-env-vars', () => ({
   injectIntegrationEnvVars: (...args: [unknown[], string]) => mockInjectIntegrationEnvVars(...args),
 }))

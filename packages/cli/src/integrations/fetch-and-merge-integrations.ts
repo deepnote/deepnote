@@ -8,11 +8,6 @@ import { debug, getChalk, log } from '../output'
 /**
  * Fetch integrations from the API and merge them with locally configured integrations.
  * Only fetches integrations that are actually needed by SQL blocks and not already present locally.
- *
- * CLI orchestration over the shared `fetchIntegrations` / `convertApiIntegrations`
- * (re-exported from @deepnote/database-integrations), adding user-facing progress
- * and warning logging. The framework-agnostic equivalent for reuse is the package's
- * own `fetchAndMergeApiIntegrations`.
  */
 export async function fetchAndMergeApiIntegrations(params: {
   localIntegrations: DatabaseIntegrationConfig[]

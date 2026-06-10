@@ -4,75 +4,9 @@ import dotenv from 'dotenv'
 import { isErrnoENOENT } from './file-resolver'
 
 /**
- * Read and parse a `.env` file. Returns an empty map if the file doesn't exist.
- */
-export async function readDotEnv(filePath: string): Promise<Record<string, string>> {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8')
-    return dotenv.parse(content)
-  } catch (error) {
-    if (isErrnoENOENT(error)) {
-      return {}
-    }
-    throw error
-  }
-}
-
-/**
- * Update a `.env` file with new values, creating it (and parent directories) if needed.
- * - Updates existing variables in place using regex replacement
- * - Appends new variables at the end
- * - Preserves comments and formatting
- */
-export async function updateDotEnv(filePath: string, updates: Record<string, string>): Promise<void> {
-  let content = ''
-  try {
-    content = await fs.readFile(filePath, 'utf-8')
-  } catch (error) {
-    if (!isErrnoENOENT(error)) {
-      throw error
-    }
-    // File doesn't exist, we'll create it
-  }
-
-  const pendingUpdates = new Set(Object.keys(updates))
-
-  // Replace existing variables using regex
-  for (const key of Object.keys(updates)) {
-    // Match KEY=... until end of line (handles quoted and unquoted values)
-    const regex = new RegExp(`^(${escapeRegex(key)})=.*$`, 'm')
-    if (regex.test(content)) {
-      content = content.replace(regex, `${key}=${formatValue(updates[key])}`)
-      pendingUpdates.delete(key)
-    }
-  }
-
-  // Append new variables at the end
-  for (const key of pendingUpdates) {
-    const formattedLine = `${key}=${formatValue(updates[key])}`
-
-    if (content === '') {
-      content = formattedLine
-    } else if (content.endsWith('\n')) {
-      content += formattedLine
-    } else {
-      content += `\n${formattedLine}`
-    }
-  }
-
-  // Ensure trailing newline
-  if (content !== '' && !content.endsWith('\n')) {
-    content += '\n'
-  }
-
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
-  await fs.writeFile(filePath, content, 'utf-8')
-}
-
-/**
- * Format a value for writing to a `.env` file.
+ * Format a value for writing to .env file.
  * Handles special characters that require quoting.
- * Uses a quoting strategy compatible with `dotenv.parse()`.
+ * Uses quoting strategy compatible with dotenv.parse().
  */
 function formatValue(value: string): string {
   const needsQuotes =
@@ -126,6 +60,82 @@ function formatValue(value: string): string {
   // Default: use double quotes for other special chars
   const escaped = value.replace(/\\/g, '\\\\').replace(/\$/g, '\\$')
   return `"${escaped}"`
+}
+
+/**
+ * Read and parse a .env file.
+ *
+ * @param filePath - Path to the .env file
+ * @returns Parsed environment variables
+ */
+export async function readDotEnv(filePath: string): Promise<dotenv.DotenvParseOutput> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8')
+    return dotenv.parse(content)
+  } catch (error) {
+    if (isErrnoENOENT(error)) {
+      return {}
+    }
+    throw error
+  }
+}
+
+/**
+ * Update a .env file with new values.
+ * - Updates existing variables in place using regex replacement
+ * - Appends new variables at the end
+ * - Preserves comments and formatting
+ *
+ * @param filePath - Path to the .env file
+ * @param updates - Object mapping variable names to their new values
+ */
+export async function updateDotEnv(filePath: string, updates: Record<string, string>): Promise<void> {
+  let content = ''
+
+  try {
+    content = await fs.readFile(filePath, 'utf-8')
+  } catch (error) {
+    if (!isErrnoENOENT(error)) {
+      throw error
+    }
+    // File doesn't exist, we'll create it
+  }
+
+  const pendingUpdates = new Set(Object.keys(updates))
+
+  // Replace existing variables using regex
+  for (const key of Object.keys(updates)) {
+    // Match KEY=... until end of line (handles quoted and unquoted values)
+    const regex = new RegExp(`^(${escapeRegex(key)})=.*$`, 'm')
+    if (regex.test(content)) {
+      content = content.replace(regex, `${key}=${formatValue(updates[key])}`)
+      pendingUpdates.delete(key)
+    }
+  }
+
+  // Append new variables at the end
+  for (const key of pendingUpdates) {
+    const formattedLine = `${key}=${formatValue(updates[key])}`
+
+    if (content === '') {
+      content = formattedLine
+    } else if (content.endsWith('\n')) {
+      content += formattedLine
+    } else {
+      content += `\n${formattedLine}`
+    }
+  }
+
+  // Ensure trailing newline
+  if (content !== '' && !content.endsWith('\n')) {
+    content += '\n'
+  }
+
+  // Ensure parent directory exists
+  const dir = path.dirname(filePath)
+  await fs.mkdir(dir, { recursive: true })
+
+  await fs.writeFile(filePath, content, 'utf-8')
 }
 
 /**
