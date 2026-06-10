@@ -1,6 +1,6 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import z from 'zod'
-import { BUILTIN_INTEGRATIONS } from '../constants'
+import { isBuiltinIntegration } from '../constants'
 
 /**
  * Collect unique external integration IDs referenced by SQL blocks in the file.
@@ -14,7 +14,7 @@ export function collectRequiredIntegrationIds(file: DeepnoteFile, notebookName?:
       if (block.type === 'sql') {
         const metadata = block.metadata as Record<string, unknown>
         const integrationId = z.string().optional().safeParse(metadata.sql_integration_id).data
-        if (integrationId && !BUILTIN_INTEGRATIONS.has(integrationId)) {
+        if (integrationId && !isBuiltinIntegration(integrationId)) {
           ids.add(integrationId)
         }
       }

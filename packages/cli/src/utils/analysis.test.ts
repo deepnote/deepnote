@@ -141,6 +141,52 @@ describe('analysis utilities', () => {
       }
     })
 
+    it('does not flag a mixed-case built-in integration as missing', async () => {
+      const file = createTestFile([
+        {
+          id: 'block1',
+          type: 'sql',
+          content: 'SELECT 1',
+          metadata: { sql_integration_id: 'Pandas-DataFrame' },
+        },
+      ])
+      const { lint } = await checkForIssues(file)
+
+      expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
+      expect(lint.integrations?.missing ?? []).not.toContain('Pandas-DataFrame')
+    })
+
+    it('capstone: flags only the external integration when a mixed-case built-in coexists', async () => {
+      // Isolate env vars to ensure deterministic test
+      const envVars = ['SQL_MY_WAREHOUSE']
+      const saved = envVars.map(k => [k, process.env[k]] as const)
+      for (const k of envVars) delete process.env[k]
+      try {
+        const file = createTestFile([
+          {
+            id: 'block1',
+            type: 'sql',
+            content: 'SELECT 1',
+            metadata: { sql_integration_id: 'Deepnote-DataFrame-SQL' },
+          },
+          {
+            id: 'block2',
+            type: 'sql',
+            content: 'SELECT 1',
+            metadata: { sql_integration_id: 'my-warehouse' },
+          },
+        ])
+        const { lint } = await checkForIssues(file)
+
+        expect(lint.integrations?.missing).toEqual(['my-warehouse'])
+      } finally {
+        for (const [k, v] of saved) {
+          if (v === undefined) delete process.env[k]
+          else process.env[k] = v
+        }
+      }
+    })
+
     it('detects missing input values', async () => {
       const file = createTestFile([
         {

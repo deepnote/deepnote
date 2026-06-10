@@ -11,7 +11,7 @@ import {
   INPUT_BLOCK_TYPES,
 } from '@deepnote/blocks'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
-import { BUILTIN_INTEGRATIONS } from '../constants'
+import { isBuiltinIntegration } from '../constants'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'
@@ -519,7 +519,7 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     const metadata = block.metadata as Record<string, unknown>
     const integrationId = metadata.sql_integration_id as string | undefined
 
-    if (!integrationId || BUILTIN_INTEGRATIONS.has(integrationId)) {
+    if (!integrationId || isBuiltinIntegration(integrationId)) {
       continue
     }
 
