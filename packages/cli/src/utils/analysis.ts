@@ -517,7 +517,10 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     if (block.type !== 'sql') continue
 
     const metadata = block.metadata as Record<string, unknown>
-    const integrationId = metadata.sql_integration_id as string | undefined
+    // `sql_integration_id` comes from untrusted file metadata, so guard the type
+    // before normalizing — a non-string value must not reach `.toLowerCase()`.
+    const rawIntegrationId = metadata.sql_integration_id
+    const integrationId = typeof rawIntegrationId === 'string' ? rawIntegrationId : undefined
 
     if (!integrationId || isBuiltinIntegration(integrationId)) {
       continue

@@ -187,6 +187,24 @@ describe('analysis utilities', () => {
       }
     })
 
+    it('does not crash on a non-string sql_integration_id in file metadata', async () => {
+      // Malformed metadata: sql_integration_id is a truthy non-string. It must be
+      // ignored (not normalized via toLowerCase), never crashing the analysis.
+      const file = createTestFile([
+        {
+          id: 'block1',
+          type: 'sql',
+          content: 'SELECT 1',
+          metadata: { sql_integration_id: 123 },
+        },
+      ])
+
+      const { lint } = await checkForIssues(file)
+
+      expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
+      expect(lint.integrations?.missing ?? []).toEqual([])
+    })
+
     it('detects missing input values', async () => {
       const file = createTestFile([
         {
