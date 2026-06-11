@@ -6,13 +6,7 @@ import { BUILTIN_INTEGRATIONS } from '../constants'
  * Options for {@link collectRequiredIntegrationIds}.
  */
 export interface CollectRequiredIntegrationIdsOptions {
-  /**
-   * Names of notebooks that must always be included in the scan, even when a
-   * `notebookName` filter is provided. Used to express "init runs as a
-   * prelude": when a user filters to a specific notebook, the init notebook's
-   * required integrations must still be detected so missing config errors
-   * fire before execution.
-   */
+  /** Notebooks always scanned even under a `notebookName` filter, so init's required integrations are still detected. */
   additionalNotebookNames?: string[]
 }
 
@@ -20,9 +14,7 @@ export interface CollectRequiredIntegrationIdsOptions {
  * Collect unique external integration IDs referenced by SQL blocks in the file.
  * Excludes built-in integrations (e.g. deepnote-dataframe-sql, pandas-dataframe).
  *
- * When `notebookName` is provided, only that notebook is scanned, plus any
- * notebooks listed in `options.additionalNotebookNames` (typically the init
- * notebook for composed runs).
+ * When `notebookName` is provided, only that notebook plus `options.additionalNotebookNames` are scanned.
  */
 export function collectRequiredIntegrationIds(
   file: DeepnoteFile,

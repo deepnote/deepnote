@@ -183,33 +183,14 @@ interface DryRunResult {
 interface ProjectSetup {
   absolutePath: string
   workingDirectory: string
-  /**
-   * The DeepnoteFile to execute. When the input file referenced a sibling init
-   * notebook, this is the composed `[init, ...mainNotebooks]` view; otherwise
-   * it equals the loaded file.
-   */
   file: DeepnoteFile
   pythonEnv: string
   inputs: Record<string, unknown>
   isMachineOutput: boolean
   convertedFile: ConvertedFile
   allIntegrations: DatabaseIntegrationConfig[]
-  /**
-   * Block ids from the composed init notebook. When non-empty, callers must
-   * apply prelude semantics: include the init notebook in any notebookName
-   * scope, and prepend these block ids to any blockId-resolved upstream set,
-   * so init runs first regardless of `--notebook` / `--block` filters.
-   */
   initBlockIds: Set<string>
-  /**
-   * Id of the composed init notebook. The engine filters by id (names are
-   * not unique in the schema), so this is the load-bearing identifier.
-   */
   initNotebookId: string | undefined
-  /**
-   * Name of the composed init notebook (kept for diagnostics, dry-run plan
-   * output, and validation/integration helpers that operate on names).
-   */
   initNotebookName: string | undefined
 }
 
@@ -305,8 +286,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     }
   }
 
-  // Sibling-init resolution: only run for native .deepnote files. Converted
-  // files (.ipynb / .py / .qmd) cannot reference an init sibling.
+  // Sibling-init resolution only applies to native .deepnote files.
   let initBlockIds = new Set<string>()
   let initNotebookId: string | undefined
   let initNotebookName: string | undefined
@@ -363,9 +343,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
-  // Required integrations: collect over the composed file but always include
-  // the init notebook (when a prelude is active) so missing init integrations
-  // are detected even with --notebook=Main scope.
+  // Always include the init notebook so its integrations are detected even under --notebook scope.
   const requiredIds = collectRequiredIntegrationIds(file, options.notebook, {
     additionalNotebookNames: initNotebookName !== undefined ? [initNotebookName] : [],
   })
@@ -378,7 +356,6 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   })
 
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not.
-  // The composed view is the source of truth so init's required inputs/integrations are checked too.
   await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook, {
     additionalNotebookNames: initNotebookName !== undefined ? [initNotebookName] : [],
   })
@@ -405,11 +382,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 /**
  * Collect executable blocks from a DeepnoteFile.
  * Handles notebook and block filtering, and validates that requested blocks exist.
- *
- * `additionalNotebookNames` keeps prelude notebooks (e.g. composed init) in scope
- * even when the user provides `--notebook`. `additionalBlockIds` (e.g. init's
- * executable block ids) are kept past `--block` filtering so prelude blocks
- * are part of the dry-run plan and the actual run.
+ * `additionalNotebookNames`/`additionalBlockIds` keep prelude (init) notebooks and blocks in scope past `--notebook`/`--block`.
  */
 function collectExecutableBlocks(
   file: DeepnoteFile,
@@ -494,30 +467,12 @@ function selectScopeNotebooks(
   return [...preludeNotebooks, notebookWithTargetBlock]
 }
 
-/**
- * Single source of truth for translating a parsed user request into engine
- * options + dry-run filter inputs. Used by both `runDeepnoteProject` and
- * `dryRunDeepnoteProject` so the dry-run plan and the actual run cannot
- * diverge.
- *
- * Behavior:
- * - `--notebook=X` set: engine `notebookName=X`. If init is active,
- *   `preludeNotebookIds` includes the init notebook's id so the engine's
- *   notebook filter does not strip init.
- * - `--block=Y` set: engine `blockIds = [...initBlockIds, ...upstreamIds, Y]`
- *   (init blocks first, then upstream deps, then Y). When upstream resolution
- *   yields no deps, init still runs first via `preludeNotebookIds` + `blockIds`.
- *   The engine's `blockId` field is left undefined when `blockIds` is set so
- *   the engine uses the explicit list.
- * - Neither: engine receives no notebook/block filter; init runs naturally
- *   first because the composed file has init as the first notebook.
- */
+/** Translates a parsed user request into engine options + dry-run filters, shared by run and dry-run so they cannot diverge. */
 interface EngineExecutionScope {
   notebookName: string | undefined
   blockId: string | undefined
   blockIds: string[] | undefined
   preludeNotebookIds: ReadonlySet<string> | undefined
-  /** Block ids fed into `collectExecutableBlocks` for the dry-run plan. */
   dryRunBlockIds: string[] | undefined
 }
 
@@ -532,15 +487,7 @@ async function buildEngineExecutionScope(args: {
   const { file, options, initBlockIds, initNotebookId, initNotebookName, pythonEnv } = args
   const additionalNotebookNames = initNotebookName !== undefined ? [initNotebookName] : []
 
-  // Validate the user's --block target before init prelude ids are folded into
-  // the engine filter. The engine (and the dry-run collector) only validate the
-  // target when the filter yields zero executable blocks; for a split/init file
-  // the executable init blocks keep that count non-zero, so a misspelled or
-  // non-executable --block would otherwise be silently dropped while only init
-  // runs — exiting 0 without ever running the requested block. Plain files
-  // without init are still validated downstream, so we only need to guard the
-  // init case here; this covers both the run and dry-run paths, which share this
-  // builder.
+  // Validate --block before folding in init prelude ids; otherwise a bad --block is silently dropped while init still runs (exit 0).
   if (options.block && initBlockIds.size > 0) {
     const blockScopeNotebooks = getNotebooksForExecutionScope(file, {
       notebook: options.notebook,
@@ -559,9 +506,7 @@ async function buildEngineExecutionScope(args: {
     pythonEnv
   )
 
-  // When --block is set without an explicit upstream list, still prepend init
-  // block ids so the prelude runs first. (If upstream resolution succeeded,
-  // prelude ids were folded in there already.)
+  // No upstream deps resolved: still prepend init block ids so the prelude runs first.
   let blockIds: string[] | undefined = upstreamBlockIds
   if (blockIds === undefined && options.block && initBlockIds.size > 0) {
     blockIds = [...initBlockIds, options.block]
@@ -569,17 +514,10 @@ async function buildEngineExecutionScope(args: {
 
   const preludeNotebookIds = initNotebookId !== undefined ? new Set([initNotebookId]) : undefined
 
-  // For dry-run, feed the same filter into collectExecutableBlocks so the
-  // printed plan shows exactly the blocks the engine would execute. When
-  // blockIds is undefined and only --block was passed, the dry-run path
-  // appends init block ids via `additionalBlockIds`. When blockIds is set,
-  // we pass it through.
+  // Feed the same filter to the dry-run plan so it matches what the engine runs.
   const dryRunBlockIds = blockIds
 
-  // Pass `blockId` through alongside `blockIds`. The engine treats `blockIds`
-  // as the canonical filter (and uses `blockId` only for error reporting when
-  // no explicit list is given), so passing both is safe and matches the
-  // shape callers have historically observed.
+  // Pass blockId alongside blockIds; the engine uses blockId only for error reporting when no explicit list is given.
   return {
     notebookName: options.notebook,
     blockId: options.block,
@@ -640,8 +578,7 @@ async function resolveUpstreamExecutionBlockIds(
     if (preludeIds.size === 0) {
       return undefined
     }
-    // Even without DAG analysis, init's executable blocks must run before the
-    // user-targeted block.
+    // Even without DAG analysis, init blocks must run before the user-targeted block.
     return [...preludeIds, options.block]
   }
 
@@ -703,8 +640,7 @@ export function createRunAction(program: Command): (path: string | undefined, op
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors, missing inputs, missing integrations,
-      // missing-init resolver errors, and API auth errors — all user-input errors.
+      // Use InvalidUsage for file/input/integration/init-resolver/API-auth errors — all user errors.
       const isAuthApiError = error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
         error instanceof FileResolutionError ||
@@ -799,10 +735,7 @@ interface InputInfo {
 
 /**
  * Extract input block information from a DeepnoteFile.
- *
- * `options.additionalNotebookNames` keeps prelude notebooks (e.g. composed
- * init) in scope even when a `notebookName` filter is provided, so init's
- * input blocks are listed alongside the user-targeted notebook's.
+ * `additionalNotebookNames` keeps prelude (init) notebooks in scope even under a `notebookName` filter.
  */
 function getInputBlocks(
   file: DeepnoteFile,
@@ -854,12 +787,7 @@ function getInputBlocks(
 /**
  * List all input blocks in a notebook file.
  * Supports .deepnote, .ipynb, .py, and .qmd formats.
- *
- * For native `.deepnote` files with a `project.initNotebookId`, the sibling
- * init notebook is composed into the file before listing so init's input
- * blocks appear alongside the user-targeted notebook's. The `--notebook`
- * filter still scopes the user-facing view; init inputs are included as a
- * prelude when a notebook filter is active.
+ * For native `.deepnote` files, the sibling init notebook is composed in so its inputs are listed as a prelude.
  */
 async function listInputs(path: string, options: RunOptions): Promise<void> {
   const isMachineOutput = options.output !== undefined
@@ -985,10 +913,7 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
  * - Missing database integrations (SQL blocks not in integrations config)
  *
  * Throws MissingInputError or MissingIntegrationError (exit code 2) on failure.
- *
- * `options.additionalNotebookNames` is used to keep the init notebook in scope
- * for validation even when the user passes `--notebook=Main`, so missing init
- * inputs/integrations are surfaced before execution.
+ * `additionalNotebookNames` keeps the init notebook in scope so its requirements are checked under --notebook.
  */
 async function validateRequirements(
   file: DeepnoteFile,
@@ -1132,7 +1057,6 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
     // Track execution timing for snapshot
     const executionStartedAt = new Date().toISOString()
 
-    // Single source of truth for engine scope — same helper feeds dry-run.
     const scope = await buildEngineExecutionScope({
       file,
       options,
@@ -1454,7 +1378,6 @@ async function saveExecutionSnapshotBestEffort({
   blockResults: BlockResult[]
   executionStartedAt: string
   isMachineOutput: boolean
-  /** When non-empty, write a dual `[init, main]` + `[init]` snapshot pair. */
   initBlockIds?: Set<string>
 }): Promise<void> {
   const executionFinishedAt = new Date().toISOString()

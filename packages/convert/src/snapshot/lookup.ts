@@ -8,10 +8,7 @@ import type { SnapshotInfo, SnapshotOptions } from './types'
 /** Default directory name for snapshots */
 const DEFAULT_SNAPSHOT_DIR = 'snapshots'
 
-/**
- * Notebook id: UUID (with hyphens), 32-char hex id, or any non-empty id of letters, digits,
- * hyphens, and underscores (e.g. `notebook-1`), matching what snapshot writers embed today.
- */
+/** Notebook id: UUID, 32-char hex, or any non-empty `[A-Za-z0-9_-]` id, matching what snapshot writers embed today. */
 const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[a-zA-Z0-9][a-zA-Z0-9_-]*)'
 
 /** Regex pattern for snapshot filenames (new format with notebookId) */
@@ -31,7 +28,6 @@ const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snap
 export function parseSnapshotFilename(
   filename: string
 ): { slug: string; projectId: string; notebookId?: string; timestamp: string } | null {
-  // Try new pattern first (with notebookId)
   const matchNew = SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK.exec(filename)
   if (matchNew) {
     return {
@@ -41,7 +37,6 @@ export function parseSnapshotFilename(
       timestamp: matchNew[4],
     }
   }
-  // Fall back to old pattern (without notebookId)
   const match = SNAPSHOT_FILENAME_PATTERN.exec(filename)
   if (!match) {
     return null
@@ -80,9 +75,7 @@ export async function findSnapshotsForProject(
 
       const parsed = parseSnapshotFilename(entry.name)
       if (parsed && parsed.projectId === projectId) {
-        // When notebookId filter is set:
-        // - skip new-format snapshots that don't match the notebook
-        // - accept old-format snapshots (no notebookId) as fallback
+        // Skip non-matching new-format snapshots, but keep old-format (no notebookId) ones as fallback.
         if (options.notebookId && parsed.notebookId && parsed.notebookId !== options.notebookId) {
           continue
         }
@@ -98,8 +91,7 @@ export async function findSnapshotsForProject(
 
     const filterNotebookId = options.notebookId
 
-    // Sort: when filtering by notebook, matching snapshots before legacy fallbacks;
-    // then 'latest' first; then by timestamp descending (stable tie-break for equal timestamps)
+    // Sort: notebook matches before legacy fallbacks, then 'latest' first, then timestamp descending.
     snapshots.sort((a, b) => {
       if (filterNotebookId) {
         const aMatches = a.notebookId === filterNotebookId

@@ -202,18 +202,15 @@ describe('split command', () => {
   })
 
   it('should disambiguate split filenames when two notebook names collide on slugified filename', async () => {
-    // Arrange
     const file = createMultiNotebookFile(['Dashboard', 'DASHBOARD'])
     const inputPath = path.join(tempDir, 'project.deepnote')
     await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
 
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
     try {
-      // Act
       const action = createSplitAction(program)
       await action(inputPath, {})
 
-      // Assert
       expect(exitSpy).not.toHaveBeenCalled()
     } finally {
       exitSpy.mockRestore()
@@ -224,18 +221,15 @@ describe('split command', () => {
   })
 
   it('should disambiguate split filenames when notebook names differ only by punctuation', async () => {
-    // Arrange
     const file = createMultiNotebookFile(['Dashboard!', 'Dashboard?'])
     const inputPath = path.join(tempDir, 'project.deepnote')
     await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
 
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
     try {
-      // Act
       const action = createSplitAction(program)
       await action(inputPath, {})
 
-      // Assert
       expect(exitSpy).not.toHaveBeenCalled()
     } finally {
       exitSpy.mockRestore()
@@ -312,9 +306,7 @@ describe('split command', () => {
     let mainSeen = false
     for (const name of files) {
       const parsed = deserializeDeepnoteFile(await fs.readFile(path.join(tempDir, name), 'utf-8'))
-      // The new model emits exactly one notebook per split file (no duplicated
-      // init) and preserves initNotebookId so the run-time resolver can find
-      // the sibling init.
+      // One notebook per split file; initNotebookId preserved so the resolver finds the sibling init.
       expect(parsed.project.notebooks).toHaveLength(1)
       expect(parsed.project.initNotebookId).toBe(initId)
       const onlyId = parsed.project.notebooks[0].id
@@ -428,21 +420,18 @@ describe('split command', () => {
     await action(inputPath, {})
 
     const snapshotFiles = (await fs.readdir(snapshotsDir)).filter(f => f.endsWith('.snapshot.deepnote'))
-    // Should now have at least the init snapshot and the main snapshot.
     const initSnapshotName = snapshotFiles.find(f => f.includes(initId))
     const mainSnapshotName = snapshotFiles.find(f => f.includes('nb-main'))
     expect(initSnapshotName, `init snapshot present in ${JSON.stringify(snapshotFiles)}`).toBeTruthy()
     expect(mainSnapshotName, `main snapshot present in ${JSON.stringify(snapshotFiles)}`).toBeTruthy()
 
-    // Init snapshot: [init] shape
     if (initSnapshotName) {
       const parsed = await loadSnapshotFile(path.join(snapshotsDir, initSnapshotName))
       expect(parsed.project.notebooks).toHaveLength(1)
       expect(parsed.project.notebooks[0].id).toBe(initId)
     }
 
-    // Main snapshot: [init, main] shape so each main snapshot remains a complete
-    // record of what would run.
+    // Main snapshot keeps [init, main] so each main snapshot is a complete record of what would run.
     if (mainSnapshotName) {
       const parsed = await loadSnapshotFile(path.join(snapshotsDir, mainSnapshotName))
       expect(parsed.project.notebooks).toHaveLength(2)
@@ -450,13 +439,11 @@ describe('split command', () => {
       expect(ids).toEqual([initId, 'nb-main'].sort())
     }
 
-    // No leftover .tmp files in snapshots dir either.
     const tempFiles = (await fs.readdir(snapshotsDir)).filter(f => f.endsWith('.tmp'))
     expect(tempFiles).toEqual([])
   })
 
   it('should print a warning when a snapshot fails to split but still write the notebook files', async () => {
-    // Arrange
     const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
     const file = createMultiNotebookFile(['Dashboard', 'Data'])
     const inputPath = path.join(tempDir, 'project.deepnote')
@@ -467,11 +454,9 @@ describe('split command', () => {
     const corruptSnapshotName = `my-project_${projectId}_latest.snapshot.deepnote`
     await fs.writeFile(path.join(snapshotsDir, corruptSnapshotName), 'not: valid: yaml: [', 'utf-8')
 
-    // Act
     const action = createSplitAction(program)
     await action(inputPath, {})
 
-    // Assert
     const splitNames = ['project-dashboard.deepnote', 'project-data.deepnote']
     for (const name of splitNames) {
       await expect(fs.access(path.join(tempDir, name))).resolves.toBeUndefined()

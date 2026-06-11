@@ -215,7 +215,7 @@ describe('Snapshot Integration', () => {
   })
 
   it('loadLatestSnapshot scoped by resolveSnapshotNotebookId returns the snapshot for that split file only when sibling files share one project id', async () => {
-    // Catches: split outputs that share project.id used legacy snapshot names, so each split file could load the other notebook’s snapshot from the shared snapshots directory.
+    // Regression: split files sharing a project.id must not load each other's snapshot from the shared dir.
     const sharedProjectId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
     const slug = slugifyProjectName('Shared Split Project')
 

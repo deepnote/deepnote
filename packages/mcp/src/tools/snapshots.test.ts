@@ -118,7 +118,7 @@ describe('snapshot tools handlers', () => {
     })
 
     it('deepnote_snapshot_split writes notebook-scoped snapshot filenames for init plus main files and deepnote_snapshot_load reloads that snapshot from the source path', async () => {
-      // Catches: MCP snapshot split always emitted legacy project-wide filenames, so init+main split files could not roundtrip outputs through snapshot_load using the same naming as other tooling.
+      // Regression: split must emit notebook-scoped filenames so init+main files roundtrip through snapshot_load.
       const initMainPath = path.join(tempDir, 'init-main.deepnote')
       const initNotebookId = '44444444-4444-4444-4444-444444444444'
       const mainNotebookId = '55555555-5555-5555-5555-555555555555'

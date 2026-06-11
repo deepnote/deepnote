@@ -2033,7 +2033,6 @@ describe('run command', () => {
 
         expect(mockRunProject).toHaveBeenCalledTimes(1)
         const passedFile = mockRunProject.mock.calls[0][0]
-        // The composed file should have init first, then main.
         expect(passedFile.project.notebooks.map((n: { id: string }) => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
       })
 
@@ -2041,7 +2040,6 @@ describe('run command', () => {
         setupSuccessfulRun()
         const mainPath = join(testTempDir, 'project-main.deepnote')
         const initPath = join(testTempDir, 'project-init.deepnote')
-        // Original unsplit file (multiple notebooks) sits beside the split outputs.
         const originalPath = join(testTempDir, 'project.deepnote')
         await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
         await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
@@ -2049,9 +2047,7 @@ describe('run command', () => {
 
         await action(mainPath, {})
 
-        // The resolver must reject the original unsplit file (rule b: more than
-        // one notebook) and pick the dedicated init file. The composed file
-        // should still be `[init, main]`, not poisoned.
+        // Resolver must reject the multi-notebook unsplit file and pick the dedicated init, keeping composition [init, main].
         expect(mockRunProject).toHaveBeenCalledTimes(1)
         const passedFile = mockRunProject.mock.calls[0][0]
         expect(passedFile.project.notebooks.map((n: { id: string }) => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
@@ -2069,9 +2065,7 @@ describe('run command', () => {
         expect(mockRunProject).toHaveBeenCalledTimes(1)
         const [, runOptions] = mockRunProject.mock.calls[0]
         expect(runOptions.notebookName).toBe('Main')
-        // preludeNotebookIds must include the init notebook id so the engine's
-        // notebook filter does not strip init when --notebook is set. (Engine
-        // filters by id, not name, to avoid name-collision corner cases.)
+        // preludeNotebookIds keeps the init id so the engine's by-id notebook filter does not strip init under --notebook.
         expect(runOptions.preludeNotebookIds).toBeInstanceOf(Set)
         expect([...runOptions.preludeNotebookIds]).toEqual([INIT_NB_ID])
       })
@@ -2088,23 +2082,18 @@ describe('run command', () => {
         expect(mockRunProject).toHaveBeenCalledTimes(1)
         const [, runOptions] = mockRunProject.mock.calls[0]
         expect(runOptions.blockId).toBe(MAIN_BLOCK_ID)
-        // blockIds must include the init block(s) before the user-targeted block.
         expect(Array.isArray(runOptions.blockIds)).toBe(true)
         expect(runOptions.blockIds).toContain(INIT_BLOCK_ID)
         expect(runOptions.blockIds).toContain(MAIN_BLOCK_ID)
-        // Init block must come before main block in the resolved blockIds list.
         const initIdx = runOptions.blockIds.indexOf(INIT_BLOCK_ID)
         const mainIdx = runOptions.blockIds.indexOf(MAIN_BLOCK_ID)
         expect(initIdx).toBeLessThan(mainIdx)
-        // preludeNotebookIds must also expand engine notebook scope.
         expect(runOptions.preludeNotebookIds).toBeInstanceOf(Set)
         expect([...runOptions.preludeNotebookIds]).toEqual([INIT_NB_ID])
       })
 
       it('rejects a misspelled --block instead of silently running only init', async () => {
-        // Regression: with a split/init file, a bad --block used to be dropped
-        // while the executable init blocks still ran, exiting 0 without running
-        // the requested block. It must now fail loudly and not run anything.
+        // Regression: a bad --block on a split/init file used to be dropped while init still ran and exited 0; it must now fail loudly.
         setupSuccessfulRun()
         const mainPath = join(testTempDir, 'project-main.deepnote')
         const initPath = join(testTempDir, 'project-init.deepnote')
@@ -2116,7 +2105,6 @@ describe('run command', () => {
         expect(programErrorSpy).toHaveBeenCalled()
         const errorArg = programErrorSpy.mock.calls[0][0]
         expect(errorArg).toContain('Block "nonexistent-block-id" not found')
-        // Must NOT have silently executed only the init prelude.
         expect(mockRunProject).not.toHaveBeenCalled()
       })
 
@@ -2209,9 +2197,7 @@ describe('run command', () => {
       })
 
       it('validateRequirements reports missing init inputs (with --notebook=Main set)', async () => {
-        // Init has an input block and a code block (in that order); main code block
-        // also references the init input variable. With --notebook=Main, validation
-        // must still detect missing init-required inputs because init runs as a prelude.
+        // With --notebook=Main, validation must still flag init-required inputs because init runs as a prelude.
         const initWithInputAndCode = [
           'version: 1.0.0',
           'metadata:',
@@ -2246,8 +2232,7 @@ describe('run command', () => {
         await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
         await fs.promises.writeFile(initPath, initWithInputAndCode, 'utf-8')
 
-        // Mock dependency analysis: init's code block uses the input variable
-        // before the input is defined.
+        // Init's code block uses the input variable before the input is defined.
         mockGetBlockDependencies.mockResolvedValue([
           {
             id: 'init-code-block',
@@ -2305,7 +2290,6 @@ describe('run command', () => {
 
       it('exits with exit code 2 and a clear error when init is missing', async () => {
         const mainPath = join(testTempDir, 'project-main.deepnote')
-        // Only the main file exists — no init sibling.
         await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
 
         await action(mainPath, { output: 'json' })
@@ -2320,15 +2304,12 @@ describe('run command', () => {
       })
 
       it('writes two snapshots after a composed run: main has [init,main], init has [init], both with init outputs', async () => {
-        // Drive saveExecutionSnapshot through to verify shape (no mock).
+        // Assert the snapshot helper's inputs directly instead of mocking it away.
         mockSaveExecutionSnapshot.mockImplementation(
           async (_sourcePath, file, blockOutputs, _timing, snapshotOptions) => {
-            // Verify the composed file has both notebooks
             expect(file.project.notebooks.map(n => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
-            // Verify initBlockIds is non-empty (composed run signal)
             expect(snapshotOptions?.initBlockIds).toBeDefined()
             expect(snapshotOptions?.initBlockIds?.size).toBeGreaterThan(0)
-            // Verify the block outputs include both init and main outputs
             const ids = blockOutputs.map(b => b.id)
             expect(ids).toContain(INIT_BLOCK_ID)
             expect(ids).toContain(MAIN_BLOCK_ID)
@@ -2346,8 +2327,7 @@ describe('run command', () => {
         await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
         await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
 
-        // Drive callbacks so blockResults contains init + main outputs
-        // (the snapshot helper turns these into both snapshots' outputs).
+        // Drive callbacks so blockResults carries both init and main outputs for the snapshot helper.
         mockStart.mockResolvedValue(undefined)
         mockRunProject.mockImplementation(async (_file, options) => {
           await options?.onBlockStart?.(

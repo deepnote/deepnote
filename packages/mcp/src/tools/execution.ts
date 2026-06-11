@@ -136,20 +136,13 @@ interface ResolvedRunnableFile {
   originalPath: string
   format: LoadedRunnableFile['format']
   wasConverted: boolean
-  /** Block ids that came from the composed init notebook (empty when no prelude). */
   initBlockIds: ReadonlySet<string>
-  /** Id of the init notebook when composed; otherwise undefined (engine filters by id). */
   initNotebookId: string | undefined
-  /** Name of the init notebook when composed (kept for diagnostics). */
   initNotebookName: string | undefined
-  /** Resolver advisory warnings (metadata divergence, etc.) to relay to the caller. */
   warnings: string[]
 }
 
-/**
- * Load and (when applicable) compose a sibling init notebook for a runnable
- * file. For non-`.deepnote` formats this is a pass-through.
- */
+/** Load and (when applicable) compose a sibling init notebook for a runnable file. */
 async function resolveRunnableWithInit(filePath: string): Promise<ResolvedRunnableFile> {
   const loaded = await loadRunnableFile(filePath)
   if (loaded.format !== 'deepnote' || loaded.file.project.initNotebookId === undefined) {
@@ -194,8 +187,7 @@ async function handleRun(args: Record<string, unknown>) {
   const includeOutputSummary = parsedArgs.data.includeOutputSummary !== false
   const compact = parsedArgs.data.compact
 
-  // Load file (auto-converting from other formats if needed) and compose
-  // sibling init notebook for native .deepnote files.
+  // Load file (auto-converting if needed) and compose sibling init for native .deepnote files.
   let resolved: ResolvedRunnableFile
   try {
     resolved = await resolveRunnableWithInit(filePath)
@@ -242,8 +234,7 @@ async function handleRun(args: Record<string, unknown>) {
     })
   }
 
-  // Filter notebooks if specified, otherwise run all. The init notebook (when
-  // composed) must always be in scope so it runs as a prelude.
+  // Filter notebooks if specified, otherwise run all; the composed init must stay in scope as a prelude.
   let notebooks = file.project.notebooks
   if (notebookFilter) {
     const found = file.project.notebooks.find(n => n.name === notebookFilter || n.id === notebookFilter)
@@ -316,9 +307,7 @@ async function handleRun(args: Record<string, unknown>) {
   try {
     await engine.start()
 
-    // Resolve the engine notebookName: when a notebookFilter was given by name
-    // or id, translate to the notebook's name (engine matches the user-targeted
-    // notebook by name).
+    // Translate notebookFilter (name or id) to a name, since the engine matches the target by name.
     let engineNotebookName: string | undefined
     let targetNotebookId: string | undefined
     if (notebookFilter) {
@@ -351,7 +340,6 @@ async function handleRun(args: Record<string, unknown>) {
 
     const executionFinishedAt = new Date().toISOString()
 
-    // Save execution outputs to snapshot.
     // For converted files, use a path where the .deepnote equivalent would be.
     const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
 
@@ -444,8 +432,7 @@ async function handleRunBlock(
 ) {
   const { initBlockIds, initNotebookId, initNotebookName, warnings, wasConverted } = options
 
-  // Find the block. If a notebookFilter is provided, only search inside that
-  // notebook (init notebook is always also searched separately for prelude).
+  // Find the block, restricting to notebookFilter when provided.
   let targetBlock: DeepnoteFile['project']['notebooks'][number]['blocks'][number] | null = null
   let targetNotebook: DeepnoteFile['project']['notebooks'][number] | null = null
 
@@ -468,10 +455,7 @@ async function handleRunBlock(
     }
   }
 
-  // Mirror the CLI's `assertExecutableBlockExists` check: passing a
-  // non-executable block id (e.g. markdown) into runProject results in
-  // executedBlocks=0 with no helpful error. Surface a clear error here
-  // instead so the agent can adjust its request.
+  // Reject non-executable blocks here; runProject would otherwise return executedBlocks=0 with no error.
   if (!executableBlockTypeSet.has(targetBlock.type)) {
     return {
       content: [
@@ -537,8 +521,7 @@ async function handleRunBlock(
   try {
     await engine.start()
 
-    // Compose effective blockIds: init's executable blocks first, then the
-    // user-targeted block.
+    // Compose effective blockIds: init's executable blocks first, then the user-targeted block.
     const effectiveBlockIds = initBlockIds.size > 0 ? [...initBlockIds, targetBlock.id] : undefined
 
     const summary = await engine.runProject(file, {

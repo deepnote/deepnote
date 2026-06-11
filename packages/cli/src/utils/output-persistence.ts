@@ -14,9 +14,7 @@ import { debug } from '../output'
 /**
  * Result of a single block execution (subset of BlockResult from run.ts).
  *
- * Same shape as the shared `BlockExecutionOutput` but narrows `outputs` to the
- * runtime-core `IOutput` type so existing CLI callers keep their type-safety
- * against runtime types.
+ * Narrows the shared `BlockExecutionOutput.outputs` to runtime-core `IOutput` so CLI callers keep type-safety.
  */
 export interface BlockExecutionOutputCli {
   id: string
@@ -24,23 +22,16 @@ export interface BlockExecutionOutputCli {
   executionCount?: number | null
 }
 
-/**
- * Backwards-compatible alias used by tests and other CLI modules.
- *
- * Identical to {@link BlockExecutionOutputCli}.
- */
+/** Backwards-compatible alias used by tests and other CLI modules. */
 export type BlockExecutionOutput = BlockExecutionOutputCli
 
-// Re-export the shared timing type so legacy imports continue to work.
 export type { ExecutionTiming }
 
 /** Result of saving a snapshot. Composed runs additionally set init paths. */
 export interface SaveSnapshotResult {
   snapshotPath: string
   timestampedSnapshotPath: string
-  /** Path to the init-only `latest` snapshot when this was a composed run. */
   initSnapshotPath?: string
-  /** Path to the init-only timestamped snapshot when this was a composed run. */
   initTimestampedSnapshotPath?: string
 }
 
@@ -50,11 +41,7 @@ export const mergeOutputsIntoFile = sharedMergeOutputsIntoFile
 /**
  * Saves execution outputs to a snapshot file.
  *
- * Thin CLI wrapper over the shared `@deepnote/convert.saveExecutionSnapshot`:
- * keeps debug logging and the legacy CLI return shape, while delegating the
- * actual merge/serialize/atomic-write logic to the shared helper. When
- * `options.initBlockIds` is set and non-empty, the helper additionally writes
- * an init-only `[init]` snapshot — see the shared helper's docs for details.
+ * Thin CLI wrapper over shared `saveExecutionSnapshot` that keeps debug logging and the legacy CLI return shape.
  */
 export async function saveExecutionSnapshot(
   sourcePath: string,

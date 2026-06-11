@@ -26,9 +26,7 @@ export {
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
 export type { ResolveAndComposeInitResult } from './resolve-init'
-// Sibling init resolver
 export { MissingInitNotebookError, resolveAndComposeInit } from './resolve-init'
-// Snapshot persistence (atomic writes, optional dual init+main snapshot)
 export type {
   BlockExecutionOutput,
   ExecutionTiming,

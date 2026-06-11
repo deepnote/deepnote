@@ -30,17 +30,7 @@ export interface GenerateSnapshotFilenameParams {
   timestamp?: string
 }
 
-/**
- * Sanitizes a single path component for use in a snapshot filename.
- *
- * The slug, project id, and notebook id all originate from untrusted
- * `.deepnote` files (parsed as arbitrary strings) and are interpolated into a
- * filename that callers join to the snapshots directory and write to disk. A
- * value containing path separators or `..` could otherwise escape that
- * directory (path traversal). Replacing every character outside
- * `[A-Za-z0-9_-]` with `_` neutralizes traversal while being a no-op for the
- * ids snapshot readers expect (UUIDs, 32-char hex, `notebook-1`).
- */
+/** Neutralizes path traversal from untrusted ids interpolated into snapshot filenames. */
 function sanitizeFilenameComponent(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
@@ -48,7 +38,6 @@ function sanitizeFilenameComponent(value: string): string {
 /**
  * Generates a snapshot filename from project info.
  *
- * @param params - Slug, project id, and optional notebook id and timestamp (defaults timestamp to `'latest'`)
  * @returns Filename in format '{slug}_{projectId}_{timestamp}.snapshot.deepnote'
  */
 export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams): string {
@@ -63,11 +52,6 @@ export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams)
 
 /**
  * Removes output-related fields from a block, returning a clean source block.
- *
- * Used by {@link splitDeepnoteFile} when producing the source file (no
- * outputs) and by the sibling-init resolver when borrowing init blocks from a
- * disk-resident sibling so stale outputs don't leak into the composed
- * in-memory file.
  */
 export function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
   if (!isExecutableBlockType(block.type)) {
@@ -186,25 +170,7 @@ function allocateUniqueNotebookSplitFilename(sourceFileStem: string, notebookNam
   )
 }
 
-/**
- * Splits a multi-notebook DeepnoteFile into separate files, one per notebook.
- *
- * When {@link DeepnoteFile.project.initNotebookId} resolves to a notebook in
- * the project, that init notebook is emitted as its own standalone entry
- * (`kind: 'init'`) rather than being duplicated into every other split. Each
- * non-init notebook becomes its own entry (`kind: 'notebook'`) containing only
- * that single notebook, while preserving `project.initNotebookId` so the
- * sibling-init resolver can rebind it at run time. If `initNotebookId` is set
- * but matches no notebook in the file, it is dropped from the emitted entries:
- * there is no init to rebind, and a dangling id would make `deepnote run` fail
- * sibling-init resolution.
- *
- * Assigns a unique {@link NotebookSplitEntry.outputFilename} per entry
- * (numeric suffix before `.deepnote` when slug collisions occur).
- *
- * @param file - The DeepnoteFile to split
- * @param sourceFileStem - Basename of the source file without the `.deepnote` extension
- */
+/** Splits a multi-notebook DeepnoteFile into one file per notebook, emitting the init notebook as a standalone `kind: 'init'` entry. */
 export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): NotebookSplitEntry[] {
   const notebooks = file.project.notebooks
   if (notebooks.length === 0) {
@@ -214,8 +180,7 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
   const initNotebookId = file.project.initNotebookId
   const initNotebook = initNotebookId === undefined ? undefined : notebooks.find(nb => nb.id === initNotebookId)
 
-  // A file containing only the init notebook is already in single-notebook
-  // form; nothing meaningful to split.
+  // A file containing only the init notebook is already in single-notebook form.
   if (initNotebook !== undefined && notebooks.length === 1) {
     return []
   }
@@ -241,16 +206,11 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
 
   const mainNotebooks = initNotebook === undefined ? notebooks : notebooks.filter(nb => nb.id !== initNotebook.id)
   if (mainNotebooks.length === 0) {
-    // No non-init notebooks to write — the standalone init entry alone is not
-    // useful, so return empty.
+    // A standalone init entry alone is not useful.
     return []
   }
 
-  // When initNotebookId is set but matches no notebook in this file, no init
-  // entry was emitted above and there is nothing for the sibling-init resolver
-  // to rebind at run time. Leaving the dangling id on the splits would make
-  // `deepnote run` attempt sibling-init resolution and fail, so drop it and
-  // treat the outputs as plain no-init files.
+  // Drop an initNotebookId matching no notebook here; left dangling it would make `deepnote run` fail sibling-init resolution.
   const hasDanglingInit = initNotebookId !== undefined && initNotebook === undefined
 
   for (const notebook of mainNotebooks) {
@@ -270,13 +230,7 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
   return result
 }
 
-/**
- * Splits a multi-notebook snapshot into separate per-notebook snapshots.
- *
- * @param snapshot - The snapshot to split
- * @param notebookIds - The notebook IDs to extract
- * @returns Map from notebookId to the per-notebook snapshot
- */
+/** Splits a multi-notebook snapshot into separate per-notebook snapshots, keyed by notebook id. */
 export function splitSnapshotByNotebooks(
   snapshot: DeepnoteSnapshot,
   notebookIds: string[]

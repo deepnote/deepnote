@@ -35,9 +35,7 @@ export function isRunnableExtension(ext: string): ext is RunnableExtension {
 /**
  * Resolve and convert any supported notebook format to a DeepnoteFile.
  *
- * Wraps {@link loadRunnableFile} from `@deepnote/convert` with CLI-specific
- * error wrapping and debug logging. The shared helper handles all parsing and
- * format detection so CLI and MCP behave identically.
+ * Wraps {@link loadRunnableFile} with CLI error wrapping/debug logging so CLI and MCP behave identically.
  *
  * Supported formats:
  * - `.deepnote` — Native format (no conversion)
@@ -71,8 +69,7 @@ export async function resolveAndConvertToDeepnote(path: string): Promise<Convert
   try {
     loaded = await loadRunnableFile(absolutePath)
   } catch (error) {
-    // Re-wrap LoadRunnableFileError as FileResolutionError so existing CLI
-    // exit-code handling (InvalidUsage for user errors) keeps working.
+    // Re-wrap as FileResolutionError so existing CLI exit-code handling (InvalidUsage for user errors) keeps working.
     if (error instanceof LoadRunnableFileError) {
       throw new FileResolutionError(error.message)
     }

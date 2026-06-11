@@ -6,10 +6,7 @@ import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { resolveAndComposeInit } from './resolve-init'
 
-/**
- * Helper to construct a `DeepnoteFile` with a single notebook, optionally
- * marking it as the project's init notebook.
- */
+/** Constructs a `DeepnoteFile`, optionally declaring an init notebook. */
 function makeFile(args: {
   projectId: string
   projectName?: string
@@ -151,9 +148,6 @@ describe('resolveAndComposeInit', () => {
   })
 
   it('rejects the original unsplit source file with multiple notebooks (rule b)', async () => {
-    // Original unsplit source file: contains init plus other notebooks. This
-    // file must not be picked up as the init source since rule (b) requires
-    // exactly one notebook.
     const originalUnsplit = makeFile({
       projectId: 'proj-1',
       initNotebookId: 'nb-init',
@@ -174,15 +168,12 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(originalPath, serializeDeepnoteFile(originalUnsplit), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    // No init sibling exists (only the original unsplit file). The original
-    // must not be matched, so resolution must fail with a clear error.
     await expect(resolveAndComposeInit(mainFile, mainPath)).rejects.toThrow(/Cannot resolve init notebook/)
     await expect(resolveAndComposeInit(mainFile, mainPath)).rejects.toThrow(/nb-init/)
   })
 
   it('still composes when an init sibling and the original unsplit file coexist', async () => {
-    // The original unsplit file has more than one notebook so it is rejected;
-    // a separate init-only sibling should still match cleanly.
+    // Multi-notebook original is rejected; the init-only sibling still matches.
     const initSibling = makeFile({
       projectId: 'proj-1',
       initNotebookId: 'nb-init',
@@ -274,8 +265,6 @@ describe('resolveAndComposeInit', () => {
   })
 
   it('skips corrupt sibling YAML without aborting the resolution', async () => {
-    // A corrupt .deepnote file in the same directory must not be fatal: it is
-    // recorded as rejected, and resolution still picks up a valid init sibling.
     const initSibling = makeFile({
       projectId: 'proj-1',
       initNotebookId: 'nb-init',
@@ -290,7 +279,6 @@ describe('resolveAndComposeInit', () => {
     const corruptPath = path.join(tempDir, 'corrupt.deepnote')
     const initPath = path.join(tempDir, 'init.deepnote')
     const mainPath = path.join(tempDir, 'main.deepnote')
-    // Intentionally invalid YAML that fails parse.
     await fs.writeFile(corruptPath, '{not: valid: yaml: [unbalanced', 'utf-8')
     await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
@@ -309,7 +297,6 @@ describe('resolveAndComposeInit', () => {
 
     const corruptPath = path.join(tempDir, 'init.deepnote')
     const mainPath = path.join(tempDir, 'main.deepnote')
-    // Intentionally invalid YAML that fails parse.
     await fs.writeFile(corruptPath, 'this is not valid:: yaml :::', 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
@@ -321,15 +308,11 @@ describe('resolveAndComposeInit', () => {
     }
     expect(captured).toBeDefined()
     expect(captured?.message).toContain('Cannot resolve init notebook')
-    // The corrupt path should be listed as a rejected candidate so the user
-    // can diagnose it.
     expect(captured?.message).toContain(corruptPath)
   })
 
   it('composes a stale init sibling whose ids match (staleness detection deferred by design)', async () => {
-    // Stale init: the init-id matches but the block contents (or hashes) have
-    // diverged. The plan deliberately defers staleness detection; the
-    // resolver must still compose this stale sibling without error.
+    // Init id matches but block content diverged; staleness detection is deferred by design, so this still composes.
     const staleInit = makeFile({
       projectId: 'proj-1',
       initNotebookId: 'nb-init',
@@ -341,8 +324,6 @@ describe('resolveAndComposeInit', () => {
         },
       ],
     })
-    // Mutate the init block content after writing to simulate staleness; the
-    // important property is that ids match but content does not.
     staleInit.project.notebooks[0].blocks[0].content = '# stale init body'
 
     const mainFile = makeFile({
@@ -359,7 +340,6 @@ describe('resolveAndComposeInit', () => {
     const result = await resolveAndComposeInit(mainFile, mainPath)
     expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
     expect(result.initBlockIds.has('init-b1')).toBe(true)
-    // No warnings about staleness — this is intentionally not detected here.
     expect(result.warnings).toEqual([])
   })
 
@@ -383,9 +363,7 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
     const result = await resolveAndComposeInit(mainFile, mainPath)
-    // Should compose successfully — divergence is non-fatal.
     expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
-    // Should record an advisory warning about integrations divergence.
     expect(result.warnings.length).toBeGreaterThan(0)
     expect(result.warnings.some(w => /integrations/i.test(w))).toBe(true)
   })
@@ -415,7 +393,6 @@ describe('resolveAndComposeInit', () => {
   })
 
   it('rejects siblings with a different project.id', async () => {
-    // Same notebook id but a different project — must not match.
     const wrongProjectInit = makeFile({
       projectId: 'proj-OTHER',
       initNotebookId: 'nb-init',
@@ -436,7 +413,6 @@ describe('resolveAndComposeInit', () => {
   })
 
   it('ignores non-.deepnote files in the directory', async () => {
-    // A `.txt` or unrelated file in the same dir must not be considered.
     const initSibling = makeFile({
       projectId: 'proj-1',
       initNotebookId: 'nb-init',

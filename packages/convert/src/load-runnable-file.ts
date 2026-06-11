@@ -27,11 +27,7 @@ export interface LoadedRunnableFile {
   wasConverted: boolean
 }
 
-/**
- * Error thrown when a path cannot be loaded as a runnable file (unsupported
- * extension, parse failure, etc.). Callers may wrap this in their own
- * domain-specific error types.
- */
+/** Thrown when a path cannot be loaded as a runnable file; callers may wrap it in domain-specific errors. */
 export class LoadRunnableFileError extends Error {
   constructor(message: string) {
     super(message)
@@ -44,20 +40,7 @@ export function isRunnableExtension(ext: string): ext is RunnableExtension {
   return (RUNNABLE_EXTENSIONS as readonly string[]).includes(ext.toLowerCase())
 }
 
-/**
- * Resolve, read, and convert any supported notebook format into a DeepnoteFile.
- *
- * Supported formats:
- * - `.deepnote` — Native format (no conversion)
- * - `.ipynb` — Jupyter Notebook
- * - `.py` — Percent format (`# %%`) or Marimo (`@app.cell`), auto-detected
- * - `.qmd` — Quarto document
- *
- * Throws {@link LoadRunnableFileError} on unsupported extensions, parse errors,
- * and ambiguous Python files. File-system errors are propagated unwrapped so
- * callers can attach their own context (e.g. user-facing "File not found"
- * messages).
- */
+/** Resolve, read, and convert any supported notebook format (.deepnote/.ipynb/.py/.qmd) into a DeepnoteFile; throws LoadRunnableFileError on bad input while propagating fs errors unwrapped. */
 export async function loadRunnableFile(filePath: string): Promise<LoadedRunnableFile> {
   const absolutePath = resolve(filePath)
   const ext = extname(absolutePath).toLowerCase()

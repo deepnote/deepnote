@@ -3,9 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mocks for the dual-snapshot composed run test below. These mocks replace the
-// real ExecutionEngine + saveExecutionSnapshot so MCP tests can drive the
-// snapshot shape without spinning up Python.
+// Mock ExecutionEngine + saveExecutionSnapshot so the composed-run test avoids spinning up Python.
 const mockEngineStart = vi.fn().mockResolvedValue(undefined)
 const mockEngineStop = vi.fn().mockResolvedValue(undefined)
 const mockEngineRunProject = vi.fn()
@@ -194,9 +192,7 @@ describe('execution tools handlers', () => {
 
       const result = extractResult(response)
       expect(result.dryRun).toBe(true)
-      // Composed dry-run should announce the init notebook
       expect(result.initNotebook).toBe('Init')
-      // The plan + execution order should include both notebooks
       const notebookNames = result.notebooks as string[]
       expect(notebookNames).toContain('Init')
       expect(notebookNames).toContain('Main')
@@ -237,13 +233,11 @@ describe('execution tools handlers', () => {
 
       const result = extractResult(response)
       expect(result.level).toBe('block')
-      // The init block should be listed in preludeBlocks (so the user can see
-      // that init runs before the user-targeted block).
+      // The init block runs as a prelude before the user-targeted block.
       expect(result.initNotebook).toBe('Init')
       const preludeBlocks = result.preludeBlocks as Array<{ id: string; type: string }> | undefined
       expect(preludeBlocks).toBeDefined()
       expect(preludeBlocks?.length).toBeGreaterThan(0)
-      // The main block is the explicit target.
       const targetBlock = result.block as { id: string; fullId: string } | undefined
       expect(targetBlock).toBeDefined()
       expect(targetBlock?.fullId).toBe(MAIN_BLOCK_ID)
@@ -261,7 +255,6 @@ describe('execution tools handlers', () => {
 
       expect(response.isError).toBe(true)
       const text = response.content[0].text
-      // The error must clearly identify the missing init id and the directory.
       expect(text).toContain(INIT_NB_ID)
       expect(text).toContain('Cannot resolve init notebook')
     })
@@ -272,9 +265,7 @@ describe('execution tools handlers', () => {
       await fs.writeFile(initPath, makeInitFile(), 'utf-8')
       await fs.writeFile(mainPath, makeMainFile(), 'utf-8')
 
-      // Drive the engine's runProject mock so it emits results for both init
-      // and main blocks via onBlockDone callback (this populates the
-      // blockOutputs that get passed to saveExecutionSnapshot).
+      // Emit init + main results via onBlockDone to populate blockOutputs for saveExecutionSnapshot.
       mockEngineRunProject.mockReset()
       mockEngineRunProject.mockImplementation(async (_file, options) => {
         await options?.onBlockDone?.({
@@ -311,13 +302,10 @@ describe('execution tools handlers', () => {
       const result = extractResult(response)
       expect(result.success).toBe(true)
       expect(result.snapshotPath).toBe('/mock/main-latest.snapshot.deepnote')
-      // Composed runs must surface the init snapshot path so callers can
-      // discover the dual-snapshot pair.
+      // Composed runs must surface the init snapshot path so callers can find the dual-snapshot pair.
       expect(result.initSnapshotPath).toBe('/mock/init-latest.snapshot.deepnote')
 
-      // Verify saveExecutionSnapshot was called with the [init, main]-shaped
-      // composed file and a non-empty initBlockIds set (the dual-snapshot
-      // signal).
+      // saveExecutionSnapshot receives the [init, main]-shaped file and a non-empty initBlockIds set.
       expect(mockSharedSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
       const saveCallArgs = mockSharedSaveExecutionSnapshot.mock.calls[0]
       const composedFile = saveCallArgs[1] as { project: { notebooks: Array<{ id: string }> } }
@@ -325,8 +313,7 @@ describe('execution tools handlers', () => {
 
       const blockOutputs = saveCallArgs[2] as Array<{ id: string; outputs: unknown[] }>
       const blockIds = blockOutputs.map(b => b.id)
-      // Both init and main outputs must be passed to saveExecutionSnapshot so
-      // both snapshots can include init outputs from this run.
+      // Both init and main outputs are passed so each snapshot can include init outputs from this run.
       expect(blockIds).toContain(INIT_BLOCK_ID)
       expect(blockIds).toContain(MAIN_BLOCK_ID)
 
@@ -337,8 +324,7 @@ describe('execution tools handlers', () => {
     })
 
     it('returns plan with init in scope; warnings emitted when integrations diverge', async () => {
-      // Sibling init has different integrations; main has none. Resolver
-      // should not abort but should surface a warning to the caller.
+      // Sibling init has integrations that main lacks: resolver should warn, not abort.
       const initWithIntegration = [
         'version: 1.0.0',
         'metadata:',
@@ -376,8 +362,7 @@ describe('execution tools handlers', () => {
 
       const result = extractResult(response)
       expect(result.initNotebook).toBe('Init')
-      // Warnings must be on the response payload so MCP callers can detect
-      // metadata divergence.
+      // Warnings must be on the response payload so MCP callers can detect metadata divergence.
       const warnings = result.warnings as string[] | undefined
       expect(Array.isArray(warnings)).toBe(true)
       expect(warnings?.some(w => /integrations/i.test(w))).toBe(true)

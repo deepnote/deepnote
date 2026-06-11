@@ -268,7 +268,7 @@ describe('output-persistence', () => {
     })
 
     it('saveExecutionSnapshot embeds the main notebook id in snapshot filenames when the source file lists init and main notebooks', async () => {
-      // Catches: snapshot paths used legacy project-wide names whenever notebooks.length was not 1, so init+main split files dropped the main notebook id from filenames and collided across splits.
+      // Regression: init+main files used to fall back to project-wide snapshot names, colliding across splits.
       const projectId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
       const initNotebookId = '22222222-2222-2222-2222-222222222222'
       const mainNotebookId = '33333333-3333-3333-3333-333333333333'

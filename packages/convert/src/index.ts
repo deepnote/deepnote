@@ -40,7 +40,6 @@ export {
   convertJupyterNotebookToBlocks,
   readAndConvertIpynbFiles,
 } from './jupyter-to-deepnote'
-// Shared runnable-file loader (used by CLI run/list-inputs and MCP execution)
 export type { LoadedRunnableFile, RunnableExtension, RunnableFormat } from './load-runnable-file'
 export { isRunnableExtension, LoadRunnableFileError, loadRunnableFile, RUNNABLE_EXTENSIONS } from './load-runnable-file'
 export type {

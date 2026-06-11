@@ -20,14 +20,7 @@ export interface SplitResult {
   snapshot: DeepnoteSnapshot
 }
 
-/**
- * One notebook slice from {@link splitByNotebooks} with a unique output filename.
- *
- * `kind` distinguishes the standalone init notebook entry (which contains only
- * the init notebook) from regular non-init notebook entries. Callers use it to
- * decide split-time concerns like snapshot shape and atomic publication, rather
- * than guessing from filenames or notebook ids.
- */
+/** One notebook slice from {@link splitByNotebooks}; `kind` lets callers tell the init entry from a main notebook without parsing filenames or ids. */
 export interface NotebookSplitEntry {
   notebook: { id: string; name: string }
   file: DeepnoteFile

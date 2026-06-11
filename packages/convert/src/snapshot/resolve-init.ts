@@ -4,16 +4,7 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlockType } from '@deepnote/blocks'
 import { stripOutputsFromBlock } from './split'
 
-/**
- * Thrown when the resolver cannot compose the requested init notebook for a
- * file that declares `project.initNotebookId`. CLI callers should treat this
- * as a user-input error (exit code 2): the file references an init notebook
- * that does not exist locally and cannot be located in any sibling
- * `.deepnote` file.
- *
- * `kind: 'missing'` is thrown when no candidate sibling matches.
- * `kind: 'multiple'` is thrown when more than one candidate matches.
- */
+/** Thrown when a file's `project.initNotebookId` cannot be resolved locally or in a sibling `.deepnote` (CLI exit code 2). */
 export class MissingInitNotebookError extends Error {
   readonly kind: 'missing' | 'multiple'
   /** The init notebook id that could not be resolved. */
@@ -43,101 +34,22 @@ export class MissingInitNotebookError extends Error {
   }
 }
 
-/**
- * The result of attempting to resolve and compose a sibling init notebook into the
- * loaded {@link DeepnoteFile}.
- */
+/** Result of resolving and composing a sibling init notebook into the loaded {@link DeepnoteFile}. */
 export interface ResolveAndComposeInitResult {
-  /**
-   * The (possibly composed) DeepnoteFile to use for execution.
-   *
-   * - When the input file already contained the init notebook (self-contained),
-   *   this is the input file unchanged.
-   * - When a sibling init file matched, this is a new file whose
-   *   `project.notebooks` array has the init notebook prepended in front of the
-   *   original file's notebooks. Borrowed init blocks are stripped of stale
-   *   `outputs`/`executionCount`/`executionStartedAt`/`executionFinishedAt` so
-   *   the in-memory composed file behaves like a freshly-loaded source file.
-   * - When `initNotebookId` is unset, this is the input file unchanged.
-   */
   composed: DeepnoteFile
-  /**
-   * The set of executable block ids that came from the init notebook.
-   *
-   * Empty when no init notebook was composed (either self-contained or absent
-   * because the file declares no `initNotebookId`).
-   *
-   * Callers use a non-empty set as the "prelude active" marker: when a user
-   * applies a `--notebook` or `--block` filter, init must still run first, so
-   * downstream layers must expand their notebook scope to include the init
-   * notebook and prepend these block ids to any resolved upstream block list.
-   *
-   * Typed as `ReadonlySet` so consumers cannot accidentally mutate the
-   * resolver result.
-   */
   initBlockIds: ReadonlySet<string>
-  /**
-   * Id of the composed init notebook (when one was composed). Callers should
-   * prefer this over `initNotebookName` when threading prelude scope into the
-   * execution engine, because notebook names are not unique in the schema.
-   */
   initNotebookId?: string
-  /**
-   * Name of the composed init notebook (kept for diagnostics / logs / dry-run
-   * plan output). Use {@link initNotebookId} for engine filtering.
-   */
   initNotebookName?: string
-  /**
-   * Non-fatal advisory messages produced while resolving (e.g. metadata
-   * divergence between main and sibling, ignored corrupt sibling YAML).
-   * Callers should surface these to users (CLI logs / MCP response payload).
-   */
   warnings: string[]
 }
 
-/**
- * A description of a sibling `.deepnote` candidate that was inspected but not
- * accepted as the init source.
- */
+/** A sibling `.deepnote` candidate that was inspected but rejected as the init source. */
 interface RejectedCandidate {
   path: string
   reason: string
 }
 
-/**
- * Resolves the init notebook for a parsed `DeepnoteFile`. When the file already
- * contains its init notebook, returns the file unchanged. When the file's
- * `project.initNotebookId` points to a notebook that lives in a sibling
- * `.deepnote` file, composes a new in-memory `DeepnoteFile` whose notebooks are
- * `[init, ...mainNotebooks]` and reports the init's executable block ids as a
- * prelude marker.
- *
- * Discovery rules:
- * - Only files in the same directory as `filePath` with extension `.deepnote`
- *   are considered.
- * - A candidate matches when (a) `project.id` equals the executed file's
- *   `project.id`, (b) the candidate has exactly one notebook, and (c) that
- *   single notebook's id equals the executed file's `initNotebookId`. Rule (b)
- *   excludes the original unsplit source file (which still has init plus the
- *   other notebooks).
- * - Candidates whose YAML fails to parse are recorded as rejected and skipped,
- *   not fatal.
- *
- * Outcomes:
- * - **Self-contained**: returns the file as-is, `initBlockIds` empty.
- * - **Composed**: exactly one matching sibling. Top-level project metadata
- *   (`settings`, `integrations`, `environment`, `name`, `id`, `initNotebookId`)
- *   is taken from the main file; only the init notebook's blocks are borrowed.
- *   When the sibling and main file disagree on `integrations` or `settings`,
- *   `warnings` carries an advisory message.
- * - **Fail closed**: `initNotebookId` is set, file lacks that notebook, and no
- *   sibling provides it. Throws a clear error naming the missing init id, the
- *   directory searched, and rejected candidates.
- * - **Multiple matches**: throws with candidate paths listed.
- *
- * @param file - The parsed DeepnoteFile to resolve init for.
- * @param filePath - The absolute on-disk path of the file (used to find siblings).
- */
+/** Resolves the init notebook for a `DeepnoteFile`, composing `[init, ...notebooks]` from a sibling `.deepnote` when not self-contained, else failing closed. */
 export async function resolveAndComposeInit(
   file: DeepnoteFile,
   filePath: string
@@ -145,12 +57,10 @@ export async function resolveAndComposeInit(
   const initNotebookId = file.project.initNotebookId
   const warnings: string[] = []
 
-  // Files without an init reference are returned as-is.
   if (initNotebookId === undefined) {
     return { composed: file, initBlockIds: new Set(), warnings }
   }
 
-  // If the file already contains its init notebook, no sibling lookup is needed.
   const localInit = file.project.notebooks.find(nb => nb.id === initNotebookId)
   if (localInit !== undefined) {
     return { composed: file, initBlockIds: new Set(), warnings }
@@ -260,19 +170,13 @@ export async function resolveAndComposeInit(
   const initFile = matches[0].file
   const siblingInitNotebook = initFile.project.notebooks[0]
 
-  // Strip stale execution state from borrowed init blocks: the sibling on
-  // disk may carry outputs/executionCount/executionStarted-/FinishedAt from a
-  // previous run. We don't want those leaking into the composed in-memory
-  // file (so dry-run plans, --list-inputs, and validation see clean source).
-  // Engine execution will overwrite outputs anyway, but the user-facing
-  // intermediate states must show source-only data.
+  // Strip stale execution state from borrowed init blocks so dry-run/--list-inputs/validation see clean source, not a previous run's outputs.
   const initNotebook = {
     ...siblingInitNotebook,
     blocks: siblingInitNotebook.blocks.map(stripOutputsFromBlock),
   }
 
-  // Compose: take all top-level metadata from the main file; borrow only the
-  // init notebook (with its blocks) from the sibling file.
+  // Compose: take all top-level metadata from the main file; borrow only the init notebook from the sibling.
   const composed: DeepnoteFile = {
     ...file,
     project: {
@@ -281,8 +185,7 @@ export async function resolveAndComposeInit(
     },
   }
 
-  // Record advisory warnings for metadata divergence. We proceed using the main
-  // file's metadata regardless.
+  // Advisory only; we proceed with the main file's metadata regardless of divergence.
   const integrationsDifferent = !areIntegrationsEqual(file.project.integrations, initFile.project.integrations)
   if (integrationsDifferent) {
     warnings.push(
@@ -313,10 +216,7 @@ export async function resolveAndComposeInit(
   }
 }
 
-/**
- * Compare two integrations arrays for shallow structural equality (id/name/type).
- * Order-insensitive.
- */
+/** Order-insensitive shallow structural equality of two integrations arrays (id/name/type). */
 function areIntegrationsEqual(
   a: ReadonlyArray<{ id: string; name?: string; type?: string }> | undefined,
   b: ReadonlyArray<{ id: string; name?: string; type?: string }> | undefined
@@ -338,10 +238,7 @@ function areIntegrationsEqual(
   return true
 }
 
-/**
- * Compare two settings objects for structural equality via JSON serialization.
- * Treats `undefined` and `{}` as equivalent.
- */
+/** Structural equality of two settings objects via key-sorted JSON; treats `undefined`/`null` as equivalent. */
 function areSettingsEqual(a: unknown, b: unknown): boolean {
   const norm = (value: unknown): string => {
     if (value === undefined || value === null) return 'null'

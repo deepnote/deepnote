@@ -358,7 +358,7 @@ describe('hasOutputs', () => {
               {
                 ...({
                   id: 'block-1',
-                  type: 'markdown', // Non-executable
+                  type: 'markdown',
                   blockGroup: 'bg-1',
                   sortingKey: '0000',
                   content: '# Hello',
@@ -422,7 +422,7 @@ describe('hasOutputs', () => {
               {
                 ...({
                   id: 'block-1',
-                  type: 'markdown', // Non-executable with stray outputs
+                  type: 'markdown',
                   blockGroup: 'bg-1',
                   sortingKey: '0000',
                   content: '# Title',
@@ -722,8 +722,7 @@ describe('splitByNotebooks', () => {
     expect(result.map(e => e.notebook.id).sort()).toEqual(['nb-a', 'nb-b'].sort())
     for (const entry of result) {
       expect(entry.file.project.notebooks).toHaveLength(1)
-      // The dangling initNotebookId must be dropped so `deepnote run` treats
-      // these as plain no-init files instead of failing sibling-init resolution.
+      // Dangling initNotebookId must be dropped so `deepnote run` treats these as plain no-init files.
       expect(entry.file.project.initNotebookId).toBeUndefined()
     }
   })
@@ -748,7 +747,6 @@ describe('splitByNotebooks', () => {
   })
 
   it('should split snapshot one-to-one by notebook id (including init) for a composed run', () => {
-    // Verifies that splitSnapshotByNotebooks treats init like any other notebook id.
     const snapshot: DeepnoteSnapshot = {
       version: '1.0.0',
       metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },

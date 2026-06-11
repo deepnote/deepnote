@@ -19,9 +19,7 @@ export interface SplitOptions {
   force?: boolean
 }
 
-/**
- * Creates the split action - splits a multi-notebook .deepnote file into separate files.
- */
+/** Creates the split action - splits a multi-notebook .deepnote file into separate files. */
 export function createSplitAction(_program: Command): (path: string, options: SplitOptions) => Promise<void> {
   return async (inputPath, options) => {
     try {
@@ -42,12 +40,9 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
 
       const outputDir = options.output ? resolve(options.output) : sourceDir
 
-      // Ensure output directory exists
       await fs.mkdir(outputDir, { recursive: true })
 
-      // Each split entry is its own single-notebook file: init is one entry
-      // (kind: 'init'), each non-init notebook is one entry (kind: 'notebook')
-      // — see splitByNotebooks docs.
+      // Each split entry is its own single-notebook file (kind 'init' or 'notebook') — see splitByNotebooks docs.
       const writtenFiles: string[] = []
       const force = Boolean(options.force)
       for (const split of splits) {
@@ -65,10 +60,7 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
         output(`  ${c.green('✓')} ${basename(outPath)}`)
       }
 
-      // Snapshot splitting: emit one snapshot per non-init notebook with
-      // `[init, main]` shape (so each main snapshot remains a complete record
-      // including init outputs), plus an init-only `[init]` snapshot for the
-      // standalone init file. Both shapes match the run-time snapshot model.
+      // Emit one `[init, main]` snapshot per non-init notebook plus an init-only `[init]` snapshot, matching the run-time model.
       const initNotebookId = file.project.initNotebookId
       const initNotebookInProject =
         initNotebookId === undefined ? undefined : file.project.notebooks.find(nb => nb.id === initNotebookId)
@@ -93,8 +85,7 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
             const snapshot = await loadSnapshotFile(snapInfo.path)
             const splitSnapshots = splitSnapshotByNotebooks(snapshot, snapshotNotebookIds)
 
-            // Main snapshots: keep [init, main] shape so each split file's
-            // snapshot remains a complete record of what would run.
+            // Main snapshots keep [init, main] shape so each split file's snapshot is a complete record of what would run.
             for (const mainEntry of mainSplitEntries) {
               const mainSnapshot = splitSnapshots.get(mainEntry.notebook.id)
               if (!mainSnapshot) continue
@@ -126,8 +117,7 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
               await fs.writeFile(snapshotPath, serializeDeepnoteSnapshot(nbSnapshot), 'utf-8')
             }
 
-            // Init-only snapshot: [init] shape, keyed by init notebook id, for
-            // the standalone init file.
+            // Init-only [init] snapshot, keyed by init notebook id, for the standalone init file.
             if (initSplitEntry !== undefined && initNotebookInProject !== undefined) {
               const initSnapshot = splitSnapshots.get(initNotebookInProject.id)
               if (initSnapshot) {
