@@ -2314,6 +2314,27 @@ describe('Database integration env variables', () => {
       })
     })
 
+    describe('Cloud SQL', () => {
+      it('should not generate a SQL Alchemy env var (connects via the Cloud SQL Python connector)', () => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+          [
+            {
+              type: 'cloud-sql',
+              id: 'my-cloud-sql',
+              name: 'My Cloud SQL Connection',
+              metadata: {
+                service_account: '{"project_id": "my-project-id"}',
+              },
+            },
+          ],
+          { projectRootDirectory: '/path/to/project' }
+        )
+
+        expect(errors).toHaveLength(0)
+        expect(getSqlAlchemyInputVar(envVars, 'my-cloud-sql')).toBeUndefined()
+      })
+    })
+
     describe('Snowflake', () => {
       it('should generate a SQL Alchemy env var with snowflake URL for password auth', () => {
         const { envVars, errors } = getEnvironmentVariablesForIntegrations(

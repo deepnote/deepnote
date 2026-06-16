@@ -155,6 +155,11 @@ export function getSqlAlchemyInput(
     case 'clickhouse':
       return getClickHouseSqlAlchemyInput(integration.id, params.projectRootDirectory, integration.metadata)
 
+    case 'cloud-sql':
+      // Cloud SQL connects via the Cloud SQL Python connector rather than a plain SQLAlchemy URL,
+      // so there is no SQLAlchemy input to generate here yet.
+      return null
+
     case 'databricks':
       return getDatabricksSqlAlchemyInput(integration.metadata)
 

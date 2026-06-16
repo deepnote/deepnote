@@ -23,6 +23,7 @@ import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
 import { promptForFieldsAthena } from './integrations-prompts/athena'
 import { promptForFieldsBigQuery } from './integrations-prompts/big-query'
 import { promptForFieldsClickhouse } from './integrations-prompts/clickhouse'
+import { promptForFieldsCloudSql } from './integrations-prompts/cloud-sql'
 import { promptForFieldsDatabricks } from './integrations-prompts/databricks'
 import { promptForFieldsDremio } from './integrations-prompts/dremio'
 import { promptForFieldsMariadb } from './integrations-prompts/mariadb'
@@ -147,6 +148,13 @@ export async function promptForIntegrationConfig(
       })
     case 'clickhouse':
       return promptForFieldsClickhouse({
+        id: existingConfig.id,
+        type: existingConfig.type,
+        name: newName,
+        defaultValues: existingConfig.metadata,
+      })
+    case 'cloud-sql':
+      return promptForFieldsCloudSql({
         id: existingConfig.id,
         type: existingConfig.type,
         name: newName,
