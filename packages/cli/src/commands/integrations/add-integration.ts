@@ -21,6 +21,7 @@ import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
 import { promptForFieldsAthena } from './integrations-prompts/athena'
 import { promptForFieldsBigQuery } from './integrations-prompts/big-query'
 import { promptForFieldsClickhouse } from './integrations-prompts/clickhouse'
+import { promptForFieldsCloudSql } from './integrations-prompts/cloud-sql'
 import { promptForFieldsDatabricks } from './integrations-prompts/databricks'
 import { promptForFieldsDremio } from './integrations-prompts/dremio'
 import { promptForFieldsMariadb } from './integrations-prompts/mariadb'
@@ -89,6 +90,8 @@ export async function promptForIntegrationConfig({
       return promptForFieldsBigQuery({ id, type: integrationType, name })
     case 'clickhouse':
       return promptForFieldsClickhouse({ id, type: integrationType, name })
+    case 'cloud-sql':
+      return promptForFieldsCloudSql({ id, type: integrationType, name })
     case 'databricks':
       return promptForFieldsDatabricks({ id, type: integrationType, name })
     case 'dremio':
