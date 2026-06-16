@@ -12,23 +12,20 @@ export interface SnapshotNotebookIdFileInput {
 export function resolveSnapshotNotebookId(file: SnapshotNotebookIdFileInput): string | undefined {
   const { notebooks, initNotebookId } = file.project
 
+  // Single-notebook file (the common case): name the snapshot after it.
   if (notebooks.length === 1) {
     return notebooks[0].id
   }
 
-  if (notebooks.length !== 2 || initNotebookId === undefined) {
-    return undefined
+  // Composed `[init, main]` (an init notebook borrowed from a sibling at run time): name the snapshot after the non-init (main) notebook.
+  if (notebooks.length === 2 && initNotebookId !== undefined) {
+    const initNotebook = notebooks.find(notebook => notebook.id === initNotebookId)
+    const nonInit = notebooks.find(notebook => notebook.id !== initNotebookId)
+    if (initNotebook !== undefined && nonInit !== undefined) {
+      return nonInit.id
+    }
   }
 
-  const initNotebook = notebooks.find(notebook => notebook.id === initNotebookId)
-  if (initNotebook === undefined) {
-    return undefined
-  }
-
-  const nonInit = notebooks.find(notebook => notebook.id !== initNotebookId)
-  if (nonInit === undefined) {
-    return undefined
-  }
-
-  return nonInit.id
+  // Multi-notebook (legacy) or an unresolvable init: fall back to project-wide snapshot names.
+  return undefined
 }
