@@ -291,4 +291,96 @@ describe('analysis utilities', () => {
       }
     })
   })
+
+  describe('case-insensitive integration handling', () => {
+    // Run body with the given env vars deleted, restoring them afterwards.
+    async function withEnvUnset(keys: string[], body: () => Promise<void>): Promise<void> {
+      const saved = keys.map(k => [k, process.env[k]] as const)
+      for (const k of keys) delete process.env[k]
+      try {
+        await body()
+      } finally {
+        for (const [k, v] of saved) {
+          if (v === undefined) delete process.env[k]
+          else process.env[k] = v
+        }
+      }
+    }
+
+    it('reports a mixed-case external integration as missing exactly once (first-seen casing)', async () => {
+      await withEnvUnset(['SQL_MY_WAREHOUSE'], async () => {
+        const file = createTestFile([
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'My-Warehouse' } },
+          { id: 'b2', type: 'sql', content: 'SELECT 2', metadata: { sql_integration_id: 'my-warehouse' } },
+        ])
+        const { lint } = await checkForIssues(file)
+
+        expect(lint.integrations?.missing).toEqual(['My-Warehouse'])
+        expect(lint.integrations?.configured).toEqual([])
+      })
+    })
+
+    it('reports a mixed-case external integration as configured exactly once when env is set', async () => {
+      const prev = process.env.SQL_MY_WAREHOUSE
+      process.env.SQL_MY_WAREHOUSE = 'postgres://example'
+      try {
+        const file = createTestFile([
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'My-Warehouse' } },
+          { id: 'b2', type: 'sql', content: 'SELECT 2', metadata: { sql_integration_id: 'my-warehouse' } },
+        ])
+        const { lint } = await checkForIssues(file)
+
+        expect(lint.integrations?.configured).toEqual(['My-Warehouse'])
+        expect(lint.integrations?.missing).toEqual([])
+      } finally {
+        if (prev === undefined) delete process.env.SQL_MY_WAREHOUSE
+        else process.env.SQL_MY_WAREHOUSE = prev
+      }
+    })
+
+    it('keeps genuinely different external integrations distinct (no over-merge)', async () => {
+      await withEnvUnset(['SQL_WAREHOUSE_A', 'SQL_WAREHOUSE_B'], async () => {
+        const file = createTestFile([
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'warehouse-a' } },
+          { id: 'b2', type: 'sql', content: 'SELECT 2', metadata: { sql_integration_id: 'warehouse-b' } },
+        ])
+        const { lint } = await checkForIssues(file)
+
+        expect(lint.integrations?.missing).toEqual(['warehouse-a', 'warehouse-b'])
+      })
+    })
+
+    it('ignores built-in integrations case-insensitively', async () => {
+      const file = createTestFile([
+        { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'Pandas-DataFrame' } },
+      ])
+      const { lint } = await checkForIssues(file)
+
+      expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
+      expect(lint.integrations?.missing).toEqual([])
+    })
+
+    it('ignores a non-string sql_integration_id without throwing', async () => {
+      const file = createTestFile([
+        { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 123 } },
+      ])
+      const { lint } = await checkForIssues(file)
+
+      expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
+      expect(lint.integrations?.missing).toEqual([])
+    })
+
+    it('combined capstone: built-in filtered out, external mixed-case deduped to first-seen casing', async () => {
+      await withEnvUnset(['SQL_MY_WAREHOUSE'], async () => {
+        const file = createTestFile([
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'Pandas-DataFrame' } },
+          { id: 'b2', type: 'sql', content: 'SELECT 2', metadata: { sql_integration_id: 'My-Warehouse' } },
+          { id: 'b3', type: 'sql', content: 'SELECT 3', metadata: { sql_integration_id: 'my-warehouse' } },
+        ])
+        const { lint } = await checkForIssues(file)
+
+        expect(lint.integrations?.missing).toEqual(['My-Warehouse'])
+      })
+    })
+  })
 })
