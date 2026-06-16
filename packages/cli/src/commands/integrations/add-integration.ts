@@ -1,20 +1,19 @@
 import crypto from 'node:crypto'
 import {
+  addIntegrationToSeq,
+  createNewDocument,
   type DatabaseIntegrationConfig,
   type DatabaseIntegrationType,
+  DEFAULT_ENV_FILE,
+  DEFAULT_INTEGRATIONS_FILE,
   databaseIntegrationTypes,
+  getOrCreateIntegrationsFromDocument,
+  SCHEMA_COMMENT,
 } from '@deepnote/database-integrations'
 import { input, select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
-import { DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '../../constants'
 import { ExitCode } from '../../exit-codes'
-import {
-  addIntegrationToSeq,
-  createNewDocument,
-  getOrCreateIntegrationsFromDocument,
-  SCHEMA_COMMENT,
-} from '../../integrations/merge-integrations'
 import { log, output } from '../../output'
 import { updateDotEnv } from '../../utils/dotenv'
 import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'

@@ -2,18 +2,25 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  type ApiIntegration,
-  mergeApiIntegrationsIntoDocument,
-  readIntegrationsDocument,
-  writeIntegrationsFile,
-} from '../commands/integrations'
+import type { Document } from 'yaml'
+import type { ApiIntegration } from './fetch-integrations'
+import { parseIntegrationsDocument, serializeIntegrationsDocument } from './integrations-document'
 import {
   addIntegrationToSeq,
   createNewDocument,
   getOrCreateIntegrationsFromDocument,
+  mergeApiIntegrationsIntoDocument,
   mergeProcessedIntegrations,
 } from './merge-integrations'
+
+async function readIntegrationsDocument(filePath: string): Promise<Document | null> {
+  const content = await readFile(filePath, 'utf-8')
+  return parseIntegrationsDocument(content)
+}
+
+async function writeIntegrationsFile(filePath: string, doc: Document): Promise<void> {
+  await writeFile(filePath, serializeIntegrationsDocument(doc), 'utf-8')
+}
 
 // Helper to create a mock API integration
 function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiIntegration {

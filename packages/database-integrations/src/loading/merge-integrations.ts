@@ -1,14 +1,9 @@
-import {
-  type DatabaseIntegrationConfig,
-  databaseIntegrationConfigSchema,
-  getSecretFieldPaths,
-} from '@deepnote/database-integrations'
 import { type Document, isMap, isSeq, parseDocument, type YAMLMap, type YAMLSeq } from 'yaml'
-import { debug, error } from '../output'
-import { createEnvVarRef, extractEnvVarName, generateEnvVarName } from '../utils/env-var-refs'
+import type { ZodIssue } from 'zod'
+import { type DatabaseIntegrationConfig, databaseIntegrationConfigSchema } from '../database-integration-config'
+import { getSecretFieldPaths } from '../secret-field-paths'
+import { createEnvVarRef, extractEnvVarName, generateEnvVarName } from './env-var-refs'
 import type { ApiIntegration } from './fetch-integrations'
-
-export type { ApiIntegration } from './fetch-integrations'
 
 /**
  * JSON schema URL for the integrations file.
@@ -33,15 +28,35 @@ export class InvalidIntegrationsTypeError extends Error {
 }
 
 /**
- * Result of merging API integrations into a document.
+ * An API integration that was skipped during a merge because it was invalid or
+ * of an unsupported type. Callers can surface these to the user (the CLI logs
+ * them in debug mode; the extension can report them in its UI).
  */
-export interface MergeResult {
+export interface SkippedApiIntegration {
+  id: string
+  name: string
+  type: string
+  issues: ZodIssue[]
+}
+
+/**
+ * Result of merging processed integrations into a document.
+ */
+export interface IntegrationsMergeResult {
   secrets: Record<string, string>
   stats: {
     existingCount: number
     newCount: number
     updatedCount: number
   }
+}
+
+/**
+ * Result of merging API integrations into a document.
+ */
+export interface IntegrationsDocumentMergeResult extends IntegrationsMergeResult {
+  /** API integrations skipped because they were invalid or unsupported. */
+  skipped: SkippedApiIntegration[]
 }
 
 /**
@@ -69,7 +84,7 @@ export function getOrCreateIntegrationsFromDocument(doc: Document): YAMLSeq<unkn
   return integrations
 }
 
-export function getOrCreateIntegrationMetadata(doc: Document, integrationId: string, integrationMap: YAMLMap): YAMLMap {
+export function getOrCreateIntegrationMetadata(doc: Document, integrationMap: YAMLMap): YAMLMap {
   // Get existing metadata to check for custom env var names before updating
   const existingMetadata = integrationMap.get('metadata', true)
 
@@ -77,10 +92,7 @@ export function getOrCreateIntegrationMetadata(doc: Document, integrationId: str
     return existingMetadata
   }
 
-  if (existingMetadata != null) {
-    error(`Overwriting existing metadata for integration [${integrationId}] because it is not a map`)
-  }
-
+  // If existing metadata is present but not a map, it is overwritten.
   const EMPTY_METADATA: Record<string, unknown> = {}
   const metadata = doc.createNode(EMPTY_METADATA)
   integrationMap.set('metadata', metadata)
@@ -156,7 +168,7 @@ export function updateIntegrationInDocument(
   // Get secret field paths for this integration type
   const secretPaths = getSecretFieldPaths(type)
 
-  const metadataMap = getOrCreateIntegrationMetadata(doc, id, integrationMap)
+  const metadataMap = getOrCreateIntegrationMetadata(doc, integrationMap)
 
   const secrets = updateIntegrationMetadataMap({
     metadataMap,
@@ -237,7 +249,7 @@ export function mergeProcessedIntegrations(
   doc: Document,
   integrationsSeq: YAMLSeq,
   processedIntegrations: DatabaseIntegrationConfig[]
-): MergeResult {
+): IntegrationsMergeResult {
   // Get existing integrations count
   const existingCount = integrationsSeq.items.length
   // Track counts
@@ -309,7 +321,6 @@ export function convertApiIntegrations(apiIntegrations: ApiIntegration[]): Conve
     const config = databaseIntegrationConfigSchema.safeParse(apiIntegration)
 
     if (!config.success) {
-      debug(`Invalid integration [${apiIntegration.id}]: ${config.error.message}`)
       errors.push(new InvalidIntegrationError(apiIntegration.id, 'Invalid integration returned by API.'))
       continue
     }
@@ -324,27 +335,30 @@ export function convertApiIntegrations(apiIntegrations: ApiIntegration[]): Conve
  * Merge API integrations into an existing document (or create a new one).
  * Extracts secrets and replaces them with env var references during the merge.
  * Preserves custom environment variable names from existing entries.
- * This is the main function for testing the merge + secret extraction logic
- * without needing to mock API calls.
+ * Invalid or unsupported integrations are silently skipped.
  *
  * @param doc - The YAML document to merge into
  * @param apiIntegrations - Integrations fetched from the API
  * @returns The extracted secrets and merge statistics
  */
-export function mergeApiIntegrationsIntoDocument(doc: Document, apiIntegrations: ApiIntegration[]): MergeResult {
+export function mergeApiIntegrationsIntoDocument(
+  doc: Document,
+  apiIntegrations: ApiIntegration[]
+): IntegrationsDocumentMergeResult {
   const integrationsSeq = getOrCreateIntegrationsFromDocument(doc)
 
-  // Convert API integrations to DatabaseIntegrationConfig
+  // Convert API integrations to DatabaseIntegrationConfig, collecting invalid/unsupported ones
+  const skipped: SkippedApiIntegration[] = []
   const databaseIntegrations = apiIntegrations.reduce<DatabaseIntegrationConfig[]>((acc, apiIntegration) => {
     const config = databaseIntegrationConfigSchema.safeParse(apiIntegration)
 
     if (!config.success) {
-      debug(
-        `Skipping invalid or unsupported integration "${apiIntegration.name}" (${apiIntegration.type}) [${apiIntegration.id}]:`
-      )
-      for (const issue of config.error.issues) {
-        debug(`  ${issue.code} [${issue.path.join('.')}]: ${issue.message}`)
-      }
+      skipped.push({
+        id: apiIntegration.id,
+        name: apiIntegration.name,
+        type: apiIntegration.type,
+        issues: config.error.issues,
+      })
       return acc
     }
 
@@ -355,5 +369,6 @@ export function mergeApiIntegrationsIntoDocument(doc: Document, apiIntegrations:
 
   // Merge integrations and extract secrets in a single pass
   // This preserves custom env var names by checking existing values before updating
-  return mergeProcessedIntegrations(doc, integrationsSeq, databaseIntegrations)
+  const mergeResult = mergeProcessedIntegrations(doc, integrationsSeq, databaseIntegrations)
+  return { ...mergeResult, skipped }
 }
