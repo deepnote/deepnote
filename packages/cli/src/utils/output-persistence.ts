@@ -1,17 +1,7 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
-import {
-  type ExecutionTiming,
-  getSnapshotPath,
-  mergeOutputsIntoFile,
-  saveExecutionSnapshot as saveExecutionSnapshotShared,
-} from '@deepnote/convert'
+import { type ExecutionTiming, saveExecutionSnapshot as saveExecutionSnapshotShared } from '@deepnote/convert'
 import type { IOutput } from '@deepnote/runtime-core'
 import { debug } from '../output'
-
-// Re-export the shared merge/path helpers so existing CLI consumers keep
-// importing them from here.
-export { getSnapshotPath, mergeOutputsIntoFile }
-export type { ExecutionTiming }
 
 /**
  * Result of a single block execution (subset of BlockResult from run.ts).

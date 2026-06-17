@@ -1,18 +1,6 @@
-import {
-  isRunnableExtension,
-  type LoadedRunnableFile,
-  LoadRunnableFileError,
-  loadRunnableFile,
-  RUNNABLE_EXTENSIONS,
-  type RunnableExtension,
-} from '@deepnote/convert'
+import { type LoadedRunnableFile, LoadRunnableFileError, loadRunnableFile } from '@deepnote/convert'
 import { debug } from '../output'
 import { FileResolutionError, resolvePath } from './file-resolver'
-
-// Re-export the shared runnable-file surface so existing CLI consumers keep
-// importing it from here.
-export { isRunnableExtension, RUNNABLE_EXTENSIONS }
-export type { RunnableExtension }
 
 /** The shape returned by {@link resolveAndConvertToDeepnote}; identical to the shared loader result. */
 export type ConvertedFile = LoadedRunnableFile
