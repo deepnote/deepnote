@@ -2,9 +2,6 @@ import { type LoadedRunnableFile, LoadRunnableFileError, loadRunnableFile } from
 import { debug } from '../output'
 import { FileResolutionError, resolvePath } from './file-resolver'
 
-/** The shape returned by {@link resolveAndConvertToDeepnote}; identical to the shared loader result. */
-export type ConvertedFile = LoadedRunnableFile
-
 /**
  * Resolve and convert any supported notebook format to a DeepnoteFile.
  *
@@ -21,7 +18,7 @@ export type ConvertedFile = LoadedRunnableFile
  * @param path - Path to the file
  * @returns The converted DeepnoteFile with metadata about the conversion
  */
-export async function resolveAndConvertToDeepnote(path: string): Promise<ConvertedFile> {
+export async function resolveAndConvertToDeepnote(path: string): Promise<LoadedRunnableFile> {
   const { absolutePath, isDirectory } = await resolvePath(path)
 
   if (isDirectory) {

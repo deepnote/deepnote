@@ -4,12 +4,7 @@ import type { IOutput } from '@deepnote/runtime-core'
 import { debug } from '../output'
 
 /**
- * Result of a single block execution (subset of BlockResult from run.ts).
- *
- * CLI-local narrowing of the shared `BlockExecutionOutput`: `outputs` is typed
- * as `IOutput[]` (not the shared `unknown[]`) to preserve the CLI's existing
- * public type precision. `IOutput[]` is assignable to `unknown[]`, so values
- * pass straight through to the shared `saveExecutionSnapshot`.
+ * Result of a single block execution (subset of BlockResult from run.ts)
  */
 export interface BlockExecutionOutput {
   id: string
