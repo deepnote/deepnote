@@ -10,8 +10,8 @@ import {
   type DeepnoteFile,
   INPUT_BLOCK_TYPES,
 } from '@deepnote/blocks'
+import { BUILTIN_INTEGRATIONS } from '@deepnote/database-integrations'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
-import { BUILTIN_INTEGRATIONS } from '../constants'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
 import { isBuiltinOrGlobal } from './python-builtins'

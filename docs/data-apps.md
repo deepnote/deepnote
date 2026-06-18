@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-![Apps 2.png](https://media.graphassets.com/6ecwQuqREaUWb33uWO8g)
+![Apps 2.png](../assets/docs/6ecwQuqREaUWb33uWO8g.webp)
 
 ### How to create an app
 
@@ -55,7 +55,7 @@ You can change the width of a block or column by dragging the border between the
 
 Complex layouts work best when combined with the "full-width" setting - see an example of an app on the picture below:
 
-<ImageBorder variant="blue">![Screenshot 2024-05-03 at 13.56.00.png](https://media.graphassets.com/RnGEydvTmKDP405EsMZk)</ImageBorder>
+<ImageBorder variant="blue">![Screenshot 2024-05-03 at 13.56.00.png](../assets/docs/RnGEydvTmKDP405EsMZk.webp)</ImageBorder>
 
 ### Show notebook outputs in app
 
@@ -73,11 +73,11 @@ Once your app is embedded, you can parameterize it the same way as a normal app 
 
 To embed an app, click on the "Embed" button in the Sharing section of App settings.
 
-<ImageBorder variant="blue">![embed-app-settings.png](https://media.graphassets.com/yI96GF5SzO1WvGIUQawl)</ImageBorder>
+<ImageBorder variant="blue">![embed-app-settings.png](../assets/docs/yI96GF5SzO1WvGIUQawl.webp)</ImageBorder>
 
 In the modal window, turn on embedding. Once the setting is enabled, Deepnote will allow the app to be rendered in an iframe, and the preview of the embedded app will render on the left side of the modal.
 
-<ImageBorder variant="colorful">![embed-app-modal.png](https://media.graphassets.com/Qd7LB2LiRcSgBuCi5rcI)</ImageBorder>
+<ImageBorder variant="colorful">![embed-app-modal.png](../assets/docs/Qd7LB2LiRcSgBuCi5rcI.webp)</ImageBorder>
 
 To embed the app within tools like Notion, Confluence, or Medium, use the **Embed url**. These tools will automatically use the link to render an iframe. If you want to embed your app directly within a website where you have control over the HTML markup, you can use the Embed code link. You can adjust the width and height attributes of the iframe to get the desired size of the app.
 

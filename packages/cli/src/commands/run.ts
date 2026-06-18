@@ -4,8 +4,13 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
-import { MissingInitNotebookError, resolveAndComposeInit } from '@deepnote/convert'
-import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
+import { type LoadedRunnableFile, MissingInitNotebookError, resolveAndComposeInit } from '@deepnote/convert'
+import {
+  ApiError,
+  type DatabaseIntegrationConfig,
+  DEFAULT_API_URL,
+  DEFAULT_ENV_FILE,
+} from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
   type AgentStreamEvent,
@@ -25,7 +30,7 @@ import { markedTerminal } from 'marked-terminal'
 
 marked.use(markedTerminal())
 
-import { DEEPNOTE_TOKEN_ENV, DEFAULT_ENV_FILE } from '../constants'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
@@ -34,10 +39,9 @@ import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integr
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
-import { ApiError } from '../utils/api'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
-import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
+import { resolveAndConvertToDeepnote } from '../utils/format-converter'
 import {
   type BlockProfile,
   displayMetrics,
@@ -47,7 +51,6 @@ import {
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { saveExecutionSnapshot } from '../utils/output-persistence'
-import { DEFAULT_API_URL } from './integrations'
 
 /**
  * Error thrown when required inputs are missing.
@@ -187,7 +190,7 @@ interface ProjectSetup {
   pythonEnv: string
   inputs: Record<string, unknown>
   isMachineOutput: boolean
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
   initBlockIds: Set<string>
   initNotebookId: string | undefined
@@ -257,7 +260,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   let file: DeepnoteFile
   let absolutePath: string
-  let convertedFile: ConvertedFile
+  let convertedFile: LoadedRunnableFile
   let workingDirectory: string
 
   if (!path && options.prompt) {
@@ -1373,7 +1376,7 @@ async function saveExecutionSnapshotBestEffort({
   initBlockIds,
 }: {
   absolutePath: string
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   file: DeepnoteFile
   blockResults: BlockResult[]
   executionStartedAt: string
@@ -1556,7 +1559,7 @@ async function maybeOpenRunResultInCloud({
   summary,
 }: {
   absolutePath: string
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   file: DeepnoteFile
   isMachineOutput: boolean
   options: RunOptions

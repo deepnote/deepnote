@@ -19,7 +19,7 @@ From the left panel in your Workspace, you can click the **"+"** symbol next to 
 
 Don't forget that you can arrange your projects into folders here, too. Just drag and drop them to suit how you like to organize your work.
 
-![Create_Project.jpg](https://media.graphassets.com/VScQrWGQxSKL5wCylTxH)
+![Create_Project.jpg](../assets/docs/VScQrWGQxSKL5wCylTxH.jpg)
 <br></br><br></br>
 
 Let's move to the newly created Project panel now. Notice that the left panel has changed and you are focused on the context of your Project.
@@ -28,7 +28,7 @@ Let's move to the newly created Project panel now. Notice that the left panel ha
 
 The Project sidebar on the left contains sections for your notebooks, integrations, files, the environment, and more. Let's learn about each of these in detail.
 
-![Important Bits.jpg](https://media.graphassets.com/h9lkwiibTeSNaquQx2If)
+![Important Bits.jpg](../assets/docs/h9lkwiibTeSNaquQx2If.jpg)
 <br></br><br></br>
 
 #### Notebooks
@@ -55,7 +55,7 @@ Time to get serious. You probably want to know how to configure your environment
 
 First, click on the ⚙️ icon. You should now see your environment configuration options (shown below). Follow me.
 
-![Environment.jpg](https://media.graphassets.com/PSMiDJAtRlFgQrhOIsVA)
+![Environment.jpg](../assets/docs/PSMiDJAtRlFgQrhOIsVA.jpg)
 
 **Machine:** If you need a "beefier" machine, this is where you can choose one. If you're on a Team or Enterprise plan, you get unlimited hours on a 16GB, 4vCPU machine. To learn more about machines in Deepnote, click [here](https://deepnote.com/docs/machine-hours).
 

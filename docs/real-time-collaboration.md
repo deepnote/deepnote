@@ -12,7 +12,7 @@ In order to prevent inadvertent code changes, two collaborators cannot write int
 
 </Callout>
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FYR6MvxIdkbkgX3pOFTth%2Fcolab.gif](https://media.graphassets.com/mt5ifWXPS7e3K4aMQJm5)
+<VideoLoop src="../assets/docs/mt5ifWXPS7e3K4aMQJm5.mp4" />
 
 ### Jump to collaborator
 

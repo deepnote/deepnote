@@ -40,8 +40,14 @@ export {
   convertJupyterNotebookToBlocks,
   readAndConvertIpynbFiles,
 } from './jupyter-to-deepnote'
+// Runnable file loading
 export type { LoadedRunnableFile, RunnableExtension, RunnableFormat } from './load-runnable-file'
-export { isRunnableExtension, LoadRunnableFileError, loadRunnableFile, RUNNABLE_EXTENSIONS } from './load-runnable-file'
+export {
+  isRunnableExtension,
+  LoadRunnableFileError,
+  loadRunnableFile,
+  RUNNABLE_EXTENSIONS,
+} from './load-runnable-file'
 export type {
   ConvertMarimoAppOptions,
   ConvertMarimoAppsToDeepnoteOptions,

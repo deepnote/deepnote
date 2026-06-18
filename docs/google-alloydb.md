@@ -58,7 +58,7 @@ ssh -L 127.0.0.1:9999:127.0.0.1:5432 -i ./.ssh/[key_name_here] [user_name_here]@
 
 Now that your SSH tunnel is running, you may simply add our built in AlloyDB integration. FIll out the host and port of your SSH tunnel, and the database information of your Google AlloyDB instance. Viola, you may now query with Deepnote's SQL blocks.
 
-![Screenshot 2023-06-14 at 15.33.50.png](https://media.graphassets.com/WjsF3LoREKCCvYVGhTrh)
+![Screenshot 2023-06-14 at 15.33.50.png](../assets/docs/WjsF3LoREKCCvYVGhTrh.webp)
 
 ### What's next?
 

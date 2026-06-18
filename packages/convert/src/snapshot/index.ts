@@ -25,8 +25,10 @@ export {
 
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
+// Init resolution & composition
 export type { ResolveAndComposeInitResult } from './resolve-init'
 export { MissingInitNotebookError, resolveAndComposeInit } from './resolve-init'
+// Execution snapshot persistence
 export type {
   BlockExecutionOutput,
   ExecutionTiming,
@@ -34,6 +36,7 @@ export type {
   SaveExecutionSnapshotResult,
 } from './save-execution-snapshot'
 export { getSnapshotPath, mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'
+// Snapshot notebook-id resolution
 export type { SnapshotNotebookIdFileInput, SnapshotNotebookIdProjectInput } from './snapshot-notebook-id'
 export { resolveSnapshotNotebookId } from './snapshot-notebook-id'
 // Split utilities

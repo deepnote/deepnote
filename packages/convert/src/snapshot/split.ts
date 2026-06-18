@@ -38,7 +38,11 @@ function sanitizeFilenameComponent(value: string): string {
 /**
  * Generates a snapshot filename from project info.
  *
- * @returns Filename in format '{slug}_{projectId}_{timestamp}.snapshot.deepnote'
+ * @param params.slug - The project name slug
+ * @param params.projectId - The project UUID
+ * @param params.notebookId - Optional notebook UUID; scopes the filename to a single notebook
+ * @param params.timestamp - Timestamp string or 'latest'
+ * @returns Filename in format '{slug}_{projectId}[_{notebookId}]_{timestamp}.snapshot.deepnote'
  */
 export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams): string {
   const { slug, projectId, notebookId, timestamp = 'latest' } = params

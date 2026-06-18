@@ -21,14 +21,14 @@ To make use of Deepnote AI, you must enable this feature in your workspace. Navi
 
 <Callout status="info">Deepnote AI utilizes third-party providers (such as OpenAI) to process the content of your notebook. Refer to our [Data Privacy](/docs/ai-data-privacy) section for more information about data usage.</Callout>
 
-![deepnote ai main settings.png](https://media.graphassets.com/kkhgsstdTiSqqTyIyJT2)
+![deepnote ai main settings.png](../assets/docs/kkhgsstdTiSqqTyIyJT2.webp)
 
 ## Feedback
 
 We're always looking to improve Deepnote AI, and your feedback is invaluable!
 The easiest way to leave feedback on the quality of Deepnote AI's outputs is by giving a thumbs up/down when you're reviewing the AI-generated blocks. If a particular output didn't work for you, just press 👎 and you will be able to share more context about it in a survey window. The more details you put in here, the better we can act upon it to make it better for you!
 
-![CleanShot 2024-10-24 at 09.54.55.png](https://media.graphassets.com/Gto2HcFgTOC7q8vCKm3U)
+![CleanShot 2024-10-24 at 09.54.55.png](../assets/docs/Gto2HcFgTOC7q8vCKm3U.webp)
 
 You can also share your ideas and suggestions about Deepnote AI on our [Product Portal](https://portal.productboard.com/deepnote/1-deepnote-product-portal/c/110-deepnote-ai?utm_medium=social&utm_source=portal_share).
 

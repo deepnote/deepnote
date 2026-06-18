@@ -55,7 +55,7 @@ Now that you are connected to your Google Spanner you can do the following actio
 
 - Pipe the results of your query into a chart block for rapid interactive data visualization. [Click here to learn more about chart blocks](chart-blocks).
 
-![Screenshot 2023-06-29 at 15.53.55.png](https://media.graphassets.com/BpfgyDXQwyPxdtXMz7Rw)
+![Screenshot 2023-06-29 at 15.53.55.png](../assets/docs/BpfgyDXQwyPxdtXMz7Rw.webp)
 
 ### Using pure Python to connect to Google Spanner
 

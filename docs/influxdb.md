@@ -12,7 +12,7 @@ Deepnote can query your time series data in InfluxDB v2. Follow these docs to cr
 
 [Open the template by following this link ->](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Query-InfluxDB-from-Deepnote-46097291-95c8-4a64-a247-541975d8aadc/%2Fnotebook.ipynb)
 
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FuBTyirnZvPcOcczBxtFa%2Fduplicate-notebook.png](https://media.graphassets.com/VoHNl6juQ5qUFurTn0DR)
+![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FuBTyirnZvPcOcczBxtFa%2Fduplicate-notebook.png](../assets/docs/VoHNl6juQ5qUFurTn0DR.webp)
 
 Click the "duplicate" button on the top right corner to do this. Once you've got the template in your Deepnote workspace, you can connect it to your InfluxDB instance.
 

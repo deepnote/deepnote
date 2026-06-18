@@ -1,6 +1,6 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
+import { BUILTIN_INTEGRATIONS } from '@deepnote/database-integrations'
 import z from 'zod'
-import { BUILTIN_INTEGRATIONS } from '../constants'
 
 /**
  * Options for {@link collectRequiredIntegrationIds}.

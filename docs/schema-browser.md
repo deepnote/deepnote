@@ -16,7 +16,7 @@ Once you have connected a data warehouse or database to your project, you can op
 1. Add an SQL block to the notebook and click on the block’s **View schema** button.
 2. Alternatively, you can click on a connected integration in the **Integrations** section in the right side bar.
 
-![open_schema.png](https://media.graphassets.com/1xqfpsFwTZyJDf0fxzqw)
+![open_schema.png](../assets/docs/1xqfpsFwTZyJDf0fxzqw.webp)
 
 <Callout status="success">
 
@@ -39,7 +39,7 @@ For extremely large schemas (> than 2k tables), column search will be disabled. 
 
 </Callout>
 
-![search_schema.png](https://media.graphassets.com/B28PLPlRQliw1RfSbNVH)
+![search_schema.png](../assets/docs/B28PLPlRQliw1RfSbNVH.webp)
 
 #### Schema tree
 
@@ -50,7 +50,7 @@ You can also access other useful table actions via the context menu when you hov
 - **Query table:** adds a new SQL block to your notebook with a pre-populated query for the given table (shown below). This is particularly useful for quickly previewing the contents of the table.
 - **Copy qualified table name:** copies the name of the table to your clipboard including its full path in the schema. You can then simply insert it into your SQL block to start querying the table.
 
-![qry_from_schema.png](https://media.graphassets.com/cUKuMl9eTZu0T1R0oUcR)
+![qry_from_schema.png](../assets/docs/cUKuMl9eTZu0T1R0oUcR.webp)
 
 #### Table details
 
@@ -63,7 +63,7 @@ The context menu in the upper right corner offers helpful table actions. These a
 - **Copy all columns**: copy a list of comma-separated columns names
 - **Go to table in tree view**: clicking on this will navigate to the table in the schema tree. This can be useful if you opened a table in the search results and would like to quickly jump to its place within your schema hierarchy.
 
-![table_details.png](https://media.graphassets.com/ZiXYrRocTZaiwyRtE9I3)
+![table_details.png](../assets/docs/ZiXYrRocTZaiwyRtE9I3.webp)
 
 ### Refreshing the schema
 

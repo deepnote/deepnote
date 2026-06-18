@@ -40,7 +40,7 @@ If the notebook/data app is public, the Wandb's token shouldn't be shared public
 
 In the image below, the example workspace of a specific project is shown. The graph displays the progression of metrics such as test accuracy or loss. The outputs and logs are also available in the wandb folder directly within the Deepnote project in the left panel.
 
-![Snímek obrazovky 2024-11-21 v 9.45.59.png](https://media.graphassets.com/6GT9AHnaSabLk1v1i8Dw)
+![Snímek obrazovky 2024-11-21 v 9.45.59.png](../assets/docs/6GT9AHnaSabLk1v1i8Dw.webp)
 
 ## Conclusion
 

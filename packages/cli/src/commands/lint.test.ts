@@ -1,7 +1,7 @@
 import { join, resolve } from 'node:path'
+import { BUILTIN_INTEGRATIONS } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { BUILTIN_INTEGRATIONS } from '../constants'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
 

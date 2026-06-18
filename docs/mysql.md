@@ -6,7 +6,7 @@ noContent: false
 
 To add a connection to MySQL or MariaDB, go to **Integrations** via the **right** sidebar, create a new MySQL integration and enter your credentials:
 
-![mysql.png](https://media.graphassets.com/emfKwFxR5G9HoE6XNCt6)
+![mysql.png](../assets/docs/emfKwFxR5G9HoE6XNCt6.webp)
 
 After that's done, connect the new integration to your project using the Integrations sidebar.
 

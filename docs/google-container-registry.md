@@ -12,7 +12,7 @@ Available on the Enterprise plan
 
 2. Then, authenticate using your [JSON service account file](https://cloud.google.com/docs/authentication/getting-started)
 
-   ![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FdA5DpFcg1u6WCvDsYSFc%2FScreen%20Shot%202022-03-30%20at%201.01.20%20PM.png](https://media.graphassets.com/RiZbC2WcRkuQDt7PgNAc)
+   ![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FdA5DpFcg1u6WCvDsYSFc%2FScreen%20Shot%202022-03-30%20at%201.01.20%20PM.png](../assets/docs/RiZbC2WcRkuQDt7PgNAc.webp)
 
 3. After **creating** and **connecting** the integration, you can use Docker images from your GCR repository as a [custom environment](/docs/custom-environment) for your project.
 

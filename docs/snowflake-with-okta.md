@@ -50,7 +50,7 @@ There are a number of steps to follow which will be described in the following s
 Snowflake account URL can be copied from the Snowflake UI, as shown on a screenshot below:
 </Callout>
 
-<ImageBorder variant="blue">![snowflake-account-url.png](https://media.graphassets.com/Jc1u2kNFSgyuSO0mqNOQ)</ImageBorder>
+<ImageBorder variant="blue">![snowflake-account-url.png](../assets/docs/Jc1u2kNFSgyuSO0mqNOQ.webp)</ImageBorder>
 
 #### Create an OAuth Authorization Server
 
@@ -137,7 +137,7 @@ Snowflake account URL can be copied from the Snowflake UI, as shown on a screens
 ### Using the the Snowflake integration with Okta
 
 In order to use the integration, every user will have to authenticate using their own Snowflake account. They can do it either by pressing the button on a SQL block with this integration, in the three-dot menu of the integration in the right sidebar, or by responding to a prompt when they execute a SQL block.
-![snowflake_okta_auth.png](https://media.graphassets.com/WnAhIxAvQGmWC6zBpizh)
+![snowflake_okta_auth.png](../assets/docs/WnAhIxAvQGmWC6zBpizh.webp)
 
 When you create an app from a notebook that uses the integration, every app user will need to authenticate with their own account. They will be prompted to sign in using Okta during the execution of the app. The results they see will depend on the permissions they have.
 
