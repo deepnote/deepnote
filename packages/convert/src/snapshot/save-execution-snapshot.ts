@@ -6,24 +6,32 @@ import { getSnapshotDir } from './lookup'
 import { resolveSnapshotNotebookId } from './snapshot-notebook-id'
 import { generateSnapshotFilename, slugifyProjectName, splitDeepnoteFile } from './split'
 
-/** Result of a single block execution to merge into a snapshot; `outputs` is `unknown[]` to avoid a Jupyter type dependency. */
+/**
+ * Result of a single block execution (subset of BlockResult from the runner).
+ *
+ * Note: `outputs` is typed as `unknown[]` so that `@deepnote/convert` does not
+ * depend on `@deepnote/runtime-core`. `IOutput[]` is assignable to `unknown[]`,
+ * so callers holding typed outputs can pass them through unchanged.
+ */
 export interface BlockExecutionOutput {
   id: string
   outputs: unknown[]
   executionCount?: number | null
 }
 
-/** Execution timing window for a single run. */
+/**
+ * Execution timing information.
+ */
 export interface ExecutionTiming {
   startedAt: string
   finishedAt: string
 }
 
-/** Result of saving an execution snapshot; the init-only paths are set only for composed runs. */
+/**
+ * Result of saving a snapshot.
+ */
 export interface SaveExecutionSnapshotResult {
-  /** Path to the latest main snapshot (the user-targeted notebook view). */
   snapshotPath: string
-  /** Path to the timestamped main snapshot. */
   timestampedSnapshotPath: string
   /** Path to the init-only `latest` snapshot, when this was a composed run. */
   initSnapshotPath?: string
@@ -83,7 +91,18 @@ export function mergeOutputsIntoFile(
   }
 }
 
-/** Saves execution outputs to one snapshot, or two for a composed run (main + init-only); the main snapshot is skipped for init-only runs to avoid a misleading empty-main record. */
+/**
+ * Saves execution outputs to a snapshot file.
+ *
+ * Creates a snapshot file in the snapshots/ directory next to the source file.
+ * The snapshot contains all block outputs and execution metadata.
+ *
+ * @param sourcePath - Path to the original source file (or where it would be if converted)
+ * @param file - The DeepnoteFile (original, without outputs)
+ * @param blockOutputs - Outputs from executed blocks
+ * @param timing - Execution start and end times
+ * @returns The paths to the saved snapshot files
+ */
 export async function saveExecutionSnapshot(
   sourcePath: string,
   file: DeepnoteFile,
@@ -91,6 +110,7 @@ export async function saveExecutionSnapshot(
   timing: ExecutionTiming,
   options: SaveExecutionSnapshotOptions = {}
 ): Promise<SaveExecutionSnapshotResult> {
+  // Merge outputs into the file
   const fileWithOutputs = mergeOutputsIntoFile(file, blockOutputs, timing)
 
   const snapshotDir = getSnapshotDir(sourcePath)
