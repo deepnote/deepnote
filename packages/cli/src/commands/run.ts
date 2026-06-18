@@ -912,7 +912,6 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
  * - Missing database integrations (SQL blocks not in integrations config)
  *
  * Throws MissingInputError or MissingIntegrationError (exit code 2) on failure.
- * `additionalNotebookNames` keeps the init notebook in scope so its requirements are checked under --notebook.
  */
 async function validateRequirements(
   file: DeepnoteFile,

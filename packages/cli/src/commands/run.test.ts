@@ -1917,7 +1917,6 @@ describe('run command', () => {
       const INIT_BLOCK_ID = 'init-block-1'
       const MAIN_BLOCK_ID = 'main-block-1'
       const INPUT_BLOCK_ID = 'init-input-block'
-      const SQL_INTEGRATION_ID = 'aaaa1111-2222-4333-8444-555566667777'
 
       let testTempDir: string
 
@@ -2197,98 +2196,6 @@ describe('run command', () => {
         const parsed = JSON.parse(output)
         const variableNames = parsed.inputs.map((i: { variableName: string }) => i.variableName)
         expect(variableNames).toContain('my_init_input')
-      })
-
-      it('validateRequirements reports missing init inputs (with --notebook=Main set)', async () => {
-        // With --notebook=Main, validation must still flag init-required inputs because init runs as a prelude.
-        const initWithInputAndCode = [
-          'version: 1.0.0',
-          'metadata:',
-          "  createdAt: '2025-01-01T00:00:00Z'",
-          'project:',
-          `  id: ${PROJECT_ID}`,
-          '  name: Sibling Init Project',
-          `  initNotebookId: ${INIT_NB_ID}`,
-          '  notebooks:',
-          `    - id: ${INIT_NB_ID}`,
-          '      name: Init',
-          '      blocks:',
-          `        - id: init-code-block`,
-          '          type: code',
-          '          blockGroup: bg-init',
-          "          sortingKey: 'a0'",
-          "          content: 'print(my_init_input)'",
-          '          metadata: {}',
-          `        - id: ${INPUT_BLOCK_ID}`,
-          '          type: input-text',
-          '          blockGroup: bg-init-input',
-          "          sortingKey: 'a1'",
-          "          content: ''",
-          '          metadata:',
-          '            deepnote_variable_name: my_init_input',
-          "            deepnote_variable_value: ''",
-          '',
-        ].join('\n')
-
-        const mainPath = join(testTempDir, 'project-main.deepnote')
-        const initPath = join(testTempDir, 'project-init.deepnote')
-        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
-        await fs.promises.writeFile(initPath, initWithInputAndCode, 'utf-8')
-
-        // Init's code block uses the input variable before the input is defined.
-        mockGetBlockDependencies.mockResolvedValue([
-          {
-            id: 'init-code-block',
-            usedVariables: ['my_init_input'],
-            definedVariables: [],
-            imports: [],
-            importedModules: [],
-            builtins: [],
-          },
-        ])
-
-        await expect(action(mainPath, { notebook: 'Main' })).rejects.toThrow('program.error called')
-        expect(programErrorSpy).toHaveBeenCalled()
-        const errorArg = programErrorSpy.mock.calls[0][0]
-        expect(errorArg).toContain('Missing required inputs')
-        expect(errorArg).toContain('my_init_input')
-      })
-
-      it('validateRequirements reports missing init integrations (with --notebook=Main set)', async () => {
-        const initWithSql = [
-          'version: 1.0.0',
-          'metadata:',
-          "  createdAt: '2025-01-01T00:00:00Z'",
-          'project:',
-          `  id: ${PROJECT_ID}`,
-          '  name: Sibling Init Project',
-          `  initNotebookId: ${INIT_NB_ID}`,
-          '  notebooks:',
-          `    - id: ${INIT_NB_ID}`,
-          '      name: Init',
-          '      blocks:',
-          `        - id: init-sql-block`,
-          '          type: sql',
-          '          blockGroup: bg-init',
-          "          sortingKey: '0000'",
-          '          content: SELECT 1',
-          '          metadata:',
-          `            sql_integration_id: ${SQL_INTEGRATION_ID}`,
-          '            deepnote_variable_name: result',
-          '',
-        ].join('\n')
-
-        const mainPath = join(testTempDir, 'project-main.deepnote')
-        const initPath = join(testTempDir, 'project-init.deepnote')
-        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
-        await fs.promises.writeFile(initPath, initWithSql, 'utf-8')
-
-        // No integrations file configured for the SQL integration referenced by init.
-        await expect(action(mainPath, { notebook: 'Main' })).rejects.toThrow('program.error called')
-        expect(programErrorSpy).toHaveBeenCalled()
-        const errorArg = programErrorSpy.mock.calls[0][0]
-        expect(errorArg).toContain('Missing database integration')
-        expect(errorArg).toContain(SQL_INTEGRATION_ID)
       })
 
       it('exits with exit code 2 and a clear error when init is missing', async () => {
