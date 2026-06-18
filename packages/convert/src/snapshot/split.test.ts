@@ -48,16 +48,16 @@ describe('slugifyProjectName', () => {
 
 describe('generateSnapshotFilename', () => {
   it('should generate filename with latest timestamp by default', () => {
-    const filename = generateSnapshotFilename('my-project', '2e814690-4f02-465c-8848-5567ab9253b7')
+    const filename = generateSnapshotFilename({ slug: 'my-project', projectId: '2e814690-4f02-465c-8848-5567ab9253b7' })
     expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote')
   })
 
   it('should generate filename with custom timestamp', () => {
-    const filename = generateSnapshotFilename(
-      'my-project',
-      '2e814690-4f02-465c-8848-5567ab9253b7',
-      '2025-01-08T10-30-00'
-    )
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+      timestamp: '2025-01-08T10-30-00',
+    })
     expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7_2025-01-08T10-30-00.snapshot.deepnote')
   })
 })

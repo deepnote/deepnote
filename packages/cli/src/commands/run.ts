@@ -4,6 +4,7 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
+import type { LoadedRunnableFile } from '@deepnote/convert'
 import {
   ApiError,
   type DatabaseIntegrationConfig,
@@ -40,7 +41,7 @@ import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
-import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
+import { resolveAndConvertToDeepnote } from '../utils/format-converter'
 import {
   type BlockProfile,
   displayMetrics,
@@ -189,7 +190,7 @@ interface ProjectSetup {
   pythonEnv: string
   inputs: Record<string, unknown>
   isMachineOutput: boolean
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
 }
 
@@ -256,7 +257,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   let file: DeepnoteFile
   let absolutePath: string
-  let convertedFile: ConvertedFile
+  let convertedFile: LoadedRunnableFile
   let workingDirectory: string
 
   if (!path && options.prompt) {
@@ -1174,7 +1175,7 @@ async function saveExecutionSnapshotBestEffort({
   isMachineOutput,
 }: {
   absolutePath: string
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   file: DeepnoteFile
   blockResults: BlockResult[]
   executionStartedAt: string
@@ -1347,7 +1348,7 @@ async function maybeOpenRunResultInCloud({
   summary,
 }: {
   absolutePath: string
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   file: DeepnoteFile
   isMachineOutput: boolean
   options: RunOptions

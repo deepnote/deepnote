@@ -25,12 +25,20 @@ export function slugifyProjectName(name: string): string {
 /**
  * Generates a snapshot filename from project info.
  *
- * @param slug - The project name slug
- * @param projectId - The project UUID
- * @param timestamp - Timestamp string or 'latest'
+ * @param params.slug - The project name slug
+ * @param params.projectId - The project UUID
+ * @param params.timestamp - Timestamp string or 'latest'
  * @returns Filename in format '{slug}_{projectId}_{timestamp}.snapshot.deepnote'
  */
-export function generateSnapshotFilename(slug: string, projectId: string, timestamp: string = 'latest'): string {
+export function generateSnapshotFilename({
+  slug,
+  projectId,
+  timestamp = 'latest',
+}: {
+  slug: string
+  projectId: string
+  timestamp?: string
+}): string {
   return `${slug}_${projectId}_${timestamp}.snapshot.deepnote`
 }
 

@@ -1,9 +1,10 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
+import { isRunnableExtension, RUNNABLE_EXTENSIONS } from '@deepnote/convert'
 import { describe, expect, it } from 'vitest'
 import { FileResolutionError } from './file-resolver'
-import { isRunnableExtension, RUNNABLE_EXTENSIONS, resolveAndConvertToDeepnote } from './format-converter'
+import { resolveAndConvertToDeepnote } from './format-converter'
 
 // Test files relative to project root
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
