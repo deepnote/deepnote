@@ -347,9 +347,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
   // Always include the init notebook so its integrations are detected even under --notebook scope.
-  const requiredIds = collectRequiredIntegrationIds(file, options.notebook, {
-    additionalNotebookNames: initNotebookName !== undefined ? [initNotebookName] : [],
-  })
+  const requiredIds = collectRequiredIntegrationIds(file, options.notebook)
   const allIntegrations = await fetchAndMergeApiIntegrations({
     localIntegrations: parsedIntegrations.integrations,
     requiredIds,
@@ -359,9 +357,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   })
 
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not.
-  await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook, {
-    additionalNotebookNames: initNotebookName !== undefined ? [initNotebookName] : [],
-  })
+  await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
@@ -923,13 +919,9 @@ async function validateRequirements(
   providedInputs: Record<string, unknown>,
   pythonInterpreter: string,
   integrations: DatabaseIntegrationConfig[],
-  notebookName?: string,
-  options: { additionalNotebookNames?: string[] } = {}
+  notebookName?: string
 ): Promise<void> {
-  const additional = new Set(options.additionalNotebookNames ?? [])
-  const notebooks = notebookName
-    ? file.project.notebooks.filter(n => n.name === notebookName || additional.has(n.name))
-    : file.project.notebooks
+  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
 
   // Collect all blocks with their sorting keys
   const allBlocks: Array<BlocksDeepnoteBlock & { sortingKey: string }> = []
@@ -940,9 +932,7 @@ async function validateRequirements(
   }
 
   // === Check for missing database integrations ===
-  const requiredIds = collectRequiredIntegrationIds(file, notebookName, {
-    additionalNotebookNames: options.additionalNotebookNames,
-  })
+  const requiredIds = collectRequiredIntegrationIds(file, notebookName)
   const configuredIds = new Set(integrations.map(i => i.id.toLowerCase()))
   const missingIntegrations = requiredIds.filter(id => !configuredIds.has(id.toLowerCase())).map(id => ({ id }))
 
