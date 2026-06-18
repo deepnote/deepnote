@@ -12,12 +12,12 @@ const DEFAULT_SNAPSHOT_DIR = 'snapshots'
 const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[a-zA-Z0-9][a-zA-Z0-9_-]*)'
 
 /** Regex pattern for snapshot filenames (new format with notebookId) */
-const SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK = new RegExp(
+const SNAPSHOT_SINGLE_NOTEBOOK_FILENAME_PATTERN = new RegExp(
   `^(.+)_([0-9a-f-]{36})_${SNAPSHOT_NOTEBOOK_ID_PATTERN}_(latest|[\\dT:-]+)\\.snapshot\\.deepnote$`
 )
 
 /** Regex pattern for snapshot filenames (legacy format without notebookId) */
-const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snapshot\.deepnote$/
+const SNAPSHOT_MULTI_NOTEBOOK_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snapshot\.deepnote$/
 
 /**
  * Parses a snapshot filename into its components.
@@ -28,23 +28,23 @@ const SNAPSHOT_FILENAME_PATTERN = /^(.+)_([0-9a-f-]{36})_(latest|[\dT:-]+)\.snap
 export function parseSnapshotFilename(
   filename: string
 ): { slug: string; projectId: string; notebookId?: string; timestamp: string } | null {
-  const matchNew = SNAPSHOT_FILENAME_PATTERN_WITH_NOTEBOOK.exec(filename)
-  if (matchNew) {
+  const match = SNAPSHOT_SINGLE_NOTEBOOK_FILENAME_PATTERN.exec(filename)
+  if (match) {
     return {
-      slug: matchNew[1],
-      projectId: matchNew[2],
-      notebookId: matchNew[3],
-      timestamp: matchNew[4],
+      slug: match[1],
+      projectId: match[2],
+      notebookId: match[3],
+      timestamp: match[4],
     }
   }
-  const match = SNAPSHOT_FILENAME_PATTERN.exec(filename)
-  if (!match) {
+  const matchLegacyMultiNotebook = SNAPSHOT_MULTI_NOTEBOOK_FILENAME_PATTERN.exec(filename)
+  if (!matchLegacyMultiNotebook) {
     return null
   }
   return {
-    slug: match[1],
-    projectId: match[2],
-    timestamp: match[3],
+    slug: matchLegacyMultiNotebook[1],
+    projectId: matchLegacyMultiNotebook[2],
+    timestamp: matchLegacyMultiNotebook[3],
   }
 }
 
