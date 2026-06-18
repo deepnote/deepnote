@@ -47,7 +47,6 @@ export {
   slugifyProjectName,
   splitByNotebooks,
   splitDeepnoteFile,
-  splitSnapshotByNotebooks,
   stripOutputsFromBlock,
 } from './split'
 export type {

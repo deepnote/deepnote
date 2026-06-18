@@ -130,7 +130,6 @@ export {
   snapshotExists,
   splitByNotebooks,
   splitDeepnoteFile,
-  splitSnapshotByNotebooks,
   stripOutputsFromBlock,
 } from './snapshot'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'

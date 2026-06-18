@@ -1,13 +1,6 @@
-import type { DeepnoteBlock, DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import {
-  generateSnapshotFilename,
-  hasOutputs,
-  slugifyProjectName,
-  splitByNotebooks,
-  splitDeepnoteFile,
-  splitSnapshotByNotebooks,
-} from './split'
+import { generateSnapshotFilename, hasOutputs, slugifyProjectName, splitByNotebooks, splitDeepnoteFile } from './split'
 
 describe('slugifyProjectName', () => {
   it('should convert to lowercase', () => {
@@ -744,68 +737,5 @@ describe('splitByNotebooks', () => {
     for (const entry of result) {
       expect(entry.kind).toBe('notebook')
     }
-  })
-
-  it('should split snapshot one-to-one by notebook id (including init) for a composed run', () => {
-    const snapshot: DeepnoteSnapshot = {
-      version: '1.0.0',
-      metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
-      environment: { hash: 'env-1' },
-      execution: { startedAt: '2025-01-01T00:00:00Z', finishedAt: '2025-01-01T00:01:00Z' },
-      project: {
-        id: 'proj-1',
-        name: 'Test',
-        initNotebookId: 'nb-init',
-        notebooks: [
-          { id: 'nb-init', name: 'Init', blocks: [] },
-          { id: 'nb-main-a', name: 'Main A', blocks: [] },
-          { id: 'nb-main-b', name: 'Main B', blocks: [] },
-        ],
-      },
-    }
-    const result = splitSnapshotByNotebooks(snapshot, ['nb-init', 'nb-main-a', 'nb-main-b'])
-    expect(result.size).toBe(3)
-    expect(result.get('nb-init')?.project.notebooks).toHaveLength(1)
-    expect(result.get('nb-init')?.project.notebooks[0]?.id).toBe('nb-init')
-    expect(result.get('nb-main-a')?.project.notebooks[0]?.id).toBe('nb-main-a')
-    expect(result.get('nb-main-b')?.project.notebooks[0]?.id).toBe('nb-main-b')
-  })
-})
-
-describe('splitSnapshotByNotebooks', () => {
-  it('should partition snapshot by notebook', () => {
-    const snapshot: DeepnoteSnapshot = {
-      version: '1.0.0',
-      metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
-      environment: { hash: 'env-1' },
-      execution: { startedAt: '2025-01-01T00:00:00Z', finishedAt: '2025-01-01T00:01:00Z' },
-      project: {
-        id: 'proj-1',
-        name: 'Test',
-        notebooks: [
-          { id: 'nb-1', name: 'NB1', blocks: [] },
-          { id: 'nb-2', name: 'NB2', blocks: [] },
-        ],
-      },
-    }
-    const result = splitSnapshotByNotebooks(snapshot, ['nb-1', 'nb-2'])
-    expect(result.size).toBe(2)
-    const nb1 = result.get('nb-1')
-    expect(nb1).toBeDefined()
-    expect(nb1?.project.notebooks).toHaveLength(1)
-    expect(nb1?.project.notebooks[0]?.id).toBe('nb-1')
-  })
-
-  it('should skip non-existent notebook IDs', () => {
-    const snapshot: DeepnoteSnapshot = {
-      version: '1.0.0',
-      metadata: { createdAt: '2025-01-01T00:00:00Z', snapshotHash: 'sha256:abc' },
-      environment: {},
-      execution: {},
-      project: { id: 'proj-1', name: 'Test', notebooks: [{ id: 'nb-1', name: 'NB1', blocks: [] }] },
-    }
-    const result = splitSnapshotByNotebooks(snapshot, ['nb-1', 'missing'])
-    expect(result.size).toBe(1)
-    expect(result.has('missing')).toBe(false)
   })
 })

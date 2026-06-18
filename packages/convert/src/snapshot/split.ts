@@ -233,24 +233,3 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
 
   return result
 }
-
-/** Splits a multi-notebook snapshot into separate per-notebook snapshots, keyed by notebook id. */
-export function splitSnapshotByNotebooks(
-  snapshot: DeepnoteSnapshot,
-  notebookIds: string[]
-): Map<string, DeepnoteSnapshot> {
-  const result = new Map<string, DeepnoteSnapshot>()
-  for (const nbId of notebookIds) {
-    const notebook = snapshot.project.notebooks.find(nb => nb.id === nbId)
-    if (notebook) {
-      result.set(nbId, {
-        ...snapshot,
-        project: {
-          ...snapshot.project,
-          notebooks: [notebook],
-        },
-      })
-    }
-  }
-  return result
-}
