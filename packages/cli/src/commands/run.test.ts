@@ -2290,6 +2290,94 @@ describe('run command', () => {
         expect(optionsArg?.initBlockIds).toBeDefined()
         expect(optionsArg?.initBlockIds?.has(INIT_BLOCK_ID)).toBe(true)
       })
+
+      it('runs init-only when --block targets an init block id', async () => {
+        // Regression guard (constraints 2+4): an init block id must be accepted, run only init blocks, and let the
+        // snapshot helper skip the main snapshot (blockOutputs are all-init with a non-empty initBlockIds).
+        setupSuccessfulRun()
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        // Drive callbacks so blockResults carries only the init block's output.
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          await options?.onBlockStart?.(
+            { id: INIT_BLOCK_ID, type: 'code', blockGroup: 'bg-init', sortingKey: '0000', metadata: {} },
+            0,
+            1
+          )
+          await options?.onBlockDone?.({
+            blockId: INIT_BLOCK_ID,
+            blockType: 'code',
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: ['init-output'] }],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        // Must not reject the init block id as "not found".
+        await action(mainPath, { block: INIT_BLOCK_ID })
+
+        expect(programErrorSpy).not.toHaveBeenCalled()
+        expect(mockRunProject).toHaveBeenCalledTimes(1)
+        const [, runOptions] = mockRunProject.mock.calls[0]
+        // The engine block-id list contains only init block id(s), never the main block.
+        expect(Array.isArray(runOptions.blockIds)).toBe(true)
+        expect(runOptions.blockIds).toContain(INIT_BLOCK_ID)
+        expect(runOptions.blockIds).not.toContain(MAIN_BLOCK_ID)
+
+        // The snapshot helper receives all-init blockOutputs with a non-empty initBlockIds.
+        expect(mockSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
+        const [, , blockOutputs, , snapshotOptions] = mockSaveExecutionSnapshot.mock.calls[0]
+        expect(blockOutputs.map(b => b.id)).toEqual([INIT_BLOCK_ID])
+        expect(snapshotOptions?.initBlockIds).toBeDefined()
+        expect(snapshotOptions?.initBlockIds?.size).toBeGreaterThan(0)
+        expect(snapshotOptions?.initBlockIds?.has(INIT_BLOCK_ID)).toBe(true)
+      })
+
+      it('shows the init prelude in the dry-run plan under --notebook=Main', async () => {
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        await action(mainPath, { dryRun: true, notebook: 'Main', output: 'json' })
+
+        const jsonOutput = getJsonOutput(consoleLogSpy) as {
+          totalBlocks: number
+          blocks: Array<{ id: string }>
+        }
+        const ids = jsonOutput.blocks.map(b => b.id)
+        // The plan mirrors the engine: init runs as a prelude even when the user scopes to --notebook=Main.
+        expect(ids).toContain(INIT_BLOCK_ID)
+        expect(ids).toContain(MAIN_BLOCK_ID)
+        expect(jsonOutput.totalBlocks).toBe(2)
+      })
+
+      it('accepts --notebook scoped to the init notebook name without throwing (parity with the run path)', async () => {
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        // Init is a real notebook in the composed scope; naming it explicitly must not throw "not found"
+        // (the engine accepts it by name, so dry-run must too).
+        await action(mainPath, { dryRun: true, notebook: 'Init', output: 'json' })
+
+        const jsonOutput = getJsonOutput(consoleLogSpy) as {
+          totalBlocks: number
+          blocks: Array<{ id: string }>
+        }
+        const ids = jsonOutput.blocks.map(b => b.id)
+        expect(ids).toContain(INIT_BLOCK_ID)
+        expect(ids).not.toContain(MAIN_BLOCK_ID)
+        expect(jsonOutput.totalBlocks).toBe(1)
+      })
     })
   })
 
