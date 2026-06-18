@@ -259,7 +259,7 @@ describe('execution tools handlers', () => {
       expect(text).toContain('Cannot resolve init notebook')
     })
 
-    it('composed run delegates the [init,main] file + init/main outputs + initBlockIds to saveExecutionSnapshot and surfaces the init snapshot path', async () => {
+    it('composed run delegates the [init,main] file + init/main outputs + initBlockIds to saveExecutionSnapshot', async () => {
       const initPath = path.join(tempDir, 'project-init.deepnote')
       const mainPath = path.join(tempDir, 'project-main.deepnote')
       await fs.writeFile(initPath, makeInitFile(), 'utf-8')
@@ -291,8 +291,6 @@ describe('execution tools handlers', () => {
       mockSharedSaveExecutionSnapshot.mockResolvedValue({
         snapshotPath: '/mock/main-latest.snapshot.deepnote',
         timestampedSnapshotPath: '/mock/main-timestamped.snapshot.deepnote',
-        initSnapshotPath: '/mock/init-latest.snapshot.deepnote',
-        initTimestampedSnapshotPath: '/mock/init-timestamped.snapshot.deepnote',
       })
 
       const response = await handleExecutionTool('deepnote_run', {
@@ -302,8 +300,6 @@ describe('execution tools handlers', () => {
       const result = extractResult(response)
       expect(result.success).toBe(true)
       expect(result.snapshotPath).toBe('/mock/main-latest.snapshot.deepnote')
-      // Composed runs must surface the init snapshot path so callers can find the dual-snapshot pair.
-      expect(result.initSnapshotPath).toBe('/mock/init-latest.snapshot.deepnote')
 
       // saveExecutionSnapshot receives the [init, main]-shaped file and a non-empty initBlockIds set.
       expect(mockSharedSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
@@ -313,7 +309,7 @@ describe('execution tools handlers', () => {
 
       const blockOutputs = saveCallArgs[2] as Array<{ id: string; outputs: unknown[] }>
       const blockIds = blockOutputs.map(b => b.id)
-      // Both init and main outputs are passed so each snapshot can include init outputs from this run.
+      // Both init and main outputs are passed; saveExecutionSnapshot decides how to key/exclude them.
       expect(blockIds).toContain(INIT_BLOCK_ID)
       expect(blockIds).toContain(MAIN_BLOCK_ID)
 

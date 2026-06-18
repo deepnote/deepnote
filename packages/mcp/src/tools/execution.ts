@@ -344,7 +344,6 @@ async function handleRun(args: Record<string, unknown>) {
     const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
 
     let snapshotPath: string | undefined
-    let initSnapshotPath: string | undefined
     try {
       const snapshotResult = await sharedSaveExecutionSnapshot(
         snapshotSourcePath,
@@ -354,7 +353,6 @@ async function handleRun(args: Record<string, unknown>) {
         { initBlockIds }
       )
       snapshotPath = snapshotResult.snapshotPath
-      initSnapshotPath = snapshotResult.initSnapshotPath
     } catch (error) {
       // Snapshot saving is best-effort, but log for debugging
       // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
@@ -374,7 +372,6 @@ async function handleRun(args: Record<string, unknown>) {
       format,
       wasConverted,
       snapshotPath,
-      initSnapshotPath,
       execution: compact
         ? undefined
         : {
@@ -542,10 +539,9 @@ async function handleRunBlock(
 
     const executionFinishedAt = new Date().toISOString()
 
-    // Save snapshot, including dual init+main when prelude is active.
+    // Save a single main snapshot (init excluded when the prelude is active).
     const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
     let snapshotPath: string | undefined
-    let initSnapshotPath: string | undefined
     try {
       const snapshotResult = await sharedSaveExecutionSnapshot(
         snapshotSourcePath,
@@ -555,7 +551,6 @@ async function handleRunBlock(
         { initBlockIds }
       )
       snapshotPath = snapshotResult.snapshotPath
-      initSnapshotPath = snapshotResult.initSnapshotPath
     } catch (error) {
       // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
       console.error('[deepnote-mcp] Failed to save execution snapshot:', error instanceof Error ? error.message : error)
@@ -575,7 +570,6 @@ async function handleRunBlock(
               failedBlocks: summary.failedBlocks,
               durationMs: summary.totalDurationMs,
               snapshotPath,
-              initSnapshotPath,
               ...(warnings.length > 0 ? { warnings } : {}),
               ...(initNotebookName !== undefined ? { initNotebook: initNotebookName } : {}),
             },

@@ -2226,8 +2226,6 @@ describe('run command', () => {
             return {
               snapshotPath: '/mock/main-snapshot.snapshot.deepnote',
               timestampedSnapshotPath: '/mock/main-timestamped.snapshot.deepnote',
-              initSnapshotPath: '/mock/init-snapshot.snapshot.deepnote',
-              initTimestampedSnapshotPath: '/mock/init-timestamped.snapshot.deepnote',
             }
           }
         )

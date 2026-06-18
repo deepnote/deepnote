@@ -20,22 +20,20 @@ export interface BlockExecutionOutput {
 }
 
 /**
- * Result of saving a snapshot. Composed (init + main) runs additionally set the init paths.
+ * Result of saving a snapshot.
  */
 export interface SaveSnapshotResult {
-  snapshotPath: string
-  timestampedSnapshotPath: string
-  initSnapshotPath?: string
-  initTimestampedSnapshotPath?: string
+  snapshotPath: string | undefined
+  timestampedSnapshotPath: string | undefined
 }
 
 /**
  * Saves execution outputs to a snapshot file.
  *
  * Thin CLI wrapper around the shared `saveExecutionSnapshot` that reproduces the
- * CLI's debug logging and returns the legacy result shape. For a composed
- * (init + main) run, `options.initBlockIds` drives the second init-only snapshot
- * and the returned `init*` paths.
+ * CLI's debug logging and returns the result shape. For a composed (init + main)
+ * run, `options.initBlockIds` excludes init from the main snapshot and skips it
+ * entirely for an init-only run (returning undefined paths).
  *
  * @param sourcePath - Path to the original source file (or where it would be if converted)
  * @param file - The DeepnoteFile (original, without outputs)
@@ -59,17 +57,13 @@ export async function saveExecutionSnapshot(
     options
   )
 
-  debug(`Saved execution snapshot to: ${result.timestampedSnapshotPath}`)
-  debug(`Updated latest snapshot: ${result.snapshotPath}`)
-  if (result.initSnapshotPath !== undefined) {
-    debug(`Saved init snapshot to: ${result.initTimestampedSnapshotPath}`)
-    debug(`Updated latest init snapshot: ${result.initSnapshotPath}`)
+  if (result.snapshotPath !== undefined) {
+    debug(`Saved execution snapshot to: ${result.timestampedSnapshotPath}`)
+    debug(`Updated latest snapshot: ${result.snapshotPath}`)
   }
 
   return {
     snapshotPath: result.snapshotPath,
     timestampedSnapshotPath: result.timestampedSnapshotPath,
-    initSnapshotPath: result.initSnapshotPath,
-    initTimestampedSnapshotPath: result.initTimestampedSnapshotPath,
   }
 }

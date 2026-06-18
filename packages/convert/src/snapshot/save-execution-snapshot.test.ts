@@ -248,14 +248,14 @@ describe('output-persistence', () => {
       expect(result.timestampedSnapshotPath).toContain('_2024-01-01T00-00-05.snapshot.deepnote')
 
       // Check both files exist
-      const latestStat = await fs.stat(result.snapshotPath)
+      const latestStat = await fs.stat(result.snapshotPath as string)
       expect(latestStat.isFile()).toBe(true)
 
-      const timestampedStat = await fs.stat(result.timestampedSnapshotPath)
+      const timestampedStat = await fs.stat(result.timestampedSnapshotPath as string)
       expect(timestampedStat.isFile()).toBe(true)
 
       // Check latest content is valid YAML with outputs
-      const latestContent = await fs.readFile(result.snapshotPath, 'utf-8')
+      const latestContent = await fs.readFile(result.snapshotPath as string, 'utf-8')
       const latestParsed = parse(latestContent)
       expect(latestParsed.version).toBe('1')
       expect(latestParsed.project.id).toBe('test-project-id-1234-5678-90ab')
@@ -264,7 +264,7 @@ describe('output-persistence', () => {
       ])
 
       // Check timestamped content matches latest
-      const timestampedContent = await fs.readFile(result.timestampedSnapshotPath, 'utf-8')
+      const timestampedContent = await fs.readFile(result.timestampedSnapshotPath as string, 'utf-8')
       expect(timestampedContent).toBe(latestContent)
     })
 
@@ -299,14 +299,14 @@ describe('output-persistence', () => {
       expect(result1.timestampedSnapshotPath).not.toBe(result2.timestampedSnapshotPath)
 
       // Latest should have second output
-      const latestContent = await fs.readFile(result2.snapshotPath, 'utf-8')
+      const latestContent = await fs.readFile(result2.snapshotPath as string, 'utf-8')
       const latestParsed = parse(latestContent)
       expect(latestParsed.project.notebooks[0].blocks[0].outputs).toEqual([
         { output_type: 'stream', name: 'stdout', text: 'second\n' },
       ])
 
       // First timestamped snapshot should still have first output
-      const ts1Content = await fs.readFile(result1.timestampedSnapshotPath, 'utf-8')
+      const ts1Content = await fs.readFile(result1.timestampedSnapshotPath as string, 'utf-8')
       const ts1Parsed = parse(ts1Content)
       expect(ts1Parsed.project.notebooks[0].blocks[0].outputs).toEqual([
         { output_type: 'stream', name: 'stdout', text: 'first\n' },
@@ -427,9 +427,9 @@ describe('output-persistence', () => {
       },
     })
 
-    it('writes a main-only main snapshot and a separate init-only snapshot for a composed run', async () => {
-      // A composed [init, main] run keys each notebook's outputs to its own snapshot:
-      // the main snapshot must NOT embed the init notebook (no duplication).
+    it('writes a single main-only snapshot for a composed run (init excluded, no separate init file)', async () => {
+      // A composed [init, main] run writes ONLY the main snapshot, and that snapshot
+      // must NOT embed the init notebook (no duplication, no separate init file).
       const { initNotebookId, mainNotebookId } = COMPOSED_IDS
       const sourcePath = join(tempDir, 'project-main.deepnote')
       const outputs: BlockExecutionOutput[] = [
@@ -447,21 +447,17 @@ describe('output-persistence', () => {
 
       // Main snapshot: keyed by the main notebook id, contains ONLY the main notebook (init excluded).
       expect(result.snapshotPath).toContain(`_${mainNotebookId}_`)
-      const mainParsed = parse(await fs.readFile(result.snapshotPath, 'utf-8'))
+      const mainParsed = parse(await fs.readFile(result.snapshotPath as string, 'utf-8'))
       expect(mainParsed.project.notebooks.map((n: { id: string }) => n.id)).toEqual([mainNotebookId])
       expect(mainParsed.project.notebooks.map((n: { id: string }) => n.id)).not.toContain(initNotebookId)
       expect(mainParsed.project.notebooks[0].blocks[0].outputs).toEqual([
         { output_type: 'stream', name: 'stdout', text: '1\n' },
       ])
 
-      // Init snapshot: a separate file keyed by the init notebook id, contains ONLY the init notebook with its outputs.
-      expect(result.initSnapshotPath).toContain(`_${initNotebookId}_`)
-      expect(result.initTimestampedSnapshotPath).toContain(`_${initNotebookId}_`)
-      const initParsed = parse(await fs.readFile(result.initSnapshotPath as string, 'utf-8'))
-      expect(initParsed.project.notebooks.map((n: { id: string }) => n.id)).toEqual([initNotebookId])
-      expect(initParsed.project.notebooks[0].blocks[0].outputs).toEqual([
-        { output_type: 'stream', name: 'stdout', text: 'init\n' },
-      ])
+      // Exactly the two main-keyed files (latest + timestamped) exist; no init-keyed file.
+      const snapshotFiles = await fs.readdir(join(tempDir, 'snapshots'))
+      expect(snapshotFiles.some(f => f.includes(`_${initNotebookId}_`))).toBe(false)
+      expect(snapshotFiles.filter(f => f.includes(`_${mainNotebookId}_`)).length).toBe(2)
     })
 
     it('excludes the init notebook from the main snapshot even when init produced no output this run', async () => {
@@ -476,15 +472,14 @@ describe('output-persistence', () => {
         initBlockIds: new Set(['blk-init-code']),
       })
 
-      const mainParsed = parse(await fs.readFile(result.snapshotPath, 'utf-8'))
+      const mainParsed = parse(await fs.readFile(result.snapshotPath as string, 'utf-8'))
       expect(mainParsed.project.notebooks.map((n: { id: string }) => n.id)).toEqual([mainNotebookId])
-      // The init notebook still gets its own snapshot, keyed by init id, regardless of whether it emitted output.
-      expect(result.initSnapshotPath).toContain(`_${initNotebookId}_`)
+      expect(mainParsed.project.notebooks.map((n: { id: string }) => n.id)).not.toContain(initNotebookId)
     })
 
-    it('skips the main snapshot for an init-only composed run and surfaces the init path in the primary slots', async () => {
+    it('writes no snapshot file for an init-only composed run', async () => {
       // e.g. `--block=<initBlockId>`: only init blocks produced output, so a main snapshot would
-      // record a misleading empty-main view. Only the init snapshot is written.
+      // record a misleading empty-main view. Nothing is written.
       const { initNotebookId, mainNotebookId } = COMPOSED_IDS
       const sourcePath = join(tempDir, 'project-main.deepnote')
       const outputs: BlockExecutionOutput[] = [
@@ -499,14 +494,14 @@ describe('output-persistence', () => {
         initBlockIds: new Set(['blk-init-code']),
       })
 
-      // No main snapshot is written; the primary slots fall back to the init snapshot.
-      expect(result.snapshotPath).toBe(result.initSnapshotPath)
-      expect(result.timestampedSnapshotPath).toBe(result.initTimestampedSnapshotPath)
-      expect(result.snapshotPath).toContain(`_${initNotebookId}_`)
+      // No snapshot is written, so no paths are returned.
+      expect(result.snapshotPath).toBeUndefined()
+      expect(result.timestampedSnapshotPath).toBeUndefined()
 
+      // Neither a main- nor an init-keyed file is written (the dir exists from mkdir, so readdir returns []).
       const snapshotFiles = await fs.readdir(join(tempDir, 'snapshots'))
       expect(snapshotFiles.some(f => f.includes(`_${mainNotebookId}_`))).toBe(false)
-      expect(snapshotFiles.some(f => f.includes(`_${initNotebookId}_`))).toBe(true)
+      expect(snapshotFiles.some(f => f.includes(`_${initNotebookId}_`))).toBe(false)
     })
   })
 })

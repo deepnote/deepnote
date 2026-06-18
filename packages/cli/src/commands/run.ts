@@ -1346,7 +1346,7 @@ async function saveExecutionSnapshotBestEffort({
       ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
       : absolutePath
 
-    const { snapshotPath, initSnapshotPath } = await saveExecutionSnapshot(
+    const { snapshotPath } = await saveExecutionSnapshot(
       snapshotSourcePath,
       file,
       blockResults,
@@ -1357,11 +1357,8 @@ async function saveExecutionSnapshotBestEffort({
       { initBlockIds }
     )
 
-    if (!isMachineOutput) {
+    if (!isMachineOutput && snapshotPath !== undefined) {
       debug(`Snapshot saved to: ${snapshotPath}`)
-      if (initSnapshotPath !== undefined) {
-        debug(`Init snapshot saved to: ${initSnapshotPath}`)
-      }
     }
   } catch (snapshotError) {
     // Snapshot saving is best-effort; don't fail the run if it fails
