@@ -180,7 +180,19 @@ export async function saveExecutionSnapshot(
   let mainTimestampedFinal: string | undefined
   let mainLatestFinal: string | undefined
   if (writeMainSnapshot) {
-    const { snapshot: mainSnapshot } = splitDeepnoteFile(fileWithOutputs)
+    // Exclude the init notebook from the main snapshot — init's outputs live in
+    // its own notebook-id-scoped snapshot, so embedding them here would duplicate.
+    const mainOnlyFile: DeepnoteFile =
+      initNotebook !== undefined
+        ? {
+            ...fileWithOutputs,
+            project: {
+              ...fileWithOutputs.project,
+              notebooks: fileWithOutputs.project.notebooks.filter(nb => nb.id !== initNotebook.id),
+            },
+          }
+        : fileWithOutputs
+    const { snapshot: mainSnapshot } = splitDeepnoteFile(mainOnlyFile)
     const mainYaml = serializeDeepnoteSnapshot(mainSnapshot)
     await fs.writeFile(mainTimestampedPath, mainYaml, 'utf-8')
     await fs.copyFile(mainTimestampedPath, mainLatestPath)

@@ -377,5 +377,136 @@ describe('output-persistence', () => {
       expect(result.snapshotPath).toContain(`_${projectId}_${mainNotebookId}_`)
       expect(result.timestampedSnapshotPath).toContain(`_${projectId}_${mainNotebookId}_`)
     })
+
+    const COMPOSED_IDS = {
+      projectId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      initNotebookId: '22222222-2222-2222-2222-222222222222',
+      mainNotebookId: '33333333-3333-3333-3333-333333333333',
+    }
+    const COMPOSED_TIMING = { startedAt: '2024-01-01T00:00:00.000Z', finishedAt: '2024-01-01T00:00:05.000Z' }
+
+    /** A composed `[init, main]` file (as `resolveAndComposeInit` would produce), both notebooks code blocks. */
+    const makeComposedFile = (): DeepnoteFile => ({
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      environment: {},
+      project: {
+        id: COMPOSED_IDS.projectId,
+        name: 'Init Main Project',
+        initNotebookId: COMPOSED_IDS.initNotebookId,
+        notebooks: [
+          {
+            id: COMPOSED_IDS.initNotebookId,
+            name: 'Init',
+            blocks: [
+              {
+                id: 'blk-init-code',
+                type: 'code',
+                content: 'INIT_VAR = 1',
+                sortingKey: 'a0',
+                blockGroup: 'g',
+                metadata: {},
+              },
+            ],
+          },
+          {
+            id: COMPOSED_IDS.mainNotebookId,
+            name: 'Main',
+            blocks: [
+              {
+                id: 'blk-main-code',
+                type: 'code',
+                content: 'print(INIT_VAR)',
+                sortingKey: 'a1',
+                blockGroup: 'g',
+                metadata: {},
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    it('writes a main-only main snapshot and a separate init-only snapshot for a composed run', async () => {
+      // A composed [init, main] run keys each notebook's outputs to its own snapshot:
+      // the main snapshot must NOT embed the init notebook (no duplication).
+      const { initNotebookId, mainNotebookId } = COMPOSED_IDS
+      const sourcePath = join(tempDir, 'project-main.deepnote')
+      const outputs: BlockExecutionOutput[] = [
+        {
+          id: 'blk-init-code',
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'init\n' }],
+          executionCount: 1,
+        },
+        { id: 'blk-main-code', outputs: [{ output_type: 'stream', name: 'stdout', text: '1\n' }], executionCount: 2 },
+      ]
+
+      const result = await saveExecutionSnapshot(sourcePath, makeComposedFile(), outputs, COMPOSED_TIMING, {
+        initBlockIds: new Set(['blk-init-code']),
+      })
+
+      // Main snapshot: keyed by the main notebook id, contains ONLY the main notebook (init excluded).
+      expect(result.snapshotPath).toContain(`_${mainNotebookId}_`)
+      const mainParsed = parse(await fs.readFile(result.snapshotPath, 'utf-8'))
+      expect(mainParsed.project.notebooks.map((n: { id: string }) => n.id)).toEqual([mainNotebookId])
+      expect(mainParsed.project.notebooks.map((n: { id: string }) => n.id)).not.toContain(initNotebookId)
+      expect(mainParsed.project.notebooks[0].blocks[0].outputs).toEqual([
+        { output_type: 'stream', name: 'stdout', text: '1\n' },
+      ])
+
+      // Init snapshot: a separate file keyed by the init notebook id, contains ONLY the init notebook with its outputs.
+      expect(result.initSnapshotPath).toContain(`_${initNotebookId}_`)
+      expect(result.initTimestampedSnapshotPath).toContain(`_${initNotebookId}_`)
+      const initParsed = parse(await fs.readFile(result.initSnapshotPath as string, 'utf-8'))
+      expect(initParsed.project.notebooks.map((n: { id: string }) => n.id)).toEqual([initNotebookId])
+      expect(initParsed.project.notebooks[0].blocks[0].outputs).toEqual([
+        { output_type: 'stream', name: 'stdout', text: 'init\n' },
+      ])
+    })
+
+    it('excludes the init notebook from the main snapshot even when init produced no output this run', async () => {
+      const { initNotebookId, mainNotebookId } = COMPOSED_IDS
+      const sourcePath = join(tempDir, 'project-main.deepnote')
+      // Only main emitted output; init ran as a prelude but produced nothing this run.
+      const outputs: BlockExecutionOutput[] = [
+        { id: 'blk-main-code', outputs: [{ output_type: 'stream', name: 'stdout', text: '1\n' }], executionCount: 1 },
+      ]
+
+      const result = await saveExecutionSnapshot(sourcePath, makeComposedFile(), outputs, COMPOSED_TIMING, {
+        initBlockIds: new Set(['blk-init-code']),
+      })
+
+      const mainParsed = parse(await fs.readFile(result.snapshotPath, 'utf-8'))
+      expect(mainParsed.project.notebooks.map((n: { id: string }) => n.id)).toEqual([mainNotebookId])
+      // The init notebook still gets its own snapshot, keyed by init id, regardless of whether it emitted output.
+      expect(result.initSnapshotPath).toContain(`_${initNotebookId}_`)
+    })
+
+    it('skips the main snapshot for an init-only composed run and surfaces the init path in the primary slots', async () => {
+      // e.g. `--block=<initBlockId>`: only init blocks produced output, so a main snapshot would
+      // record a misleading empty-main view. Only the init snapshot is written.
+      const { initNotebookId, mainNotebookId } = COMPOSED_IDS
+      const sourcePath = join(tempDir, 'project-main.deepnote')
+      const outputs: BlockExecutionOutput[] = [
+        {
+          id: 'blk-init-code',
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'init\n' }],
+          executionCount: 1,
+        },
+      ]
+
+      const result = await saveExecutionSnapshot(sourcePath, makeComposedFile(), outputs, COMPOSED_TIMING, {
+        initBlockIds: new Set(['blk-init-code']),
+      })
+
+      // No main snapshot is written; the primary slots fall back to the init snapshot.
+      expect(result.snapshotPath).toBe(result.initSnapshotPath)
+      expect(result.timestampedSnapshotPath).toBe(result.initTimestampedSnapshotPath)
+      expect(result.snapshotPath).toContain(`_${initNotebookId}_`)
+
+      const snapshotFiles = await fs.readdir(join(tempDir, 'snapshots'))
+      expect(snapshotFiles.some(f => f.includes(`_${mainNotebookId}_`))).toBe(false)
+      expect(snapshotFiles.some(f => f.includes(`_${initNotebookId}_`))).toBe(true)
+    })
   })
 })

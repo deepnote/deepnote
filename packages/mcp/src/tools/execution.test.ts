@@ -259,7 +259,7 @@ describe('execution tools handlers', () => {
       expect(text).toContain('Cannot resolve init notebook')
     })
 
-    it('composed run writes dual snapshot: main shape [init,main] and init shape [init], both with init outputs', async () => {
+    it('composed run delegates the [init,main] file + init/main outputs + initBlockIds to saveExecutionSnapshot and surfaces the init snapshot path', async () => {
       const initPath = path.join(tempDir, 'project-init.deepnote')
       const mainPath = path.join(tempDir, 'project-main.deepnote')
       await fs.writeFile(initPath, makeInitFile(), 'utf-8')

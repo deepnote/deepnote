@@ -2213,7 +2213,7 @@ describe('run command', () => {
         expect(process.exitCode).toBe(2)
       })
 
-      it('writes two snapshots after a composed run: main has [init,main], init has [init], both with init outputs', async () => {
+      it('passes the composed [init,main] file, init+main outputs, and initBlockIds to saveExecutionSnapshot', async () => {
         // Assert the snapshot helper's inputs directly instead of mocking it away.
         mockSaveExecutionSnapshot.mockImplementation(
           async (_sourcePath, file, blockOutputs, _timing, snapshotOptions) => {
