@@ -6,7 +6,7 @@ import {
   type LoadedRunnableFile,
   LoadRunnableFileError,
   loadRunnableFile,
-  resolveAndComposeInit,
+  resolveAndComposeInitIfNeeded,
   saveExecutionSnapshotForRun as sharedSaveExecutionSnapshotForRun,
 } from '@deepnote/convert'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
@@ -145,19 +145,7 @@ interface ResolvedRunnableFile {
 /** Load and (when applicable) compose a sibling init notebook for a runnable file. */
 async function resolveRunnableWithInit(filePath: string): Promise<ResolvedRunnableFile> {
   const loaded = await loadRunnableFile(filePath)
-  if (loaded.format !== 'deepnote' || loaded.file.project.initNotebookId === undefined) {
-    return {
-      file: loaded.file,
-      originalPath: loaded.originalPath,
-      format: loaded.format,
-      wasConverted: loaded.wasConverted,
-      initBlockIds: new Set(),
-      initNotebookId: undefined,
-      initNotebookName: undefined,
-      warnings: [],
-    }
-  }
-  const resolved = await resolveAndComposeInit(loaded.file, loaded.originalPath)
+  const resolved = await resolveAndComposeInitIfNeeded(loaded)
   return {
     file: resolved.composed,
     originalPath: loaded.originalPath,

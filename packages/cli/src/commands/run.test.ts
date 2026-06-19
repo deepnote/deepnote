@@ -90,7 +90,7 @@ vi.mock('../utils/open-file-in-cloud', () => ({
 
 // Mock the shared snapshot helper to prevent writing to real files during tests. Only override
 // saveExecutionSnapshotForRun — run.ts also imports InitNotebookResolutionError,
-// resolveAndComposeInit and LoadedRunnableFile from @deepnote/convert, so the rest must be preserved.
+// resolveAndComposeInitIfNeeded and LoadedRunnableFile from @deepnote/convert, so the rest must be preserved.
 const mockSaveExecutionSnapshotForRun: MockedFunction<typeof saveExecutionSnapshotForRun> = vi.fn().mockResolvedValue({
   snapshotPath: '/mock/snapshot.snapshot.deepnote',
   timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',

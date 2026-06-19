@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { resolveAndComposeInit } from './resolve-init'
+import { resolveAndComposeInit, resolveAndComposeInitIfNeeded } from './resolve-init'
 
 /** Constructs a `DeepnoteFile`, optionally declaring an init notebook. */
 function makeFile(args: {
@@ -432,5 +432,135 @@ describe('resolveAndComposeInit', () => {
 
     const result = await resolveAndComposeInit(mainFile, mainPath)
     expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+  })
+})
+
+describe('resolveAndComposeInitIfNeeded', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'resolve-init-if-needed-test-'))
+  })
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true })
+  })
+
+  it('passes through a non-deepnote file unchanged without touching the filesystem', async () => {
+    const file = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] }],
+    })
+    // Path in a non-existent directory: a passthrough must not attempt any readdir.
+    const originalPath = path.join(tempDir, 'does-not-exist', 'main.ipynb')
+
+    const loaded = { file, originalPath, format: 'jupyter' }
+    const result = await resolveAndComposeInitIfNeeded(loaded)
+
+    expect(result.composed).toBe(loaded.file)
+    expect(result.initBlockIds.size).toBe(0)
+    expect(result.warnings).toEqual([])
+    expect(result.initNotebookName).toBeUndefined()
+  })
+
+  it('passes through a deepnote file with no initNotebookId without touching the filesystem', async () => {
+    const file = makeFile({
+      projectId: 'proj-1',
+      notebooks: [{ id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] }],
+    })
+    const originalPath = path.join(tempDir, 'does-not-exist', 'main.deepnote')
+
+    const result = await resolveAndComposeInitIfNeeded({ file, originalPath, format: 'deepnote' })
+
+    expect(result.composed).toBe(file)
+    expect(result.initBlockIds.size).toBe(0)
+    expect(result.warnings).toEqual([])
+  })
+
+  it('passes through a self-contained deepnote file whose init resolves locally', async () => {
+    const file = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [
+        { id: 'nb-init', name: 'Init', blocks: [{ id: 'init-b1' }] },
+        { id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] },
+      ],
+    })
+    const originalPath = path.join(tempDir, 'main.deepnote')
+    await fs.writeFile(originalPath, serializeDeepnoteFile(file), 'utf-8')
+
+    const result = await resolveAndComposeInitIfNeeded({ file, originalPath, format: 'deepnote' })
+
+    expect(result.composed).toBe(file)
+    expect(result.initBlockIds.size).toBe(0)
+    expect(result.warnings).toEqual([])
+  })
+
+  it('composes a sibling init notebook for a deepnote file that declares one', async () => {
+    const initFile = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [
+        {
+          id: 'nb-init',
+          name: 'Init',
+          blocks: [{ id: 'init-b1' }, { id: 'init-b2' }],
+        },
+      ],
+    })
+    const mainFile = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] }],
+    })
+
+    const initPath = path.join(tempDir, 'project-init.deepnote')
+    const mainPath = path.join(tempDir, 'project-main.deepnote')
+    await fs.writeFile(initPath, serializeDeepnoteFile(initFile), 'utf-8')
+    await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
+
+    const result = await resolveAndComposeInitIfNeeded({
+      file: mainFile,
+      originalPath: mainPath,
+      format: 'deepnote',
+    })
+
+    expect(result.composed.project.notebooks).toHaveLength(2)
+    expect(result.composed.project.notebooks[0].id).toBe('nb-init')
+    expect(result.composed.project.notebooks[1].id).toBe('nb-main')
+    expect(Array.from(result.initBlockIds).sort()).toEqual(['init-b1', 'init-b2'].sort())
+    expect(result.initNotebookId).toBe('nb-init')
+    expect(result.initNotebookName).toBe('Init')
+    expect(result.warnings).toEqual([])
+  })
+
+  it('propagates warnings from the underlying resolution when a sibling diverges', async () => {
+    const initSibling = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-init', name: 'Init', blocks: [{ id: 'init-b1' }] }],
+      integrations: [{ id: 'int-1', name: 'Old DB', type: 'pgsql' }],
+    })
+    const mainFile = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] }],
+      integrations: [{ id: 'int-1', name: 'New DB', type: 'pgsql' }],
+    })
+
+    const initPath = path.join(tempDir, 'init.deepnote')
+    const mainPath = path.join(tempDir, 'main.deepnote')
+    await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
+    await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
+
+    const result = await resolveAndComposeInitIfNeeded({
+      file: mainFile,
+      originalPath: mainPath,
+      format: 'deepnote',
+    })
+
+    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    expect(result.warnings.length).toBeGreaterThan(0)
   })
 })

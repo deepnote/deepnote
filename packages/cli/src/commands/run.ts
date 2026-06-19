@@ -7,7 +7,7 @@ import { serializeDeepnoteFile } from '@deepnote/blocks'
 import {
   InitNotebookResolutionError,
   type LoadedRunnableFile,
-  resolveAndComposeInit,
+  resolveAndComposeInitIfNeeded,
   saveExecutionSnapshotForRun,
 } from '@deepnote/convert'
 import {
@@ -295,20 +295,16 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     }
   }
 
-  // Sibling-init resolution only applies to native .deepnote files.
-  let initBlockIds = new Set<string>()
-  let initNotebookId: string | undefined
-  if (convertedFile.format === 'deepnote' && file.project.initNotebookId !== undefined) {
-    const resolved = await resolveAndComposeInit(file, absolutePath)
-    file = resolved.composed
-    initBlockIds = new Set(resolved.initBlockIds)
-    initNotebookId = resolved.initNotebookId
-    for (const warning of resolved.warnings) {
-      if (isMachineOutput) {
-        debug(`Init resolver warning: ${warning}`)
-      } else {
-        log(getChalk().yellow(`Warning: ${warning}`))
-      }
+  // Sibling-init resolution only applies to native .deepnote files (handled inside the shared helper).
+  const resolved = await resolveAndComposeInitIfNeeded(convertedFile)
+  file = resolved.composed
+  const initBlockIds = new Set(resolved.initBlockIds)
+  const initNotebookId = resolved.initNotebookId
+  for (const warning of resolved.warnings) {
+    if (isMachineOutput) {
+      debug(`Init resolver warning: ${warning}`)
+    } else {
+      log(getChalk().yellow(`Warning: ${warning}`))
     }
   }
 
@@ -754,20 +750,15 @@ function getInputBlocks(
 async function listInputs(path: string, options: RunOptions): Promise<void> {
   const isMachineOutput = options.output !== undefined
   const converted = await resolveAndConvertToDeepnote(path)
-  let { file } = converted
-  const { originalPath: absolutePath, format } = converted
-
-  let initNotebookName: string | undefined
-  if (format === 'deepnote' && file.project.initNotebookId !== undefined) {
-    const resolved = await resolveAndComposeInit(file, absolutePath)
-    file = resolved.composed
-    initNotebookName = resolved.initNotebookName
-    for (const warning of resolved.warnings) {
-      if (isMachineOutput) {
-        debug(`Init resolver warning: ${warning}`)
-      } else {
-        log(getChalk().yellow(`Warning: ${warning}`))
-      }
+  const { originalPath: absolutePath } = converted
+  const resolved = await resolveAndComposeInitIfNeeded(converted)
+  const file = resolved.composed
+  const initNotebookName = resolved.initNotebookName
+  for (const warning of resolved.warnings) {
+    if (isMachineOutput) {
+      debug(`Init resolver warning: ${warning}`)
+    } else {
+      log(getChalk().yellow(`Warning: ${warning}`))
     }
   }
 

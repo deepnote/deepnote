@@ -26,8 +26,8 @@ export {
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
 // Init resolution & composition
-export type { ResolveAndComposeInitResult } from './resolve-init'
-export { InitNotebookResolutionError, resolveAndComposeInit } from './resolve-init'
+export type { ResolveAndComposeInitResult, RunnableFileForInit } from './resolve-init'
+export { InitNotebookResolutionError, resolveAndComposeInit, resolveAndComposeInitIfNeeded } from './resolve-init'
 // Execution snapshot persistence
 export type {
   BlockExecutionOutput,

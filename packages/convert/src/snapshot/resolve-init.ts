@@ -43,6 +43,38 @@ export interface ResolveAndComposeInitResult {
   warnings: string[]
 }
 
+/** Minimal already-loaded-file shape needed to decide and perform sibling-init composition. */
+export interface RunnableFileForInit {
+  /** The loaded DeepnoteFile (already parsed/converted). */
+  file: DeepnoteFile
+  /** Absolute path the file was loaded from; used to locate sibling `.deepnote` init files. */
+  originalPath: string
+  /** Source format; sibling-init composition applies only to native `'deepnote'` files. */
+  format: string
+}
+
+/**
+ * Guarded wrapper over {@link resolveAndComposeInit} for an already-loaded runnable file.
+ *
+ * Composes a sibling `.deepnote` init notebook only when the file is a native `'deepnote'`
+ * file that declares `project.initNotebookId`; otherwise returns the file unchanged with empty
+ * init metadata. Centralizes the "when do we compose sibling-init for a loaded runnable file"
+ * decision shared by the CLI and MCP run paths.
+ *
+ * The load step stays at the call site (CLI and MCP load differently); this helper takes the
+ * already-loaded file. It RETURNS warnings rather than logging, so each caller keeps its own
+ * warning handling.
+ *
+ * @throws InitNotebookResolutionError when a declared init id cannot be resolved locally or in
+ *         exactly one sibling (propagated from {@link resolveAndComposeInit}).
+ */
+export async function resolveAndComposeInitIfNeeded(loaded: RunnableFileForInit): Promise<ResolveAndComposeInitResult> {
+  if (loaded.format !== 'deepnote' || loaded.file.project.initNotebookId === undefined) {
+    return { composed: loaded.file, initBlockIds: new Set(), warnings: [] }
+  }
+  return resolveAndComposeInit(loaded.file, loaded.originalPath)
+}
+
 /** A sibling `.deepnote` candidate that was inspected but rejected as the init source. */
 interface RejectedCandidate {
   path: string
