@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import type { saveExecutionSnapshotForRun } from '@deepnote/convert'
 import {
   ApiError,
   type ApiIntegration,
@@ -12,7 +13,6 @@ import {
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
-import type { saveExecutionSnapshot } from '../utils/output-persistence'
 
 // Create mock engine functions
 const mockStart = vi.fn()
@@ -88,16 +88,19 @@ vi.mock('../utils/open-file-in-cloud', () => ({
   openDeepnoteFileInCloud: (...args: unknown[]) => mockOpenDeepnoteFileInCloud(...args),
 }))
 
-// Mock saveExecutionSnapshot to prevent writing to real files during tests
-const mockSaveExecutionSnapshot: MockedFunction<typeof saveExecutionSnapshot> = vi.fn().mockResolvedValue({
+// Mock the shared snapshot helper to prevent writing to real files during tests. Only override
+// saveExecutionSnapshotForRun — run.ts also imports InitNotebookResolutionError,
+// resolveAndComposeInit and LoadedRunnableFile from @deepnote/convert, so the rest must be preserved.
+const mockSaveExecutionSnapshotForRun: MockedFunction<typeof saveExecutionSnapshotForRun> = vi.fn().mockResolvedValue({
   snapshotPath: '/mock/snapshot.snapshot.deepnote',
   timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',
 })
-vi.mock('../utils/output-persistence', async importOriginal => {
-  const actual = await importOriginal<typeof import('../utils/output-persistence')>()
+vi.mock('@deepnote/convert', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/convert')>()
   return {
     ...actual,
-    saveExecutionSnapshot: (...args: Parameters<typeof saveExecutionSnapshot>) => mockSaveExecutionSnapshot(...args),
+    saveExecutionSnapshotForRun: (...args: Parameters<typeof saveExecutionSnapshotForRun>) =>
+      mockSaveExecutionSnapshotForRun(...args),
   }
 })
 
@@ -199,8 +202,8 @@ describe('run command', () => {
       // Reset injectIntegrationEnvVars to no-op by default
       mockInjectIntegrationEnvVars.mockReturnValue([])
 
-      // Reset saveExecutionSnapshot mock
-      mockSaveExecutionSnapshot.mockResolvedValue({
+      // Reset saveExecutionSnapshotForRun mock
+      mockSaveExecutionSnapshotForRun.mockResolvedValue({
         snapshotPath: '/mock/snapshot.snapshot.deepnote',
         timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',
       })
@@ -2214,10 +2217,11 @@ describe('run command', () => {
         expect(process.exitCode).toBe(2)
       })
 
-      it('passes a main-only [main] file and init+main outputs to saveExecutionSnapshot', async () => {
-        // The caller now does the init-prep: it excludes the borrowed init notebook before calling the
-        // helper, so the helper receives a main-only file (and 4 args — no initBlockIds 5th arg).
-        mockSaveExecutionSnapshot.mockResolvedValue({
+      it('passes the composed file, init+main outputs and the init block ids to saveExecutionSnapshotForRun', async () => {
+        // The caller now hands the FULL composed file plus initBlockIds to the shared helper; the
+        // init-notebook exclusion and init-only skip live inside the (mocked) helper, so the call site
+        // only proves the wiring: composed file, init+main outputs, init ids and the .deepnote path.
+        mockSaveExecutionSnapshotForRun.mockResolvedValue({
           snapshotPath: '/mock/main-snapshot.snapshot.deepnote',
           timestampedSnapshotPath: '/mock/main-timestamped.snapshot.deepnote',
         })
@@ -2274,25 +2278,57 @@ describe('run command', () => {
 
         await action(mainPath, {})
 
-        expect(mockSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
-        const callArgs = mockSaveExecutionSnapshot.mock.calls[0]
-        // Called with 4 args only — no initBlockIds options object (the saver is uniform now).
-        expect(callArgs).toHaveLength(4)
-        // Assert OUTSIDE the mock callback — assertions inside mockImplementation run within
-        // saveExecutionSnapshotBestEffort's best-effort try/catch and get silently swallowed.
-        const passedFile = callArgs[1] as { project: { notebooks: Array<{ id: string }> } }
-        expect(passedFile.project.notebooks.map(n => n.id)).toEqual([MAIN_NB_ID])
-        // Both init and main outputs still flow through; only the init NOTEBOOK is excluded.
-        const passedIds = (callArgs[2] as Array<{ id: string }>).map(b => b.id)
+        expect(mockSaveExecutionSnapshotForRun).toHaveBeenCalledTimes(1)
+        const [params] = mockSaveExecutionSnapshotForRun.mock.calls[0]
+        // The caller passes the FULL composed file — the init-notebook exclusion now lives in the helper.
+        expect(params.file.project.notebooks.map(n => n.id)).toEqual(expect.arrayContaining([INIT_NB_ID, MAIN_NB_ID]))
+        // Both init and main outputs flow through unfiltered.
+        const passedIds = params.blockOutputs.map(b => b.id)
         expect(passedIds).toContain(INIT_BLOCK_ID)
         expect(passedIds).toContain(MAIN_BLOCK_ID)
+        // The composed init block ids are forwarded so the helper can apply skip/exclusion.
+        expect(params.initBlockIds).toBeDefined()
+        expect([...(params.initBlockIds ?? [])]).toContain(INIT_BLOCK_ID)
+        // A native .deepnote source is forwarded verbatim as the snapshot source path.
+        expect(params.sourcePath).toBe(mainPath)
+      })
+
+      it('does not fail the run when the snapshot save throws', async () => {
+        // Best-effort: a snapshot write failure must not fail the run.
+        setupSuccessfulRun()
+        mockSaveExecutionSnapshotForRun.mockRejectedValue(new Error('disk full'))
+        const mainPath = join(testTempDir, 'project-main.deepnote')
+        const initPath = join(testTempDir, 'project-init.deepnote')
+        await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
+        await fs.promises.writeFile(initPath, makeInitFile(), 'utf-8')
+
+        mockStart.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          await options?.onBlockDone?.({
+            blockId: MAIN_BLOCK_ID,
+            blockType: 'code',
+            success: true,
+            outputs: [{ output_type: 'stream', name: 'stdout', text: ['main-output'] }],
+            executionCount: 1,
+            durationMs: 50,
+          })
+          return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+        })
+        mockStop.mockResolvedValue(undefined)
+
+        await action(mainPath, {})
+
+        expect(programErrorSpy).not.toHaveBeenCalled()
+        expect(mockSaveExecutionSnapshotForRun).toHaveBeenCalledTimes(1)
       })
 
       it('runs init-only when --block targets an init block id', async () => {
         // Regression guard (constraints 2+4): an init block id must be accepted and run only init blocks.
-        // The caller now skips the snapshot for an init-only run (nothing non-init ran), so the helper is
-        // never called.
+        // The caller now always invokes the shared helper, which internally skips the write for an
+        // init-only run (returns undefined). The call site just forwards the init-only outputs + ids.
         setupSuccessfulRun()
+        // Helper signals the init-only skip by resolving undefined; the run must still complete cleanly.
+        mockSaveExecutionSnapshotForRun.mockResolvedValue(undefined)
         const mainPath = join(testTempDir, 'project-main.deepnote')
         const initPath = join(testTempDir, 'project-init.deepnote')
         await fs.promises.writeFile(mainPath, makeMainFile(), 'utf-8')
@@ -2329,8 +2365,13 @@ describe('run command', () => {
         expect(runOptions.blockIds).toContain(INIT_BLOCK_ID)
         expect(runOptions.blockIds).not.toContain(MAIN_BLOCK_ID)
 
-        // Init-only run: the caller skips the snapshot before calling the helper, so it is never invoked.
-        expect(mockSaveExecutionSnapshot).not.toHaveBeenCalled()
+        // Init-only run: the helper IS called now (it performs the skip internally). The call site
+        // forwards only the init block's output plus the composed init ids; the run completes cleanly.
+        expect(mockSaveExecutionSnapshotForRun).toHaveBeenCalledTimes(1)
+        const [params] = mockSaveExecutionSnapshotForRun.mock.calls[0]
+        const passedIds = params.blockOutputs.map(b => b.id)
+        expect(passedIds).toEqual([INIT_BLOCK_ID])
+        expect([...(params.initBlockIds ?? [])]).toContain(INIT_BLOCK_ID)
       })
 
       it('shows the init prelude in the dry-run plan under --notebook=Main', async () => {
@@ -2955,7 +2996,7 @@ describe('run command', () => {
       })
       mockParseIntegrationsFile.mockResolvedValue({ integrations: [], issues: [] })
       mockInjectIntegrationEnvVars.mockReturnValue([])
-      mockSaveExecutionSnapshot.mockResolvedValue({
+      mockSaveExecutionSnapshotForRun.mockResolvedValue({
         snapshotPath: '/mock/snapshot.snapshot.deepnote',
         timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',
       })

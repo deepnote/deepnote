@@ -3,7 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock ExecutionEngine + saveExecutionSnapshot so the composed-run test avoids spinning up Python.
+// Mock ExecutionEngine + saveExecutionSnapshotForRun so the composed-run test avoids spinning up Python.
 const mockEngineStart = vi.fn().mockResolvedValue(undefined)
 const mockEngineStop = vi.fn().mockResolvedValue(undefined)
 const mockEngineRunProject = vi.fn()
@@ -22,14 +22,14 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
   }
 })
 
-const mockSharedSaveExecutionSnapshot = vi.fn()
+const mockSaveForRun = vi.fn()
 vi.mock('@deepnote/convert', async importOriginal => {
   const actual = await importOriginal<typeof import('@deepnote/convert')>()
   return {
     ...actual,
-    saveExecutionSnapshot: (
-      ...args: Parameters<typeof actual.saveExecutionSnapshot>
-    ): ReturnType<typeof actual.saveExecutionSnapshot> => mockSharedSaveExecutionSnapshot(...args),
+    saveExecutionSnapshotForRun: (
+      ...args: Parameters<typeof actual.saveExecutionSnapshotForRun>
+    ): ReturnType<typeof actual.saveExecutionSnapshotForRun> => mockSaveForRun(...args),
   }
 })
 
@@ -259,13 +259,13 @@ describe('execution tools handlers', () => {
       expect(text).toContain('Cannot resolve init notebook')
     })
 
-    it('composed run delegates a main-only file + init/main outputs to saveExecutionSnapshot', async () => {
+    it('composed run delegates the full file + init/main outputs to saveExecutionSnapshotForRun', async () => {
       const initPath = path.join(tempDir, 'project-init.deepnote')
       const mainPath = path.join(tempDir, 'project-main.deepnote')
       await fs.writeFile(initPath, makeInitFile(), 'utf-8')
       await fs.writeFile(mainPath, makeMainFile(), 'utf-8')
 
-      // Emit init + main results via onBlockDone to populate blockOutputs for saveExecutionSnapshot.
+      // Emit init + main results via onBlockDone to populate blockOutputs for the snapshot helper.
       mockEngineRunProject.mockReset()
       mockEngineRunProject.mockImplementation(async (_file, options) => {
         await options?.onBlockDone?.({
@@ -287,10 +287,10 @@ describe('execution tools handlers', () => {
         return { totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 100 }
       })
 
-      mockSharedSaveExecutionSnapshot.mockReset()
-      mockSharedSaveExecutionSnapshot.mockResolvedValue({
+      mockSaveForRun.mockReset()
+      mockSaveForRun.mockResolvedValue({
         snapshotPath: '/mock/main-latest.snapshot.deepnote',
-        timestampedSnapshotPath: '/mock/main-timestamped.snapshot.deepnote',
+        timestampedSnapshotPath: '/mock/main-2020.snapshot.deepnote',
       })
 
       const response = await handleExecutionTool('deepnote_run', {
@@ -301,19 +301,57 @@ describe('execution tools handlers', () => {
       expect(result.success).toBe(true)
       expect(result.snapshotPath).toBe('/mock/main-latest.snapshot.deepnote')
 
-      // The handler does the init-prep inline: it excludes the borrowed init notebook, so the helper
-      // receives a main-only file (and 4 args — no initBlockIds 5th arg).
-      expect(mockSharedSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
-      const saveCallArgs = mockSharedSaveExecutionSnapshot.mock.calls[0]
-      const snapshotFile = saveCallArgs[1] as { project: { notebooks: Array<{ id: string }> } }
-      expect(snapshotFile.project.notebooks.map(n => n.id)).toEqual([MAIN_NB_ID])
+      // The call site passes the FULL composed file plus all outputs; the init-notebook exclusion now
+      // happens inside the (mocked) helper. The helper takes a SINGLE params object.
+      expect(mockSaveForRun).toHaveBeenCalledTimes(1)
+      const params = mockSaveForRun.mock.calls[0][0] as {
+        sourcePath: string
+        file: { project: { notebooks: Array<{ id: string }> } }
+        blockOutputs: Array<{ id: string; outputs: unknown[] }>
+        initBlockIds: ReadonlySet<string>
+        timing: { startedAt: string; finishedAt: string }
+      }
+      expect(params.sourcePath).toBe(mainPath)
+      // Full composed file: both the init and the main notebook are present at the call site.
+      expect(params.file.project.notebooks.map(n => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
 
-      const blockOutputs = saveCallArgs[2] as Array<{ id: string; outputs: unknown[] }>
-      const blockIds = blockOutputs.map(b => b.id)
-      // Both init and main outputs are still passed through; only the init NOTEBOOK is excluded.
+      const blockIds = params.blockOutputs.map(b => b.id)
       expect(blockIds).toContain(INIT_BLOCK_ID)
       expect(blockIds).toContain(MAIN_BLOCK_ID)
-      expect(saveCallArgs).toHaveLength(4)
+      expect([...params.initBlockIds]).toEqual([INIT_BLOCK_ID])
+      expect(typeof params.timing.startedAt).toBe('string')
+      expect(typeof params.timing.finishedAt).toBe('string')
+    })
+
+    it('does not fail the run when the snapshot save throws', async () => {
+      const initPath = path.join(tempDir, 'project-init.deepnote')
+      const mainPath = path.join(tempDir, 'project-main.deepnote')
+      await fs.writeFile(initPath, makeInitFile(), 'utf-8')
+      await fs.writeFile(mainPath, makeMainFile(), 'utf-8')
+
+      mockEngineRunProject.mockReset()
+      mockEngineRunProject.mockImplementation(async (_file, options) => {
+        await options?.onBlockDone?.({
+          blockId: MAIN_BLOCK_ID,
+          blockType: 'code',
+          success: true,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: ['main-output'] }],
+          executionCount: 1,
+          durationMs: 50,
+        })
+        return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+      })
+
+      // The shared helper throws; the run must swallow it (best-effort) and still succeed.
+      mockSaveForRun.mockReset()
+      mockSaveForRun.mockRejectedValue(new Error('disk full'))
+
+      const response = await handleExecutionTool('deepnote_run', { path: mainPath })
+
+      const result = extractResult(response)
+      expect(result.success).toBe(true)
+      expect(result.snapshotPath).toBeUndefined()
+      expect(mockSaveForRun).toHaveBeenCalledTimes(1)
     })
 
     it('init-only run (--blockId=<initBlockId>) writes no snapshot and omits snapshotPath/hint', async () => {
@@ -336,7 +374,9 @@ describe('execution tools handlers', () => {
         return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
       })
 
-      mockSharedSaveExecutionSnapshot.mockReset()
+      mockSaveForRun.mockReset()
+      // Init-only run: the helper is invoked but skips internally, resolving undefined.
+      mockSaveForRun.mockResolvedValue(undefined)
 
       const response = await handleExecutionTool('deepnote_run', {
         path: mainPath,
@@ -345,13 +385,22 @@ describe('execution tools handlers', () => {
 
       const result = extractResult(response)
       expect(result.success).toBe(true)
-      // The init-only run skips the snapshot before calling the helper.
-      expect(mockSharedSaveExecutionSnapshot).not.toHaveBeenCalled()
+      // The call site still delegates to the helper, passing the init-only outputs + initBlockIds; the
+      // internal skip (and thus the missing snapshotPath) is owned by the helper.
+      expect(mockSaveForRun).toHaveBeenCalledTimes(1)
+      const params = mockSaveForRun.mock.calls[0][0] as {
+        blockOutputs: Array<{ id: string }>
+        initBlockIds: ReadonlySet<string>
+      }
+      const blockIds = params.blockOutputs.map(b => b.id)
+      expect(blockIds).toEqual([INIT_BLOCK_ID])
+      expect([...params.initBlockIds]).toEqual([INIT_BLOCK_ID])
+      // Because the helper resolved undefined, the response carries no snapshotPath and no hint.
       expect(result.snapshotPath).toBeUndefined()
       expect(result.hint).toBeUndefined()
     })
 
-    it('composed --blockId run (main block) delegates a main-only file to saveExecutionSnapshot', async () => {
+    it('composed --blockId run (main block) delegates the full file to saveExecutionSnapshotForRun', async () => {
       const initPath = path.join(tempDir, 'project-init.deepnote')
       const mainPath = path.join(tempDir, 'project-main.deepnote')
       await fs.writeFile(initPath, makeInitFile(), 'utf-8')
@@ -379,10 +428,10 @@ describe('execution tools handlers', () => {
         return { totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 100 }
       })
 
-      mockSharedSaveExecutionSnapshot.mockReset()
-      mockSharedSaveExecutionSnapshot.mockResolvedValue({
+      mockSaveForRun.mockReset()
+      mockSaveForRun.mockResolvedValue({
         snapshotPath: '/mock/main-latest.snapshot.deepnote',
-        timestampedSnapshotPath: '/mock/main-timestamped.snapshot.deepnote',
+        timestampedSnapshotPath: '/mock/main-2020.snapshot.deepnote',
       })
 
       const response = await handleExecutionTool('deepnote_run', {
@@ -392,13 +441,23 @@ describe('execution tools handlers', () => {
 
       const result = extractResult(response)
       expect(result.success).toBe(true)
+      expect(result.snapshotPath).toBe('/mock/main-latest.snapshot.deepnote')
 
-      // handleRunBlock does the same inline init-prep: the helper must receive a main-only file (init excluded).
-      expect(mockSharedSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
-      const saveCallArgs = mockSharedSaveExecutionSnapshot.mock.calls[0]
-      const snapshotFile = saveCallArgs[1] as { project: { notebooks: Array<{ id: string }> } }
-      expect(snapshotFile.project.notebooks.map(n => n.id)).toEqual([MAIN_NB_ID])
-      expect(saveCallArgs).toHaveLength(4)
+      // handleRunBlock passes the FULL composed file + all outputs; the init-notebook exclusion happens
+      // inside the (mocked) helper, which takes a SINGLE params object.
+      expect(mockSaveForRun).toHaveBeenCalledTimes(1)
+      const params = mockSaveForRun.mock.calls[0][0] as {
+        sourcePath: string
+        file: { project: { notebooks: Array<{ id: string }> } }
+        blockOutputs: Array<{ id: string }>
+        initBlockIds: ReadonlySet<string>
+      }
+      expect(params.sourcePath).toBe(mainPath)
+      expect(params.file.project.notebooks.map(n => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
+      const blockIds = params.blockOutputs.map(b => b.id)
+      expect(blockIds).toContain(INIT_BLOCK_ID)
+      expect(blockIds).toContain(MAIN_BLOCK_ID)
+      expect([...params.initBlockIds]).toEqual([INIT_BLOCK_ID])
     })
 
     it('returns plan with init in scope; warnings emitted when integrations diverge', async () => {

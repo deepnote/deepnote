@@ -7,7 +7,7 @@ import {
   LoadRunnableFileError,
   loadRunnableFile,
   resolveAndComposeInit,
-  saveExecutionSnapshot as sharedSaveExecutionSnapshot,
+  saveExecutionSnapshotForRun as sharedSaveExecutionSnapshotForRun,
 } from '@deepnote/convert'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
@@ -343,29 +343,18 @@ async function handleRun(args: Record<string, unknown>) {
     // For converted files, use a path where the .deepnote equivalent would be.
     const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
 
+    // Snapshot persistence is best-effort: a failure here must not fail the run.
     let snapshotPath: string | undefined
     try {
-      // Init-only run: skip the main snapshot (it would record an empty-main view). Otherwise exclude
-      // the borrowed init notebook so the snapshot matches the single-notebook main file (8243545).
-      const isComposed = initBlockIds.size > 0
-      const hasNonInitOutput = blockOutputs.some(o => !initBlockIds.has(o.id))
-      if (!(isComposed && !hasNonInitOutput)) {
-        const initNotebookId = file.project.initNotebookId
-        const snapshotFile =
-          isComposed && initNotebookId !== undefined
-            ? {
-                ...file,
-                project: { ...file.project, notebooks: file.project.notebooks.filter(nb => nb.id !== initNotebookId) },
-              }
-            : file
-        const snapshotResult = await sharedSaveExecutionSnapshot(snapshotSourcePath, snapshotFile, blockOutputs, {
-          startedAt: executionStartedAt,
-          finishedAt: executionFinishedAt,
-        })
-        snapshotPath = snapshotResult.snapshotPath
-      }
+      const snapshotResult = await sharedSaveExecutionSnapshotForRun({
+        sourcePath: snapshotSourcePath,
+        file,
+        blockOutputs,
+        timing: { startedAt: executionStartedAt, finishedAt: executionFinishedAt },
+        initBlockIds,
+      })
+      snapshotPath = snapshotResult?.snapshotPath
     } catch (error) {
-      // Snapshot saving is best-effort, but log for debugging
       // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
       console.error('[deepnote-mcp] Failed to save execution snapshot:', error instanceof Error ? error.message : error)
     }
@@ -553,25 +542,17 @@ async function handleRunBlock(
     // Save a single main snapshot; init excluded here when the prelude is active (8243545),
     // and skipped entirely for an init-only run.
     const snapshotSourcePath = wasConverted ? originalPath.replace(/\.(ipynb|py|qmd)$/, '.deepnote') : originalPath
+    // Snapshot persistence is best-effort: a failure here must not fail the run.
     let snapshotPath: string | undefined
     try {
-      const isComposed = initBlockIds.size > 0
-      const hasNonInitOutput = blockOutputs.some(o => !initBlockIds.has(o.id))
-      if (!(isComposed && !hasNonInitOutput)) {
-        const initNotebookId = file.project.initNotebookId
-        const snapshotFile =
-          isComposed && initNotebookId !== undefined
-            ? {
-                ...file,
-                project: { ...file.project, notebooks: file.project.notebooks.filter(nb => nb.id !== initNotebookId) },
-              }
-            : file
-        const snapshotResult = await sharedSaveExecutionSnapshot(snapshotSourcePath, snapshotFile, blockOutputs, {
-          startedAt: executionStartedAt,
-          finishedAt: executionFinishedAt,
-        })
-        snapshotPath = snapshotResult.snapshotPath
-      }
+      const snapshotResult = await sharedSaveExecutionSnapshotForRun({
+        sourcePath: snapshotSourcePath,
+        file,
+        blockOutputs,
+        timing: { startedAt: executionStartedAt, finishedAt: executionFinishedAt },
+        initBlockIds,
+      })
+      snapshotPath = snapshotResult?.snapshotPath
     } catch (error) {
       // biome-ignore lint/suspicious/noConsole: Intentional debug logging to stderr
       console.error('[deepnote-mcp] Failed to save execution snapshot:', error instanceof Error ? error.message : error)

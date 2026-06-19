@@ -32,9 +32,15 @@ export { InitNotebookResolutionError, resolveAndComposeInit } from './resolve-in
 export type {
   BlockExecutionOutput,
   ExecutionTiming,
+  SaveExecutionSnapshotForRunParams,
   SaveExecutionSnapshotResult,
 } from './save-execution-snapshot'
-export { getSnapshotPath, mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'
+export {
+  getSnapshotPath,
+  mergeOutputsIntoFile,
+  saveExecutionSnapshot,
+  saveExecutionSnapshotForRun,
+} from './save-execution-snapshot'
 // Snapshot notebook-id resolution
 export type { SnapshotNotebookIdFileInput, SnapshotNotebookIdProjectInput } from './snapshot-notebook-id'
 export { resolveSnapshotNotebookId } from './snapshot-notebook-id'

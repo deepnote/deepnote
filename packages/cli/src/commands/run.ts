@@ -4,7 +4,12 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
-import { InitNotebookResolutionError, type LoadedRunnableFile, resolveAndComposeInit } from '@deepnote/convert'
+import {
+  InitNotebookResolutionError,
+  type LoadedRunnableFile,
+  resolveAndComposeInit,
+  saveExecutionSnapshotForRun,
+} from '@deepnote/convert'
 import {
   ApiError,
   type DatabaseIntegrationConfig,
@@ -50,7 +55,6 @@ import {
   formatMemoryDelta,
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
-import { saveExecutionSnapshot } from '../utils/output-persistence'
 
 /**
  * Error thrown when required inputs are missing.
@@ -1036,15 +1040,30 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
       ...createRunProjectCallbacks({ engine, isMachineOutput, state }),
     })
 
-    await saveExecutionSnapshotBestEffort({
-      absolutePath,
-      convertedFile,
-      file,
-      blockResults: state.blockResults,
-      executionStartedAt,
-      isMachineOutput,
-      initBlockIds,
-    })
+    const snapshotSourcePath = convertedFile.wasConverted
+      ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
+      : absolutePath
+    // Snapshot persistence is best-effort: a failure here must not fail the run.
+    try {
+      const snapshotResult = await saveExecutionSnapshotForRun({
+        sourcePath: snapshotSourcePath,
+        file,
+        blockOutputs: state.blockResults,
+        timing: { startedAt: executionStartedAt, finishedAt: new Date().toISOString() },
+        initBlockIds,
+      })
+      if (snapshotResult !== undefined) {
+        debug(`Saved execution snapshot to: ${snapshotResult.timestampedSnapshotPath}`)
+        debug(`Updated latest snapshot: ${snapshotResult.snapshotPath}`)
+        if (!isMachineOutput) {
+          debug(`Snapshot saved to: ${snapshotResult.snapshotPath}`)
+        }
+      }
+    } catch (snapshotError) {
+      debug(
+        `Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`
+      )
+    }
 
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
@@ -1320,58 +1339,6 @@ async function recordBlockProfile(
   })
 
   return `, ${formatMemoryDelta(delta)}`
-}
-
-async function saveExecutionSnapshotBestEffort({
-  absolutePath,
-  convertedFile,
-  file,
-  blockResults,
-  executionStartedAt,
-  isMachineOutput,
-  initBlockIds,
-}: {
-  absolutePath: string
-  convertedFile: LoadedRunnableFile
-  file: DeepnoteFile
-  blockResults: BlockResult[]
-  executionStartedAt: string
-  isMachineOutput: boolean
-  initBlockIds?: Set<string>
-}): Promise<void> {
-  const executionFinishedAt = new Date().toISOString()
-
-  try {
-    const snapshotSourcePath = convertedFile.wasConverted
-      ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
-      : absolutePath
-
-    const ids = initBlockIds ?? new Set<string>()
-    const isComposed = ids.size > 0
-    const hasNonInitOutput = blockResults.some(b => !ids.has(b.id))
-    // Init-only run (e.g. --block=<initBlockId>): nothing non-init ran, so writing the main snapshot
-    // would clobber it with empty-main outputs. Skip — matches the previous in-saver behavior.
-    if (isComposed && !hasNonInitOutput) return
-    // Exclude the borrowed sibling-init notebook from the snapshot so it matches the single-notebook
-    // source file — only for a composed run (8243545); a non-composed local [init,main] keeps both.
-    const initNotebookId = file.project.initNotebookId
-    const snapshotFile =
-      isComposed && initNotebookId !== undefined
-        ? { ...file, project: { ...file.project, notebooks: mainNotebooks(file, initNotebookId) } }
-        : file
-
-    const { snapshotPath } = await saveExecutionSnapshot(snapshotSourcePath, snapshotFile, blockResults, {
-      startedAt: executionStartedAt,
-      finishedAt: executionFinishedAt,
-    })
-
-    if (!isMachineOutput) {
-      debug(`Snapshot saved to: ${snapshotPath}`)
-    }
-  } catch (snapshotError) {
-    // Snapshot saving is best-effort; don't fail the run if it fails
-    debug(`Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`)
-  }
 }
 
 async function buildMachineRunResult({
