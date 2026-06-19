@@ -32,7 +32,6 @@ export { MissingInitNotebookError, resolveAndComposeInit } from './resolve-init'
 export type {
   BlockExecutionOutput,
   ExecutionTiming,
-  SaveExecutionSnapshotOptions,
   SaveExecutionSnapshotResult,
 } from './save-execution-snapshot'
 export { getSnapshotPath, mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'

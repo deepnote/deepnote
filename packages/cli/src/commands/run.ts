@@ -1346,18 +1346,26 @@ async function saveExecutionSnapshotBestEffort({
       ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
       : absolutePath
 
-    const { snapshotPath } = await saveExecutionSnapshot(
-      snapshotSourcePath,
-      file,
-      blockResults,
-      {
-        startedAt: executionStartedAt,
-        finishedAt: executionFinishedAt,
-      },
-      { initBlockIds }
-    )
+    const ids = initBlockIds ?? new Set<string>()
+    const isComposed = ids.size > 0
+    const hasNonInitOutput = blockResults.some(b => !ids.has(b.id))
+    // Init-only run (e.g. --block=<initBlockId>): nothing non-init ran, so writing the main snapshot
+    // would clobber it with empty-main outputs. Skip — matches the previous in-saver behavior.
+    if (isComposed && !hasNonInitOutput) return
+    // Exclude the borrowed sibling-init notebook from the snapshot so it matches the single-notebook
+    // source file — only for a composed run (8243545); a non-composed local [init,main] keeps both.
+    const initNotebookId = file.project.initNotebookId
+    const snapshotFile =
+      isComposed && initNotebookId !== undefined
+        ? { ...file, project: { ...file.project, notebooks: mainNotebooks(file, initNotebookId) } }
+        : file
 
-    if (!isMachineOutput && snapshotPath !== undefined) {
+    const { snapshotPath } = await saveExecutionSnapshot(snapshotSourcePath, snapshotFile, blockResults, {
+      startedAt: executionStartedAt,
+      finishedAt: executionFinishedAt,
+    })
+
+    if (!isMachineOutput) {
       debug(`Snapshot saved to: ${snapshotPath}`)
     }
   } catch (snapshotError) {

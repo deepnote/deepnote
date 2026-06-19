@@ -1,7 +1,6 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import {
   type ExecutionTiming,
-  type SaveExecutionSnapshotOptions,
   type SaveExecutionSnapshotResult,
   saveExecutionSnapshot as saveExecutionSnapshotShared,
 } from '@deepnote/convert'
@@ -23,44 +22,32 @@ export interface BlockExecutionOutput {
  * Result of saving a snapshot.
  */
 export interface SaveSnapshotResult {
-  snapshotPath: string | undefined
-  timestampedSnapshotPath: string | undefined
+  snapshotPath: string
+  timestampedSnapshotPath: string
 }
 
 /**
  * Saves execution outputs to a snapshot file.
  *
  * Thin CLI wrapper around the shared `saveExecutionSnapshot` that reproduces the
- * CLI's debug logging and returns the result shape. For a composed (init + main)
- * run, `options.initBlockIds` excludes init from the main snapshot and skips it
- * entirely for an init-only run (returning undefined paths).
+ * CLI's debug logging and returns the result shape.
  *
  * @param sourcePath - Path to the original source file (or where it would be if converted)
  * @param file - The DeepnoteFile (original, without outputs)
  * @param blockOutputs - Outputs from executed blocks
  * @param timing - Execution start and end times
- * @param options - Composed-run options (init block ids)
  * @returns The paths to the saved snapshot files
  */
 export async function saveExecutionSnapshot(
   sourcePath: string,
   file: DeepnoteFile,
   blockOutputs: BlockExecutionOutput[],
-  timing: ExecutionTiming,
-  options: SaveExecutionSnapshotOptions = {}
+  timing: ExecutionTiming
 ): Promise<SaveSnapshotResult> {
-  const result: SaveExecutionSnapshotResult = await saveExecutionSnapshotShared(
-    sourcePath,
-    file,
-    blockOutputs,
-    timing,
-    options
-  )
+  const result: SaveExecutionSnapshotResult = await saveExecutionSnapshotShared(sourcePath, file, blockOutputs, timing)
 
-  if (result.snapshotPath !== undefined) {
-    debug(`Saved execution snapshot to: ${result.timestampedSnapshotPath}`)
-    debug(`Updated latest snapshot: ${result.snapshotPath}`)
-  }
+  debug(`Saved execution snapshot to: ${result.timestampedSnapshotPath}`)
+  debug(`Updated latest snapshot: ${result.snapshotPath}`)
 
   return {
     snapshotPath: result.snapshotPath,

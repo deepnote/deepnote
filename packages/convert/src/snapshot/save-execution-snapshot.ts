@@ -31,17 +31,18 @@ export interface ExecutionTiming {
  * Result of saving a snapshot.
  */
 export interface SaveExecutionSnapshotResult {
-  snapshotPath: string | undefined
-  timestampedSnapshotPath: string | undefined
+  snapshotPath: string
+  timestampedSnapshotPath: string
 }
 
-/** Options controlling {@link saveExecutionSnapshot}'s composed-run behavior. */
-export interface SaveExecutionSnapshotOptions {
-  /** Init-notebook block ids; non-empty means `file` is `[init, main]`-composed; used to exclude init from the main snapshot and to skip the main snapshot for an init-only run. */
-  initBlockIds?: ReadonlySet<string> | undefined
-}
-
-/** Merges execution outputs into a DeepnoteFile, replacing stale execution fields on referenced blocks. */
+/**
+ * Merges execution outputs into a DeepnoteFile.
+ *
+ * @param file - The original DeepnoteFile
+ * @param blockOutputs - Outputs from executed blocks
+ * @param timing - Execution start and end times
+ * @returns A new DeepnoteFile with outputs merged in
+ */
 export function mergeOutputsIntoFile(
   file: DeepnoteFile,
   blockOutputs: ReadonlyArray<BlockExecutionOutput>,
@@ -91,77 +92,38 @@ export function mergeOutputsIntoFile(
  * Saves execution outputs to a snapshot file.
  *
  * Creates a snapshot file in the snapshots/ directory next to the source file.
- * The snapshot contains all block outputs and execution metadata.
+ * The snapshot contains all block outputs and execution metadata, and is keyed by
+ * the file's notebook id (single notebook, else the main notebook in `[init, main]`
+ * shape; see {@link resolveSnapshotNotebookId}). The file is written as-is — callers
+ * are responsible for shaping it (e.g. excluding a borrowed init notebook).
  *
  * @param sourcePath - Path to the original source file (or where it would be if converted)
  * @param file - The DeepnoteFile (original, without outputs)
  * @param blockOutputs - Outputs from executed blocks
  * @param timing - Execution start and end times
- * @returns The paths to the saved snapshot (undefined for an init-only composed run that writes nothing)
+ * @returns The paths to the saved (latest + timestamped) snapshot files
  */
 export async function saveExecutionSnapshot(
   sourcePath: string,
   file: DeepnoteFile,
   blockOutputs: ReadonlyArray<BlockExecutionOutput>,
-  timing: ExecutionTiming,
-  options: SaveExecutionSnapshotOptions = {}
+  timing: ExecutionTiming
 ): Promise<SaveExecutionSnapshotResult> {
-  // Merge outputs into the file
   const fileWithOutputs = mergeOutputsIntoFile(file, blockOutputs, timing)
-
   const snapshotDir = getSnapshotDir(sourcePath)
   const slug = slugifyProjectName(file.project.name) || 'project'
   const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-
+  const notebookId = resolveSnapshotNotebookId(file)
+  const { snapshot } = splitDeepnoteFile(fileWithOutputs)
   await fs.mkdir(snapshotDir, { recursive: true })
-
-  // Skip the main snapshot for a composed run whose only outputs are init blocks (e.g. `--block=<initBlockId>`).
-  const initBlockIds: ReadonlySet<string> = options.initBlockIds ?? new Set<string>()
-  const isComposed = initBlockIds.size > 0
-  const hasNonInitOutput = blockOutputs.some(output => !initBlockIds.has(output.id))
-  const writeMainSnapshot = !isComposed || hasNonInitOutput
-
-  const mainNotebookId = resolveSnapshotNotebookId(file)
-  const mainTimestampedFilename = generateSnapshotFilename({
-    slug,
-    projectId: file.project.id,
-    notebookId: mainNotebookId,
-    timestamp,
-  })
-  const mainTimestampedPath = resolve(snapshotDir, mainTimestampedFilename)
-  const mainLatestFilename = generateSnapshotFilename({
-    slug,
-    projectId: file.project.id,
-    notebookId: mainNotebookId,
-  })
-  const mainLatestPath = resolve(snapshotDir, mainLatestFilename)
-
-  if (writeMainSnapshot) {
-    // Exclude the init notebook from the main snapshot — only for a composed run,
-    // where init was borrowed from a sibling. A non-composed local `[init, main]`
-    // file keeps both notebooks.
-    const initNotebookId = file.project.initNotebookId
-    const mainOnlyFile: DeepnoteFile =
-      isComposed && initNotebookId !== undefined
-        ? {
-            ...fileWithOutputs,
-            project: {
-              ...fileWithOutputs.project,
-              notebooks: fileWithOutputs.project.notebooks.filter(nb => nb.id !== initNotebookId),
-            },
-          }
-        : fileWithOutputs
-    const { snapshot: mainSnapshot } = splitDeepnoteFile(mainOnlyFile)
-    const mainYaml = serializeDeepnoteSnapshot(mainSnapshot)
-    await fs.writeFile(mainTimestampedPath, mainYaml, 'utf-8')
-    await fs.copyFile(mainTimestampedPath, mainLatestPath)
-  }
-
-  // An init-only composed run writes nothing, so report no paths.
-  return {
-    snapshotPath: writeMainSnapshot ? mainLatestPath : undefined,
-    timestampedSnapshotPath: writeMainSnapshot ? mainTimestampedPath : undefined,
-  }
+  const timestampedFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
+  const timestampedSnapshotPath = resolve(snapshotDir, timestampedFilename)
+  const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
+  const snapshotPath = resolve(snapshotDir, latestFilename)
+  const yaml = serializeDeepnoteSnapshot(snapshot)
+  await fs.writeFile(timestampedSnapshotPath, yaml, 'utf-8')
+  await fs.copyFile(timestampedSnapshotPath, snapshotPath)
+  return { snapshotPath, timestampedSnapshotPath }
 }
 
 /** Returns the path where the (main) snapshot would be saved for `sourcePath`. */

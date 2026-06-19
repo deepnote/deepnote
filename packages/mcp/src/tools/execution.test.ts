@@ -259,7 +259,7 @@ describe('execution tools handlers', () => {
       expect(text).toContain('Cannot resolve init notebook')
     })
 
-    it('composed run delegates the [init,main] file + init/main outputs + initBlockIds to saveExecutionSnapshot', async () => {
+    it('composed run delegates a main-only file + init/main outputs to saveExecutionSnapshot', async () => {
       const initPath = path.join(tempDir, 'project-init.deepnote')
       const mainPath = path.join(tempDir, 'project-main.deepnote')
       await fs.writeFile(initPath, makeInitFile(), 'utf-8')
@@ -301,22 +301,104 @@ describe('execution tools handlers', () => {
       expect(result.success).toBe(true)
       expect(result.snapshotPath).toBe('/mock/main-latest.snapshot.deepnote')
 
-      // saveExecutionSnapshot receives the [init, main]-shaped file and a non-empty initBlockIds set.
+      // The handler does the init-prep inline: it excludes the borrowed init notebook, so the helper
+      // receives a main-only file (and 4 args — no initBlockIds 5th arg).
       expect(mockSharedSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
       const saveCallArgs = mockSharedSaveExecutionSnapshot.mock.calls[0]
-      const composedFile = saveCallArgs[1] as { project: { notebooks: Array<{ id: string }> } }
-      expect(composedFile.project.notebooks.map(n => n.id)).toEqual([INIT_NB_ID, MAIN_NB_ID])
+      const snapshotFile = saveCallArgs[1] as { project: { notebooks: Array<{ id: string }> } }
+      expect(snapshotFile.project.notebooks.map(n => n.id)).toEqual([MAIN_NB_ID])
 
       const blockOutputs = saveCallArgs[2] as Array<{ id: string; outputs: unknown[] }>
       const blockIds = blockOutputs.map(b => b.id)
-      // Both init and main outputs are passed; saveExecutionSnapshot decides how to key/exclude them.
+      // Both init and main outputs are still passed through; only the init NOTEBOOK is excluded.
       expect(blockIds).toContain(INIT_BLOCK_ID)
       expect(blockIds).toContain(MAIN_BLOCK_ID)
+      expect(saveCallArgs).toHaveLength(4)
+    })
 
-      const snapshotOptions = saveCallArgs[4] as { initBlockIds?: ReadonlySet<string> }
-      expect(snapshotOptions?.initBlockIds).toBeDefined()
-      expect(snapshotOptions?.initBlockIds?.size).toBeGreaterThan(0)
-      expect(snapshotOptions?.initBlockIds?.has(INIT_BLOCK_ID)).toBe(true)
+    it('init-only run (--blockId=<initBlockId>) writes no snapshot and omits snapshotPath/hint', async () => {
+      const initPath = path.join(tempDir, 'project-init.deepnote')
+      const mainPath = path.join(tempDir, 'project-main.deepnote')
+      await fs.writeFile(initPath, makeInitFile(), 'utf-8')
+      await fs.writeFile(mainPath, makeMainFile(), 'utf-8')
+
+      // Drive ONLY the init block's onBlockDone, so blockOutputs is all-init with a non-empty initBlockIds.
+      mockEngineRunProject.mockReset()
+      mockEngineRunProject.mockImplementation(async (_file, options) => {
+        await options?.onBlockDone?.({
+          blockId: INIT_BLOCK_ID,
+          blockType: 'code',
+          success: true,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: ['init-output'] }],
+          executionCount: 1,
+          durationMs: 50,
+        })
+        return { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 50 }
+      })
+
+      mockSharedSaveExecutionSnapshot.mockReset()
+
+      const response = await handleExecutionTool('deepnote_run', {
+        path: mainPath,
+        blockId: INIT_BLOCK_ID,
+      })
+
+      const result = extractResult(response)
+      expect(result.success).toBe(true)
+      // The init-only run skips the snapshot before calling the helper.
+      expect(mockSharedSaveExecutionSnapshot).not.toHaveBeenCalled()
+      expect(result.snapshotPath).toBeUndefined()
+      expect(result.hint).toBeUndefined()
+    })
+
+    it('composed --blockId run (main block) delegates a main-only file to saveExecutionSnapshot', async () => {
+      const initPath = path.join(tempDir, 'project-init.deepnote')
+      const mainPath = path.join(tempDir, 'project-main.deepnote')
+      await fs.writeFile(initPath, makeInitFile(), 'utf-8')
+      await fs.writeFile(mainPath, makeMainFile(), 'utf-8')
+
+      // --blockId=<mainBlock> composes init as a prelude; emit both init + main outputs so the run is NOT init-only.
+      mockEngineRunProject.mockReset()
+      mockEngineRunProject.mockImplementation(async (_file, options) => {
+        await options?.onBlockDone?.({
+          blockId: INIT_BLOCK_ID,
+          blockType: 'code',
+          success: true,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: ['init-output'] }],
+          executionCount: 1,
+          durationMs: 50,
+        })
+        await options?.onBlockDone?.({
+          blockId: MAIN_BLOCK_ID,
+          blockType: 'code',
+          success: true,
+          outputs: [{ output_type: 'stream', name: 'stdout', text: ['main-output'] }],
+          executionCount: 2,
+          durationMs: 50,
+        })
+        return { totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 100 }
+      })
+
+      mockSharedSaveExecutionSnapshot.mockReset()
+      mockSharedSaveExecutionSnapshot.mockResolvedValue({
+        snapshotPath: '/mock/main-latest.snapshot.deepnote',
+        timestampedSnapshotPath: '/mock/main-timestamped.snapshot.deepnote',
+      })
+
+      const response = await handleExecutionTool('deepnote_run', {
+        path: mainPath,
+        blockId: MAIN_BLOCK_ID,
+      })
+
+      const result = extractResult(response)
+      expect(result.success).toBe(true)
+
+      // handleRunBlock does the same inline init-prep: the helper must receive a main-only file (init excluded).
+      expect(mockSharedSaveExecutionSnapshot).toHaveBeenCalledTimes(1)
+      const saveCallArgs = mockSharedSaveExecutionSnapshot.mock.calls[0]
+      const snapshotFile = saveCallArgs[1] as { project: { notebooks: Array<{ id: string }> } }
+      expect(snapshotFile.project.notebooks.map(n => n.id)).toEqual([MAIN_NB_ID])
+      expect(saveCallArgs).toHaveLength(4)
     })
 
     it('returns plan with init in scope; warnings emitted when integrations diverge', async () => {
