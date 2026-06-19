@@ -5,7 +5,7 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlockType } from 
 import { stripOutputsFromBlock } from './split'
 
 /** Thrown when a file's `project.initNotebookId` cannot be resolved locally or in a sibling `.deepnote` (CLI exit code 2). */
-export class MissingInitNotebookError extends Error {
+export class InitNotebookResolutionError extends Error {
   readonly kind: 'missing' | 'multiple'
   /** The init notebook id that could not be resolved. */
   readonly initNotebookId: string
@@ -25,7 +25,7 @@ export class MissingInitNotebookError extends Error {
     candidatePaths?: readonly string[]
   }) {
     super(args.message)
-    this.name = 'MissingInitNotebookError'
+    this.name = 'InitNotebookResolutionError'
     this.kind = args.kind
     this.initNotebookId = args.initNotebookId
     this.filePath = args.filePath
@@ -138,7 +138,7 @@ export async function resolveAndComposeInit(
     const localIds = file.project.notebooks.map(nb => nb.id)
     const localDescription =
       localIds.length > 0 ? `\nLocal notebook ids: [${localIds.join(', ')}]` : '\nLocal notebook ids: (none)'
-    throw new MissingInitNotebookError({
+    throw new InitNotebookResolutionError({
       message:
         `Cannot resolve init notebook for ${filePath}.\n` +
         `Missing init notebook id: ${initNotebookId}\n` +
@@ -154,7 +154,7 @@ export async function resolveAndComposeInit(
 
   if (matches.length > 1) {
     const matchList = matches.map(m => `  - ${m.path}`).join('\n')
-    throw new MissingInitNotebookError({
+    throw new InitNotebookResolutionError({
       message:
         `Cannot resolve init notebook for ${filePath}: multiple matching sibling init files found.\n` +
         `initNotebookId: ${initNotebookId}\n` +

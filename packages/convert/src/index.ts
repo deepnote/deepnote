@@ -117,7 +117,7 @@ export {
   hasOutputs,
   loadLatestSnapshot,
   loadSnapshotFile,
-  MissingInitNotebookError,
+  InitNotebookResolutionError,
   mergeOutputsIntoFile,
   mergeSnapshotIntoSource,
   parseSnapshotFilename,

@@ -4,7 +4,7 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
-import { type LoadedRunnableFile, MissingInitNotebookError, resolveAndComposeInit } from '@deepnote/convert'
+import { type LoadedRunnableFile, InitNotebookResolutionError, resolveAndComposeInit } from '@deepnote/convert'
 import {
   ApiError,
   type DatabaseIntegrationConfig,
@@ -603,7 +603,7 @@ export function createRunAction(program: Command): (path: string | undefined, op
         error instanceof FileResolutionError ||
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
-        error instanceof MissingInitNotebookError ||
+        error instanceof InitNotebookResolutionError ||
         isAuthApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error

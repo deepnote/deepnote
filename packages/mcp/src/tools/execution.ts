@@ -5,7 +5,7 @@ import {
   type LoadedRunnableFile,
   LoadRunnableFileError,
   loadRunnableFile,
-  MissingInitNotebookError,
+  InitNotebookResolutionError,
   resolveAndComposeInit,
   saveExecutionSnapshot as sharedSaveExecutionSnapshot,
 } from '@deepnote/convert'
@@ -195,7 +195,7 @@ async function handleRun(args: Record<string, unknown>) {
     const message = error instanceof Error ? error.message : String(error)
     let errorCode = getErrorCode(error)
     if (errorCode === undefined) {
-      if (error instanceof MissingInitNotebookError) {
+      if (error instanceof InitNotebookResolutionError) {
         errorCode = error.kind === 'multiple' ? 'INIT_NOTEBOOK_AMBIGUOUS' : 'INIT_NOTEBOOK_MISSING'
       } else if (error instanceof LoadRunnableFileError) {
         errorCode = 'LOAD_RUNNABLE_FILE'
