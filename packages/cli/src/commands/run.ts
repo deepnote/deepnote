@@ -36,7 +36,17 @@ import { collectRequiredIntegrationIds } from '../integrations/collect-integrati
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
 import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
-import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
+import {
+  debug,
+  getChalk,
+  log,
+  error as logError,
+  type OutputFormat,
+  output,
+  outputGcf,
+  outputJson,
+  outputToon,
+} from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
 import { getBlockLabel } from '../utils/block-label'
@@ -533,6 +543,11 @@ export function createRunAction(program: Command): (path: string | undefined, op
         process.exitCode = exitCode
         return
       }
+      if (options.output === 'gcf') {
+        outputGcf({ success: false, error: message })
+        process.exitCode = exitCode
+        return
+      }
       program.error(getChalk().red(message), { exitCode })
     }
   }
@@ -712,6 +727,8 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
     }
     if (options.output === 'toon') {
       outputToon(result)
+    } else if (options.output === 'gcf') {
+      outputGcf(result)
     } else {
       outputJson(result)
     }
@@ -904,6 +921,8 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
 
       if (options.output === 'toon') {
         outputToon(result, { showEfficiencyHint: true })
+      } else if (options.output === 'gcf') {
+        outputGcf(result)
       } else {
         outputJson(result)
       }

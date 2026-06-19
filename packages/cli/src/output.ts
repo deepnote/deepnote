@@ -1,3 +1,4 @@
+import { encodeGeneric as gcfEncode } from '@blackwell-systems/gcf'
 import { encode as toonEncode } from '@toon-format/toon'
 import { Chalk, type ChalkInstance } from 'chalk'
 import { analyzeToonEfficiency } from './utils/toon-analysis'
@@ -6,13 +7,14 @@ import { analyzeToonEfficiency } from './utils/toon-analysis'
  * Available output formats for CLI commands.
  * - json: Machine-readable JSON format for scripting
  * - toon: Token-Oriented Object Notation, optimized for LLM consumption
+ * - gcf: Graph Compact Format, optimized for LLM consumption with higher comprehension accuracy
  */
-export type OutputFormat = 'json' | 'toon'
+export type OutputFormat = 'json' | 'toon' | 'gcf'
 
 /**
  * Valid output format values for validation.
  */
-export const OUTPUT_FORMATS: readonly OutputFormat[] = ['json', 'toon'] as const
+export const OUTPUT_FORMATS: readonly OutputFormat[] = ['json', 'toon', 'gcf'] as const
 
 /**
  * Global output configuration for the CLI.
@@ -174,4 +176,16 @@ export function outputToon(data: unknown, options?: { showEfficiencyHint?: boole
       console.error(cliChalk.dim(hint))
     }
   }
+}
+
+/**
+ * Output data as GCF (Graph Compact Format).
+ * GCF is an LLM-optimized wire format with 90.7% comprehension accuracy
+ * across frontier models (vs 68.5% TOON, 53.6% JSON on adversarial data).
+ * Verified lossless across 33 billion+ round-trips.
+ *
+ * @see https://gcformat.com
+ */
+export function outputGcf(data: unknown): void {
+  console.log(gcfEncode(data))
 }

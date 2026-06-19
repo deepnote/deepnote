@@ -2,7 +2,16 @@ import fs from 'node:fs/promises'
 import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
+import {
+  debug,
+  getChalk,
+  error as logError,
+  type OutputFormat,
+  output,
+  outputGcf,
+  outputJson,
+  outputToon,
+} from '../output'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
 export interface InspectOptions {
@@ -26,6 +35,8 @@ export function createInspectAction(
         outputJson({ success: false, error: message })
       } else if (options.output === 'toon') {
         outputToon({ success: false, error: message })
+      } else if (options.output === 'gcf') {
+        outputGcf({ success: false, error: message })
       } else {
         logError(message)
       }
@@ -48,6 +59,8 @@ async function inspectDeepnoteFile(path: string | undefined, options: InspectOpt
     outputInspectJson(absolutePath, deepnoteFile)
   } else if (options.output === 'toon') {
     outputInspectToon(absolutePath, deepnoteFile)
+  } else if (options.output === 'gcf') {
+    outputGcf(buildInspectResult(absolutePath, deepnoteFile))
   } else {
     printDeepnoteFileMetadata(absolutePath, deepnoteFile)
   }

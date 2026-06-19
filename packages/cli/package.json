@@ -42,6 +42,7 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
+    "@blackwell-systems/gcf": "^2.1.2",
     "@deepnote/blocks": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/database-integrations": "workspace:*",

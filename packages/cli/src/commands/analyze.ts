@@ -3,7 +3,16 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
+import {
+  debug,
+  getChalk,
+  error as logError,
+  type OutputFormat,
+  output,
+  outputGcf,
+  outputJson,
+  outputToon,
+} from '../output'
 import { type AnalysisResult, analyzeProject, type BlockInfo, buildBlockMap } from '../utils/analysis'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
@@ -293,6 +302,11 @@ function outputAnalysis(result: AnalyzeResult, options: AnalyzeOptions): void {
     return
   }
 
+  if (options.output === 'gcf') {
+    outputGcf(result)
+    return
+  }
+
   // Human-readable text output
   const c = getChalk()
 
@@ -374,6 +388,8 @@ function handleError(error: unknown, options: AnalyzeOptions): never {
     outputJson({ success: false, error: message })
   } else if (options.output === 'toon') {
     outputToon({ success: false, error: message })
+  } else if (options.output === 'gcf') {
+    outputGcf({ success: false, error: message })
   } else {
     logError(message)
   }
