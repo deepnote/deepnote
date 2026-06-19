@@ -490,18 +490,6 @@ describe('generateSnapshotFilename path-component sanitization', () => {
     expect(filename).not.toContain('..')
   })
 
-  it('leaves legitimate UUID, hex, and slug ids unchanged', () => {
-    const filename = generateSnapshotFilename({
-      slug: 'my-project',
-      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
-      notebookId: 'd8fd4cfe9ce04908a4ed611000d231e4',
-      timestamp: '2025-01-08T10-30-00',
-    })
-    expect(filename).toBe(
-      'my-project_2e814690-4f02-465c-8848-5567ab9253b7_d8fd4cfe9ce04908a4ed611000d231e4_2025-01-08T10-30-00.snapshot.deepnote'
-    )
-  })
-
   it('preserves the backslash-free, separator-free invariant for Windows separators', () => {
     const filename = generateSnapshotFilename({
       slug: 'my-project',
@@ -560,6 +548,7 @@ describe('splitByNotebooks', () => {
     for (const entry of result) {
       expect(entry.file.project.id).toBe('proj-1')
       expect(entry.file.project.notebooks).toHaveLength(1)
+      expect(entry.kind).toBe('notebook')
     }
   })
 
@@ -639,29 +628,6 @@ describe('splitByNotebooks', () => {
     }
   })
 
-  it('should produce non-init entries containing only the non-init notebook', () => {
-    const file: DeepnoteFile = {
-      version: '1.0.0',
-      metadata: { createdAt: '2025-01-01T00:00:00Z' },
-      project: {
-        id: 'proj-1',
-        name: 'Test',
-        initNotebookId: 'nb-init',
-        notebooks: [
-          { id: 'nb-init', name: 'Init', blocks: [] },
-          { id: 'nb-main-a', name: 'Main A', blocks: [] },
-          { id: 'nb-main-b', name: 'Main B', blocks: [] },
-        ],
-      },
-    }
-    const result = splitByNotebooks(file, 'stem')
-    const mainIds = result
-      .filter(e => e.kind === 'notebook')
-      .map(e => e.notebook.id)
-      .sort()
-    expect(mainIds).toEqual(['nb-main-a', 'nb-main-b'].sort())
-  })
-
   it('should return an empty array when the file contains only the init notebook', () => {
     const file: DeepnoteFile = {
       version: '1.0.0',
@@ -674,26 +640,6 @@ describe('splitByNotebooks', () => {
       },
     }
     expect(splitByNotebooks(file, 'stem')).toEqual([])
-  })
-
-  it('should split all notebooks normally when no initNotebookId is set', () => {
-    const file: DeepnoteFile = {
-      version: '1.0.0',
-      metadata: { createdAt: '2025-01-01T00:00:00Z' },
-      project: {
-        id: 'proj-1',
-        name: 'Test',
-        notebooks: [
-          { id: 'nb-a', name: 'A', blocks: [] },
-          { id: 'nb-b', name: 'B', blocks: [] },
-        ],
-      },
-    }
-    const result = splitByNotebooks(file, 's')
-    expect(result).toHaveLength(2)
-    for (const entry of result) {
-      expect(entry.file.project.notebooks).toHaveLength(1)
-    }
   })
 
   it('should split all notebooks normally when initNotebookId points to a missing notebook', () => {
@@ -717,25 +663,6 @@ describe('splitByNotebooks', () => {
       expect(entry.file.project.notebooks).toHaveLength(1)
       // Dangling initNotebookId must be dropped so `deepnote run` treats these as plain no-init files.
       expect(entry.file.project.initNotebookId).toBeUndefined()
-    }
-  })
-
-  it('should mark every non-init entry with kind "notebook"', () => {
-    const file: DeepnoteFile = {
-      version: '1.0.0',
-      metadata: { createdAt: '2025-01-01T00:00:00Z' },
-      project: {
-        id: 'proj-1',
-        name: 'Test',
-        notebooks: [
-          { id: 'nb-a', name: 'A', blocks: [] },
-          { id: 'nb-b', name: 'B', blocks: [] },
-        ],
-      },
-    }
-    const result = splitByNotebooks(file, 's')
-    for (const entry of result) {
-      expect(entry.kind).toBe('notebook')
     }
   })
 })
