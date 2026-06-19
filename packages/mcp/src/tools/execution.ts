@@ -2,10 +2,10 @@ import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { extractOutputsText } from '@deepnote/blocks'
 import {
+  InitNotebookResolutionError,
   type LoadedRunnableFile,
   LoadRunnableFileError,
   loadRunnableFile,
-  InitNotebookResolutionError,
   resolveAndComposeInit,
   saveExecutionSnapshot as sharedSaveExecutionSnapshot,
 } from '@deepnote/convert'

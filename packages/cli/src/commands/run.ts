@@ -4,7 +4,7 @@ import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
-import { type LoadedRunnableFile, InitNotebookResolutionError, resolveAndComposeInit } from '@deepnote/convert'
+import { InitNotebookResolutionError, type LoadedRunnableFile, resolveAndComposeInit } from '@deepnote/convert'
 import {
   ApiError,
   type DatabaseIntegrationConfig,
