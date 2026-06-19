@@ -59,8 +59,6 @@ export interface ExecutionOptions {
   blockId?: string
   /** Run only the specified blocks (by ids). Takes precedence over blockId. */
   blockIds?: string[]
-  /** Notebook ids (e.g. init) always kept in scope even when {@link notebookName} filters to one notebook. */
-  preludeNotebookIds?: ReadonlySet<string>
   /**
    * Input values to inject before execution.
    * Keys are variable names, values are the values to assign.
@@ -171,14 +169,12 @@ export class ExecutionEngine {
     let executedBlocks = 0
     let failedBlocks = 0
 
-    // Filter notebooks if specified, but always keep prelude ids (e.g. init) in scope.
-    const preludeIds = options.preludeNotebookIds ?? new Set<string>()
+    // Filter notebooks if specified
     const notebooks = options.notebookName
-      ? file.project.notebooks.filter(n => n.name === options.notebookName || preludeIds.has(n.id))
+      ? file.project.notebooks.filter(n => n.name === options.notebookName)
       : file.project.notebooks
 
-    // The target notebook itself must exist; matching only a prelude is not enough.
-    if (options.notebookName && notebooks.find(n => n.name === options.notebookName) === undefined) {
+    if (options.notebookName && notebooks.length === 0) {
       throw new Error(`Notebook "${options.notebookName}" not found in project`)
     }
 

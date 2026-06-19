@@ -137,56 +137,6 @@ export async function saveExecutionSnapshot(
   return { snapshotPath, timestampedSnapshotPath }
 }
 
-export interface SaveExecutionSnapshotForRunParams {
-  /** Path to the source file (already rewritten to the .deepnote equivalent by the caller when the input was converted). */
-  sourcePath: string
-  /** The DeepnoteFile to snapshot (without outputs). May still contain a borrowed/composed init notebook. */
-  file: DeepnoteFile
-  /** Outputs from executed blocks (init + main). Only `id`/`outputs` are read. */
-  blockOutputs: ReadonlyArray<BlockExecutionOutput>
-  /** Execution start/end times. Caller-supplied for determinism. */
-  timing: ExecutionTiming
-  /** Block ids belonging to the composed init notebook. Non-empty => composed run. undefined is treated as empty. */
-  initBlockIds?: ReadonlySet<string> | undefined
-}
-
-/**
- * Save an execution snapshot for a run, applying the two init-aware rules every run-command caller
- * needs:
- *  1. Skip the save (return `undefined`) for an init-only composed run — nothing non-init executed,
- *     so writing would clobber the main snapshot with empty-main outputs.
- *  2. Exclude the borrowed init notebook from the written file so the snapshot matches the main source.
- * Returns the saved paths, or `undefined` when the save was skipped. Throws if the underlying write
- * fails — callers decide whether to treat snapshot persistence as best-effort (e.g. catch and log).
- */
-export async function saveExecutionSnapshotForRun(
-  params: SaveExecutionSnapshotForRunParams
-): Promise<SaveExecutionSnapshotResult | undefined> {
-  const { sourcePath, file, blockOutputs, timing, initBlockIds } = params
-  const ids = initBlockIds ?? new Set<string>()
-  const isComposed = ids.size > 0
-  const hasNonInitOutput = blockOutputs.some(output => !ids.has(output.id))
-  // Init-only composed run: nothing non-init executed, so writing would clobber the main snapshot. Skip.
-  if (isComposed && !hasNonInitOutput) {
-    return undefined
-  }
-
-  // Exclude the borrowed init notebook so the snapshot matches the single-notebook main source.
-  const initNotebookId = file.project.initNotebookId
-  const snapshotFile =
-    isComposed && initNotebookId !== undefined
-      ? {
-          ...file,
-          project: {
-            ...file.project,
-            notebooks: file.project.notebooks.filter(notebook => notebook.id !== initNotebookId),
-          },
-        }
-      : file
-
-  return saveExecutionSnapshot(sourcePath, snapshotFile, blockOutputs, timing)
-}
-
 /**
  * Gets the path where a snapshot would be saved for a given source file.
  *

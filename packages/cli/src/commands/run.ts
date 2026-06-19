@@ -8,7 +8,7 @@ import {
   InitNotebookResolutionError,
   type LoadedRunnableFile,
   resolveAndComposeInitIfNeeded,
-  saveExecutionSnapshotForRun,
+  saveExecutionSnapshot,
 } from '@deepnote/convert'
 import {
   ApiError,
@@ -101,9 +101,6 @@ export interface RunOptions {
   token?: string
   url?: string
 }
-
-/** A single notebook within a DeepnoteFile project. */
-type Notebook = DeepnoteFile['project']['notebooks'][number]
 
 /** Result of a single block execution for JSON output */
 interface BlockResult {
@@ -199,8 +196,6 @@ interface ProjectSetup {
   isMachineOutput: boolean
   convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
-  initBlockIds: Set<string>
-  initNotebookId: string | undefined
 }
 
 interface RunExecutionState {
@@ -298,8 +293,6 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   // Sibling-init resolution only applies to native .deepnote files (handled inside the shared helper).
   const resolved = await resolveAndComposeInitIfNeeded(convertedFile)
   file = resolved.composed
-  const initBlockIds = new Set(resolved.initBlockIds)
-  const initNotebookId = resolved.initNotebookId
   for (const warning of resolved.warnings) {
     if (isMachineOutput) {
       debug(`Init resolver warning: ${warning}`)
@@ -346,7 +339,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   debug(`Parsed ${parsedIntegrations.integrations.length} integrations from ${integrationsFilePath}`)
 
-  // Integration detection / requirement validation filter by --notebook only; init is intentionally not validated under --notebook (a separate decision).
+  // Fetch integrations from API if a token is available (--token flag or DEEPNOTE_TOKEN env var)
   const requiredIds = collectRequiredIntegrationIds(file, options.notebook)
   const allIntegrations = await fetchAndMergeApiIntegrations({
     localIntegrations: parsedIntegrations.integrations,
@@ -356,38 +349,27 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     isMachineOutput,
   })
 
-  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not.
-  // Note: init is intentionally not validated under --notebook (see comment above; a separate decision from executor scope).
+  // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
   await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
 
   // Inject integration environment variables into process.env
   // This allows SQL blocks to access database connections
   injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
-  return {
-    absolutePath,
-    workingDirectory,
-    file,
-    pythonEnv,
-    inputs,
-    isMachineOutput,
-    convertedFile,
-    allIntegrations,
-    initBlockIds,
-    initNotebookId,
-  }
+  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile, allIntegrations }
 }
 
 /**
- * Collect executable blocks from a list of notebooks, in sorted order.
- * When `blockIds` is given, only those blocks are kept (the engine list already includes any init prelude + target).
- * When no executable blocks survive the filter, `block` is validated so a bad id still throws.
+ * Collect executable blocks from a DeepnoteFile.
+ * Handles notebook and block filtering, and validates that requested blocks exist.
  */
 function collectExecutableBlocks(
-  notebooks: Notebook[],
-  options: { blockIds?: string[]; block?: string }
+  file: DeepnoteFile,
+  options: { notebook?: string; block?: string; blockIds?: string[] }
 ): DryRunBlockInfo[] {
-  const blockIdFilter = options.blockIds ? new Set(options.blockIds) : null
+  const notebooks = getNotebooksForExecutionScope(file, options)
+  const idsToValidate = options.blockIds ?? (options.block ? [options.block] : [])
+  const blockIdFilter = options.blockIds ? new Set(options.blockIds) : options.block ? new Set([options.block]) : null
 
   // Collect all executable blocks
   const executableBlocks: DryRunBlockInfo[] = []
@@ -412,7 +394,6 @@ function collectExecutableBlocks(
 
   // Validate requested IDs when filtering yields no executable blocks.
   if (executableBlocks.length === 0) {
-    const idsToValidate = options.blockIds ?? (options.block ? [options.block] : [])
     for (const blockId of idsToValidate) {
       assertExecutableBlockExists(blockId, notebooks)
     }
@@ -421,82 +402,31 @@ function collectExecutableBlocks(
   return executableBlocks
 }
 
-/** The non-init (main) notebooks — the surface the user's --notebook/--block filter applies to. */
-function mainNotebooks(file: DeepnoteFile, initNotebookId: string | undefined): DeepnoteFile['project']['notebooks'] {
-  return initNotebookId === undefined
-    ? file.project.notebooks
-    : file.project.notebooks.filter(nb => nb.id !== initNotebookId)
+function getNotebooksForExecutionScope(
+  file: DeepnoteFile,
+  options: { notebook?: string }
+): DeepnoteFile['project']['notebooks'] {
+  const notebooks = options.notebook
+    ? file.project.notebooks.filter(notebook => notebook.name === options.notebook)
+    : file.project.notebooks
+
+  if (options.notebook && notebooks.length === 0) {
+    throw new Error(`Notebook "${options.notebook}" not found in project`)
+  }
+
+  return notebooks
 }
 
-function selectScopeNotebooks(notebooks: Notebook[], options: { notebook?: string; block?: string }): Notebook[] {
+function selectScopeNotebooks(
+  notebooks: DeepnoteFile['project']['notebooks'],
+  options: { notebook?: string; block?: string }
+): DeepnoteFile['project']['notebooks'] {
   if (options.notebook) {
     return notebooks
   }
 
   const notebookWithTargetBlock = notebooks.find(notebook => notebook.blocks.some(block => block.id === options.block))
   return notebookWithTargetBlock ? [notebookWithTargetBlock] : notebooks
-}
-
-/** Translates a parsed user request into engine options + dry-run filters, shared by run and dry-run so they cannot diverge. */
-interface EngineExecutionScope {
-  notebookName: string | undefined
-  blockId: string | undefined
-  blockIds: string[] | undefined
-  preludeNotebookIds: ReadonlySet<string> | undefined
-  dryRunBlockIds: string[] | undefined
-}
-
-async function buildEngineExecutionScope(args: {
-  file: DeepnoteFile
-  options: { notebook?: string; block?: string }
-  initBlockIds: ReadonlySet<string>
-  initNotebookId: string | undefined
-  pythonEnv: string
-}): Promise<EngineExecutionScope> {
-  const { file, options, initBlockIds, initNotebookId, pythonEnv } = args
-  const main = mainNotebooks(file, initNotebookId)
-
-  // For split/init files, validate --block against the COMPOSED scope (init + name-filtered main) so an init block id is
-  // accepted and a bad id is rejected loudly instead of being dropped while init still runs (exit 0).
-  if (options.block && initBlockIds.size > 0) {
-    const initNb =
-      initNotebookId !== undefined ? file.project.notebooks.find(nb => nb.id === initNotebookId) : undefined
-    const filteredMain = options.notebook ? main.filter(nb => nb.name === options.notebook) : main
-    // Validate --notebook against the COMPOSED scope (main + init) so the init notebook can be named explicitly,
-    // consistent with the engine (which matches it by name or as a prelude) and the no-block run path.
-    if (options.notebook && filteredMain.length === 0 && initNb?.name !== options.notebook) {
-      throw new Error(`Notebook "${options.notebook}" not found in project`)
-    }
-    const composedScope = initNb ? [initNb, ...filteredMain] : filteredMain
-    assertExecutableBlockExists(options.block, composedScope)
-  }
-
-  const upstreamBlockIds = await resolveUpstreamExecutionBlockIds(
-    main,
-    { notebook: options.notebook, block: options.block },
-    pythonEnv
-  )
-
-  // Prepend init block ids exactly once so the prelude runs first; this is the only place init ids enter the engine list.
-  let blockIds: string[] | undefined = upstreamBlockIds
-  if (initBlockIds.size > 0 && options.block) {
-    blockIds = [...new Set([...initBlockIds, ...(upstreamBlockIds ?? [options.block])])]
-  }
-
-  const preludeNotebookIds = initNotebookId !== undefined ? new Set([initNotebookId]) : undefined
-
-  // Feed the same filter to the dry-run plan so it matches what the engine runs. The engine filters by `blockIds` when
-  // present, else by the single `blockId`; mirror that so a no-dep --block still scopes the plan to the target block.
-  const dryRunBlockIds = blockIds ?? (options.block ? [options.block] : undefined)
-
-  // Pass blockId alongside blockIds; the engine uses blockId only for error reporting when no explicit list is given.
-  return {
-    notebookName: options.notebook,
-    blockId: options.block,
-    blockIds,
-    preludeNotebookIds,
-    dryRunBlockIds,
-  }
 }
 
 function assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['project']['notebooks']): void {
@@ -515,13 +445,15 @@ function assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['p
 }
 
 async function resolveUpstreamExecutionBlockIds(
-  notebooks: Notebook[],
+  file: DeepnoteFile,
   options: { notebook?: string; block?: string },
   pythonInterpreter: string
 ): Promise<string[] | undefined> {
   if (!options.block) {
     return undefined
   }
+
+  const notebooks = getNotebooksForExecutionScope(file, options)
 
   // If notebook is not specified, scope DAG analysis to the notebook containing the target block.
   const scopeNotebooks = selectScopeNotebooks(notebooks, options)
@@ -555,7 +487,7 @@ async function resolveUpstreamExecutionBlockIds(
     return undefined
   }
   const blockIds = [...new Set([...upstreamIds, options.block])]
-  debug(`Block ${options.block} has ${upstreamIds.length} upstream dependencies: ${blockIds.join(', ')}`)
+  debug(`Block ${options.block} has ${upstreamIds.length} upstream dependencies: ${upstreamIds.join(', ')}`)
   return blockIds
 }
 
@@ -692,18 +624,9 @@ interface InputInfo {
 
 /**
  * Extract input block information from a DeepnoteFile.
- * `additionalNotebookNames` keeps prelude (init) notebooks in scope even under a `notebookName` filter.
- * Note: input listing/override is intentionally whole-file (init included) and independent of the executor scope — do not unify with the engine's main-only filter.
  */
-function getInputBlocks(
-  file: DeepnoteFile,
-  notebookName?: string,
-  options: { additionalNotebookNames?: string[] } = {}
-): InputInfo[] {
-  const additional = new Set(options.additionalNotebookNames ?? [])
-  const notebooks = notebookName
-    ? file.project.notebooks.filter(n => n.name === notebookName || additional.has(n.name))
-    : file.project.notebooks
+function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputInfo[] {
+  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
 
   const inputTypes = [
     'input-text',
@@ -753,7 +676,6 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
   const { originalPath: absolutePath } = converted
   const resolved = await resolveAndComposeInitIfNeeded(converted)
   const file = resolved.composed
-  const initNotebookName = resolved.initNotebookName
   for (const warning of resolved.warnings) {
     if (isMachineOutput) {
       debug(`Init resolver warning: ${warning}`)
@@ -762,9 +684,7 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
     }
   }
 
-  const inputs = getInputBlocks(file, options.notebook, {
-    additionalNotebookNames: initNotebookName !== undefined ? [initNotebookName] : [],
-  })
+  const inputs = getInputBlocks(file, options.notebook)
 
   if (options.output === 'json') {
     outputJson({
@@ -805,35 +725,11 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
  * Also validates that all requirements (inputs, integrations) are met.
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, file, isMachineOutput, pythonEnv, initBlockIds, initNotebookId } = await setupProject(
-    path,
-    options
-  )
-  // Build the engine scope first so a bad --block/--notebook throws in dry-run too (it runs the --block existence guard).
-  const scope = await buildEngineExecutionScope({
-    file,
-    options,
-    initBlockIds,
-    initNotebookId,
-    pythonEnv,
-  })
+  const { absolutePath, file, isMachineOutput, pythonEnv } = await setupProject(path, options)
+  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const executableBlocks = collectExecutableBlocks(file, { ...options, blockIds })
 
-  // Mirror the engine's scope: the user's --notebook filter applies to main, with init prepended as a prelude.
-  const main = mainNotebooks(file, initNotebookId)
-  const initNb = initNotebookId !== undefined ? file.project.notebooks.find(n => n.id === initNotebookId) : undefined
-  const filteredMain = options.notebook ? main.filter(n => n.name === options.notebook) : main
-  // Validate --notebook against the COMPOSED scope (main + init) so the init notebook can be named explicitly,
-  // matching the run path and the engine.
-  if (options.notebook && filteredMain.length === 0 && initNb?.name !== options.notebook) {
-    throw new Error(`Notebook "${options.notebook}" not found in project`)
-  }
-  const scopedNotebooks = initNb ? [initNb, ...filteredMain] : filteredMain
-  const executableBlocks = collectExecutableBlocks(scopedNotebooks, {
-    blockIds: scope.dryRunBlockIds,
-    block: options.block,
-  })
-
-  const notebookCount = options.notebook ? scopedNotebooks.length : file.project.notebooks.length
+  const notebookCount = options.notebook ? 1 : file.project.notebooks.length
 
   if (isMachineOutput) {
     const result: DryRunResult = {
@@ -977,18 +873,8 @@ async function validateRequirements(
 }
 
 async function runDeepnoteProject(path: string | undefined, options: RunOptions): Promise<void> {
-  const {
-    absolutePath,
-    workingDirectory,
-    pythonEnv,
-    inputs,
-    isMachineOutput,
-    convertedFile,
-    file,
-    allIntegrations,
-    initBlockIds,
-    initNotebookId,
-  } = await setupProject(path, options)
+  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file, allIntegrations } =
+    await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
@@ -1011,50 +897,26 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
 
     // Track execution timing for snapshot
     const executionStartedAt = new Date().toISOString()
-
-    const scope = await buildEngineExecutionScope({
-      file,
-      options,
-      initBlockIds,
-      initNotebookId,
-      pythonEnv,
-    })
+    const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
 
     // Use runProject instead of runFile since we may have converted the file in memory
     const summary = await engine.runProject(file, {
-      notebookName: scope.notebookName,
-      blockId: scope.blockId,
-      blockIds: scope.blockIds,
-      preludeNotebookIds: scope.preludeNotebookIds,
+      notebookName: options.notebook,
+      blockId: options.block,
+      blockIds,
       inputs,
       integrations: allIntegrations.map(i => ({ id: i.id, name: i.name, type: i.type })),
       ...createRunProjectCallbacks({ engine, isMachineOutput, state }),
     })
 
-    const snapshotSourcePath = convertedFile.wasConverted
-      ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
-      : absolutePath
-    // Snapshot persistence is best-effort: a failure here must not fail the run.
-    try {
-      const snapshotResult = await saveExecutionSnapshotForRun({
-        sourcePath: snapshotSourcePath,
-        file,
-        blockOutputs: state.blockResults,
-        timing: { startedAt: executionStartedAt, finishedAt: new Date().toISOString() },
-        initBlockIds,
-      })
-      if (snapshotResult !== undefined) {
-        debug(`Saved execution snapshot to: ${snapshotResult.timestampedSnapshotPath}`)
-        debug(`Updated latest snapshot: ${snapshotResult.snapshotPath}`)
-        if (!isMachineOutput) {
-          debug(`Snapshot saved to: ${snapshotResult.snapshotPath}`)
-        }
-      }
-    } catch (snapshotError) {
-      debug(
-        `Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`
-      )
-    }
+    await saveExecutionSnapshotBestEffort({
+      absolutePath,
+      convertedFile,
+      file,
+      blockResults: state.blockResults,
+      executionStartedAt,
+      isMachineOutput,
+    })
 
     const exitCode = summary.failedBlocks > 0 ? ExitCode.Error : ExitCode.Success
 
@@ -1330,6 +1192,42 @@ async function recordBlockProfile(
   })
 
   return `, ${formatMemoryDelta(delta)}`
+}
+
+async function saveExecutionSnapshotBestEffort({
+  absolutePath,
+  convertedFile,
+  file,
+  blockResults,
+  executionStartedAt,
+  isMachineOutput,
+}: {
+  absolutePath: string
+  convertedFile: LoadedRunnableFile
+  file: DeepnoteFile
+  blockResults: BlockResult[]
+  executionStartedAt: string
+  isMachineOutput: boolean
+}): Promise<void> {
+  const executionFinishedAt = new Date().toISOString()
+
+  try {
+    const snapshotSourcePath = convertedFile.wasConverted
+      ? absolutePath.replace(/\.(ipynb|py|qmd)$/, '.deepnote')
+      : absolutePath
+
+    const { snapshotPath } = await saveExecutionSnapshot(snapshotSourcePath, file, blockResults, {
+      startedAt: executionStartedAt,
+      finishedAt: executionFinishedAt,
+    })
+
+    if (!isMachineOutput) {
+      debug(`Snapshot saved to: ${snapshotPath}`)
+    }
+  } catch (snapshotError) {
+    // Snapshot saving is best-effort; don't fail the run if it fails
+    debug(`Failed to save snapshot: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`)
+  }
 }
 
 async function buildMachineRunResult({
