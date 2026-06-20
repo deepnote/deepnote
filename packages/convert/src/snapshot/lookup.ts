@@ -3,13 +3,14 @@ import { basename, dirname, join, resolve } from 'node:path'
 import type { DeepnoteSnapshot } from '@deepnote/blocks'
 import { deepnoteSnapshotSchema } from '@deepnote/blocks'
 import { parse } from 'yaml'
+import { decodeNotebookIdFromFilename } from './split'
 import type { SnapshotInfo, SnapshotOptions } from './types'
 
 /** Default directory name for snapshots */
 const DEFAULT_SNAPSHOT_DIR = 'snapshots'
 
-/** Notebook id: UUID, 32-char hex, or any non-empty `[A-Za-z0-9_-]` id, matching what snapshot writers embed today. */
-const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[a-zA-Z0-9][a-zA-Z0-9_-]*)'
+/** Notebook id as embedded by {@link generateSnapshotFilename}: UUID, 32-char hex, or a reversibly percent-encoded id (`[A-Za-z0-9_-]` kept verbatim, every other char as `%XX`). */
+const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[A-Za-z0-9%][A-Za-z0-9_%-]*)'
 
 /** Regex pattern for snapshot filenames (new format with notebookId) */
 const SNAPSHOT_SINGLE_NOTEBOOK_FILENAME_PATTERN = new RegExp(
@@ -33,7 +34,8 @@ export function parseSnapshotFilename(
     return {
       slug: match[1],
       projectId: match[2],
-      notebookId: match[3],
+      // Decode back to the original id so lookup compares raw-vs-raw (the writer percent-encodes it).
+      notebookId: decodeNotebookIdFromFilename(match[3]),
       timestamp: match[4],
     }
   }

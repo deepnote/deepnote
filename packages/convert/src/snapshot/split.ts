@@ -35,12 +35,58 @@ function sanitizeFilenameComponent(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
+/** Characters kept verbatim inside an encoded notebook id; every other character is percent-escaped. */
+const FILENAME_SAFE_NOTEBOOK_ID_CHAR = /[A-Za-z0-9_-]/
+const utf8Encoder = new TextEncoder()
+const utf8Decoder = new TextDecoder()
+
+/**
+ * Reversibly encodes a notebook id into a single, path-safe snapshot-filename component.
+ *
+ * Filename-safe characters (`[A-Za-z0-9_-]`) are kept verbatim, so UUID / hex / already-clean ids are
+ * unchanged — existing snapshots keep resolving and names stay readable. Every other character —
+ * including `%` itself and any path-traversal character such as `.`, `/` or `\` — is escaped as the
+ * uppercase percent-hex of its UTF-8 bytes (e.g. `.` → `%2E`). Because the mapping is lossless and
+ * injective, the write side (here) and the lookup side never disagree (no missed snapshots) and two
+ * distinct ids can never collide onto the same filename. Inverse: {@link decodeNotebookIdFromFilename}.
+ */
+export function encodeNotebookIdForFilename(notebookId: string): string {
+  let encoded = ''
+  for (const char of notebookId) {
+    if (FILENAME_SAFE_NOTEBOOK_ID_CHAR.test(char)) {
+      encoded += char
+      continue
+    }
+    for (const byte of utf8Encoder.encode(char)) {
+      encoded += `%${byte.toString(16).toUpperCase().padStart(2, '0')}`
+    }
+  }
+  return encoded
+}
+
+/** Recovers the original notebook id from a component produced by {@link encodeNotebookIdForFilename}. */
+export function decodeNotebookIdFromFilename(encoded: string): string {
+  const bytes: number[] = []
+  let i = 0
+  while (i < encoded.length) {
+    const hex = encoded.slice(i + 1, i + 3)
+    if (encoded[i] === '%' && /^[0-9A-Fa-f]{2}$/.test(hex)) {
+      bytes.push(Number.parseInt(hex, 16))
+      i += 3
+    } else {
+      bytes.push(encoded.charCodeAt(i))
+      i += 1
+    }
+  }
+  return utf8Decoder.decode(new Uint8Array(bytes))
+}
+
 /**
  * Generates a snapshot filename from project info.
  *
  * @param params.slug - The project name slug
  * @param params.projectId - The project UUID
- * @param params.notebookId - Optional notebook UUID; scopes the filename to a single notebook
+ * @param params.notebookId - Optional notebook id; reversibly encoded to scope the filename to a single notebook
  * @param params.timestamp - Timestamp string or 'latest'
  * @returns Filename in format '{slug}_{projectId}[_{notebookId}]_{timestamp}.snapshot.deepnote'
  */
@@ -49,7 +95,7 @@ export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams)
   const safeSlug = sanitizeFilenameComponent(slug)
   const safeProjectId = sanitizeFilenameComponent(projectId)
   if (notebookId) {
-    return `${safeSlug}_${safeProjectId}_${sanitizeFilenameComponent(notebookId)}_${timestamp}.snapshot.deepnote`
+    return `${safeSlug}_${safeProjectId}_${encodeNotebookIdForFilename(notebookId)}_${timestamp}.snapshot.deepnote`
   }
   return `${safeSlug}_${safeProjectId}_${timestamp}.snapshot.deepnote`
 }

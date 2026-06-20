@@ -9,6 +9,7 @@ import {
   parseSourceFilePath,
   snapshotExists,
 } from './lookup'
+import { generateSnapshotFilename } from './split'
 
 // Mock fs module
 vi.mock('node:fs/promises')
@@ -87,6 +88,35 @@ describe('parseSnapshotFilename', () => {
   it('should return undefined notebookId for old-format filename', () => {
     const result = parseSnapshotFilename('my-project_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote')
     expect(result?.notebookId).toBeUndefined()
+  })
+})
+
+describe('generateSnapshotFilename ↔ parseSnapshotFilename round-trip', () => {
+  const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+
+  it.each([
+    '2e814690-4f02-465c-8848-5567ab9253b7', // UUID
+    'd8fd4cfe9ce04908a4ed611000d231e4', // 32-char hex
+    'nb-1',
+    'nb_1',
+    'nb.1',
+    'a_b.c',
+    'my.notebook.v2',
+    'weird id/with\\sep.chars',
+    'café-π',
+  ])('recovers notebook id %s embedded in the generated filename', id => {
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId,
+      notebookId: id,
+      timestamp: '2025-01-08T10-30-00',
+    })
+
+    const parsed = parseSnapshotFilename(filename)
+
+    expect(parsed?.notebookId).toBe(id)
+    expect(parsed?.projectId).toBe(projectId)
+    expect(parsed?.timestamp).toBe('2025-01-08T10-30-00')
   })
 })
 
@@ -251,6 +281,42 @@ describe('findSnapshotsForProject', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].notebookId).toBeUndefined()
+  })
+
+  it('finds a scoped snapshot whose notebook id has filename-unsafe characters (regression: lossy id sanitization)', async () => {
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const notebookId = 'nb.1'
+    // Use the real writer so the on-disk name matches what `saveExecutionSnapshot` would produce.
+    const scopedName = generateSnapshotFilename({ slug: 'my-project', projectId, notebookId })
+    vi.mocked(fs.readdir).mockResolvedValue([{ name: scopedName, isFile: () => true }] as unknown as Awaited<
+      ReturnType<typeof fs.readdir>
+    >)
+
+    const result = await findSnapshotsForProject('/path/to', projectId, { notebookId })
+
+    expect(result).toHaveLength(1)
+    expect(result[0].notebookId).toBe(notebookId)
+  })
+
+  it('does not alias ids that previously collided under sanitization (`nb.1` vs `nb_1`)', async () => {
+    const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
+    const dottedName = generateSnapshotFilename({ slug: 'my-project', projectId, notebookId: 'nb.1' })
+    const underscoreName = generateSnapshotFilename({ slug: 'my-project', projectId, notebookId: 'nb_1' })
+
+    // Distinct filenames → no overwrite on write.
+    expect(dottedName).not.toBe(underscoreName)
+
+    vi.mocked(fs.readdir).mockResolvedValue([
+      { name: dottedName, isFile: () => true },
+      { name: underscoreName, isFile: () => true },
+    ] as unknown as Awaited<ReturnType<typeof fs.readdir>>)
+
+    // …and each lookup returns only its own snapshot, never the other.
+    const dotted = await findSnapshotsForProject('/path/to', projectId, { notebookId: 'nb.1' })
+    expect(dotted.map(s => s.notebookId)).toEqual(['nb.1'])
+
+    const underscore = await findSnapshotsForProject('/path/to', projectId, { notebookId: 'nb_1' })
+    expect(underscore.map(s => s.notebookId)).toEqual(['nb_1'])
   })
 })
 

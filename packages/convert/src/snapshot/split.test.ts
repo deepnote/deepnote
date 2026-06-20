@@ -1,6 +1,14 @@
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import { generateSnapshotFilename, hasOutputs, slugifyProjectName, splitByNotebooks, splitDeepnoteFile } from './split'
+import {
+  decodeNotebookIdFromFilename,
+  encodeNotebookIdForFilename,
+  generateSnapshotFilename,
+  hasOutputs,
+  slugifyProjectName,
+  splitByNotebooks,
+  splitDeepnoteFile,
+} from './split'
 
 describe('slugifyProjectName', () => {
   it('should convert to lowercase', () => {
@@ -468,18 +476,26 @@ describe('generateSnapshotFilename with notebookId', () => {
 })
 
 describe('generateSnapshotFilename path-component sanitization', () => {
-  it('neutralizes path traversal in notebookId', () => {
+  // notebookId is reversibly percent-encoded: path-unsafe characters never survive verbatim,
+  // but the mapping is lossless (unlike the old `→ _` sanitization). See the round-trip suite below.
+  it.each([
+    { notebookId: '../evil', encoded: '%2E%2E%2Fevil' },
+    { notebookId: '..\\..\\win', encoded: '%2E%2E%5C%2E%2E%5Cwin' },
+    { notebookId: 'a/b', encoded: 'a%2Fb' },
+    { notebookId: 'nb.1', encoded: 'nb%2E1' },
+  ])('encodes path-unsafe notebookId $notebookId without leaking separators', ({ notebookId, encoded }) => {
     const filename = generateSnapshotFilename({
       slug: 'my-project',
       projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
-      notebookId: '../evil',
+      notebookId,
     })
-    expect(filename).toBe('my-project_2e814690-4f02-465c-8848-5567ab9253b7____evil_latest.snapshot.deepnote')
+    expect(filename).toBe(`my-project_2e814690-4f02-465c-8848-5567ab9253b7_${encoded}_latest.snapshot.deepnote`)
     expect(filename).not.toContain('/')
+    expect(filename).not.toContain('\\')
     expect(filename).not.toContain('..')
   })
 
-  it('neutralizes path separators in slug and projectId', () => {
+  it('still neutralizes path separators in slug and projectId', () => {
     const filename = generateSnapshotFilename({
       slug: '../etc',
       projectId: 'a/b',
@@ -489,15 +505,34 @@ describe('generateSnapshotFilename path-component sanitization', () => {
     expect(filename).not.toContain('/')
     expect(filename).not.toContain('..')
   })
+})
 
-  it('preserves the backslash-free, separator-free invariant for Windows separators', () => {
-    const filename = generateSnapshotFilename({
-      slug: 'my-project',
-      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
-      notebookId: '..\\..\\win',
-    })
-    expect(filename).not.toContain('\\')
-    expect(filename).not.toContain('..')
+describe('notebook-id filename codec', () => {
+  it.each([
+    '2e814690-4f02-465c-8848-5567ab9253b7', // UUID
+    'd8fd4cfe9ce04908a4ed611000d231e4', // 32-char hex
+    'nb-1',
+    'nb_1',
+    'nb.1',
+    'a_b.c',
+    'my.notebook.v2',
+    'weird id/with\\sep.chars',
+    'unicode-café-π',
+    '100%-done',
+  ])('round-trips %s losslessly through encode → decode', id => {
+    expect(decodeNotebookIdFromFilename(encodeNotebookIdForFilename(id))).toBe(id)
+  })
+
+  it.each(['2e814690-4f02-465c-8848-5567ab9253b7', 'd8fd4cfe9ce04908a4ed611000d231e4', 'nb-1', 'nb_1'])(
+    'keeps filename-safe id %s byte-identical (backward compatible)',
+    id => {
+      expect(encodeNotebookIdForFilename(id)).toBe(id)
+    }
+  )
+
+  it('distinguishes ids that previously collided under `→ _` sanitization', () => {
+    // Before this fix both `nb.1` and `nb_1` serialized to `nb_1`, aliasing two distinct notebooks.
+    expect(encodeNotebookIdForFilename('nb.1')).not.toBe(encodeNotebookIdForFilename('nb_1'))
   })
 })
 
