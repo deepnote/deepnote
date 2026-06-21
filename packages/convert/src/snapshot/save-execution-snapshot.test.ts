@@ -1,16 +1,11 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { type DeepnoteFile, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import { loadRootFixture } from '../../../../test-fixtures/helpers/fixture-loader'
-import {
-  type BlockExecutionOutput,
-  getSnapshotPath,
-  mergeOutputsIntoFile,
-  saveExecutionSnapshot,
-} from './save-execution-snapshot'
+import { type BlockExecutionOutput, mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'
 
 describe('output-persistence', () => {
   /** Load the test fixture and return a fresh copy */
@@ -165,51 +160,6 @@ describe('output-persistence', () => {
 
       // Original should be unchanged
       expect((originalBlock as { outputs?: unknown[] }).outputs).toBeUndefined()
-    })
-  })
-
-  describe('getSnapshotPath', () => {
-    it('returns correct snapshot path', async () => {
-      const file = await loadTestFile()
-      const sourcePath = '/path/to/project.deepnote'
-
-      const result = getSnapshotPath(sourcePath, file)
-
-      expect(result).toBe(
-        resolve(
-          '/path/to',
-          'snapshots',
-          'test-project_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
-        )
-      )
-    })
-
-    it('handles project name with special characters', async () => {
-      const file = await loadTestFile()
-      file.project.name = 'My Project (Draft) #1'
-      const sourcePath = '/path/to/project.deepnote'
-
-      const result = getSnapshotPath(sourcePath, file)
-
-      expect(result).toBe(
-        resolve(
-          '/path/to',
-          'snapshots',
-          'my-project-draft-1_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
-        )
-      )
-    })
-
-    it('uses "project" as fallback for empty name', async () => {
-      const file = await loadTestFile()
-      file.project.name = ''
-      const sourcePath = '/path/to/project.deepnote'
-
-      const result = getSnapshotPath(sourcePath, file)
-
-      expect(result).toBe(
-        resolve('/path/to', 'snapshots', 'project_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote')
-      )
     })
   })
 

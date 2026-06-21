@@ -35,7 +35,7 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
 
       await fs.mkdir(outputDir, { recursive: true })
 
-      // Each split entry is its own single-notebook file (kind 'init' or 'notebook') — see splitByNotebooks docs.
+      // Each split entry is its own single-notebook file — see splitByNotebooks docs.
       const writtenFiles: string[] = []
       const force = Boolean(options.force)
       for (const split of splits) {

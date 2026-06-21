@@ -114,7 +114,6 @@ export {
   findSnapshotsForProject,
   generateSnapshotFilename,
   getSnapshotDir,
-  getSnapshotPath,
   hasOutputs,
   InitNotebookResolutionError,
   loadLatestSnapshot,

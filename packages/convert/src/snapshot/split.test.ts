@@ -582,7 +582,6 @@ describe('splitByNotebooks', () => {
     for (const entry of result) {
       expect(entry.file.project.id).toBe('proj-1')
       expect(entry.file.project.notebooks).toHaveLength(1)
-      expect(entry.kind).toBe('notebook')
     }
   })
 
@@ -646,13 +645,13 @@ describe('splitByNotebooks', () => {
     }
     const result = splitByNotebooks(file, 'stem')
     expect(result).toHaveLength(3)
-    const initEntry = result.find(e => e.kind === 'init')
+    const initEntry = result.find(e => e.file.project.notebooks[0]?.id === 'nb-init')
     expect(initEntry).toBeDefined()
     expect(initEntry?.file.project.notebooks).toHaveLength(1)
     expect(initEntry?.file.project.notebooks[0]?.id).toBe('nb-init')
     expect(initEntry?.file.project.initNotebookId).toBe('nb-init')
 
-    const mainEntries = result.filter(e => e.kind === 'notebook')
+    const mainEntries = result.filter(e => e.file.project.notebooks[0]?.id !== 'nb-init')
     expect(mainEntries).toHaveLength(2)
     for (const entry of mainEntries) {
       expect(entry.file.project.notebooks).toHaveLength(1)

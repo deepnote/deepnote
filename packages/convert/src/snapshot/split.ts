@@ -214,7 +214,7 @@ function allocateUniqueNotebookSplitFilename(sourceFileStem: string, notebookNam
   )
 }
 
-/** Splits a multi-notebook DeepnoteFile into one file per notebook, emitting the init notebook as a standalone `kind: 'init'` entry. */
+/** Splits a multi-notebook DeepnoteFile into one file per notebook, emitting the init notebook (if any) as a standalone entry first. */
 export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): NotebookSplitEntry[] {
   const notebooks = file.project.notebooks
   if (notebooks.length === 0) {
@@ -244,7 +244,6 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
         },
       },
       outputFilename: initFilename,
-      kind: 'init',
     })
   }
 
@@ -267,7 +266,6 @@ export function splitByNotebooks(file: DeepnoteFile, sourceFileStem: string): No
       notebook: { id: notebook.id, name: notebook.name },
       file: { ...file, project },
       outputFilename,
-      kind: 'notebook',
     })
   }
 

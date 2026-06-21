@@ -136,18 +136,3 @@ export async function saveExecutionSnapshot(
 
   return { snapshotPath, timestampedSnapshotPath }
 }
-
-/**
- * Gets the path where a snapshot would be saved for a given source file.
- *
- * @param sourcePath - Path to the source file
- * @param file - The DeepnoteFile
- * @returns The snapshot file path
- */
-export function getSnapshotPath(sourcePath: string, file: DeepnoteFile): string {
-  const snapshotDir = getSnapshotDir(sourcePath)
-  const slug = slugifyProjectName(file.project.name) || 'project'
-  const notebookId = resolveSnapshotNotebookId(file)
-  const snapshotFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
-  return resolve(snapshotDir, snapshotFilename)
-}

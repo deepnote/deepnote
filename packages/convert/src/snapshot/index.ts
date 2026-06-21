@@ -34,7 +34,7 @@ export type {
   ExecutionTiming,
   SaveExecutionSnapshotResult,
 } from './save-execution-snapshot'
-export { getSnapshotPath, mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'
+export { mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'
 // Snapshot notebook-id resolution
 export type { SnapshotNotebookIdFileInput, SnapshotNotebookIdProjectInput } from './snapshot-notebook-id'
 export { resolveSnapshotNotebookId } from './snapshot-notebook-id'

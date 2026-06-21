@@ -7,30 +7,11 @@ import { stripOutputsFromBlock } from './split'
 /** Thrown when a file's `project.initNotebookId` cannot be resolved locally or in a sibling `.deepnote` (CLI exit code 2). */
 export class InitNotebookResolutionError extends Error {
   readonly kind: 'missing' | 'multiple'
-  /** The init notebook id that could not be resolved. */
-  readonly initNotebookId: string
-  /** The path of the file that referenced the missing init notebook. */
-  readonly filePath: string
-  /** The directory that was searched for sibling init files. */
-  readonly searchedDirectory: string
-  /** Paths of candidate siblings that matched (only populated when `kind === 'multiple'`). */
-  readonly candidatePaths: readonly string[]
 
-  constructor(args: {
-    message: string
-    kind: 'missing' | 'multiple'
-    initNotebookId: string
-    filePath: string
-    searchedDirectory: string
-    candidatePaths?: readonly string[]
-  }) {
+  constructor(args: { message: string; kind: 'missing' | 'multiple' }) {
     super(args.message)
     this.name = 'InitNotebookResolutionError'
     this.kind = args.kind
-    this.initNotebookId = args.initNotebookId
-    this.filePath = args.filePath
-    this.searchedDirectory = args.searchedDirectory
-    this.candidatePaths = args.candidatePaths ?? []
   }
 }
 
@@ -175,9 +156,6 @@ export async function resolveAndComposeInit(
         localDescription +
         rejectedDescription,
       kind: 'missing',
-      initNotebookId,
-      filePath,
-      searchedDirectory: directory,
     })
   }
 
@@ -189,10 +167,6 @@ export async function resolveAndComposeInit(
         `initNotebookId: ${initNotebookId}\n` +
         `Candidates:\n${matchList}`,
       kind: 'multiple',
-      initNotebookId,
-      filePath,
-      searchedDirectory: directory,
-      candidatePaths: matches.map(m => m.path),
     })
   }
 

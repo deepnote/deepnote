@@ -20,14 +20,12 @@ export interface SplitResult {
   snapshot: DeepnoteSnapshot
 }
 
-/** One notebook slice from {@link splitByNotebooks}; `kind` lets callers tell the init entry from a main notebook without parsing filenames or ids. */
+/** One notebook slice from {@link splitByNotebooks}: a single-notebook file plus its output basename. The init entry, when present, is emitted first and carries the notebook whose id matches `project.initNotebookId`. */
 export interface NotebookSplitEntry {
   notebook: { id: string; name: string }
   file: DeepnoteFile
   /** Basename for the split file (e.g. `my-project-dashboard.deepnote`) */
   outputFilename: string
-  /** Whether this entry is the init notebook or a non-init "main" notebook. */
-  kind: 'init' | 'notebook'
 }
 
 /**
