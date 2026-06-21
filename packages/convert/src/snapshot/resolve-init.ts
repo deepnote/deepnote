@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { decodeUtf8NoBom, deserializeDeepnoteFile, isExecutableBlockType } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { stripOutputsFromBlock } from './split'
 
 /** Thrown when a file's `project.initNotebookId` cannot be resolved locally or in a sibling `.deepnote` (CLI exit code 2). */
@@ -37,9 +37,6 @@ export class InitNotebookResolutionError extends Error {
 /** Result of resolving and composing a sibling init notebook into the loaded {@link DeepnoteFile}. */
 export interface ResolveAndComposeInitResult {
   composed: DeepnoteFile
-  initBlockIds: ReadonlySet<string>
-  initNotebookId?: string
-  initNotebookName?: string
   warnings: string[]
 }
 
@@ -70,7 +67,7 @@ export interface RunnableFileForInit {
  */
 export async function resolveAndComposeInitIfNeeded(loaded: RunnableFileForInit): Promise<ResolveAndComposeInitResult> {
   if (loaded.format !== 'deepnote' || loaded.file.project.initNotebookId === undefined) {
-    return { composed: loaded.file, initBlockIds: new Set(), warnings: [] }
+    return { composed: loaded.file, warnings: [] }
   }
   return resolveAndComposeInit(loaded.file, loaded.originalPath)
 }
@@ -90,12 +87,12 @@ export async function resolveAndComposeInit(
   const warnings: string[] = []
 
   if (initNotebookId === undefined) {
-    return { composed: file, initBlockIds: new Set(), warnings }
+    return { composed: file, warnings }
   }
 
   const localInit = file.project.notebooks.find(nb => nb.id === initNotebookId)
   if (localInit !== undefined) {
-    return { composed: file, initBlockIds: new Set(), warnings }
+    return { composed: file, warnings }
   }
 
   const directory = dirname(filePath)
@@ -232,18 +229,8 @@ export async function resolveAndComposeInit(
     )
   }
 
-  const initBlockIds = new Set<string>()
-  for (const block of initNotebook.blocks) {
-    if (isExecutableBlockType(block.type)) {
-      initBlockIds.add(block.id)
-    }
-  }
-
   return {
     composed,
-    initBlockIds,
-    initNotebookId: initNotebook.id,
-    initNotebookName: initNotebook.name,
     warnings,
   }
 }

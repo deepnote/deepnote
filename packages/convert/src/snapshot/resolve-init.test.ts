@@ -66,8 +66,6 @@ describe('resolveAndComposeInit', () => {
     const result = await resolveAndComposeInit(file, filePath)
 
     expect(result.composed).toBe(file)
-    expect(result.initBlockIds.size).toBe(0)
-    expect(result.initNotebookName).toBeUndefined()
     expect(result.warnings).toEqual([])
   })
 
@@ -86,7 +84,6 @@ describe('resolveAndComposeInit', () => {
     const result = await resolveAndComposeInit(file, filePath)
 
     expect(result.composed).toBe(file)
-    expect(result.initBlockIds.size).toBe(0)
     expect(result.warnings).toEqual([])
   })
 
@@ -118,8 +115,6 @@ describe('resolveAndComposeInit', () => {
     expect(result.composed.project.notebooks).toHaveLength(2)
     expect(result.composed.project.notebooks[0].id).toBe('nb-init')
     expect(result.composed.project.notebooks[1].id).toBe('nb-main')
-    expect(Array.from(result.initBlockIds).sort()).toEqual(['init-b1', 'init-b2'].sort())
-    expect(result.initNotebookName).toBe('Init')
     expect(result.warnings).toEqual([])
   })
 
@@ -202,7 +197,6 @@ describe('resolveAndComposeInit', () => {
 
     const result = await resolveAndComposeInit(mainFile, mainPath)
     expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
-    expect(result.initBlockIds.has('init-b1')).toBe(true)
   })
 
   it('throws a clear error naming the missing init id and the searched directory when no sibling provides it', async () => {
@@ -285,7 +279,6 @@ describe('resolveAndComposeInit', () => {
 
     const result = await resolveAndComposeInit(mainFile, mainPath)
     expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
-    expect(result.initBlockIds.has('init-b1')).toBe(true)
   })
 
   it('does not abort when the only candidate is corrupt — it throws the missing-init error instead', async () => {
@@ -339,7 +332,6 @@ describe('resolveAndComposeInit', () => {
 
     const result = await resolveAndComposeInit(mainFile, mainPath)
     expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
-    expect(result.initBlockIds.has('init-b1')).toBe(true)
     expect(result.warnings).toEqual([])
   })
 
@@ -459,9 +451,7 @@ describe('resolveAndComposeInitIfNeeded', () => {
     const result = await resolveAndComposeInitIfNeeded(loaded)
 
     expect(result.composed).toBe(loaded.file)
-    expect(result.initBlockIds.size).toBe(0)
     expect(result.warnings).toEqual([])
-    expect(result.initNotebookName).toBeUndefined()
   })
 
   it('passes through a deepnote file with no initNotebookId without touching the filesystem', async () => {
@@ -474,7 +464,6 @@ describe('resolveAndComposeInitIfNeeded', () => {
     const result = await resolveAndComposeInitIfNeeded({ file, originalPath, format: 'deepnote' })
 
     expect(result.composed).toBe(file)
-    expect(result.initBlockIds.size).toBe(0)
     expect(result.warnings).toEqual([])
   })
 
@@ -493,7 +482,6 @@ describe('resolveAndComposeInitIfNeeded', () => {
     const result = await resolveAndComposeInitIfNeeded({ file, originalPath, format: 'deepnote' })
 
     expect(result.composed).toBe(file)
-    expect(result.initBlockIds.size).toBe(0)
     expect(result.warnings).toEqual([])
   })
 
@@ -529,9 +517,6 @@ describe('resolveAndComposeInitIfNeeded', () => {
     expect(result.composed.project.notebooks).toHaveLength(2)
     expect(result.composed.project.notebooks[0].id).toBe('nb-init')
     expect(result.composed.project.notebooks[1].id).toBe('nb-main')
-    expect(Array.from(result.initBlockIds).sort()).toEqual(['init-b1', 'init-b2'].sort())
-    expect(result.initNotebookId).toBe('nb-init')
-    expect(result.initNotebookName).toBe('Init')
     expect(result.warnings).toEqual([])
   })
 
