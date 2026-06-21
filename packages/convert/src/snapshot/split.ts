@@ -41,14 +41,8 @@ const utf8Encoder = new TextEncoder()
 const utf8Decoder = new TextDecoder()
 
 /**
- * Reversibly encodes a notebook id into a single, path-safe snapshot-filename component.
- *
- * Filename-safe characters (`[A-Za-z0-9_-]`) are kept verbatim, so UUID / hex / already-clean ids are
- * unchanged — existing snapshots keep resolving and names stay readable. Every other character —
- * including `%` itself and any path-traversal character such as `.`, `/` or `\` — is escaped as the
- * uppercase percent-hex of its UTF-8 bytes (e.g. `.` → `%2E`). Because the mapping is lossless and
- * injective, the write side (here) and the lookup side never disagree (no missed snapshots) and two
- * distinct ids can never collide onto the same filename. Inverse: {@link decodeNotebookIdFromFilename}.
+ * Reversibly encodes a notebook id into a path-safe filename: `[A-Za-z0-9_-]` stay verbatim, other chars
+ * become uppercase `%XX` UTF-8 escapes. Lossless one-to-one mapping; inverse: {@link decodeNotebookIdFromFilename}.
  */
 export function encodeNotebookIdForFilename(notebookId: string): string {
   let encoded = ''

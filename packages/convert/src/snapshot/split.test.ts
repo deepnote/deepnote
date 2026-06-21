@@ -478,22 +478,21 @@ describe('generateSnapshotFilename with notebookId', () => {
 describe('generateSnapshotFilename path-component sanitization', () => {
   // notebookId is reversibly percent-encoded: path-unsafe characters never survive verbatim,
   // but the mapping is lossless (unlike the old `→ _` sanitization). See the round-trip suite below.
-  it.each([
-    { notebookId: '../evil', encoded: '%2E%2E%2Fevil' },
-    { notebookId: '..\\..\\win', encoded: '%2E%2E%5C%2E%2E%5Cwin' },
-    { notebookId: 'a/b', encoded: 'a%2Fb' },
-    { notebookId: 'nb.1', encoded: 'nb%2E1' },
-  ])('encodes path-unsafe notebookId $notebookId without leaking separators', ({ notebookId, encoded }) => {
-    const filename = generateSnapshotFilename({
-      slug: 'my-project',
-      projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
-      notebookId,
-    })
-    expect(filename).toBe(`my-project_2e814690-4f02-465c-8848-5567ab9253b7_${encoded}_latest.snapshot.deepnote`)
-    expect(filename).not.toContain('/')
-    expect(filename).not.toContain('\\')
-    expect(filename).not.toContain('..')
-  })
+  it.each(['../evil', '..\\..\\win', 'a/b', 'nb.1'])(
+    'encodes path-unsafe notebookId %s without leaking separators',
+    notebookId => {
+      const encoded = encodeNotebookIdForFilename(notebookId)
+      const filename = generateSnapshotFilename({
+        slug: 'my-project',
+        projectId: '2e814690-4f02-465c-8848-5567ab9253b7',
+        notebookId,
+      })
+      expect(filename).toBe(`my-project_2e814690-4f02-465c-8848-5567ab9253b7_${encoded}_latest.snapshot.deepnote`)
+      expect(filename).not.toContain('/')
+      expect(filename).not.toContain('\\')
+      expect(filename).not.toContain('..')
+    }
+  )
 
   it('still neutralizes path separators in slug and projectId', () => {
     const filename = generateSnapshotFilename({
