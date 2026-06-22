@@ -4,6 +4,7 @@ import path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { LoadedRunnableFile, RunnableFormat } from '../load-runnable-file'
 import { resolveAndComposeInit, resolveAndComposeInitIfNeeded } from './resolve-init'
 
 /** Constructs a `DeepnoteFile`, optionally declaring an init notebook. */
@@ -44,6 +45,11 @@ function makeFile(args: {
   }
 }
 
+/** Wraps a `DeepnoteFile` as the `LoadedRunnableFile` the resolver consumes. */
+function makeLoaded(file: DeepnoteFile, originalPath: string, format: RunnableFormat = 'deepnote'): LoadedRunnableFile {
+  return { file, originalPath, format, wasConverted: format !== 'deepnote' }
+}
+
 describe('resolveAndComposeInit', () => {
   let tempDir: string
 
@@ -63,9 +69,9 @@ describe('resolveAndComposeInit', () => {
     const filePath = path.join(tempDir, 'main.deepnote')
     await fs.writeFile(filePath, serializeDeepnoteFile(file), 'utf-8')
 
-    const result = await resolveAndComposeInit(file, filePath)
+    const result = await resolveAndComposeInit(makeLoaded(file, filePath))
 
-    expect(result.composed).toBe(file)
+    expect(result.file).toBe(file)
     expect(result.warnings).toEqual([])
   })
 
@@ -81,9 +87,9 @@ describe('resolveAndComposeInit', () => {
     const filePath = path.join(tempDir, 'main.deepnote')
     await fs.writeFile(filePath, serializeDeepnoteFile(file), 'utf-8')
 
-    const result = await resolveAndComposeInit(file, filePath)
+    const result = await resolveAndComposeInit(makeLoaded(file, filePath))
 
-    expect(result.composed).toBe(file)
+    expect(result.file).toBe(file)
     expect(result.warnings).toEqual([])
   })
 
@@ -110,11 +116,11 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initFile), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
 
-    expect(result.composed.project.notebooks).toHaveLength(2)
-    expect(result.composed.project.notebooks[0].id).toBe('nb-init')
-    expect(result.composed.project.notebooks[1].id).toBe('nb-main')
+    expect(result.file.project.notebooks).toHaveLength(2)
+    expect(result.file.project.notebooks[0].id).toBe('nb-init')
+    expect(result.file.project.notebooks[1].id).toBe('nb-main')
     expect(result.warnings).toEqual([])
   })
 
@@ -135,11 +141,11 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initFile), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
 
-    expect(result.composed.project.id).toBe('proj-1')
-    expect(result.composed.project.name).toBe('Main Project')
-    expect(result.composed.project.initNotebookId).toBe('nb-init')
+    expect(result.file.project.id).toBe('proj-1')
+    expect(result.file.project.name).toBe('Main Project')
+    expect(result.file.project.initNotebookId).toBe('nb-init')
   })
 
   it('rejects the original unsplit source file with multiple notebooks (rule b)', async () => {
@@ -163,8 +169,8 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(originalPath, serializeDeepnoteFile(originalUnsplit), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    await expect(resolveAndComposeInit(mainFile, mainPath)).rejects.toThrow(/Cannot resolve init notebook/)
-    await expect(resolveAndComposeInit(mainFile, mainPath)).rejects.toThrow(/nb-init/)
+    await expect(resolveAndComposeInit(makeLoaded(mainFile, mainPath))).rejects.toThrow(/Cannot resolve init notebook/)
+    await expect(resolveAndComposeInit(makeLoaded(mainFile, mainPath))).rejects.toThrow(/nb-init/)
   })
 
   it('still composes when an init sibling and the original unsplit file coexist', async () => {
@@ -195,8 +201,8 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
-    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
   })
 
   it('throws a clear error naming the missing init id and the searched directory when no sibling provides it', async () => {
@@ -210,7 +216,7 @@ describe('resolveAndComposeInit', () => {
 
     let captured: Error | undefined
     try {
-      await resolveAndComposeInit(mainFile, mainPath)
+      await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
     } catch (err) {
       captured = err as Error
     }
@@ -247,7 +253,7 @@ describe('resolveAndComposeInit', () => {
 
     let captured: Error | undefined
     try {
-      await resolveAndComposeInit(mainFile, mainPath)
+      await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
     } catch (err) {
       captured = err as Error
     }
@@ -277,8 +283,8 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
-    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
   })
 
   it('does not abort when the only candidate is corrupt — it throws the missing-init error instead', async () => {
@@ -295,7 +301,7 @@ describe('resolveAndComposeInit', () => {
 
     let captured: Error | undefined
     try {
-      await resolveAndComposeInit(mainFile, mainPath)
+      await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
     } catch (err) {
       captured = err as Error
     }
@@ -330,8 +336,8 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(staleInit), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
-    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
     expect(result.warnings).toEqual([])
   })
 
@@ -354,8 +360,8 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
-    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
     expect(result.warnings.length).toBeGreaterThan(0)
     expect(result.warnings.some(w => /integrations/i.test(w))).toBe(true)
   })
@@ -379,8 +385,8 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
-    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
     expect(result.warnings.some(w => /settings/i.test(w))).toBe(true)
   })
 
@@ -401,7 +407,7 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(wrongInitPath, serializeDeepnoteFile(wrongProjectInit), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    await expect(resolveAndComposeInit(mainFile, mainPath)).rejects.toThrow(/Cannot resolve init notebook/)
+    await expect(resolveAndComposeInit(makeLoaded(mainFile, mainPath))).rejects.toThrow(/Cannot resolve init notebook/)
   })
 
   it('ignores non-.deepnote files in the directory', async () => {
@@ -422,8 +428,8 @@ describe('resolveAndComposeInit', () => {
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
     await fs.writeFile(noisePath, 'unrelated content', 'utf-8')
 
-    const result = await resolveAndComposeInit(mainFile, mainPath)
-    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
   })
 })
 
@@ -447,10 +453,10 @@ describe('resolveAndComposeInitIfNeeded', () => {
     // Path in a non-existent directory: a passthrough must not attempt any readdir.
     const originalPath = path.join(tempDir, 'does-not-exist', 'main.ipynb')
 
-    const loaded = { file, originalPath, format: 'jupyter' }
+    const loaded = makeLoaded(file, originalPath, 'jupyter')
     const result = await resolveAndComposeInitIfNeeded(loaded)
 
-    expect(result.composed).toBe(loaded.file)
+    expect(result.file).toBe(loaded.file)
     expect(result.warnings).toEqual([])
   })
 
@@ -459,11 +465,14 @@ describe('resolveAndComposeInitIfNeeded', () => {
       projectId: 'proj-1',
       notebooks: [{ id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] }],
     })
+    // The wrapper now gates only on format, so a deepnote file is always delegated to
+    // resolveAndComposeInit. With no initNotebookId it must still return before any readdir:
+    // a non-existent directory would throw ENOENT if it tried to scan for siblings.
     const originalPath = path.join(tempDir, 'does-not-exist', 'main.deepnote')
 
-    const result = await resolveAndComposeInitIfNeeded({ file, originalPath, format: 'deepnote' })
+    const result = await resolveAndComposeInitIfNeeded(makeLoaded(file, originalPath))
 
-    expect(result.composed).toBe(file)
+    expect(result.file).toBe(file)
     expect(result.warnings).toEqual([])
   })
 
@@ -479,9 +488,9 @@ describe('resolveAndComposeInitIfNeeded', () => {
     const originalPath = path.join(tempDir, 'main.deepnote')
     await fs.writeFile(originalPath, serializeDeepnoteFile(file), 'utf-8')
 
-    const result = await resolveAndComposeInitIfNeeded({ file, originalPath, format: 'deepnote' })
+    const result = await resolveAndComposeInitIfNeeded(makeLoaded(file, originalPath))
 
-    expect(result.composed).toBe(file)
+    expect(result.file).toBe(file)
     expect(result.warnings).toEqual([])
   })
 
@@ -508,15 +517,11 @@ describe('resolveAndComposeInitIfNeeded', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initFile), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInitIfNeeded({
-      file: mainFile,
-      originalPath: mainPath,
-      format: 'deepnote',
-    })
+    const result = await resolveAndComposeInitIfNeeded(makeLoaded(mainFile, mainPath))
 
-    expect(result.composed.project.notebooks).toHaveLength(2)
-    expect(result.composed.project.notebooks[0].id).toBe('nb-init')
-    expect(result.composed.project.notebooks[1].id).toBe('nb-main')
+    expect(result.file.project.notebooks).toHaveLength(2)
+    expect(result.file.project.notebooks[0].id).toBe('nb-init')
+    expect(result.file.project.notebooks[1].id).toBe('nb-main')
     expect(result.warnings).toEqual([])
   })
 
@@ -539,13 +544,9 @@ describe('resolveAndComposeInitIfNeeded', () => {
     await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
     await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
 
-    const result = await resolveAndComposeInitIfNeeded({
-      file: mainFile,
-      originalPath: mainPath,
-      format: 'deepnote',
-    })
+    const result = await resolveAndComposeInitIfNeeded(makeLoaded(mainFile, mainPath))
 
-    expect(result.composed.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
     expect(result.warnings.length).toBeGreaterThan(0)
   })
 })

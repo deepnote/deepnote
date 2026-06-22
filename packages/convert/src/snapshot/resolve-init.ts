@@ -24,10 +24,12 @@ export interface ResolveAndComposeInitResult extends LoadedRunnableFile {
 /**
  * Guarded wrapper over {@link resolveAndComposeInit} for an already-loaded runnable file.
  *
- * Composes a sibling `.deepnote` init notebook only when the file is a native `'deepnote'`
- * file that declares `project.initNotebookId`; otherwise returns the file unchanged with empty
- * init metadata. Centralizes the "when do we compose sibling-init for a loaded runnable file"
- * decision shared by the CLI and MCP run paths.
+ * Only the source format gates this helper: native `'deepnote'` files are handed to
+ * {@link resolveAndComposeInit}, which then looks for the init notebook — returning the file
+ * unchanged when there is no `project.initNotebookId` to resolve (or it resolves locally), and
+ * composing a sibling `.deepnote` init notebook when there is. Every other format passes through
+ * unchanged. Centralizes the "when do we attempt sibling-init resolution for a loaded runnable
+ * file" decision shared by the CLI and MCP run paths.
  *
  * The load step stays at the call site (CLI and MCP load differently); this helper takes the
  * already-loaded file. It RETURNS warnings rather than logging, so each caller keeps its own
@@ -37,7 +39,7 @@ export interface ResolveAndComposeInitResult extends LoadedRunnableFile {
  *         exactly one sibling (propagated from {@link resolveAndComposeInit}).
  */
 export async function resolveAndComposeInitIfNeeded(loaded: LoadedRunnableFile): Promise<ResolveAndComposeInitResult> {
-  if (loaded.format !== 'deepnote' || loaded.file.project.initNotebookId === undefined) {
+  if (loaded.format !== 'deepnote') {
     return { ...loaded, warnings: [] }
   }
   return resolveAndComposeInit(loaded)
