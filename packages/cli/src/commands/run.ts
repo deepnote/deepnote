@@ -292,7 +292,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   // Sibling-init resolution only applies to native .deepnote files (handled inside the shared helper).
   const resolved = await resolveAndComposeInitIfNeeded(convertedFile)
-  file = resolved.composed
+  file = resolved.file
   for (const warning of resolved.warnings) {
     if (isMachineOutput) {
       debug(`Init resolver warning: ${warning}`)
@@ -675,7 +675,7 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
   const converted = await resolveAndConvertToDeepnote(path)
   const { originalPath: absolutePath } = converted
   const resolved = await resolveAndComposeInitIfNeeded(converted)
-  const file = resolved.composed
+  const file = resolved.file
   for (const warning of resolved.warnings) {
     if (isMachineOutput) {
       debug(`Init resolver warning: ${warning}`)

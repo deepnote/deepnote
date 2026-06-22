@@ -97,7 +97,6 @@ export type {
   MergeOptions,
   NotebookSplitEntry,
   ResolveAndComposeInitResult,
-  RunnableFileForInit,
   SaveExecutionSnapshotResult,
   SnapshotHashInput,
   SnapshotInfo,

@@ -138,7 +138,7 @@ async function resolveRunnableWithInit(filePath: string): Promise<{
   const loaded = await loadRunnableFile(filePath)
   const resolved = await resolveAndComposeInitIfNeeded(loaded)
   return {
-    file: resolved.composed,
+    file: resolved.file,
     originalPath: loaded.originalPath,
     format: loaded.format,
     wasConverted: loaded.wasConverted,
