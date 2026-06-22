@@ -1,10 +1,21 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
-import type { DeepnoteSnapshot } from '@deepnote/blocks'
+import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { deepnoteSnapshotSchema } from '@deepnote/blocks'
 import { parse } from 'yaml'
-import { decodeNotebookIdFromFilename } from './split'
+import { resolveSnapshotNotebookId } from './snapshot-notebook-id'
+import { decodeNotebookIdFromFilename, generateSnapshotFilename, slugifyProjectName } from './split'
 import type { SnapshotInfo, SnapshotOptions } from './types'
+
+/** Options for {@link getSnapshotPath}. */
+export interface GetSnapshotPathOptions {
+  /** Project name used for the slug; defaults to `file.project.name`. */
+  projectName?: string
+  /** Filename timestamp segment; defaults to `'latest'`. */
+  timestamp?: string
+  /** Directory where snapshot files are stored (default: `snapshots` next to the source file). */
+  snapshotDir?: string
+}
 
 /** Default directory name for snapshots */
 const DEFAULT_SNAPSHOT_DIR = 'snapshots'
@@ -169,6 +180,27 @@ export async function loadSnapshotFile(snapshotPath: string): Promise<DeepnoteSn
 export function getSnapshotDir(sourceFilePath: string, options: SnapshotOptions = {}): string {
   const snapshotDir = options.snapshotDir ?? DEFAULT_SNAPSHOT_DIR
   return resolve(dirname(sourceFilePath), snapshotDir)
+}
+
+/**
+ * Resolves the path where a snapshot file would be stored for a source file.
+ *
+ * Notebook-scoped filenames are used when {@link resolveSnapshotNotebookId} returns
+ * an id (single-notebook files and composed `[init, main]` shapes); otherwise the
+ * legacy project-wide filename format is used.
+ *
+ * @param sourcePath - Path to the source .deepnote file
+ * @param file - The DeepnoteFile used to derive project id, slug, and notebook scope
+ * @param options - Optional slug source, timestamp segment, and snapshot directory
+ * @returns Absolute path to the snapshot file
+ */
+export function getSnapshotPath(sourcePath: string, file: DeepnoteFile, options: GetSnapshotPathOptions = {}): string {
+  const { projectName, timestamp = 'latest', snapshotDir } = options
+  const dir = getSnapshotDir(sourcePath, snapshotDir !== undefined ? { snapshotDir } : {})
+  const slug = slugifyProjectName(projectName ?? file.project.name) || 'project'
+  const notebookId = resolveSnapshotNotebookId(file)
+  const filename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
+  return resolve(dir, filename)
 }
 
 /**

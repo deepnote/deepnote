@@ -1,8 +1,11 @@
 import fs from 'node:fs/promises'
+import { resolve } from 'node:path'
+import type { DeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   findSnapshotsForProject,
   getSnapshotDir,
+  getSnapshotPath,
   loadLatestSnapshot,
   loadSnapshotFile,
   parseSnapshotFilename,
@@ -13,6 +16,25 @@ import { generateSnapshotFilename } from './split'
 
 // Mock fs module
 vi.mock('node:fs/promises')
+
+function createSingleNotebookFile(overrides?: { projectName?: string }): DeepnoteFile {
+  return {
+    version: '1.0.0',
+    metadata: { createdAt: '2025-01-01T00:00:00Z' },
+    environment: {},
+    project: {
+      id: 'test-project-id-1234-5678-90ab',
+      name: overrides?.projectName ?? 'Test Project',
+      notebooks: [
+        {
+          id: 'notebook-1',
+          name: 'Notebook 1',
+          blocks: [],
+        },
+      ],
+    },
+  }
+}
 
 describe('parseSnapshotFilename', () => {
   it('should parse valid snapshot filename with latest', () => {
@@ -134,6 +156,126 @@ describe('getSnapshotDir', () => {
   it('should handle nested paths', () => {
     const result = getSnapshotDir('/Users/test/projects/my-project/notebook.deepnote')
     expect(result).toBe('/Users/test/projects/my-project/snapshots')
+  })
+})
+
+describe('getSnapshotPath', () => {
+  it('returns the latest notebook-scoped snapshot path for a single-notebook file', () => {
+    const file = createSingleNotebookFile()
+    const sourcePath = '/path/to/project.deepnote'
+
+    const result = getSnapshotPath(sourcePath, file)
+
+    expect(result).toBe(
+      resolve(
+        '/path/to',
+        'snapshots',
+        'test-project_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
+      )
+    )
+  })
+
+  it('handles project name with special characters', () => {
+    const file = createSingleNotebookFile({ projectName: 'My Project (Draft) #1' })
+    const sourcePath = '/path/to/project.deepnote'
+
+    const result = getSnapshotPath(sourcePath, file)
+
+    expect(result).toBe(
+      resolve(
+        '/path/to',
+        'snapshots',
+        'my-project-draft-1_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
+      )
+    )
+  })
+
+  it('uses "project" as fallback for empty name', () => {
+    const file = createSingleNotebookFile({ projectName: '' })
+    const sourcePath = '/path/to/project.deepnote'
+
+    const result = getSnapshotPath(sourcePath, file)
+
+    expect(result).toBe(
+      resolve('/path/to', 'snapshots', 'project_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote')
+    )
+  })
+
+  it('allows overriding the slug source via projectName', () => {
+    const file = createSingleNotebookFile()
+    const sourcePath = '/path/to/project.deepnote'
+
+    const result = getSnapshotPath(sourcePath, file, { projectName: 'Custom Export Name' })
+
+    expect(result).toBe(
+      resolve(
+        '/path/to',
+        'snapshots',
+        'custom-export-name_test-project-id-1234-5678-90ab_notebook-1_latest.snapshot.deepnote'
+      )
+    )
+  })
+
+  it('embeds a timestamp segment when provided', () => {
+    const file = createSingleNotebookFile()
+    const sourcePath = '/path/to/project.deepnote'
+
+    const result = getSnapshotPath(sourcePath, file, { timestamp: '2024-01-01T00-00-05' })
+
+    expect(result).toBe(
+      resolve(
+        '/path/to',
+        'snapshots',
+        'test-project_test-project-id-1234-5678-90ab_notebook-1_2024-01-01T00-00-05.snapshot.deepnote'
+      )
+    )
+  })
+
+  it('uses the main notebook id for composed init+main files', async () => {
+    const projectId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const initNotebookId = '22222222-2222-2222-2222-222222222222'
+    const mainNotebookId = '33333333-3333-3333-3333-333333333333'
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      environment: {},
+      project: {
+        id: projectId,
+        name: 'Init Main Project',
+        initNotebookId,
+        notebooks: [
+          { id: initNotebookId, name: 'Init', blocks: [] },
+          { id: mainNotebookId, name: 'Main', blocks: [] },
+        ],
+      },
+    }
+
+    const result = getSnapshotPath('/path/to/split.deepnote', file)
+
+    expect(result).toBe(
+      resolve('/path/to', 'snapshots', `init-main-project_${projectId}_${mainNotebookId}_latest.snapshot.deepnote`)
+    )
+  })
+
+  it('falls back to project-wide filenames for multi-notebook files without init scope', () => {
+    const projectId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const file: DeepnoteFile = {
+      version: '1.0.0',
+      metadata: { createdAt: '2025-01-01T00:00:00Z' },
+      environment: {},
+      project: {
+        id: projectId,
+        name: 'Multi Notebook',
+        notebooks: [
+          { id: 'nb-a', name: 'A', blocks: [] },
+          { id: 'nb-b', name: 'B', blocks: [] },
+        ],
+      },
+    }
+
+    const result = getSnapshotPath('/path/to/project.deepnote', file)
+
+    expect(result).toBe(resolve('/path/to', 'snapshots', `multi-notebook_${projectId}_latest.snapshot.deepnote`))
   })
 })
 

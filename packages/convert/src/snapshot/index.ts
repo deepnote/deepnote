@@ -3,9 +3,11 @@
 export type { SnapshotHashInput } from '@deepnote/blocks'
 export { addContentHashes, computeContentHash, computeSnapshotHash } from './hash'
 // Lookup utilities
+export type { GetSnapshotPathOptions } from './lookup'
 export {
   findSnapshotsForProject,
   getSnapshotDir,
+  getSnapshotPath,
   loadLatestSnapshot,
   loadSnapshotFile,
   parseSnapshotFilename,

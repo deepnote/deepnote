@@ -1,10 +1,8 @@
 import fs from 'node:fs/promises'
-import { resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
-import { getSnapshotDir } from './lookup'
-import { resolveSnapshotNotebookId } from './snapshot-notebook-id'
-import { generateSnapshotFilename, slugifyProjectName, splitDeepnoteFile } from './split'
+import { getSnapshotDir, getSnapshotPath } from './lookup'
+import { splitDeepnoteFile } from './split'
 
 /**
  * Result of a single block execution (subset of BlockResult from the runner).
@@ -115,18 +113,11 @@ export async function saveExecutionSnapshot(
   // Split into source and snapshot (we only need the snapshot)
   const { snapshot } = splitDeepnoteFile(fileWithOutputs)
 
-  // Determine snapshot paths
   const snapshotDir = getSnapshotDir(sourcePath)
-  const slug = slugifyProjectName(file.project.name) || 'project'
   const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const notebookId = resolveSnapshotNotebookId(file)
-  await fs.mkdir(snapshotDir, { recursive: true })
-  const timestampedFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId, timestamp })
-  const timestampedSnapshotPath = resolve(snapshotDir, timestampedFilename)
-  const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
-  const snapshotPath = resolve(snapshotDir, latestFilename)
+  const timestampedSnapshotPath = getSnapshotPath(sourcePath, file, { timestamp })
+  const snapshotPath = getSnapshotPath(sourcePath, file)
 
-  // Create snapshot directory if it doesn't exist
   await fs.mkdir(snapshotDir, { recursive: true })
 
   // Write timestamped snapshot first, then copy to latest to reduce corruption risk

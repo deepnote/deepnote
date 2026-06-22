@@ -4,12 +4,11 @@ import type { DeepnoteSnapshot } from '@deepnote/blocks'
 import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import {
   findSnapshotsForProject,
-  generateSnapshotFilename,
+  getSnapshotPath,
   loadLatestSnapshot,
   loadSnapshotFile,
   mergeSnapshotIntoSource,
   resolveSnapshotNotebookId,
-  slugifyProjectName,
   splitDeepnoteFile,
 } from '@deepnote/convert'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
@@ -397,21 +396,10 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     // Split into source and snapshot
     const { source, snapshot } = splitDeepnoteFile(file)
 
-    // Determine snapshot directory and filename
-    const defaultSnapshotDir = snapshotDir ? snapshotDir : path.join(path.dirname(absolutePath), 'snapshots')
-    await fs.mkdir(defaultSnapshotDir, { recursive: true })
-
-    // Generate timestamp-based filename
+    const snapshotDirOptions = snapshotDir !== undefined ? { snapshotDir } : {}
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-    const slug = slugifyProjectName(file.project.name) || 'project'
-    const notebookId = resolveSnapshotNotebookId(file)
-    const snapshotFilename = generateSnapshotFilename({
-      slug,
-      projectId: file.project.id,
-      notebookId,
-      timestamp,
-    })
-    const snapshotPath = path.join(defaultSnapshotDir, snapshotFilename)
+    const snapshotPath = getSnapshotPath(absolutePath, file, { ...snapshotDirOptions, timestamp })
+    await fs.mkdir(path.dirname(snapshotPath), { recursive: true })
 
     // Count outputs being extracted
     let outputCount = 0
@@ -431,8 +419,7 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     // Update latest snapshot
     let latestPath: string | undefined
     if (keepLatest) {
-      const latestFilename = generateSnapshotFilename({ slug, projectId: file.project.id, notebookId })
-      latestPath = path.join(defaultSnapshotDir, latestFilename)
+      latestPath = getSnapshotPath(absolutePath, file, snapshotDirOptions)
       await fs.writeFile(latestPath, snapshotContent, 'utf-8')
     }
 
