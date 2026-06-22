@@ -5,6 +5,68 @@ import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { LoadedRunnableFile } from '../load-runnable-file'
 import { stripOutputsFromBlock } from './split'
 
+type DeepnoteNotebook = DeepnoteFile['project']['notebooks'][number]
+
+/** Result of validating a sibling `.deepnote` file as an init notebook source. */
+export type SiblingInitCandidateValidation = { valid: true } | { valid: false; reason: string }
+
+/**
+ * Validates whether a parsed sibling `.deepnote` file is a valid init notebook source.
+ *
+ * A valid candidate shares `project.id`, contains exactly one notebook, and that notebook's
+ * id matches `initNotebookId`.
+ */
+export function isValidSiblingInitCandidate(
+  candidate: DeepnoteFile,
+  expectedProjectId: string,
+  initNotebookId: string
+): SiblingInitCandidateValidation {
+  if (candidate.project.id !== expectedProjectId) {
+    return {
+      valid: false,
+      reason: `project.id mismatch (expected ${expectedProjectId}, got ${candidate.project.id})`,
+    }
+  }
+
+  const candidateNotebooks = candidate.project.notebooks
+  if (candidateNotebooks.length !== 1) {
+    return {
+      valid: false,
+      reason: `expected exactly 1 notebook, found ${candidateNotebooks.length}`,
+    }
+  }
+
+  const onlyNotebook = candidateNotebooks[0]
+  if (onlyNotebook.id !== initNotebookId) {
+    return {
+      valid: false,
+      reason: `single notebook id ${onlyNotebook.id} does not match initNotebookId ${initNotebookId}`,
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Composes a main `.deepnote` file with a borrowed init notebook as `[init, ...mainNotebooks]`.
+ *
+ * Strips stale execution state from init blocks before composition.
+ */
+export function composeDeepnoteWithInitNotebook(main: DeepnoteFile, initNotebook: DeepnoteNotebook): DeepnoteFile {
+  const cleanedInit: DeepnoteNotebook = {
+    ...initNotebook,
+    blocks: initNotebook.blocks.map(stripOutputsFromBlock),
+  }
+
+  return {
+    ...main,
+    project: {
+      ...main.project,
+      notebooks: [cleanedInit, ...main.project.notebooks],
+    },
+  }
+}
+
 /** Thrown when a file's `project.initNotebookId` cannot be resolved locally or in a sibling `.deepnote` (CLI exit code 2). */
 export class InitNotebookResolutionError extends Error {
   readonly kind: 'missing' | 'multiple'
@@ -101,29 +163,9 @@ export async function resolveAndComposeInit(loaded: LoadedRunnableFile): Promise
       continue
     }
 
-    if (candidate.project.id !== loaded.file.project.id) {
-      rejected.push({
-        path: candidatePath,
-        reason: `project.id mismatch (expected ${loaded.file.project.id}, got ${candidate.project.id})`,
-      })
-      continue
-    }
-
-    const candidateNotebooks = candidate.project.notebooks
-    if (candidateNotebooks.length !== 1) {
-      rejected.push({
-        path: candidatePath,
-        reason: `expected exactly 1 notebook, found ${candidateNotebooks.length}`,
-      })
-      continue
-    }
-
-    const onlyNotebook = candidateNotebooks[0]
-    if (onlyNotebook.id !== initNotebookId) {
-      rejected.push({
-        path: candidatePath,
-        reason: `single notebook id ${onlyNotebook.id} does not match initNotebookId ${initNotebookId}`,
-      })
+    const validation = isValidSiblingInitCandidate(candidate, loaded.file.project.id, initNotebookId)
+    if (!validation.valid) {
+      rejected.push({ path: candidatePath, reason: validation.reason })
       continue
     }
 
@@ -161,22 +203,7 @@ export async function resolveAndComposeInit(loaded: LoadedRunnableFile): Promise
   }
 
   const initFile = matches[0].file
-  const siblingInitNotebook = initFile.project.notebooks[0]
-
-  // Strip stale execution state from borrowed init blocks so dry-run/--list-inputs/validation see clean source, not a previous run's outputs.
-  const initNotebook = {
-    ...siblingInitNotebook,
-    blocks: siblingInitNotebook.blocks.map(stripOutputsFromBlock),
-  }
-
-  // Compose: take all top-level metadata from the main file; borrow only the init notebook from the sibling.
-  const composed: DeepnoteFile = {
-    ...loaded.file,
-    project: {
-      ...loaded.file.project,
-      notebooks: [initNotebook, ...loaded.file.project.notebooks],
-    },
-  }
+  const composed = composeDeepnoteWithInitNotebook(loaded.file, initFile.project.notebooks[0])
 
   // Advisory only; we proceed with the main file's metadata regardless of divergence.
   const integrationsDifferent = !areIntegrationsEqual(loaded.file.project.integrations, initFile.project.integrations)

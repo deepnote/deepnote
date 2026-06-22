@@ -5,7 +5,12 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { LoadedRunnableFile, RunnableFormat } from '../load-runnable-file'
-import { resolveAndComposeInit, resolveAndComposeInitIfNeeded } from './resolve-init'
+import {
+  composeDeepnoteWithInitNotebook,
+  isValidSiblingInitCandidate,
+  resolveAndComposeInit,
+  resolveAndComposeInitIfNeeded,
+} from './resolve-init'
 
 /** Constructs a `DeepnoteFile`, optionally declaring an init notebook. */
 function makeFile(args: {
@@ -548,5 +553,79 @@ describe('resolveAndComposeInitIfNeeded', () => {
 
     expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
     expect(result.warnings.length).toBeGreaterThan(0)
+  })
+})
+
+describe('isValidSiblingInitCandidate', () => {
+  it('accepts a valid single-notebook sibling with matching project and init id', () => {
+    const candidate = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-init', name: 'Init' }],
+    })
+
+    expect(isValidSiblingInitCandidate(candidate, 'proj-1', 'nb-init')).toEqual({ valid: true })
+  })
+
+  it('rejects project id mismatch', () => {
+    const candidate = makeFile({
+      projectId: 'other',
+      notebooks: [{ id: 'nb-init', name: 'Init' }],
+    })
+
+    const result = isValidSiblingInitCandidate(candidate, 'proj-1', 'nb-init')
+    expect(result.valid).toBe(false)
+    if (!result.valid) {
+      expect(result.reason).toContain('project.id mismatch')
+    }
+  })
+
+  it('rejects multi-notebook siblings', () => {
+    const candidate = makeFile({
+      projectId: 'proj-1',
+      notebooks: [
+        { id: 'nb-init', name: 'Init' },
+        { id: 'nb-main', name: 'Main' },
+      ],
+    })
+
+    const result = isValidSiblingInitCandidate(candidate, 'proj-1', 'nb-init')
+    expect(result.valid).toBe(false)
+    if (!result.valid) {
+      expect(result.reason).toContain('expected exactly 1 notebook')
+    }
+  })
+})
+
+describe('composeDeepnoteWithInitNotebook', () => {
+  it('prepends init notebook and strips outputs from init blocks', () => {
+    const main = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] }],
+    })
+    const initNotebook = {
+      id: 'nb-init',
+      name: 'Init',
+      blocks: [
+        {
+          id: 'init-b1',
+          type: 'code' as const,
+          blockGroup: 'bg-init-b1',
+          sortingKey: '0',
+          content: 'print(1)',
+          metadata: {},
+          outputs: [{ output_type: 'stream' as const, name: 'stdout', text: ['1\n'] }],
+          executionCount: 1,
+        },
+      ],
+    }
+
+    const composed = composeDeepnoteWithInitNotebook(main, initNotebook)
+
+    expect(composed.project.notebooks.map(nb => nb.id)).toEqual(['nb-init', 'nb-main'])
+    const initBlock = composed.project.notebooks[0].blocks[0]
+    expect(initBlock).not.toHaveProperty('outputs')
+    expect(initBlock).not.toHaveProperty('executionCount')
   })
 })

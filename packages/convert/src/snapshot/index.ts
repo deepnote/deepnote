@@ -1,6 +1,8 @@
-// Hash utilities
+// Content change detection
 
 export type { SnapshotHashInput } from '@deepnote/blocks'
+// File shape helpers
+export { isComposedInitMainFile, isSingleNotebookDeepnoteFile } from './file-shape'
 export { addContentHashes, computeContentHash, computeSnapshotHash } from './hash'
 // Lookup utilities
 export type { GetSnapshotPathOptions } from './lookup'
@@ -28,8 +30,14 @@ export {
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
 // Init resolution & composition
-export type { ResolveAndComposeInitResult } from './resolve-init'
-export { InitNotebookResolutionError, resolveAndComposeInit, resolveAndComposeInitIfNeeded } from './resolve-init'
+export type { ResolveAndComposeInitResult, SiblingInitCandidateValidation } from './resolve-init'
+export {
+  composeDeepnoteWithInitNotebook,
+  InitNotebookResolutionError,
+  isValidSiblingInitCandidate,
+  resolveAndComposeInit,
+  resolveAndComposeInitIfNeeded,
+} from './resolve-init'
 // Execution snapshot persistence
 export type {
   BlockExecutionOutput,
@@ -43,12 +51,15 @@ export { resolveSnapshotNotebookId } from './snapshot-notebook-id'
 // Split utilities
 export type { GenerateSnapshotFilenameParams } from './split'
 export {
+  decodeNotebookIdFromFilename,
+  encodeNotebookIdForFilename,
   generateSnapshotFilename,
   hasOutputs,
   slugifyProjectName,
   splitByNotebooks,
   splitDeepnoteFile,
   stripOutputsFromBlock,
+  stripOutputsFromBlocks,
 } from './split'
 export type {
   BlockOutput,

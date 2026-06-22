@@ -46,6 +46,7 @@ export {
   isRunnableExtension,
   LoadRunnableFileError,
   loadRunnableFile,
+  parseRunnableFileContent,
   RUNNABLE_EXTENSIONS,
 } from './load-runnable-file'
 export type {
@@ -99,6 +100,7 @@ export type {
   NotebookSplitEntry,
   ResolveAndComposeInitResult,
   SaveExecutionSnapshotResult,
+  SiblingInitCandidateValidation,
   SnapshotHashInput,
   SnapshotInfo,
   SnapshotNotebookIdFileInput,
@@ -108,15 +110,21 @@ export type {
 } from './snapshot'
 export {
   addContentHashes,
+  composeDeepnoteWithInitNotebook,
   computeContentHash,
   computeSnapshotHash,
   countBlocksWithOutputs,
+  decodeNotebookIdFromFilename,
+  encodeNotebookIdForFilename,
   findSnapshotsForProject,
   generateSnapshotFilename,
   getSnapshotDir,
   getSnapshotPath,
   hasOutputs,
   InitNotebookResolutionError,
+  isComposedInitMainFile,
+  isSingleNotebookDeepnoteFile,
+  isValidSiblingInitCandidate,
   loadLatestSnapshot,
   loadSnapshotFile,
   mergeOutputsIntoFile,
@@ -132,6 +140,7 @@ export {
   splitByNotebooks,
   splitDeepnoteFile,
   stripOutputsFromBlock,
+  stripOutputsFromBlocks,
 } from './snapshot'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'
 export type { MarimoApp, MarimoCell } from './types/marimo'

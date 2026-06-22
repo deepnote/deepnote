@@ -97,6 +97,11 @@ export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams)
 /**
  * Removes output-related fields from a block, returning a clean source block.
  */
+/** Strips execution outputs from every block in an array. */
+export function stripOutputsFromBlocks(blocks: ReadonlyArray<DeepnoteBlock>): DeepnoteBlock[] {
+  return blocks.map(stripOutputsFromBlock)
+}
+
 export function stripOutputsFromBlock(block: DeepnoteBlock): DeepnoteBlock {
   if (!isExecutableBlockType(block.type)) {
     return block

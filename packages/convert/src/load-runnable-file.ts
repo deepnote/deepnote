@@ -49,48 +49,40 @@ export function isRunnableExtension(ext: string): ext is RunnableExtension {
   return RUNNABLE_EXTENSIONS.includes(ext.toLowerCase() as RunnableExtension)
 }
 
+function unsupportedExtensionError(ext: string): LoadRunnableFileError {
+  return new LoadRunnableFileError(
+    `Unsupported file type: ${ext || '(no extension)'}\n\n` +
+      `Supported formats:\n` +
+      `  .deepnote  - Deepnote project\n` +
+      `  .ipynb     - Jupyter Notebook\n` +
+      `  .py        - Percent format (# %%) or Marimo (@app.cell)\n` +
+      `  .qmd       - Quarto document`
+  )
+}
+
 /**
- * Resolve and convert any supported notebook format to a DeepnoteFile.
+ * Parse and convert in-memory file content to a {@link LoadedRunnableFile}.
  *
- * Supported formats:
- * - .deepnote - Native format (no conversion)
- * - .ipynb - Jupyter Notebook
- * - .py - Percent format or Marimo (auto-detected)
- * - .qmd - Quarto document
+ * Use this when content is already available (e.g. from an editor buffer) instead of
+ * reading from disk via {@link loadRunnableFile}.
  *
- * Filesystem read errors propagate unwrapped (preserving their Node `code`).
- * Only unsupported extensions and parse/format failures are thrown as
- * `LoadRunnableFileError`.
- *
- * @param filePath - Path to the file
- * @returns The converted DeepnoteFile with metadata about the conversion
+ * @param content - File content as a UTF-8 string
+ * @param absolutePath - Resolved absolute path (used for extension detection and metadata)
+ * @throws LoadRunnableFileError for unsupported extensions and parse/format failures
  */
-export async function loadRunnableFile(filePath: string): Promise<LoadedRunnableFile> {
-  const absolutePath = path.resolve(filePath)
+export function parseRunnableFileContent(content: string, absolutePath: string): LoadedRunnableFile {
   const ext = path.extname(absolutePath).toLowerCase()
 
   if (!isRunnableExtension(ext)) {
-    throw new LoadRunnableFileError(
-      `Unsupported file type: ${ext || '(no extension)'}\n\n` +
-        `Supported formats:\n` +
-        `  .deepnote  - Deepnote project\n` +
-        `  .ipynb     - Jupyter Notebook\n` +
-        `  .py        - Percent format (# %%) or Marimo (@app.cell)\n` +
-        `  .qmd       - Quarto document`
-    )
+    throw unsupportedExtensionError(ext)
   }
 
   const filename = path.basename(absolutePath)
   const projectName = path.basename(absolutePath, ext)
 
-  // Native .deepnote file - no conversion needed.
-  // The read is intentionally not wrapped: a missing file/dir surfaces a Node
-  // `code` (ENOENT/EISDIR) that callers rely on.
   if (ext === '.deepnote') {
-    const rawBytes = await fs.readFile(absolutePath)
     let file: DeepnoteFile
     try {
-      const content = decodeUtf8NoBom(rawBytes)
       file = deserializeDeepnoteFile(content)
     } catch (parseError) {
       const message = parseError instanceof Error ? parseError.message : String(parseError)
@@ -105,10 +97,6 @@ export async function loadRunnableFile(filePath: string): Promise<LoadedRunnable
     }
   }
 
-  // Read file content for conversion. Read errors propagate unwrapped.
-  const content = await fs.readFile(absolutePath, 'utf-8')
-
-  // Jupyter Notebook
   if (ext === '.ipynb') {
     let notebook: JupyterNotebook
     try {
@@ -129,7 +117,6 @@ export async function loadRunnableFile(filePath: string): Promise<LoadedRunnable
     }
   }
 
-  // Quarto document
   if (ext === '.qmd') {
     let document: ReturnType<typeof parseQuartoFormat>
     try {
@@ -149,7 +136,6 @@ export async function loadRunnableFile(filePath: string): Promise<LoadedRunnable
     }
   }
 
-  // Python file - detect percent or marimo format
   if (ext === '.py') {
     let detectedFormat: ReturnType<typeof detectFormat>
     try {
@@ -205,6 +191,39 @@ export async function loadRunnableFile(filePath: string): Promise<LoadedRunnable
     )
   }
 
-  // This should never happen given the isRunnableExtension check above
-  throw new LoadRunnableFileError(`Unsupported file type: ${ext}`)
+  throw unsupportedExtensionError(ext)
+}
+
+/**
+ * Resolve and convert any supported notebook format to a DeepnoteFile.
+ *
+ * Supported formats:
+ * - .deepnote - Native format (no conversion)
+ * - .ipynb - Jupyter Notebook
+ * - .py - Percent format or Marimo (auto-detected)
+ * - .qmd - Quarto document
+ *
+ * Filesystem read errors propagate unwrapped (preserving their Node `code`).
+ * Only unsupported extensions and parse/format failures are thrown as
+ * `LoadRunnableFileError`.
+ *
+ * @param filePath - Path to the file
+ * @returns The converted DeepnoteFile with metadata about the conversion
+ */
+export async function loadRunnableFile(filePath: string): Promise<LoadedRunnableFile> {
+  const absolutePath = path.resolve(filePath)
+  const ext = path.extname(absolutePath).toLowerCase()
+
+  if (!isRunnableExtension(ext)) {
+    throw unsupportedExtensionError(ext)
+  }
+
+  if (ext === '.deepnote') {
+    const rawBytes = await fs.readFile(absolutePath)
+    const content = decodeUtf8NoBom(rawBytes)
+    return parseRunnableFileContent(content, absolutePath)
+  }
+
+  const content = await fs.readFile(absolutePath, 'utf-8')
+  return parseRunnableFileContent(content, absolutePath)
 }
