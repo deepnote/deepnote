@@ -1,4 +1,8 @@
+import fs from 'node:fs'
+import os from 'node:os'
 import { join, resolve } from 'node:path'
+import type { DeepnoteFile } from '@deepnote/blocks'
+import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { BUILTIN_INTEGRATIONS } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
@@ -19,6 +23,19 @@ function getOutput(spy: Mock<typeof console.log>): string {
 
 function getErrorOutput(spy: Mock<typeof console.error>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
+}
+
+/** Minimal multi-notebook fixture; no initNotebookId so every notebook counts as non-init. */
+function multiNotebookFile(names: string[]): DeepnoteFile {
+  return {
+    version: '1.0.0',
+    metadata: { createdAt: '2025-01-01T00:00:00Z' },
+    project: {
+      id: 'proj-lint',
+      name: 'Lint Fixture',
+      notebooks: names.map((name, i) => ({ id: `nb-${i}`, name, blocks: [] })),
+    },
+  }
 }
 
 describe('lint command', () => {
@@ -324,6 +341,44 @@ describe('lint command', () => {
         expect(issue.blockLabel).toBeDefined()
         expect(issue.notebookName).toBeDefined()
       }
+    })
+  })
+
+  describe('multi-notebook warning', () => {
+    const tempDirs: string[] = []
+
+    afterEach(() => {
+      for (const dir of tempDirs.splice(0)) {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    function writeFixture(names: string[]): string {
+      const dir = fs.mkdtempSync(join(os.tmpdir(), 'lint-multi-nb-'))
+      tempDirs.push(dir)
+      const filePath = join(dir, 'multi.deepnote')
+      fs.writeFileSync(filePath, serializeDeepnoteFile(multiNotebookFile(names)))
+      return filePath
+    }
+
+    it('emits multi-notebook for files with more than one non-init notebook', async () => {
+      const action = createLintAction(program)
+      const filePath = writeFixture(['Alpha', 'Beta', 'Gamma'])
+
+      await action(filePath, { output: 'json' })
+
+      const codes = (JSON.parse(getOutput(consoleSpy)).issues as Array<{ code: string }>).map(i => i.code)
+      expect(codes).toContain('multi-notebook')
+    })
+
+    it('suppresses the multi-notebook warning when filtering to a single notebook', async () => {
+      const action = createLintAction(program)
+      const filePath = writeFixture(['Alpha', 'Beta', 'Gamma'])
+
+      await action(filePath, { output: 'json', notebook: 'Alpha' })
+
+      const codes = (JSON.parse(getOutput(consoleSpy)).issues as Array<{ code: string }>).map(i => i.code)
+      expect(codes).not.toContain('multi-notebook')
     })
   })
 

@@ -88,10 +88,13 @@ export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams)
   const { slug, projectId, notebookId, timestamp = 'latest' } = params
   const safeSlug = sanitizeFilenameComponent(slug)
   const safeProjectId = sanitizeFilenameComponent(projectId)
+  // Valid timestamps ('latest' or '2025-01-08T10-30-00') only contain [A-Za-z0-9_-] and pass through
+  // unchanged; sanitizing purely neutralizes traversal from untrusted/garbage input.
+  const safeTimestamp = sanitizeFilenameComponent(timestamp)
   if (notebookId) {
-    return `${safeSlug}_${safeProjectId}_${encodeNotebookIdForFilename(notebookId)}_${timestamp}.snapshot.deepnote`
+    return `${safeSlug}_${safeProjectId}_${encodeNotebookIdForFilename(notebookId)}_${safeTimestamp}.snapshot.deepnote`
   }
-  return `${safeSlug}_${safeProjectId}_${timestamp}.snapshot.deepnote`
+  return `${safeSlug}_${safeProjectId}_${safeTimestamp}.snapshot.deepnote`
 }
 
 /**

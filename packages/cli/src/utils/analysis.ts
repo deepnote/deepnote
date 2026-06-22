@@ -214,7 +214,7 @@ export async function checkForIssues(
       issues.push({
         severity: 'warning',
         code: 'multi-notebook',
-        message: `File contains ${nonInitNotebooks.length} notebooks. Consider splitting into separate files using "deepnote split".`,
+        message: `File contains ${nonInitNotebooks.length} non-init notebooks. Consider splitting into separate files using "deepnote split".`,
         blockId: '',
         blockLabel: 'project',
         notebookName: '',
