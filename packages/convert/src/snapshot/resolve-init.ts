@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import type { LoadedRunnableFile } from '../load-runnable-file'
 import { stripOutputsFromBlock } from './split'
 
 /** Thrown when a file's `project.initNotebookId` cannot be resolved locally or in a sibling `.deepnote` (CLI exit code 2). */
@@ -16,19 +17,8 @@ export class InitNotebookResolutionError extends Error {
 }
 
 /** Result of resolving and composing a sibling init notebook into the loaded {@link DeepnoteFile}. */
-export interface ResolveAndComposeInitResult {
-  composed: DeepnoteFile
+export interface ResolveAndComposeInitResult extends LoadedRunnableFile {
   warnings: string[]
-}
-
-/** Minimal already-loaded-file shape needed to decide and perform sibling-init composition. */
-export interface RunnableFileForInit {
-  /** The loaded DeepnoteFile (already parsed/converted). */
-  file: DeepnoteFile
-  /** Absolute path the file was loaded from; used to locate sibling `.deepnote` init files. */
-  originalPath: string
-  /** Source format; sibling-init composition applies only to native `'deepnote'` files. */
-  format: string
 }
 
 /**
@@ -46,11 +36,11 @@ export interface RunnableFileForInit {
  * @throws InitNotebookResolutionError when a declared init id cannot be resolved locally or in
  *         exactly one sibling (propagated from {@link resolveAndComposeInit}).
  */
-export async function resolveAndComposeInitIfNeeded(loaded: RunnableFileForInit): Promise<ResolveAndComposeInitResult> {
+export async function resolveAndComposeInitIfNeeded(loaded: LoadedRunnableFile): Promise<ResolveAndComposeInitResult> {
   if (loaded.format !== 'deepnote' || loaded.file.project.initNotebookId === undefined) {
-    return { composed: loaded.file, warnings: [] }
+    return { ...loaded, warnings: [] }
   }
-  return resolveAndComposeInit(loaded.file, loaded.originalPath)
+  return resolveAndComposeInit(loaded)
 }
 
 /** A sibling `.deepnote` candidate that was inspected but rejected as the init source. */
@@ -60,20 +50,18 @@ interface RejectedCandidate {
 }
 
 /** Resolves the init notebook for a `DeepnoteFile`, composing `[init, ...notebooks]` from a sibling `.deepnote` when not self-contained, else failing closed. */
-export async function resolveAndComposeInit(
-  file: DeepnoteFile,
-  filePath: string
-): Promise<ResolveAndComposeInitResult> {
-  const initNotebookId = file.project.initNotebookId
+export async function resolveAndComposeInit(loaded: LoadedRunnableFile): Promise<ResolveAndComposeInitResult> {
+  const filePath = loaded.originalPath
+  const initNotebookId = loaded.file.project.initNotebookId
   const warnings: string[] = []
 
   if (initNotebookId === undefined) {
-    return { composed: file, warnings }
+    return { ...loaded, warnings }
   }
 
-  const localInit = file.project.notebooks.find(nb => nb.id === initNotebookId)
+  const localInit = loaded.file.project.notebooks.find(nb => nb.id === initNotebookId)
   if (localInit !== undefined) {
-    return { composed: file, warnings }
+    return { ...loaded, warnings }
   }
 
   const directory = dirname(filePath)
@@ -111,10 +99,10 @@ export async function resolveAndComposeInit(
       continue
     }
 
-    if (candidate.project.id !== file.project.id) {
+    if (candidate.project.id !== loaded.file.project.id) {
       rejected.push({
         path: candidatePath,
-        reason: `project.id mismatch (expected ${file.project.id}, got ${candidate.project.id})`,
+        reason: `project.id mismatch (expected ${loaded.file.project.id}, got ${candidate.project.id})`,
       })
       continue
     }
@@ -145,7 +133,7 @@ export async function resolveAndComposeInit(
       rejected.length > 0
         ? `\nRejected candidates:\n${rejected.map(r => `  - ${r.path}: ${r.reason}`).join('\n')}`
         : '\nNo other .deepnote files were present.'
-    const localIds = file.project.notebooks.map(nb => nb.id)
+    const localIds = loaded.file.project.notebooks.map(nb => nb.id)
     const localDescription =
       localIds.length > 0 ? `\nLocal notebook ids: [${localIds.join(', ')}]` : '\nLocal notebook ids: (none)'
     throw new InitNotebookResolutionError({
@@ -181,22 +169,22 @@ export async function resolveAndComposeInit(
 
   // Compose: take all top-level metadata from the main file; borrow only the init notebook from the sibling.
   const composed: DeepnoteFile = {
-    ...file,
+    ...loaded.file,
     project: {
-      ...file.project,
-      notebooks: [initNotebook, ...file.project.notebooks],
+      ...loaded.file.project,
+      notebooks: [initNotebook, ...loaded.file.project.notebooks],
     },
   }
 
   // Advisory only; we proceed with the main file's metadata regardless of divergence.
-  const integrationsDifferent = !areIntegrationsEqual(file.project.integrations, initFile.project.integrations)
+  const integrationsDifferent = !areIntegrationsEqual(loaded.file.project.integrations, initFile.project.integrations)
   if (integrationsDifferent) {
     warnings.push(
       `Init sibling ${matches[0].path} has different integrations than the main file ${filePath}; using the main file's integrations.`
     )
   }
 
-  const settingsDifferent = !areSettingsEqual(file.project.settings, initFile.project.settings)
+  const settingsDifferent = !areSettingsEqual(loaded.file.project.settings, initFile.project.settings)
   if (settingsDifferent) {
     warnings.push(
       `Init sibling ${matches[0].path} has different settings than the main file ${filePath}; using the main file's settings.`
@@ -204,7 +192,8 @@ export async function resolveAndComposeInit(
   }
 
   return {
-    composed,
+    ...loaded,
+    file: composed,
     warnings,
   }
 }
