@@ -4,11 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  convertQuartoDocumentToBlocks,
-  convertQuartoFilesToDeepnoteFile,
-  parseQuartoFormat,
-} from './quarto-to-deepnote'
+import { convertQuartoDocumentToBlocks, convertQuartoFileToDeepnoteFile, parseQuartoFormat } from './quarto-to-deepnote'
 
 // Mock crypto.randomUUID to generate predictable IDs for testing
 vi.mock('node:crypto', async () => {
@@ -525,7 +521,7 @@ describe('convertQuartoDocumentToBlocks', () => {
   })
 })
 
-describe('convertQuartoFilesToDeepnoteFile', () => {
+describe('convertQuartoFileToDeepnoteFile', () => {
   let tempDir: string
   const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
@@ -547,7 +543,7 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
     const inputPath = path.join(testFixturesDir, 'simple.qmd')
     const outputPath = path.join(tempDir, 'simple.deepnote')
 
-    await convertQuartoFilesToDeepnoteFile([inputPath], {
+    await convertQuartoFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Simple Test',
     })
@@ -569,7 +565,7 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
     const inputPath = path.join(testFixturesDir, 'data-analysis.qmd')
     const outputPath = path.join(tempDir, 'data-analysis.deepnote')
 
-    await convertQuartoFilesToDeepnoteFile([inputPath], {
+    await convertQuartoFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Data Analysis',
     })
@@ -588,26 +584,45 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
     expect(labeledBlocks.length).toBeGreaterThan(0)
   })
 
-  it('converts multiple Quarto files into one Deepnote file', async () => {
+  it('converts each Quarto file into its own single-notebook Deepnote file', async () => {
     const inputPaths = [path.join(testFixturesDir, 'simple.qmd'), path.join(testFixturesDir, 'data-analysis.qmd')]
-    const outputPath = path.join(tempDir, 'multi.deepnote')
 
-    await convertQuartoFilesToDeepnoteFile(inputPaths, {
+    for (const inputPath of inputPaths) {
+      const outputPath = path.join(tempDir, `${path.basename(inputPath, '.qmd')}.deepnote`)
+
+      await convertQuartoFileToDeepnoteFile(inputPath, {
+        outputPath,
+        projectName: 'Single Notebook',
+      })
+
+      const content = await fs.readFile(outputPath, 'utf-8')
+      const result = deserializeDeepnoteFile(content)
+
+      expect(result.project.notebooks).toHaveLength(1)
+    }
+  })
+
+  it('honors a provided projectId', async () => {
+    const inputPath = path.join(testFixturesDir, 'simple.qmd')
+    const outputPath = path.join(tempDir, 'fixed-id.deepnote')
+
+    await convertQuartoFileToDeepnoteFile(inputPath, {
       outputPath,
-      projectName: 'Multi Notebook',
+      projectName: 'Fixed Id',
+      projectId: 'fixed-id',
     })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
 
-    expect(result.project.notebooks).toHaveLength(2)
+    expect(result.project.id).toBe('fixed-id')
   })
 
   it('matches snapshot for simple.qmd', async () => {
     const inputPath = path.join(testFixturesDir, 'simple.qmd')
     const outputPath = path.join(tempDir, 'simple.deepnote')
 
-    await convertQuartoFilesToDeepnoteFile([inputPath], {
+    await convertQuartoFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Simple Test',
     })
@@ -617,20 +632,19 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-002
-        initNotebookId: test-uuid-001
+        id: test-uuid-011
         integrations: []
         name: Simple Test
         notebooks:
           - blocks:
-              - id: test-uuid-004
-                blockGroup: test-uuid-003
+              - id: test-uuid-002
+                blockGroup: test-uuid-001
                 sortingKey: "000000"
                 type: markdown
                 content: "# Hello World"
                 metadata: {}
-              - id: test-uuid-006
-                blockGroup: test-uuid-005
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
                 sortingKey: "000001"
                 type: markdown
                 content: >-
@@ -639,14 +653,14 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
 
                   This is a simple Quarto document.
                 metadata: {}
-              - id: test-uuid-008
-                blockGroup: test-uuid-007
+              - id: test-uuid-006
+                blockGroup: test-uuid-005
                 sortingKey: "000002"
                 type: code
                 content: print("Hello, World!")
                 metadata: {}
-              - id: test-uuid-010
-                blockGroup: test-uuid-009
+              - id: test-uuid-008
+                blockGroup: test-uuid-007
                 sortingKey: "000003"
                 type: code
                 content: >-
@@ -658,8 +672,8 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
 
                   print(f"Result: {result}")
                 metadata: {}
-              - id: test-uuid-012
-                blockGroup: test-uuid-011
+              - id: test-uuid-010
+                blockGroup: test-uuid-009
                 sortingKey: "000004"
                 type: markdown
                 content: >-
@@ -669,7 +683,7 @@ describe('convertQuartoFilesToDeepnoteFile', () => {
                   That's all for now!
                 metadata: {}
             executionMode: block
-            id: test-uuid-001
+            id: test-uuid-012
             isModule: false
             name: Hello World
         settings: {}

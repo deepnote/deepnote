@@ -10,7 +10,7 @@ description: >-
 
 # Deepnote Skill
 
-`.deepnote` files are YAML-based, portable, git-friendly project files that can contain multiple notebooks. Each notebook holds an ordered list of blocks (code, SQL, markdown, inputs, visualizations, etc.). Snapshot files (`.snapshot.deepnote`) use the same format but include execution outputs.
+`.deepnote` files are YAML-based, portable, git-friendly files that each hold a single notebook. Each notebook holds an ordered list of blocks (code, SQL, markdown, inputs, visualizations, etc.). Snapshot files (`.snapshot.deepnote`) use the same format but include execution outputs.
 
 ## File Structure
 
@@ -118,7 +118,7 @@ snapshots/
 **Naming:**
 
 - Single-notebook files: `{slug}_{projectId}_{notebookId}_{timestamp}.snapshot.deepnote`
-- Legacy/multi-notebook files: `{slug}_{projectId}_{timestamp}.snapshot.deepnote`
+- Legacy files: `{slug}_{projectId}_{timestamp}.snapshot.deepnote`
 
 - `slug` — slugified project name
 - `projectId` — UUID from `project.id`

@@ -21,7 +21,7 @@ export interface GetSnapshotPathOptions {
 const DEFAULT_SNAPSHOT_DIR = 'snapshots'
 
 /** Notebook id as embedded by {@link generateSnapshotFilename}: UUID, 32-char hex, or a reversibly percent-encoded id (`[A-Za-z0-9_-]` kept verbatim, every other char as `%XX`). */
-const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[A-Za-z0-9%][A-Za-z0-9_%-]*)'
+const SNAPSHOT_NOTEBOOK_ID_PATTERN = '([0-9a-f]{32}|[0-9a-f-]{36}|[A-Za-z0-9_%-]+)'
 
 /** Regex pattern for snapshot filenames (new format with notebookId) */
 const SNAPSHOT_SINGLE_NOTEBOOK_FILENAME_PATTERN = new RegExp(
@@ -88,8 +88,15 @@ export async function findSnapshotsForProject(
 
       const parsed = parseSnapshotFilename(entry.name)
       if (parsed && parsed.projectId === projectId) {
-        // Skip non-matching new-format snapshots, but keep old-format (no notebookId) ones as fallback.
-        if (options.notebookId && parsed.notebookId && parsed.notebookId !== options.notebookId) {
+        if (options.notebookId) {
+          // Scoped request: skip other notebooks' scoped snapshots, but keep legacy
+          // (no-notebookId) ones as a fallback.
+          if (parsed.notebookId && parsed.notebookId !== options.notebookId) {
+            continue
+          }
+        } else if (parsed.notebookId) {
+          // Unscoped (multi-notebook/legacy) load: never borrow a split sibling's
+          // notebook-scoped snapshot, which would load an arbitrary notebook's outputs.
           continue
         }
         snapshots.push({

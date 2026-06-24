@@ -436,6 +436,32 @@ describe('resolveAndComposeInit', () => {
     const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
     expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
   })
+
+  it('ignores sibling snapshot files (`*.snapshot.deepnote`) as init candidates', async () => {
+    // A snapshot of the init notebook is itself a single-notebook .deepnote with the same project
+    // and notebook id, so without exclusion it would match as a second init source and fail as
+    // ambiguous. It must be ignored, leaving the real init sibling as the sole match.
+    const initSibling = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-init', name: 'Init', blocks: [{ id: 'init-b1' }] }],
+    })
+    const mainFile = makeFile({
+      projectId: 'proj-1',
+      initNotebookId: 'nb-init',
+      notebooks: [{ id: 'nb-main', name: 'Main', blocks: [{ id: 'main-b1' }] }],
+    })
+
+    const initPath = path.join(tempDir, 'project-init.deepnote')
+    const snapshotPath = path.join(tempDir, 'project-init_proj-1_nb-init_latest.snapshot.deepnote')
+    const mainPath = path.join(tempDir, 'project-main.deepnote')
+    await fs.writeFile(initPath, serializeDeepnoteFile(initSibling), 'utf-8')
+    await fs.writeFile(snapshotPath, serializeDeepnoteFile(initSibling), 'utf-8')
+    await fs.writeFile(mainPath, serializeDeepnoteFile(mainFile), 'utf-8')
+
+    const result = await resolveAndComposeInit(makeLoaded(mainFile, mainPath))
+    expect(result.file.project.notebooks.map(n => n.id)).toEqual(['nb-init', 'nb-main'])
+  })
 })
 
 describe('resolveAndComposeInitIfNeeded', () => {

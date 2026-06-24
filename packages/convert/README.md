@@ -44,7 +44,7 @@ deepnote-convert notebook.ipynb
 deepnote-convert document.qmd
 deepnote-convert notebook.py  # auto-detects percent vs marimo
 
-# Directory of files
+# Directory of files — one single-notebook .deepnote per notebook (into the dir, or use -o <dir>)
 deepnote-convert path/to/notebooks/
 ```
 

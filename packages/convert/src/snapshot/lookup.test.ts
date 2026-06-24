@@ -126,6 +126,9 @@ describe('generateSnapshotFilename ↔ parseSnapshotFilename round-trip', () => 
     'my.notebook.v2',
     'weird id/with\\sep.chars',
     'café-π',
+    '_leading-underscore', // parser must accept leading _/- that the encoder preserves verbatim
+    '-leading-dash',
+    '_1',
   ])('recovers notebook id %s embedded in the generated filename', id => {
     const filename = generateSnapshotFilename({
       slug: 'my-project',
@@ -375,7 +378,9 @@ describe('findSnapshotsForProject', () => {
     expect(ids).toContain(undefined)
   })
 
-  it('should return all snapshots when notebookId not provided', async () => {
+  it('returns only legacy snapshots when notebookId not provided (never a split sibling)', async () => {
+    // An unscoped load is for the original multi-notebook / legacy file. It must NOT pick up a split
+    // sibling's notebook-scoped snapshot, or it would load an arbitrary notebook's outputs (P1 bug).
     const projectId = '2e814690-4f02-465c-8848-5567ab9253b7'
     const nbId1 = 'd8fd4cfe9ce04908a4ed611000d231e4'
     vi.mocked(fs.readdir).mockResolvedValue([
@@ -384,7 +389,8 @@ describe('findSnapshotsForProject', () => {
     ] as unknown as Awaited<ReturnType<typeof fs.readdir>>)
 
     const result = await findSnapshotsForProject('/path/to', projectId)
-    expect(result).toHaveLength(2)
+    expect(result).toHaveLength(1)
+    expect(result[0].notebookId).toBeUndefined()
   })
 
   it('should rank notebookId-matching snapshots above legacy snapshots regardless of readdir order', async () => {

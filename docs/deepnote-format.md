@@ -11,13 +11,10 @@ Deepnote uses a human-readable YAML format (`.deepnote` files) to store notebook
 
 ## What is a `.deepnote` file?
 
-A `.deepnote` file is a YAML-formatted document that represents an entire Deepnote project, including:
+A `.deepnote` file is a YAML-formatted document that holds a single notebook together with its project context, including:
 
 - **Project metadata** (creation date, modification date, version)
-- **One or more notebooks** with their blocks and execution state
-
-> **Tip:** While the format supports multiple notebooks per file, the recommended practice is one notebook per file. Use `deepnote split` to convert multi-notebook files into separate single-notebook files.
-
+- **The notebook** with its blocks and execution state
 - **Project settings** (environment configuration, dependencies, integrations)
 - **Execution modes** and working directories
 
@@ -157,13 +154,13 @@ While Deepnote maintains compatibility with Jupyter, there are important differe
 
 ### File format
 
-| Feature                | Jupyter (`.ipynb`)    | Deepnote (`.deepnote`)         |
-| ---------------------- | --------------------- | ------------------------------ |
-| **Format**             | JSON                  | YAML                           |
-| **Readability**        | Machine-optimized     | Human-optimized                |
-| **Git diffs**          | Noisy, hard to review | Clean, easy to review          |
-| **Multiple notebooks** | One file per notebook | Multiple notebooks per project |
-| **Project settings**   | Not included          | Included in file               |
+| Feature               | Jupyter (`.ipynb`)    | Deepnote (`.deepnote`) |
+| --------------------- | --------------------- | ---------------------- |
+| **Format**            | JSON                  | YAML                   |
+| **Readability**       | Machine-optimized     | Human-optimized        |
+| **Git diffs**         | Noisy, hard to review | Clean, easy to review  |
+| **File organization** | One file per notebook | One notebook per file  |
+| **Project settings**  | Not included          | Included in file       |
 
 ### Project-level organization
 
@@ -176,8 +173,7 @@ While Deepnote maintains compatibility with Jupyter, there are important differe
 
 **Deepnote:**
 
-- Single `.deepnote` file contains entire project
-- Multiple notebooks organized together
+- Each notebook lives in its own `.deepnote` file
 - Dependencies and settings embedded in the file
 - Integration configurations included
 - Module system for reusable notebooks

@@ -89,13 +89,15 @@ function splitOnTopLevelCommas(str: string): string[] {
   return results
 }
 
-export interface ConvertMarimoFilesToDeepnoteFileOptions {
+export interface ConvertMarimoFileToDeepnoteFileOptions {
   outputPath: string
   projectName: string
+  projectId?: string
 }
 
-export interface ReadAndConvertMarimoFilesOptions {
+export interface ReadAndConvertMarimoFileOptions {
   projectName: string
+  projectId?: string
 }
 
 export interface ConvertMarimoAppOptions {
@@ -353,9 +355,11 @@ export function convertMarimoAppToBlocks(app: MarimoApp, options?: ConvertMarimo
   })
 }
 
-export interface ConvertMarimoAppsToDeepnoteOptions {
+export interface ConvertMarimoAppToDeepnoteOptions {
   /** Project name for the Deepnote file */
   projectName: string
+  /** Optional shared project id. When absent, a fresh id is generated. */
+  projectId?: string
   /** Custom ID generator function. Defaults to crypto.randomUUID(). */
   idGenerator?: () => string
 }
@@ -368,18 +372,13 @@ export interface MarimoAppWithOutputs extends MarimoAppInput {
  * Creates a base DeepnoteFile structure with empty notebooks.
  * This is a helper to reduce duplication in conversion functions.
  */
-function createDeepnoteFileSkeleton(
-  projectName: string,
-  idGenerator: () => string,
-  firstNotebookId?: string
-): DeepnoteFile {
+function createDeepnoteFileSkeleton(projectName: string, idGenerator: () => string, projectId?: string): DeepnoteFile {
   return {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: idGenerator(),
-      initNotebookId: firstNotebookId,
+      id: projectId ?? idGenerator(),
       integrations: [],
       name: projectName,
       notebooks: [],
@@ -390,145 +389,108 @@ function createDeepnoteFileSkeleton(
 }
 
 /**
- * Converts Marimo app objects into a Deepnote project file.
+ * Converts a single Marimo app object into a single-notebook Deepnote project file.
  * This is a pure conversion function that doesn't perform any file I/O.
  *
- * @param apps - Array of Marimo apps with filenames
- * @param options - Conversion options including project name and optional ID generator
+ * @param input - A Marimo app with filename
+ * @param options - Conversion options including project name, optional project id, and optional ID generator
  * @returns A DeepnoteFile object
  */
-export function convertMarimoAppsToDeepnote(
-  apps: MarimoAppInput[],
-  options: ConvertMarimoAppsToDeepnoteOptions
+export function convertMarimoAppToDeepnote(
+  input: MarimoAppInput,
+  options: ConvertMarimoAppToDeepnoteOptions
 ): DeepnoteFile {
   // Convert to MarimoAppWithOutputs with undefined outputs for compatibility
-  const appsWithOutputs: MarimoAppWithOutputs[] = apps.map(app => ({
-    ...app,
-    outputs: undefined,
-  }))
-  return convertMarimoAppsToDeepnoteFile(appsWithOutputs, options)
+  return convertMarimoAppToDeepnoteFile({ ...input, outputs: undefined }, options)
 }
 
 /**
- * Converts Marimo app objects with outputs into a Deepnote project file.
+ * Converts a single Marimo app object with outputs into a single-notebook Deepnote project file.
  * This variant includes outputs from the Marimo session cache.
  *
- * @param apps - Array of Marimo apps with filenames and optional outputs
- * @param options - Conversion options including project name and optional ID generator
+ * @param input - A Marimo app with filename and optional outputs
+ * @param options - Conversion options including project name, optional project id, and optional ID generator
  * @returns A DeepnoteFile object
  */
-export function convertMarimoAppsToDeepnoteFile(
-  apps: MarimoAppWithOutputs[],
-  options: ConvertMarimoAppsToDeepnoteOptions
+export function convertMarimoAppToDeepnoteFile(
+  input: MarimoAppWithOutputs,
+  options: ConvertMarimoAppToDeepnoteOptions
 ): DeepnoteFile {
   const idGenerator = options.idGenerator ?? randomUUID
 
-  // Generate the first notebook ID upfront so we can use it as the project entrypoint
-  const firstNotebookId = apps.length > 0 ? idGenerator() : undefined
+  const deepnoteFile = createDeepnoteFileSkeleton(options.projectName, idGenerator, options.projectId)
 
-  const deepnoteFile = createDeepnoteFileSkeleton(options.projectName, idGenerator, firstNotebookId)
+  const { filename, app, outputs } = input
+  const extension = extname(filename)
+  const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
-  for (let i = 0; i < apps.length; i++) {
-    const { filename, app, outputs } = apps[i]
-    const extension = extname(filename)
-    const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
+  // Use app title if available, otherwise use filename
+  const notebookName = app.title || filenameWithoutExt
 
-    // Use app title if available, otherwise use filename
-    const notebookName = app.title || filenameWithoutExt
+  const blocks = convertMarimoAppToBlocks(app, { idGenerator, outputs })
 
-    const blocks = convertMarimoAppToBlocks(app, { idGenerator, outputs })
-
-    // Use pre-generated ID for the first notebook, generate new ones for the rest
-    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : idGenerator()
-
-    deepnoteFile.project.notebooks.push({
-      blocks,
-      executionMode: 'block',
-      id: notebookId,
-      isModule: false,
-      name: notebookName,
-    })
-  }
+  deepnoteFile.project.notebooks.push({
+    blocks,
+    executionMode: 'block',
+    id: idGenerator(),
+    isModule: false,
+    name: notebookName,
+  })
 
   return deepnoteFile
 }
 
 /**
- * Reads and converts multiple Marimo (.py) files into a DeepnoteFile.
- * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ * Reads and converts a single Marimo (.py) file into a DeepnoteFile.
+ * This function reads the file and returns the converted DeepnoteFile without writing to disk.
  *
- * @param inputFilePaths - Array of paths to Marimo .py files
- * @param options - Conversion options including project name
+ * @param inputFilePath - Path to a Marimo .py file
+ * @param options - Conversion options including project name and optional project id
  * @returns A DeepnoteFile object
  */
-export async function readAndConvertMarimoFiles(
-  inputFilePaths: string[],
-  options: ReadAndConvertMarimoFilesOptions
+export async function readAndConvertMarimoFile(
+  inputFilePath: string,
+  options: ReadAndConvertMarimoFileOptions
 ): Promise<DeepnoteFile> {
-  const apps: MarimoAppWithOutputs[] = []
+  let app: MarimoAppWithOutputs
 
-  for (const filePath of inputFilePaths) {
-    try {
-      const content = await fs.readFile(filePath, 'utf-8')
-      const app = parseMarimoFormat(content)
+  try {
+    const content = await fs.readFile(inputFilePath, 'utf-8')
+    const parsedApp = parseMarimoFormat(content)
 
-      // Try to load outputs from Marimo session cache
-      const outputs = await getMarimoOutputsFromCache(filePath)
+    // Try to load outputs from Marimo session cache
+    const outputs = await getMarimoOutputsFromCache(inputFilePath)
 
-      apps.push({
-        filename: basename(filePath),
-        app,
-        outputs: outputs ?? undefined,
-      })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      const errorStack = err instanceof Error ? err.stack : undefined
-      throw new FileReadError(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
-        cause: errorStack ? { originalError: err, stack: errorStack } : err,
-        filePath,
-      })
+    app = {
+      filename: basename(inputFilePath),
+      app: parsedApp,
+      outputs: outputs ?? undefined,
     }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    const errorStack = err instanceof Error ? err.stack : undefined
+    throw new FileReadError(`Failed to read or parse file ${basename(inputFilePath)}: ${errorMessage}`, {
+      cause: errorStack ? { originalError: err, stack: errorStack } : err,
+      filePath: inputFilePath,
+    })
   }
 
-  return convertMarimoAppsToDeepnoteFile(apps, {
+  return convertMarimoAppToDeepnoteFile(app, {
     projectName: options.projectName,
+    projectId: options.projectId,
   })
 }
 
 /**
- * Converts multiple Marimo (.py) files into a single Deepnote project file.
+ * Converts a single Marimo (.py) file into a single Deepnote project file.
  */
-export async function convertMarimoFilesToDeepnoteFile(
-  inputFilePaths: string[],
-  options: ConvertMarimoFilesToDeepnoteFileOptions
+export async function convertMarimoFileToDeepnoteFile(
+  inputFilePath: string,
+  options: ConvertMarimoFileToDeepnoteFileOptions
 ): Promise<void> {
-  const apps: MarimoAppWithOutputs[] = []
-
-  for (const filePath of inputFilePaths) {
-    try {
-      const content = await fs.readFile(filePath, 'utf-8')
-      const app = parseMarimoFormat(content)
-
-      // Try to load outputs from Marimo session cache
-      const outputs = await getMarimoOutputsFromCache(filePath)
-
-      apps.push({
-        filename: basename(filePath),
-        app,
-        outputs: outputs ?? undefined,
-      })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      const errorStack = err instanceof Error ? err.stack : undefined
-      throw new FileReadError(`Failed to read or parse file ${basename(filePath)}: ${errorMessage}`, {
-        cause: errorStack ? { originalError: err, stack: errorStack } : err,
-        filePath,
-      })
-    }
-  }
-
-  const deepnoteFile = convertMarimoAppsToDeepnoteFile(apps, {
+  const deepnoteFile = await readAndConvertMarimoFile(inputFilePath, {
     projectName: options.projectName,
+    projectId: options.projectId,
   })
 
   const yamlContent = serializeDeepnoteFile(deepnoteFile)

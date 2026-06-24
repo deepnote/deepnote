@@ -522,7 +522,7 @@ describe('notebook-id filename codec', () => {
     expect(decodeNotebookIdFromFilename(encodeNotebookIdForFilename(id))).toBe(id)
   })
 
-  it.each(['2e814690-4f02-465c-8848-5567ab9253b7', 'd8fd4cfe9ce04908a4ed611000d231e4', 'nb-1', 'nb_1'])(
+  it.each(['2e814690-4f02-465c-8848-5567ab9253b7', 'd8fd4cfe9ce04908a4ed611000d231e4', 'nb-1', 'nb_1', '_nb1', '-nb1'])(
     'keeps filename-safe id %s byte-identical (backward compatible)',
     id => {
       expect(encodeNotebookIdForFilename(id)).toBe(id)

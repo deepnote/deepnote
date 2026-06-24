@@ -6,13 +6,15 @@ import { generateSortingKey, serializeDeepnoteFile } from '@deepnote/blocks'
 import { parse as parseYaml } from 'yaml'
 import type { QuartoCell, QuartoCellOptions, QuartoDocument, QuartoFrontmatter } from './types/quarto'
 
-export interface ConvertQuartoFilesToDeepnoteFileOptions {
+export interface ConvertQuartoFileToDeepnoteFileOptions {
   outputPath: string
   projectName: string
+  projectId?: string
 }
 
-export interface ReadAndConvertQuartoFilesOptions {
+export interface ReadAndConvertQuartoFileOptions {
   projectName: string
+  projectId?: string
 }
 
 export interface ConvertQuartoDocumentOptions {
@@ -346,97 +348,86 @@ export function convertQuartoDocumentToBlocks(
 }
 
 /**
- * Converts Quarto document objects into a Deepnote project file.
+ * Converts a single Quarto document into a single-notebook Deepnote project file.
  * This is a pure conversion function that doesn't perform any file I/O.
  *
- * @param documents - Array of Quarto documents with filenames
- * @param options - Conversion options including project name
+ * @param input - A Quarto document with its filename
+ * @param options - Conversion options including project name and optional project id
  * @returns A DeepnoteFile object
  */
-export function convertQuartoDocumentsToDeepnote(
-  documents: QuartoDocumentInput[],
-  options: { projectName: string }
+export function convertQuartoDocumentToDeepnote(
+  input: QuartoDocumentInput,
+  options: { projectName: string; projectId?: string }
 ): DeepnoteFile {
-  // Generate the first notebook ID upfront so we can use it as the project entrypoint
-  const firstNotebookId = documents.length > 0 ? randomUUID() : undefined
+  const { filename, document } = input
+  const extension = extname(filename)
+  const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
 
-  const deepnoteFile: DeepnoteFile = {
+  // Use frontmatter title if available, otherwise use filename
+  const notebookName = document.frontmatter?.title || filenameWithoutExt
+
+  const blocks = convertQuartoDocumentToBlocks(document)
+
+  return {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: randomUUID(),
-      initNotebookId: firstNotebookId,
+      id: options.projectId ?? randomUUID(),
       integrations: [],
       name: options.projectName,
-      notebooks: [],
+      notebooks: [
+        {
+          blocks,
+          executionMode: 'block',
+          id: randomUUID(),
+          isModule: false,
+          name: typeof notebookName === 'string' ? notebookName : filenameWithoutExt,
+        },
+      ],
       settings: {},
     },
     version: '1.0.0',
   }
-
-  for (let i = 0; i < documents.length; i++) {
-    const { filename, document } = documents[i]
-    const extension = extname(filename)
-    const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
-
-    // Use frontmatter title if available, otherwise use filename
-    const notebookName = document.frontmatter?.title || filenameWithoutExt
-
-    const blocks = convertQuartoDocumentToBlocks(document)
-
-    // Use pre-generated ID for the first notebook, generate new ones for the rest
-    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : randomUUID()
-
-    deepnoteFile.project.notebooks.push({
-      blocks,
-      executionMode: 'block',
-      id: notebookId,
-      isModule: false,
-      name: typeof notebookName === 'string' ? notebookName : filenameWithoutExt,
-    })
-  }
-
-  return deepnoteFile
 }
 
 /**
- * Reads and converts multiple Quarto (.qmd) files into a DeepnoteFile.
- * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ * Reads and converts a single Quarto (.qmd) file into a DeepnoteFile.
+ * This function reads the file and returns the converted DeepnoteFile without writing to disk.
  *
- * @param inputFilePaths - Array of paths to .qmd files
- * @param options - Conversion options including project name
+ * @param inputFilePath - Path to a .qmd file
+ * @param options - Conversion options including project name and optional project id
  * @returns A DeepnoteFile object
  */
-export async function readAndConvertQuartoFiles(
-  inputFilePaths: string[],
-  options: ReadAndConvertQuartoFilesOptions
+export async function readAndConvertQuartoFile(
+  inputFilePath: string,
+  options: ReadAndConvertQuartoFileOptions
 ): Promise<DeepnoteFile> {
-  const documents: QuartoDocumentInput[] = []
+  const content = await fs.readFile(inputFilePath, 'utf-8')
+  const document = parseQuartoFormat(content)
 
-  for (const filePath of inputFilePaths) {
-    const content = await fs.readFile(filePath, 'utf-8')
-    const document = parseQuartoFormat(content)
-    documents.push({
-      filename: basename(filePath),
+  return convertQuartoDocumentToDeepnote(
+    {
+      filename: basename(inputFilePath),
       document,
-    })
-  }
-
-  return convertQuartoDocumentsToDeepnote(documents, {
-    projectName: options.projectName,
-  })
+    },
+    {
+      projectName: options.projectName,
+      projectId: options.projectId,
+    }
+  )
 }
 
 /**
- * Converts multiple Quarto (.qmd) files into a single Deepnote project file.
+ * Converts a single Quarto (.qmd) file into a single Deepnote project file.
  */
-export async function convertQuartoFilesToDeepnoteFile(
-  inputFilePaths: string[],
-  options: ConvertQuartoFilesToDeepnoteFileOptions
+export async function convertQuartoFileToDeepnoteFile(
+  inputFilePath: string,
+  options: ConvertQuartoFileToDeepnoteFileOptions
 ): Promise<void> {
-  const deepnoteFile = await readAndConvertQuartoFiles(inputFilePaths, {
+  const deepnoteFile = await readAndConvertQuartoFile(inputFilePath, {
     projectName: options.projectName,
+    projectId: options.projectId,
   })
 
   const yamlContent = serializeDeepnoteFile(deepnoteFile)

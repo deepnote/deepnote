@@ -3,10 +3,10 @@ import path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { detectFormat } from './format-detection'
-import { convertJupyterNotebooksToDeepnote } from './jupyter-to-deepnote'
-import { convertMarimoAppsToDeepnote, parseMarimoFormat } from './marimo-to-deepnote'
-import { convertPercentNotebooksToDeepnote, parsePercentFormat } from './percent-to-deepnote'
-import { convertQuartoDocumentsToDeepnote, parseQuartoFormat } from './quarto-to-deepnote'
+import { convertJupyterNotebookToDeepnote } from './jupyter-to-deepnote'
+import { convertMarimoAppToDeepnote, parseMarimoFormat } from './marimo-to-deepnote'
+import { convertPercentNotebookToDeepnote, parsePercentFormat } from './percent-to-deepnote'
+import { convertQuartoDocumentToDeepnote, parseQuartoFormat } from './quarto-to-deepnote'
 import type { JupyterNotebook } from './types/jupyter'
 
 /** Supported file extensions for running. */
@@ -108,7 +108,7 @@ export function parseRunnableFileContent(content: string, absolutePath: string):
       )
     }
 
-    const file = convertJupyterNotebooksToDeepnote([{ filename, notebook }], { projectName })
+    const file = convertJupyterNotebookToDeepnote({ filename, notebook }, { projectName })
     return {
       file,
       originalPath: absolutePath,
@@ -127,7 +127,7 @@ export function parseRunnableFileContent(content: string, absolutePath: string):
         `Failed to parse Quarto document: ${absolutePath}\n\n` + `Parse error: ${message}`
       )
     }
-    const file = convertQuartoDocumentsToDeepnote([{ filename, document }], { projectName })
+    const file = convertQuartoDocumentToDeepnote({ filename, document }, { projectName })
     return {
       file,
       originalPath: absolutePath,
@@ -155,7 +155,7 @@ export function parseRunnableFileContent(content: string, absolutePath: string):
           `Failed to parse Marimo notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
         )
       }
-      const file = convertMarimoAppsToDeepnote([{ filename, app }], { projectName })
+      const file = convertMarimoAppToDeepnote({ filename, app }, { projectName })
       return {
         file,
         originalPath: absolutePath,
@@ -174,7 +174,7 @@ export function parseRunnableFileContent(content: string, absolutePath: string):
           `Failed to parse percent format notebook: ${absolutePath}\n\n` + `Parse error: ${message}`
         )
       }
-      const file = convertPercentNotebooksToDeepnote([{ filename, notebook }], { projectName })
+      const file = convertPercentNotebookToDeepnote({ filename, notebook }, { projectName })
       return {
         file,
         originalPath: absolutePath,

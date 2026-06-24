@@ -95,13 +95,13 @@ The server exposes notebook resources for discovery:
 
 Execution is handled by a single tool:
 
-| Tool           | Description                                   |
-| -------------- | --------------------------------------------- |
-| `deepnote_run` | Run all notebooks, one notebook, or one block |
+| Tool           | Description                                             |
+| -------------- | ------------------------------------------------------- |
+| `deepnote_run` | Run a file (every notebook), one notebook, or one block |
 
 Scopes:
 
-- **Project level**: `deepnote_run` with only `path` runs all notebooks
+- **Project level**: `deepnote_run` with only `path` runs every notebook in the file — normally just one, since each `.deepnote` file holds a single notebook
 - **Notebook level**: pass `notebook`
 - **Block level**: pass `blockId` (optionally also `notebook`)
 

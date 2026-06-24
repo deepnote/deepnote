@@ -15,7 +15,7 @@ Both use the same YAML-based format. A snapshot is simply a `.deepnote` file tha
 
 ## The `.deepnote` Format
 
-A `.deepnote` file is a portable, self-contained project file that can include multiple notebooks, environment configuration, and integrations.
+A `.deepnote` file is a portable, self-contained file holding a single notebook along with its environment configuration and integrations.
 
 For the complete schema definition, see [`deepnote-file-schema.ts`](https://github.com/deepnote/deepnote/blob/main/packages/blocks/src/deserialize-file/deepnote-file-schema.ts).
 
@@ -23,7 +23,7 @@ For the complete schema definition, see [`deepnote-file-schema.ts`](https://gith
 
 - **Portable**: Everything needed to understand and run the project is in one file
 - **Git-friendly**: YAML format produces meaningful diffs
-- **Multi-notebook**: A single project can contain multiple notebooks (recommended: one notebook per file; use `deepnote split` to separate)
+- **One notebook per file**: Each `.deepnote` file holds a single notebook, keeping diffs small and tooling simple
 - **Environment-aware**: Can include Python version, packages, and other dependencies
 - **Integration-ready**: Stores database connections and other integrations
 
@@ -332,9 +332,9 @@ For more details, see the [`@deepnote/convert` documentation](https://github.com
 
 YAML produces cleaner diffs when reviewing changes in Git. Multi-line strings (code cells) are more readable, and the format supports comments for documentation.
 
-### Can I have multiple notebooks in one file?
+### How are notebooks organized into files?
 
-Yes! A `.deepnote` file is a project that can contain multiple notebooks. Each notebook has its own ID and can be executed independently.
+Each `.deepnote` file holds a single notebook with its own ID, executed independently. Related notebooks live side by side as separate files in a project directory.
 
 ### How do I share a specific execution state?
 

@@ -6,9 +6,9 @@ import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileReadError, JsonParseError } from './errors'
 import {
-  convertIpynbFilesToDeepnoteFile,
+  convertIpynbFileToDeepnoteFile,
   convertJupyterNotebookToBlocks,
-  readAndConvertIpynbFiles,
+  readAndConvertIpynbFile,
 } from './jupyter-to-deepnote'
 
 // Mock crypto.randomUUID to generate predictable IDs for testing
@@ -36,7 +36,7 @@ function getMockedRandomUUID() {
   }
 }
 
-describe('convertIpynbFilesToDeepnoteFile', () => {
+describe('convertIpynbFileToDeepnoteFile', () => {
   let tempDir: string
 
   beforeEach(async () => {
@@ -59,7 +59,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
     const outputPath = path.join(tempDir, 'simple.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Simple Test',
     })
@@ -114,7 +114,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
     const outputPath = path.join(tempDir, 'array-source.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Array Source Test',
     })
@@ -148,7 +148,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const outputPath = path.join(tempDir, 'null-execution.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([notebookPath], {
+    await convertIpynbFileToDeepnoteFile(notebookPath, {
       outputPath,
       projectName: 'Null Execution Test',
     })
@@ -162,44 +162,75 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     }
   })
 
-  it('converts multiple Jupyter notebooks into one Deepnote file', async () => {
-    const inputPaths = [
-      path.join(__dirname, '__fixtures__', 'notebook1.ipynb'),
-      path.join(__dirname, '__fixtures__', 'notebook2.ipynb'),
-    ]
-    const outputPath = path.join(tempDir, 'multi.deepnote')
+  it('converts each Jupyter notebook into its own single-notebook Deepnote file', async () => {
+    const input1Path = path.join(__dirname, '__fixtures__', 'notebook1.ipynb')
+    const input2Path = path.join(__dirname, '__fixtures__', 'notebook2.ipynb')
+    const output1Path = path.join(tempDir, 'notebook1.deepnote')
+    const output2Path = path.join(tempDir, 'notebook2.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile(inputPaths, {
-      outputPath,
+    // Convert each notebook individually, sharing a project id so they belong
+    // to the same logical project.
+    const projectId = 'shared-project-id'
+
+    await convertIpynbFileToDeepnoteFile(input1Path, {
+      outputPath: output1Path,
+      projectId,
+      projectName: 'Multi Notebook Test',
+    })
+    await convertIpynbFileToDeepnoteFile(input2Path, {
+      outputPath: output2Path,
+      projectId,
       projectName: 'Multi Notebook Test',
     })
 
-    const content = await fs.readFile(outputPath, 'utf-8')
-    const result = deserializeDeepnoteFile(content)
+    const result1 = deserializeDeepnoteFile(await fs.readFile(output1Path, 'utf-8'))
+    const result2 = deserializeDeepnoteFile(await fs.readFile(output2Path, 'utf-8'))
 
-    // Verify we have two notebooks
-    expect(result.project.notebooks).toHaveLength(2)
+    // Each file contains exactly one notebook
+    expect(result1.project.notebooks).toHaveLength(1)
+    expect(result2.project.notebooks).toHaveLength(1)
+
+    // Passing the same projectId yields the same project.id across files
+    expect(result1.project.id).toBe(projectId)
+    expect(result2.project.id).toBe(projectId)
 
     // Verify first notebook
-    const notebook1 = result.project.notebooks[0]
+    const notebook1 = result1.project.notebooks[0]
     expect(notebook1.name).toBe('notebook1')
     expect(notebook1.blocks).toHaveLength(2)
     expect(notebook1.blocks[0].content).toBe('# Notebook 1')
     expect(notebook1.blocks[1].content).toBe('x = 1')
 
     // Verify second notebook
-    const notebook2 = result.project.notebooks[1]
+    const notebook2 = result2.project.notebooks[0]
     expect(notebook2.name).toBe('notebook2')
     expect(notebook2.blocks).toHaveLength(2)
     expect(notebook2.blocks[0].content).toBe('# Notebook 2')
     expect(notebook2.blocks[1].content).toBe('y = 2')
   })
 
+  it('honors a provided projectId', async () => {
+    const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
+    const outputPath = path.join(tempDir, 'fixed-project-id.deepnote')
+
+    await convertIpynbFileToDeepnoteFile(inputPath, {
+      outputPath,
+      projectId: 'fixed-id',
+      projectName: 'Fixed Project Id Test',
+    })
+
+    const content = await fs.readFile(outputPath, 'utf-8')
+    const result = deserializeDeepnoteFile(content)
+
+    expect(result.project.id).toBe('fixed-id')
+    expect(result.project.notebooks).toHaveLength(1)
+  })
+
   it('converts the real titanic tutorial notebook', async () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'titanic-tutorial.ipynb')
     const outputPath = path.join(tempDir, 'titanic.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Titanic Tutorial',
     })
@@ -236,7 +267,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
     const outputPath = path.join(tempDir, 'uuids.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'UUID Test',
     })
@@ -263,7 +294,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
     const outputPath = path.join(tempDir, 'timestamp.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Timestamp Test',
     })
@@ -281,7 +312,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
     const outputPath = path.join(tempDir, 'yaml.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'YAML Test',
     })
@@ -325,7 +356,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const outputPath = path.join(tempDir, 'with-outputs.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([notebookPath], {
+    await convertIpynbFileToDeepnoteFile(notebookPath, {
       outputPath,
       projectName: 'Outputs Test',
     })
@@ -364,7 +395,7 @@ describe('convertIpynbFilesToDeepnoteFile', () => {
 
     const outputPath = path.join(tempDir, 'markdown-only.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([notebookPath], {
+    await convertIpynbFileToDeepnoteFile(notebookPath, {
       outputPath,
       projectName: 'Markdown Only Test',
     })
@@ -401,7 +432,7 @@ describe('snapshot tests - exact YAML output format', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'simple.ipynb')
     const outputPath = path.join(tempDir, 'simple.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Simple Test',
     })
@@ -411,14 +442,13 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-002
-        initNotebookId: test-uuid-001
+        id: test-uuid-008
         integrations: []
         name: Simple Test
         notebooks:
           - blocks:
-              - id: test-uuid-004
-                blockGroup: test-uuid-003
+              - id: test-uuid-002
+                blockGroup: test-uuid-001
                 sortingKey: "000000"
                 type: markdown
                 content: >-
@@ -427,16 +457,16 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   This is a test notebook.
                 metadata: {}
-              - id: test-uuid-006
-                blockGroup: test-uuid-005
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
                 sortingKey: "000001"
                 executionCount: 1
                 outputs: []
                 type: code
                 content: print('Hello World')
                 metadata: {}
-              - id: test-uuid-008
-                blockGroup: test-uuid-007
+              - id: test-uuid-006
+                blockGroup: test-uuid-005
                 sortingKey: "000002"
                 executionCount: 2
                 outputs: []
@@ -447,7 +477,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   import pandas as pd
                 metadata: {}
             executionMode: block
-            id: test-uuid-001
+            id: test-uuid-007
             isModule: false
             name: simple
         settings: {}
@@ -460,7 +490,7 @@ describe('snapshot tests - exact YAML output format', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'notebook1.ipynb')
     const outputPath = path.join(tempDir, 'notebook1.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Notebook 1',
     })
@@ -470,20 +500,19 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-002
-        initNotebookId: test-uuid-001
+        id: test-uuid-006
         integrations: []
         name: Notebook 1
         notebooks:
           - blocks:
-              - id: test-uuid-004
-                blockGroup: test-uuid-003
+              - id: test-uuid-002
+                blockGroup: test-uuid-001
                 sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 1"
                 metadata: {}
-              - id: test-uuid-006
-                blockGroup: test-uuid-005
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
                 sortingKey: "000001"
                 executionCount: 1
                 outputs: []
@@ -491,7 +520,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 content: x = 1
                 metadata: {}
             executionMode: block
-            id: test-uuid-001
+            id: test-uuid-005
             isModule: false
             name: notebook1
         settings: {}
@@ -504,7 +533,7 @@ describe('snapshot tests - exact YAML output format', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'notebook2.ipynb')
     const outputPath = path.join(tempDir, 'notebook2.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Notebook 2',
     })
@@ -514,20 +543,19 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-002
-        initNotebookId: test-uuid-001
+        id: test-uuid-006
         integrations: []
         name: Notebook 2
         notebooks:
           - blocks:
-              - id: test-uuid-004
-                blockGroup: test-uuid-003
+              - id: test-uuid-002
+                blockGroup: test-uuid-001
                 sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 2"
                 metadata: {}
-              - id: test-uuid-006
-                blockGroup: test-uuid-005
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
                 sortingKey: "000001"
                 executionCount: 1
                 outputs: []
@@ -535,7 +563,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 content: y = 2
                 metadata: {}
             executionMode: block
-            id: test-uuid-001
+            id: test-uuid-005
             isModule: false
             name: notebook2
         settings: {}
@@ -548,7 +576,7 @@ describe('snapshot tests - exact YAML output format', () => {
     const inputPath = path.join(__dirname, '__fixtures__', 'titanic-tutorial.ipynb')
     const outputPath = path.join(tempDir, 'titanic.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], {
+    await convertIpynbFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Titanic Tutorial',
     })
@@ -558,14 +586,13 @@ describe('snapshot tests - exact YAML output format', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-002
-        initNotebookId: test-uuid-001
+        id: test-uuid-032
         integrations: []
         name: Titanic Tutorial
         notebooks:
           - blocks:
-              - id: test-uuid-004
-                blockGroup: test-uuid-003
+              - id: test-uuid-002
+                blockGroup: test-uuid-001
                 sortingKey: "000000"
                 type: markdown
                 content: >-
@@ -682,8 +709,8 @@ describe('snapshot tests - exact YAML output format', () => {
                   - a **"Survived"** column (that you will create!) with a "1" for the rows where you think the passenger
                   survived, and a "0" where you predict that the passenger died.
                 metadata: {}
-              - id: test-uuid-006
-                blockGroup: test-uuid-005
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
                 sortingKey: "000001"
                 type: markdown
                 content: >-
@@ -743,8 +770,8 @@ describe('snapshot tests - exact YAML output format', () => {
                   If the code runs successfully, three lines of output are returned.  Below, you can see the same code that
                   you just ran, along with the output that you should see in your notebook.
                 metadata: {}
-              - id: test-uuid-008
-                blockGroup: test-uuid-007
+              - id: test-uuid-006
+                blockGroup: test-uuid-005
                 sortingKey: "000002"
                 outputs: []
                 type: code
@@ -783,8 +810,8 @@ describe('snapshot tests - exact YAML output format', () => {
                     shell.execute_reply: 2025-09-01T09:06:57.371054Z
                     shell.execute_reply.started: 2025-09-01T09:06:57.140287Z
                   trusted: true
-              - id: test-uuid-010
-                blockGroup: test-uuid-009
+              - id: test-uuid-008
+                blockGroup: test-uuid-007
                 sortingKey: "000003"
                 type: markdown
                 content: >-
@@ -804,8 +831,8 @@ describe('snapshot tests - exact YAML output format', () => {
                   Type the two lines of code below into your second code cell.  Then, once you're done, either click on the
                   blue play button, or hit **[Shift] + [Enter]**.  
                 metadata: {}
-              - id: test-uuid-012
-                blockGroup: test-uuid-011
+              - id: test-uuid-010
+                blockGroup: test-uuid-009
                 sortingKey: "000004"
                 outputs: []
                 type: code
@@ -821,8 +848,8 @@ describe('snapshot tests - exact YAML output format', () => {
                     shell.execute_reply: 2025-09-01T09:06:57.426732Z
                     shell.execute_reply.started: 2025-09-01T09:06:57.374555Z
                   trusted: true
-              - id: test-uuid-014
-                blockGroup: test-uuid-013
+              - id: test-uuid-012
+                blockGroup: test-uuid-011
                 sortingKey: "000005"
                 type: markdown
                 content: >-
@@ -851,8 +878,8 @@ describe('snapshot tests - exact YAML output format', () => {
                   Copy the code below into the third code cell of your notebook to load the contents of the **test.csv**
                   file.  Don't forget to click on the play button (or hit **[Shift] + [Enter]**)!
                 metadata: {}
-              - id: test-uuid-016
-                blockGroup: test-uuid-015
+              - id: test-uuid-014
+                blockGroup: test-uuid-013
                 sortingKey: "000006"
                 outputs: []
                 type: code
@@ -868,8 +895,8 @@ describe('snapshot tests - exact YAML output format', () => {
                     shell.execute_reply: 2025-09-01T09:06:57.468935Z
                     shell.execute_reply.started: 2025-09-01T09:06:57.431137Z
                   trusted: true
-              - id: test-uuid-018
-                blockGroup: test-uuid-017
+              - id: test-uuid-016
+                blockGroup: test-uuid-015
                 sortingKey: "000007"
                 type: markdown
                 content: >-
@@ -904,8 +931,8 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   Copy the code below into a new code cell.  Then, run the cell.
                 metadata: {}
-              - id: test-uuid-020
-                blockGroup: test-uuid-019
+              - id: test-uuid-018
+                blockGroup: test-uuid-017
                 sortingKey: "000008"
                 outputs: []
                 type: code
@@ -925,8 +952,8 @@ describe('snapshot tests - exact YAML output format', () => {
                     shell.execute_reply.started: 2025-09-01T09:06:57.473544Z
                   scrolled: true
                   trusted: true
-              - id: test-uuid-022
-                blockGroup: test-uuid-021
+              - id: test-uuid-020
+                blockGroup: test-uuid-019
                 sortingKey: "000009"
                 type: markdown
                 content: >-
@@ -936,8 +963,8 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   Then, run the code below in another code cell:
                 metadata: {}
-              - id: test-uuid-024
-                blockGroup: test-uuid-023
+              - id: test-uuid-022
+                blockGroup: test-uuid-021
                 sortingKey: "000010"
                 outputs: []
                 type: code
@@ -956,8 +983,8 @@ describe('snapshot tests - exact YAML output format', () => {
                     shell.execute_reply: 2025-09-01T09:06:57.505447Z
                     shell.execute_reply.started: 2025-09-01T09:06:57.486442Z
                   trusted: true
-              - id: test-uuid-026
-                blockGroup: test-uuid-025
+              - id: test-uuid-024
+                blockGroup: test-uuid-023
                 sortingKey: "000011"
                 type: markdown
                 content: >-
@@ -996,8 +1023,8 @@ describe('snapshot tests - exact YAML output format', () => {
 
                   Copy this code into your notebook, and run it in a new code cell.
                 metadata: {}
-              - id: test-uuid-028
-                blockGroup: test-uuid-027
+              - id: test-uuid-026
+                blockGroup: test-uuid-025
                 sortingKey: "000012"
                 outputs: []
                 type: code
@@ -1036,8 +1063,8 @@ describe('snapshot tests - exact YAML output format', () => {
                     shell.execute_reply: 2025-09-01T09:07:00.900466Z
                     shell.execute_reply.started: 2025-09-01T09:06:57.507805Z
                   trusted: true
-              - id: test-uuid-030
-                blockGroup: test-uuid-029
+              - id: test-uuid-028
+                blockGroup: test-uuid-027
                 sortingKey: "000013"
                 type: markdown
                 content: >-
@@ -1068,8 +1095,8 @@ describe('snapshot tests - exact YAML output format', () => {
                   Congratulations for making your first submission to a Kaggle competition!  Within ten minutes, you should
                   receive a message providing your spot on the leaderboard.  Great work!
                 metadata: {}
-              - id: test-uuid-032
-                blockGroup: test-uuid-031
+              - id: test-uuid-030
+                blockGroup: test-uuid-029
                 sortingKey: "000014"
                 type: markdown
                 content: >-
@@ -1082,7 +1109,7 @@ describe('snapshot tests - exact YAML output format', () => {
                   predictions!
                 metadata: {}
             executionMode: block
-            id: test-uuid-001
+            id: test-uuid-031
             isModule: false
             name: titanic-tutorial
         settings: {}
@@ -1091,37 +1118,43 @@ describe('snapshot tests - exact YAML output format', () => {
     `)
   })
 
-  it('matches snapshot for multiple notebooks', async () => {
-    const inputPaths = [
-      path.join(__dirname, '__fixtures__', 'notebook1.ipynb'),
-      path.join(__dirname, '__fixtures__', 'notebook2.ipynb'),
-    ]
-    const outputPath = path.join(tempDir, 'multi.deepnote')
+  it('matches snapshot when converting notebooks individually with a shared projectId', async () => {
+    const input1Path = path.join(__dirname, '__fixtures__', 'notebook1.ipynb')
+    const input2Path = path.join(__dirname, '__fixtures__', 'notebook2.ipynb')
+    const output1Path = path.join(tempDir, 'notebook1.deepnote')
+    const output2Path = path.join(tempDir, 'notebook2.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile(inputPaths, {
-      outputPath,
+    await convertIpynbFileToDeepnoteFile(input1Path, {
+      outputPath: output1Path,
+      projectId: 'shared-project-id',
+      projectName: 'Multi Notebook',
+    })
+    await convertIpynbFileToDeepnoteFile(input2Path, {
+      outputPath: output2Path,
+      projectId: 'shared-project-id',
       projectName: 'Multi Notebook',
     })
 
-    const content = await fs.readFile(outputPath, 'utf-8')
-    expect(content).toMatchInlineSnapshot(`
+    const content1 = await fs.readFile(output1Path, 'utf-8')
+    const content2 = await fs.readFile(output2Path, 'utf-8')
+
+    expect(content1).toMatchInlineSnapshot(`
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-002
-        initNotebookId: test-uuid-001
+        id: shared-project-id
         integrations: []
         name: Multi Notebook
         notebooks:
           - blocks:
-              - id: test-uuid-004
-                blockGroup: test-uuid-003
+              - id: test-uuid-002
+                blockGroup: test-uuid-001
                 sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 1"
                 metadata: {}
-              - id: test-uuid-006
-                blockGroup: test-uuid-005
+              - id: test-uuid-004
+                blockGroup: test-uuid-003
                 sortingKey: "000001"
                 executionCount: 1
                 outputs: []
@@ -1129,18 +1162,30 @@ describe('snapshot tests - exact YAML output format', () => {
                 content: x = 1
                 metadata: {}
             executionMode: block
-            id: test-uuid-001
+            id: test-uuid-005
             isModule: false
             name: notebook1
+        settings: {}
+      version: 1.0.0
+      "
+    `)
+    expect(content2).toMatchInlineSnapshot(`
+      "metadata:
+        createdAt: 2024-01-15T10:30:00.000Z
+      project:
+        id: shared-project-id
+        integrations: []
+        name: Multi Notebook
+        notebooks:
           - blocks:
-              - id: test-uuid-008
-                blockGroup: test-uuid-007
+              - id: test-uuid-007
+                blockGroup: test-uuid-006
                 sortingKey: "000000"
                 type: markdown
                 content: "# Notebook 2"
                 metadata: {}
-              - id: test-uuid-010
-                blockGroup: test-uuid-009
+              - id: test-uuid-009
+                blockGroup: test-uuid-008
                 sortingKey: "000001"
                 executionCount: 1
                 outputs: []
@@ -1148,7 +1193,7 @@ describe('snapshot tests - exact YAML output format', () => {
                 content: y = 2
                 metadata: {}
             executionMode: block
-            id: test-uuid-011
+            id: test-uuid-010
             isModule: false
             name: notebook2
         settings: {}
@@ -1364,7 +1409,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1378,7 +1423,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1392,7 +1437,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1412,7 +1457,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1432,7 +1477,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1449,7 +1494,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1466,7 +1511,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1480,7 +1525,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1501,7 +1546,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1519,7 +1564,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1538,7 +1583,7 @@ describe('content preservation - comments, functions, and classes', () => {
     const inputPath = path.join(__dirname, '../../../test-fixtures', 'python-comprehensive.ipynb')
     const outputPath = path.join(tempDir, 'test.deepnote')
 
-    await convertIpynbFilesToDeepnoteFile([inputPath], { outputPath, projectName: 'Test' })
+    await convertIpynbFileToDeepnoteFile(inputPath, { outputPath, projectName: 'Test' })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
@@ -1559,8 +1604,8 @@ describe('error handling', () => {
   it('throws FileReadError when ipynb file does not exist', async () => {
     const nonExistentPath = path.join(os.tmpdir(), 'does-not-exist-deepnote-test.ipynb')
 
-    await expect(readAndConvertIpynbFiles([nonExistentPath], { projectName: 'Test' })).rejects.toThrow(FileReadError)
-    await expect(readAndConvertIpynbFiles([nonExistentPath], { projectName: 'Test' })).rejects.toThrow(/Failed to read/)
+    await expect(readAndConvertIpynbFile(nonExistentPath, { projectName: 'Test' })).rejects.toThrow(FileReadError)
+    await expect(readAndConvertIpynbFile(nonExistentPath, { projectName: 'Test' })).rejects.toThrow(/Failed to read/)
   })
 
   it('throws JsonParseError when ipynb file contains invalid JSON', async () => {
@@ -1569,8 +1614,8 @@ describe('error handling', () => {
     await fs.writeFile(invalidJsonPath, 'not valid json {{{', 'utf-8')
 
     try {
-      await expect(readAndConvertIpynbFiles([invalidJsonPath], { projectName: 'Test' })).rejects.toThrow(JsonParseError)
-      await expect(readAndConvertIpynbFiles([invalidJsonPath], { projectName: 'Test' })).rejects.toThrow(
+      await expect(readAndConvertIpynbFile(invalidJsonPath, { projectName: 'Test' })).rejects.toThrow(JsonParseError)
+      await expect(readAndConvertIpynbFile(invalidJsonPath, { projectName: 'Test' })).rejects.toThrow(
         /Failed to parse.*invalid JSON/
       )
     } finally {

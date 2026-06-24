@@ -148,7 +148,11 @@ export async function resolveAndComposeInit(loaded: LoadedRunnableFile): Promise
 
   for (const entry of entries) {
     if (entry === ownBasename) continue
-    if (!entry.toLowerCase().endsWith('.deepnote')) continue
+    const lowerEntry = entry.toLowerCase()
+    // Snapshots are single-notebook `.deepnote` files that share the source's project/notebook
+    // ids, so they would validate as init candidates — exclude them to avoid spurious ambiguity.
+    if (lowerEntry.endsWith('.snapshot.deepnote')) continue
+    if (!lowerEntry.endsWith('.deepnote')) continue
 
     const candidatePath = resolve(directory, entry)
 

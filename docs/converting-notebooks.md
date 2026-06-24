@@ -14,7 +14,6 @@ The `@deepnote/convert` package provides a command-line tool and programmatic AP
 - Migrate existing Jupyter notebooks to Deepnote format
 - Convert single notebooks or entire directories
 - Preserve code, markdown, outputs, and execution counts
-- Create multi-notebook Deepnote projects
 - Convert Deepnote projects back to Jupyter notebooks via [deepnote.com](https://deepnote.com)
 - Convert [ipynb files to PDF](https://deepnote.com/ipynb-to-pdf) when you need a static, shareable document rather than an editable notebook
 
@@ -74,19 +73,19 @@ deepnote-convert analysis.ipynb
 
 ### Convert a directory of notebooks
 
-Convert all `.ipynb` files in a directory to a single `.deepnote` project:
+Convert every `.ipynb` file in a directory, each to its own single-notebook `.deepnote` file:
 
 ```bash
 deepnote-convert path/to/notebooks/
 ```
 
-This creates a multi-notebook project where each `.ipynb` file becomes a separate notebook within the project.
+Each notebook becomes its own `.deepnote` file, named after the source notebook and written into the input directory. Pass `-o <dir>` to write them somewhere else.
 
 **Example:**
 
 ```bash
 deepnote-convert ./ml-experiments
-# Creates: ml-experiments.deepnote (containing all notebooks from the directory)
+# Creates ./ml-experiments/<name>.deepnote for each notebook in the directory
 ```
 
 ### Convert .deepnote to .ipynb
@@ -103,24 +102,24 @@ Set a custom name for the Deepnote project:
 deepnote-convert notebook.ipynb --projectName "My Analysis"
 ```
 
-If not specified, the project name defaults to:
-
-- The filename (without extension) for single files
-- The directory name for directories
+When converting a directory, all output files belong to one project, so `--projectName` sets the shared project name on every file (each file is still named after its own source notebook). If not specified, the project name defaults to the filename for a single file, or the directory name for a directory.
 
 #### `-o, --outputPath <path>`
 
-Specify where to save the output `.deepnote` file:
+Specify where to save the output:
 
 ```bash
-# Save to a specific file
+# Single file → save to a specific file
 deepnote-convert notebook.ipynb -o output/project.deepnote
 
-# Save to a directory (filename will be auto-generated)
+# Single file → save into a directory (filename auto-generated)
 deepnote-convert notebook.ipynb -o output/
+
+# Directory → write each notebook's .deepnote into this output directory
+deepnote-convert path/to/notebooks/ -o output/
 ```
 
-If not specified, the output file is saved in the current directory.
+For a single file the output defaults to the current directory; for a directory it defaults to the input directory.
 
 ### CLI Examples
 
@@ -128,10 +127,10 @@ If not specified, the output file is saved in the current directory.
 # Convert with custom project name
 deepnote-convert titanic.ipynb --projectName "Titanic Analysis"
 
-# Convert directory with custom output location
-deepnote-convert ./analysis --projectName "Data Science Project" -o ./output
+# Convert a directory into a custom output location (one .deepnote per notebook)
+deepnote-convert ./analysis -o ./output
 
-# Convert multiple notebooks from a folder
+# Convert every notebook in a folder, writing the .deepnote files elsewhere
 deepnote-convert ~/notebooks/ml-experiments -o ~/projects/
 
 # Convert and specify both name and output
@@ -186,17 +185,15 @@ This workflow allows you to work with Deepnote's enhanced features and collabora
 
 ### Migrating existing projects
 
-Convert an entire project directory:
+Convert an entire project directory — each notebook becomes its own `.deepnote` file:
 
 ```bash
-deepnote-convert ~/jupyter-projects/data-analysis \
-  --projectName "Data Analysis Project" \
-  -o ~/deepnote-projects/
+deepnote-convert ~/jupyter-projects/data-analysis -o ~/deepnote-projects/
 ```
 
 ### Batch conversion script
 
-Create a script to convert multiple projects:
+Create a script to convert multiple projects. (For a plain directory of notebooks, `deepnote-convert <dir>` already writes one `.deepnote` per notebook — a script like this is only needed for custom logic.)
 
 ```typescript
 import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";

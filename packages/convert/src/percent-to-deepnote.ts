@@ -5,13 +5,15 @@ import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { generateSortingKey, serializeDeepnoteFile } from '@deepnote/blocks'
 import type { PercentCell, PercentNotebook } from './types/percent'
 
-export interface ConvertPercentFilesToDeepnoteFileOptions {
+export interface ConvertPercentFileToDeepnoteFileOptions {
   outputPath: string
   projectName: string
+  projectId?: string
 }
 
-export interface ReadAndConvertPercentFilesOptions {
+export interface ReadAndConvertPercentFileOptions {
   projectName: string
+  projectId?: string
 }
 
 export interface ConvertPercentNotebookOptions {
@@ -164,94 +166,85 @@ export function convertPercentNotebookToBlocks(
 }
 
 /**
- * Converts percent format notebook objects into a Deepnote project file.
+ * Converts a single percent format notebook object into a Deepnote project file.
  * This is a pure conversion function that doesn't perform any file I/O.
  *
- * @param notebooks - Array of percent notebooks with filenames
- * @param options - Conversion options including project name
- * @returns A DeepnoteFile object
+ * @param input - A percent notebook with its filename
+ * @param options - Conversion options including project name and optional project id
+ * @returns A DeepnoteFile object containing exactly one notebook
  */
-export function convertPercentNotebooksToDeepnote(
-  notebooks: PercentNotebookInput[],
-  options: { projectName: string }
+export function convertPercentNotebookToDeepnote(
+  input: PercentNotebookInput,
+  options: { projectName: string; projectId?: string }
 ): DeepnoteFile {
-  // Generate the first notebook ID upfront so we can use it as the project entrypoint
-  const firstNotebookId = notebooks.length > 0 ? randomUUID() : undefined
+  const notebookId = randomUUID()
 
-  const deepnoteFile: DeepnoteFile = {
+  const { filename, notebook } = input
+  const extension = extname(filename)
+  const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
+
+  const blocks = convertPercentNotebookToBlocks(notebook)
+
+  return {
     metadata: {
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: randomUUID(),
-      initNotebookId: firstNotebookId,
+      id: options.projectId ?? randomUUID(),
       integrations: [],
       name: options.projectName,
-      notebooks: [],
+      notebooks: [
+        {
+          blocks,
+          executionMode: 'block',
+          id: notebookId,
+          isModule: false,
+          name: filenameWithoutExt,
+        },
+      ],
       settings: {},
     },
     version: '1.0.0',
   }
-
-  for (let i = 0; i < notebooks.length; i++) {
-    const { filename, notebook } = notebooks[i]
-    const extension = extname(filename)
-    const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
-
-    const blocks = convertPercentNotebookToBlocks(notebook)
-
-    // Use pre-generated ID for the first notebook, generate new ones for the rest
-    const notebookId = i === 0 && firstNotebookId ? firstNotebookId : randomUUID()
-
-    deepnoteFile.project.notebooks.push({
-      blocks,
-      executionMode: 'block',
-      id: notebookId,
-      isModule: false,
-      name: filenameWithoutExt,
-    })
-  }
-
-  return deepnoteFile
 }
 
 /**
- * Reads and converts multiple percent format (.py) files into a DeepnoteFile.
- * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ * Reads and converts a single percent format (.py) file into a DeepnoteFile.
+ * This function reads the file and returns the converted DeepnoteFile without writing to disk.
  *
- * @param inputFilePaths - Array of paths to percent format .py files
- * @param options - Conversion options including project name
+ * @param inputFilePath - Path to a percent format .py file
+ * @param options - Conversion options including project name and optional project id
  * @returns A DeepnoteFile object
  */
-export async function readAndConvertPercentFiles(
-  inputFilePaths: string[],
-  options: ReadAndConvertPercentFilesOptions
+export async function readAndConvertPercentFile(
+  inputFilePath: string,
+  options: ReadAndConvertPercentFileOptions
 ): Promise<DeepnoteFile> {
-  const notebooks: PercentNotebookInput[] = []
+  const content = await fs.readFile(inputFilePath, 'utf-8')
+  const notebook = parsePercentFormat(content)
 
-  for (const filePath of inputFilePaths) {
-    const content = await fs.readFile(filePath, 'utf-8')
-    const notebook = parsePercentFormat(content)
-    notebooks.push({
-      filename: basename(filePath),
+  return convertPercentNotebookToDeepnote(
+    {
+      filename: basename(inputFilePath),
       notebook,
-    })
-  }
-
-  return convertPercentNotebooksToDeepnote(notebooks, {
-    projectName: options.projectName,
-  })
+    },
+    {
+      projectName: options.projectName,
+      projectId: options.projectId,
+    }
+  )
 }
 
 /**
- * Converts multiple percent format (.py) files into a single Deepnote project file.
+ * Converts a single percent format (.py) file into a Deepnote project file.
  */
-export async function convertPercentFilesToDeepnoteFile(
-  inputFilePaths: string[],
-  options: ConvertPercentFilesToDeepnoteFileOptions
+export async function convertPercentFileToDeepnoteFile(
+  inputFilePath: string,
+  options: ConvertPercentFileToDeepnoteFileOptions
 ): Promise<void> {
-  const deepnoteFile = await readAndConvertPercentFiles(inputFilePaths, {
+  const deepnoteFile = await readAndConvertPercentFile(inputFilePath, {
     projectName: options.projectName,
+    projectId: options.projectId,
   })
 
   const yamlContent = serializeDeepnoteFile(deepnoteFile)

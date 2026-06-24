@@ -18,6 +18,30 @@ deepnote open my-project.deepnote
 deepnote open my-project.deepnote -o json
 ```
 
+## `deepnote split <path>`
+
+Split a multi-notebook `.deepnote` file into separate single-notebook files.
+
+The init notebook (if present) becomes its own standalone file, and each resulting main file keeps its `initNotebookId` so `deepnote run` resolves and runs the sibling init notebook as a prelude.
+
+| Option               | Description                                                         |
+| -------------------- | ------------------------------------------------------------------- |
+| `-o, --output <dir>` | Output directory for split files (default: same directory as input) |
+| `--force`            | Overwrite existing output files                                     |
+
+**Examples:**
+
+```bash
+# Split into the same directory as the input
+deepnote split my-project.deepnote
+
+# Split into a specific output directory
+deepnote split my-project.deepnote -o ./notebooks/
+
+# Overwrite existing output files
+deepnote split my-project.deepnote --force
+```
+
 ## `deepnote completion <shell>`
 
 Generate shell completion scripts.
