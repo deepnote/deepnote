@@ -1,5 +1,5 @@
 /**
- * Error thrown when API request fails.
+ * Error thrown when a Deepnote API request fails.
  */
 export class ApiError extends Error {
   readonly statusCode: number

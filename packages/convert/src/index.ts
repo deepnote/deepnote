@@ -40,6 +40,14 @@ export {
   convertJupyterNotebookToBlocks,
   readAndConvertIpynbFiles,
 } from './jupyter-to-deepnote'
+// Runnable file loading
+export type { LoadedRunnableFile, RunnableExtension, RunnableFormat } from './load-runnable-file'
+export {
+  isRunnableExtension,
+  LoadRunnableFileError,
+  loadRunnableFile,
+  RUNNABLE_EXTENSIONS,
+} from './load-runnable-file'
 export type {
   ConvertMarimoAppOptions,
   ConvertMarimoAppsToDeepnoteOptions,
@@ -82,8 +90,11 @@ export {
 } from './quarto-to-deepnote'
 // Snapshot utilities
 export type {
+  BlockExecutionOutput,
   BlockOutput,
+  ExecutionTiming,
   MergeOptions,
+  SaveExecutionSnapshotResult,
   SnapshotHashInput,
   SnapshotInfo,
   SnapshotOptions,
@@ -97,12 +108,15 @@ export {
   findSnapshotsForProject,
   generateSnapshotFilename,
   getSnapshotDir,
+  getSnapshotPath,
   hasOutputs,
   loadLatestSnapshot,
   loadSnapshotFile,
+  mergeOutputsIntoFile,
   mergeSnapshotIntoSource,
   parseSnapshotFilename,
   parseSourceFilePath,
+  saveExecutionSnapshot,
   slugifyProjectName,
   snapshotExists,
   splitDeepnoteFile,

@@ -10,7 +10,7 @@ import {
   getSnapshotPath,
   mergeOutputsIntoFile,
   saveExecutionSnapshot,
-} from './output-persistence'
+} from './save-execution-snapshot'
 
 describe('output-persistence', () => {
   /** Load the test fixture and return a fresh copy */
@@ -98,6 +98,37 @@ describe('output-persistence', () => {
       const block1 = result.project.notebooks[0].blocks[0] as { executionCount?: number | null }
       // executionCount should not be set if null
       expect(block1.executionCount).toBeUndefined()
+    })
+
+    it('retains a pre-existing executionCount when the re-run supplies null', async () => {
+      // Pins the MCP-semantics retention (contract item 1): a block with an
+      // existing executionCount keeps it when a re-run returns null/absent,
+      // and a non-null re-run value still overwrites it.
+      const file = await loadTestFile()
+      ;(file.project.notebooks[0].blocks[0] as { executionCount?: number | null }).executionCount = 7
+      const outputs: BlockExecutionOutput[] = [
+        {
+          id: 'block-1',
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'hello\n' }],
+          executionCount: null,
+        },
+      ]
+      const timing = {
+        startedAt: '2024-01-01T00:00:00.000Z',
+        finishedAt: '2024-01-01T00:00:05.000Z',
+      }
+
+      const result = mergeOutputsIntoFile(file, outputs, timing)
+
+      const block1 = result.project.notebooks[0].blocks[0] as { outputs?: unknown[]; executionCount?: number | null }
+      // Outputs are still merged, but the stale executionCount is retained.
+      expect(block1.outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: 'hello\n' }])
+      expect(block1.executionCount).toBe(7)
+
+      // A non-null re-run value still overwrites the pre-existing one.
+      const overwritten = mergeOutputsIntoFile(file, [{ id: 'block-1', outputs: [], executionCount: 9 }], timing)
+      const overwrittenBlock1 = overwritten.project.notebooks[0].blocks[0] as { executionCount?: number | null }
+      expect(overwrittenBlock1.executionCount).toBe(9)
     })
 
     it('does not mutate original file', async () => {

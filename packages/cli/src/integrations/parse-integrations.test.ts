@@ -452,6 +452,68 @@ describe('parseIntegrationsFile', () => {
       expect(result.issues).toEqual([])
     })
   })
+
+  describe('env file resolution (envFilePath option)', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('resolves env var references from the .env file', async () => {
+      const envFilePath = join(tempDir, 'dotenv-only.env')
+      await writeFile(envFilePath, 'DOTENV_ONLY_PASSWORD=secret-from-dotenv\n')
+
+      const filePath = join(tempDir, 'env-file-refs.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-dotenv
+    name: PostgreSQL Dotenv
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: "env:DOTENV_ONLY_PASSWORD"`
+      )
+
+      const result = await parseIntegrationsFile(filePath, { envFilePath })
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].metadata).toHaveProperty('password', 'secret-from-dotenv')
+      expect(result.issues).toEqual([])
+    })
+
+    it('lets process.env override values from the .env file', async () => {
+      // The same var is defined in both the .env file and the real environment.
+      // A real environment override (e.g. from CI or the shell) must win.
+      vi.stubEnv('OVERRIDE_PASSWORD', 'secret-from-process-env')
+
+      const envFilePath = join(tempDir, 'dotenv-override.env')
+      await writeFile(envFilePath, 'OVERRIDE_PASSWORD=stale-secret-from-dotenv\n')
+
+      const filePath = join(tempDir, 'env-file-override.yaml')
+      await writeFile(
+        filePath,
+        `integrations:
+  - id: postgres-override
+    name: PostgreSQL Override
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: "env:OVERRIDE_PASSWORD"`
+      )
+
+      const result = await parseIntegrationsFile(filePath, { envFilePath })
+
+      expect(result.integrations).toHaveLength(1)
+      expect(result.integrations[0].metadata).toHaveProperty('password', 'secret-from-process-env')
+      expect(result.issues).toEqual([])
+    })
+  })
 })
 
 describe('getDefaultIntegrationsFilePath', () => {

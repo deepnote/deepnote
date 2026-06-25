@@ -25,6 +25,9 @@ export {
 
 // Merge utilities
 export { countBlocksWithOutputs, mergeSnapshotIntoSource } from './merge'
+// Execution snapshot persistence
+export type { BlockExecutionOutput, ExecutionTiming, SaveExecutionSnapshotResult } from './save-execution-snapshot'
+export { getSnapshotPath, mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'
 // Split utilities
 export { generateSnapshotFilename, hasOutputs, slugifyProjectName, splitDeepnoteFile } from './split'
 export type {

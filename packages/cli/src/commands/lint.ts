@@ -3,13 +3,13 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
 import {
   type DatabaseIntegrationConfig,
+  DEFAULT_ENV_FILE,
   type EnvVar,
   getEnvironmentVariablesForIntegrations,
 } from '@deepnote/database-integrations'
 import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { DEFAULT_ENV_FILE } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'

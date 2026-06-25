@@ -1,34 +1,11 @@
-import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import {
-  decodeUtf8NoBom,
-  deserializeDeepnoteFile,
-  extractOutputsText,
-  serializeDeepnoteSnapshot,
-} from '@deepnote/blocks'
-import {
-  convertJupyterNotebooksToDeepnote,
-  convertMarimoAppsToDeepnote,
-  convertPercentNotebooksToDeepnote,
-  convertQuartoDocumentsToDeepnote,
-  detectFormat,
-  generateSnapshotFilename,
-  getSnapshotDir,
-  type JupyterNotebook,
-  parseMarimoFormat,
-  parsePercentFormat,
-  parseQuartoFormat,
-  slugifyProjectName,
-  splitDeepnoteFile,
-} from '@deepnote/convert'
+import { extractOutputsText } from '@deepnote/blocks'
+import { type LoadedRunnableFile, loadRunnableFile, saveExecutionSnapshot } from '@deepnote/convert'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { formatOutput } from '../utils.js'
-
-// Supported file extensions for running
-const RUNNABLE_EXTENSIONS = ['.deepnote', '.ipynb', '.py', '.qmd'] as const
 
 // Output summary limits
 const MAX_OUTPUT_CHARS_PER_BLOCK = 500
@@ -59,13 +36,6 @@ function summarizeBlockOutputs(
   }
 
   return summaries
-}
-
-interface ConvertedFile {
-  file: DeepnoteFile
-  originalPath: string
-  format: 'deepnote' | 'jupyter' | 'percent' | 'marimo' | 'quarto'
-  wasConverted: boolean
 }
 
 const nonEmptyStringSchema = z.string().refine(value => value.trim().length > 0, {
@@ -151,138 +121,6 @@ export const executionTools: Tool[] = [
   },
 ]
 
-/**
- * Resolve and convert any supported notebook format to a DeepnoteFile.
- */
-async function resolveAndConvertToDeepnote(filePath: string): Promise<ConvertedFile> {
-  const absolutePath = path.resolve(filePath)
-  const ext = path.extname(absolutePath).toLowerCase()
-  const filename = path.basename(absolutePath)
-  const projectName = path.basename(absolutePath, ext)
-
-  if (!RUNNABLE_EXTENSIONS.includes(ext as (typeof RUNNABLE_EXTENSIONS)[number])) {
-    throw new Error(
-      `Unsupported file type: ${ext || '(no extension)'}\n\n` +
-        `Supported formats:\n` +
-        `  .deepnote  - Deepnote project\n` +
-        `  .ipynb     - Jupyter Notebook\n` +
-        `  .py        - Percent format (# %%) or Marimo (@app.cell)\n` +
-        `  .qmd       - Quarto document`
-    )
-  }
-
-  // Native .deepnote file
-  if (ext === '.deepnote') {
-    const rawBytes = await fs.readFile(absolutePath)
-    const content = decodeUtf8NoBom(rawBytes)
-    const file = deserializeDeepnoteFile(content)
-    return { file, originalPath: absolutePath, format: 'deepnote', wasConverted: false }
-  }
-
-  const content = await fs.readFile(absolutePath, 'utf-8')
-
-  // Jupyter Notebook
-  if (ext === '.ipynb') {
-    const notebook = JSON.parse(content) as JupyterNotebook
-    const file = convertJupyterNotebooksToDeepnote([{ filename, notebook }], { projectName })
-    return { file, originalPath: absolutePath, format: 'jupyter', wasConverted: true }
-  }
-
-  // Quarto document
-  if (ext === '.qmd') {
-    const document = parseQuartoFormat(content)
-    const file = convertQuartoDocumentsToDeepnote([{ filename, document }], { projectName })
-    return { file, originalPath: absolutePath, format: 'quarto', wasConverted: true }
-  }
-
-  // Python file - detect percent or marimo
-  if (ext === '.py') {
-    const detectedFormat = detectFormat(absolutePath, content)
-
-    if (detectedFormat === 'marimo') {
-      const app = parseMarimoFormat(content)
-      const file = convertMarimoAppsToDeepnote([{ filename, app }], { projectName })
-      return { file, originalPath: absolutePath, format: 'marimo', wasConverted: true }
-    }
-
-    if (detectedFormat === 'percent') {
-      const notebook = parsePercentFormat(content)
-      const file = convertPercentNotebooksToDeepnote([{ filename, notebook }], { projectName })
-      return { file, originalPath: absolutePath, format: 'percent', wasConverted: true }
-    }
-
-    throw new Error(
-      `Could not detect Python notebook format for: ${absolutePath}\n\n` +
-        `The file must be either:\n` +
-        `  - Percent format: Use "# %%" cell markers\n` +
-        `  - Marimo format: Use @app.cell decorators`
-    )
-  }
-
-  throw new Error(`Unsupported file type: ${ext}`)
-}
-
-/**
- * Save execution outputs to a snapshot file.
- */
-async function saveExecutionSnapshot(
-  sourcePath: string,
-  file: DeepnoteFile,
-  blockOutputs: Array<{ id: string; outputs: unknown[]; executionCount?: number | null }>,
-  timing: { startedAt: string; finishedAt: string }
-): Promise<{ snapshotPath: string }> {
-  // Build a map of outputs by block ID
-  const outputsByBlockId = new Map(blockOutputs.map(r => [r.id, r]))
-
-  // Merge outputs into the file
-  const fileWithOutputs: DeepnoteFile = {
-    ...file,
-    execution: {
-      startedAt: timing.startedAt,
-      finishedAt: timing.finishedAt,
-    },
-    project: {
-      ...file.project,
-      notebooks: file.project.notebooks.map(notebook => ({
-        ...notebook,
-        blocks: notebook.blocks.map(block => {
-          const result = outputsByBlockId.get(block.id)
-          if (!result) return block
-          return {
-            ...block,
-            outputs: result.outputs,
-            ...(result.executionCount != null ? { executionCount: result.executionCount } : {}),
-          }
-        }),
-      })),
-    },
-  }
-
-  // Split into source and snapshot
-  const { snapshot } = splitDeepnoteFile(fileWithOutputs)
-
-  // Determine snapshot paths
-  const snapshotDir = getSnapshotDir(sourcePath)
-  const slug = slugifyProjectName(file.project.name) || 'project'
-
-  const timestamp = new Date(timing.finishedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const timestampedFilename = generateSnapshotFilename(slug, file.project.id, timestamp)
-  const timestampedSnapshotPath = path.resolve(snapshotDir, timestampedFilename)
-
-  const latestFilename = generateSnapshotFilename(slug, file.project.id, 'latest')
-  const snapshotPath = path.resolve(snapshotDir, latestFilename)
-
-  // Create snapshot directory
-  await fs.mkdir(snapshotDir, { recursive: true })
-
-  // Write timestamped snapshot first, then copy to latest to reduce corruption risk
-  const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
-  await fs.writeFile(timestampedSnapshotPath, snapshotYaml, 'utf-8')
-  await fs.copyFile(timestampedSnapshotPath, snapshotPath)
-
-  return { snapshotPath }
-}
-
 async function handleRun(args: Record<string, unknown>) {
   const parsedArgs = runArgsSchema.safeParse(args)
   if (!parsedArgs.success) {
@@ -301,9 +139,9 @@ async function handleRun(args: Record<string, unknown>) {
   const compact = parsedArgs.data.compact
 
   // Load file, auto-converting from other formats if needed
-  let convertedFile: ConvertedFile
+  let convertedFile: LoadedRunnableFile
   try {
-    convertedFile = await resolveAndConvertToDeepnote(filePath)
+    convertedFile = await loadRunnableFile(filePath)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const errorCode = getErrorCode(error)

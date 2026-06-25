@@ -2,14 +2,17 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
-import type { DatabaseIntegrationConfig } from '@deepnote/database-integrations'
+import {
+  ApiError,
+  type ApiIntegration,
+  type DatabaseIntegrationConfig,
+  DEFAULT_API_URL,
+  DEFAULT_INTEGRATIONS_FILE,
+} from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
-import { DEEPNOTE_TOKEN_ENV, DEFAULT_INTEGRATIONS_FILE } from '../constants'
-import type { ApiIntegration } from '../integrations/fetch-integrations'
-import { ApiError } from '../utils/api'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import type { saveExecutionSnapshot } from '../utils/output-persistence'
-import { DEFAULT_API_URL } from './integrations'
 
 // Create mock engine functions
 const mockStart = vi.fn()
@@ -64,8 +67,8 @@ vi.mock('../integrations/parse-integrations', () => {
 // Mock fetchIntegrations for API integration tests
 const mockFetchIntegrations =
   vi.fn<(baseUrl: string, token: string, integrationIds?: string[]) => Promise<ApiIntegration[]>>()
-vi.mock('../integrations/fetch-integrations', async importOriginal => {
-  const actual = await importOriginal<typeof import('../integrations/fetch-integrations')>()
+vi.mock('@deepnote/database-integrations', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/database-integrations')>()
   return {
     ...actual,
     fetchIntegrations: (...args: Parameters<typeof actual.fetchIntegrations>) => mockFetchIntegrations(...args),

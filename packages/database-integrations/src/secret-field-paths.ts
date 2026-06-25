@@ -43,6 +43,7 @@ const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] 
 
   // Service account based
   spanner: ['service_account'],
+  'cloud-sql': ['service_account'],
 
   // MongoDB - connection string may contain password
   mongodb: ['password', 'connection_string', 'rawConnectionString', 'caCertificateText'],
