@@ -100,7 +100,7 @@ export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams)
   const safeSlug = sanitizeFilenameComponent(slug)
   const safeProjectId = sanitizeFilenameComponent(projectId)
   // Normalize to the parser-readable, '_'-free canonical timestamp form so the name round-trips. A raw
-  // ISO string (':' '.' 'Z') otherwise sanitizes to '_'-laden text that misparses the notebook id or
+  // ISO string (':' '.' 'Z') otherwise sanitizes to '_'-laden text that incorrectly parses the notebook id or
   // fails to match entirely.
   const safeTimestamp = sanitizeTimestampComponent(timestamp)
   if (notebookId) {
