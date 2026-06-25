@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { cli } from 'cleye'
 import { convert } from './cli.js'
-import { isSourceNotebookFormat, SOURCE_NOTEBOOK_FORMATS, type SourceNotebookFormat } from './source-notebook-formats.js'
+import {
+  isSourceNotebookFormat,
+  SOURCE_NOTEBOOK_FORMATS,
+  type SourceNotebookFormat,
+} from './source-notebook-formats.js'
 
 /** cleye flag parser: validates `--outputFormat` against the shared source-notebook format set (from .deepnote). */
 function OutputFormat(value: string): SourceNotebookFormat {
