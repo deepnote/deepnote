@@ -85,30 +85,35 @@ deepnote validate my-project.deepnote -o json
 deepnote validate my-project.deepnote && echo "Valid!"
 ```
 
-## `deepnote lint <path>`
+## `deepnote lint [path]`
 
-Check a .deepnote file for issues.
+Check a .deepnote file or integrations yaml file for issues. `[path]` is optional and defaults to the current directory. You can also lint an integrations yaml file (e.g. `.deepnote.env.yaml`) directly by passing it as the path argument, which validates the file structure, integration schemas, and environment variable references.
 
-| Option                  | Description                   |
-| ----------------------- | ----------------------------- |
-| `-o, --output <format>` | Output format: `json`, `llm`  |
-| `--notebook <name>`     | Lint only a specific notebook |
-| `--python <path>`       | Path to Python interpreter    |
+| Option                       | Description                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| `-o, --output <format>`      | Output format: `json`, `llm`                                                         |
+| `--notebook <name>`          | Lint only a specific notebook                                                        |
+| `--python <path>`            | Path to Python interpreter                                                           |
+| `--integrations-file <path>` | Path to integrations env file (default: `.deepnote.env.yaml` next to .deepnote file) |
 
 **Checks performed:**
 
 - **Variables:** undefined, circular dependencies, unused, shadowed, parse errors
-- **Integrations:** SQL blocks using missing integrations
+- **Integrations:** SQL blocks using missing integrations, plus configuration errors in the integrations file (YAML syntax, schema, missing env vars)
 - **Inputs:** Input blocks without default values
 
-**Exit codes:** 0 = no errors (warnings OK), 1 = errors found, 2 = invalid usage.
+Integrations are automatically loaded from `.deepnote.env.yaml` in the same directory as the .deepnote file (or from `--integrations-file` if specified).
+
+**Exit codes:** 0 = no errors (warnings OK), 1 = errors found (including configuration errors), 2 = invalid usage.
 
 **Examples:**
 
 ```bash
 deepnote lint my-project.deepnote
+deepnote lint .deepnote.env.yaml
 deepnote lint my-project.deepnote -o json
 deepnote lint my-project.deepnote --notebook "Analysis"
+deepnote lint my-project.deepnote --integrations-file prod-integrations.yaml
 ```
 
 ## `deepnote stats <path>`
