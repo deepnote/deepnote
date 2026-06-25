@@ -32,6 +32,8 @@
     "watch": "tsdown --watch --format esm --format cjs --dts"
   },
   "dependencies": {
+    "@deepnote/blocks": "workspace:*",
+    "yaml": "^2.8.3",
     "zod": "3.25.76"
   },
   "publishConfig": {

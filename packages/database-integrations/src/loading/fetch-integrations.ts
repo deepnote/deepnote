@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import { debug } from '../output'
-import { ApiError } from '../utils/api'
+import { ApiError } from './api-error'
 
 /**
  * Schema for a single integration from the API.
@@ -34,6 +33,8 @@ export type ApiResponse = z.infer<typeof apiResponseSchema>
 /**
  * Fetch integrations from the Deepnote API.
  *
+ * Uses the global `fetch`, so it works in Node (18+) and browser-like environments alike.
+ *
  * @param baseUrl - The base URL of the Deepnote API
  * @param token - The authentication token
  * @param integrationIds - Optional list of integration IDs to fetch. When provided, only these integrations are returned.
@@ -51,7 +52,6 @@ export async function fetchIntegrations(
     endpoint.searchParams.set('integrationIds', integrationIds.join(','))
   }
   const url = endpoint.toString()
-  debug(`Fetching integrations from ${url}`)
 
   const response = await fetch(url, {
     method: 'GET',

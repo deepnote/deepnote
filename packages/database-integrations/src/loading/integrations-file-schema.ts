@@ -1,5 +1,5 @@
-import { databaseIntegrationConfigSchema } from '@deepnote/database-integrations'
 import { z } from 'zod'
+import { databaseIntegrationConfigSchema } from '../database-integration-config'
 
 /**
  * Schema for the integrations YAML file structure.
