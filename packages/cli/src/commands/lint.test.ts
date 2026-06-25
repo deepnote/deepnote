@@ -770,6 +770,24 @@ describe('lint command - linting integrations yaml directly', () => {
     expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
   })
 
+  it('warns on stderr when --integrations-file is passed alongside a direct YAML path', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'warn-direct.yaml')
+    await writeFile(intFile, 'integrations: []')
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    // The (ignored) --integrations-file points at a non-existent path on purpose: the warning must
+    // fire without the option being honoured. Output must not appear on stdout (machine output).
+    await action(intFile, { integrationsFile: join(tempDir, 'ignored.yaml') })
+
+    const stderr = consoleErrorSpy.mock.calls.flat().join('\n')
+    expect(stderr).toContain('--integrations-file is ignored')
+    expect(getOutput(consoleSpy)).not.toContain('--integrations-file is ignored')
+  })
+
   it('outputs valid JSON for a clean integrations yaml file', async () => {
     const action = createLintAction(program)
     const intFile = join(tempDir, 'valid-json.yaml')
@@ -787,6 +805,8 @@ describe('lint command - linting integrations yaml directly', () => {
       success: true,
       issueCount: { errors: 0, warnings: 0, total: 0 },
       issues: [],
+      integrations: { configured: [], missing: [] },
+      inputs: { total: 0, withValues: 0, needingValues: [] },
       integrationsFile: {
         path: intFile,
         integrationCount: 0,
@@ -819,6 +839,8 @@ describe('lint command - linting integrations yaml directly', () => {
       success: false,
       issueCount: { errors: 1, warnings: 0, total: 1 },
       issues: [],
+      integrations: { configured: [], missing: [] },
+      inputs: { total: 0, withValues: 0, needingValues: [] },
       integrationsFile: {
         path: intFile,
         integrationCount: 0,
@@ -890,12 +912,14 @@ describe('lint command - linting integrations yaml directly', () => {
       success: false,
       issueCount: { errors: 1, warnings: 0, total: 1 },
       issues: [],
+      integrations: { configured: [], missing: [] },
+      inputs: { total: 0, withValues: 0, needingValues: [] },
       integrationsFile: {
         path: intFile,
         integrationCount: 1,
         issues: [
           {
-            path: 'integrations[0].metadata',
+            path: 'integrations[id=bq].metadata',
             message: expect.stringContaining('Failed to parse bigquery service account'),
             code: 'big_query_service_account_parse_error',
           },
@@ -1438,7 +1462,7 @@ describe('lint command - integrations file loading', () => {
           integrationCount: 1,
           issues: [
             {
-              path: 'integrations[0].metadata',
+              path: 'integrations[id=bq].metadata',
               message: expect.stringContaining('Failed to parse bigquery service account'),
               code: 'big_query_service_account_parse_error',
             },

@@ -13,7 +13,7 @@ import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
-import { debug, getChalk, error as logError, output, outputJson } from '../output'
+import { debug, getChalk, error as logError, output, outputJson, warn } from '../output'
 import { checkForIssues, type LintIssue, type LintResult } from '../utils/analysis'
 import { FileResolutionError, isErrnoENOENT, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 
@@ -100,8 +100,7 @@ function generateIntegrationEnvVars(
   const envVars: EnvVar[] = []
   const issues: ValidationIssue[] = []
 
-  for (let i = 0; i < integrations.length; i++) {
-    const integration = integrations[i]
+  for (const integration of integrations) {
     const { envVars: generated, errors } = getEnvironmentVariablesForIntegrations([integration], {
       projectRootDirectory,
     })
@@ -112,7 +111,10 @@ function generateIntegrationEnvVars(
       debug(`Integration env var error: ${err.message}`)
       const context = integrationLabel ? `Integration "${integrationLabel}": ` : ''
       issues.push({
-        path: `integrations[${i}].metadata`,
+        // Key the path by integration id rather than array index: `integrations` is the parsed
+        // (schema-valid) subset, so a positional index can drift from the file position used by
+        // schema/env errors when earlier entries were invalid.
+        path: `integrations[id=${integration.id}].metadata`,
         message: `${context}${err.message}`,
         code: errorCodeFromName(err.name),
       })
@@ -129,7 +131,16 @@ export function createLintAction(_program: Command): (path: string | undefined, 
   return async (path, options) => {
     try {
       debug(`Linting: ${path}`)
-      const result = path && isYamlPath(path) ? await lintIntegrationsFile(path) : await lintFile(path, options)
+      let result: LintFileResult
+      if (path != null && isYamlPath(path)) {
+        // The YAML file itself is the integrations file, so --integrations-file has no meaning here.
+        if (options.integrationsFile) {
+          warn('Warning: --integrations-file is ignored when linting an integrations YAML file directly')
+        }
+        result = await lintIntegrationsFile(path)
+      } else {
+        result = await lintFile(path, options)
+      }
       outputLintResult(result, options)
 
       // Exit with error code if there are notebook errors or configuration errors
@@ -280,6 +291,11 @@ async function lintIntegrationsFile(filePath: string): Promise<LintFileResult> {
       success: !hasErrors,
       issueCount: { errors: integrationsIssues.length, warnings: 0, total: integrationsIssues.length },
       issues: [],
+      // Emit empty integrations/inputs so the JSON shape matches the .deepnote path. There is no
+      // notebook on this path, so both are always empty — but keeping the keys present saves machine
+      // consumers from having to special-case the direct-YAML output.
+      integrations: { configured: [], missing: [] },
+      inputs: { total: 0, withValues: 0, needingValues: [] },
       integrationsFile: {
         path: absolutePath,
         integrationCount: parsedIntegrations.integrations.length,
