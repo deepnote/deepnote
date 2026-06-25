@@ -1,7 +1,9 @@
-import { join, resolve } from 'node:path'
-import { BUILTIN_INTEGRATIONS } from '@deepnote/database-integrations'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, relative, resolve, sep } from 'node:path'
+import { BUILTIN_INTEGRATIONS, getSqlEnvVarName } from '@deepnote/database-integrations'
 import { Command } from 'commander'
-import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
 
@@ -9,6 +11,10 @@ import { createLintAction, type LintOptions } from './lint'
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+
+// The (only) SQL integration id referenced by the SQL block in 3_integrations.deepnote. Tests that
+// want this integration to read as "missing" unset its generated SQL_* env var via vi.stubEnv.
+const INTEGRATIONS_FILE_SQL_INTEGRATION_ID = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: LintOptions = {}
@@ -19,6 +25,14 @@ function getOutput(spy: Mock<typeof console.log>): string {
 
 function getErrorOutput(spy: Mock<typeof console.error>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
+}
+
+/** Normalize the per-run temp dir (absolute and cwd-relative forms) so text snapshots are stable. */
+function withStableTmpPaths(text: string, tempDir: string): string {
+  // Replace the cwd-relative form first: the absolute tempDir is a substring of it, so
+  // replacing the absolute form first would leave a machine-dependent `../..` prefix behind.
+  const relTmp = relative(process.cwd(), tempDir)
+  return text.split(relTmp).join('<tmp>').split(tempDir).join('<tmp>').split(sep).join('/')
 }
 
 describe('lint command', () => {
@@ -41,6 +55,7 @@ describe('lint command', () => {
     consoleSpy.mockRestore()
     consoleErrorSpy.mockRestore()
     exitSpy.mockRestore()
+    vi.unstubAllEnvs()
   })
 
   describe('createLintAction', () => {
@@ -452,34 +467,24 @@ describe('lint command', () => {
       const action = createLintAction(program)
       const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
 
-      // Ensure no SQL env vars are set
-      const originalEnv = { ...process.env }
-      for (const key of Object.keys(process.env)) {
-        if (key.startsWith('SQL_')) {
-          delete process.env[key]
-        }
-      }
+      // Ensure the SQL integration's env var is not set so it reads as missing
+      vi.stubEnv(getSqlEnvVarName(INTEGRATIONS_FILE_SQL_INTEGRATION_ID), undefined)
 
       exitSpy.mockRestore()
       exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-      try {
-        await action(filePath, { output: 'json' })
+      await action(filePath, { output: 'json' })
 
-        const output = getOutput(consoleSpy)
-        const parsed = JSON.parse(output)
+      const output = getOutput(consoleSpy)
+      const parsed = JSON.parse(output)
 
-        // The integrations file has SQL blocks with non-builtin integrations
-        // Without env vars, they should be missing
-        const missingIntegrationIssues = parsed.issues.filter((i: { code: string }) => i.code === 'missing-integration')
-        expect(Array.isArray(missingIntegrationIssues)).toBe(true)
-        // If integrations file uses external integrations, there should be issues
-        if (parsed.integrations.missing.length > 0) {
-          expect(missingIntegrationIssues.length).toBeGreaterThan(0)
-        }
-      } finally {
-        // Restore env
-        process.env = originalEnv
+      // The integrations file has SQL blocks with non-builtin integrations
+      // Without env vars, they should be missing
+      const missingIntegrationIssues = parsed.issues.filter((i: { code: string }) => i.code === 'missing-integration')
+      expect(Array.isArray(missingIntegrationIssues)).toBe(true)
+      // If integrations file uses external integrations, there should be issues
+      if (parsed.integrations.missing.length > 0) {
+        expect(missingIntegrationIssues.length).toBeGreaterThan(0)
       }
     })
 
@@ -607,6 +612,956 @@ describe('lint command', () => {
         const parsed = JSON.parse(output)
         expect(parsed.success).toBe(true)
       })
+    })
+  })
+})
+
+describe('lint command - linting integrations yaml directly', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let consoleErrorSpy: Mock<typeof console.error>
+  let exitSpy: Mock<typeof process.exit>
+  let tempDir: string
+
+  beforeAll(async () => {
+    tempDir = join(tmpdir(), `lint-direct-yaml-test-${Date.now()}`)
+    await mkdir(tempDir, { recursive: true })
+  })
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+  })
+
+  afterEach(() => {
+    consoleSpy.mockRestore()
+    consoleErrorSpy.mockRestore()
+    exitSpy.mockRestore()
+    vi.unstubAllEnvs()
+  })
+
+  it('reports no issues for a valid integrations yaml file', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'valid.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: my-postgres
+    name: My PostgreSQL
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: secret`
+    )
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, DEFAULT_OPTIONS)
+
+    const textOutput = getOutput(consoleSpy)
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+
+  it('reports issues for invalid integration type in yaml file', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'invalid-type.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: bad-db
+    name: Bad DB
+    type: not-a-real-type
+    metadata:
+      host: localhost`
+    )
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, DEFAULT_OPTIONS)
+
+    const textOutput = getOutput(consoleSpy)
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+      "Configuration issues in <tmp>/invalid-type.yaml
+
+        ✖ invalid_union_discriminator: Integration "Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+          at integrations[0].type
+
+      Summary: 1 configuration error"
+    `)
+  })
+
+  it('reports issues for missing env var references', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'missing-env.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: pg
+    name: PostgreSQL
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: "env:LINT_DIRECT_MISSING_ENV_VAR_XYZ"`
+    )
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, DEFAULT_OPTIONS)
+
+    const textOutput = getOutput(consoleSpy)
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+      "Configuration issues in <tmp>/missing-env.yaml
+
+        ✖ env_var_not_defined: Integration "PostgreSQL": Environment variable "LINT_DIRECT_MISSING_ENV_VAR_XYZ" is not defined at "metadata.password"
+          at integrations[0].metadata.password
+
+      Summary: 1 configuration error"
+    `)
+  })
+
+  it('resolves env var references when env var is set', async () => {
+    setOutputConfig({ color: false })
+    vi.stubEnv('LINT_DIRECT_DB_PASSWORD', 'test-secret')
+
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'env-ref.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: pg
+    name: PostgreSQL
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: "env:LINT_DIRECT_DB_PASSWORD"`
+    )
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, DEFAULT_OPTIONS)
+
+    const textOutput = getOutput(consoleSpy)
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
+  })
+
+  it('warns on stderr when --integrations-file is passed alongside a direct YAML path', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'warn-direct.yaml')
+    await writeFile(intFile, 'integrations: []')
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    // The (ignored) --integrations-file points at a non-existent path on purpose: the warning must
+    // fire without the option being honoured. Output must not appear on stdout (machine output).
+    await action(intFile, { integrationsFile: join(tempDir, 'ignored.yaml') })
+
+    const stderr = consoleErrorSpy.mock.calls.flat().join('\n')
+    expect(stderr).toContain('--integrations-file is ignored')
+    expect(getOutput(consoleSpy)).not.toContain('--integrations-file is ignored')
+  })
+
+  it('outputs valid JSON for a clean integrations yaml file', async () => {
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'valid-json.yaml')
+    await writeFile(intFile, 'integrations: []')
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, { output: 'json' })
+
+    const out = getOutput(consoleSpy)
+    const parsed = JSON.parse(out)
+    expect(parsed).toEqual({
+      path: intFile,
+      success: true,
+      issueCount: { errors: 0, warnings: 0, total: 0 },
+      issues: [],
+      integrations: { configured: [], missing: [] },
+      inputs: { total: 0, withValues: 0, needingValues: [] },
+      integrationsFile: {
+        path: intFile,
+        integrationCount: 0,
+        issues: [],
+      },
+    })
+  })
+
+  it('outputs JSON with issues for an invalid integrations yaml file', async () => {
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'invalid-json.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: bad
+    name: Bad
+    type: invalid-type
+    metadata: {}`
+    )
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, { output: 'json' })
+
+    const out = getOutput(consoleSpy)
+    const parsed = JSON.parse(out)
+    expect(parsed).toEqual({
+      path: intFile,
+      success: false,
+      issueCount: { errors: 1, warnings: 0, total: 1 },
+      issues: [],
+      integrations: { configured: [], missing: [] },
+      inputs: { total: 0, withValues: 0, needingValues: [] },
+      integrationsFile: {
+        path: intFile,
+        integrationCount: 0,
+        issues: [
+          {
+            path: 'integrations[0].type',
+            message: expect.stringContaining('Invalid discriminator value'),
+            code: 'invalid_union_discriminator',
+          },
+        ],
+      },
+    })
+    // issueCount must reflect the configuration issues (hard errors) so it stays consistent with
+    // `success: false` and `integrationsFile.issues` (direct-YAML path).
+    expect(parsed.issueCount.errors).toBe(parsed.integrationsFile.issues.length)
+    expect(parsed.issueCount.total).toBe(parsed.integrationsFile.issues.length)
+  })
+
+  it('exits with error code when integrations yaml has issues', async () => {
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'error-exit.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: bad
+    name: Bad
+    type: invalid-type
+    metadata: {}`
+    )
+
+    exitSpy.mockRestore()
+    let exitCode: number | undefined
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+      exitCode = typeof code === 'number' ? code : undefined
+      return undefined as never
+    })
+
+    await action(intFile, { output: 'json' })
+
+    expect(exitCode).toBe(1)
+  })
+
+  it('reports a generation error for a schema-valid but impossible to generate integration (invalid bigquery service account)', async () => {
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'bigquery-bad-service-account.yaml')
+    await writeFile(
+      intFile,
+      `integrations:
+  - id: bq
+    name: My BigQuery
+    type: big-query
+    metadata:
+      service_account: "this is not valid json"`
+    )
+
+    exitSpy.mockRestore()
+    let exitCode: number | undefined
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+      exitCode = typeof code === 'number' ? code : undefined
+      return undefined as never
+    })
+
+    await action(intFile, { output: 'json' })
+
+    const out = getOutput(consoleSpy)
+    const parsed = JSON.parse(out)
+    expect(parsed).toEqual({
+      path: intFile,
+      success: false,
+      issueCount: { errors: 1, warnings: 0, total: 1 },
+      issues: [],
+      integrations: { configured: [], missing: [] },
+      inputs: { total: 0, withValues: 0, needingValues: [] },
+      integrationsFile: {
+        path: intFile,
+        integrationCount: 1,
+        issues: [
+          {
+            path: 'integrations[id=bq].metadata',
+            message: expect.stringContaining('Failed to parse bigquery service account'),
+            code: 'big_query_service_account_parse_error',
+          },
+        ],
+      },
+    })
+    // The generation error must produce a non-zero exit code (it is a hard error).
+    expect(exitCode).toBe(1)
+  })
+
+  it('shows error for non-existent yaml file', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+
+    await expect(action(join(tempDir, 'does-not-exist.yaml'), DEFAULT_OPTIONS)).rejects.toThrow('process.exit called')
+
+    const errorOutput = getErrorOutput(consoleErrorSpy)
+    expect(withStableTmpPaths(errorOutput, tempDir)).toMatchInlineSnapshot(
+      `"File not found: <tmp>/does-not-exist.yaml"`
+    )
+  })
+
+  it('reports yaml parse errors with human-readable message', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'bad-yaml.yaml')
+    await writeFile(intFile, 'integrations:\n  - id: "unclosed string')
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, DEFAULT_OPTIONS)
+
+    const textOutput = getOutput(consoleSpy)
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+      "Configuration issues in <tmp>/bad-yaml.yaml
+
+        ✖ yaml_parse_error: Invalid YAML in integrations file: YAML parsing error: Missing closing "quote at line 2, column 25:
+
+        - id: "unclosed string
+                              ^
+
+
+      Summary: 1 configuration error"
+    `)
+  })
+
+  it('also works with .yml extension', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'valid.yml')
+    await writeFile(intFile, 'integrations: []')
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    await action(intFile, DEFAULT_OPTIONS)
+
+    const textOutput = getOutput(consoleSpy)
+    expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
+  })
+})
+
+describe('lint command - integrations file loading', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let consoleErrorSpy: Mock<typeof console.error>
+  let exitSpy: Mock<typeof process.exit>
+  let tempDir: string
+
+  beforeAll(async () => {
+    tempDir = join(tmpdir(), `lint-integrations-test-${Date.now()}`)
+    await mkdir(tempDir, { recursive: true })
+  })
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+  })
+
+  afterEach(() => {
+    consoleSpy.mockRestore()
+    consoleErrorSpy.mockRestore()
+    exitSpy.mockRestore()
+    vi.unstubAllEnvs()
+  })
+
+  describe('integrationsFile in JSON output', () => {
+    it('always includes integrationsFile field in JSON output', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'empty-integrations.yaml')
+      await writeFile(intFile, 'integrations: []')
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [],
+        },
+      })
+    })
+
+    it('reports integrationCount when integrations are loaded', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'valid-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: my-postgres
+    name: My PostgreSQL
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: secret`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 1,
+          issues: [],
+        },
+      })
+    })
+
+    it('reports issues when integrations file has schema errors', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'bad-type-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: bad-integration
+    name: Bad Integration
+    type: not-a-real-db-type
+    metadata:
+      host: localhost`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 1, warnings: 0, total: 1 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [
+            {
+              path: 'integrations[0].type',
+              message: expect.stringContaining('Invalid discriminator value'),
+              code: 'invalid_union_discriminator',
+            },
+          ],
+        },
+      })
+      // issueCount must reflect the configuration issues (hard errors) so it stays consistent with
+      // `success: false` and `integrationsFile.issues` (.deepnote + integrations-file path).
+      expect(parsed.issueCount.errors).toBe(parsed.integrationsFile.issues.length)
+      expect(parsed.issueCount.total).toBe(parsed.integrationsFile.issues.length)
+    })
+
+    it('reports issues when integrations file has YAML syntax errors', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'bad-yaml-integrations.yaml')
+      await writeFile(intFile, 'integrations:\n  - id: "unclosed string')
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 1, warnings: 0, total: 1 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [
+            {
+              path: '',
+              message: expect.stringContaining('Invalid YAML in integrations file'),
+              code: 'yaml_parse_error',
+            },
+          ],
+        },
+      })
+    })
+
+    it('reports issues when env var references are unresolved', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'missing-env-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: postgres-missing-env
+    name: PostgreSQL Missing Env
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: "env:LINT_TEST_MISSING_ENV_VAR_XYZ"`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 1, warnings: 0, total: 1 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 0,
+          issues: [
+            {
+              path: 'integrations[0].metadata.password',
+              message: expect.stringContaining('LINT_TEST_MISSING_ENV_VAR_XYZ'),
+              code: 'env_var_not_defined',
+            },
+          ],
+        },
+      })
+    })
+
+    it('resolves env var references when env var is set', async () => {
+      vi.stubEnv('LINT_TEST_DB_PASSWORD', 'test-secret')
+
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'env-ref-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: postgres-env-ref
+    name: PostgreSQL Env Ref
+    type: pgsql
+    metadata:
+      host: localhost
+      port: "5432"
+      database: mydb
+      user: root
+      password: "env:LINT_TEST_DB_PASSWORD"`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 1,
+          issues: [],
+        },
+      })
+    })
+  })
+
+  describe('text output with configuration issues', () => {
+    it('shows configuration issues section when integrations file has errors', async () => {
+      setOutputConfig({ color: false })
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'text-output-bad-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: my-bad-db
+    name: My Bad DB
+    type: unknown-db-type
+    metadata:
+      host: localhost`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { integrationsFile: intFile })
+
+      const textOutput = getOutput(consoleSpy)
+      expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+        "Configuration issues in <tmp>/text-output-bad-integrations.yaml
+
+          ✖ invalid_union_discriminator: Integration "My Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+            at integrations[0].type
+
+        Summary: 1 configuration error"
+      `)
+    })
+
+    it('shows "No issues found" when both notebook and integrations file are clean', async () => {
+      setOutputConfig({ color: false })
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'clean-integrations.yaml')
+      await writeFile(intFile, 'integrations: []')
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { integrationsFile: intFile })
+
+      const textOutput = getOutput(consoleSpy)
+      expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`"✓ No issues found"`)
+    })
+
+    it('includes path info in configuration issues section', async () => {
+      setOutputConfig({ color: false })
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'path-info-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: bad
+    name: Bad
+    type: invalid-type
+    metadata: {}`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { integrationsFile: intFile })
+
+      const textOutput = getOutput(consoleSpy)
+      expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
+        "Configuration issues in <tmp>/path-info-integrations.yaml
+
+          ✖ invalid_union_discriminator: Integration "Bad": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+            at integrations[0].type
+
+        Summary: 1 configuration error"
+      `)
+    })
+  })
+
+  describe('exit code with configuration issues', () => {
+    it('exits with error code when integrations file has issues', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'exit-code-bad-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: bad
+    name: Bad
+    type: invalid-type
+    metadata: {}`
+      )
+
+      exitSpy.mockRestore()
+      let exitCode: number | undefined
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        return undefined as never
+      })
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      expect(exitCode).toBe(1)
+    })
+
+    it('does not exit with error when integrations file has no issues', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'exit-code-clean-integrations.yaml')
+      await writeFile(intFile, 'integrations: []')
+
+      exitSpy.mockRestore()
+      let exitCalled = false
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        exitCalled = true
+        return undefined as never
+      })
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      expect(exitCalled).toBe(false)
+    })
+  })
+
+  describe('integrations loaded from file affect missing-integration check', () => {
+    it('does not flag an integration as missing when it is configured in the integrations file', async () => {
+      const action = createLintAction(program)
+      // Use the integrations example which has SQL blocks with non-builtin integrations
+      const filePath = resolve(process.cwd(), INTEGRATIONS_FILE)
+
+      // Create an integrations file that provides the exact integration id referenced by the
+      // SQL block in 3_integrations.deepnote. The id is digit-prefixed, which exercises the
+      // leading-digit env var naming rule that previously caused a false missing-integration.
+      const integrationId = INTEGRATIONS_FILE_SQL_INTEGRATION_ID
+
+      // Clear the integration's SQL_ env var so it would otherwise appear as missing
+      vi.stubEnv(getSqlEnvVarName(integrationId), undefined)
+
+      const intFile = join(tempDir, 'clickhouse-integration.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: ${integrationId}
+    name: ClickHouse
+    type: clickhouse
+    metadata:
+      host: localhost
+      port: "8123"
+      database: default
+      user: default
+      password: ""`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      // The integration loaded from the file must be considered configured, not missing.
+      expect(parsed.integrations.missing).not.toContain(integrationId)
+      expect(parsed.integrations.configured).toContain(integrationId)
+    })
+  })
+
+  describe('integration env var generation errors', () => {
+    it('reports a generation error for a schema-valid but impossible to generate integration (invalid bigquery service account)', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'bigquery-bad-service-account-integrations.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: bq
+    name: My BigQuery
+    type: big-query
+    metadata:
+      service_account: "this is not valid json"`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: false,
+        issueCount: { errors: 1, warnings: 0, total: 1 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: intFile,
+          integrationCount: 1,
+          issues: [
+            {
+              path: 'integrations[id=bq].metadata',
+              message: expect.stringContaining('Failed to parse bigquery service account'),
+              code: 'big_query_service_account_parse_error',
+            },
+          ],
+        },
+      })
+    })
+
+    it('exits with error code when an integration env var cannot be generated', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const intFile = join(tempDir, 'bigquery-bad-service-account-exit.yaml')
+      await writeFile(
+        intFile,
+        `integrations:
+  - id: bq
+    name: My BigQuery
+    type: big-query
+    metadata:
+      service_account: "this is not valid json"`
+      )
+
+      exitSpy.mockRestore()
+      let exitCode: number | undefined
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        return undefined as never
+      })
+
+      await action(filePath, { output: 'json', integrationsFile: intFile })
+
+      expect(exitCode).toBe(1)
+    })
+  })
+
+  describe('--integrations-file option', () => {
+    it('uses the specified integrations file instead of the default', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const customIntFile = join(tempDir, 'custom-path-integrations.yaml')
+      await writeFile(
+        customIntFile,
+        `integrations:
+  - id: my-custom-db
+    name: My Custom DB
+    type: pgsql
+    metadata:
+      host: custom-host
+      port: "5432"
+      database: custom_db
+      user: custom_user
+      password: custom_pass`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(filePath, { output: 'json', integrationsFile: customIntFile })
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+
+      expect(parsed).toEqual({
+        path: filePath,
+        success: true,
+        issueCount: { errors: 0, warnings: 0, total: 0 },
+        issues: [],
+        integrations: { configured: [], missing: [] },
+        inputs: { total: 0, withValues: 0, needingValues: [] },
+        integrationsFile: {
+          path: customIntFile,
+          integrationCount: 1,
+          issues: [],
+        },
+      })
+    })
+
+    it('errors when an explicitly specified integrations file does not exist', async () => {
+      const action = createLintAction(program)
+      const filePath = resolve(process.cwd(), HELLO_WORLD_FILE)
+      const nonExistentFile = join(tempDir, 'does-not-exist.yaml')
+
+      exitSpy.mockRestore()
+      let exitCode: number | undefined
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+        exitCode = typeof code === 'number' ? code : undefined
+        throw new Error('process.exit called')
+      })
+
+      await expect(action(filePath, { output: 'json', integrationsFile: nonExistentFile })).rejects.toThrow(
+        'process.exit called'
+      )
+
+      // FileResolutionError maps to ExitCode.InvalidUsage (2)
+      expect(exitCode).toBe(2)
+
+      const out = getOutput(consoleSpy)
+      const parsed = JSON.parse(out)
+      expect(parsed).toEqual({ success: false, error: expect.stringContaining('File not found') })
     })
   })
 })

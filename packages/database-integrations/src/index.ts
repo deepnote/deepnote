@@ -8,6 +8,7 @@ export {
   type EnvVar,
   getEnvironmentVariablesForIntegrations,
   getSqlAlchemyInput,
+  getSqlEnvVarName,
   SpannerServiceAccountParseError,
 } from './database-integration-env-vars'
 export {

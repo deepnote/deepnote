@@ -1131,6 +1131,10 @@ function createRunProjectCallbacks({
             }
           }
         },
+
+    // Non-fatal warnings (e.g. agent MCP cleanup failures) go to stderr via debug(),
+    // so they never corrupt machine output on stdout — no need to gate on isMachineOutput.
+    onWarning: (message: string) => debug(message),
   }
 }
 
