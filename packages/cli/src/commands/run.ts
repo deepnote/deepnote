@@ -197,6 +197,7 @@ interface ProjectSetup {
 interface RunExecutionState {
   blockResults: BlockResult[]
   blockLabels: Map<string, string>
+  blocksWithStreamedOutput: Set<string>
   agentStreamed: boolean
   agentTextBuffer: string
   reasoningActive: boolean
@@ -935,6 +936,7 @@ function createRunExecutionState(options: RunOptions, isMachineOutput: boolean):
   return {
     blockResults: [],
     blockLabels: new Map<string, string>(),
+    blocksWithStreamedOutput: new Set<string>(),
     agentStreamed: false,
     agentTextBuffer: '',
     reasoningActive: false,
@@ -1026,7 +1028,6 @@ function createRunProjectCallbacks({
     onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
       const label = getBlockLabel(block)
       state.blockLabels.set(block.id, label)
-      await captureMemoryBeforeBlock(state, engine, block.id)
 
       if (!isMachineOutput) {
         state.agentStreamed = false
@@ -1036,6 +1037,21 @@ function createRunProjectCallbacks({
         const c = getChalk()
         process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
       }
+
+      await captureMemoryBeforeBlock(state, engine, block.id)
+    },
+
+    onOutput: (blockId: string, blockOutput: IOutput) => {
+      if (isMachineOutput || !state.blockLabels.has(blockId)) {
+        return
+      }
+
+      if (!state.blocksWithStreamedOutput.has(blockId)) {
+        output('')
+      }
+
+      renderOutput(blockOutput)
+      state.blocksWithStreamedOutput.add(blockId)
     },
 
     onBlockDone: async (result: BlockExecutionResult) => {
@@ -1055,7 +1071,8 @@ function createRunProjectCallbacks({
 
       if (!isMachineOutput && (!state.activeBlockId || result.blockId === state.activeBlockId)) {
         const c = getChalk()
-        const prefix = state.agentStreamed ? '\n' : ''
+        const hadStreamedOutput = state.blocksWithStreamedOutput.delete(result.blockId)
+        const prefix = state.agentStreamed || hadStreamedOutput ? '\n' : ''
         if (result.success) {
           output(`${prefix}${c.green('✓')}${c.dim(` (${result.durationMs}ms${memoryDeltaStr})`)}`)
         } else {
@@ -1068,7 +1085,7 @@ function createRunProjectCallbacks({
             output('')
             process.stdout.write(rendered)
           }
-        } else {
+        } else if (!hadStreamedOutput) {
           for (const blockOutput of result.outputs) {
             renderOutput(blockOutput)
           }
@@ -1076,6 +1093,8 @@ function createRunProjectCallbacks({
           if (result.outputs.length > 0) {
             output('')
           }
+        } else {
+          output('')
         }
       }
     },
