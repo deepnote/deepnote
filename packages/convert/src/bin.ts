@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 import { cli } from 'cleye'
 import { convert } from './cli.js'
+import { isSourceNotebookFormat, SOURCE_NOTEBOOK_FORMATS, type SourceNotebookFormat } from './source-notebook-formats.js'
+
+/** cleye flag parser: validates `--outputFormat` against the shared source-notebook format set (from .deepnote). */
+function OutputFormat(value: string): SourceNotebookFormat {
+  if (!isSourceNotebookFormat(value)) {
+    throw new Error(`Invalid --outputFormat "${value}". Expected one of: ${SOURCE_NOTEBOOK_FORMATS.join(', ')}.`)
+  }
+  return value
+}
 
 async function main() {
   const argv = cli({
@@ -15,6 +24,10 @@ async function main() {
         alias: 'o',
         description: 'The path where the .deepnote file will be saved.',
         type: String,
+      },
+      outputFormat: {
+        description: 'Output format when converting from .deepnote: jupyter (default), percent, quarto, or marimo.',
+        type: OutputFormat,
       },
       cwd: {
         description: 'The working directory to resolve paths relative to.',
@@ -32,6 +45,7 @@ async function main() {
     inputPath: argv._.path,
     projectName: argv.flags.projectName,
     outputPath: argv.flags.outputPath,
+    outputFormat: argv.flags.outputFormat,
     cwd: argv.flags.cwd ?? process.cwd(),
     singleFile: argv.flags.singleFile,
   })
