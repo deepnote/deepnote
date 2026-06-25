@@ -143,6 +143,26 @@ describe('generateSnapshotFilename ↔ parseSnapshotFilename round-trip', () => 
     expect(parsed?.projectId).toBe(projectId)
     expect(parsed?.timestamp).toBe('2025-01-08T10-30-00')
   })
+
+  it.each([
+    // [input timestamp, expected timestamp after normalization]
+    ['2025-01-08T10:30:00.123Z', '2025-01-08T10-30-00-123'], // raw toISOString(): ':' '.' 'Z' → '-'
+    ['2025-01-08T10:30:00', '2025-01-08T10-30-00'], //          colon ISO → canonical hyphen form
+    ['2025-01-08T10-30-00', '2025-01-08T10-30-00'], //          already canonical → unchanged
+  ])('keeps the notebook id intact and yields a parseable timestamp for %s', (input, expected) => {
+    const filename = generateSnapshotFilename({
+      slug: 'my-project',
+      projectId,
+      notebookId: 'notebook-1',
+      timestamp: input,
+    })
+
+    const parsed = parseSnapshotFilename(filename)
+
+    expect(parsed).not.toBeNull() //                never undiscoverable
+    expect(parsed?.notebookId).toBe('notebook-1') // notebook id never corrupted
+    expect(parsed?.timestamp).toBe(expected) //      normalized to the canonical, parseable form
+  })
 })
 
 describe('getSnapshotDir', () => {

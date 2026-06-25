@@ -35,6 +35,17 @@ function sanitizeFilenameComponent(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
+/**
+ * Normalizes snapshot timestamps for filenames: keeps digits, `T`, and `-`, maps other separators to `-`,
+ * so the value parses correctly and the greedy notebook-id segment cannot absorb part of the timestamp.
+ */
+function sanitizeTimestampComponent(timestamp: string): string {
+  if (timestamp === 'latest') {
+    return timestamp
+  }
+  return timestamp.replace(/[^0-9T-]+/g, '-').replace(/-+$/g, '')
+}
+
 /** Characters kept verbatim inside an encoded notebook id; every other character is percent-escaped. */
 const FILENAME_SAFE_NOTEBOOK_ID_CHAR = /[A-Za-z0-9_-]/
 const utf8Encoder = new TextEncoder()
@@ -88,9 +99,10 @@ export function generateSnapshotFilename(params: GenerateSnapshotFilenameParams)
   const { slug, projectId, notebookId, timestamp = 'latest' } = params
   const safeSlug = sanitizeFilenameComponent(slug)
   const safeProjectId = sanitizeFilenameComponent(projectId)
-  // Valid timestamps ('latest' or '2025-01-08T10-30-00') only contain [A-Za-z0-9_-] and pass through
-  // unchanged; sanitizing purely neutralizes traversal from untrusted/garbage input.
-  const safeTimestamp = sanitizeFilenameComponent(timestamp)
+  // Normalize to the parser-readable, '_'-free canonical timestamp form so the name round-trips. A raw
+  // ISO string (':' '.' 'Z') otherwise sanitizes to '_'-laden text that misparses the notebook id or
+  // fails to match entirely.
+  const safeTimestamp = sanitizeTimestampComponent(timestamp)
   if (notebookId) {
     return `${safeSlug}_${safeProjectId}_${encodeNotebookIdForFilename(notebookId)}_${safeTimestamp}.snapshot.deepnote`
   }

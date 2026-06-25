@@ -185,6 +185,26 @@ describe('split command', () => {
     }
   })
 
+  it('rolls back already-written split files when a later split collides (no --force)', async () => {
+    const file = createMultiNotebookFile(['Dashboard', 'Data', 'Utils'])
+    const inputPath = path.join(tempDir, 'project.deepnote')
+    await fs.writeFile(inputPath, serializeDeepnoteFile(file), 'utf-8')
+    await fs.writeFile(path.join(tempDir, 'project-data.deepnote'), 'existing', 'utf-8')
+
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    try {
+      const action = createSplitAction(program)
+      await action(inputPath, {})
+      expect(exitSpy).toHaveBeenCalledWith(1)
+    } finally {
+      exitSpy.mockRestore()
+    }
+
+    const files = (await fs.readdir(tempDir)).filter(f => f.endsWith('.deepnote') && f !== 'project.deepnote').sort()
+    expect(files).toEqual(['project-data.deepnote'])
+    expect(await fs.readFile(path.join(tempDir, 'project-data.deepnote'), 'utf-8')).toBe('existing')
+  })
+
   it('should overwrite existing files with --force', async () => {
     const file = createMultiNotebookFile(['Dashboard', 'Data'])
     const inputPath = path.join(tempDir, 'project.deepnote')

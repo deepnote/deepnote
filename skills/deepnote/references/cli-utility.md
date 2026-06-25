@@ -22,7 +22,7 @@ deepnote open my-project.deepnote -o json
 
 Split a multi-notebook `.deepnote` file into separate single-notebook files.
 
-The init notebook (if present) becomes its own standalone file, and each resulting main file keeps its `initNotebookId` so `deepnote run` resolves and runs the sibling init notebook as a prelude.
+The init notebook (if present) becomes its own standalone file, and each resulting main file keeps its `initNotebookId` so a full `deepnote run` resolves and runs the sibling init notebook as a prelude before the file's own blocks. Filtered runs (`deepnote run --notebook <name>` or `--block <id>`) execute only the selected blocks and do **not** run the sibling init prelude.
 
 | Option               | Description                                                         |
 | -------------------- | ------------------------------------------------------------------- |

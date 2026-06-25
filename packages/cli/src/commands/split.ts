@@ -38,19 +38,26 @@ export function createSplitAction(_program: Command): (path: string, options: Sp
       // Each split entry is its own single-notebook file — see splitByNotebooks docs.
       const writtenFiles: string[] = []
       const force = Boolean(options.force)
-      for (const split of splits) {
-        const outPath = join(outputDir, split.outputFilename)
-        const yaml = serializeDeepnoteFile(split.file)
-        try {
-          await fs.writeFile(outPath, yaml, { encoding: 'utf-8', flag: force ? 'w' : 'wx' })
-        } catch (err) {
-          if (!force && isErrnoException(err, 'EEXIST')) {
-            throw new Error(`Output file already exists: ${outPath}. Use --force to overwrite.`)
+      try {
+        for (const split of splits) {
+          const outPath = join(outputDir, split.outputFilename)
+          const yaml = serializeDeepnoteFile(split.file)
+          try {
+            await fs.writeFile(outPath, yaml, { encoding: 'utf-8', flag: force ? 'w' : 'wx' })
+          } catch (err) {
+            if (!force && isErrnoException(err, 'EEXIST')) {
+              throw new Error(`Output file already exists: ${outPath}. Use --force to overwrite.`)
+            }
+            throw err
           }
-          throw err
+          writtenFiles.push(outPath)
+          output(`  ${c.green('✓')} ${basename(outPath)}`)
         }
-        writtenFiles.push(outPath)
-        output(`  ${c.green('✓')} ${basename(outPath)}`)
+      } catch (err) {
+        if (!force) {
+          await Promise.allSettled(writtenFiles.map(file => fs.rm(file, { force: true })))
+        }
+        throw err
       }
 
       output(`\n${c.green('✓')} Split into ${writtenFiles.length} files`)
