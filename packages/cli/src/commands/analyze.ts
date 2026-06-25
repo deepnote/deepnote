@@ -1,3 +1,4 @@
+import { ParseError } from '@deepnote/blocks'
 import { InitNotebookResolutionError } from '@deepnote/convert'
 import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
@@ -365,7 +366,7 @@ function outputAnalysis(result: AnalyzeResult, options: AnalyzeOptions): void {
 function handleError(error: unknown, options: AnalyzeOptions): never {
   const message = error instanceof Error ? error.message : String(error)
   const exitCode =
-    error instanceof FileResolutionError || error instanceof InitNotebookResolutionError
+    error instanceof FileResolutionError || error instanceof ParseError || error instanceof InitNotebookResolutionError
       ? ExitCode.InvalidUsage
       : ExitCode.Error
 

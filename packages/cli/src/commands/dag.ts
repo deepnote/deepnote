@@ -1,4 +1,4 @@
-import type { DeepnoteBlock } from '@deepnote/blocks'
+import { type DeepnoteBlock, ParseError } from '@deepnote/blocks'
 import { InitNotebookResolutionError } from '@deepnote/convert'
 import {
   type BlockDependencyDag,
@@ -532,7 +532,7 @@ function handleError(error: unknown, options: DagOptions): never {
 
   const message = error instanceof Error ? error.message : String(error)
   const exitCode =
-    error instanceof FileResolutionError || error instanceof InitNotebookResolutionError
+    error instanceof FileResolutionError || error instanceof ParseError || error instanceof InitNotebookResolutionError
       ? ExitCode.InvalidUsage
       : ExitCode.Error
 
