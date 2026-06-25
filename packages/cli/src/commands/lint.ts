@@ -6,6 +6,7 @@ import {
   DEFAULT_ENV_FILE,
   type EnvVar,
   getEnvironmentVariablesForIntegrations,
+  type ValidationIssue,
 } from '@deepnote/database-integrations'
 import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
@@ -15,7 +16,6 @@ import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integr
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { checkForIssues, type LintIssue, type LintResult } from '../utils/analysis'
 import { FileResolutionError, isErrnoENOENT, resolvePathToDeepnoteFile } from '../utils/file-resolver'
-import type { ValidationIssue } from './validate'
 
 export interface LintOptions {
   output?: 'json'
