@@ -9,6 +9,7 @@ import {
   runToDeepnoteConversion,
   SOURCE_NOTEBOOK_FORMATS,
   type SourceNotebookFormat,
+  tryDetectFormat,
 } from '@deepnote/convert'
 import type { Command } from 'commander'
 import ora from 'ora'
@@ -119,7 +120,7 @@ async function determineInputFormat(absolutePath: string, isDirectory: boolean, 
     for (const pyFile of pyFiles) {
       const pyFilePath = resolve(absolutePath, pyFile)
       const content = await fs.readFile(pyFilePath, 'utf-8')
-      const format = detectFormat(pyFilePath, content)
+      const format = tryDetectFormat(pyFilePath, content)
       if (format === 'marimo') return 'marimo'
       if (format === 'percent') return 'percent'
     }

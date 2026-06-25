@@ -196,9 +196,9 @@ deepnote-convert ~/jupyter-projects/data-analysis -o ~/deepnote-projects/
 Create a script to convert multiple projects. (For a plain directory of notebooks, `deepnote-convert <dir>` already writes one `.deepnote` per notebook — a script like this is only needed for custom logic.)
 
 ```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
+import { convertIpynbFileToDeepnoteFile } from "@deepnote/convert";
 import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 async function convertAllNotebooks(inputDir: string, outputDir: string) {
   const files = await readdir(inputDir);
@@ -207,8 +207,8 @@ async function convertAllNotebooks(inputDir: string, outputDir: string) {
     .map((f) => join(inputDir, f));
 
   for (const file of ipynbFiles) {
-    const name = file.replace(".ipynb", "");
-    await convertIpynbFilesToDeepnoteFile([file], {
+    const name = basename(file, ".ipynb");
+    await convertIpynbFileToDeepnoteFile(file, {
       outputPath: join(outputDir, `${name}.deepnote`),
       projectName: name,
     });

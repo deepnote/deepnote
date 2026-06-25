@@ -1,10 +1,11 @@
-import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
+import { ParseError } from '@deepnote/blocks'
+import { InitNotebookResolutionError } from '@deepnote/convert'
 import type { Command } from 'commander'
 import { ExitCode, NotFoundInProjectError } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { analyzeProject, type ProjectStats } from '../utils/analysis'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
 
 export interface StatsOptions {
   output?: 'json'
@@ -36,12 +37,8 @@ export function createStatsAction(
 async function computeStats(path: string | undefined, options: StatsOptions): Promise<StatsFileResult> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
 
-  debug('Reading file contents...')
-  const rawBytes = await fs.readFile(absolutePath)
-  const yamlContent = decodeUtf8NoBom(rawBytes)
-
-  debug('Parsing .deepnote file...')
-  const deepnoteFile = deserializeDeepnoteFile(yamlContent)
+  const { file: deepnoteFile, warnings } = await loadAndResolveDeepnoteFile(absolutePath)
+  emitInitResolverWarnings(warnings, options.output === 'json')
 
   debug('Analyzing project...')
   const { stats } = await analyzeProject(deepnoteFile, { notebook: options.notebook })
@@ -104,7 +101,10 @@ function handleError(error: unknown, options: StatsOptions): never {
   const message = error instanceof Error ? error.message : String(error)
   // User input errors should return InvalidUsage (2)
   const exitCode =
-    error instanceof FileResolutionError || error instanceof ParseError || error instanceof NotFoundInProjectError
+    error instanceof FileResolutionError ||
+    error instanceof ParseError ||
+    error instanceof NotFoundInProjectError ||
+    error instanceof InitNotebookResolutionError
       ? ExitCode.InvalidUsage
       : ExitCode.Error
 

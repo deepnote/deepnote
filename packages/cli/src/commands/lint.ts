@@ -1,11 +1,11 @@
-import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { InitNotebookResolutionError } from '@deepnote/convert'
 import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { checkForIssues, type LintIssue, type LintResult } from '../utils/analysis'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
 
 export interface LintOptions {
   output?: 'json'
@@ -34,7 +34,10 @@ export function createLintAction(_program: Command): (path: string | undefined, 
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      const exitCode =
+        error instanceof FileResolutionError || error instanceof InitNotebookResolutionError
+          ? ExitCode.InvalidUsage
+          : ExitCode.Error
 
       if (options.output === 'json') {
         outputJson({ success: false, error: message })
@@ -49,12 +52,8 @@ export function createLintAction(_program: Command): (path: string | undefined, 
 async function lintFile(path: string | undefined, options: LintOptions): Promise<LintFileResult> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
 
-  debug('Reading file contents...')
-  const rawBytes = await fs.readFile(absolutePath)
-  const yamlContent = decodeUtf8NoBom(rawBytes)
-
-  debug('Parsing .deepnote file...')
-  const deepnoteFile = deserializeDeepnoteFile(yamlContent)
+  const { file: deepnoteFile, warnings } = await loadAndResolveDeepnoteFile(absolutePath)
+  emitInitResolverWarnings(warnings, options.output === 'json')
 
   debug(`Analyzing blocks...`)
   const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined

@@ -134,6 +134,7 @@ async function resolveRunnableWithInit(filePath: string): Promise<{
   originalPath: string
   format: LoadedRunnableFile['format']
   wasConverted: boolean
+  warnings: string[]
 }> {
   const loaded = await loadRunnableFile(filePath)
   const resolved = await resolveAndComposeInitIfNeeded(loaded)
@@ -142,6 +143,7 @@ async function resolveRunnableWithInit(filePath: string): Promise<{
     originalPath: loaded.originalPath,
     format: loaded.format,
     wasConverted: loaded.wasConverted,
+    warnings: resolved.warnings,
   }
 }
 
@@ -194,7 +196,12 @@ async function handleRun(args: Record<string, unknown>) {
     }
   }
 
-  const { file, originalPath, format, wasConverted } = resolved
+  const { file, originalPath, format, wasConverted, warnings } = resolved
+
+  for (const warning of warnings) {
+    // biome-ignore lint/suspicious/noConsole: Intentional diagnostic logging to stderr
+    console.error(`[deepnote-mcp] ${warning}`)
+  }
 
   // If blockId is specified, run just that block with its dependencies
   if (blockIdFilter) {

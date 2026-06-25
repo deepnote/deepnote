@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, extname, resolve } from 'node:path'
 import {
-  detectFormat,
   runToDeepnoteConversion,
   SOURCE_NOTEBOOK_FORMAT_EXTENSIONS,
   type SourceNotebookFormat,
+  tryDetectFormat,
 } from '@deepnote/convert'
 
 export async function listNotebookFilesInDirectory(dirPath: string, format: SourceNotebookFormat): Promise<string[]> {
@@ -18,7 +18,7 @@ export async function listNotebookFilesInDirectory(dirPath: string, format: Sour
 
   if (format === 'percent' || format === 'marimo') {
     const fileContents = await Promise.all(files.map(file => fs.readFile(file, 'utf-8')))
-    return files.filter((file, index) => detectFormat(file, fileContents[index]) === format)
+    return files.filter((file, index) => tryDetectFormat(file, fileContents[index]) === format)
   }
 
   return files

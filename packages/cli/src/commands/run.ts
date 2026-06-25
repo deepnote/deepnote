@@ -47,6 +47,7 @@ import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats 
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { resolveAndConvertToDeepnote } from '../utils/format-converter'
+import { emitInitResolverWarnings } from '../utils/load-and-resolve-init'
 import {
   type BlockProfile,
   displayMetrics,
@@ -293,13 +294,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   // Sibling-init resolution only applies to native .deepnote files (handled inside the shared helper).
   const resolved = await resolveAndComposeInitIfNeeded(convertedFile)
   file = resolved.file
-  for (const warning of resolved.warnings) {
-    if (isMachineOutput) {
-      debug(`Init resolver warning: ${warning}`)
-    } else {
-      log(getChalk().yellow(`Warning: ${warning}`))
-    }
-  }
+  emitInitResolverWarnings(resolved.warnings, isMachineOutput)
 
   if (path && options.prompt) {
     const lastNotebook = file.project.notebooks[file.project.notebooks.length - 1]
@@ -676,13 +671,7 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
   const { originalPath: absolutePath } = converted
   const resolved = await resolveAndComposeInitIfNeeded(converted)
   const file = resolved.file
-  for (const warning of resolved.warnings) {
-    if (isMachineOutput) {
-      debug(`Init resolver warning: ${warning}`)
-    } else {
-      log(getChalk().yellow(`Warning: ${warning}`))
-    }
-  }
+  emitInitResolverWarnings(resolved.warnings, isMachineOutput)
 
   const inputs = getInputBlocks(file, options.notebook)
 

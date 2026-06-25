@@ -104,6 +104,31 @@ y = 2
         expect(parsed.project.notebooks).toHaveLength(1)
       }
     })
+
+    it('converts a directory containing a percent notebook and ignores a plain .py helper', async () => {
+      const action = createConvertAction(program)
+
+      const percentDir = join(tempDir, 'percent-with-helper')
+      await fs.mkdir(percentDir)
+
+      // A valid percent notebook...
+      await fs.writeFile(join(percentDir, 'notebook.py'), '# %%\nx = 1\n', 'utf-8')
+      // ...alongside an ordinary Python helper script (neither percent nor Marimo).
+      await fs.writeFile(join(percentDir, 'helper.py'), 'def add(a, b):\n    return a + b\n', 'utf-8')
+
+      const outputDir = join(tempDir, 'out')
+      // Should not throw because of the unsupported helper.
+      await action(percentDir, { output: outputDir })
+
+      // Only the notebook is converted; the helper is silently skipped.
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['notebook.deepnote'])
+      const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, 'notebook.deepnote'), 'utf-8'))
+      expect(parsed.project.notebooks).toHaveLength(1)
+
+      // And no error was reported.
+      expect(consoleErrorSpy).not.toHaveBeenCalled()
+    })
   })
 
   describe('converting Marimo format to Deepnote', () => {

@@ -8,6 +8,7 @@ import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
+import { createSplitWithSiblingInitFixture } from './test-helpers'
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -379,6 +380,43 @@ describe('lint command', () => {
 
       const codes = (JSON.parse(getOutput(consoleSpy)).issues as Array<{ code: string }>).map(i => i.code)
       expect(codes).not.toContain('multi-notebook')
+    })
+  })
+
+  describe('sibling init resolution', () => {
+    let fixture: Awaited<ReturnType<typeof createSplitWithSiblingInitFixture>> | undefined
+
+    beforeEach(() => {
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    })
+
+    afterEach(async () => {
+      await fixture?.cleanup()
+      fixture = undefined
+    })
+
+    it('analyzes the composed init notebook (init symbols resolve; init-only issues surface)', async () => {
+      fixture = await createSplitWithSiblingInitFixture()
+      const action = createLintAction(program)
+
+      await action(fixture.mainPath, { output: 'json' })
+
+      const issues = JSON.parse(getOutput(consoleSpy)).issues as Array<{
+        code: string
+        notebookName: string
+        details?: { variable?: string }
+      }>
+
+      // `init_value` is defined only in the sibling init notebook and used by the main notebook;
+      // with the init composed it resolves, so there is no false undefined-variable error.
+      expect(issues.filter(i => i.code === 'undefined-variable')).toHaveLength(0)
+
+      // `init_only_unused` lives in the init notebook and is used nowhere. It can only be flagged if
+      // the sibling init was actually resolved and analyzed — proving the init notebook is in scope.
+      const initUnused = issues.find(i => i.code === 'unused-variable' && i.details?.variable === 'init_only_unused')
+      expect(initUnused).toBeDefined()
+      expect(initUnused?.notebookName).toBe('Init')
     })
   })
 

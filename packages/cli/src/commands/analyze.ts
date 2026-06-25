@@ -1,11 +1,11 @@
-import fs from 'node:fs/promises'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { InitNotebookResolutionError } from '@deepnote/convert'
 import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { type AnalysisResult, analyzeProject, type BlockInfo, buildBlockMap } from '../utils/analysis'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
 
 export interface AnalyzeOptions {
   output?: OutputFormat
@@ -67,12 +67,8 @@ export function createAnalyzeAction(
 async function analyzeFile(path: string | undefined, options: AnalyzeOptions): Promise<AnalyzeResult> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
 
-  debug('Reading file contents...')
-  const rawBytes = await fs.readFile(absolutePath)
-  const yamlContent = decodeUtf8NoBom(rawBytes)
-
-  debug('Parsing .deepnote file...')
-  const deepnoteFile = deserializeDeepnoteFile(yamlContent)
+  const { file: deepnoteFile, warnings } = await loadAndResolveDeepnoteFile(absolutePath)
+  emitInitResolverWarnings(warnings, options.output !== undefined)
 
   debug('Running analysis...')
   const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
@@ -368,7 +364,10 @@ function outputAnalysis(result: AnalyzeResult, options: AnalyzeOptions): void {
 
 function handleError(error: unknown, options: AnalyzeOptions): never {
   const message = error instanceof Error ? error.message : String(error)
-  const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+  const exitCode =
+    error instanceof FileResolutionError || error instanceof InitNotebookResolutionError
+      ? ExitCode.InvalidUsage
+      : ExitCode.Error
 
   if (options.output === 'json') {
     outputJson({ success: false, error: message })
