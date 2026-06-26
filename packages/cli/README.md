@@ -157,7 +157,7 @@ deepnote run my-project.deepnote
 **Examples:**
 
 ```bash
-# Run all notebooks
+# Run a .deepnote file (executes every notebook it contains)
 deepnote run my-project.deepnote
 
 # Run a Jupyter notebook directly (auto-converted)
@@ -398,7 +398,7 @@ deepnote convert notebook.ipynb
 # Convert and open in Deepnote Cloud
 deepnote convert notebook.ipynb --open
 
-# Convert directory of notebooks
+# Convert a directory: one single-notebook .deepnote per notebook (into the dir, or use -o <dir>)
 deepnote convert ./notebooks/
 
 # Convert Deepnote to Jupyter
@@ -409,6 +409,32 @@ deepnote convert project.deepnote -f quarto
 
 # Convert Deepnote to Marimo
 deepnote convert project.deepnote -f marimo
+```
+
+### `split <path>`
+
+Split a multi-notebook `.deepnote` file into separate single-notebook files.
+
+The init notebook (if present) becomes its own standalone file, and each resulting main file keeps its `initNotebookId` so `deepnote run` resolves and runs the sibling init notebook as a prelude.
+
+**Options:**
+
+| Option               | Description                      | Default           |
+| -------------------- | -------------------------------- | ----------------- |
+| `-o, --output <dir>` | Output directory for split files | same dir as input |
+| `--force`            | Overwrite existing output files  | `false`           |
+
+**Examples:**
+
+```bash
+# Split into the same directory as the input
+deepnote split my-project.deepnote
+
+# Split into a specific output directory
+deepnote split my-project.deepnote -o ./notebooks/
+
+# Overwrite existing output files
+deepnote split my-project.deepnote --force
 ```
 
 ### `open <path>`

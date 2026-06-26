@@ -10,7 +10,7 @@ description: >-
 
 # Deepnote Skill
 
-`.deepnote` files are YAML-based, portable, git-friendly project files that can contain multiple notebooks. Each notebook holds an ordered list of blocks (code, SQL, markdown, inputs, visualizations, etc.). Snapshot files (`.snapshot.deepnote`) use the same format but include execution outputs.
+`.deepnote` files are YAML-based, portable, git-friendly files that each hold a single notebook. Each notebook holds an ordered list of blocks (code, SQL, markdown, inputs, visualizations, etc.). Snapshot files (`.snapshot.deepnote`) use the same format but include execution outputs.
 
 ## File Structure
 
@@ -109,14 +109,20 @@ Snapshots are saved in a `snapshots/` directory adjacent to the source file:
 ```text
 project.deepnote
 snapshots/
-  my-project_<uuid>_latest.snapshot.deepnote
-  my-project_<uuid>_2025-01-08T10-30-00.snapshot.deepnote
+  my-project_<projectId>_<notebookId>_latest.snapshot.deepnote
+  my-project_<projectId>_<notebookId>_2025-01-08T10-30-00.snapshot.deepnote
+  my-project_<projectId>_latest.snapshot.deepnote
+  my-project_<projectId>_2025-01-08T10-30-00.snapshot.deepnote
 ```
 
-**Naming:** `{slug}_{projectId}_{timestamp}.snapshot.deepnote`
+**Naming:**
+
+- Single-notebook files: `{slug}_{projectId}_{notebookId}_{timestamp}.snapshot.deepnote`
+- Legacy files: `{slug}_{projectId}_{timestamp}.snapshot.deepnote`
 
 - `slug` — slugified project name
 - `projectId` — UUID from `project.id`
+- `notebookId` — notebook UUID (for single-notebook files)
 - `timestamp` — `latest` or ISO 8601 (e.g. `2025-01-08T10-30-00`)
 
 ### Reading Snapshot Data (token-efficient)
@@ -267,19 +273,20 @@ deepnote run project.deepnote -o json                  # JSON output
 
 ## CLI Quick Reference
 
-| Command                               | Description                                                |
-| ------------------------------------- | ---------------------------------------------------------- |
-| `deepnote run [path]`                 | Execute notebooks (.deepnote, .ipynb, .py, .qmd)           |
-| `deepnote convert <path>`             | Convert between formats (Jupyter, Quarto, Percent, Marimo) |
-| `deepnote inspect [path]`             | Display file metadata                                      |
-| `deepnote cat <path>`                 | Display block contents                                     |
-| `deepnote diff <a> <b>`               | Compare two files                                          |
-| `deepnote validate <path>`            | Schema validation                                          |
-| `deepnote lint <path>`                | Check for issues (variables, integrations, inputs)         |
-| `deepnote stats <path>`               | Project statistics                                         |
-| `deepnote analyze <path>`             | Comprehensive analysis with quality score                  |
-| `deepnote dag show\|vars\|downstream` | Dependency analysis                                        |
-| `deepnote open <path>`                | Open in Deepnote Cloud                                     |
+| Command                               | Description                                                                                                                                                                                                                         |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deepnote run [path]`                 | Execute notebooks (.deepnote, .ipynb, .py, .qmd)                                                                                                                                                                                    |
+| `deepnote convert <path>`             | Convert between formats (Jupyter, Quarto, Percent, Marimo)                                                                                                                                                                          |
+| `deepnote inspect [path]`             | Display file metadata                                                                                                                                                                                                               |
+| `deepnote cat <path>`                 | Display block contents                                                                                                                                                                                                              |
+| `deepnote diff <a> <b>`               | Compare two files                                                                                                                                                                                                                   |
+| `deepnote validate <path>`            | Schema validation                                                                                                                                                                                                                   |
+| `deepnote lint [path]`                | Check a .deepnote or integrations yaml file for issues                                                                                                                                                                              |
+| `deepnote stats <path>`               | Project statistics                                                                                                                                                                                                                  |
+| `deepnote analyze <path>`             | Comprehensive analysis with quality score                                                                                                                                                                                           |
+| `deepnote dag show\|vars\|downstream` | Dependency analysis                                                                                                                                                                                                                 |
+| `deepnote split <path>`               | Split a multi-notebook file into one `.deepnote` per notebook. The init notebook (if any) becomes its own standalone file; each main file keeps `initNotebookId` so `deepnote run` resolves and runs the sibling init as a prelude. |
+| `deepnote open <path>`                | Open in Deepnote Cloud                                                                                                                                                                                                              |
 
 ### CLI Command References
 

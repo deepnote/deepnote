@@ -22,13 +22,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -45,13 +45,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
 
@@ -87,13 +87,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -124,21 +124,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
         if: ${{ matrix.node-version == 'nvmrc' }}
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - name: Setup Node.js
         if: ${{ matrix.node-version != 'nvmrc' }}
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
@@ -159,21 +159,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
         if: ${{ matrix.node-version == 'nvmrc' }}
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - name: Setup Node.js
         if: ${{ matrix.node-version != 'nvmrc' }}
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
@@ -202,13 +202,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -233,13 +233,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -256,13 +256,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -279,13 +279,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'

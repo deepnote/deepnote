@@ -70,6 +70,8 @@ export interface ExecutionOptions {
   onBlockDone?: (result: BlockExecutionResult) => void | Promise<void>
   onOutput?: (blockId: string, output: IOutput) => void
   onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
+  /** Sink for non-fatal warnings emitted during execution (e.g. agent MCP cleanup failures) */
+  onWarning?: (message: string) => void
   onServerStarting?: () => void
   onServerReady?: () => void
   integrations?: Array<{ id: string; name: string; type: string }>
@@ -332,6 +334,7 @@ export class ExecutionEngine {
             addAndExecuteCodeBlock,
             addMarkdownBlock,
             onAgentEvent: options.onAgentEvent,
+            onWarning: options.onWarning,
             integrations: options.integrations,
           }
 

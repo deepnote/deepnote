@@ -4,13 +4,8 @@
  * by multiple commands (lint, stats, run --context, analyze).
  */
 
-import {
-  convertToEnvironmentVariableName,
-  type DeepnoteBlock,
-  type DeepnoteFile,
-  INPUT_BLOCK_TYPES,
-} from '@deepnote/blocks'
-import { BUILTIN_INTEGRATIONS } from '@deepnote/database-integrations'
+import { type DeepnoteBlock, type DeepnoteFile, INPUT_BLOCK_TYPES } from '@deepnote/blocks'
+import { BUILTIN_INTEGRATIONS, getSqlEnvVarName } from '@deepnote/database-integrations'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
@@ -206,6 +201,21 @@ export async function checkForIssues(
   }
 
   const issues: LintIssue[] = []
+
+  // Check for multiple notebooks (suggest splitting) — skip when filtering by notebook
+  if (!options.notebook) {
+    const nonInitNotebooks = file.project.notebooks.filter(nb => nb.id !== file.project.initNotebookId)
+    if (nonInitNotebooks.length > 1) {
+      issues.push({
+        severity: 'warning',
+        code: 'multi-notebook',
+        message: `File contains ${nonInitNotebooks.length} non-init notebooks. Consider splitting into separate files using "deepnote split".`,
+        blockId: '',
+        blockLabel: 'project',
+        notebookName: '',
+      })
+    }
+  }
 
   // Check for missing integrations (doesn't require DAG)
   const { issues: integrationIssues, summary: integrationSummary } = checkMissingIntegrations(allBlocks, blockMap)
@@ -494,17 +504,6 @@ interface IntegrationCheckResult {
 }
 
 /**
- * Convert an integration ID to its environment variable name.
- * Note: This handles leading digits differently from @deepnote/blocks - we sanitize
- * the integrationId first, then prepend SQL_. This maintains compatibility with
- * existing env var names (e.g., "100abc" -> "SQL__100ABC" not "SQL_100ABC").
- */
-export function getIntegrationEnvVarName(integrationId: string): string {
-  const sanitized = convertToEnvironmentVariableName(integrationId)
-  return `SQL_${sanitized}`
-}
-
-/**
  * Check for SQL blocks using integrations that aren't configured.
  */
 function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string, BlockInfo>): IntegrationCheckResult {
@@ -526,7 +525,7 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     const info = blockMap.get(block.id)
     if (!info) continue
 
-    const envVarName = getIntegrationEnvVarName(integrationId)
+    const envVarName = getSqlEnvVarName(integrationId)
     const isConfigured = !!process.env[envVarName]
 
     if (isConfigured) {
@@ -540,7 +539,7 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
   }
 
   for (const [integrationId, usages] of integrationUsage) {
-    const envVarName = getIntegrationEnvVarName(integrationId)
+    const envVarName = getSqlEnvVarName(integrationId)
 
     for (const { blockId, info } of usages) {
       issues.push({

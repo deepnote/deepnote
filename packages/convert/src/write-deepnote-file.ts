@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
-import { generateSnapshotFilename, getSnapshotDir, hasOutputs, slugifyProjectName, splitDeepnoteFile } from './snapshot'
+import { getSnapshotDir, getSnapshotPath, hasOutputs, splitDeepnoteFile } from './snapshot'
 
 export interface WriteDeepnoteFileOptions {
   /** The DeepnoteFile to write */
@@ -52,11 +52,8 @@ export async function writeDeepnoteFile(options: WriteDeepnoteFileOptions): Prom
   // Split into source and snapshot in memory
   const { source, snapshot } = splitDeepnoteFile(file)
 
-  // Prepare snapshot path
   const snapshotDir = getSnapshotDir(outputPath)
-  const slug = slugifyProjectName(projectName) || 'project'
-  const snapshotFilename = generateSnapshotFilename(slug, file.project.id)
-  const snapshotPath = resolve(snapshotDir, snapshotFilename)
+  const snapshotPath = getSnapshotPath(outputPath, file, { projectName })
 
   // Serialize both files
   const sourceYaml = serializeDeepnoteFile(source)

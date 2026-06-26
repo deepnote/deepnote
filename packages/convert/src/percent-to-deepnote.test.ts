@@ -5,7 +5,7 @@ import path from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  convertPercentFilesToDeepnoteFile,
+  convertPercentFileToDeepnoteFile,
   convertPercentNotebookToBlocks,
   parsePercentFormat,
 } from './percent-to-deepnote'
@@ -367,7 +367,7 @@ describe('convertPercentNotebookToBlocks', () => {
   })
 })
 
-describe('convertPercentFilesToDeepnoteFile', () => {
+describe('convertPercentFileToDeepnoteFile', () => {
   let tempDir: string
   const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
@@ -389,7 +389,7 @@ describe('convertPercentFilesToDeepnoteFile', () => {
     const inputPath = path.join(testFixturesDir, 'simple.percent.py')
     const outputPath = path.join(tempDir, 'simple.deepnote')
 
-    await convertPercentFilesToDeepnoteFile([inputPath], {
+    await convertPercentFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Simple Test',
     })
@@ -418,7 +418,7 @@ describe('convertPercentFilesToDeepnoteFile', () => {
     const inputPath = path.join(testFixturesDir, 'data-analysis.percent.py')
     const outputPath = path.join(tempDir, 'data-analysis.deepnote')
 
-    await convertPercentFilesToDeepnoteFile([inputPath], {
+    await convertPercentFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Data Analysis',
     })
@@ -439,31 +439,50 @@ describe('convertPercentFilesToDeepnoteFile', () => {
     expect(taggedBlocks.length).toBeGreaterThan(0)
   })
 
-  it('converts multiple percent files into one Deepnote file', async () => {
+  it('produces a single-notebook file per input file', async () => {
     const inputPaths = [
-      path.join(testFixturesDir, 'simple.percent.py'),
-      path.join(testFixturesDir, 'data-analysis.percent.py'),
+      { input: path.join(testFixturesDir, 'simple.percent.py'), name: 'simple.percent' },
+      { input: path.join(testFixturesDir, 'data-analysis.percent.py'), name: 'data-analysis.percent' },
     ]
-    const outputPath = path.join(tempDir, 'multi.deepnote')
 
-    await convertPercentFilesToDeepnoteFile(inputPaths, {
+    for (const { input, name } of inputPaths) {
+      const outputPath = path.join(tempDir, `${name}.deepnote`)
+
+      await convertPercentFileToDeepnoteFile(input, {
+        outputPath,
+        projectName: 'Single Notebook',
+      })
+
+      const content = await fs.readFile(outputPath, 'utf-8')
+      const result = deserializeDeepnoteFile(content)
+
+      expect(result.project.notebooks).toHaveLength(1)
+      expect(result.project.notebooks[0].name).toBe(name)
+    }
+  })
+
+  it('honors a provided projectId', async () => {
+    const inputPath = path.join(testFixturesDir, 'simple.percent.py')
+    const outputPath = path.join(tempDir, 'fixed-project.deepnote')
+
+    await convertPercentFileToDeepnoteFile(inputPath, {
       outputPath,
-      projectName: 'Multi Notebook',
+      projectName: 'Fixed Project',
+      projectId: 'fixed-id',
     })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
 
-    expect(result.project.notebooks).toHaveLength(2)
-    expect(result.project.notebooks[0].name).toBe('simple.percent')
-    expect(result.project.notebooks[1].name).toBe('data-analysis.percent')
+    expect(result.project.id).toBe('fixed-id')
+    expect(result.project.notebooks).toHaveLength(1)
   })
 
   it('matches snapshot for simple.percent.py', async () => {
     const inputPath = path.join(testFixturesDir, 'simple.percent.py')
     const outputPath = path.join(tempDir, 'simple.deepnote')
 
-    await convertPercentFilesToDeepnoteFile([inputPath], {
+    await convertPercentFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Simple Test',
     })
@@ -473,14 +492,13 @@ describe('convertPercentFilesToDeepnoteFile', () => {
       "metadata:
         createdAt: 2024-01-15T10:30:00.000Z
       project:
-        id: test-uuid-002
-        initNotebookId: test-uuid-001
+        id: test-uuid-008
         integrations: []
         name: Simple Test
         notebooks:
           - blocks:
-              - id: test-uuid-004
-                blockGroup: test-uuid-003
+              - id: test-uuid-003
+                blockGroup: test-uuid-002
                 sortingKey: "000000"
                 type: markdown
                 content: >-
@@ -489,14 +507,14 @@ describe('convertPercentFilesToDeepnoteFile', () => {
 
                   This is a simple percent format notebook.
                 metadata: {}
-              - id: test-uuid-006
-                blockGroup: test-uuid-005
+              - id: test-uuid-005
+                blockGroup: test-uuid-004
                 sortingKey: "000001"
                 type: code
                 content: print("Hello, World!")
                 metadata: {}
-              - id: test-uuid-008
-                blockGroup: test-uuid-007
+              - id: test-uuid-007
+                blockGroup: test-uuid-006
                 sortingKey: "000002"
                 type: code
                 content: >-

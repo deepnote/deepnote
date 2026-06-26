@@ -13,13 +13,15 @@ import { FileReadError, JsonParseError } from './errors'
 import type { JupyterCell, JupyterNotebook } from './types/jupyter'
 import { sortKeysAlphabetically } from './utils'
 
-export interface ConvertIpynbFilesToDeepnoteFileOptions {
+export interface ConvertIpynbFileToDeepnoteFileOptions {
   outputPath: string
   projectName: string
+  projectId?: string
 }
 
-export interface ReadAndConvertIpynbFilesOptions {
+export interface ReadAndConvertIpynbFileOptions {
   projectName: string
+  projectId?: string
 }
 
 export interface ConvertJupyterNotebookOptions {
@@ -59,43 +61,51 @@ export function convertJupyterNotebookToBlocks(
 }
 
 /**
- * Converts Jupyter Notebook objects into a Deepnote project file.
+ * Converts a single Jupyter Notebook object into a Deepnote project file.
  * This is a pure conversion function that doesn't perform any file I/O.
  *
- * @param notebooks - Array of Jupyter notebooks with filenames
- * @param options - Conversion options including project name
- * @returns A DeepnoteFile object
+ * @param input - A Jupyter notebook with its filename
+ * @param options - Conversion options including project name and optional project id
+ * @returns A DeepnoteFile object containing exactly one notebook
  */
-export function convertJupyterNotebooksToDeepnote(
-  notebooks: JupyterNotebookInput[],
-  options: { projectName: string }
+export function convertJupyterNotebookToDeepnote(
+  input: JupyterNotebookInput,
+  options: { projectName: string; projectId?: string }
 ): DeepnoteFile {
-  // Extract environment and execution from the first notebook that has them
+  const { filename, notebook } = input
+
+  // Extract environment and execution from the notebook metadata
   // (these are project-level fields stored in notebook metadata during conversion)
   let environment: Environment | undefined
   let execution: Execution | undefined
 
-  for (const { notebook } of notebooks) {
-    if (!environment && notebook.metadata?.deepnote_environment) {
-      const parsed = environmentSchema.safeParse(notebook.metadata.deepnote_environment)
-      if (parsed.success) {
-        environment = parsed.data
-      }
+  if (notebook.metadata?.deepnote_environment) {
+    const parsed = environmentSchema.safeParse(notebook.metadata.deepnote_environment)
+    if (parsed.success) {
+      environment = parsed.data
     }
-    if (!execution && notebook.metadata?.deepnote_execution) {
-      const parsed = executionSchema.safeParse(notebook.metadata.deepnote_execution)
-      if (parsed.success) {
-        execution = parsed.data
-      }
+  }
+  if (notebook.metadata?.deepnote_execution) {
+    const parsed = executionSchema.safeParse(notebook.metadata.deepnote_execution)
+    if (parsed.success) {
+      execution = parsed.data
     }
   }
 
-  // Determine the first notebook's ID upfront so we can use it as the project entrypoint
+  const extension = extname(filename)
+  const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
+
+  const blocks = convertJupyterNotebookToBlocks(notebook)
+
+  // Check if notebook has Deepnote metadata (from a previous conversion)
+  const notebookId = notebook.metadata?.deepnote_notebook_id as string | undefined
+  const notebookName = notebook.metadata?.deepnote_notebook_name as string | undefined
+  const executionMode = notebook.metadata?.deepnote_execution_mode as 'block' | 'downstream' | undefined
+  const isModule = notebook.metadata?.deepnote_is_module as boolean | undefined
+  const workingDirectory = notebook.metadata?.deepnote_working_directory as string | undefined
+
   // Prefer ID from metadata (for roundtrip), otherwise generate a new one
-  const firstNotebookId =
-    notebooks.length > 0
-      ? ((notebooks[0].notebook.metadata?.deepnote_notebook_id as string | undefined) ?? randomUUID())
-      : undefined
+  const resolvedNotebookId = notebookId ?? randomUUID()
 
   const deepnoteFile: DeepnoteFile = {
     environment,
@@ -104,81 +114,62 @@ export function convertJupyterNotebooksToDeepnote(
       createdAt: new Date().toISOString(),
     },
     project: {
-      id: randomUUID(),
-      initNotebookId: firstNotebookId,
+      id: options.projectId ?? randomUUID(),
       integrations: [],
       name: options.projectName,
-      notebooks: [],
+      notebooks: [
+        {
+          blocks,
+          executionMode: executionMode ?? 'block',
+          id: resolvedNotebookId,
+          isModule: isModule ?? false,
+          name: notebookName ?? filenameWithoutExt,
+          workingDirectory,
+        },
+      ],
       settings: {},
     },
     version: '1.0.0',
-  }
-
-  for (let i = 0; i < notebooks.length; i++) {
-    const { filename, notebook } = notebooks[i]
-    const extension = extname(filename)
-    const filenameWithoutExt = basename(filename, extension) || 'Untitled notebook'
-
-    const blocks = convertJupyterNotebookToBlocks(notebook)
-
-    // Check if notebook has Deepnote metadata (from a previous conversion)
-    const notebookId = notebook.metadata?.deepnote_notebook_id as string | undefined
-    const notebookName = notebook.metadata?.deepnote_notebook_name as string | undefined
-    const executionMode = notebook.metadata?.deepnote_execution_mode as 'block' | 'downstream' | undefined
-    const isModule = notebook.metadata?.deepnote_is_module as boolean | undefined
-    const workingDirectory = notebook.metadata?.deepnote_working_directory as string | undefined
-
-    // Use pre-computed ID for first notebook to match initNotebookId
-    const resolvedNotebookId = i === 0 && firstNotebookId ? firstNotebookId : (notebookId ?? randomUUID())
-
-    deepnoteFile.project.notebooks.push({
-      blocks,
-      executionMode: executionMode ?? 'block',
-      id: resolvedNotebookId,
-      isModule: isModule ?? false,
-      name: notebookName ?? filenameWithoutExt,
-      workingDirectory,
-    })
   }
 
   return deepnoteFile
 }
 
 /**
- * Reads and converts multiple Jupyter Notebook (.ipynb) files into a DeepnoteFile.
- * This function reads the files and returns the converted DeepnoteFile without writing to disk.
+ * Reads and converts a single Jupyter Notebook (.ipynb) file into a DeepnoteFile.
+ * This function reads the file and returns the converted DeepnoteFile without writing to disk.
  *
- * @param inputFilePaths - Array of paths to .ipynb files
- * @param options - Conversion options including project name
+ * @param inputFilePath - Path to the .ipynb file
+ * @param options - Conversion options including project name and optional project id
  * @returns A DeepnoteFile object
  */
-export async function readAndConvertIpynbFiles(
-  inputFilePaths: string[],
-  options: ReadAndConvertIpynbFilesOptions
+export async function readAndConvertIpynbFile(
+  inputFilePath: string,
+  options: ReadAndConvertIpynbFileOptions
 ): Promise<DeepnoteFile> {
-  const notebooks: JupyterNotebookInput[] = []
+  const notebook = await parseIpynbFile(inputFilePath)
 
-  for (const filePath of inputFilePaths) {
-    const notebook = await parseIpynbFile(filePath)
-    notebooks.push({
-      filename: basename(filePath),
+  return convertJupyterNotebookToDeepnote(
+    {
+      filename: basename(inputFilePath),
       notebook,
-    })
-  }
-
-  return convertJupyterNotebooksToDeepnote(notebooks, {
-    projectName: options.projectName,
-  })
+    },
+    {
+      projectId: options.projectId,
+      projectName: options.projectName,
+    }
+  )
 }
 
 /**
- * Converts multiple Jupyter Notebook (.ipynb) files into a single Deepnote project file.
+ * Converts a single Jupyter Notebook (.ipynb) file into a Deepnote project file.
  */
-export async function convertIpynbFilesToDeepnoteFile(
-  inputFilePaths: string[],
-  options: ConvertIpynbFilesToDeepnoteFileOptions
+export async function convertIpynbFileToDeepnoteFile(
+  inputFilePath: string,
+  options: ConvertIpynbFileToDeepnoteFileOptions
 ): Promise<void> {
-  const deepnoteFile = await readAndConvertIpynbFiles(inputFilePaths, {
+  const deepnoteFile = await readAndConvertIpynbFile(inputFilePath, {
+    projectId: options.projectId,
     projectName: options.projectName,
   })
 

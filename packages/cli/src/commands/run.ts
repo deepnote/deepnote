@@ -5,6 +5,12 @@ import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import {
+  InitNotebookResolutionError,
+  type LoadedRunnableFile,
+  resolveAndComposeInitIfNeeded,
+  saveExecutionSnapshot,
+} from '@deepnote/convert'
+import {
   ApiError,
   type DatabaseIntegrationConfig,
   DEFAULT_API_URL,
@@ -40,7 +46,8 @@ import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
-import { type ConvertedFile, resolveAndConvertToDeepnote } from '../utils/format-converter'
+import { resolveAndConvertToDeepnote } from '../utils/format-converter'
+import { emitInitResolverWarnings } from '../utils/load-and-resolve-init'
 import {
   type BlockProfile,
   displayMetrics,
@@ -49,7 +56,6 @@ import {
   formatMemoryDelta,
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
-import { saveExecutionSnapshot } from '../utils/output-persistence'
 
 /**
  * Error thrown when required inputs are missing.
@@ -189,13 +195,14 @@ interface ProjectSetup {
   pythonEnv: string
   inputs: Record<string, unknown>
   isMachineOutput: boolean
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
 }
 
 interface RunExecutionState {
   blockResults: BlockResult[]
   blockLabels: Map<string, string>
+  blocksWithStreamedOutput: Set<string>
   agentStreamed: boolean
   agentTextBuffer: string
   reasoningActive: boolean
@@ -256,7 +263,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   let file: DeepnoteFile
   let absolutePath: string
-  let convertedFile: ConvertedFile
+  let convertedFile: LoadedRunnableFile
   let workingDirectory: string
 
   if (!path && options.prompt) {
@@ -284,6 +291,11 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
       }
     }
   }
+
+  // Sibling-init resolution only applies to native .deepnote files (handled inside the shared helper).
+  const resolved = await resolveAndComposeInitIfNeeded(convertedFile)
+  file = resolved.file
+  emitInitResolverWarnings(resolved.warnings, isMachineOutput)
 
   if (path && options.prompt) {
     const lastNotebook = file.project.notebooks[file.project.notebooks.length - 1]
@@ -513,12 +525,13 @@ export function createRunAction(program: Command): (path: string | undefined, op
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      // Use InvalidUsage for file resolution errors, missing inputs, missing integrations, and API auth errors (user errors)
+      // Use InvalidUsage for file/input/integration/init-resolver/API-auth errors — all user errors.
       const isAuthApiError = error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
         error instanceof FileResolutionError ||
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
+        error instanceof InitNotebookResolutionError ||
         isAuthApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
@@ -651,9 +664,15 @@ function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputInfo[] 
 /**
  * List all input blocks in a notebook file.
  * Supports .deepnote, .ipynb, .py, and .qmd formats.
+ * For native `.deepnote` files, the sibling init notebook is composed in so its inputs are listed as a prelude.
  */
 async function listInputs(path: string, options: RunOptions): Promise<void> {
-  const { file, originalPath: absolutePath } = await resolveAndConvertToDeepnote(path)
+  const isMachineOutput = options.output !== undefined
+  const converted = await resolveAndConvertToDeepnote(path)
+  const { originalPath: absolutePath } = converted
+  const resolved = await resolveAndComposeInitIfNeeded(converted)
+  const file = resolved.file
+  emitInitResolverWarnings(resolved.warnings, isMachineOutput)
 
   const inputs = getInputBlocks(file, options.notebook)
 
@@ -934,6 +953,7 @@ function createRunExecutionState(options: RunOptions, isMachineOutput: boolean):
   return {
     blockResults: [],
     blockLabels: new Map<string, string>(),
+    blocksWithStreamedOutput: new Set<string>(),
     agentStreamed: false,
     agentTextBuffer: '',
     reasoningActive: false,
@@ -1025,7 +1045,6 @@ function createRunProjectCallbacks({
     onBlockStart: async (block: RuntimeDeepnoteBlock, index: number, total: number) => {
       const label = getBlockLabel(block)
       state.blockLabels.set(block.id, label)
-      await captureMemoryBeforeBlock(state, engine, block.id)
 
       if (!isMachineOutput) {
         state.agentStreamed = false
@@ -1035,6 +1054,21 @@ function createRunProjectCallbacks({
         const c = getChalk()
         process.stdout.write(`${c.cyan(`[${index + 1}/${total}] ${label}`)} `)
       }
+
+      await captureMemoryBeforeBlock(state, engine, block.id)
+    },
+
+    onOutput: (blockId: string, blockOutput: IOutput) => {
+      if (isMachineOutput || !state.blockLabels.has(blockId)) {
+        return
+      }
+
+      if (!state.blocksWithStreamedOutput.has(blockId)) {
+        output('')
+      }
+
+      renderOutput(blockOutput)
+      state.blocksWithStreamedOutput.add(blockId)
     },
 
     onBlockDone: async (result: BlockExecutionResult) => {
@@ -1054,7 +1088,8 @@ function createRunProjectCallbacks({
 
       if (!isMachineOutput && (!state.activeBlockId || result.blockId === state.activeBlockId)) {
         const c = getChalk()
-        const prefix = state.agentStreamed ? '\n' : ''
+        const hadStreamedOutput = state.blocksWithStreamedOutput.delete(result.blockId)
+        const prefix = state.agentStreamed || hadStreamedOutput ? '\n' : ''
         if (result.success) {
           output(`${prefix}${c.green('✓')}${c.dim(` (${result.durationMs}ms${memoryDeltaStr})`)}`)
         } else {
@@ -1067,7 +1102,7 @@ function createRunProjectCallbacks({
             output('')
             process.stdout.write(rendered)
           }
-        } else {
+        } else if (!hadStreamedOutput) {
           for (const blockOutput of result.outputs) {
             renderOutput(blockOutput)
           }
@@ -1075,6 +1110,8 @@ function createRunProjectCallbacks({
           if (result.outputs.length > 0) {
             output('')
           }
+        } else {
+          output('')
         }
       }
     },
@@ -1111,6 +1148,10 @@ function createRunProjectCallbacks({
             }
           }
         },
+
+    // Non-fatal warnings (e.g. agent MCP cleanup failures) go to stderr via debug(),
+    // so they never corrupt machine output on stdout — no need to gate on isMachineOutput.
+    onWarning: (message: string) => debug(message),
   }
 }
 
@@ -1174,7 +1215,7 @@ async function saveExecutionSnapshotBestEffort({
   isMachineOutput,
 }: {
   absolutePath: string
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   file: DeepnoteFile
   blockResults: BlockResult[]
   executionStartedAt: string
@@ -1347,7 +1388,7 @@ async function maybeOpenRunResultInCloud({
   summary,
 }: {
   absolutePath: string
-  convertedFile: ConvertedFile
+  convertedFile: LoadedRunnableFile
   file: DeepnoteFile
   isMachineOutput: boolean
   options: RunOptions

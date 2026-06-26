@@ -138,6 +138,14 @@ export function error(message: string): void {
 }
 
 /**
+ * Log a warning message (always shown). Written to stderr so it never corrupts stdout output
+ * (e.g. machine-readable JSON).
+ */
+export function warn(message: string): void {
+  console.error(cliChalk.yellow(message))
+}
+
+/**
  * Output data as JSON (for machine-readable output).
  */
 export function outputJson(data: unknown): void {

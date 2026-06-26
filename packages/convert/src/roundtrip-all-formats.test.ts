@@ -20,10 +20,10 @@ import { convertDeepnoteToJupyterNotebooks } from './deepnote-to-jupyter'
 import { convertDeepnoteToMarimoApps, serializeMarimoFormat } from './deepnote-to-marimo'
 import { convertDeepnoteToPercentNotebooks, serializePercentFormat } from './deepnote-to-percent'
 import { convertDeepnoteToQuartoDocuments, serializeQuartoFormat } from './deepnote-to-quarto'
-import { convertJupyterNotebooksToDeepnote } from './jupyter-to-deepnote'
-import { convertMarimoAppsToDeepnote, parseMarimoFormat } from './marimo-to-deepnote'
-import { convertPercentNotebooksToDeepnote, parsePercentFormat } from './percent-to-deepnote'
-import { convertQuartoDocumentsToDeepnote, parseQuartoFormat } from './quarto-to-deepnote'
+import { convertJupyterNotebookToDeepnote } from './jupyter-to-deepnote'
+import { convertMarimoAppToDeepnote, parseMarimoFormat } from './marimo-to-deepnote'
+import { convertPercentNotebookToDeepnote, parsePercentFormat } from './percent-to-deepnote'
+import { convertQuartoDocumentToDeepnote, parseQuartoFormat } from './quarto-to-deepnote'
 import type { JupyterNotebook } from './types/jupyter'
 
 const testFixturesDir = join(__dirname, '../../../test-fixtures')
@@ -38,9 +38,10 @@ describe('Jupyter bidirectional roundtrip', () => {
     const originalJupyter: JupyterNotebook = JSON.parse(ipynbContent)
 
     // Step 1: Jupyter → Deepnote
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'test.ipynb', notebook: originalJupyter }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'test.ipynb', notebook: originalJupyter },
+      { projectName: 'Test' }
+    )
 
     // Step 2: Deepnote → Jupyter
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
@@ -62,18 +63,18 @@ describe('Jupyter bidirectional roundtrip', () => {
     // Step 1: Deepnote → Jupyter
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(originalDeepnote)
 
-    // Step 2: Jupyter → Deepnote
-    const roundtrippedDeepnote = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: originalDeepnote.project.name,
-    })
+    // Step 2: Jupyter → Deepnote (one notebook per file, reassembled)
+    const roundtrippedNotebooks = jupyterNotebooks.map(
+      nb => convertJupyterNotebookToDeepnote(nb, { projectName: originalDeepnote.project.name }).project.notebooks[0]
+    )
 
     // Verify notebook count
-    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+    expect(roundtrippedNotebooks.length).toBe(originalDeepnote.project.notebooks.length)
 
     // Verify each notebook
     for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
       const originalNotebook = originalDeepnote.project.notebooks[n]
-      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedNotebooks[n]
 
       // Verify block count
       expect(roundtrippedNotebook.blocks.length).toBe(originalNotebook.blocks.length)
@@ -99,9 +100,10 @@ describe('Percent format bidirectional roundtrip', () => {
     const originalPercent = parsePercentFormat(percentContent)
 
     // Step 1: Percent → Deepnote
-    const deepnote = convertPercentNotebooksToDeepnote([{ filename: 'test.py', notebook: originalPercent }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertPercentNotebookToDeepnote(
+      { filename: 'test.py', notebook: originalPercent },
+      { projectName: 'Test' }
+    )
 
     // Step 2: Deepnote → Percent
     const percentNotebooks = convertDeepnoteToPercentNotebooks(deepnote)
@@ -125,19 +127,20 @@ describe('Percent format bidirectional roundtrip', () => {
     // Step 1: Deepnote → Percent
     const percentNotebooks = convertDeepnoteToPercentNotebooks(originalDeepnote)
 
-    // Step 2: Percent → Deepnote
-    const roundtrippedDeepnote = convertPercentNotebooksToDeepnote(
-      percentNotebooks.map(({ filename, notebook }) => ({ filename, notebook })),
-      { projectName: originalDeepnote.project.name }
+    // Step 2: Percent → Deepnote (one notebook per file, reassembled)
+    const roundtrippedNotebooks = percentNotebooks.map(
+      ({ filename, notebook }) =>
+        convertPercentNotebookToDeepnote({ filename, notebook }, { projectName: originalDeepnote.project.name }).project
+          .notebooks[0]
     )
 
     // Verify notebook count
-    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+    expect(roundtrippedNotebooks.length).toBe(originalDeepnote.project.notebooks.length)
 
     // Verify each notebook's block count
     for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
       const originalNotebook = originalDeepnote.project.notebooks[n]
-      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedNotebooks[n]
 
       // Block count should match
       expect(roundtrippedNotebook.blocks.length).toBe(originalNotebook.blocks.length)
@@ -148,9 +151,10 @@ describe('Percent format bidirectional roundtrip', () => {
     const percentContent = await fs.readFile(join(testFixturesDir, 'data-analysis.percent.py'), 'utf-8')
     const originalPercent = parsePercentFormat(percentContent)
 
-    const deepnote = convertPercentNotebooksToDeepnote([{ filename: 'test.py', notebook: originalPercent }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertPercentNotebookToDeepnote(
+      { filename: 'test.py', notebook: originalPercent },
+      { projectName: 'Test' }
+    )
 
     const percentNotebooks = convertDeepnoteToPercentNotebooks(deepnote)
     const serialized = serializePercentFormat(percentNotebooks[0].notebook)
@@ -170,9 +174,10 @@ describe('Quarto format bidirectional roundtrip', () => {
     const originalQuarto = parseQuartoFormat(quartoContent)
 
     // Step 1: Quarto → Deepnote
-    const deepnote = convertQuartoDocumentsToDeepnote([{ filename: 'test.qmd', document: originalQuarto }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertQuartoDocumentToDeepnote(
+      { filename: 'test.qmd', document: originalQuarto },
+      { projectName: 'Test' }
+    )
 
     // Step 2: Deepnote → Quarto
     const quartoDocuments = convertDeepnoteToQuartoDocuments(deepnote)
@@ -195,19 +200,20 @@ describe('Quarto format bidirectional roundtrip', () => {
     // Step 1: Deepnote → Quarto
     const quartoDocuments = convertDeepnoteToQuartoDocuments(originalDeepnote)
 
-    // Step 2: Quarto → Deepnote
-    const roundtrippedDeepnote = convertQuartoDocumentsToDeepnote(
-      quartoDocuments.map(({ filename, document }) => ({ filename, document })),
-      { projectName: originalDeepnote.project.name }
+    // Step 2: Quarto → Deepnote (one notebook per file, reassembled)
+    const roundtrippedNotebooks = quartoDocuments.map(
+      ({ filename, document }) =>
+        convertQuartoDocumentToDeepnote({ filename, document }, { projectName: originalDeepnote.project.name }).project
+          .notebooks[0]
     )
 
     // Verify notebook count
-    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+    expect(roundtrippedNotebooks.length).toBe(originalDeepnote.project.notebooks.length)
 
     // Verify each notebook's block count (may be >= due to title cell)
     for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
       const originalNotebook = originalDeepnote.project.notebooks[n]
-      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedNotebooks[n]
 
       expect(roundtrippedNotebook.blocks.length).toBeGreaterThanOrEqual(originalNotebook.blocks.length)
     }
@@ -217,9 +223,10 @@ describe('Quarto format bidirectional roundtrip', () => {
     const quartoContent = await fs.readFile(join(testFixturesDir, 'data-analysis.qmd'), 'utf-8')
     const originalQuarto = parseQuartoFormat(quartoContent)
 
-    const deepnote = convertQuartoDocumentsToDeepnote([{ filename: 'test.qmd', document: originalQuarto }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertQuartoDocumentToDeepnote(
+      { filename: 'test.qmd', document: originalQuarto },
+      { projectName: 'Test' }
+    )
 
     const quartoDocuments = convertDeepnoteToQuartoDocuments(deepnote)
     const serialized = serializeQuartoFormat(quartoDocuments[0].document)
@@ -242,9 +249,7 @@ describe('Marimo format bidirectional roundtrip', () => {
     const originalMarimo = parseMarimoFormat(marimoContent)
 
     // Step 1: Marimo → Deepnote
-    const deepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: originalMarimo }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertMarimoAppToDeepnote({ filename: 'test.py', app: originalMarimo }, { projectName: 'Test' })
 
     // Step 2: Deepnote → Marimo
     const marimoApps = convertDeepnoteToMarimoApps(deepnote)
@@ -272,19 +277,20 @@ describe('Marimo format bidirectional roundtrip', () => {
     // Step 1: Deepnote → Marimo
     const marimoApps = convertDeepnoteToMarimoApps(originalDeepnote)
 
-    // Step 2: Marimo → Deepnote
-    const roundtrippedDeepnote = convertMarimoAppsToDeepnote(
-      marimoApps.map(({ filename, app }) => ({ filename, app })),
-      { projectName: originalDeepnote.project.name }
+    // Step 2: Marimo → Deepnote (one notebook per file, reassembled)
+    const roundtrippedNotebooks = marimoApps.map(
+      ({ filename, app }) =>
+        convertMarimoAppToDeepnote({ filename, app }, { projectName: originalDeepnote.project.name }).project
+          .notebooks[0]
     )
 
     // Verify notebook count
-    expect(roundtrippedDeepnote.project.notebooks.length).toBe(originalDeepnote.project.notebooks.length)
+    expect(roundtrippedNotebooks.length).toBe(originalDeepnote.project.notebooks.length)
 
     // Verify each notebook's block count
     for (let n = 0; n < originalDeepnote.project.notebooks.length; n++) {
       const originalNotebook = originalDeepnote.project.notebooks[n]
-      const roundtrippedNotebook = roundtrippedDeepnote.project.notebooks[n]
+      const roundtrippedNotebook = roundtrippedNotebooks[n]
 
       expect(roundtrippedNotebook.blocks.length).toBe(originalNotebook.blocks.length)
     }
@@ -294,9 +300,7 @@ describe('Marimo format bidirectional roundtrip', () => {
     const marimoContent = await fs.readFile(join(testFixturesDir, 'data-analysis.marimo.py'), 'utf-8')
     const originalMarimo = parseMarimoFormat(marimoContent)
 
-    const deepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: originalMarimo }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertMarimoAppToDeepnote({ filename: 'test.py', app: originalMarimo }, { projectName: 'Test' })
 
     const marimoApps = convertDeepnoteToMarimoApps(deepnote)
     const serialized = serializeMarimoFormat(marimoApps[0].app)
@@ -336,9 +340,7 @@ describe('Marimo format bidirectional roundtrip', () => {
     }
 
     // Step 1: Marimo → Deepnote
-    const deepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: marimoWithSql }], {
-      projectName: 'Test',
-    })
+    const deepnote = convertMarimoAppToDeepnote({ filename: 'test.py', app: marimoWithSql }, { projectName: 'Test' })
 
     // Validate the Deepnote file structure
     const validationResult = deepnoteFileSchema.safeParse(deepnote)
@@ -417,9 +419,10 @@ describe('Marimo format bidirectional roundtrip', () => {
 
     // Step 2: Marimo → Deepnote
     const parsedMarimo = parseMarimoFormat(serialized)
-    const roundtrippedDeepnote = convertMarimoAppsToDeepnote([{ filename: 'test.py', app: parsedMarimo }], {
-      projectName: deepnoteWithSql.project.name,
-    })
+    const roundtrippedDeepnote = convertMarimoAppToDeepnote(
+      { filename: 'test.py', app: parsedMarimo },
+      { projectName: deepnoteWithSql.project.name }
+    )
 
     // Validate the roundtripped Deepnote file
     const roundtrippedValidation = deepnoteFileSchema.safeParse(roundtrippedDeepnote)
@@ -521,7 +524,7 @@ describe('Deepnote heading block roundtrip', () => {
     expect(jupyterCells[2].source).toContain('### Subsection Title')
 
     // Step 2: Jupyter → Deepnote
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+    const roundtripped = convertJupyterNotebookToDeepnote(jupyterNotebooks[0], {
       projectName: original.project.name,
     })
 
@@ -552,8 +555,8 @@ describe('Deepnote heading block roundtrip', () => {
     expect(percentCells[2].content).toContain('Subsection Title')
 
     // Step 2: Percent → Deepnote
-    const roundtripped = convertPercentNotebooksToDeepnote(
-      percentNotebooks.map(({ filename, notebook }) => ({ filename, notebook })),
+    const roundtripped = convertPercentNotebookToDeepnote(
+      { filename: percentNotebooks[0].filename, notebook: percentNotebooks[0].notebook },
       { projectName: original.project.name }
     )
 
@@ -581,8 +584,8 @@ describe('Deepnote heading block roundtrip', () => {
     expect(markdownCells.some(c => c.content.includes('Subsection Title'))).toBe(true)
 
     // Step 2: Quarto → Deepnote
-    const roundtripped = convertQuartoDocumentsToDeepnote(
-      quartoDocuments.map(({ filename, document }) => ({ filename, document })),
+    const roundtripped = convertQuartoDocumentToDeepnote(
+      { filename: quartoDocuments[0].filename, document: quartoDocuments[0].document },
       { projectName: original.project.name }
     )
 
@@ -611,8 +614,8 @@ describe('Deepnote heading block roundtrip', () => {
     expect(markdownCells.some(c => c.content.includes('Subsection Title'))).toBe(true)
 
     // Step 2: Marimo → Deepnote
-    const roundtripped = convertMarimoAppsToDeepnote(
-      marimoApps.map(({ filename, app }) => ({ filename, app })),
+    const roundtripped = convertMarimoAppToDeepnote(
+      { filename: marimoApps[0].filename, app: marimoApps[0].app },
       { projectName: original.project.name }
     )
 
@@ -708,7 +711,7 @@ describe('Agent block roundtrip', () => {
     expect(jupyterCells[2].metadata?.deepnote_source).toBe('Line one of the prompt\nLine two of the prompt')
 
     // Step 2: Jupyter → Deepnote
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+    const roundtripped = convertJupyterNotebookToDeepnote(jupyterNotebooks[0], {
       projectName: original.project.name,
     })
 

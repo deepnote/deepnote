@@ -93,13 +93,41 @@ y = 2
       await fs.writeFile(join(percentDir, 'nb1.py'), content1, 'utf-8')
       await fs.writeFile(join(percentDir, 'nb2.py'), content2, 'utf-8')
 
-      const outputPath = join(tempDir, 'output.deepnote')
-      await action(percentDir, { output: outputPath })
+      const outputDir = join(tempDir, 'out')
+      await action(percentDir, { output: outputDir })
 
-      // Verify file was created
-      const fileContent = await fs.readFile(outputPath, 'utf-8')
-      const parsed = deserializeDeepnoteFile(fileContent)
-      expect(parsed.project.notebooks).toHaveLength(2)
+      // Each notebook becomes its own single-notebook .deepnote file
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['nb1.deepnote', 'nb2.deepnote'])
+      for (const f of outFiles) {
+        const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, f), 'utf-8'))
+        expect(parsed.project.notebooks).toHaveLength(1)
+      }
+    })
+
+    it('converts a directory containing a percent notebook and ignores a plain .py helper', async () => {
+      const action = createConvertAction(program)
+
+      const percentDir = join(tempDir, 'percent-with-helper')
+      await fs.mkdir(percentDir)
+
+      // A valid percent notebook...
+      await fs.writeFile(join(percentDir, 'notebook.py'), '# %%\nx = 1\n', 'utf-8')
+      // ...alongside an ordinary Python helper script (neither percent nor Marimo).
+      await fs.writeFile(join(percentDir, 'helper.py'), 'def add(a, b):\n    return a + b\n', 'utf-8')
+
+      const outputDir = join(tempDir, 'out')
+      // Should not throw because of the unsupported helper.
+      await action(percentDir, { output: outputDir })
+
+      // Only the notebook is converted; the helper is silently skipped.
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['notebook.deepnote'])
+      const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, 'notebook.deepnote'), 'utf-8'))
+      expect(parsed.project.notebooks).toHaveLength(1)
+
+      // And no error was reported.
+      expect(consoleErrorSpy).not.toHaveBeenCalled()
     })
   })
 
@@ -151,12 +179,12 @@ if __name__ == "__main__":
 `
       await fs.writeFile(join(marimoDir, 'nb1.py'), content, 'utf-8')
 
-      const outputPath = join(tempDir, 'output.deepnote')
-      await action(marimoDir, { output: outputPath })
+      const outputDir = join(tempDir, 'out')
+      await action(marimoDir, { output: outputDir })
 
-      // Verify file was created
-      const fileContent = await fs.readFile(outputPath, 'utf-8')
-      const parsed = deserializeDeepnoteFile(fileContent)
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['nb1.deepnote'])
+      const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, 'nb1.deepnote'), 'utf-8'))
       expect(parsed.project.notebooks).toHaveLength(1)
     })
   })
@@ -208,13 +236,15 @@ x = 1
       await fs.writeFile(join(quartoDir, 'nb1.qmd'), content, 'utf-8')
       await fs.writeFile(join(quartoDir, 'nb2.qmd'), content, 'utf-8')
 
-      const outputPath = join(tempDir, 'output.deepnote')
-      await action(quartoDir, { output: outputPath })
+      const outputDir = join(tempDir, 'out')
+      await action(quartoDir, { output: outputDir })
 
-      // Verify file was created
-      const fileContent = await fs.readFile(outputPath, 'utf-8')
-      const parsed = deserializeDeepnoteFile(fileContent)
-      expect(parsed.project.notebooks).toHaveLength(2)
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['nb1.deepnote', 'nb2.deepnote'])
+      for (const f of outFiles) {
+        const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, f), 'utf-8'))
+        expect(parsed.project.notebooks).toHaveLength(1)
+      }
     })
   })
 
@@ -288,12 +318,81 @@ x = 1
       await fs.writeFile(join(notebooksDir, 'nb1.ipynb'), JSON.stringify(notebook1), 'utf-8')
       await fs.writeFile(join(notebooksDir, 'nb2.ipynb'), JSON.stringify(notebook2), 'utf-8')
 
-      const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebooksDir, { output: outputPath })
+      const outputDir = join(tempDir, 'out')
+      await action(notebooksDir, { output: outputDir })
 
-      const content = await fs.readFile(outputPath, 'utf-8')
-      const parsed = deserializeDeepnoteFile(content)
-      expect(parsed.project.notebooks).toHaveLength(2)
+      // One single-notebook .deepnote per source notebook
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['nb1.deepnote', 'nb2.deepnote'])
+      for (const f of outFiles) {
+        const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, f), 'utf-8'))
+        expect(parsed.project.notebooks).toHaveLength(1)
+      }
+    })
+
+    it('writes one .deepnote per notebook into the input directory when -o is omitted', async () => {
+      const action = createConvertAction(program)
+
+      const notebooksDir = join(tempDir, 'nbs')
+      await fs.mkdir(notebooksDir)
+      const notebook = {
+        cells: [{ cell_type: 'markdown', metadata: {}, source: '# N' }],
+        metadata: {},
+        nbformat: 4,
+        nbformat_minor: 5,
+      }
+      await fs.writeFile(join(notebooksDir, 'alpha.ipynb'), JSON.stringify(notebook), 'utf-8')
+      await fs.writeFile(join(notebooksDir, 'beta.ipynb'), JSON.stringify(notebook), 'utf-8')
+
+      await action(notebooksDir, {})
+
+      // .deepnote files land next to their sources, each named after the source
+      const outFiles = (await fs.readdir(notebooksDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['alpha.deepnote', 'beta.deepnote'])
+      const alpha = deserializeDeepnoteFile(await fs.readFile(join(notebooksDir, 'alpha.deepnote'), 'utf-8'))
+      const beta = deserializeDeepnoteFile(await fs.readFile(join(notebooksDir, 'beta.deepnote'), 'utf-8'))
+      expect(alpha.project.notebooks).toHaveLength(1)
+      // Files share one project (id + name from the directory); each notebook keeps its source name
+      expect(alpha.project.id).toBe(beta.project.id)
+      expect(alpha.project.name).toBe('nbs')
+      expect(alpha.project.notebooks[0].name).toBe('alpha')
+      expect(alpha.project.initNotebookId).toBeUndefined()
+    })
+
+    it('applies --name as the shared project name across directory outputs', async () => {
+      const action = createConvertAction(program)
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      try {
+        const notebooksDir = join(tempDir, 'nbs')
+        await fs.mkdir(notebooksDir)
+        const notebook = {
+          cells: [{ cell_type: 'code', execution_count: 1, metadata: {}, outputs: [], source: 'x = 1' }],
+          metadata: {},
+          nbformat: 4,
+          nbformat_minor: 5,
+        }
+        await fs.writeFile(join(notebooksDir, 'alpha.ipynb'), JSON.stringify(notebook), 'utf-8')
+        await fs.writeFile(join(notebooksDir, 'beta.ipynb'), JSON.stringify(notebook), 'utf-8')
+
+        const outputDir = join(tempDir, 'out')
+        await action(notebooksDir, { output: outputDir, name: 'Shared Project' })
+
+        // The name is honored, not ignored — no warning
+        const logOutput = consoleLogSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(logOutput).not.toContain('ignored')
+
+        const alpha = deserializeDeepnoteFile(await fs.readFile(join(outputDir, 'alpha.deepnote'), 'utf-8'))
+        const beta = deserializeDeepnoteFile(await fs.readFile(join(outputDir, 'beta.deepnote'), 'utf-8'))
+        // Every file carries the shared project name and the same project id
+        expect(alpha.project.name).toBe('Shared Project')
+        expect(beta.project.name).toBe('Shared Project')
+        expect(alpha.project.id).toBe(beta.project.id)
+        // Each notebook keeps its own source name
+        expect(alpha.project.notebooks[0].name).toBe('alpha')
+      } finally {
+        consoleLogSpy.mockRestore()
+      }
     })
   })
 
@@ -543,12 +642,16 @@ version: "1.0.0"
       await fs.writeFile(join(notebooksDir, 'MyNotebook.ipynb'), JSON.stringify(notebook1), 'utf-8')
       await fs.writeFile(join(notebooksDir, 'AnotherNOTEBOOK.IPYNB'), JSON.stringify(notebook2), 'utf-8')
 
-      const outputPath = join(tempDir, 'output.deepnote')
-      await action(notebooksDir, { output: outputPath })
+      const outputDir = join(tempDir, 'out')
+      await action(notebooksDir, { output: outputDir })
 
-      const content = await fs.readFile(outputPath, 'utf-8')
-      const parsed = deserializeDeepnoteFile(content)
-      expect(parsed.project.notebooks).toHaveLength(2)
+      // Output filenames derive from each source basename (extension stripped case-insensitively)
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['AnotherNOTEBOOK.deepnote', 'MyNotebook.deepnote'])
+      for (const f of outFiles) {
+        const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, f), 'utf-8'))
+        expect(parsed.project.notebooks).toHaveLength(1)
+      }
     })
 
     it('handles mixed-case Python filenames on case-sensitive filesystems', async () => {
@@ -564,13 +667,15 @@ x = 1
       await fs.writeFile(join(pyDir, 'MyNotebook.py'), content, 'utf-8')
       await fs.writeFile(join(pyDir, 'AnotherNOTEBOOK.PY'), content, 'utf-8')
 
-      const outputPath = join(tempDir, 'output.deepnote')
-      await action(pyDir, { output: outputPath })
+      const outputDir = join(tempDir, 'out')
+      await action(pyDir, { output: outputDir })
 
-      // Verify file was created
-      const outputContent = await fs.readFile(outputPath, 'utf-8')
-      const parsed = deserializeDeepnoteFile(outputContent)
-      expect(parsed.project.notebooks).toHaveLength(2)
+      const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+      expect(outFiles).toEqual(['AnotherNOTEBOOK.deepnote', 'MyNotebook.deepnote'])
+      for (const f of outFiles) {
+        const parsed = deserializeDeepnoteFile(await fs.readFile(join(outputDir, f), 'utf-8'))
+        expect(parsed.project.notebooks).toHaveLength(1)
+      }
     })
   })
 
@@ -625,6 +730,32 @@ x = 1
         expect(consoleLogSpy).toHaveBeenCalled()
         const logOutput = consoleLogSpy.mock.calls.map(call => call.join(' ')).join('\n')
         expect(logOutput).toContain('--open is only available when converting to .deepnote format')
+      } finally {
+        consoleLogSpy.mockRestore()
+      }
+    })
+
+    it('warns that --open is not supported when converting a directory', async () => {
+      const action = createConvertAction(program)
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      try {
+        const notebooksDir = join(tempDir, 'nbs')
+        await fs.mkdir(notebooksDir)
+        const notebook = {
+          cells: [{ cell_type: 'code', source: ["print('hi')"], metadata: {}, outputs: [], execution_count: null }],
+          metadata: {},
+          nbformat: 4,
+          nbformat_minor: 5,
+        }
+        await fs.writeFile(join(notebooksDir, 'alpha.ipynb'), JSON.stringify(notebook), 'utf-8')
+
+        const outputDir = join(tempDir, 'out')
+        await action(notebooksDir, { output: outputDir, open: true })
+
+        expect(mockOpenDeepnoteFileInCloud).not.toHaveBeenCalled()
+        const logOutput = consoleLogSpy.mock.calls.map(call => call.join(' ')).join('\n')
+        expect(logOutput).toContain('--open is not supported when converting a directory')
       } finally {
         consoleLogSpy.mockRestore()
       }

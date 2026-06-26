@@ -44,7 +44,7 @@ deepnote-convert notebook.ipynb
 deepnote-convert document.qmd
 deepnote-convert notebook.py  # auto-detects percent vs marimo
 
-# Directory of files
+# Directory of files — one single-notebook .deepnote per notebook (into the dir, or use -o <dir>)
 deepnote-convert path/to/notebooks/
 ```
 
@@ -92,6 +92,14 @@ deepnote-convert project.deepnote --outputFormat quarto
 ```
 
 Options: `jupyter` (default), `quarto`, `percent`, `marimo`
+
+#### `--singleFile`
+
+By default, when converting **to** Deepnote, cell outputs are split into a separate snapshot file under a `snapshots/` directory beside the `.deepnote`, leaving the main file output-free. Pass `--singleFile` to inline the outputs into the single `.deepnote` and skip the snapshot:
+
+```bash
+deepnote-convert notebook.ipynb --singleFile
+```
 
 ### Examples
 
@@ -157,32 +165,34 @@ Platform-specific cell metadata is preserved during roundtrip conversion, allowi
 
 ```typescript
 import {
-  convertIpynbFilesToDeepnoteFile,
-  convertQuartoFilesToDeepnoteFile,
-  convertPercentFilesToDeepnoteFile,
-  convertMarimoFilesToDeepnoteFile,
+  convertIpynbFileToDeepnoteFile,
+  convertQuartoFileToDeepnoteFile,
+  convertPercentFileToDeepnoteFile,
+  convertMarimoFileToDeepnoteFile,
 } from "@deepnote/convert";
 
+// Each call converts ONE source notebook into ONE single-notebook .deepnote file.
+
 // From Jupyter
-await convertIpynbFilesToDeepnoteFile(["notebook.ipynb"], {
+await convertIpynbFileToDeepnoteFile("notebook.ipynb", {
   outputPath: "output.deepnote",
   projectName: "My Project",
 });
 
 // From Quarto
-await convertQuartoFilesToDeepnoteFile(["document.qmd"], {
+await convertQuartoFileToDeepnoteFile("document.qmd", {
   outputPath: "output.deepnote",
   projectName: "My Project",
 });
 
 // From Percent
-await convertPercentFilesToDeepnoteFile(["script.py"], {
+await convertPercentFileToDeepnoteFile("script.py", {
   outputPath: "output.deepnote",
   projectName: "My Project",
 });
 
 // From Marimo
-await convertMarimoFilesToDeepnoteFile(["notebook.py"], {
+await convertMarimoFileToDeepnoteFile("notebook.py", {
   outputPath: "output.deepnote",
   projectName: "My Project",
 });

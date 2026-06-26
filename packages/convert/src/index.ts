@@ -27,86 +27,133 @@ export {
   serializeQuartoFormat,
 } from './deepnote-to-quarto'
 export { FileReadError, FileWriteError, JsonParseError, UnsupportedFormatError } from './errors'
-export { detectFormat, type NotebookFormat } from './format-detection'
+export { detectFormat, type NotebookFormat, tryDetectFormat } from './format-detection'
 export type {
-  ConvertIpynbFilesToDeepnoteFileOptions,
+  ConvertIpynbFileToDeepnoteFileOptions,
   ConvertJupyterNotebookOptions,
   JupyterNotebookInput,
-  ReadAndConvertIpynbFilesOptions,
+  ReadAndConvertIpynbFileOptions,
 } from './jupyter-to-deepnote'
 export {
-  convertIpynbFilesToDeepnoteFile,
-  convertJupyterNotebooksToDeepnote,
+  convertIpynbFileToDeepnoteFile,
   convertJupyterNotebookToBlocks,
-  readAndConvertIpynbFiles,
+  convertJupyterNotebookToDeepnote,
+  readAndConvertIpynbFile,
 } from './jupyter-to-deepnote'
+// Runnable file loading
+export type { LoadedRunnableFile, RunnableExtension, RunnableFormat } from './load-runnable-file'
+export {
+  isRunnableExtension,
+  LoadRunnableFileError,
+  loadRunnableFile,
+  parseRunnableFileContent,
+  RUNNABLE_EXTENSIONS,
+} from './load-runnable-file'
 export type {
   ConvertMarimoAppOptions,
-  ConvertMarimoAppsToDeepnoteOptions,
-  ConvertMarimoFilesToDeepnoteFileOptions,
+  ConvertMarimoAppToDeepnoteOptions,
+  ConvertMarimoFileToDeepnoteFileOptions,
   MarimoAppInput,
-  ReadAndConvertMarimoFilesOptions,
+  ReadAndConvertMarimoFileOptions,
 } from './marimo-to-deepnote'
 export {
-  convertMarimoAppsToDeepnote,
   convertMarimoAppToBlocks,
-  convertMarimoFilesToDeepnoteFile,
+  convertMarimoAppToDeepnote,
+  convertMarimoFileToDeepnoteFile,
   parseMarimoFormat,
-  readAndConvertMarimoFiles,
+  readAndConvertMarimoFile,
 } from './marimo-to-deepnote'
 export type {
-  ConvertPercentFilesToDeepnoteFileOptions,
+  ConvertPercentFileToDeepnoteFileOptions,
   ConvertPercentNotebookOptions,
   PercentNotebookInput,
-  ReadAndConvertPercentFilesOptions,
+  ReadAndConvertPercentFileOptions,
 } from './percent-to-deepnote'
 export {
-  convertPercentFilesToDeepnoteFile,
-  convertPercentNotebooksToDeepnote,
+  convertPercentFileToDeepnoteFile,
   convertPercentNotebookToBlocks,
+  convertPercentNotebookToDeepnote,
   parsePercentFormat,
-  readAndConvertPercentFiles,
+  readAndConvertPercentFile,
 } from './percent-to-deepnote'
 export type {
   ConvertQuartoDocumentOptions,
-  ConvertQuartoFilesToDeepnoteFileOptions,
+  ConvertQuartoFileToDeepnoteFileOptions,
   QuartoDocumentInput,
-  ReadAndConvertQuartoFilesOptions,
+  ReadAndConvertQuartoFileOptions,
 } from './quarto-to-deepnote'
 export {
-  convertQuartoDocumentsToDeepnote,
   convertQuartoDocumentToBlocks,
-  convertQuartoFilesToDeepnoteFile,
+  convertQuartoDocumentToDeepnote,
+  convertQuartoFileToDeepnoteFile,
   parseQuartoFormat,
-  readAndConvertQuartoFiles,
+  readAndConvertQuartoFile,
 } from './quarto-to-deepnote'
 // Snapshot utilities
 export type {
+  BlockExecutionOutput,
   BlockOutput,
+  ExecutionTiming,
+  GenerateSnapshotFilenameParams,
+  GetSnapshotPathOptions,
   MergeOptions,
+  NotebookSplitEntry,
+  ResolveAndComposeInitResult,
+  SaveExecutionSnapshotResult,
+  SiblingInitCandidateValidation,
   SnapshotHashInput,
   SnapshotInfo,
+  SnapshotNotebookIdFileInput,
+  SnapshotNotebookIdProjectInput,
   SnapshotOptions,
   SplitResult,
 } from './snapshot'
 export {
   addContentHashes,
+  composeDeepnoteWithInitNotebook,
   computeContentHash,
   computeSnapshotHash,
   countBlocksWithOutputs,
+  decodeNotebookIdFromFilename,
+  encodeNotebookIdForFilename,
   findSnapshotsForProject,
   generateSnapshotFilename,
   getSnapshotDir,
+  getSnapshotPath,
   hasOutputs,
+  InitNotebookResolutionError,
+  isComposedInitMainFile,
+  isSingleNotebookDeepnoteFile,
+  isValidSiblingInitCandidate,
   loadLatestSnapshot,
   loadSnapshotFile,
+  mergeOutputsIntoFile,
   mergeSnapshotIntoSource,
   parseSnapshotFilename,
   parseSourceFilePath,
+  resolveAndComposeInit,
+  resolveAndComposeInitIfNeeded,
+  resolveSnapshotNotebookId,
+  saveExecutionSnapshot,
   slugifyProjectName,
   snapshotExists,
+  splitByNotebooks,
   splitDeepnoteFile,
+  stripOutputsFromBlock,
+  stripOutputsFromBlocks,
 } from './snapshot'
+export type {
+  RunFromDeepnoteConversionOptions,
+  RunToDeepnoteConversionOptions,
+  SourceNotebookFormat,
+} from './source-notebook-formats'
+export {
+  isSourceNotebookFormat,
+  runFromDeepnoteConversion,
+  runToDeepnoteConversion,
+  SOURCE_NOTEBOOK_FORMAT_EXTENSIONS,
+  SOURCE_NOTEBOOK_FORMATS,
+} from './source-notebook-formats'
 export type { JupyterCell, JupyterNotebook } from './types/jupyter'
 export type { MarimoApp, MarimoCell } from './types/marimo'
 export type { PercentCell, PercentNotebook } from './types/percent'

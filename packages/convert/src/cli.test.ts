@@ -88,23 +88,52 @@ describe('CLI convert function', () => {
     await fs.writeFile(path.join(notebooksDir, 'nb1.ipynb'), JSON.stringify(notebook1), 'utf-8')
     await fs.writeFile(path.join(notebooksDir, 'nb2.ipynb'), JSON.stringify(notebook2), 'utf-8')
 
-    // Run convert
-    const outputPath = await convert({
+    // Run convert — directory input produces one single-notebook .deepnote per source
+    const outputDir = await convert({
       inputPath: notebooksDir,
       cwd: tempDir,
     })
 
-    // Check output file
-    const exists = await fs
-      .access(outputPath)
-      .then(() => true)
-      .catch(() => false)
-    expect(exists).toBe(true)
+    // Defaults to writing into the input directory
+    expect(outputDir).toBe(notebooksDir)
 
-    // Verify content
-    const content = await fs.readFile(outputPath, 'utf-8')
-    const parsed = deserializeDeepnoteFile(content)
-    expect(parsed.project.notebooks).toHaveLength(2)
+    const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+    expect(outFiles).toEqual(['nb1.deepnote', 'nb2.deepnote'])
+    const nb1 = deserializeDeepnoteFile(await fs.readFile(path.join(outputDir, 'nb1.deepnote'), 'utf-8'))
+    const nb2 = deserializeDeepnoteFile(await fs.readFile(path.join(outputDir, 'nb2.deepnote'), 'utf-8'))
+    expect(nb1.project.notebooks).toHaveLength(1)
+    expect(nb2.project.notebooks).toHaveLength(1)
+    // All files belong to one project: shared id + name (the directory), no init notebook
+    expect(nb2.project.id).toBe(nb1.project.id)
+    expect(nb1.project.name).toBe('notebooks')
+    expect(nb1.project.initNotebookId).toBeUndefined()
+    expect(nb1.project.notebooks[0].name).toBe('nb1')
+  })
+
+  it('writes one .deepnote per notebook into a custom output directory', async () => {
+    const notebook = {
+      cells: [{ cell_type: 'markdown', metadata: {}, source: '# N' }],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    }
+    const notebooksDir = path.join(tempDir, 'src')
+    await fs.mkdir(notebooksDir)
+    await fs.writeFile(path.join(notebooksDir, 'alpha.ipynb'), JSON.stringify(notebook), 'utf-8')
+    await fs.writeFile(path.join(notebooksDir, 'beta.ipynb'), JSON.stringify(notebook), 'utf-8')
+
+    const outDir = path.join(tempDir, 'out')
+
+    // Output directory is created if missing
+    const outputDir = await convert({
+      inputPath: notebooksDir,
+      outputPath: outDir,
+      cwd: tempDir,
+    })
+
+    expect(outputDir).toBe(outDir)
+    const outFiles = (await fs.readdir(outDir)).filter(f => f.endsWith('.deepnote')).sort()
+    expect(outFiles).toEqual(['alpha.deepnote', 'beta.deepnote'])
   })
 
   it('supports custom projectName', async () => {
@@ -351,22 +380,20 @@ version: "1.0.0"`
     await fs.writeFile(path.join(notebooksDir, 'test.ipynb'), JSON.stringify(notebook), 'utf-8')
 
     // Use relative path and set cwd
-    const outputPath = await convert({
+    const outputDir = await convert({
       inputPath: 'notebooks',
       cwd: tempDir,
     })
 
-    // Verify the output file was created
-    const exists = await fs
-      .access(outputPath)
-      .then(() => true)
-      .catch(() => false)
-    expect(exists).toBe(true)
+    // Resolves the relative directory against cwd and writes one .deepnote per notebook into it
+    expect(outputDir).toBe(notebooksDir)
 
-    // Verify content
-    const content = await fs.readFile(outputPath, 'utf-8')
+    const content = await fs.readFile(path.join(outputDir, 'test.deepnote'), 'utf-8')
     const parsed = deserializeDeepnoteFile(content)
+    expect(parsed.project.notebooks).toHaveLength(1)
+    // The project name is the directory; the notebook keeps its source name; the file is test.deepnote
     expect(parsed.project.name).toBe('notebooks')
+    expect(parsed.project.notebooks[0].name).toBe('test')
   })
 
   it('resolves relative outputPath against cwd', async () => {
@@ -551,20 +578,16 @@ version: "1.0.0"`
     await fs.mkdir(ipynbDir)
 
     // Run convert - should succeed and only process the valid file
-    const outputPath = await convert({
+    const outputDir = await convert({
       inputPath: notebooksDir,
       cwd: tempDir,
     })
 
-    // Verify the conversion succeeded
-    const exists = await fs
-      .access(outputPath)
-      .then(() => true)
-      .catch(() => false)
-    expect(exists).toBe(true)
+    // Only the real notebook file is converted; the folder.ipynb directory is ignored
+    const outFiles = (await fs.readdir(outputDir)).filter(f => f.endsWith('.deepnote')).sort()
+    expect(outFiles).toEqual(['valid.deepnote'])
 
-    // Verify only one notebook was processed (not the directory)
-    const content = await fs.readFile(outputPath, 'utf-8')
+    const content = await fs.readFile(path.join(outputDir, 'valid.deepnote'), 'utf-8')
     const parsed = deserializeDeepnoteFile(content)
     expect(parsed.project.notebooks).toHaveLength(1)
     expect(parsed.project.notebooks[0].name).toBe('valid')

@@ -27,7 +27,7 @@ Deepnote is a drop-in replacement for Jupyter. It uses the Deepnote kernel, whic
 
 Why Deepnote Open Source?
 
-- **Human-readable format:** The `.deepnote` YAML format replaces `.ipynb`'s messy JSON with clean, version-control and human-friendly structure for projects and notebooks. You can organize multiple notebooks, integrations, and settings into a single `.deepnote` project for better structure and collaboration.
+- **Human-readable format:** The `.deepnote` YAML format replaces `.ipynb`'s messy JSON with clean, version-control and human-friendly structure for projects and notebooks. Each notebook lives in its own `.deepnote` file alongside its integrations and settings, which keeps diffs focused and collaboration clean.
 - **Block-based architecture:** Extend notebooks beyond code cells with blocks for SQL, inputs, charts, and much more — all defined and validated through the open `@deepnote/blocks` package.
 - **Work wherever:** Run notebooks locally in VS Code or anywhere else with the open-source Deepnote Toolkit. Once you want to work in a team on the same notebook with beefier compute - drag and drop your project into Deepnote Cloud.
 - **Reactive notebook execution:** Automatically re-runs dependent blocks when inputs or data change, ensuring notebooks stay consistent and reproducible without manual execution.

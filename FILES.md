@@ -15,7 +15,7 @@ Both use the same YAML-based format. A snapshot is simply a `.deepnote` file tha
 
 ## The `.deepnote` Format
 
-A `.deepnote` file is a portable, self-contained project file that can include multiple notebooks, environment configuration, and integrations.
+A `.deepnote` file is a portable, self-contained file holding a single notebook along with its environment configuration and integrations.
 
 For the complete schema definition, see [`deepnote-file-schema.ts`](https://github.com/deepnote/deepnote/blob/main/packages/blocks/src/deserialize-file/deepnote-file-schema.ts).
 
@@ -23,7 +23,7 @@ For the complete schema definition, see [`deepnote-file-schema.ts`](https://gith
 
 - **Portable**: Everything needed to understand and run the project is in one file
 - **Git-friendly**: YAML format produces meaningful diffs
-- **Multi-notebook**: A single project can contain multiple notebooks
+- **One notebook per file**: Each `.deepnote` file holds a single notebook, keeping diffs small and tooling simple
 - **Environment-aware**: Can include Python version, packages, and other dependencies
 - **Integration-ready**: Stores database connections and other integrations
 
@@ -181,31 +181,36 @@ my-project/
 ├── customer-analysis.deepnote          # Source file (no outputs)
 ├── data-pipeline.deepnote              # Another source file
 └── snapshots/
-    ├── customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote
-    ├── customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_2025-01-08T10-30-00.snapshot.deepnote
-    └── data-pipeline_a1b2c3d4-5678-90ab-cdef-1234567890ab_latest.snapshot.deepnote
+    ├── customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_e132b172-b114-410e-8331-011517db664f_latest.snapshot.deepnote
+    ├── customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_e132b172-b114-410e-8331-011517db664f_2025-01-08T10-30-00.snapshot.deepnote
+    └── data-pipeline_a1b2c3d4-5678-90ab-cdef-1234567890ab_9dd9578e-604a-4235-a552-d1f4a53336ee_latest.snapshot.deepnote
 ```
 
 ### Naming Convention
 
-Snapshot files follow this pattern:
+Since each `.deepnote` file holds a single notebook (the common case), snapshot files are scoped to that notebook and follow this pattern:
 
 ```
-{project-name}_{project-id}_{timestamp}.snapshot.deepnote
+{project-name}_{project-id}_{notebook-id}_{timestamp}.snapshot.deepnote
 ```
 
-| Component      | Description                 | Example                                |
-| -------------- | --------------------------- | -------------------------------------- |
-| `project-name` | Slugified project name      | `customer-analysis`                    |
-| `project-id`   | Full UUID v4 of the project | `2e814690-4f02-465c-8848-5567ab9253b7` |
-| `timestamp`    | ISO 8601 format or `latest` | `2025-01-08T10-30-00` or `latest`      |
+| Component      | Description                                                       | Example                                |
+| -------------- | ----------------------------------------------------------------- | -------------------------------------- |
+| `project-name` | Slugified project name                                            | `customer-analysis`                    |
+| `project-id`   | Full UUID v4 of the project                                       | `2e814690-4f02-465c-8848-5567ab9253b7` |
+| `notebook-id`  | UUID v4 of the notebook, reversibly percent-encoded for filenames | `e132b172-b114-410e-8331-011517db664f` |
+| `timestamp`    | ISO 8601 format or `latest`                                       | `2025-01-08T10-30-00` or `latest`      |
+
+The `notebook-id` keeps `[A-Za-z0-9_-]` characters verbatim; any other character is escaped as an uppercase `%XX` UTF-8 byte sequence, so the segment is always path-safe and can be decoded back to the original id.
 
 **Examples:**
 
 ```
-customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_latest.snapshot.deepnote
-customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_2025-01-08T10-30-00.snapshot.deepnote
+customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_e132b172-b114-410e-8331-011517db664f_latest.snapshot.deepnote
+customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_e132b172-b114-410e-8331-011517db664f_2025-01-08T10-30-00.snapshot.deepnote
 ```
+
+> **Multi-notebook projects:** When a single `.deepnote` file contains more than one notebook (a legacy, project-wide file rather than the one-notebook-per-file default), the snapshot drops the `notebook-id` segment and falls back to the legacy pattern `{project-name}_{project-id}_{timestamp}.snapshot.deepnote`.
 
 ### The `latest` Snapshot
 
@@ -234,7 +239,7 @@ Unlike the `latest` snapshot which accumulates outputs over time, timestamped sn
 
 1. You run block A at 10:00 AM → `latest` snapshot updated
 2. You run block B at 10:15 AM → `latest` snapshot updated again
-3. You run all blocks at 10:30 AM → New timestamped snapshot created: `project_id_2025-01-08T10-30-00.snapshot.deepnote`
+3. You run all blocks at 10:30 AM → New timestamped snapshot created: `customer-analysis_2e814690-4f02-465c-8848-5567ab9253b7_e132b172-b114-410e-8331-011517db664f_2025-01-08T10-30-00.snapshot.deepnote`
 
 The timestamped snapshot from step 3 contains a coherent execution state where all outputs were produced together, while the `latest` snapshot may contain block A's output from 10:00 and block B's output from 10:15.
 
@@ -332,9 +337,9 @@ For more details, see the [`@deepnote/convert` documentation](https://github.com
 
 YAML produces cleaner diffs when reviewing changes in Git. Multi-line strings (code cells) are more readable, and the format supports comments for documentation.
 
-### Can I have multiple notebooks in one file?
+### How are notebooks organized into files?
 
-Yes! A `.deepnote` file is a project that can contain multiple notebooks. Each notebook has its own ID and can be executed independently.
+Each `.deepnote` file holds a single notebook with its own ID, executed independently. Related notebooks live side by side as separate files in a project directory.
 
 ### How do I share a specific execution state?
 
