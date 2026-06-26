@@ -1,11 +1,15 @@
+import fs from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import os, { tmpdir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
+import type { DeepnoteFile } from '@deepnote/blocks'
+import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { BUILTIN_INTEGRATIONS, getSqlEnvVarName } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
+import { createSplitWithSiblingInitFixture } from './test-helpers'
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -25,6 +29,19 @@ function getOutput(spy: Mock<typeof console.log>): string {
 
 function getErrorOutput(spy: Mock<typeof console.error>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
+}
+
+/** Minimal multi-notebook fixture; no initNotebookId so every notebook counts as non-init. */
+function multiNotebookFile(names: string[]): DeepnoteFile {
+  return {
+    version: '1.0.0',
+    metadata: { createdAt: '2025-01-01T00:00:00Z' },
+    project: {
+      id: 'proj-lint',
+      name: 'Lint Fixture',
+      notebooks: names.map((name, i) => ({ id: `nb-${i}`, name, blocks: [] })),
+    },
+  }
 }
 
 /** Normalize the per-run temp dir (absolute and cwd-relative forms) so text snapshots are stable. */
@@ -329,6 +346,7 @@ describe('lint command', () => {
         'parse-error',
         'missing-integration',
         'missing-input',
+        'multi-notebook',
       ]
 
       for (const issue of parsed.issues) {
@@ -338,6 +356,81 @@ describe('lint command', () => {
         expect(issue.blockLabel).toBeDefined()
         expect(issue.notebookName).toBeDefined()
       }
+    })
+  })
+
+  describe('multi-notebook warning', () => {
+    const tempDirs: string[] = []
+
+    afterEach(() => {
+      for (const dir of tempDirs.splice(0)) {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    function writeFixture(names: string[]): string {
+      const dir = fs.mkdtempSync(join(os.tmpdir(), 'lint-multi-nb-'))
+      tempDirs.push(dir)
+      const filePath = join(dir, 'multi.deepnote')
+      fs.writeFileSync(filePath, serializeDeepnoteFile(multiNotebookFile(names)))
+      return filePath
+    }
+
+    it('emits multi-notebook for files with more than one non-init notebook', async () => {
+      const action = createLintAction(program)
+      const filePath = writeFixture(['Alpha', 'Beta', 'Gamma'])
+
+      await action(filePath, { output: 'json' })
+
+      const codes = (JSON.parse(getOutput(consoleSpy)).issues as Array<{ code: string }>).map(i => i.code)
+      expect(codes).toContain('multi-notebook')
+    })
+
+    it('suppresses the multi-notebook warning when filtering to a single notebook', async () => {
+      const action = createLintAction(program)
+      const filePath = writeFixture(['Alpha', 'Beta', 'Gamma'])
+
+      await action(filePath, { output: 'json', notebook: 'Alpha' })
+
+      const codes = (JSON.parse(getOutput(consoleSpy)).issues as Array<{ code: string }>).map(i => i.code)
+      expect(codes).not.toContain('multi-notebook')
+    })
+  })
+
+  describe('sibling init resolution', () => {
+    let fixture: Awaited<ReturnType<typeof createSplitWithSiblingInitFixture>> | undefined
+
+    beforeEach(() => {
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    })
+
+    afterEach(async () => {
+      await fixture?.cleanup()
+      fixture = undefined
+    })
+
+    it('analyzes the composed init notebook (init symbols resolve; init-only issues surface)', async () => {
+      fixture = await createSplitWithSiblingInitFixture()
+      const action = createLintAction(program)
+
+      await action(fixture.mainPath, { output: 'json' })
+
+      const issues = JSON.parse(getOutput(consoleSpy)).issues as Array<{
+        code: string
+        notebookName: string
+        details?: { variable?: string }
+      }>
+
+      // `init_value` is defined only in the sibling init notebook and used by the main notebook;
+      // with the init composed it resolves, so there is no false undefined-variable error.
+      expect(issues.filter(i => i.code === 'undefined-variable')).toHaveLength(0)
+
+      // `init_only_unused` lives in the init notebook and is used nowhere. It can only be flagged if
+      // the sibling init was actually resolved and analyzed — proving the init notebook is in scope.
+      const initUnused = issues.find(i => i.code === 'unused-variable' && i.details?.variable === 'init_only_unused')
+      expect(initUnused).toBeDefined()
+      expect(initUnused?.notebookName).toBe('Init')
     })
   })
 

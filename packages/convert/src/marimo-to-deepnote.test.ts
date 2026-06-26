@@ -6,9 +6,9 @@ import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   convertMarimoAppToBlocks,
-  convertMarimoFilesToDeepnoteFile,
+  convertMarimoFileToDeepnoteFile,
   parseMarimoFormat,
-  readAndConvertMarimoFiles,
+  readAndConvertMarimoFile,
 } from './marimo-to-deepnote'
 
 // Mock crypto.randomUUID to generate predictable IDs for testing
@@ -833,7 +833,7 @@ describe('convertMarimoAppToBlocks', () => {
   })
 })
 
-describe('convertMarimoFilesToDeepnoteFile', () => {
+describe('convertMarimoFileToDeepnoteFile', () => {
   let tempDir: string
   const testFixturesDir = path.join(__dirname, '../../../test-fixtures')
 
@@ -855,7 +855,7 @@ describe('convertMarimoFilesToDeepnoteFile', () => {
     const inputPath = path.join(testFixturesDir, 'simple.marimo.py')
     const outputPath = path.join(tempDir, 'simple.deepnote')
 
-    await convertMarimoFilesToDeepnoteFile([inputPath], {
+    await convertMarimoFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Simple Test',
     })
@@ -875,7 +875,7 @@ describe('convertMarimoFilesToDeepnoteFile', () => {
     const inputPath = path.join(testFixturesDir, 'data-analysis.marimo.py')
     const outputPath = path.join(tempDir, 'data-analysis.deepnote')
 
-    await convertMarimoFilesToDeepnoteFile([inputPath], {
+    await convertMarimoFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Data Analysis',
     })
@@ -894,29 +894,49 @@ describe('convertMarimoFilesToDeepnoteFile', () => {
     expect(blocksWithDeps.length).toBeGreaterThan(0)
   })
 
-  it('converts multiple Marimo files into one Deepnote file', async () => {
+  it('converts each Marimo file into its own single-notebook Deepnote file', async () => {
     const inputPaths = [
       path.join(testFixturesDir, 'simple.marimo.py'),
       path.join(testFixturesDir, 'data-analysis.marimo.py'),
     ]
-    const outputPath = path.join(tempDir, 'multi.deepnote')
 
-    await convertMarimoFilesToDeepnoteFile(inputPaths, {
+    for (const inputPath of inputPaths) {
+      const outputPath = path.join(tempDir, `${path.basename(inputPath, '.py')}.deepnote`)
+
+      await convertMarimoFileToDeepnoteFile(inputPath, {
+        outputPath,
+        projectName: 'Single Notebook',
+      })
+
+      const content = await fs.readFile(outputPath, 'utf-8')
+      const result = deserializeDeepnoteFile(content)
+
+      // Each file produces a project with exactly one notebook
+      expect(result.project.notebooks).toHaveLength(1)
+    }
+  })
+
+  it('honors a provided projectId for the project id', async () => {
+    const inputPath = path.join(testFixturesDir, 'simple.marimo.py')
+    const outputPath = path.join(tempDir, 'fixed-id.deepnote')
+
+    await convertMarimoFileToDeepnoteFile(inputPath, {
       outputPath,
-      projectName: 'Multi Notebook',
+      projectName: 'Fixed Id',
+      projectId: 'fixed-id',
     })
 
     const content = await fs.readFile(outputPath, 'utf-8')
     const result = deserializeDeepnoteFile(content)
 
-    expect(result.project.notebooks).toHaveLength(2)
+    expect(result.project.id).toBe('fixed-id')
   })
 
   it('uses app title for notebook name when available', async () => {
     const inputPath = path.join(testFixturesDir, 'data-analysis.marimo.py')
     const outputPath = path.join(tempDir, 'data-analysis.deepnote')
 
-    await convertMarimoFilesToDeepnoteFile([inputPath], {
+    await convertMarimoFileToDeepnoteFile(inputPath, {
       outputPath,
       projectName: 'Test',
     })
@@ -930,7 +950,7 @@ describe('convertMarimoFilesToDeepnoteFile', () => {
   it('loads outputs from Marimo session cache', async () => {
     const inputPath = path.join(testFixturesDir, 'marimo-with-session-cache/math.py')
 
-    const result = await readAndConvertMarimoFiles([inputPath], {
+    const result = await readAndConvertMarimoFile(inputPath, {
       projectName: 'Math Test',
     })
 

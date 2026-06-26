@@ -202,6 +202,21 @@ export async function checkForIssues(
 
   const issues: LintIssue[] = []
 
+  // Check for multiple notebooks (suggest splitting) — skip when filtering by notebook
+  if (!options.notebook) {
+    const nonInitNotebooks = file.project.notebooks.filter(nb => nb.id !== file.project.initNotebookId)
+    if (nonInitNotebooks.length > 1) {
+      issues.push({
+        severity: 'warning',
+        code: 'multi-notebook',
+        message: `File contains ${nonInitNotebooks.length} non-init notebooks. Consider splitting into separate files using "deepnote split".`,
+        blockId: '',
+        blockLabel: 'project',
+        notebookName: '',
+      })
+    }
+  }
+
   // Check for missing integrations (doesn't require DAG)
   const { issues: integrationIssues, summary: integrationSummary } = checkMissingIntegrations(allBlocks, blockMap)
   issues.push(...integrationIssues)

@@ -1,16 +1,11 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { type DeepnoteFile, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import { loadRootFixture } from '../../../../test-fixtures/helpers/fixture-loader'
-import {
-  type BlockExecutionOutput,
-  getSnapshotPath,
-  mergeOutputsIntoFile,
-  saveExecutionSnapshot,
-} from './save-execution-snapshot'
+import { type BlockExecutionOutput, mergeOutputsIntoFile, saveExecutionSnapshot } from './save-execution-snapshot'
 
 describe('output-persistence', () => {
   /** Load the test fixture and return a fresh copy */
@@ -100,12 +95,20 @@ describe('output-persistence', () => {
       expect(block1.executionCount).toBeUndefined()
     })
 
-    it('retains a pre-existing executionCount when the re-run supplies null', async () => {
-      // Pins the MCP-semantics retention (contract item 1): a block with an
-      // existing executionCount keeps it when a re-run returns null/absent,
-      // and a non-null re-run value still overwrites it.
+    it('drops stale execution metadata when the re-run does not supply it', async () => {
+      // Every stale execution field is stripped before re-applying: a block with
+      // a pre-existing executionCount / per-block timing loses them when a re-run
+      // returns null/absent, so a prior run's metadata never leaks into the new
+      // snapshot. A non-null re-run value still overwrites.
       const file = await loadTestFile()
-      ;(file.project.notebooks[0].blocks[0] as { executionCount?: number | null }).executionCount = 7
+      const block0 = file.project.notebooks[0].blocks[0] as {
+        executionCount?: number | null
+        executionStartedAt?: string
+        executionFinishedAt?: string
+      }
+      block0.executionCount = 7
+      block0.executionStartedAt = '2023-01-01T00:00:00.000Z'
+      block0.executionFinishedAt = '2023-01-01T00:00:01.000Z'
       const outputs: BlockExecutionOutput[] = [
         {
           id: 'block-1',
@@ -120,10 +123,17 @@ describe('output-persistence', () => {
 
       const result = mergeOutputsIntoFile(file, outputs, timing)
 
-      const block1 = result.project.notebooks[0].blocks[0] as { outputs?: unknown[]; executionCount?: number | null }
-      // Outputs are still merged, but the stale executionCount is retained.
+      const block1 = result.project.notebooks[0].blocks[0] as {
+        outputs?: unknown[]
+        executionCount?: number | null
+        executionStartedAt?: string
+        executionFinishedAt?: string
+      }
+      // Outputs are merged, but every stale execution field is dropped.
       expect(block1.outputs).toEqual([{ output_type: 'stream', name: 'stdout', text: 'hello\n' }])
-      expect(block1.executionCount).toBe(7)
+      expect(block1.executionCount).toBeUndefined()
+      expect(block1.executionStartedAt).toBeUndefined()
+      expect(block1.executionFinishedAt).toBeUndefined()
 
       // A non-null re-run value still overwrites the pre-existing one.
       const overwritten = mergeOutputsIntoFile(file, [{ id: 'block-1', outputs: [], executionCount: 9 }], timing)
@@ -150,43 +160,6 @@ describe('output-persistence', () => {
 
       // Original should be unchanged
       expect((originalBlock as { outputs?: unknown[] }).outputs).toBeUndefined()
-    })
-  })
-
-  describe('getSnapshotPath', () => {
-    it('returns correct snapshot path', async () => {
-      const file = await loadTestFile()
-      const sourcePath = '/path/to/project.deepnote'
-
-      const result = getSnapshotPath(sourcePath, file)
-
-      expect(result).toBe(
-        resolve('/path/to', 'snapshots', 'test-project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
-      )
-    })
-
-    it('handles project name with special characters', async () => {
-      const file = await loadTestFile()
-      file.project.name = 'My Project (Draft) #1'
-      const sourcePath = '/path/to/project.deepnote'
-
-      const result = getSnapshotPath(sourcePath, file)
-
-      expect(result).toBe(
-        resolve('/path/to', 'snapshots', 'my-project-draft-1_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
-      )
-    })
-
-    it('uses "project" as fallback for empty name', async () => {
-      const file = await loadTestFile()
-      file.project.name = ''
-      const sourcePath = '/path/to/project.deepnote'
-
-      const result = getSnapshotPath(sourcePath, file)
-
-      expect(result).toBe(
-        resolve('/path/to', 'snapshots', 'project_test-project-id-1234-5678-90ab_latest.snapshot.deepnote')
-      )
     })
   })
 
@@ -289,5 +262,80 @@ describe('output-persistence', () => {
         { output_type: 'stream', name: 'stdout', text: 'first\n' },
       ])
     })
+
+    it('saveExecutionSnapshot embeds the main notebook id in snapshot filenames when the source file lists init and main notebooks', async () => {
+      // Regression: init+main files used to fall back to project-wide snapshot names, colliding across splits.
+      const projectId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      const initNotebookId = '22222222-2222-2222-2222-222222222222'
+      const mainNotebookId = '33333333-3333-3333-3333-333333333333'
+      const file: DeepnoteFile = {
+        version: '1.0.0',
+        metadata: { createdAt: '2025-01-01T00:00:00Z' },
+        environment: {},
+        project: {
+          id: projectId,
+          name: 'Init Main Project',
+          initNotebookId,
+          notebooks: [
+            {
+              id: initNotebookId,
+              name: 'Init',
+              blocks: [
+                {
+                  id: 'blk-init-md',
+                  type: 'markdown',
+                  content: 'init',
+                  sortingKey: 'a0',
+                  blockGroup: 'group-1',
+                  metadata: {},
+                },
+              ],
+            },
+            {
+              id: mainNotebookId,
+              name: 'Main',
+              blocks: [
+                {
+                  id: 'blk-main-code',
+                  type: 'code',
+                  content: 'print(1)',
+                  sortingKey: 'a1',
+                  blockGroup: 'group-1',
+                  metadata: {},
+                },
+              ],
+            },
+          ],
+        },
+      }
+
+      const sourcePath = join(tempDir, 'split.deepnote')
+      const outputs: BlockExecutionOutput[] = [
+        {
+          id: 'blk-main-code',
+          outputs: [{ output_type: 'stream', name: 'stdout', text: 'persisted\n' }],
+          executionCount: 1,
+        },
+      ]
+      const timing = {
+        startedAt: '2024-01-01T00:00:00.000Z',
+        finishedAt: '2024-01-01T00:00:05.000Z',
+      }
+
+      const result = await saveExecutionSnapshot(sourcePath, file, outputs, timing)
+
+      expect(result.snapshotPath).toContain(`_${projectId}_${mainNotebookId}_`)
+      expect(result.timestampedSnapshotPath).toContain(`_${projectId}_${mainNotebookId}_`)
+
+      // The uniform saver writes whatever file it is given: it keys the filename by the main
+      // notebook id but does NOT filter the init notebook out (that shaping is the caller's job now).
+      const parsed = parse(await fs.readFile(result.snapshotPath, 'utf-8'))
+      expect(parsed.project.notebooks.map((n: { id: string }) => n.id)).toEqual([initNotebookId, mainNotebookId])
+    })
+
+    // The init-aware behavior (exclude the borrowed init notebook from the snapshot; skip the snapshot
+    // for an init-only run) is no longer the saver's responsibility — it now lives in the run-command
+    // callers (CLI run.ts, MCP execution.ts) and is covered by their tests. The saver writes whatever
+    // file it is given (see the `[init, main]` assertion in the main-notebook-id test above).
   })
 })

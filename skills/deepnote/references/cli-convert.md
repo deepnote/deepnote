@@ -27,7 +27,7 @@ deepnote convert notebook.ipynb
 # Convert with custom output
 deepnote convert notebook.ipynb -o my-project.deepnote
 
-# Convert directory of notebooks
+# Convert a directory: one .deepnote per notebook (into the dir, or use -o <dir>)
 deepnote convert ./notebooks/
 
 # Convert Deepnote to Quarto

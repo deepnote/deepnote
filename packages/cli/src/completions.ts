@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|validate|convert|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull)
+            inspect|cat|run|open|validate|convert|split|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull)
                 subcommand="\${word}"
                 break
                 ;;
@@ -60,6 +60,10 @@ _deepnote_completions() {
                 ;;
             vars|downstream)
                 COMPREPLY=( $(compgen -W "json llm" -- "\${cur}") )
+                return 0
+                ;;
+            split)
+                COMPREPLY=( $(compgen -d -- "\${cur}") )
                 return 0
                 ;;
         esac
@@ -149,6 +153,15 @@ _deepnote_completions() {
                 shopt -s extglob
                 COMPREPLY=( $(compgen -f -X '!*.@(deepnote|ipynb|qmd|py)' -- "\${cur}") $(compgen -d -- "\${cur}") )
                 (( _extglob_was_off )) && shopt -u extglob
+            fi
+            return 0
+            ;;
+        split)
+            # Complete .deepnote files and flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "-o --output --force" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
             return 0
             ;;
@@ -251,6 +264,7 @@ const zshCommandDescriptions: Record<string, string> = {
   stats: 'Show statistics about a .deepnote file',
   analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
+  split: 'Split multi-notebook file into separate files',
   completion: 'Generate shell completion scripts',
   integrations: 'Manage database integrations',
 }
@@ -346,6 +360,12 @@ ${commandEntries}
                         '(-f --format)'{-f,--format}'[Output format (jupyter, percent, quarto, marimo)]:format:(jupyter percent quarto marimo)' \\
                         '--open[Open the converted .deepnote file in Deepnote Cloud]' \\
                         '*:input file:_files -g "*.{deepnote,ipynb,qmd,py}"'
+                    ;;
+                split)
+                    _arguments \\
+                        '(-o --output)'{-o,--output}'[Output directory]:output dir:_files -/' \\
+                        '--force[Overwrite existing output files]' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 dag)
                     local -a subcommands
@@ -465,6 +485,7 @@ const fishCommandDescriptions: Record<string, string> = {
   stats: 'Show statistics about a .deepnote file',
   analyze: 'Analyze a .deepnote file for quality, structure, and dependencies',
   lint: 'Check a .deepnote file for issues',
+  split: 'Split multi-notebook file into separate files',
   completion: 'Generate shell completion scripts',
   integrations: 'Manage database integrations',
 }
@@ -537,6 +558,11 @@ complete -c deepnote -n '__fish_seen_subcommand_from convert' -s n -l name -d 'P
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -s f -l format -d 'Output format' -xa 'jupyter percent quarto marimo'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -l open -d 'Open the converted .deepnote file in Deepnote Cloud'
 complete -c deepnote -n '__fish_seen_subcommand_from convert' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'
+
+# split subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from split' -s o -l output -d 'Output directory'
+complete -c deepnote -n '__fish_seen_subcommand_from split' -l force -d 'Overwrite existing output files'
+complete -c deepnote -n '__fish_seen_subcommand_from split' -F -a '*.deepnote'
 
 # dag subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from dag' -a show -d 'Show the dependency graph'

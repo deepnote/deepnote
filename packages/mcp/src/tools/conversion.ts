@@ -1,15 +1,13 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { convertDirectoryToDeepnote, resolveConvertToOutputDir, resolveConvertToOutputPath } from '@deepnote/cli'
 import {
-  convertDeepnoteFileToJupyterFiles,
-  convertDeepnoteFileToMarimoFiles,
-  convertDeepnoteFileToPercentFiles,
-  convertDeepnoteFileToQuartoFiles,
-  convertIpynbFilesToDeepnoteFile,
-  convertMarimoFilesToDeepnoteFile,
-  convertPercentFilesToDeepnoteFile,
-  convertQuartoFilesToDeepnoteFile,
   detectFormat,
+  isSourceNotebookFormat,
+  runFromDeepnoteConversion,
+  runToDeepnoteConversion,
+  SOURCE_NOTEBOOK_FORMATS,
+  type SourceNotebookFormat,
 } from '@deepnote/convert'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
@@ -43,7 +41,7 @@ export const conversionTools: Tool[] = [
         },
         format: {
           type: 'string',
-          enum: ['jupyter', 'quarto', 'percent', 'marimo', 'auto'],
+          enum: [...SOURCE_NOTEBOOK_FORMATS, 'auto'],
           description: 'Input format. Use "auto" to detect from file content (default: auto).',
         },
       },
@@ -73,7 +71,7 @@ export const conversionTools: Tool[] = [
         },
         format: {
           type: 'string',
-          enum: ['jupyter', 'quarto', 'percent', 'marimo'],
+          enum: [...SOURCE_NOTEBOOK_FORMATS],
           description: 'Output format (default: jupyter)',
         },
       },
@@ -93,8 +91,8 @@ const nonEmptyStringSchema = z.string().refine(value => value.trim().length > 0,
   message: 'expected a non-empty string',
 })
 
-const convertToFormatSchema = z.enum(['jupyter', 'quarto', 'percent', 'marimo', 'auto'])
-const convertFromFormatSchema = z.enum(['jupyter', 'quarto', 'percent', 'marimo'])
+const convertToFormatSchema = z.enum([...SOURCE_NOTEBOOK_FORMATS, 'auto'] as const)
+const convertFromFormatSchema = z.enum(SOURCE_NOTEBOOK_FORMATS)
 
 const convertToArgsSchema = z.object({
   inputPath: nonEmptyStringSchema,
@@ -116,50 +114,40 @@ function formatFirstIssue(error: z.ZodError): string {
   return `${issuePath}${issue.message}`
 }
 
-async function listFilesByExtension(dirPath: string, extension: string): Promise<string[]> {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true })
-  return entries
-    .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(extension))
-    .map(entry => path.join(dirPath, entry.name))
+interface ConvertToSuccessPayload {
+  inputPath: string
+  outputPath: string
+  detectedFormat: SourceNotebookFormat
+  projectName: string
+  inputFiles: string[]
+  outputFiles: string[]
+  outputIsDirectory: boolean
 }
 
-function deriveDefaultDeepnoteOutputPath(inputPath: string, isDirectory: boolean): string {
-  if (isDirectory) {
-    return path.join(inputPath, `${path.basename(inputPath)}.deepnote`)
-  }
-
-  const ext = path.extname(inputPath)
-  if (ext) {
-    return `${inputPath.slice(0, -ext.length)}.deepnote`
-  }
-  return `${inputPath}.deepnote`
-}
-
-async function resolveConvertToOutputPath(
-  outputPathRaw: string | undefined,
+/** Converts one source notebook to a single-notebook `.deepnote` file. */
+async function convertSingleFileToDeepnote(
   absoluteInput: string,
-  inputIsDirectory: boolean
-): Promise<string> {
-  if (!outputPathRaw) {
-    return deriveDefaultDeepnoteOutputPath(absoluteInput, inputIsDirectory)
+  format: SourceNotebookFormat,
+  outputPath: string | undefined,
+  projectName: string | undefined
+): Promise<ConvertToSuccessPayload> {
+  const finalOutputPath = await resolveConvertToOutputPath(outputPath, absoluteInput)
+  const finalProjectName = projectName || path.basename(absoluteInput, path.extname(absoluteInput))
+
+  await runToDeepnoteConversion(format, absoluteInput, {
+    projectName: finalProjectName,
+    outputPath: finalOutputPath,
+  })
+
+  return {
+    inputPath: absoluteInput,
+    outputPath: finalOutputPath,
+    detectedFormat: format,
+    projectName: finalProjectName,
+    inputFiles: [absoluteInput],
+    outputFiles: [finalOutputPath],
+    outputIsDirectory: false,
   }
-
-  const resolvedOutputPath = path.resolve(outputPathRaw)
-
-  try {
-    const outputStat = await fs.stat(resolvedOutputPath)
-    if (outputStat.isDirectory()) {
-      return path.join(resolvedOutputPath, `${path.basename(absoluteInput, path.extname(absoluteInput))}.deepnote`)
-    }
-  } catch {
-    // Output path may not exist yet; treat it as the intended file path.
-  }
-
-  if (resolvedOutputPath.toLowerCase().endsWith('.deepnote')) {
-    return resolvedOutputPath
-  }
-
-  return `${resolvedOutputPath}.deepnote`
 }
 
 async function handleConvertTo(args: Record<string, unknown>) {
@@ -191,7 +179,6 @@ async function handleConvertTo(args: Record<string, unknown>) {
     return toError('Auto-detect format is only supported for file inputs')
   }
 
-  // Auto-detect format only for file inputs.
   if (format === 'auto' && inputIsFile) {
     const content = await fs.readFile(absoluteInput, 'utf-8')
     const detectedFormat = detectFormat(absoluteInput, content)
@@ -201,85 +188,58 @@ async function handleConvertTo(args: Record<string, unknown>) {
     format = detectedFormat
   }
 
-  let inputFiles: string[] = []
-  if (inputIsFile) {
-    inputFiles = [absoluteInput]
-  } else {
-    switch (format) {
-      case 'jupyter':
-        inputFiles = await listFilesByExtension(absoluteInput, '.ipynb')
-        break
-      case 'quarto':
-        inputFiles = await listFilesByExtension(absoluteInput, '.qmd')
-        break
-      case 'percent':
-      case 'marimo':
-        inputFiles = await listFilesByExtension(absoluteInput, '.py')
-        break
-      default:
-        return toError(`Unknown format: ${format}`)
-    }
+  if (!isSourceNotebookFormat(format)) {
+    return toError(`Unknown format: ${format}`)
   }
-
-  if (inputFiles.length === 0) {
-    return toError(`No input files found for format "${format}" at: ${absoluteInput}`)
-  }
-
-  // Determine output path
-  const finalOutputPath = await resolveConvertToOutputPath(outputPath, absoluteInput, inputIsDirectory)
-
-  // Determine project name
-  const finalProjectName = projectName || path.basename(absoluteInput, path.extname(absoluteInput))
 
   try {
-    switch (format) {
-      case 'jupyter':
-        await convertIpynbFilesToDeepnoteFile(inputFiles, {
+    if (inputIsDirectory) {
+      const outputDir = resolveConvertToOutputDir(outputPath, absoluteInput)
+      const finalProjectName = projectName || path.basename(absoluteInput)
+
+      let result: Awaited<ReturnType<typeof convertDirectoryToDeepnote>>
+      try {
+        result = await convertDirectoryToDeepnote({
+          inputDir: absoluteInput,
+          format,
+          outputDir,
           projectName: finalProjectName,
-          outputPath: finalOutputPath,
         })
-        break
-      case 'quarto':
-        await convertQuartoFilesToDeepnoteFile(inputFiles, {
-          projectName: finalProjectName,
-          outputPath: finalOutputPath,
-        })
-        break
-      case 'percent':
-        await convertPercentFilesToDeepnoteFile(inputFiles, {
-          projectName: finalProjectName,
-          outputPath: finalOutputPath,
-        })
-        break
-      case 'marimo':
-        await convertMarimoFilesToDeepnoteFile(inputFiles, {
-          projectName: finalProjectName,
-          outputPath: finalOutputPath,
-        })
-        break
-      default:
-        return {
-          content: [{ type: 'text', text: `Unknown format: ${format}` }],
-          isError: true,
-        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return toError(message)
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                inputPath: absoluteInput,
+                outputPath: result.outputDir,
+                detectedFormat: format,
+                projectName: result.projectName,
+                inputFiles: result.inputFiles,
+                outputFiles: result.outputFiles,
+                outputIsDirectory: true,
+              } satisfies ConvertToSuccessPayload & { success: true },
+              null,
+              2
+            ),
+          },
+        ],
+      }
     }
+
+    const payload = await convertSingleFileToDeepnote(absoluteInput, format, outputPath, projectName)
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              inputPath: absoluteInput,
-              outputPath: finalOutputPath,
-              detectedFormat: format,
-              projectName: finalProjectName,
-              inputFiles,
-            },
-            null,
-            2
-          ),
+          text: JSON.stringify({ success: true, ...payload }, null, 2),
         },
       ],
     }
@@ -317,33 +277,7 @@ async function handleConvertFrom(args: Record<string, unknown>) {
   const finalOutputDir = outputDir ? path.resolve(outputDir) : path.dirname(absoluteInput)
 
   try {
-    switch (format) {
-      case 'jupyter':
-        await convertDeepnoteFileToJupyterFiles(absoluteInput, {
-          outputDir: finalOutputDir,
-        })
-        break
-      case 'quarto':
-        await convertDeepnoteFileToQuartoFiles(absoluteInput, {
-          outputDir: finalOutputDir,
-        })
-        break
-      case 'percent':
-        await convertDeepnoteFileToPercentFiles(absoluteInput, {
-          outputDir: finalOutputDir,
-        })
-        break
-      case 'marimo':
-        await convertDeepnoteFileToMarimoFiles(absoluteInput, {
-          outputDir: finalOutputDir,
-        })
-        break
-      default:
-        return {
-          content: [{ type: 'text', text: `Unknown format: ${format}` }],
-          isError: true,
-        }
-    }
+    await runFromDeepnoteConversion(format, absoluteInput, { outputDir: finalOutputDir })
 
     return {
       content: [

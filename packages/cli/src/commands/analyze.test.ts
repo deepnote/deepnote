@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 import * as outputModule from '../output'
 import { createAnalyzeAction } from './analyze'
+import { createSplitWithSiblingInitFixture } from './test-helpers'
 
 // Mock the output module
 vi.mock('../output', async importOriginal => {
@@ -170,6 +171,33 @@ describe('analyze command', () => {
       expect(result.quality.score).toBe(100)
       expect(result.quality.errors).toBe(0)
       expect(result.quality.warnings).toBe(0)
+    })
+  })
+
+  describe('sibling init resolution', () => {
+    let fixture: Awaited<ReturnType<typeof createSplitWithSiblingInitFixture>> | undefined
+
+    afterEach(async () => {
+      await fixture?.cleanup()
+      fixture = undefined
+    })
+
+    it('composes the sibling init notebook into the analysis (counts, imports, no false errors)', async () => {
+      fixture = await createSplitWithSiblingInitFixture()
+
+      await action(fixture.mainPath, { output: 'json' })
+
+      const result = outputJsonSpy.mock.calls[0][0]
+      // Init notebook + main notebook are both analyzed (1 init block + 2 main blocks).
+      expect(result.project.notebooks).toBe(2)
+      expect(result.project.blocks).toBe(3)
+      // The init notebook's `import math` is surfaced as a dependency.
+      expect(result.dependencies.imports).toContain('math')
+      // `init_value` resolves from the init block, so there is no undefined-variable error.
+      const undefinedVarIssues = (result.quality.issues as Array<{ code: string }>).filter(
+        i => i.code === 'undefined-variable'
+      )
+      expect(undefinedVarIssues).toHaveLength(0)
     })
   })
 })

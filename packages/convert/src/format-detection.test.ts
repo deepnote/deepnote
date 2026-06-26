@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { UnsupportedFormatError } from './errors'
-import { detectFormat, isMarimoContent, isPercentContent } from './format-detection'
+import { detectFormat, isMarimoContent, isPercentContent, tryDetectFormat } from './format-detection'
 
 describe('isMarimoContent', () => {
   it('detects valid Marimo content', () => {
@@ -318,5 +318,51 @@ x = 1
       expect(() => detectFormat('file.json')).toThrow(UnsupportedFormatError)
       expect(() => detectFormat('file.json')).toThrow('Unsupported file format: file.json')
     })
+  })
+})
+
+describe('tryDetectFormat', () => {
+  it('returns the format for supported files by extension', () => {
+    expect(tryDetectFormat('notebook.ipynb')).toBe('jupyter')
+    expect(tryDetectFormat('project.deepnote')).toBe('deepnote')
+    expect(tryDetectFormat('document.qmd')).toBe('quarto')
+  })
+
+  it('returns "marimo" for Marimo .py content', () => {
+    const content = `import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    print("hello")
+`
+    expect(tryDetectFormat('notebook.py', content)).toBe('marimo')
+  })
+
+  it('returns "percent" for percent .py content', () => {
+    const content = `# %%
+print("hello")
+
+# %%
+x = 1
+`
+    expect(tryDetectFormat('notebook.py', content)).toBe('percent')
+  })
+
+  it('returns null for a plain .py helper script (neither percent nor Marimo)', () => {
+    const content = `def hello():
+    print("hi")
+`
+    expect(tryDetectFormat('helper.py', content)).toBeNull()
+  })
+
+  it('returns null for a .py file without content', () => {
+    expect(tryDetectFormat('notebook.py')).toBeNull()
+  })
+
+  it('returns null for unsupported file extensions', () => {
+    expect(tryDetectFormat('file.txt')).toBeNull()
+    expect(tryDetectFormat('file.json')).toBeNull()
   })
 })

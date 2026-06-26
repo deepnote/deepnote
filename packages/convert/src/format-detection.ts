@@ -106,3 +106,17 @@ export function detectFormat(filename: string, content?: string): NotebookFormat
 
   throw new UnsupportedFormatError(`Unsupported file format: ${filename}`, { filename })
 }
+
+/**
+ * Non-throwing variant of {@link detectFormat}.
+ */
+export function tryDetectFormat(filename: string, content?: string): NotebookFormat | null {
+  try {
+    return detectFormat(filename, content)
+  } catch (error) {
+    if (error instanceof UnsupportedFormatError) {
+      return null
+    }
+    throw error
+  }
+}

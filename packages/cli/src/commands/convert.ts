@@ -1,16 +1,15 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { basename, extname, resolve } from 'node:path'
 import {
-  convertDeepnoteFileToJupyterFiles,
-  convertDeepnoteFileToMarimoFiles,
-  convertDeepnoteFileToPercentFiles,
-  convertDeepnoteFileToQuartoFiles,
-  convertIpynbFilesToDeepnoteFile,
-  convertMarimoFilesToDeepnoteFile,
-  convertPercentFilesToDeepnoteFile,
-  convertQuartoFilesToDeepnoteFile,
   detectFormat,
+  isSourceNotebookFormat,
   type NotebookFormat,
+  runFromDeepnoteConversion,
+  runToDeepnoteConversion,
+  SOURCE_NOTEBOOK_FORMATS,
+  type SourceNotebookFormat,
+  tryDetectFormat,
 } from '@deepnote/convert'
 import type { Command } from 'commander'
 import ora from 'ora'
@@ -18,11 +17,12 @@ import { ExitCode } from '../exit-codes'
 import { debug, getChalk, getOutputConfig, error as logError, output } from '../output'
 import { resolvePath } from '../utils/file-resolver'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
+import { convertDirectoryToDeepnote as convertDirectoryToDeepnoteCore } from '../utils/to-deepnote-conversion'
 
 export interface ConvertOptions {
   output?: string
   name?: string
-  format?: 'jupyter' | 'percent' | 'quarto' | 'marimo'
+  format?: SourceNotebookFormat
   open?: boolean
 }
 
@@ -32,6 +32,7 @@ export interface ConvertResult {
   outputPath: string
   inputFormat: string
   outputFormat: string
+  outputIsDirectory: boolean
 }
 
 export function createConvertAction(_program: Command): (inputPath: string, options: ConvertOptions) => Promise<void> {
@@ -42,17 +43,24 @@ export function createConvertAction(_program: Command): (inputPath: string, opti
       const result = await convertFile(inputPath, options)
 
       // Handle --open flag: open the converted .deepnote file in Deepnote Cloud
-      if (options.open && result.outputFormat === 'deepnote') {
+      if (options.open) {
         const c = getChalk()
-        const quiet = getOutputConfig().quiet
-        const openResult = await openDeepnoteFileInCloud(result.outputPath, { quiet })
-        if (!quiet) {
-          output(`${c.green('✓')} Opened in Deepnote Cloud`)
-          output(`${c.dim('URL:')} ${openResult.url}`)
+        if (result.outputFormat !== 'deepnote') {
+          output(c.yellow('Warning: --open is only available when converting to .deepnote format'))
+        } else if (result.outputIsDirectory) {
+          output(
+            c.yellow(
+              'Warning: --open is not supported when converting a directory; open a file with `deepnote open <file>`'
+            )
+          )
+        } else {
+          const quiet = getOutputConfig().quiet
+          const openResult = await openDeepnoteFileInCloud(result.outputPath, { quiet })
+          if (!quiet) {
+            output(`${c.green('✓')} Opened in Deepnote Cloud`)
+            output(`${c.dim('URL:')} ${openResult.url}`)
+          }
         }
-      } else if (options.open && result.outputFormat !== 'deepnote') {
-        const c = getChalk()
-        output(c.yellow('Warning: --open is only available when converting to .deepnote format'))
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -112,7 +120,7 @@ async function determineInputFormat(absolutePath: string, isDirectory: boolean, 
     for (const pyFile of pyFiles) {
       const pyFilePath = resolve(absolutePath, pyFile)
       const content = await fs.readFile(pyFilePath, 'utf-8')
-      const format = detectFormat(pyFilePath, content)
+      const format = tryDetectFormat(pyFilePath, content)
       if (format === 'marimo') return 'marimo'
       if (format === 'percent') return 'percent'
     }
@@ -123,26 +131,18 @@ async function determineInputFormat(absolutePath: string, isDirectory: boolean, 
   throw new Error('Unsupported file type. Please provide a .ipynb, .qmd, .py (percent/marimo), or .deepnote file.')
 }
 
-const VALID_OUTPUT_FORMATS = ['jupyter', 'percent', 'quarto', 'marimo'] as const
-type OutputFormat = (typeof VALID_OUTPUT_FORMATS)[number]
-
-function isValidOutputFormat(format: string): format is OutputFormat {
-  return VALID_OUTPUT_FORMATS.includes(format as OutputFormat)
-}
-
 async function convertFromDeepnote(
   absolutePath: string,
   outputFormat: string,
   options: ConvertOptions
 ): Promise<ConvertResult> {
-  // Validate format at runtime since commander accepts any string
-  if (!isValidOutputFormat(outputFormat)) {
+  if (!isSourceNotebookFormat(outputFormat)) {
     throw new Error(
-      `Invalid output format: "${outputFormat}". Supported formats are: ${VALID_OUTPUT_FORMATS.join(', ')}`
+      `Invalid output format: "${outputFormat}". Supported formats are: ${SOURCE_NOTEBOOK_FORMATS.join(', ')}`
     )
   }
 
-  const formatNames: Record<OutputFormat, string> = {
+  const formatNames: Record<SourceNotebookFormat, string> = {
     jupyter: 'Jupyter Notebooks',
     percent: 'percent format files',
     quarto: 'Quarto documents',
@@ -159,20 +159,7 @@ async function convertFromDeepnote(
       ? resolve(process.cwd(), options.output)
       : resolve(process.cwd(), filenameWithoutExtension)
 
-    switch (outputFormat) {
-      case 'jupyter':
-        await convertDeepnoteFileToJupyterFiles(absolutePath, { outputDir })
-        break
-      case 'percent':
-        await convertDeepnoteFileToPercentFiles(absolutePath, { outputDir })
-        break
-      case 'quarto':
-        await convertDeepnoteFileToQuartoFiles(absolutePath, { outputDir })
-        break
-      case 'marimo':
-        await convertDeepnoteFileToMarimoFiles(absolutePath, { outputDir })
-        break
-    }
+    await runFromDeepnoteConversion(outputFormat, absolutePath, { outputDir })
 
     spinner?.succeed(`${formatNames[outputFormat]} saved to ${getChalk().bold(outputDir)}`)
 
@@ -182,6 +169,7 @@ async function convertFromDeepnote(
       outputPath: outputDir,
       inputFormat: 'deepnote',
       outputFormat,
+      outputIsDirectory: true,
     }
   } catch (error) {
     spinner?.fail('Conversion failed')
@@ -189,49 +177,41 @@ async function convertFromDeepnote(
   }
 }
 
+const INPUT_FORMAT_NAMES: Record<SourceNotebookFormat, string> = {
+  jupyter: 'Jupyter Notebook',
+  quarto: 'Quarto document',
+  percent: 'percent format notebook',
+  marimo: 'Marimo notebook',
+}
+
 async function convertToDeepnote(
   absolutePath: string,
-  inputFormat: Exclude<NotebookFormat, 'deepnote'>,
+  inputFormat: SourceNotebookFormat,
   isDirectory: boolean,
   options: ConvertOptions
 ): Promise<ConvertResult> {
-  const formatNames: Record<string, string> = {
-    jupyter: 'Jupyter Notebook',
-    quarto: 'Quarto document',
-    percent: 'percent format notebook',
-    marimo: 'Marimo notebook',
-  }
+  return isDirectory
+    ? convertDirectoryToDeepnote(absolutePath, inputFormat, options)
+    : convertSingleFileToDeepnote(absolutePath, inputFormat, options)
+}
 
-  const formatName = isDirectory ? `${formatNames[inputFormat]}s` : formatNames[inputFormat]
+/** Converts one source notebook to a single-notebook `.deepnote` file. */
+async function convertSingleFileToDeepnote(
+  absolutePath: string,
+  inputFormat: SourceNotebookFormat,
+  options: ConvertOptions
+): Promise<ConvertResult> {
   const quiet = getOutputConfig().quiet
-  const spinner = quiet ? null : ora(`Converting ${formatName} to Deepnote project...`).start()
+  const spinner = quiet ? null : ora(`Converting ${INPUT_FORMAT_NAMES[inputFormat]} to Deepnote project...`).start()
 
   try {
-    // Determine output path
     const ext = extname(absolutePath)
-    const filenameWithoutExtension = isDirectory ? basename(absolutePath) : basename(absolutePath, ext)
+    const filenameWithoutExtension = basename(absolutePath, ext)
     const projectName = options.name ?? filenameWithoutExtension
     const outputFilename = `${filenameWithoutExtension}.deepnote`
     const outputPath = options.output ? resolve(process.cwd(), options.output) : resolve(process.cwd(), outputFilename)
 
-    // Get input files
-    const inputFiles = isDirectory ? await getFilesFromDirectory(absolutePath, inputFormat) : [absolutePath]
-
-    // Perform conversion
-    switch (inputFormat) {
-      case 'jupyter':
-        await convertIpynbFilesToDeepnoteFile(inputFiles, { projectName, outputPath })
-        break
-      case 'quarto':
-        await convertQuartoFilesToDeepnoteFile(inputFiles, { projectName, outputPath })
-        break
-      case 'percent':
-        await convertPercentFilesToDeepnoteFile(inputFiles, { projectName, outputPath })
-        break
-      case 'marimo':
-        await convertMarimoFilesToDeepnoteFile(inputFiles, { projectName, outputPath })
-        break
-    }
+    await runToDeepnoteConversion(inputFormat, absolutePath, { projectName, outputPath })
 
     spinner?.succeed(`Deepnote project saved to ${getChalk().bold(outputPath)}`)
 
@@ -241,6 +221,7 @@ async function convertToDeepnote(
       outputPath,
       inputFormat,
       outputFormat: 'deepnote',
+      outputIsDirectory: false,
     }
   } catch (error) {
     spinner?.fail('Conversion failed')
@@ -248,30 +229,41 @@ async function convertToDeepnote(
   }
 }
 
-async function getFilesFromDirectory(dirPath: string, format: Exclude<NotebookFormat, 'deepnote'>): Promise<string[]> {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true })
-  const extensionMap: Record<string, string> = {
-    jupyter: '.ipynb',
-    quarto: '.qmd',
-    percent: '.py',
-    marimo: '.py',
-  }
+async function convertDirectoryToDeepnote(
+  dirPath: string,
+  inputFormat: SourceNotebookFormat,
+  options: ConvertOptions
+): Promise<ConvertResult> {
+  const outputDir = options.output ? resolve(process.cwd(), options.output) : dirPath
+  const projectName = options.name ?? basename(dirPath)
+  const projectId = randomUUID()
 
-  const targetExt = extensionMap[format]
-  const files = entries
-    .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(targetExt))
-    .map(entry => resolve(dirPath, entry.name))
-    .sort((a, b) => a.localeCompare(b))
+  const quiet = getOutputConfig().quiet
+  const spinner = quiet ? null : ora(`Converting ${INPUT_FORMAT_NAMES[inputFormat]} to Deepnote files...`).start()
 
-  // For .py files, filter by actual format using parallel reads
-  if (format === 'percent' || format === 'marimo') {
-    const fileContents = await Promise.all(files.map(file => fs.readFile(file, 'utf-8')))
-    const filteredFiles = files.filter((file, index) => {
-      const detectedFormat = detectFormat(file, fileContents[index])
-      return detectedFormat === format
+  try {
+    const result = await convertDirectoryToDeepnoteCore({
+      inputDir: dirPath,
+      format: inputFormat,
+      outputDir,
+      projectName,
+      projectId,
     })
-    return filteredFiles
-  }
 
-  return files
+    spinner?.succeed(
+      `${result.outputFiles.length} Deepnote file${result.outputFiles.length === 1 ? '' : 's'} saved to ${getChalk().bold(outputDir)}`
+    )
+
+    return {
+      success: true,
+      inputPath: dirPath,
+      outputPath: outputDir,
+      inputFormat,
+      outputFormat: 'deepnote',
+      outputIsDirectory: true,
+    }
+  } catch (error) {
+    spinner?.fail('Conversion failed')
+    throw error
+  }
 }

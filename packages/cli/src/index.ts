@@ -45,4 +45,9 @@ export type {
 } from './utils/analysis'
 export { analyzeProject, checkForIssues, computeProjectStats } from './utils/analysis'
 export { FileResolutionError, resolvePathToDeepnoteFile } from './utils/file-resolver'
+export {
+  convertDirectoryToDeepnote,
+  resolveConvertToOutputDir,
+  resolveConvertToOutputPath,
+} from './utils/to-deepnote-conversion'
 export { version } from './version'

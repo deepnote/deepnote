@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import type { saveExecutionSnapshot } from '@deepnote/convert'
 import {
   ApiError,
   type ApiIntegration,
@@ -12,7 +13,6 @@ import {
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
-import type { saveExecutionSnapshot } from '../utils/output-persistence'
 
 // Create mock engine functions
 const mockStart = vi.fn()
@@ -88,12 +88,15 @@ vi.mock('../utils/open-file-in-cloud', () => ({
   openDeepnoteFileInCloud: (...args: unknown[]) => mockOpenDeepnoteFileInCloud(...args),
 }))
 
-// Mock saveExecutionSnapshot to prevent writing to real files during tests
-const mockSaveExecutionSnapshot: MockedFunction<typeof saveExecutionSnapshot> = vi
-  .fn()
-  .mockResolvedValue({ snapshotPath: '/mock/snapshot.snapshot.deepnote' })
-vi.mock('../utils/output-persistence', async importOriginal => {
-  const actual = await importOriginal<typeof import('../utils/output-persistence')>()
+// Mock the shared snapshot helper to prevent writing to real files during tests. Only override
+// saveExecutionSnapshot — run.ts also imports InitNotebookResolutionError,
+// resolveAndComposeInitIfNeeded and LoadedRunnableFile from @deepnote/convert, so the rest must be preserved.
+const mockSaveExecutionSnapshot: MockedFunction<typeof saveExecutionSnapshot> = vi.fn().mockResolvedValue({
+  snapshotPath: '/mock/snapshot.snapshot.deepnote',
+  timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',
+})
+vi.mock('@deepnote/convert', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/convert')>()
   return {
     ...actual,
     saveExecutionSnapshot: (...args: Parameters<typeof saveExecutionSnapshot>) => mockSaveExecutionSnapshot(...args),

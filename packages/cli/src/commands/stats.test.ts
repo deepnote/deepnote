@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vite
 import { ExitCode } from '../exit-codes'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createStatsAction, type StatsOptions } from './stats'
-import { cleanupTempFile, createTempFile } from './test-helpers'
+import { cleanupTempFile, createSplitWithSiblingInitFixture, createTempFile } from './test-helpers'
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -378,6 +378,29 @@ describe('stats command', () => {
         const parsed = JSON.parse(output)
         expect(parsed.projectName).toBe('Hello world')
       })
+    })
+  })
+
+  describe('sibling init resolution', () => {
+    let fixture: Awaited<ReturnType<typeof createSplitWithSiblingInitFixture>> | undefined
+
+    afterEach(async () => {
+      await fixture?.cleanup()
+      fixture = undefined
+    })
+
+    it('counts the sibling init notebook and its imports in stats', async () => {
+      fixture = await createSplitWithSiblingInitFixture()
+      const action = createStatsAction(program)
+
+      await action(fixture.mainPath, { output: 'json' })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      // The composed init notebook is counted alongside the main notebook (1 init + 2 main blocks).
+      expect(parsed.notebookCount).toBe(2)
+      expect(parsed.totalBlocks).toBe(3)
+      // The init notebook's `import math` is included in the imports list.
+      expect(parsed.imports).toContain('math')
     })
   })
 })

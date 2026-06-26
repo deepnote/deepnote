@@ -3,6 +3,7 @@ import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './dag'
+import { createSplitWithSiblingInitFixture } from './test-helpers'
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -418,6 +419,37 @@ describe('dag command', () => {
         const output = getOutput(consoleSpy)
         expect(output).toContain('Variables by Block')
       })
+    })
+  })
+
+  describe('sibling init resolution', () => {
+    let fixture: Awaited<ReturnType<typeof createSplitWithSiblingInitFixture>> | undefined
+
+    afterEach(async () => {
+      await fixture?.cleanup()
+      fixture = undefined
+    })
+
+    it('includes init-defined variables and the init→main edge in the DAG', async () => {
+      fixture = await createSplitWithSiblingInitFixture()
+      const action = createDagShowAction(program)
+
+      await action(fixture.mainPath, { output: 'json' })
+
+      const parsed = JSON.parse(getOutput(consoleSpy)) as {
+        nodes: Array<{ id: string; outputVariables: string[]; inputVariables: string[] }>
+        edges: Array<{ from: string; to: string; variables: string[] }>
+      }
+
+      // The init block (composed in from the sibling) defines init_value.
+      const initNode = parsed.nodes.find(n => n.id === 'init-b1')
+      expect(initNode).toBeDefined()
+      expect(initNode?.outputVariables).toContain('init_value')
+
+      // The main block uses init_value, so there must be an init→main edge carrying it.
+      const initToMain = parsed.edges.find(e => e.from === 'init-b1' && e.to === 'main-b1')
+      expect(initToMain).toBeDefined()
+      expect(initToMain?.variables).toContain('init_value')
     })
   })
 })

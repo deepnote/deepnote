@@ -5,10 +5,22 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { convertDeepnoteToJupyterNotebooks } from './deepnote-to-jupyter'
-import { convertJupyterNotebooksToDeepnote } from './jupyter-to-deepnote'
+import { convertJupyterNotebookToDeepnote } from './jupyter-to-deepnote'
 import type { JupyterNotebook } from './types/jupyter'
 
 const testFixturesDir = join(__dirname, '../../../test-fixtures')
+
+/**
+ * Reassembles a Deepnote project's notebooks from per-notebook Jupyter inputs.
+ * Conversion is now per-notebook, so each Jupyter notebook is converted on its
+ * own and its single resulting notebook is collected back into an array.
+ */
+function roundtripDeepnoteNotebooks(
+  jupyterNotebooks: ReturnType<typeof convertDeepnoteToJupyterNotebooks>,
+  projectName: string
+) {
+  return jupyterNotebooks.map(nb => convertJupyterNotebookToDeepnote(nb, { projectName }).project.notebooks[0])
+}
 
 describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
   it('preserves notebook content', async () => {
@@ -18,11 +30,9 @@ describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
 
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: original.project.name,
-    })
+    const roundtrippedNotebooks = roundtripDeepnoteNotebooks(jupyterNotebooks, original.project.name)
 
-    expect(roundtripped.project.notebooks).toEqual(original.project.notebooks)
+    expect(roundtrippedNotebooks).toEqual(original.project.notebooks)
   })
 
   it('preserves notebook IDs during roundtrip', async () => {
@@ -31,13 +41,11 @@ describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
     const original = deserializeDeepnoteFile(originalYaml)
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: original.project.name,
-    })
+    const roundtrippedNotebooks = roundtripDeepnoteNotebooks(jupyterNotebooks, original.project.name)
 
     // Notebook IDs should be preserved
     const originalIds = original.project.notebooks.map(n => n.id)
-    const roundtrippedIds = roundtripped.project.notebooks.map(n => n.id)
+    const roundtrippedIds = roundtrippedNotebooks.map(n => n.id)
 
     expect(roundtrippedIds).toEqual(originalIds)
   })
@@ -48,14 +56,12 @@ describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
     const original = deserializeDeepnoteFile(originalYaml)
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: original.project.name,
-    })
+    const roundtrippedNotebooks = roundtripDeepnoteNotebooks(jupyterNotebooks, original.project.name)
 
     // Compare block IDs and sorting keys for each notebook
     for (let i = 0; i < original.project.notebooks.length; i++) {
       const originalBlocks = original.project.notebooks[i].blocks
-      const roundtrippedBlocks = roundtripped.project.notebooks[i].blocks
+      const roundtrippedBlocks = roundtrippedNotebooks[i].blocks
 
       expect(roundtrippedBlocks.length).toBe(originalBlocks.length)
 
@@ -73,14 +79,12 @@ describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
     const original = deserializeDeepnoteFile(originalYaml)
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: original.project.name,
-    })
+    const roundtrippedNotebooks = roundtripDeepnoteNotebooks(jupyterNotebooks, original.project.name)
 
     // Compare block content for each notebook
     for (let i = 0; i < original.project.notebooks.length; i++) {
       const originalBlocks = original.project.notebooks[i].blocks
-      const roundtrippedBlocks = roundtripped.project.notebooks[i].blocks
+      const roundtrippedBlocks = roundtrippedNotebooks[i].blocks
 
       for (let j = 0; j < originalBlocks.length; j++) {
         expect(roundtrippedBlocks[j].content).toBe(originalBlocks[j].content)
@@ -95,13 +99,11 @@ describe('Deepnote → Jupyter → Deepnote roundtrip', () => {
     const original = deserializeDeepnoteFile(originalYaml)
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: original.project.name,
-    })
+    const roundtrippedNotebooks = roundtripDeepnoteNotebooks(jupyterNotebooks, original.project.name)
 
     for (let i = 0; i < original.project.notebooks.length; i++) {
       const originalNotebook = original.project.notebooks[i]
-      const roundtrippedNotebook = roundtripped.project.notebooks[i]
+      const roundtrippedNotebook = roundtrippedNotebooks[i]
 
       expect(roundtrippedNotebook.executionMode).toBe(originalNotebook.executionMode)
       expect(roundtrippedNotebook.isModule).toBe(originalNotebook.isModule)
@@ -116,9 +118,12 @@ describe('Platform-specific Jupyter notebook compatibility', () => {
     const originalJson = await fs.readFile(inputPath, 'utf-8')
     const original: JupyterNotebook = JSON.parse(originalJson)
 
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'colab-sample.ipynb', notebook: original }], {
-      projectName: 'Colab Test',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'colab-sample.ipynb', notebook: original },
+      {
+        projectName: 'Colab Test',
+      }
+    )
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
     const roundtripped = jupyterNotebooks[0].notebook
@@ -158,9 +163,12 @@ describe('Platform-specific Jupyter notebook compatibility', () => {
     const originalJson = await fs.readFile(inputPath, 'utf-8')
     const original: JupyterNotebook = JSON.parse(originalJson)
 
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'sagemaker-sample.ipynb', notebook: original }], {
-      projectName: 'SageMaker Test',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'sagemaker-sample.ipynb', notebook: original },
+      {
+        projectName: 'SageMaker Test',
+      }
+    )
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
     const roundtripped = jupyterNotebooks[0].notebook
@@ -190,9 +198,12 @@ describe('Platform-specific Jupyter notebook compatibility', () => {
     const originalJson = await fs.readFile(inputPath, 'utf-8')
     const original: JupyterNotebook = JSON.parse(originalJson)
 
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'kaggle-sample.ipynb', notebook: original }], {
-      projectName: 'Kaggle Test',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'kaggle-sample.ipynb', notebook: original },
+      {
+        projectName: 'Kaggle Test',
+      }
+    )
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
     const roundtripped = jupyterNotebooks[0].notebook
@@ -237,9 +248,12 @@ describe('Jupyter → Deepnote → Jupyter roundtrip', () => {
     const originalJson = await fs.readFile(inputPath, 'utf-8')
     const original: JupyterNotebook = JSON.parse(originalJson)
 
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'titanic-tutorial.ipynb', notebook: original }], {
-      projectName: 'Test Project',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'titanic-tutorial.ipynb', notebook: original },
+      {
+        projectName: 'Test Project',
+      }
+    )
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
     const roundtripped = jupyterNotebooks[0].notebook
@@ -256,9 +270,12 @@ describe('Jupyter → Deepnote → Jupyter roundtrip', () => {
     const originalJson = await fs.readFile(inputPath, 'utf-8')
     const original: JupyterNotebook = JSON.parse(originalJson)
 
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'titanic-tutorial.ipynb', notebook: original }], {
-      projectName: 'Test Project',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'titanic-tutorial.ipynb', notebook: original },
+      {
+        projectName: 'Test Project',
+      }
+    )
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
     const roundtripped = jupyterNotebooks[0].notebook
@@ -281,9 +298,12 @@ describe('Jupyter → Deepnote → Jupyter roundtrip', () => {
     const originalJson = await fs.readFile(inputPath, 'utf-8')
     const original: JupyterNotebook = JSON.parse(originalJson)
 
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'titanic-tutorial.ipynb', notebook: original }], {
-      projectName: 'Test Project',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'titanic-tutorial.ipynb', notebook: original },
+      {
+        projectName: 'Test Project',
+      }
+    )
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
     const roundtripped = jupyterNotebooks[0].notebook
@@ -311,9 +331,12 @@ describe('Jupyter → Deepnote → Jupyter roundtrip', () => {
     const originalJson = await fs.readFile(inputPath, 'utf-8')
     const original: JupyterNotebook = JSON.parse(originalJson)
 
-    const deepnote = convertJupyterNotebooksToDeepnote([{ filename: 'titanic-tutorial.ipynb', notebook: original }], {
-      projectName: 'Test Project',
-    })
+    const deepnote = convertJupyterNotebookToDeepnote(
+      { filename: 'titanic-tutorial.ipynb', notebook: original },
+      {
+        projectName: 'Test Project',
+      }
+    )
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(deepnote)
     const roundtripped = jupyterNotebooks[0].notebook
@@ -334,13 +357,11 @@ describe('Notebook-function blocks roundtrip', () => {
     const original = deserializeDeepnoteFile(originalYaml)
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: original.project.name,
-    })
+    const roundtrippedNotebooks = roundtripDeepnoteNotebooks(jupyterNotebooks, original.project.name)
 
     // Find the notebook-function block in the Dashboard notebook
     const originalDashboard = original.project.notebooks.find(n => n.name === 'Dashboard')
-    const roundtrippedDashboard = roundtripped.project.notebooks.find(n => n.name === 'Dashboard')
+    const roundtrippedDashboard = roundtrippedNotebooks.find(n => n.name === 'Dashboard')
 
     expect(originalDashboard).toBeDefined()
     expect(roundtrippedDashboard).toBeDefined()
@@ -424,7 +445,7 @@ describe('Snapshot fields roundtrip', () => {
     }
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+    const roundtripped = convertJupyterNotebookToDeepnote(jupyterNotebooks[0], {
       projectName: original.project.name,
     })
 
@@ -475,12 +496,10 @@ describe('Snapshot fields roundtrip', () => {
     }
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
-      projectName: original.project.name,
-    })
+    const roundtrippedNotebooks = roundtripDeepnoteNotebooks(jupyterNotebooks, original.project.name)
 
     const originalBlocks = original.project.notebooks[0].blocks
-    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+    const roundtrippedBlocks = roundtrippedNotebooks[0].blocks
 
     for (let i = 0; i < originalBlocks.length; i++) {
       const originalBlock = originalBlocks[i]
@@ -523,7 +542,7 @@ describe('Snapshot fields roundtrip', () => {
     }
 
     const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
-    const roundtripped = convertJupyterNotebooksToDeepnote(jupyterNotebooks, {
+    const roundtripped = convertJupyterNotebookToDeepnote(jupyterNotebooks[0], {
       projectName: original.project.name,
     })
 

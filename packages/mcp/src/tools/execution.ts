@@ -1,7 +1,14 @@
 import * as path from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { extractOutputsText } from '@deepnote/blocks'
-import { type LoadedRunnableFile, loadRunnableFile, saveExecutionSnapshot } from '@deepnote/convert'
+import {
+  InitNotebookResolutionError,
+  type LoadedRunnableFile,
+  LoadRunnableFileError,
+  loadRunnableFile,
+  resolveAndComposeInitIfNeeded,
+  saveExecutionSnapshot,
+} from '@deepnote/convert'
 import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
@@ -121,6 +128,25 @@ export const executionTools: Tool[] = [
   },
 ]
 
+/** Load and (when applicable) compose a sibling init notebook for a runnable file. */
+async function resolveRunnableWithInit(filePath: string): Promise<{
+  file: DeepnoteFile
+  originalPath: string
+  format: LoadedRunnableFile['format']
+  wasConverted: boolean
+  warnings: string[]
+}> {
+  const loaded = await loadRunnableFile(filePath)
+  const resolved = await resolveAndComposeInitIfNeeded(loaded)
+  return {
+    file: resolved.file,
+    originalPath: loaded.originalPath,
+    format: loaded.format,
+    wasConverted: loaded.wasConverted,
+    warnings: resolved.warnings,
+  }
+}
+
 async function handleRun(args: Record<string, unknown>) {
   const parsedArgs = runArgsSchema.safeParse(args)
   if (!parsedArgs.success) {
@@ -138,13 +164,20 @@ async function handleRun(args: Record<string, unknown>) {
   const includeOutputSummary = parsedArgs.data.includeOutputSummary !== false
   const compact = parsedArgs.data.compact
 
-  // Load file, auto-converting from other formats if needed
-  let convertedFile: LoadedRunnableFile
+  // Load file (auto-converting if needed) and compose sibling init for native .deepnote files.
+  let resolved: Awaited<ReturnType<typeof resolveRunnableWithInit>>
   try {
-    convertedFile = await loadRunnableFile(filePath)
+    resolved = await resolveRunnableWithInit(filePath)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const errorCode = getErrorCode(error)
+    let errorCode = getErrorCode(error)
+    if (errorCode === undefined) {
+      if (error instanceof InitNotebookResolutionError) {
+        errorCode = error.kind === 'multiple' ? 'INIT_NOTEBOOK_AMBIGUOUS' : 'INIT_NOTEBOOK_MISSING'
+      } else if (error instanceof LoadRunnableFileError) {
+        errorCode = 'LOAD_RUNNABLE_FILE'
+      }
+    }
     return {
       content: [
         {
@@ -163,7 +196,12 @@ async function handleRun(args: Record<string, unknown>) {
     }
   }
 
-  const { file, originalPath, format, wasConverted } = convertedFile
+  const { file, originalPath, format, wasConverted, warnings } = resolved
+
+  for (const warning of warnings) {
+    // biome-ignore lint/suspicious/noConsole: Intentional diagnostic logging to stderr
+    console.error(`[deepnote-mcp] ${warning}`)
+  }
 
   // If blockId is specified, run just that block with its dependencies
   if (blockIdFilter) {

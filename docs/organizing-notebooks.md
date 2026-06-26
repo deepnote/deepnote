@@ -20,7 +20,7 @@ A Deepnote project contains:
 - **Integrations** - Database and service connections available to all notebooks
 - **Project-wide resources** - Files, data, and configurations shared across notebooks
 
-> **Key Concept:** Unlike Jupyter where each notebook is a separate `.ipynb` file, Deepnote organizes multiple related notebooks into a single project for better structure and collaboration.
+> **Key Concept:** A Deepnote project groups related notebooks with shared settings and integrations. On disk, each notebook is stored as its own `.deepnote` file — a project is a directory of single-notebook files, not one combined file.
 
 ## Organization patterns
 

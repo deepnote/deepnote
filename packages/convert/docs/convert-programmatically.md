@@ -1,45 +1,49 @@
 # Converting Jupyter notebooks programmatically
 
-You can use the conversion function programmatically in Node.js or TypeScript applications.
+You can use the conversion function programmatically in Node.js or TypeScript applications. Each call converts one `.ipynb` file into one single-notebook `.deepnote` file.
 
 ## Basic example
 
 ```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
+import { convertIpynbFileToDeepnoteFile } from "@deepnote/convert";
 
-await convertIpynbFilesToDeepnoteFile(["path/to/notebook.ipynb"], {
-  outputPath: "output.deepnote",
+await convertIpynbFileToDeepnoteFile("path/to/notebook.ipynb", {
+  outputPath: "notebook.deepnote",
   projectName: "My Project",
 });
 ```
 
-## Convert multiple notebooks
+## Convert several notebooks
+
+Convert each notebook to its own `.deepnote` file. Pass a shared `projectId` so the resulting files belong to the same project:
 
 ```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
+import { randomUUID } from "node:crypto";
+import { convertIpynbFileToDeepnoteFile } from "@deepnote/convert";
 
-// Convert multiple notebooks into a single project
-await convertIpynbFilesToDeepnoteFile(
-  [
-    "notebooks/data-cleaning.ipynb",
-    "notebooks/analysis.ipynb",
-    "notebooks/visualization.ipynb",
-  ],
-  {
-    outputPath: "projects/data-pipeline.deepnote",
+const projectId = randomUUID();
+
+for (const file of [
+  "data-cleaning.ipynb",
+  "analysis.ipynb",
+  "visualization.ipynb",
+]) {
+  await convertIpynbFileToDeepnoteFile(`notebooks/${file}`, {
+    outputPath: `projects/${file.replace(/\.ipynb$/, ".deepnote")}`,
     projectName: "Data Pipeline",
-  },
-);
+    projectId,
+  });
+}
 ```
 
 ## With error handling
 
 ```typescript
-import { convertIpynbFilesToDeepnoteFile } from "@deepnote/convert";
+import { convertIpynbFileToDeepnoteFile } from "@deepnote/convert";
 
 try {
-  await convertIpynbFilesToDeepnoteFile(["notebook.ipynb"], {
-    outputPath: "output.deepnote",
+  await convertIpynbFileToDeepnoteFile("notebook.ipynb", {
+    outputPath: "notebook.deepnote",
     projectName: "My Analysis",
   });
   console.log("Conversion successful!");
@@ -50,16 +54,17 @@ try {
 
 ## API reference
 
-### `convertIpynbFilesToDeepnoteFile(inputFilePaths, options)`
+### `convertIpynbFileToDeepnoteFile(inputFilePath, options)`
 
-Converts Jupyter Notebook files to a Deepnote project file.
+Converts a Jupyter Notebook file into a single-notebook Deepnote file.
 
 **Parameters:**
 
-- `inputFilePaths` (string[]): Array of paths to `.ipynb` files to convert
-- `options` (ConvertIpynbFilesToDeepnoteFileOptions):
+- `inputFilePath` (string): Path to the `.ipynb` file to convert
+- `options` (ConvertIpynbFileToDeepnoteFileOptions):
   - `outputPath` (string): Path where the `.deepnote` file will be saved
   - `projectName` (string): Name for the Deepnote project
+  - `projectId` (string, optional): Project id to assign (defaults to a fresh UUID)
 
 **Returns:** Promise<void>
 
