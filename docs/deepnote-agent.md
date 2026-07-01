@@ -9,7 +9,7 @@ We’re introducing **Deepnote Agent**, the next evolution of AI collaborators f
 
 Agent interprets your intent, creates a clear plan, and executes it step by step. It can **create**, **edit**, and **remove** SQL, Python, or text blocks — anywhere in your notebook — while staying fully aware of the project context.
 <Callout status="info">
-Deepnote Agent is in Beta on **Pro, Team and Enterprise** plans. We’re actively refining it and adding new capabilities.
+Deepnote Agent is available on **Pro, Team and Enterprise** plans.
 </Callout>
 
 <Embed url='https://www.loom.com/share/ecdb03ba6ae34a10acc2f23e1383c441?sid=ed3de2f5-746b-4fa7-a62f-29132b351796'/>
@@ -34,6 +34,8 @@ Agent has two main modes:
 
 In Edit mode, you can request anything from straightforward edits (adding analysis, fixing a SQL query, editing code) to large, notebook-wide changes (refactoring variables, cleaning up blocks, fixing multiple errors, or adding documentation).
 
+You can choose which model powers Agent — pick a specific provider and model or select **Automatic** to let Deepnote decide. Agent can also use your connected [Deepnote MCP](/docs/deepnote-mcp) integrations to work with your databases and tools, and it has access to Deepnote's documentation.
+
 <VideoLoop src="../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetyt3d7xbfk07k60puolljn.mp4" />
 
 No matter the scope, Agent always:
@@ -50,9 +52,9 @@ When a run finishes, you’ll see a **summary of changes** with a **before-and-a
 
 ### Leaving feedback
 
-Deepnote Agent is in Beta, and we’re improving it continuously. New functionality will be added throughout the Beta period, so stay tuned for updates.
+We’re improving Deepnote Agent continuously, and new functionality is added regularly, so stay tuned for updates.
 
-We’d love your feedback as we shape the full release:
+We’d love your feedback as we keep improving Agent:
 
 - If you **downvote an AI response**, a pop-up will open where you can add comments and share feedback directly with the team.
 - We’ll also share a **short survey** with the most active participants — your insights will help us prioritize improvements.

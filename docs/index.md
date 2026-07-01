@@ -1,6 +1,6 @@
 ---
 title: Welcome to Deepnote
-description: Deepnote revolutionizes the way your team work with data, combining Python, SQL, and no-code analysis, natively connecting to over 50 data sources. Enhanced by GPT-4, it offers code generation, editing, explanation, auto-completion, and ability to convert your notebooks into dynamic data apps and dashboards instantly.
+description: Deepnote revolutionizes the way your team work with data, combining Python, SQL, and no-code analysis, natively connecting to over 50 data sources. Powered by multi-provider AI (Anthropic Claude and OpenAI GPT families) with a model selector, it offers code generation, editing, explanation, auto-completion, and ability to convert your notebooks into dynamic data apps and dashboards instantly.
 noIndex: false
 noContent: false
 ---
@@ -29,9 +29,11 @@ Explainable and transparent AI assistant — Deepnote has a deep understanding 
 
 ![AI.png](../assets/docs/GXT55Lu8RKuMoFygbDPN.webp)
 
-- [**Speak naturally, code flawlessly:**](https://deepnote.com/docs/deepnote-ai) Picture this: you ask your data questions just like you'd chat with a colleague, and watch as the code materializes. Deepnote AI goes beyond writing code—it explains and corrects it, enabling your team to achieve wonders, even those new to coding.
+- [**Speak naturally, code flawlessly:**](https://deepnote.com/docs/deepnote-ai) Picture this: you ask your data questions just like you'd chat with a colleague, and watch as the code materializes. Deepnote AI goes beyond writing code—it explains and corrects it, enabling your team to achieve wonders, even those new to coding. Deepnote AI is multi-provider (Anthropic Claude and OpenAI GPT families), letting you pick a model or use the Automatic option.
 
 - [**AI Code completion:**](https://deepnote.com/docs/ai-code-completion) Context-aware suggestions as you type, reducing repetition and accelerating your projects.
+
+- [**Deepnote Agent:**](https://deepnote.com/docs/deepnote-agent) A sidebar chat agent that can create and edit blocks, run code, and inspect outputs, with access to your Deepnote MCP integrations.
 
 ### 3. From notebooks to data apps in seconds
 

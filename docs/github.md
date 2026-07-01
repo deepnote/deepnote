@@ -62,9 +62,12 @@ Alternatively, it is also possible to clone a public repository via a [terminal]
 There are multiple actions you can execute on the connected GitHub repository in the UI. To see them in action, you can view the video at the beginning on this page.
 
 - Changing the current branch. Just click on the dropdown with list of the branches and select a branch!
-- Pulling the current branch from the remote
+- Pulling the current branch from the remote. If you have uncommitted local changes, Deepnote automatically stashes them before pulling so the operation can proceed.
 - Commit & Push to the remote (this will trigger a modal that will allow you to specify the commit message)
+- Resolving merge conflicts. If a pull or commit results in conflicting changes, Deepnote guides you through resolving the conflicts before continuing.
 - Re-Clone - this will clone the repository from scratch into the same directory. Watch out, you might loose your local changes!
+
+Deepnote also supports **Git sync**, which automatically keeps a project and its connected repository synchronized, so changes are propagated between Deepnote and the repository without having to commit and pull manually.
 
 <Callout status="info">
 Keep in mind that you can execute any git command within the repository - just open a terminal, navigate to the repository and execute any `git xxx` command. Your Git commands will be augmented with access token automatically.

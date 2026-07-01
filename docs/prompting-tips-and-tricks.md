@@ -7,7 +7,7 @@ noContent: false
 
 # Fundamentals of effective prompting
 
-Deepnote AI is powered by OpenAI’s latest models. Here are a few general tips on how to improve your prompts for better results.
+Deepnote AI is powered by leading models from providers such as Anthropic (Claude) and OpenAI (GPT), and you can pick which model to use. Here are a few general tips on how to improve your prompts for better results.
 
 ### Be specific and include details
 

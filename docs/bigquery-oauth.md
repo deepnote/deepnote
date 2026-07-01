@@ -54,5 +54,5 @@ When you create an app from a notebook that uses the integration, every app user
 
 <Callout status="info">
 - User authentication is also required to browse the BigQuery schema.
-- Scheduling a project with a BigQuery OAuth integration connected is not supported, since it requires an interactive authentication flow. To use scheduling, create a BigQuery integration with [service account authentication.](google-bigquery#authenticating-with-a-service-account)
+- Scheduled notebooks can use a BigQuery OAuth integration: scheduled runs authenticate with the OAuth tokens of the user who set up the schedule. Because those tokens can expire or be revoked, scheduled runs may fail unexpectedly — for reliable scheduling, use [service account authentication](google-bigquery#authenticating-with-a-service-account) instead.
 </Callout>

@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-Chart blocks allow you to create charts from Pandas DataFrames without using code. They are perfect for fast exploratory analysis, or for those who are not familiar with how to make charts using Python code.
+Chart blocks allow you to create charts from pandas, Polars, and PySpark DataFrames without using code. They are perfect for fast exploratory analysis, or for those who are not familiar with how to make charts using Python code.
 
 To get started, you can watch our quick demo on chart block configuration.
 
@@ -182,5 +182,7 @@ However, we apply a limit of 5,000 data points post-aggregations. In cases when 
 For example, imagine you're preparing a yearly sales report. You have DataFrames with all orders from last year, it contains 1,000,000 orders (sales were good last year!), and you want to chart the number of sales per each month. In this case your whole dataset will be aggregated to just 12 data points, and Deepnote will happily chart that for you.
 
 In the next chart, you might want to show the correlation between customer age and how much they spent last year. You have a DataFrame with 50,000 users and their spendings last year, and you intend to use a scatterplot to showcase this data. Since there is no aggregation, this will produce a chart with 50,000 data points. Rendering this many data points can cause browser performance issues and make the chart hard to use. So Deepnote will render only the first 5,000 data points to avoid this.
+
+When charting a PySpark DataFrame, aggregations run across your full Spark cluster with no sampling, so the resulting chart reflects the entire dataset rather than a preview.
 
 Don't really want all those dimensions, measures, series? Just want to show important metrics in your app? Check out our [Big number](big-number-blocks) block! It looks excellent on dashboards.

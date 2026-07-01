@@ -19,6 +19,8 @@ You can also add text blocks by clicking on the **Text** button at the bottom of
 
 💡 Pro tip: paragraph blocks can be easily converted into other block types by using Markdown-style shortcuts. Typing ‘-’ or ‘1.’ and pressing Space at the beginning of your paragraph will create a bulleted or numbered list. Other similar shortcuts include ‘#’ for heading; ‘|’ for callout; and ‘[ ]' for to-do blocks.
 
+You can build nested bulleted lists by indenting and dedenting list items — press Tab to indent an item and Shift+Tab to dedent it. Heading blocks can also be collapsed to fold away the blocks nested beneath them, which makes it easy to hide sections of a long notebook.
+
 ### Text formatting
 
 Once you added a text block, you can apply formatting to the text via the formatting toolbar. Just highlight a piece of text and select from various styling options such as **bold**, *italic*, underline, ~~strikethrough~~, and `code`. You can add a hyperlink by clicking on the link button.

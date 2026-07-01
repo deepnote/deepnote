@@ -7,7 +7,7 @@ noContent: false
 
 <Embed url='https://www.loom.com/share/0538c44bf30a4098979f0fc31d1958ba'/>
 
-Our Data table isn’t a separate block type, but a part of SQL and Code blocks used to display DataFrame contents.
+Our Data table isn’t a separate block type, but a part of SQL and Code blocks used to display DataFrame contents (including both pandas and Polars DataFrames).
 
 The data table interface provides powerful tools to explore, analyze, and present your data. Through intuitive controls for sorting, filtering, cell formatting, and column customization, you can make your data easier to understand and highlight important bits.
 

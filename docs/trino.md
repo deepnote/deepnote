@@ -6,7 +6,7 @@ coverImage: oHI8e65YQrGA3bwlC6Jj
 ---
 
 <Callout status="info">
-Available on Enterprise plan
+Available on Team and Enterprise plans
 </Callout>
 
 With the Trino integration, you can leverage the capabilities of Deepnote's SQL blocks to query your Trino instances at ludicrous speed..
@@ -24,6 +24,8 @@ To create the integration, you'll need a few things:
 - **Username**: Your username.
 - **Password**: The password for the specified username.
 - **Database**: The name of the database or catalog you would like to connect to.
+
+In addition to username and password, the Trino integration supports **OAuth 2.0 authentication**. A single integration can query **multiple catalogs**, automatically detects **partition columns**, and lets you attach **client tags** to your queries.
 
 ### How to use
 

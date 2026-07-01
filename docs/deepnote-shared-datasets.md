@@ -13,6 +13,10 @@ When you don't have a bucket of your own (or your files are too large for the in
 Available on Team and Enterprise plans
 </Callout>
 
+<Callout status="warning">
+Creating new shared datasets integrations is no longer supported. Existing shared datasets continue to work as usual, but new ones can't be created.
+</Callout>
+
 ## How to use the shared datasets integration
 
 From the right-hand panel, under **Integrations**, click the **+** button and choose **Create new integration**. Select **Upload large files or datasets**.

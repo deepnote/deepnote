@@ -27,3 +27,4 @@ When you cancel your subscription or downgrade your plan, you will lose access t
 1. **Static IPs.** You will no longer be able to connect to Deepnote via these static IPs.
 1. **Additional machines.** All workspace projects will revert to using the default machine. Any additional machine hours that you haven’t paid for yet will be charged.
 1. **Hardware shutdown time.** All projects will revert to a 15-minute hardware shutdown time.
+1. **AI usage.** Your workspace will revert to the Free plan's AI limits, which include a reduced number of AI requests per month.

@@ -31,6 +31,14 @@ If an exception is raised during the run, the run is considered failed; otherwis
 
 ![Scheduling versions.jpg](../assets/docs/5NYCPGefRZScMa2R0l8S.jpg)
 
+<Callout status="info">
+Schedules that fail repeatedly are automatically paused to avoid wasting compute on runs that keep erroring. You can review and re-enable a paused schedule from the scheduling settings.
+</Callout>
+
+### Federated authentication
+
+Scheduled notebooks can use integrations that rely on federated (OAuth) authentication, such as Snowflake and BigQuery OAuth. Scheduled runs authenticate using the OAuth tokens of the user who set up the schedule. Because those tokens can expire or be revoked, scheduled runs may fail unexpectedly — for reliable, unattended execution we recommend using service account (BigQuery) or username-and-password (Snowflake) authentication instead.
+
 ### Alerts
 
 You can use the scheduled notebook to periodically check the consistency of your data and use the notification system to alert you when the notebook fails (i.e. the consistency check fails).

@@ -32,6 +32,10 @@ You can downgrade or cancel your plan from the Plans page in your workspace sett
 If you remove a paid seat, we won’t issue a prorated refund. However, someone else at your company can use their paid seat when it becomes available.
 If you are on a monthly plan and downgrade or cancel your subscription, we will refund you a prorated amount for any unused days of the month. Annual plans are not eligible for refunds upon downgrade or cancellation.
 
+###### **How is AI usage billed?**
+
+Deepnote AI usage is billed on a usage basis. Each plan includes a monthly AI quota, and usage beyond the quota is billed as pay-as-you-go. Workspace admins can set a custom monthly overage limit to cap spending, and receive quota-related emails as usage approaches or exceeds the included allowance. Admins can also review detailed AI usage — token consumption and cost per user and across the workspace — in the workspace settings. Note that the Free plan includes a limited number of AI requests per month.
+
 ###### **Do you offer any plans or discounts for schools and NGOs?**
 
 Members of educational institutions, such as students, teachers, and researchers, are all eligible for our Education plan. The Education plan has almost all the same features of the Team plan, except that it’s completely free! To find out more about the Education plan, visit our website and sign up with your educational email.

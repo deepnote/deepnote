@@ -40,6 +40,8 @@ You can see actions done by all collaborators and significant system events.
 
 If an action log is associated with a specific notebook, you can click on the action and you will be focused on the notebook where the change was made.
 
+Deepnote also keeps a [run snapshot](/docs/run-snapshots) after every run — an immutable, read-only view of the notebook as it was executed. You can open these snapshots from the version history.
+
 ### Filesystem snapshots (deprecated)
 
 Deepnote no longer versions the rest of the files in your project. If you were relying on this feature and need to restore some project files, please reach out to Deepnote's support.
