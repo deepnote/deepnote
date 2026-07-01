@@ -1,7 +1,7 @@
 import { dedent } from 'ts-dedent'
 
 import type { DeepnoteBlock, NotebookFunctionBlock } from '../deepnote-file/deepnote-file-schema'
-import { escapePythonString } from './python-utils'
+import { escapePythonString, sanitizePythonVariableName } from './python-utils'
 
 export function isNotebookFunctionBlock(block: DeepnoteBlock): block is NotebookFunctionBlock {
   return block.type === 'notebook-function'
@@ -64,7 +64,7 @@ export function createPythonCodeForNotebookFunctionBlock(block: NotebookFunction
   }
 
   if (enabledExports.length === 1) {
-    const variableName = enabledExports[0][1]?.variable_name
+    const variableName = sanitizePythonVariableName(enabledExports[0][1]?.variable_name ?? '')
 
     return dedent`
       # Notebook Function: ${notebookId}
@@ -75,7 +75,9 @@ export function createPythonCodeForNotebookFunctionBlock(block: NotebookFunction
   }
 
   // Multiple exports: use tuple unpacking
-  const variableNames = enabledExports.map(([, mapping]) => mapping.variable_name).join(', ')
+  const variableNames = enabledExports
+    .map(([, mapping]) => sanitizePythonVariableName(mapping.variable_name ?? ''))
+    .join(', ')
 
   return dedent`
     # Notebook Function: ${notebookId}
