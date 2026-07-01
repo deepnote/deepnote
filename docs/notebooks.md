@@ -18,6 +18,9 @@ Notebooks are made up of a series of blocks. Each major type of content or actio
 - [Text blocks](https://deepnote.com/docs/text-editing) allow you to compose richly formatted text.
 - [Chart blocks](https://deepnote.com/docs/chart-blocks) provide you with a point-and-click charting tool for efficient data visualizations.
 - [Input blocks](https://deepnote.com/docs/input-blocks) are interactive widgets that capture user inputs and pass them as variables to your Python code and SQL queries.
+- [Big number blocks](https://deepnote.com/docs/big-number-blocks) highlight a single key metric front and center in your dashboards and apps.
+- Pivot table blocks let you summarize and cross-tabulate your data without writing code.
+- Agent blocks run an AI agent step inside your notebook and can use your connected MCP integrations.
 
 Blocks can easily be added to your notebook via the **add block** (**+**) menu or by selecting a block category from the bottom of your notebook.
 
@@ -35,7 +38,7 @@ In order to see output from your code, you need to execute the corresponding blo
 
 ### Exploring helpful block operations
 
-You can access a set of standard block operations in the block's sidebar menu. Besides executing them, you can also comment, share, and delete blocks. Even more options are available in the **block actions** menu, including duplicating or moving blocks up and down. Options can be specific to the given block type, so it’s always worth exploring this menu.
+You can access a set of standard block operations in the block's sidebar menu. Besides executing them, you can also comment, share, and delete blocks. Even more options are available in the **block actions** menu, including duplicating or moving blocks up and down. You can also reorder blocks by dragging the handle on the left-hand side of a block. Options can be specific to the given block type, so it’s always worth exploring this menu.
 
 ![Block_Menu.jpg](../assets/docs/5QwWAyZPQgiqqFdgLgtY.jpg)
 

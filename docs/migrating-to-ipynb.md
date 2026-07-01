@@ -32,9 +32,15 @@ The primary way to convert Deepnote projects to Jupyter format is through the De
 
 This method handles the conversion automatically and ensures compatibility with standard Jupyter notebooks.
 
-### Note about @deepnote/convert package
+### Convert with the @deepnote/convert CLI
 
-The `@deepnote/convert` package converts **from** `.ipynb` **to** `.deepnote` format only (see [Converting to Deepnote format](https://deepnote.com/docs/converting-notebooks)). It does not currently support the reverse conversion (`.deepnote` to `.ipynb`).
+The `@deepnote/convert` package converts in **both directions** (see [Converting notebooks](https://deepnote.com/docs/converting-notebooks)). To convert a `.deepnote` file to a Jupyter notebook, run:
+
+```bash
+deepnote-convert project.deepnote --outputFormat jupyter
+```
+
+`jupyter` is the default output format, so `--outputFormat` can be omitted. The CLI can also convert `.deepnote` files to Percent (`.py`), Quarto (`.qmd`), and Marimo (`.py`) formats.
 
 ### Programmatic conversion with @deepnote/blocks
 

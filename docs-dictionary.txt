@@ -309,3 +309,11 @@ Homa
 foodpanda
 Shippit
 Webflow
+
+# Notebook formats & libraries (docs refresh)
+Polars
+polars
+Quarto
+quarto
+reticulate
+dedent

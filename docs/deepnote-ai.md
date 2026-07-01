@@ -7,19 +7,21 @@ noContent: false
 
 Deepnote AI is designed to make your data work more efficient and productive. Ask questions in plain language, and Deepnote AI will craft or revise code according to your instructions. It can also provide concise explanations for complex pieces of code, enhancing your understanding. Whether you’re a Python pro or a coding beginner, Deepnote AI assists you every step of the way to gain the insights you need.
 
+Deepnote AI is multi-provider. You can choose from a range of models — including Anthropic's Claude and OpenAI's GPT families — using the model selector, or select **Automatic** to let Deepnote pick the best model for your task.
+
 <Callout status="info">
 Deepnote AI is available on **Pro**, **Team** and **Enterprise** plans.
 </Callout>
 
 <Callout status="warning">
-Deepnote AI utilizes generative AI technology (powered by providers such as OpenAI) to provide answers based on your instructions and offer code completion suggestions. The generated outputs such as code and text can include errors, biases and inaccuracies. Please always review code before running it.
+Deepnote AI utilizes generative AI technology (powered by providers such as Anthropic and OpenAI) to provide answers based on your instructions and offer code completion suggestions. The generated outputs such as code and text can include errors, biases and inaccuracies. Please always review code before running it.
 </Callout>
 
 ## Enabling Deepnote AI
 
 To make use of Deepnote AI, you must enable this feature in your workspace. Navigate to **Settings & Members** and click on **AI**. With Deepnote AI turned on, every editor and admin user in your workspace will gain access to features like code generation, editing, and explanation.
 
-<Callout status="info">Deepnote AI utilizes third-party providers (such as OpenAI) to process the content of your notebook. Refer to our [Data Privacy](/docs/ai-data-privacy) section for more information about data usage.</Callout>
+<Callout status="info">Deepnote AI utilizes third-party providers (such as Anthropic and OpenAI) to process the content of your notebook. Refer to our [Data Privacy](/docs/ai-data-privacy) section for more information about data usage.</Callout>
 
 ![deepnote ai main settings.png](../assets/docs/kkhgsstdTiSqqTyIyJT2.webp)
 

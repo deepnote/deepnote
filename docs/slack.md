@@ -29,6 +29,10 @@ Note that by default you will only see public channels of your workspace. If you
 
 If you wish to remove the auth pairing of your Slack and Deepnote workspaces, you can do it either from the Slack app directory, or you can navigate to **Settings & members** -> **Project settings** in your Deepnote workspace, and deselect the Slack notifications toggle.
 
+## Deepnote AI agent in Slack
+
+In addition to run notifications, Deepnote offers an AI agent in Slack. Once your Slack identity is linked to your Deepnote workspace, you can @-mention the agent to ask questions and have it search across your notebooks, bringing Deepnote AI into your Slack conversations.
+
 If you have trouble using our application for Slack - contact our support by sending an email to [help@deepnote.com](mailto:help@deepnote.com).
 
 To learn more about how our app for Slack will collect, manage, and store third-party data refer to our [privacy policy](https://deepnote.com/privacy).

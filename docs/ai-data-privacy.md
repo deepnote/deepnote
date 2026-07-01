@@ -7,13 +7,13 @@ noContent: false
 
 ### How is your data processed?
 
-Deepnote AI processes the content and metadata of the notebook via its partner LLM providers (such as OpenAI). This data can include **code**, **text**, **metadata of variables** (column names) within the notebook and your **database schema** for [SQL AI](https://deepnote.com/docs/sql-generation).
+Deepnote AI processes the content and metadata of the notebook via its partner LLM providers (such as Anthropic and OpenAI). This data can include **code**, **text**, **metadata of variables** (column names) within the notebook and your **database schema** for [SQL AI](https://deepnote.com/docs/sql-generation).
 
 <Callout status="info">The processed content is **not used for model-training purposes** (your code cannot leak into suggestions displayed for other companies).</Callout>
 
 ### What about outputs?
 
-You have the option to control whether you would like to share the **outputs of block executions** with OpenAI. If you turn on the '**Provide access to block outputs**' switch, Deepnote AI will be able to read the outputs in your notebook, greatly enhancing the relevance of its suggestions.
+You have the option to control whether you would like to share the **outputs of block executions** with the LLM provider. If you turn on the '**Provide access to block outputs**' switch, Deepnote AI will be able to read the outputs in your notebook, greatly enhancing the relevance of its suggestions.
 
 ![deepnote ai outputs setting.png](../assets/docs/oSvfKdSTVu52VR599r9w.webp)
 
@@ -21,7 +21,7 @@ You have the option to control whether you would like to share the **outputs of 
 
 ### Where is your data stored?
 
-The context sent can be processed in the US and worldwide. OpenAI may keep the context data for up to 30 days for safety monitoring purposes, after which it's automatically deleted. See more details [here](https://openai.com/policies/api-data-usage-policies).
+The context sent can be processed in the US and worldwide. For example, OpenAI may keep the context data for up to 30 days for safety monitoring purposes, after which it's automatically deleted. See more details [here](https://openai.com/policies/api-data-usage-policies).
 For certain providers, data processed for real-time code suggestions is not stored at all under zero-retention agreements.
 
 ### Working on sensitive projects?

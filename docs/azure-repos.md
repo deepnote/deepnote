@@ -6,8 +6,7 @@ noContent: false
 
 It is possible to import existing code or notebooks from an Azure Repos git repository to Deepnote and sync your code back to the repository. While there is no built-in integration for Azure Repos yet, setting up and using Azure Repos in Deepnote is already fairly straightforward.
 
-<Callout status="info">If you require a full Azure Repos integration to use Deepnote, please let us know!
-If you require a full Bitbucket integration to use Deepnote, please let us know by [submitting your request](https://portal.productboard.com/deepnote/1-deepnote-product-portal/tabs/1-under-consideration/submit-idea), or contact us directly. We are happy to help!</Callout>
+<Callout status="info">If you require a full Azure Repos integration to use Deepnote, please let us know by [submitting your request](https://portal.productboard.com/deepnote/1-deepnote-product-portal/tabs/1-under-consideration/submit-idea), or contact us directly. We are happy to help!</Callout>
 
 ## How to set it up
 

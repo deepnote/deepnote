@@ -143,7 +143,7 @@ When you create an app from a notebook that uses the integration, every app user
 
 <Callout status="info">
 - User authentication is also required to browse the Snowflake schema.
-- Scheduling a project with this authentication method is not supported since it requires an interactive authentication flow. To use scheduling, create a Snowflake integration with username and password as the authentication method.
+- Scheduled notebooks can use this authentication method: scheduled runs authenticate with the OAuth tokens of the user who set up the schedule. Because those tokens can expire or be revoked, scheduled runs may fail unexpectedly — for reliable scheduling, create a Snowflake integration with username and password as the authentication method instead.
 </Callout>
 
 ### Using user's custom attribute as a role
