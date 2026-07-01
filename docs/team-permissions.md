@@ -21,8 +21,13 @@ Workspace members can be given the following levels of access:
     Note that Viewers can Duplicate a project to another workspace and request additional access from the team's owner. Custom environments and integrations are not preserved when duplicating a project to another workspace.
 - **Editor**: Editors can create and edit workspace projects. Members can also connect or disconnect integrations from projects, but they can't edit or create them.
 - **Admin:** Admins have all access rights. In addition, they have permission to manage workspace members and integrations.
+- **Restricted user:** A limited workspace role with a reduced set of permissions, used to give members access to the workspace without full Editor or Viewer rights.
 
 Additionally, users who do not have a role in the workspace, but are invited to individual projects will show up as **Guests**.
+
+### Default project permission
+
+Workspace Admins can set the **default project permission** in the workspace settings. This controls the access level workspace members receive on newly created projects.
 
 ### User groups
 

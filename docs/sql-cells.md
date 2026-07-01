@@ -20,7 +20,7 @@ To get started:
 ![SQL selecting a data source](../assets/docs/QjvPRVWRBiZ1RhpZr0fS.webp)
 
 <Callout status="info">
-SQL blocks only work within Python notebooks
+SQL blocks work in Python notebooks, as well as in R notebooks (where they run via reticulate).
 </Callout>
 
 ![SQL block](../assets/docs/3KbKnkM0Tk2vJprDHtbX.webp)

@@ -51,23 +51,35 @@ Explore integrations by category and dive deeper into any of the listed integrat
 - [Supabase](/docs/supabase)
 - [ClickHouse](/docs/clickhouse)
 - [SQL Server (Azure SQL)](/docs/sql-server)
+- [Google AlloyDB](/docs/google-alloydb)
+- [Google Cloud SQL](/docs/google-cloud-sql)
+- [Google Spanner](/docs/google-spanner)
 
 #### Data warehouses
 
 - [AWS Redshift](/docs/redshift)
 - [Google BigQuery](/docs/google-bigquery)
 - [Snowflake](/docs/snowflake/)
+- [Snowpark](/docs/snowpark)
+- [Databricks](/docs/databricks)
+- [Trino](/docs/trino)
+- [Dremio](/docs/dremio)
+- [Materialize](/docs/materialize)
+- [InfluxDB](/docs/influxdb)
+- [Spark](/docs/spark)
 
 #### Object storage & querying services
 
 - [Amazon S3](/docs/amazon-s3)
 - [Amazon Athena](/docs/amazon-athena)
 - [Google Cloud Storage](/docs/google-cloud-storage)
+- [Azure Blob Storage](/docs/azure-blob-storage)
 
 #### Drive storage services
 
 - [Google Drive](/docs/google-drive)
 - [Dropbox](/docs/dropbox)
+- [OneDrive](/docs/onedrive)
 
 #### Container registries
 
@@ -78,6 +90,14 @@ Explore integrations by category and dive deeper into any of the listed integrat
 #### Version control
 
 - [GitHub](/docs/github)
+- [GitLab](/docs/gitlab)
+- [Bitbucket](/docs/bitbucket)
+- [Azure Repos](/docs/azure-repos)
+
+#### Productivity
+
+- [Airtable](/docs/airtable)
+- [Notion](/docs/notion)
 
 #### Deepnote utilities
 

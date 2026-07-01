@@ -1,20 +1,20 @@
 ---
-title: Converting Jupyter notebooks to Deepnote format
-description: Learn how to convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`) using the `@deepnote/convert` tool.
+title: Converting notebooks to and from Deepnote format
+description: Learn how to convert between Deepnote project files (`.deepnote`) and other notebook formats — Jupyter (`.ipynb`), Quarto (`.qmd`), Percent (`.py`), and Marimo (`.py`) — using the `@deepnote/convert` tool.
 noIndex: false
 noContent: false
 ---
 
-# How to convert Jupyter notebooks to Deepnote format
+# How to convert notebooks to and from Deepnote format
 
-This guide explains how to convert Jupyter Notebook files (`.ipynb`) to Deepnote project files (`.deepnote`) using the `@deepnote/convert` tool and how to convert Deepnote projects back to Jupyter notebooks via [deepnote.com](https://deepnote.com).
+This guide explains how to convert between Deepnote project files (`.deepnote`) and other notebook formats using the `@deepnote/convert` tool. The tool converts **in both directions**: it turns Jupyter (`.ipynb`), Quarto (`.qmd`), Percent (`.py`), and Marimo (`.py`) notebooks into `.deepnote` files, and it converts `.deepnote` files back into any of those formats. When converting to Deepnote format, the input format is detected automatically from the file.
 
-The `@deepnote/convert` package provides a command-line tool and programmatic API for converting between Jupyter notebooks and Deepnote's open-source format. This allows you to:
+The `@deepnote/convert` package provides a command-line tool and programmatic API for converting between these formats and Deepnote's open-source format. This allows you to:
 
-- Migrate existing Jupyter notebooks to Deepnote format
+- Migrate existing notebooks (Jupyter, Quarto, Percent, or Marimo) to Deepnote format
+- Convert `.deepnote` files back to Jupyter, Percent, Quarto, or Marimo
 - Convert single notebooks or entire directories
 - Preserve code, markdown, outputs, and execution counts
-- Convert Deepnote projects back to Jupyter notebooks via [deepnote.com](https://deepnote.com)
 - Convert [ipynb files to PDF](https://deepnote.com/ipynb-to-pdf) when you need a static, shareable document rather than an editable notebook
 
 ## How to install [@deepnote/convert](https://www.npmjs.com/package/@deepnote/convert)
@@ -52,7 +52,7 @@ Option 2: Open in your IDE
 
 ## CLI usage
 
-The package provides a `deepnote-convert` command-line tool for converting notebooks.
+The package provides a `deepnote-convert` command-line tool for converting notebooks. Pass any supported file as the `<path>` argument — the tool detects the input format automatically (`.ipynb`, `.qmd`, or a `.py` file in Percent or Marimo format) and produces a `.deepnote` file. Pass a `.deepnote` file to convert in the reverse direction (see [Converting .deepnote to other formats](#converting-deepnote-to-other-formats)).
 
 ### Convert a single notebook
 
@@ -62,7 +62,7 @@ Convert a single `.ipynb` file to a `.deepnote` file:
 deepnote-convert path/to/notebook.ipynb
 ```
 
-This creates a `notebook.deepnote` file in the current directory containing a single-notebook project.
+This creates a `notebook.deepnote` file in the current directory containing a single-notebook project. Quarto (`.qmd`), Percent (`.py`), and Marimo (`.py`) files are converted the same way — just pass the file path.
 
 **Example:**
 
@@ -73,7 +73,7 @@ deepnote-convert analysis.ipynb
 
 ### Convert a directory of notebooks
 
-Convert every `.ipynb` file in a directory, each to its own single-notebook `.deepnote` file:
+Convert every supported notebook in a directory, each to its own single-notebook `.deepnote` file:
 
 ```bash
 deepnote-convert path/to/notebooks/
@@ -88,9 +88,23 @@ deepnote-convert ./ml-experiments
 # Creates ./ml-experiments/<name>.deepnote for each notebook in the directory
 ```
 
-### Convert .deepnote to .ipynb
+### Converting .deepnote to other formats
 
-Upload `.deepnote` file to [deepnote.com](https://deepnote.com) and download as `.ipynb` file.
+When you pass a `.deepnote` file, the tool converts it back into another notebook format. Use `--outputFormat` to choose the target format (defaults to `jupyter`):
+
+```bash
+# Convert .deepnote back to a Jupyter notebook (default)
+deepnote-convert analysis.deepnote
+
+# Convert .deepnote to Percent, Quarto, or Marimo
+deepnote-convert analysis.deepnote --outputFormat percent
+deepnote-convert analysis.deepnote --outputFormat quarto
+deepnote-convert analysis.deepnote --outputFormat marimo
+```
+
+The converted files are written to an output directory (named after the input file by default, or the path given with `-o`).
+
+You can also convert a `.deepnote` project back to Jupyter notebooks from the [Deepnote web application](#converting-deepnote-projects-back-to-jupyter-notebooks).
 
 ### CLI options
 
@@ -120,6 +134,26 @@ deepnote-convert path/to/notebooks/ -o output/
 ```
 
 For a single file the output defaults to the current directory; for a directory it defaults to the input directory.
+
+#### `--outputFormat <format>`
+
+Choose the target format when converting **from** a `.deepnote` file. One of `jupyter` (default), `percent`, `quarto`, or `marimo`. This flag has no effect when converting to Deepnote format (the input format is detected automatically).
+
+```bash
+deepnote-convert analysis.deepnote --outputFormat quarto
+```
+
+#### `--cwd <dir>`
+
+Set the working directory that input and output paths are resolved relative to. Defaults to the current working directory.
+
+#### `--singleFile`
+
+Write a single output file with outputs included, instead of splitting outputs into a separate snapshot file.
+
+```bash
+deepnote-convert notebook.ipynb --singleFile
+```
 
 ### CLI Examples
 
@@ -172,7 +206,7 @@ version: "1.0.0"
 
 ## Converting Deepnote projects back to Jupyter notebooks
 
-While the CLI tool currently only supports converting Jupyter notebooks to Deepnote format, you can convert Deepnote projects back to Jupyter notebooks using the Deepnote web application:
+In addition to the CLI (`deepnote-convert file.deepnote --outputFormat jupyter`, described [above](#converting-deepnote-to-other-formats)), you can convert Deepnote projects back to Jupyter notebooks using the Deepnote web application:
 
 1. **Upload to Deepnote**: Go to [deepnote.com](https://deepnote.com) and upload your `.deepnote` file to create a new project
 2. **Open the project**: Once uploaded, open the project in Deepnote

@@ -116,7 +116,7 @@ Your credentials are stored encrypted. We also support enforcing SSL connections
 
 Once you've created an integration, you can query it from any SQL block in your projects. In a SQL block, click the "Data source" dropdown at the bottom of the block to choose between "DataFrame SQL" or one of your configured integrations.
 
-For authentication methods like OAuth, federated auth, or IAM roles, these are only available on [Deepnote Cloud](https://deepnote.com).
+For BigQuery and Snowflake, you can query cloud warehouses locally using OAuth (federated auth): the extension connects through an OAuth proxy so your queries run against those warehouses from your machine. Some other authentication methods (such as IAM roles) remain available only on [Deepnote Cloud](https://deepnote.com).
 
 ### IntelliSense and code completion
 
@@ -247,7 +247,7 @@ Access the extension settings by navigating to File → Preferences → Settings
 
 ### Python environment
 
-You can create and manage Python environments using the "Environments" panel. When creating an environment, you choose which Python interpreter to use and specify which packages need to be installed. The extension creates a virtual environment that can be reused across notebooks and projects.
+You can create and manage Python environments using the "Environments" panel. When creating an environment, you choose which Python interpreter to use and specify which packages need to be installed. The extension creates a virtual environment that can be reused across notebooks and projects. You can also point the extension at an existing virtual environment instead of creating a new one.
 
 The Deepnote extension brings powerful notebook capabilities to your local development environment, combining the flexibility of Deepnote notebooks with the robust editing features of VS Code, Cursor, Windsurf, and Antigravity. Whether you're executing code or viewing rich outputs, the extension provides a seamless experience that enhances your data science workflow.
 

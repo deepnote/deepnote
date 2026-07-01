@@ -6,7 +6,7 @@ coverImage: vt2HPaxcT3fuNcKXdyNE
 ---
 
 <Callout status="info">
-Available on Enterprise plan
+Available on Team and Enterprise plans
 </Callout>
 
 With the Dremio integration, you can leverage the capabilities of Deepnote's SQL blocks to query your Dremio instances at ludicrous speed.
