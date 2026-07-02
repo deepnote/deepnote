@@ -285,6 +285,160 @@ describe('createPythonCodeForNotebookFunctionBlock', () => {
     `)
   })
 
+  it('sanitizes invalid Python identifiers in single export variable name', () => {
+    const block: NotebookFunctionBlock = {
+      id: '123',
+      type: 'notebook-function',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        function_notebook_id: 'notebook-mno',
+        function_notebook_inputs: {},
+        function_notebook_export_mappings: {
+          output: {
+            enabled: true,
+            variable_name: 'data-frame',
+          },
+        },
+      },
+    }
+
+    const result = createPythonCodeForNotebookFunctionBlock(block)
+
+    // The assignment target is sanitized; the export_mappings payload keeps the original name
+    expect(result).toEqual(dedent`
+      # Notebook Function: notebook-mno
+      # Inputs: {}
+      # Exports: output -> data-frame
+      dataframe = _dntk.run_notebook_function(
+          'notebook-mno',
+          inputs={},
+          export_mappings={"output":"data-frame"}
+      )
+    `)
+  })
+
+  it('sanitizes invalid Python identifiers in multiple export variable names', () => {
+    const block: NotebookFunctionBlock = {
+      id: '123',
+      type: 'notebook-function',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        function_notebook_id: 'notebook-pqr',
+        function_notebook_inputs: {},
+        function_notebook_export_mappings: {
+          data: {
+            enabled: true,
+            variable_name: 'data-frame',
+          },
+          totals: {
+            enabled: true,
+            variable_name: 'total sales',
+          },
+        },
+      },
+    }
+
+    const result = createPythonCodeForNotebookFunctionBlock(block)
+
+    expect(result).toEqual(dedent`
+      # Notebook Function: notebook-pqr
+      # Inputs: {}
+      # Exports: data -> data-frame, totals -> total sales
+      dataframe, total_sales = _dntk.run_notebook_function(
+          'notebook-pqr',
+          inputs={},
+          export_mappings={"data":"data-frame","totals":"total sales"}
+      )
+    `)
+  })
+
+  it('strips invalid leading characters from export variable names', () => {
+    const block: NotebookFunctionBlock = {
+      id: '123',
+      type: 'notebook-function',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        function_notebook_id: 'notebook-stu',
+        function_notebook_inputs: {},
+        function_notebook_export_mappings: {
+          first: {
+            enabled: true,
+            variable_name: '1st_result',
+          },
+        },
+      },
+    }
+
+    const result = createPythonCodeForNotebookFunctionBlock(block)
+
+    expect(result).toEqual(dedent`
+      # Notebook Function: notebook-stu
+      # Inputs: {}
+      # Exports: first -> 1st_result
+      st_result = _dntk.run_notebook_function(
+          'notebook-stu',
+          inputs={},
+          export_mappings={"first":"1st_result"}
+      )
+    `)
+  })
+
+  it('falls back to a default variable name when single export variable_name is missing', () => {
+    const block: NotebookFunctionBlock = {
+      id: '123',
+      type: 'notebook-function',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        function_notebook_id: 'notebook-vwx',
+        function_notebook_inputs: {},
+        function_notebook_export_mappings: {
+          output: {
+            enabled: true,
+          },
+        },
+      },
+    }
+
+    const result = createPythonCodeForNotebookFunctionBlock(block)
+
+    expect(result).toContain('input_1 = _dntk.run_notebook_function(')
+  })
+
+  it('falls back to a default variable name when a multiple export variable_name is missing', () => {
+    const block: NotebookFunctionBlock = {
+      id: '123',
+      type: 'notebook-function',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        function_notebook_id: 'notebook-vwx',
+        function_notebook_inputs: {},
+        function_notebook_export_mappings: {
+          data: {
+            enabled: true,
+            variable_name: 'data-frame',
+          },
+          second: {
+            enabled: true,
+          },
+        },
+      },
+    }
+
+    const result = createPythonCodeForNotebookFunctionBlock(block)
+
+    expect(result).toContain('dataframe, input_1 = _dntk.run_notebook_function(')
+  })
+
   it('escapes special characters in notebook_id', () => {
     const block: NotebookFunctionBlock = {
       id: '123',
