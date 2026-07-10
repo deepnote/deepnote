@@ -1,8 +1,9 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import type { saveExecutionSnapshot } from '@deepnote/convert'
+import { mergeOutputsIntoFile, splitDeepnoteFile } from '@deepnote/convert'
 import {
   ApiError,
   type ApiIntegration,
@@ -2895,6 +2896,46 @@ describe('run command', () => {
 
       const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
       expect(metadata.deepnote_variable_value).toBe('original')
+    })
+
+    it('coerces a numeric slider override so the execution snapshot serializes (regression)', () => {
+      // parseInputs turns `-i count=7` into the number 7. Before coercion, that landed in
+      // deepnote_variable_value verbatim and serializeDeepnoteSnapshot threw
+      // "Expected string, received number", silently dropping the snapshot.
+      const file = deserializeDeepnoteFile(`metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: NB
+      blocks:
+        - blockGroup: g1
+          content: ''
+          id: input-count
+          metadata:
+            deepnote_variable_name: count
+            deepnote_variable_value: '3'
+            deepnote_slider_min_value: 1
+            deepnote_slider_max_value: 100
+            deepnote_slider_step: 1
+          sortingKey: a0
+          type: input-slider
+version: '1.0.0'
+`)
+
+      applyInputOverrides(file, { count: 7 })
+
+      const slider = file.project.notebooks[0].blocks[0]
+      expect((slider.metadata as Record<string, unknown>).deepnote_variable_value).toBe('7')
+
+      const merged = mergeOutputsIntoFile(file, [], {
+        startedAt: '2026-01-01T00:00:00.000Z',
+        finishedAt: '2026-01-01T00:00:01.000Z',
+      })
+      const { snapshot } = splitDeepnoteFile(merged)
+      expect(() => serializeDeepnoteSnapshot(snapshot)).not.toThrow()
     })
   })
 })
