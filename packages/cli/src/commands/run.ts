@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { serializeDeepnoteFile } from '@deepnote/blocks'
+import { coerceInputVariableValue, serializeDeepnoteFile } from '@deepnote/blocks'
 import {
   InitNotebookResolutionError,
   type LoadedRunnableFile,
@@ -603,7 +603,10 @@ export function applyInputOverrides(file: DeepnoteFile, inputs: Record<string, u
       const metadata = block.metadata as Record<string, unknown>
       const varName = metadata.deepnote_variable_name as string | undefined
       if (varName && Object.hasOwn(inputs, varName)) {
-        metadata.deepnote_variable_value = inputs[varName]
+        // Coerce to the schema shape the block requires (e.g. slider → string) so the
+        // overridden file still serializes for snapshots. The kernel-injection payload
+        // passed to runProject({ inputs }) keeps the raw native value — do not coerce that.
+        metadata.deepnote_variable_value = coerceInputVariableValue(block, inputs[varName])
       }
     }
   }

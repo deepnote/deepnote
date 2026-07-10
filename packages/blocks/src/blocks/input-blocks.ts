@@ -224,3 +224,86 @@ export function isInputBlock(block: DeepnoteBlock): block is InputBlock {
     isInputDateRangeBlock(block)
   )
 }
+
+/**
+ * Normalize a raw input value (from a CLI `--input` flag, an HTTP payload, or a user
+ * edit) into the shape the block's schema requires for `deepnote_variable_value`, based
+ * on the block's type.
+ *
+ * This is **schema normalization**, not runtime execution logic: it exists so an
+ * overridden value round-trips through `deepnoteFileSchema` / `deepnoteSnapshotSchema`
+ * — most importantly, a slider value must serialize as a string, not a number, or the
+ * snapshot schema rejects it. It does NOT validate a value against a select's allowed
+ * options, a slider's range, or a date's format; those remain the caller's concern.
+ *
+ * Non-input blocks (and any input type not covered) return the value unchanged.
+ *
+ * @throws {InvalidValueError} for a checkbox value that is not an unambiguous boolean,
+ *   or a date-range array that is not exactly `[start, end]`.
+ */
+export function coerceInputVariableValue(block: DeepnoteBlock, value: unknown): unknown {
+  if (isInputCheckboxBlock(block)) {
+    return coerceCheckboxValue(value)
+  }
+
+  if (isInputSelectBlock(block)) {
+    const allowMultiple = block.metadata.deepnote_allow_multiple_values === true
+    if (allowMultiple) {
+      if (Array.isArray(value)) return value.map(coerceToInputString)
+      if (value === null || value === undefined || value === '') return []
+      return [coerceToInputString(value)]
+    }
+    if (Array.isArray(value)) return value.length > 0 ? coerceToInputString(value[0]) : ''
+    return coerceToInputString(value)
+  }
+
+  if (isInputDateRangeBlock(block)) {
+    if (Array.isArray(value)) {
+      if (value.length !== 2) {
+        throw new InvalidValueError(
+          `Invalid date-range value: expected exactly two elements [start, end], received ${value.length}.`,
+          { value }
+        )
+      }
+      return [coerceToInputString(value[0]), coerceToInputString(value[1])] as [string, string]
+    }
+    return coerceToInputString(value)
+  }
+
+  if (
+    isInputSliderBlock(block) ||
+    isInputTextBlock(block) ||
+    isInputTextareaBlock(block) ||
+    isInputDateBlock(block) ||
+    isInputFileBlock(block)
+  ) {
+    return coerceToInputString(value)
+  }
+
+  return value
+}
+
+/** Coerce a scalar to the string form input schemas expect; nullish becomes `''`. */
+function coerceToInputString(value: unknown): string {
+  return value === null || value === undefined ? '' : String(value)
+}
+
+/**
+ * Coerce a value to a checkbox boolean, accepting only unambiguous inputs:
+ * `true`/`false`, `1`/`0`, and `"true"`/`"false"` (case-insensitive). Anything else
+ * throws rather than silently defaulting (avoids `Boolean('false') === true`).
+ */
+function coerceCheckboxValue(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  if (value === 1) return true
+  if (value === 0) return false
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true') return true
+    if (normalized === 'false') return false
+  }
+  throw new InvalidValueError(
+    `Invalid checkbox value: ${JSON.stringify(value)}. Expected true/false, 1/0, or "true"/"false".`,
+    { value }
+  )
+}

@@ -1,6 +1,7 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 import type {
+  DeepnoteBlock,
   InputCheckboxBlock,
   InputDateBlock,
   InputDateRangeBlock,
@@ -10,8 +11,10 @@ import type {
   InputTextareaBlock,
   InputTextBlock,
 } from '../deepnote-file/deepnote-file-schema'
+import { deepnoteBlockSchema } from '../deepnote-file/deepnote-file-schema'
 import { InvalidValueError } from '../errors'
 import {
+  coerceInputVariableValue,
   createPythonCodeForInputCheckboxBlock,
   createPythonCodeForInputDateBlock,
   createPythonCodeForInputDateRangeBlock,
@@ -403,5 +406,134 @@ describe('createPythonCodeForInputDateRangeBlock', () => {
       from datetime import datetime, timedelta
       my_range = [datetime.now().date() - timedelta(days=30), datetime.now().date()]
     `)
+  })
+})
+
+describe('coerceInputVariableValue', () => {
+  const base = { id: '123', content: '', blockGroup: 'abc', sortingKey: 'a0' } as const
+
+  const sliderBlock: InputSliderBlock = {
+    ...base,
+    type: 'input-slider',
+    metadata: {
+      deepnote_variable_name: 'count',
+      deepnote_variable_value: '0',
+      deepnote_slider_min_value: 0,
+      deepnote_slider_max_value: 100,
+      deepnote_slider_step: 1,
+    },
+  }
+  const textBlock: InputTextBlock = {
+    ...base,
+    type: 'input-text',
+    metadata: { deepnote_variable_name: 'greeting', deepnote_variable_value: '' },
+  }
+  const textareaBlock: InputTextareaBlock = {
+    ...base,
+    type: 'input-textarea',
+    metadata: { deepnote_variable_name: 'notes', deepnote_variable_value: '' },
+  }
+  const dateBlock: InputDateBlock = {
+    ...base,
+    type: 'input-date',
+    metadata: { deepnote_variable_name: 'd', deepnote_variable_value: '2024-01-15', deepnote_input_date_version: 2 },
+  }
+  const fileBlock: InputFileBlock = {
+    ...base,
+    type: 'input-file',
+    metadata: { deepnote_variable_name: 'f', deepnote_variable_value: '' },
+  }
+  const checkboxBlock: InputCheckboxBlock = {
+    ...base,
+    type: 'input-checkbox',
+    metadata: { deepnote_variable_name: 'enabled', deepnote_variable_value: false },
+  }
+  const selectSingle: InputSelectBlock = {
+    ...base,
+    type: 'input-select',
+    metadata: {
+      deepnote_variable_name: 'choice',
+      deepnote_variable_value: '',
+      deepnote_variable_options: ['a', 'b', 'c'],
+      deepnote_variable_custom_options: [],
+      deepnote_variable_selected_variable: '',
+      deepnote_variable_select_type: 'from-options',
+      deepnote_allow_multiple_values: false,
+    },
+  }
+  const selectMulti: InputSelectBlock = {
+    ...selectSingle,
+    metadata: { ...selectSingle.metadata, deepnote_allow_multiple_values: true },
+  }
+  const dateRangeBlock: InputDateRangeBlock = {
+    ...base,
+    type: 'input-date-range',
+    metadata: { deepnote_variable_name: 'range', deepnote_variable_value: ['2024-01-01', '2024-12-31'] },
+  }
+
+  // Asserts the coerced value round-trips through the block schema (the real contract:
+  // a snapshot serializes this shape, so it must satisfy deepnoteBlockSchema).
+  const expectSchemaValid = (block: DeepnoteBlock, value: unknown): void => {
+    expect(() =>
+      deepnoteBlockSchema.parse({ ...block, metadata: { ...block.metadata, deepnote_variable_value: value } })
+    ).not.toThrow()
+  }
+
+  it('coerces slider/text/textarea/date/file values to strings', () => {
+    expect(coerceInputVariableValue(sliderBlock, 7)).toBe('7')
+    expect(coerceInputVariableValue(sliderBlock, 3.5)).toBe('3.5')
+    expect(coerceInputVariableValue(sliderBlock, '7')).toBe('7')
+    expect(coerceInputVariableValue(textBlock, 42)).toBe('42')
+    expect(coerceInputVariableValue(textareaBlock, true)).toBe('true')
+    expect(coerceInputVariableValue(dateBlock, 20240115)).toBe('20240115')
+    expect(coerceInputVariableValue(fileBlock, null)).toBe('')
+    expect(coerceInputVariableValue(textBlock, undefined)).toBe('')
+  })
+
+  it('produces a schema-valid slider value (regression for the number → snapshot bug)', () => {
+    // Before the fix, applying a numeric slider override left a number here and the
+    // snapshot schema rejected it with "Expected string, received number".
+    expectSchemaValid(sliderBlock, coerceInputVariableValue(sliderBlock, 7))
+  })
+
+  it('coerces checkbox values strictly and rejects ambiguous input', () => {
+    expect(coerceInputVariableValue(checkboxBlock, true)).toBe(true)
+    expect(coerceInputVariableValue(checkboxBlock, false)).toBe(false)
+    expect(coerceInputVariableValue(checkboxBlock, 1)).toBe(true)
+    expect(coerceInputVariableValue(checkboxBlock, 0)).toBe(false)
+    expect(coerceInputVariableValue(checkboxBlock, 'true')).toBe(true)
+    expect(coerceInputVariableValue(checkboxBlock, 'FALSE')).toBe(false)
+    expect(() => coerceInputVariableValue(checkboxBlock, 'yes')).toThrow(InvalidValueError)
+    expect(() => coerceInputVariableValue(checkboxBlock, 2)).toThrow(InvalidValueError)
+    expect(() => coerceInputVariableValue(checkboxBlock, null)).toThrow(InvalidValueError)
+  })
+
+  it('normalizes a single-select to a string without validating options', () => {
+    expect(coerceInputVariableValue(selectSingle, 'a')).toBe('a')
+    expect(coerceInputVariableValue(selectSingle, ['a', 'b'])).toBe('a')
+    expect(coerceInputVariableValue(selectSingle, 3)).toBe('3')
+    // Shape normalization only: a value outside the options is accepted, not rejected.
+    expect(coerceInputVariableValue(selectSingle, 'not-an-option')).toBe('not-an-option')
+  })
+
+  it('normalizes a multi-select to a string array', () => {
+    expect(coerceInputVariableValue(selectMulti, ['a', 'b'])).toEqual(['a', 'b'])
+    expect(coerceInputVariableValue(selectMulti, 'a')).toEqual(['a'])
+    expect(coerceInputVariableValue(selectMulti, '')).toEqual([])
+    expect(coerceInputVariableValue(selectMulti, [1, 2])).toEqual(['1', '2'])
+    expectSchemaValid(selectMulti, coerceInputVariableValue(selectMulti, [1, 2]))
+  })
+
+  it('coerces date-range values and rejects malformed arity', () => {
+    expect(coerceInputVariableValue(dateRangeBlock, ['2024-01-01', '2024-02-01'])).toEqual(['2024-01-01', '2024-02-01'])
+    expect(coerceInputVariableValue(dateRangeBlock, 'past7days')).toBe('past7days')
+    expect(() => coerceInputVariableValue(dateRangeBlock, ['only-one'])).toThrow(InvalidValueError)
+    expect(() => coerceInputVariableValue(dateRangeBlock, ['a', 'b', 'c'])).toThrow(InvalidValueError)
+  })
+
+  it('leaves non-input blocks unchanged', () => {
+    const codeBlock = { ...base, type: 'code', metadata: {} } as unknown as DeepnoteBlock
+    const value = { arbitrary: 'object' }
+    expect(coerceInputVariableValue(codeBlock, value)).toBe(value)
   })
 })
