@@ -205,6 +205,28 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
 
+  packages/local-runner:
+    dependencies:
+      '@deepnote/blocks':
+        specifier: workspace:*
+        version: link:../blocks
+      '@deepnote/convert':
+        specifier: workspace:*
+        version: link:../convert
+      '@deepnote/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.18.12
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
   packages/mcp:
     dependencies:
       '@deepnote/blocks':
