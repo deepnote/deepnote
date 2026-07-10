@@ -44,6 +44,7 @@ import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integr
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import { MissingTokenError } from '../utils/auth'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -56,6 +57,8 @@ import {
   formatMemoryDelta,
 } from '../utils/metrics'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
+import { parseInputs } from '../utils/parse-inputs'
+import { CloudRunUsageError, runInDeepnoteCloud } from './run-cloud'
 
 /**
  * Error thrown when required inputs are missing.
@@ -101,6 +104,12 @@ export interface RunOptions {
   prompt?: string
   token?: string
   url?: string
+  // Cloud execution (`--cloud`) — handled by runInDeepnoteCloud.
+  cloud?: boolean
+  notebookId?: string
+  out?: string
+  timeout?: number
+  push?: boolean
 }
 
 /** Result of a single block execution for JSON output */
@@ -490,6 +499,16 @@ async function resolveUpstreamExecutionBlockIds(
 export function createRunAction(program: Command): (path: string | undefined, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
+      const safeOptions = { ...options, token: options.token ? '[redacted]' : undefined }
+      debug(`Options: ${JSON.stringify(safeOptions)}`)
+
+      // Cloud execution: fully separate from the local ExecutionEngine path. Dispatched before the
+      // missing-path guard so `run --cloud --notebook-id <uuid>` works with no local file.
+      if (options.cloud) {
+        await runInDeepnoteCloud(path, options)
+        return
+      }
+
       if (!path && !options.prompt) {
         program.error(getChalk().red('Missing required argument: path (or use --prompt)'), {
           exitCode: ExitCode.InvalidUsage,
@@ -497,8 +516,6 @@ export function createRunAction(program: Command): (path: string | undefined, op
       }
 
       debug(`Running file: ${path ?? '(prompt-only)'}`)
-      const safeOptions = { ...options, token: options.token ? '[redacted]' : undefined }
-      debug(`Options: ${JSON.stringify(safeOptions)}`)
 
       // Handle --list-inputs
       if (options.listInputs) {
@@ -532,6 +549,8 @@ export function createRunAction(program: Command): (path: string | undefined, op
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
         error instanceof InitNotebookResolutionError ||
+        error instanceof CloudRunUsageError ||
+        error instanceof MissingTokenError ||
         isAuthApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
@@ -548,45 +567,6 @@ export function createRunAction(program: Command): (path: string | undefined, op
       program.error(getChalk().red(message), { exitCode })
     }
   }
-}
-
-/**
- * Parse --input flags into a Record<string, unknown>.
- * Supports: key=value, key=123 (number), key=true/false (boolean), key=null
- */
-function parseInputs(inputFlags: string[] | undefined): Record<string, unknown> {
-  if (!inputFlags || inputFlags.length === 0) {
-    return {}
-  }
-
-  const inputs: Record<string, unknown> = Object.create(null) as Record<string, unknown>
-  for (const flag of inputFlags) {
-    const eqIndex = flag.indexOf('=')
-    if (eqIndex === -1) {
-      throw new Error(`Invalid input format: "${flag}". Expected key=value`)
-    }
-
-    const key = flag.slice(0, eqIndex).trim()
-    const rawValue = flag.slice(eqIndex + 1)
-
-    if (!key) {
-      throw new Error(`Invalid input: empty key in "${flag}"`)
-    }
-
-    // Try to parse as JSON for numbers, booleans, null, arrays, objects
-    // Fall back to string if not valid JSON
-    let value: unknown
-    try {
-      value = JSON.parse(rawValue)
-    } catch {
-      // Not valid JSON, treat as string
-      value = rawValue
-    }
-
-    inputs[key] = value
-  }
-
-  return inputs
 }
 
 /**
