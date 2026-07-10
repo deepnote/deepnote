@@ -1,0 +1,296 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import { join } from 'node:path'
+import { type DeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
+import { splitDeepnoteFile } from '@deepnote/convert'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ExitCode } from '../exit-codes'
+import { MissingTokenError } from '../utils/auth'
+import { CloudRunUsageError, runInDeepnoteCloud } from './run-cloud'
+
+const API_URL = 'https://api.example.com'
+
+function makeFile(notebooks: Array<{ id: string; name: string }>): DeepnoteFile {
+  return {
+    metadata: { createdAt: '2024-01-01T00:00:00.000Z' },
+    project: {
+      id: '11111111-1111-1111-1111-111111111111',
+      name: 'My Project',
+      notebooks: notebooks.map(nb => ({ ...nb, blocks: [] })),
+    },
+    version: '1.0.0',
+  }
+}
+
+function response(body: unknown, init: { ok?: boolean; status?: number; statusText?: string } = {}): Response {
+  return {
+    ok: init.ok ?? true,
+    status: init.status ?? 200,
+    statusText: init.statusText ?? 'OK',
+    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
+  } as unknown as Response
+}
+
+interface MockConfig {
+  terminalStatus?: string
+  snapshotContent?: string
+  downloadUrl?: string
+  downloadBody?: string
+  runError?: unknown
+}
+
+function installFetch(cfg: MockConfig): { postBodies: Array<Record<string, unknown>> } {
+  const postBodies: Array<Record<string, unknown>> = []
+  vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
+    const u = String(url)
+    const method = (init?.method as string) ?? 'GET'
+    if (cfg.downloadUrl && u === cfg.downloadUrl) {
+      return response(cfg.downloadBody ?? '')
+    }
+    if (method === 'POST') {
+      postBodies.push(JSON.parse(init?.body as string))
+      return response({ run: { id: 'run-x', status: 'pending' } })
+    }
+    const snapshot =
+      cfg.snapshotContent !== undefined
+        ? { snapshotContent: cfg.snapshotContent }
+        : cfg.downloadUrl
+          ? { downloadUrl: cfg.downloadUrl }
+          : undefined
+    return response({
+      run: {
+        id: 'run-x',
+        status: cfg.terminalStatus ?? 'success',
+        ...(cfg.runError !== undefined ? { error: cfg.runError } : {}),
+        ...(snapshot ? { snapshot } : {}),
+      },
+    })
+  })
+  return { postBodies }
+}
+
+let tmpDir: string
+const savedToken = process.env.DEEPNOTE_TOKEN
+
+beforeEach(async () => {
+  tmpDir = await fs.mkdtemp(join(os.tmpdir(), 'run-cloud-'))
+  delete process.env.DEEPNOTE_TOKEN
+  process.exitCode = 0
+  vi.spyOn(console, 'log').mockImplementation(() => {})
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+
+afterEach(async () => {
+  vi.restoreAllMocks()
+  process.exitCode = 0
+  if (savedToken !== undefined) {
+    process.env.DEEPNOTE_TOKEN = savedToken
+  } else {
+    delete process.env.DEEPNOTE_TOKEN
+  }
+  await fs.rm(tmpDir, { recursive: true, force: true })
+})
+
+async function writeFixture(name: string, file: DeepnoteFile): Promise<string> {
+  const path = join(tmpDir, name)
+  await fs.writeFile(path, serializeDeepnoteFile(file), 'utf-8')
+  return path
+}
+
+async function listSnapshots(dir = join(tmpDir, 'snapshots')): Promise<string[]> {
+  return fs.readdir(dir).catch(() => [])
+}
+
+describe('runInDeepnoteCloud — usage guards', () => {
+  it('rejects --push as not yet implemented', async () => {
+    await expect(
+      runInDeepnoteCloud(undefined, { cloud: true, push: true, notebookId: 'nb', token: 't' })
+    ).rejects.toBeInstanceOf(CloudRunUsageError)
+  })
+
+  it('rejects local-only flags in cloud mode', async () => {
+    await expect(
+      runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb', token: 't', python: '/usr/bin/python' })
+    ).rejects.toThrow(/--python/)
+    await expect(
+      runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb', token: 't', dryRun: true })
+    ).rejects.toThrow(/--dry-run/)
+  })
+
+  it('requires a token (missing)', async () => {
+    await expect(runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb' })).rejects.toBeInstanceOf(
+      MissingTokenError
+    )
+  })
+
+  it('treats a blank token as missing', async () => {
+    await expect(runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb', token: '   ' })).rejects.toBeInstanceOf(
+      MissingTokenError
+    )
+  })
+
+  it('rejects a non-.deepnote file', async () => {
+    const txt = join(tmpDir, 'notes.txt')
+    await fs.writeFile(txt, 'hello', 'utf-8')
+    await expect(runInDeepnoteCloud(txt, { cloud: true, token: 't' })).rejects.toThrow(/Unsupported file type/)
+  })
+
+  it('errors on an ambiguous multi-notebook file with no --notebook/--notebook-id', async () => {
+    installFetch({})
+    const path = await writeFixture(
+      'multi.deepnote',
+      makeFile([
+        { id: 'a', name: 'Alpha' },
+        { id: 'b', name: 'Beta' },
+      ])
+    )
+    await expect(runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL })).rejects.toThrow(
+      /multiple notebooks/i
+    )
+  })
+})
+
+describe('runInDeepnoteCloud — notebook id resolution', () => {
+  it('reads the notebook id from a single-notebook .deepnote file', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL })
+
+    expect(postBodies[0].notebookId).toBe('nb-single')
+  })
+
+  it('picks a notebook by name with --notebook', async () => {
+    const file = makeFile([
+      { id: 'a', name: 'Alpha' },
+      { id: 'b', name: 'Beta' },
+    ])
+    const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('multi.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, notebook: 'Beta' })
+
+    expect(postBodies[0].notebookId).toBe('b')
+  })
+
+  it('runs a remote notebook by --notebook-id with no local file (writing to --out)', async () => {
+    const file = makeFile([{ id: 'ignored', name: 'Main' }])
+    const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const out = join(tmpDir, 'downloaded.snapshot.deepnote')
+
+    await runInDeepnoteCloud(undefined, { cloud: true, token: 't', url: API_URL, notebookId: 'nb-remote', out })
+
+    expect(postBodies[0].notebookId).toBe('nb-remote')
+    await expect(fs.stat(out)).resolves.toBeDefined()
+  })
+})
+
+describe('runInDeepnoteCloud — inputs and blocks', () => {
+  it('sends parsed inputs and a single blockId', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      input: ['name=Alice', 'count=42'],
+      block: 'blk-1',
+    })
+
+    expect(postBodies[0]).toMatchObject({
+      notebookId: 'nb-single',
+      inputs: { name: 'Alice', count: 42 },
+      blockIds: ['blk-1'],
+    })
+  })
+})
+
+describe('runInDeepnoteCloud — snapshot writing', () => {
+  it('writes both timestamped and latest snapshots from a full-file payload', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL })
+
+    const snaps = await listSnapshots()
+    expect(snaps.filter(n => n.endsWith('.snapshot.deepnote')).length).toBeGreaterThanOrEqual(2)
+    expect(snaps.some(n => n.includes('latest'))).toBe(true)
+  })
+
+  it('accepts a snapshot-document payload', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    const snapshotDoc = serializeDeepnoteSnapshot(splitDeepnoteFile(file).snapshot)
+    installFetch({ snapshotContent: snapshotDoc })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL })
+
+    const snaps = await listSnapshots()
+    expect(snaps.some(n => n.endsWith('.snapshot.deepnote'))).toBe(true)
+  })
+
+  it('downloads a snapshot via a cross-origin downloadUrl', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({
+      downloadUrl: 'https://s3.example.com/snap.yaml',
+      downloadBody: serializeDeepnoteFile(file),
+    })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL })
+
+    const snaps = await listSnapshots()
+    expect(snaps.some(n => n.endsWith('.snapshot.deepnote'))).toBe(true)
+  })
+
+  it('writes raw bytes to --out when the payload is unrecognizable', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ snapshotContent: 'just some text' })
+    const path = await writeFixture('single.deepnote', file)
+    const out = join(tmpDir, 'raw.out')
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, out })
+
+    await expect(fs.readFile(out, 'utf-8')).resolves.toBe('just some text')
+  })
+})
+
+describe('runInDeepnoteCloud — output and exit codes', () => {
+  it('emits a success JSON result and exits 0', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'success', snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, output: 'json' })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result = JSON.parse(logged)
+    expect(result).toMatchObject({ success: true, runId: 'run-x', status: 'success' })
+    expect(result.snapshotPath).toBeTruthy()
+    expect(process.exitCode).toBe(ExitCode.Success)
+  })
+
+  it('exits 1 on a failed run but preserves runId, status, error, and snapshotPath', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'error', runError: 'kernel died', snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, output: 'json' })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result = JSON.parse(logged)
+    expect(result).toMatchObject({
+      success: false,
+      runId: 'run-x',
+      status: 'error',
+      error: 'kernel died',
+    })
+    expect(result.snapshotPath).toBeTruthy()
+    expect(process.exitCode).toBe(ExitCode.Error)
+  })
+})

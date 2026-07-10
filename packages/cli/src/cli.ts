@@ -1,6 +1,6 @@
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
 import chalk from 'chalk'
-import { Command } from 'commander'
+import { Command, InvalidArgumentError, Option } from 'commander'
 // Note: We keep 'chalk' import for:
 // 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
 // 2. Setting chalk.level in preAction hook for backward compatibility
@@ -34,6 +34,15 @@ export interface GlobalOptions {
   color: boolean
   debug: boolean
   quiet: boolean
+}
+
+/** Parses the `--timeout <seconds>` value into a positive integer number of seconds. */
+function parseTimeoutSeconds(value: string): number {
+  const seconds = Number.parseInt(value, 10)
+  if (Number.isNaN(seconds) || seconds <= 0) {
+    throw new InvalidArgumentError('Timeout must be a positive integer number of seconds.')
+  }
+  return seconds
 }
 
 /**
@@ -300,6 +309,15 @@ ${c.bold('Examples:')}
     .option('--prompt <text>', 'Run an LLM agent block with the given prompt')
     .option('--url <url>', 'API base URL for fetching integrations', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for fetching integrations (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--cloud', 'Run the notebook in Deepnote Cloud, then download the resulting snapshot locally')
+    .option('--notebook-id <uuid>', 'Cloud notebook id to run (with --cloud); alternative to a local .deepnote file')
+    .option('--out <path>', 'Write the downloaded cloud snapshot to this exact path (with --cloud)')
+    .option(
+      '--timeout <seconds>',
+      'Max seconds to wait for a cloud run to finish (with --cloud, default 600)',
+      parseTimeoutSeconds
+    )
+    .addOption(new Option('--push', 'Push a local notebook to Deepnote before running').hideHelp())
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -321,6 +339,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run and open in Deepnote Cloud after execution')}
   $ deepnote run notebook.ipynb --open
+
+  ${c.dim('# Run an existing notebook in Deepnote Cloud and download its snapshot')}
+  $ deepnote run --cloud --notebook-id 0f1e2d3c-4b5a-6789-abcd-ef0123456789
+
+  ${c.dim('# Run a .deepnote (notebook id read from the file) in the cloud, with inputs')}
+  $ deepnote run my-project.deepnote --cloud --input name="Alice"
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv

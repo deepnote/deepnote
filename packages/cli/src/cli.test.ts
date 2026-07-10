@@ -61,6 +61,15 @@ describe('CLI', () => {
       expect(optionFlags).toContain('--block <id>')
       expect(optionFlags).toContain('-o, --output <format>')
       expect(optionFlags).toContain('--open')
+      // Cloud execution flags
+      expect(optionFlags).toContain('--cloud')
+      expect(optionFlags).toContain('--notebook-id <uuid>')
+      expect(optionFlags).toContain('--out <path>')
+      expect(optionFlags).toContain('--timeout <seconds>')
+      // --push is registered but hidden until the push-to-cloud flow ships
+      const pushOption = runCmd?.options.find(o => o.flags === '--push')
+      expect(pushOption).toBeDefined()
+      expect(pushOption?.hidden).toBe(true)
     })
 
     it('completion command is properly configured', () => {
