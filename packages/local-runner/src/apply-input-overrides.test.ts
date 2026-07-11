@@ -90,6 +90,7 @@ describe('listInputBlocks', () => {
     const inputs = listInputBlocks(deserializeDeepnoteFile(NOTEBOOK))
     expect(inputs.map(i => i.variableName)).toEqual(['greeting', 'count', 'enabled', 'tags'])
     expect(inputs.map(i => i.type)).toEqual(['input-text', 'input-slider', 'input-checkbox', 'input-select'])
-    expect(inputs[3].options).toEqual(['a', 'b', 'c'])
+    expect(inputs[1]).toMatchObject({ variableName: 'count', min: 1, max: 100, step: 1 })
+    expect(inputs[3]).toMatchObject({ options: ['a', 'b', 'c'], multiple: true })
   })
 })

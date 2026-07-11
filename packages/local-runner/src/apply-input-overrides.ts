@@ -32,10 +32,22 @@ export interface InputBlockInfo {
   type: string
   label?: string
   value: unknown
+  /** Select: the allowed options. */
   options?: string[]
+  /** Select: whether multiple values may be chosen. */
+  multiple?: boolean
+  /** Slider: lower bound. */
+  min?: number
+  /** Slider: upper bound. */
+  max?: number
+  /** Slider: step size. */
+  step?: number
 }
 
-/** List the input blocks in a file, in document order. */
+/**
+ * List the input blocks in a file, in document order, with enough per-type metadata for a UI to
+ * render a control (slider bounds, select options) without re-parsing the file.
+ */
 export function listInputBlocks(file: DeepnoteFile): InputBlockInfo[] {
   const inputs: InputBlockInfo[] = []
   for (const notebook of file.project.notebooks) {
@@ -44,13 +56,21 @@ export function listInputBlocks(file: DeepnoteFile): InputBlockInfo[] {
       const metadata = block.metadata as Record<string, unknown>
       const variableName = metadata.deepnote_variable_name as string | undefined
       if (!variableName) continue
-      inputs.push({
+      const info: InputBlockInfo = {
         variableName,
         type: block.type,
         label: metadata.deepnote_input_label as string | undefined,
         value: metadata.deepnote_variable_value,
-        options: metadata.deepnote_variable_options as string[] | undefined,
-      })
+      }
+      if (block.type === 'input-select') {
+        info.options = metadata.deepnote_variable_options as string[] | undefined
+        info.multiple = metadata.deepnote_allow_multiple_values === true
+      } else if (block.type === 'input-slider') {
+        info.min = metadata.deepnote_slider_min_value as number | undefined
+        info.max = metadata.deepnote_slider_max_value as number | undefined
+        info.step = metadata.deepnote_slider_step as number | undefined
+      }
+      inputs.push(info)
     }
   }
   return inputs
