@@ -21,8 +21,9 @@ export interface RunWithInputsOptions {
   /** Run only these blocks (by id). Takes precedence over `blockId`. No upstream-dependency expansion. */
   blockIds?: string[]
   /**
-   * Persist the snapshot to disk (sibling `snapshots/` directory). Requires a filesystem-path
-   * input — throws if the input was a YAML string or an object (no source path to write next to).
+   * Persist the snapshot to disk in a sibling `snapshots/` directory, like `deepnote run`.
+   * Defaults to `true`; pass `false` to skip. When the input has no source path (a YAML string
+   * or a DeepnoteFile object) there is nowhere to write, so persistence is skipped.
    */
   persistSnapshot?: boolean
   /** Called for each streamed output as it is produced. */
@@ -44,7 +45,7 @@ export interface RunWithInputsResult {
   snapshot: DeepnoteSnapshot
   /** The snapshot serialized to `.deepnote` YAML. */
   snapshotYaml: string
-  /** Path of the persisted snapshot, set only when `persistSnapshot` was requested with a path input. */
+  /** Path of the persisted snapshot; set when a snapshot was written to disk (path input, not opted out). */
   snapshotPath?: string
 }
 
@@ -55,9 +56,11 @@ export interface RunWithInputsResult {
  * Overrides are coerced to the schema shape for the persisted file, while the raw native
  * values are what get injected into the kernel — these are intentionally different.
  *
- * Throws only on infrastructure/config errors (no Python environment, missing toolkit,
- * an invalid file, or `persistSnapshot` without a path). A failing block is reported via
- * `summary.failedBlocks`, not thrown.
+ * By default it writes an execution snapshot next to a path input, like `deepnote run` (pass
+ * `persistSnapshot: false` to skip; inputs without a path are never persisted).
+ *
+ * Throws only on infrastructure/config errors (no Python environment, missing toolkit, or an
+ * invalid file). A failing block is reported via `summary.failedBlocks`, not thrown.
  */
 export async function runWithInputs(
   input: DeepnoteInput,
@@ -104,13 +107,10 @@ export async function runWithInputs(
     const { snapshot } = splitDeepnoteFile(mergeOutputsIntoFile(file, blockOutputs, timing))
     const snapshotYaml = serializeDeepnoteSnapshot(snapshot)
 
+    // Persist next to a path input by default (like `deepnote run`); skip when opted out or
+    // when there is no source path to write beside.
     let snapshotPath: string | undefined
-    if (options.persistSnapshot) {
-      if (!sourcePath) {
-        throw new Error(
-          'runWithInputs: persistSnapshot requires a filesystem-path input; a YAML string or DeepnoteFile object has no source path to write a snapshot next to.'
-        )
-      }
+    if (options.persistSnapshot !== false && sourcePath) {
       snapshotPath = (await saveExecutionSnapshot(sourcePath, file, blockOutputs, timing)).snapshotPath
     }
 

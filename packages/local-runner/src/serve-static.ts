@@ -23,6 +23,8 @@ export interface ServeStaticOptions {
   port?: number
   /** Python venv/executable forwarded to the runner. */
   pythonEnv?: string
+  /** Forwarded to the runner. Runs persist a snapshot next to `notebookPath` by default; pass `false` to skip. */
+  persistSnapshot?: boolean
   /** Override the runner (advanced; mainly for testing). Defaults to `runWithInputs`. */
   runner?: RunnerFn
 }
@@ -49,7 +51,8 @@ const CONTENT_TYPES: Record<string, string> = {
  * Serve a static directory and expose a minimal local-run API, so a plain web page can run a
  * `.deepnote` file with edited inputs:
  * - `GET /api/info` → `{ notebook, inputs }` (input blocks for building controls)
- * - `POST /api/run` → `{ inputs }` → `{ outputs, summary, snapshotYaml }`
+ * - `POST /api/run` → `{ inputs }` → `{ outputs, summary, snapshotYaml }`; writes a snapshot next
+ *   to `notebookPath` by default (like `deepnote run`), unless `persistSnapshot: false`
  * - any other GET → a file from `dir` (path-traversal guarded)
  *
  * Deliberately small: no WebSocket, no watch, no rendering. Binds to 127.0.0.1.
@@ -83,7 +86,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         return
       }
       const inputs = (parsed as { inputs?: Record<string, unknown> } | null)?.inputs ?? {}
-      const result = await runner(notebookPath, inputs, { pythonEnv })
+      const result = await runner(notebookPath, inputs, { pythonEnv, persistSnapshot: options.persistSnapshot })
       sendJson(res, 200, {
         outputs: result.outputs,
         summary: result.summary,

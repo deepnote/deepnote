@@ -1,3 +1,6 @@
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import type { BlockExecutionResult, ExecutionOptions, ExecutionSummary } from '@deepnote/runtime-core'
@@ -96,6 +99,7 @@ describe('runWithInputs', () => {
     expect(result.summary.failedBlocks).toBe(0)
     expect(() => serializeDeepnoteSnapshot(result.snapshot)).not.toThrow()
     expect(result.snapshotYaml).toContain('stdout')
+    expect(result.snapshotPath).toBeUndefined() // a YAML-string input has no path to persist beside
 
     expect(engineMock.start).toHaveBeenCalledOnce()
     expect(engineMock.stop).toHaveBeenCalledOnce()
@@ -114,11 +118,28 @@ describe('runWithInputs', () => {
     expect(engineMock.stop).toHaveBeenCalledOnce()
   })
 
-  it('throws when persistSnapshot is requested without a filesystem-path input', async () => {
-    await expect(runWithInputs(NOTEBOOK, {}, { persistSnapshot: true })).rejects.toThrow(
-      /persistSnapshot requires a filesystem-path input/
-    )
-    // engine was still started and stopped cleanly
-    expect(engineMock.stop).toHaveBeenCalledOnce()
+  it('persists a snapshot next to a path input by default (like deepnote run)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lr-run-'))
+    writeFileSync(join(dir, 'nb.deepnote'), NOTEBOOK)
+    try {
+      const result = await runWithInputs(join(dir, 'nb.deepnote'), { count: 7 })
+      expect(result.snapshotPath).toBeDefined()
+      expect(existsSync(result.snapshotPath ?? '')).toBe(true)
+      expect(readdirSync(join(dir, 'snapshots')).some(f => f.endsWith('.snapshot.deepnote'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('skips persistence when persistSnapshot is false, even for a path input', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lr-run-'))
+    writeFileSync(join(dir, 'nb.deepnote'), NOTEBOOK)
+    try {
+      const result = await runWithInputs(join(dir, 'nb.deepnote'), { count: 7 }, { persistSnapshot: false })
+      expect(result.snapshotPath).toBeUndefined()
+      expect(existsSync(join(dir, 'snapshots'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

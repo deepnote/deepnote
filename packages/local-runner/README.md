@@ -22,19 +22,20 @@ const { outputs, summary, snapshot, snapshotYaml, snapshotPath } =
   await runWithInputs(
     "examples/6_with_inputs.deepnote", // a path, raw .deepnote YAML, or a DeepnoteFile object
     { greeting: "hi", count: 7, enabled: true }, // native values; coerced to schema shape internally
-    { persistSnapshot: true }, // writes a sibling snapshots/*.snapshot.deepnote (path inputs only)
   );
+// snapshotPath -> the sibling snapshots/*.snapshot.deepnote it just wrote
 
 for (const { blockId, outputs } of outputs) {
   // outputs are raw Jupyter IOutput objects, in execution order
 }
 ```
 
+- By **default it writes a snapshot** next to a path input, like `deepnote run` (`snapshotPath`).
+  Pass `{ persistSnapshot: false }` to skip; inputs without a path (YAML/object) are never persisted.
 - Input values are **coerced** to each block's schema shape for the persisted file (e.g. a
   slider becomes a string), while the **raw native** values are injected into the kernel.
 - A failing block is reported via `summary.failedBlocks` — it is **not** thrown. Only
-  infrastructure/config errors throw (no Python env, missing toolkit, an invalid file, or
-  `persistSnapshot` on a non-path input).
+  infrastructure/config errors throw (no Python env, missing toolkit, an invalid file).
 
 ### Serve it to a static page
 
