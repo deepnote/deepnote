@@ -212,6 +212,17 @@ describe('fetchSnapshotContent', () => {
     expect(init?.headers).toBeUndefined()
   })
 
+  it('treats a same-host but different-scheme URL as cross-origin (no bearer)', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response('plaintext-yaml'))
+    // base is https://api.example.com; download is http:// on the same host.
+    await fetchSnapshotContent(run({ downloadUrl: 'http://api.example.com/v2/runs/r/snapshot' }), {
+      baseUrl: BASE_URL,
+      token: TOKEN,
+    })
+    const [, init] = fetchSpy.mock.calls[0]
+    expect(init?.headers).toBeUndefined()
+  })
+
   it('downloads a same-origin/relative URL WITH the bearer token', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response('api-yaml'))
     const content = await fetchSnapshotContent(run({ downloadUrl: '/v2/runs/r/snapshot' }), {
