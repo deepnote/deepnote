@@ -212,9 +212,11 @@ async function writeCloudSnapshot(args: WriteSnapshotArgs): Promise<WrittenSnaps
   const namingFile: DeepnoteFile | undefined = args.localFile ?? (snapshot as DeepnoteFile | undefined)
   if (!namingFile) {
     // Raw, unrecognized content with no local file: write a generically named file under ./snapshots.
+    // Sanitize the API-provided runId first so a path-like id can't escape the snapshots directory.
     const dir = resolve(process.cwd(), 'snapshots')
     await fs.mkdir(dir, { recursive: true })
-    const snapshotPath = resolve(dir, `deepnote-run-${args.runId}.snapshot.deepnote`)
+    const safeRunId = args.runId.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 128)
+    const snapshotPath = join(dir, `deepnote-run-${safeRunId}.snapshot.deepnote`)
     await fs.writeFile(snapshotPath, bytes, 'utf-8')
     return { snapshotPath }
   }

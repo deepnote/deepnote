@@ -38,19 +38,29 @@ interface MockConfig {
   downloadUrl?: string
   downloadBody?: string
   runError?: unknown
+  runId?: string
 }
 
-function installFetch(cfg: MockConfig): { postBodies: Array<Record<string, unknown>> } {
+interface InstalledFetch {
+  postBodies: Array<Record<string, unknown>>
+  /** The `init` of the request made to `downloadUrl` (to assert cross-origin auth handling). */
+  getDownloadInit: () => RequestInit | undefined
+}
+
+function installFetch(cfg: MockConfig): InstalledFetch {
   const postBodies: Array<Record<string, unknown>> = []
+  const runId = cfg.runId ?? 'run-x'
+  let downloadInit: RequestInit | undefined
   vi.spyOn(global, 'fetch').mockImplementation(async (url, init) => {
     const u = String(url)
     const method = (init?.method as string) ?? 'GET'
     if (cfg.downloadUrl && u === cfg.downloadUrl) {
+      downloadInit = init
       return response(cfg.downloadBody ?? '')
     }
     if (method === 'POST') {
       postBodies.push(JSON.parse(init?.body as string))
-      return response({ run: { id: 'run-x', status: 'pending' } })
+      return response({ run: { id: runId, status: 'pending' } })
     }
     const snapshot =
       cfg.snapshotContent !== undefined
@@ -60,14 +70,14 @@ function installFetch(cfg: MockConfig): { postBodies: Array<Record<string, unkno
           : undefined
     return response({
       run: {
-        id: 'run-x',
+        id: runId,
         status: cfg.terminalStatus ?? 'success',
         ...(cfg.runError !== undefined ? { error: cfg.runError } : {}),
         ...(snapshot ? { snapshot } : {}),
       },
     })
   })
-  return { postBodies }
+  return { postBodies, getDownloadInit: () => downloadInit }
 }
 
 let tmpDir: string
@@ -234,9 +244,9 @@ describe('runInDeepnoteCloud — snapshot writing', () => {
     expect(snaps.some(n => n.endsWith('.snapshot.deepnote'))).toBe(true)
   })
 
-  it('downloads a snapshot via a cross-origin downloadUrl', async () => {
+  it('downloads a snapshot via a cross-origin downloadUrl without forwarding auth', async () => {
     const file = makeFile([{ id: 'nb-single', name: 'Main' }])
-    installFetch({
+    const { getDownloadInit } = installFetch({
       downloadUrl: 'https://s3.example.com/snap.yaml',
       downloadBody: serializeDeepnoteFile(file),
     })
@@ -246,6 +256,38 @@ describe('runInDeepnoteCloud — snapshot writing', () => {
 
     const snaps = await listSnapshots()
     expect(snaps.some(n => n.endsWith('.snapshot.deepnote'))).toBe(true)
+
+    // The presigned S3 URL is a different origin; the bearer token must not leak to it.
+    const downloadHeaders = new Headers(getDownloadInit()?.headers)
+    expect(downloadHeaders.has('authorization')).toBe(false)
+  })
+
+  it('sanitizes a path-like runId so the fallback snapshot cannot escape ./snapshots', async () => {
+    // Raw, unrecognizable content + no local file → the runId-named fallback path. A malicious
+    // API-provided runId with `..` segments must not write outside the snapshots directory.
+    const prevCwd = process.cwd()
+    process.chdir(tmpDir)
+    try {
+      installFetch({ runId: 'x/../../../outside', snapshotContent: 'unrecognizable raw content' })
+
+      await runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb', token: 't', url: API_URL })
+
+      // Unsanitized, this runId would resolve to `<parent of tmpDir>/outside.snapshot.deepnote`.
+      const escaped = join(tmpDir, '..', 'outside.snapshot.deepnote')
+      await expect(
+        fs.access(escaped).then(
+          () => true,
+          () => false
+        )
+      ).resolves.toBe(false)
+
+      // Exactly one sanitized file lands inside ./snapshots, with no path separators in its name.
+      const snaps = await listSnapshots(join(tmpDir, 'snapshots'))
+      expect(snaps).toHaveLength(1)
+      expect(snaps[0]).toMatch(/^deepnote-run-[A-Za-z0-9_-]+\.snapshot\.deepnote$/)
+    } finally {
+      process.chdir(prevCwd)
+    }
   })
 
   it('writes raw bytes to --out when the payload is unrecognizable', async () => {
