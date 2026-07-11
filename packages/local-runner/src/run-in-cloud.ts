@@ -12,6 +12,7 @@ import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import type { IOutput } from '@deepnote/runtime-core'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
+import { openInCloud } from './open-in-cloud'
 import type { RunBlockOutput } from './run-with-inputs'
 
 /** Environment variable holding the Deepnote API token (matches the CLI). */
@@ -29,6 +30,11 @@ export interface RunInCloudOptions {
   blockIds?: string[]
   /** Polling controls forwarded to the cloud client (interval, timeout, onStatus, …). */
   poll?: PollOptions
+  /**
+   * When the notebook is not found in Deepnote, upload it first ("Open in Deepnote") and return a
+   * `launchUrl` (status `needs-open`) to complete the import in a browser. Defaults to `true`.
+   */
+  uploadIfMissing?: boolean
 }
 
 export interface RunInCloudResult {
@@ -41,6 +47,11 @@ export interface RunInCloudResult {
   snapshotYaml: string | null
   /** A human-readable message for a failed run. */
   error?: string
+  /**
+   * Set when the notebook was not in Deepnote and was uploaded (status `needs-open`): open this URL
+   * in a browser to import it, then run again.
+   */
+  launchUrl?: string
 }
 
 /**
@@ -71,11 +82,26 @@ export async function runInCloud(
   // override to its schema shape first — the same normalization the on-disk snapshot needs.
   const cloudInputs = coerceInputs(file, inputs)
 
-  const started = await triggerNotebookRun(baseUrl, token, {
-    notebookId,
-    inputs: cloudInputs,
-    blockIds: options.blockIds,
-  })
+  let started: Awaited<ReturnType<typeof triggerNotebookRun>>
+  try {
+    started = await triggerNotebookRun(baseUrl, token, { notebookId, inputs: cloudInputs, blockIds: options.blockIds })
+  } catch (err) {
+    if (options.uploadIfMissing !== false && isNotFoundError(err)) {
+      // The notebook isn't in Deepnote yet — upload it ("Open in Deepnote"). Opening the returned
+      // launchUrl in a browser imports it (creating the notebook), after which it can be run by id.
+      const uploaded = await openInCloud(input, { inputs })
+      return {
+        runId: '',
+        status: 'needs-open',
+        success: false,
+        outputs: [],
+        snapshotYaml: null,
+        launchUrl: uploaded.launchUrl,
+        error: 'Notebook not in Deepnote yet — open it in Deepnote (launchUrl) to import it, then run again.',
+      }
+    }
+    throw err
+  }
   const run = await pollRunUntilComplete(baseUrl, token, started.runId, { snapshotDelivery: 'inline', ...options.poll })
 
   const success = isSuccessStatus(run.status)
@@ -99,6 +125,15 @@ function resolveNotebookId(file: DeepnoteFile): string {
     )
   }
   return id
+}
+
+/** True for a "notebook not found" style error (404 or a message that says so). */
+function isNotFoundError(err: unknown): boolean {
+  if (err && typeof err === 'object' && (err as { statusCode?: number }).statusCode === 404) {
+    return true
+  }
+  const message = err instanceof Error ? err.message : String(err)
+  return /not found/i.test(message)
 }
 
 /** Coerce each override to the schema shape its input block requires (slider → string, etc.). */

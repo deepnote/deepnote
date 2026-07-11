@@ -5,12 +5,14 @@ const cloudMock = vi.hoisted(() => ({
   triggerNotebookRun: vi.fn(),
   pollRunUntilComplete: vi.fn(),
   fetchSnapshotContent: vi.fn(),
+  uploadNotebook: vi.fn(),
 }))
 
 vi.mock('@deepnote/cloud', () => ({
   triggerNotebookRun: cloudMock.triggerNotebookRun,
   pollRunUntilComplete: cloudMock.pollRunUntilComplete,
   fetchSnapshotContent: cloudMock.fetchSnapshotContent,
+  uploadNotebook: cloudMock.uploadNotebook,
   isSuccessStatus: (s: string) => s === 'success',
   describeRunError: (run: { error?: unknown }) => (typeof run.error === 'string' ? run.error : undefined),
 }))
@@ -120,5 +122,26 @@ describe('runInCloud', () => {
     } finally {
       if (prev !== undefined) process.env.DEEPNOTE_TOKEN = prev
     }
+  })
+
+  it('uploads the notebook when it is not found in Deepnote (upload-if-missing)', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValue(new Error('{"message":"Notebook not found"}'))
+    cloudMock.uploadNotebook.mockResolvedValue({
+      importId: 'imp1',
+      launchUrl: 'https://deepnote.com/launch?importId=imp1',
+    })
+
+    const result = await runInCloud(NOTEBOOK, { count: 7 }, { token: 't' })
+
+    expect(cloudMock.uploadNotebook).toHaveBeenCalledOnce()
+    expect(result.success).toBe(false)
+    expect(result.status).toBe('needs-open')
+    expect(result.launchUrl).toBe('https://deepnote.com/launch?importId=imp1')
+  })
+
+  it('rethrows a not-found error when uploadIfMissing is false', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValue(new Error('{"message":"Notebook not found"}'))
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't', uploadIfMissing: false })).rejects.toThrow(/not found/i)
+    expect(cloudMock.uploadNotebook).not.toHaveBeenCalled()
   })
 })
