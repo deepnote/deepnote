@@ -84,10 +84,11 @@ copy, unless `--out <path>` is given (single file). `--input`, `--block`, `--not
 and `--token` are honored; local-only flags (`--python`, `--cwd`, `--top`, `--profile`, `--open`,
 `--prompt`, `--dry-run`, `--list-inputs`, `--context`) are not.
 
-**Machine output** (`-o json` / `-o toon`):
+**Machine output** (`-o json` / `-o toon`; `-o llm` resolves to `toon`):
 `{ success, runId, status, snapshotPath?, timestampedSnapshotPath?, error? }`.
 A completed run with status `error`/`internal_error`/`stopped` exits `1` but still reports the
-`runId`, `status`, and any `snapshotPath`.
+`runId`, `status`, and any `snapshotPath`. A successful run whose snapshot cannot be downloaded or
+saved also exits `1` (with `success: false` and an `error`).
 
 ```bash
 # Run an existing cloud notebook by id and download its snapshot

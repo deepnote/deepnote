@@ -138,27 +138,27 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option                  | Description                                                              | Default            |
-| ----------------------- | ------------------------------------------------------------------------ | ------------------ |
-| `--python <path>`       | Path to Python interpreter or virtual environment                        | auto-detected      |
-| `--cwd <path>`          | Working directory for execution                                          | file directory     |
-| `--notebook <name>`     | Run only the specified notebook                                          | all notebooks      |
-| `--block <id>`          | Run only the specified block                                             | all blocks         |
-| `-i, --input <key=val>` | Set input variable value (can be repeated)                               |                    |
-| `--list-inputs`         | List input variables without running                                     | `false`            |
-| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`) |                    |
-| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                  | text               |
-| `--dry-run`             | Show execution plan without running                                      | `false`            |
-| `--top`                 | Display resource usage (CPU/memory) during execution                     | `false`            |
-| `--profile`             | Show per-block timing and memory summary                                 | `false`            |
-| `--open`                | Open project in Deepnote Cloud after successful execution                | `false`            |
-| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)         | `false`            |
-| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                | `false`            |
-| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                |                    |
-| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                   |                    |
-| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                     | `600`              |
-| `--url <url>`           | API base URL                                                             | `api.deepnote.com` |
-| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                               |                    |
+| Option                  | Description                                                              | Default                    |
+| ----------------------- | ------------------------------------------------------------------------ | -------------------------- |
+| `--python <path>`       | Path to Python interpreter or virtual environment                        | auto-detected              |
+| `--cwd <path>`          | Working directory for execution                                          | file directory             |
+| `--notebook <name>`     | Run only the specified notebook                                          | all notebooks              |
+| `--block <id>`          | Run only the specified block                                             | all blocks                 |
+| `-i, --input <key=val>` | Set input variable value (can be repeated)                               |                            |
+| `--list-inputs`         | List input variables without running                                     | `false`                    |
+| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`) |                            |
+| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                  | text                       |
+| `--dry-run`             | Show execution plan without running                                      | `false`                    |
+| `--top`                 | Display resource usage (CPU/memory) during execution                     | `false`                    |
+| `--profile`             | Show per-block timing and memory summary                                 | `false`                    |
+| `--open`                | Open project in Deepnote Cloud after successful execution                | `false`                    |
+| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)         | `false`                    |
+| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                | `false`                    |
+| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                |                            |
+| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                   |                            |
+| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                     | `600`                      |
+| `--url <url>`           | API base URL                                                             | `https://api.deepnote.com` |
+| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                               |                            |
 
 **Examples:**
 
