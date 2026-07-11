@@ -1,6 +1,21 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
-import { parseApiErrorMessage } from './deepnote-api'
+
+/**
+ * Extracts an error message from an API response body: the `error` field of a JSON body, else the
+ * raw text, else the fallback. (Local copy so this package needs no dependency on the CLI.)
+ */
+function parseApiErrorMessage(responseBody: string, fallback: string): string {
+  try {
+    const json = JSON.parse(responseBody)
+    if (json.error && typeof json.error === 'string') {
+      return json.error
+    }
+  } catch {
+    // Not JSON, use raw body
+  }
+  return responseBody || fallback
+}
 
 /**
  * Client for the Deepnote public "runs" API (preview).
