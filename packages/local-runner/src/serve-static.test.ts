@@ -59,6 +59,13 @@ beforeEach(async () => {
       snapshot: {} as unknown as DeepnoteSnapshot,
       snapshotYaml: `ran ${JSON.stringify(inputs)}`,
     }),
+    cloudRunner: async (_input, inputs) => ({
+      runId: 'r1',
+      status: 'success',
+      success: true,
+      outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
+      snapshotYaml: `cloud ${JSON.stringify(inputs)}`,
+    }),
   })
   base = `http://127.0.0.1:${handle.port}`
 })
@@ -87,6 +94,19 @@ describe('serveStatic', () => {
     const body = (await res.json()) as { summary: { failedBlocks: number }; snapshotYaml: string }
     expect(body.summary.failedBlocks).toBe(0)
     expect(body.snapshotYaml).toContain('"count":9')
+  })
+
+  it('POST /api/run-cloud forwards inputs to the cloud runner and returns JSON', async () => {
+    const res = await fetch(`${base}/api/run-cloud`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ inputs: { count: 3 } }),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { status: string; success: boolean; snapshotYaml: string }
+    expect(body.success).toBe(true)
+    expect(body.status).toBe('success')
+    expect(body.snapshotYaml).toContain('"count":3')
   })
 
   it('POST /api/run with an invalid body returns a 400 error JSON', async () => {

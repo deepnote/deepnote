@@ -37,6 +37,24 @@ for (const { blockId, outputs } of outputs) {
 - A failing block is reported via `summary.failedBlocks` — it is **not** thrown. Only
   infrastructure/config errors throw (no Python env, missing toolkit, an invalid file).
 
+### Run in Deepnote Cloud (the second way)
+
+```ts
+import { runInCloud } from "@deepnote/local-runner";
+
+const result = await runInCloud(
+  "examples/6_with_inputs.deepnote", // resolves the cloud notebook id from the file
+  { greeting: "hi", count: 7 }, // input overrides
+  { token: process.env.DEEPNOTE_TOKEN }, // or pass an explicit notebookId
+);
+// result.status / result.success / result.outputs / result.snapshotYaml
+```
+
+Runs a notebook that **already exists in Deepnote** (open it in the cloud first to get its id) via
+the runs API — trigger → poll → fetch snapshot — reusing the shared `@deepnote/cloud` client that
+also powers `deepnote run --cloud`. Needs a `DEEPNOTE_TOKEN`. `serveStatic` exposes it at
+`POST /api/run-cloud`.
+
 ### Serve it to a static page
 
 ```ts

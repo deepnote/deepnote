@@ -5,6 +5,8 @@ import { extname, resolve, sep } from 'node:path'
 import { listInputBlocks } from './apply-input-overrides'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
+import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
+import { runInCloud } from './run-in-cloud'
 import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 import { runWithInputs } from './run-with-inputs'
 
@@ -13,6 +15,12 @@ export type RunnerFn = (
   inputs: Record<string, unknown>,
   options?: RunWithInputsOptions
 ) => Promise<RunWithInputsResult>
+
+export type CloudRunnerFn = (
+  input: DeepnoteInput,
+  inputs: Record<string, unknown>,
+  options?: RunInCloudOptions
+) => Promise<RunInCloudResult>
 
 export interface ServeStaticOptions {
   /** Directory of static files to serve (e.g. an `index.html` that drives the API). */
@@ -25,8 +33,12 @@ export interface ServeStaticOptions {
   pythonEnv?: string
   /** Forwarded to the runner. Runs persist a snapshot next to `notebookPath` by default; pass `false` to skip. */
   persistSnapshot?: boolean
-  /** Override the runner (advanced; mainly for testing). Defaults to `runWithInputs`. */
+  /** Bearer token for cloud runs (`POST /api/run-cloud`). Defaults to `DEEPNOTE_TOKEN` in the environment. */
+  cloudToken?: string
+  /** Override the local runner (advanced; mainly for testing). Defaults to `runWithInputs`. */
   runner?: RunnerFn
+  /** Override the cloud runner (advanced; mainly for testing). Defaults to `runInCloud`. */
+  cloudRunner?: CloudRunnerFn
 }
 
 export interface ServeStaticHandle {
@@ -53,6 +65,8 @@ const CONTENT_TYPES: Record<string, string> = {
  * - `GET /api/info` → `{ notebook, inputs }` (input blocks for building controls)
  * - `POST /api/run` → `{ inputs }` → `{ outputs, summary, snapshotYaml }`; writes a snapshot next
  *   to `notebookPath` by default (like `deepnote run`), unless `persistSnapshot: false`
+ * - `POST /api/run-cloud` → `{ inputs }` → `{ status, success, outputs, snapshotYaml }` via Deepnote
+ *   Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`)
  * - any other GET → a file from `dir` (path-traversal guarded)
  *
  * Deliberately small: no WebSocket, no watch, no rendering. Binds to 127.0.0.1.
@@ -61,6 +75,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   const { notebookPath, pythonEnv } = options
   const rootDir = resolve(options.dir)
   const runner = options.runner ?? runWithInputs
+  const cloudRunner = options.cloudRunner ?? runInCloud
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -91,6 +106,27 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         outputs: result.outputs,
         summary: result.summary,
         snapshotYaml: result.snapshotYaml,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && pathname === '/api/run-cloud') {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(await readBody(req))
+      } catch {
+        sendJson(res, 400, { error: 'Invalid JSON body' })
+        return
+      }
+      const inputs = (parsed as { inputs?: Record<string, unknown> } | null)?.inputs ?? {}
+      const result = await cloudRunner(notebookPath, inputs, { token: options.cloudToken })
+      sendJson(res, 200, {
+        runId: result.runId,
+        status: result.status,
+        success: result.success,
+        outputs: result.outputs,
+        snapshotYaml: result.snapshotYaml,
+        error: result.error,
       })
       return
     }

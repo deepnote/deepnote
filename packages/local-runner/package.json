@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
+    "@deepnote/cloud": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/runtime-core": "workspace:*"
   },
