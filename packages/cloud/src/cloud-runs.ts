@@ -1,6 +1,21 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
-import { parseApiErrorMessage } from './deepnote-api'
+
+/**
+ * Extracts an error message from an API response body: the `error` field of a JSON body, else the
+ * raw text, else the fallback. (Local copy so this package needs no dependency on the CLI.)
+ */
+function parseApiErrorMessage(responseBody: string, fallback: string): string {
+  try {
+    const json = JSON.parse(responseBody)
+    if (json.error && typeof json.error === 'string') {
+      return json.error
+    }
+  } catch {
+    // Not JSON, use raw body
+  }
+  return responseBody || fallback
+}
 
 /**
  * Client for the Deepnote public "runs" API (preview).
@@ -61,6 +76,10 @@ const runSchema = z
     finishedAt: z.string().optional(),
     error: z.unknown().optional(),
     snapshot: snapshotSchema.optional(),
+    // Some deployments return the snapshot inline on the run object (flat) rather than nested
+    // under `snapshot`: `snapshotContent` (or null) + `snapshotDownloadUrl` (a presigned URL).
+    snapshotContent: z.string().nullish(),
+    snapshotDownloadUrl: z.string().nullish(),
   })
   .passthrough()
 
@@ -128,6 +147,16 @@ async function throwIfNotOk(response: Response, fallback: string): Promise<void>
   throw new ApiError(response.status, message)
 }
 
+/** Normalize the snapshot from either the nested `snapshot` object or the flat run fields. */
+function normalizeSnapshot(raw: z.infer<typeof runSchema>): NormalizedRun['snapshot'] {
+  if (raw.snapshot) {
+    return raw.snapshot
+  }
+  const snapshotContent = typeof raw.snapshotContent === 'string' ? raw.snapshotContent : undefined
+  const downloadUrl = typeof raw.snapshotDownloadUrl === 'string' ? raw.snapshotDownloadUrl : undefined
+  return snapshotContent || downloadUrl ? { snapshotContent, downloadUrl } : undefined
+}
+
 function normalizeRun(json: unknown): NormalizedRun {
   const envelope = runEnvelopeSchema.safeParse(json)
   const raw = envelope.success ? envelope.data.run : runSchema.parse(json)
@@ -143,7 +172,7 @@ function normalizeRun(json: unknown): NormalizedRun {
     createdAt: raw.createdAt,
     finishedAt: raw.finishedAt,
     error: raw.error,
-    snapshot: raw.snapshot,
+    snapshot: normalizeSnapshot(raw),
     raw,
   }
 }

@@ -9,14 +9,6 @@ import {
   parseYaml,
   serializeDeepnoteSnapshot,
 } from '@deepnote/blocks'
-import { getSnapshotDir, getSnapshotPath, resolveSnapshotNotebookId, splitDeepnoteFile } from '@deepnote/convert'
-import { DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
-import dotenv from 'dotenv'
-import ora from 'ora'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
-import { ExitCode } from '../exit-codes'
-import { debug, getChalk, getOutputConfig, log, type OutputFormat, outputJson, outputToon } from '../output'
-import { MissingTokenError } from '../utils/auth'
 import {
   describeRunError,
   fetchSnapshotContent,
@@ -26,7 +18,15 @@ import {
   pollRunUntilComplete,
   type TriggerRunBody,
   triggerNotebookRun,
-} from '../utils/cloud-runs'
+} from '@deepnote/cloud'
+import { getSnapshotDir, getSnapshotPath, resolveSnapshotNotebookId, splitDeepnoteFile } from '@deepnote/convert'
+import { DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
+import dotenv from 'dotenv'
+import ora from 'ora'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
+import { ExitCode } from '../exit-codes'
+import { debug, getChalk, getOutputConfig, log, type OutputFormat, outputJson, outputToon } from '../output'
+import { MissingTokenError } from '../utils/auth'
 import { resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { parseInputs } from '../utils/parse-inputs'
 
