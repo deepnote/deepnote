@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deepnote local-runner demo</title>
+    <style>
+      :root {
+        --bg: #f7f7fb; --card: #fff; --ink: #191627; --muted: #6a6780;
+        --line: #e7e5f0; --accent: #4a25c9; --accent-soft: #eceafb; --teal: #0e8f8f; --red: #c02a4b;
+        --mono: ui-monospace, "SF Mono", Menlo, monospace;
+        --sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0d0c15; --card: #141221; --ink: #ece9f8; --muted: #a29fb8;
+          --line: #272340; --accent: #a78bfa; --accent-soft: #201a3a; --teal: #2dd9da; --red: #ff6b8a;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+      main { max-width: 640px; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
+      .eyebrow { font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+      h1 { font-size: 1.7rem; letter-spacing: -.02em; margin: .3rem 0 .3rem; }
+      p.sub { color: var(--muted); margin: 0 0 1.75rem; font-size: .95rem; }
+      .field { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; margin-bottom: .6rem; }
+      .field label { display: block; font-size: .82rem; font-weight: 600; margin-bottom: .5rem; }
+      .field .var { font-family: var(--mono); font-size: .72rem; color: var(--accent); background: var(--accent-soft); padding: .05em .4em; border-radius: 4px; margin-left: .4rem; font-weight: 500; }
+      input[type="text"], select { width: 100%; font: inherit; font-size: .92rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .5rem .6rem; }
+      input[type="range"] { width: 100%; accent-color: var(--accent); }
+      .row { display: flex; align-items: center; gap: .75rem; }
+      .val { font-family: var(--mono); font-weight: 600; color: var(--accent); min-width: 3ch; text-align: right; }
+      .switch { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
+      button { font: inherit; font-weight: 600; font-size: .9rem; color: #fff; background: var(--accent); border: 0; border-radius: 9px; padding: .6rem 1.1rem; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; }
+      button:disabled { opacity: .55; cursor: default; }
+      .bar { display: flex; align-items: center; gap: .9rem; margin: 1rem 0 1.75rem; }
+      .status { font-size: .82rem; color: var(--muted); }
+      .status.ok { color: var(--teal); } .status.err { color: var(--red); }
+      .spin { width: 13px; height: 13px; border: 2px solid #fff; border-right-color: transparent; border-radius: 50%; animation: s .7s linear infinite; }
+      @keyframes s { to { transform: rotate(360deg); } }
+      h2 { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 .6rem; }
+      .out { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .8rem 1rem; margin-bottom: .55rem; }
+      .out .tag { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-bottom: .3rem; }
+      pre { font-family: var(--mono); font-size: .85rem; white-space: pre-wrap; margin: 0; }
+      pre.err { color: var(--red); }
+      img { max-width: 100%; border-radius: 8px; }
+      .hint { color: var(--muted); font-size: .85rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Deepnote · @deepnote/local-runner</p>
+      <h1 id="title">Loading…</h1>
+      <p class="sub">Edit the inputs, hit Run — the notebook executes in a local Python kernel and the real output comes back. This whole page is one <code>index.html</code> talking to <code>serveStatic</code>.</p>
+
+      <div id="inputs"></div>
+
+      <div class="bar">
+        <button id="run"><span id="spin"></span>▶ Run</button>
+        <span class="status" id="status"></span>
+      </div>
+
+      <h2>Output</h2>
+      <div id="output"><p class="hint">Not run yet.</p></div>
+    </main>
+
+    <script type="module">
+      const $ = (s) => document.querySelector(s)
+      const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
+      const state = {} // variableName -> current value
+
+      // 1) Ask the server what inputs the notebook has, and build a control for each.
+      const info = await (await fetch('/api/info')).json()
+      $('#title').textContent = info.notebook
+
+      for (const inp of info.inputs) {
+        state[inp.variableName] = inp.value
+        const field = el('div', 'field')
+        const label = el('label')
+        label.textContent = inp.label ?? inp.variableName
+        const chip = el('span', 'var'); chip.textContent = inp.variableName
+        label.appendChild(chip)
+        field.appendChild(label)
+        field.appendChild(control(inp))
+        $('#inputs').appendChild(field)
+      }
+
+      function control(inp) {
+        if (inp.type === 'input-slider') {
+          state[inp.variableName] = Number(inp.value) // seed as a number, not the stored string
+          const row = el('div', 'row')
+          const range = el('input'); range.type = 'range'
+          range.min = inp.min ?? 0; range.max = inp.max ?? 100; range.step = inp.step ?? 1; range.value = inp.value
+          const out = el('span', 'val'); out.textContent = inp.value
+          range.oninput = () => { state[inp.variableName] = Number(range.value); out.textContent = range.value }
+          row.append(range, out); return row
+        }
+        if (inp.type === 'input-checkbox') {
+          const wrap = el('label', 'switch')
+          const box = el('input'); box.type = 'checkbox'; box.checked = inp.value === true
+          const txt = el('span'); txt.textContent = box.checked ? 'True' : 'False'
+          box.onchange = () => { state[inp.variableName] = box.checked; txt.textContent = box.checked ? 'True' : 'False' }
+          wrap.append(box, txt); return wrap
+        }
+        if (inp.type === 'input-select') {
+          const sel = el('select'); sel.multiple = !!inp.multiple
+          for (const opt of inp.options ?? []) {
+            const o = el('option'); o.value = opt; o.textContent = opt
+            o.selected = Array.isArray(inp.value) ? inp.value.includes(opt) : inp.value === opt
+            sel.appendChild(o)
+          }
+          sel.onchange = () => {
+            state[inp.variableName] = inp.multiple ? [...sel.selectedOptions].map((o) => o.value) : sel.value
+          }
+          return sel
+        }
+        const text = el('input'); text.type = 'text'; text.value = inp.value ?? ''
+        text.oninput = () => { state[inp.variableName] = text.value }
+        return text
+      }
+
+      // 2) Run: POST the current inputs, render whatever outputs come back.
+      $('#run').onclick = async () => {
+        const btn = $('#run'); btn.disabled = true
+        $('#spin').className = 'spin'; setStatus('running in a local kernel…')
+        try {
+          const res = await fetch('/api/run', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ inputs: state }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          render(data)
+          setStatus(`✓ ran ${data.summary.executedBlocks} blocks`, 'ok')
+        } catch (e) {
+          setStatus('✗ ' + e.message, 'err')
+        } finally {
+          btn.disabled = false; $('#spin').className = ''
+        }
+      }
+
+      function setStatus(text, cls = '') { const s = $('#status'); s.textContent = text; s.className = 'status ' + cls }
+
+      function render(data) {
+        const root = $('#output'); root.innerHTML = ''
+        const withOutput = data.outputs.filter((b) => b.outputs.length)
+        if (!withOutput.length) { root.innerHTML = '<p class="hint">(no output)</p>'; return }
+        for (const block of withOutput) {
+          const card = el('div', 'out')
+          const tag = el('div', 'tag'); tag.textContent = block.blockId; card.appendChild(tag)
+          for (const o of block.outputs) card.appendChild(renderOutput(o))
+          root.appendChild(card)
+        }
+      }
+
+      function renderOutput(o) {
+        if (o.output_type === 'stream') {
+          const pre = el('pre', o.name === 'stderr' ? 'err' : ''); pre.textContent = join(o.text); return pre
+        }
+        if (o.output_type === 'error') {
+          const pre = el('pre', 'err'); pre.textContent = (o.traceback ? o.traceback.join('\n') : `${o.ename}: ${o.evalue}`).replace(/\x1b\[[0-9;]*m/g, ''); return pre
+        }
+        const data = o.data || {}
+        if (data['image/png']) { const img = el('img'); img.src = 'data:image/png;base64,' + join(data['image/png']).replace(/\s+/g, ''); return img }
+        if (data['text/html']) { const d = el('div'); d.innerHTML = join(data['text/html']); return d }
+        const pre = el('pre'); pre.textContent = join(data['text/plain'] ?? ''); return pre
+      }
+
+      const join = (t) => (Array.isArray(t) ? t.join('') : t ?? '')
+    </script>
+  </body>
+</html>
