@@ -38,8 +38,13 @@ export interface GlobalOptions {
 
 /** Parses the `--timeout <seconds>` value into a positive integer number of seconds. */
 function parseTimeoutSeconds(value: string): number {
-  const seconds = Number.parseInt(value, 10)
-  if (Number.isNaN(seconds) || seconds <= 0) {
+  // Validate the whole string: Number.parseInt would silently accept '1.5' or '10s'.
+  const normalized = value.trim()
+  if (!/^\d+$/.test(normalized)) {
+    throw new InvalidArgumentError('Timeout must be a positive integer number of seconds.')
+  }
+  const seconds = Number(normalized)
+  if (!Number.isSafeInteger(seconds) || seconds <= 0) {
     throw new InvalidArgumentError('Timeout must be a positive integer number of seconds.')
   }
   return seconds
