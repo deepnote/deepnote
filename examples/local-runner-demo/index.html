@@ -36,7 +36,7 @@
       button.cloud { background: none; color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
       .bar { display: flex; align-items: center; gap: .9rem; margin: 1rem 0 1.75rem; flex-wrap: wrap; }
       .status { font-size: .82rem; color: var(--muted); }
-      .status.ok { color: var(--teal); } .status.err { color: var(--red); }
+      .status.ok { color: var(--teal); } .status.err { color: var(--red); } .status a { color: inherit; }
       .spin { width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s .7s linear infinite; }
       @keyframes s { to { transform: rotate(360deg); } }
       h2 { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 .6rem; }
@@ -160,7 +160,12 @@
           }
           if (!data.success) throw new Error(data.error || `cloud run ${data.status}`)
           render(data)
-          setStatus(`☁ cloud run ${data.status}`, 'ok')
+          if (data.viewUrl) {
+            const s = $('#status'); s.className = 'status ok'
+            s.innerHTML = `☁ cloud run ${data.status} — <a href="${data.viewUrl}" target="_blank" rel="noopener">view runs in Deepnote →</a>`
+          } else {
+            setStatus(`☁ cloud run ${data.status}`, 'ok')
+          }
         } catch (e) {
           setStatus('✗ ' + e.message, 'err')
         } finally {
