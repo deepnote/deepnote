@@ -52,6 +52,7 @@ export async function uploadNotebook(
     method: 'PUT',
     headers: { 'Content-Type': 'application/octet-stream' },
     body: fileBytes,
+    signal: AbortSignal.timeout(timeout),
   })
   if (!uploadResponse.ok) {
     throw new ApiError(uploadResponse.status, `Failed to upload notebook: HTTP ${uploadResponse.status}`)

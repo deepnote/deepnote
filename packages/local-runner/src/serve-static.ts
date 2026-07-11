@@ -1,5 +1,4 @@
-import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, realpath, stat } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { extname, resolve, sep } from 'node:path'
 import { listInputBlocks } from './apply-input-overrides'
@@ -46,6 +45,12 @@ export interface ServeStaticHandle {
   close: () => Promise<void>
 }
 
+/** Cap on request-body size, so a runaway `POST` can't exhaust memory. */
+const MAX_BODY_BYTES = 5_000_000
+
+/** Signals a request body that exceeded {@link MAX_BODY_BYTES}, so the caller can answer `413`. */
+class PayloadTooLargeError extends Error {}
+
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -67,7 +72,10 @@ const CONTENT_TYPES: Record<string, string> = {
  *   to `notebookPath` by default (like `deepnote run`), unless `persistSnapshot: false`
  * - `POST /api/run-cloud` → `{ inputs }` → `{ status, success, outputs, snapshotYaml }` via Deepnote
  *   Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`)
- * - any other GET → a file from `dir` (path-traversal guarded)
+ * - any other GET → a file from `dir` (path-traversal + symlink guarded)
+ *
+ * Bad requests get a specific status: `400` for malformed JSON / bad path encoding / a non-object
+ * `inputs`, `413` for an oversized body, `403`/`404` for disallowed/missing files.
  *
  * Deliberately small: no WebSocket, no watch, no rendering. Binds to 127.0.0.1.
  */
@@ -93,15 +101,14 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
     }
 
     if (req.method === 'POST' && pathname === '/api/run') {
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(await readBody(req))
-      } catch {
-        sendJson(res, 400, { error: 'Invalid JSON body' })
+      const body = await readJsonBody(req, res)
+      if (!body.ok) return
+      const inputs = readInputMap(body.value)
+      if (!inputs.ok) {
+        sendJson(res, 400, { error: 'Request "inputs" must be an object' })
         return
       }
-      const inputs = (parsed as { inputs?: Record<string, unknown> } | null)?.inputs ?? {}
-      const result = await runner(notebookPath, inputs, { pythonEnv, persistSnapshot: options.persistSnapshot })
+      const result = await runner(notebookPath, inputs.inputs, { pythonEnv, persistSnapshot: options.persistSnapshot })
       sendJson(res, 200, {
         outputs: result.outputs,
         summary: result.summary,
@@ -111,15 +118,14 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
     }
 
     if (req.method === 'POST' && pathname === '/api/run-cloud') {
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(await readBody(req))
-      } catch {
-        sendJson(res, 400, { error: 'Invalid JSON body' })
+      const body = await readJsonBody(req, res)
+      if (!body.ok) return
+      const inputs = readInputMap(body.value)
+      if (!inputs.ok) {
+        sendJson(res, 400, { error: 'Request "inputs" must be an object' })
         return
       }
-      const inputs = (parsed as { inputs?: Record<string, unknown> } | null)?.inputs ?? {}
-      const result = await cloudRunner(notebookPath, inputs, { token: options.cloudToken })
+      const result = await cloudRunner(notebookPath, inputs.inputs, { token: options.cloudToken })
       sendJson(res, 200, {
         runId: result.runId,
         status: result.status,
@@ -144,21 +150,80 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   return listen(server, options.port ?? 0)
 }
 
-async function serveFile(pathname: string, rootDir: string, res: ServerResponse): Promise<void> {
-  const decoded = decodeURIComponent(pathname === '/' ? '/index.html' : pathname)
-  const target = resolve(rootDir, `.${decoded.startsWith('/') ? decoded : `/${decoded}`}`)
+/** Extract a validated `inputs` map from a parsed body. `{ ok: false }` = present but not an object. */
+function readInputMap(parsed: unknown): { ok: true; inputs: Record<string, unknown> } | { ok: false } {
+  const raw = (parsed as { inputs?: unknown } | null)?.inputs
+  if (raw === undefined || raw === null) return { ok: true, inputs: {} }
+  if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false }
+  return { ok: true, inputs: raw as Record<string, unknown> }
+}
 
-  // Path-traversal guard: the resolved path must stay inside rootDir.
+/** Read + JSON-parse the body, sending the right error status on failure (`400`/`413`). */
+async function readJsonBody(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<{ ok: true; value: unknown } | { ok: false }> {
+  let raw: string
+  try {
+    raw = await readBody(req)
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      req.resume() // drain the rest so the client can read the response cleanly
+      sendJson(res, 413, { error: 'Request body too large' })
+    } else {
+      sendJson(res, 400, { error: 'Invalid request body' })
+    }
+    return { ok: false }
+  }
+  try {
+    return { ok: true, value: JSON.parse(raw) }
+  } catch {
+    sendJson(res, 400, { error: 'Invalid JSON body' })
+    return { ok: false }
+  }
+}
+
+async function serveFile(pathname: string, rootDir: string, res: ServerResponse): Promise<void> {
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(pathname === '/' ? '/index.html' : pathname)
+  } catch {
+    // Malformed percent-encoding is a bad request, not a server error.
+    sendJson(res, 400, { error: 'Bad request path' })
+    return
+  }
+
+  const target = resolve(rootDir, `.${decoded.startsWith('/') ? decoded : `/${decoded}`}`)
+  // Lexical guard: the resolved path must stay inside rootDir.
   if (target !== rootDir && !target.startsWith(rootDir + sep)) {
     sendJson(res, 403, { error: 'Forbidden' })
     return
   }
-  if (!existsSync(target)) {
+
+  // Resolve symlinks and read before committing to a 200: a symlink can still point outside
+  // rootDir, and any directory/read error must surface as 4xx rather than after the header is
+  // written (which would throw ERR_HTTP_HEADERS_SENT).
+  let realTarget: string
+  let bytes: Buffer
+  try {
+    realTarget = await realpath(target)
+    const realRoot = await realpath(rootDir)
+    if (realTarget !== realRoot && !realTarget.startsWith(realRoot + sep)) {
+      sendJson(res, 403, { error: 'Forbidden' })
+      return
+    }
+    if (!(await stat(realTarget)).isFile()) {
+      sendJson(res, 404, { error: 'Not found' })
+      return
+    }
+    bytes = await readFile(realTarget)
+  } catch {
     sendJson(res, 404, { error: 'Not found' })
     return
   }
-  res.writeHead(200, { 'Content-Type': CONTENT_TYPES[extname(target)] ?? 'application/octet-stream' })
-  res.end(await readFile(target))
+
+  res.writeHead(200, { 'Content-Type': CONTENT_TYPES[extname(realTarget)] ?? 'application/octet-stream' })
+  res.end(bytes)
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -168,13 +233,32 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolvePromise, reject) => {
-    let data = ''
+    const chunks: Buffer[] = []
+    let size = 0
+    let settled = false
+    const fail = (error: Error) => {
+      if (!settled) {
+        settled = true
+        reject(error)
+      }
+    }
     req.on('data', chunk => {
-      data += chunk
-      if (data.length > 5_000_000) req.destroy()
+      size += (chunk as Buffer).length // byte length, not UTF-16 code units
+      if (size > MAX_BODY_BYTES) {
+        fail(new PayloadTooLargeError('Request body too large'))
+        return
+      }
+      chunks.push(chunk as Buffer)
     })
-    req.on('end', () => resolvePromise(data))
-    req.on('error', reject)
+    req.on('end', () => {
+      if (!settled) {
+        settled = true
+        resolvePromise(Buffer.concat(chunks).toString('utf-8'))
+      }
+    })
+    // Reject (rather than hang) if the connection drops before the body is complete.
+    req.on('aborted', () => fail(new Error('Request aborted before the body was fully received')))
+    req.on('error', fail)
   })
 }
 

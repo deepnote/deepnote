@@ -131,6 +131,11 @@ describe('runWithInputs', () => {
     }
   })
 
+  it('rejects persistSnapshot:true for a path-less input before starting the engine', async () => {
+    await expect(runWithInputs(NOTEBOOK, {}, { persistSnapshot: true })).rejects.toThrow(/requires a file path/)
+    expect(engineMock.start).not.toHaveBeenCalled()
+  })
+
   it('skips persistence when persistSnapshot is false, even for a path input', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'lr-run-'))
     writeFileSync(join(dir, 'nb.deepnote'), NOTEBOOK)

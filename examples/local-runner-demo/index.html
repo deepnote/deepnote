@@ -162,7 +162,10 @@
           render(data)
           if (data.viewUrl) {
             const s = $('#status'); s.className = 'status ok'
-            s.innerHTML = `☁ cloud run ${data.status} — <a href="${data.viewUrl}" target="_blank" rel="noopener">view runs in Deepnote →</a>`
+            s.textContent = `☁ cloud run ${data.status} — ` // build the link via DOM APIs, not innerHTML
+            const a = el('a'); a.href = data.viewUrl; a.target = '_blank'; a.rel = 'noopener'
+            a.textContent = 'view runs in Deepnote →'
+            s.appendChild(a)
           } else {
             setStatus(`☁ cloud run ${data.status}`, 'ok')
           }
@@ -196,6 +199,8 @@
         }
         const data = o.data || {}
         if (data['image/png']) { const img = el('img'); img.src = 'data:image/png;base64,' + join(data['image/png']).replace(/\s+/g, ''); return img }
+        // NOTE: notebook text/html output is injected as-is (standard for notebook viewers). This is
+        // an XSS sink for UNTRUSTED notebooks — a real app running shared notebooks must sanitize first.
         if (data['text/html']) { const d = el('div'); d.innerHTML = join(data['text/html']); return d }
         const pre = el('pre'); pre.textContent = join(data['text/plain'] ?? ''); return pre
       }

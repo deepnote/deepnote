@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -116,6 +116,25 @@ describe('serveStatic', () => {
     expect(((await res.json()) as { error: string }).error).toBe('Invalid JSON body')
   })
 
+  it('POST /api/run with a non-object "inputs" returns 400', async () => {
+    const res = await fetch(`${base}/api/run`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ inputs: [1, 2, 3] }),
+    })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { error: string }).error).toMatch(/inputs/i)
+  })
+
+  it('POST /api/run with an oversized body returns 413', async () => {
+    const res = await fetch(`${base}/api/run`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ inputs: { big: 'x'.repeat(5_000_001) } }),
+    })
+    expect(res.status).toBe(413)
+  })
+
   it('serves static files with a content type', async () => {
     const res = await fetch(`${base}/`)
     expect(res.status).toBe(200)
@@ -132,5 +151,27 @@ describe('serveStatic', () => {
 
   it('returns 404 for a missing file', async () => {
     expect(await rawStatus(handle.port, '/missing.js')).toBe(404)
+  })
+
+  it('returns 400 for a malformed percent-encoded path', async () => {
+    // `%zz` is not valid percent-encoding, so `decodeURIComponent` throws — a bad request, not a 500.
+    expect(await rawStatus(handle.port, '/%zz')).toBe(400)
+  })
+
+  it('returns 404 for a directory path (not a file)', async () => {
+    mkdirSync(join(dir, 'sub'))
+    expect(await rawStatus(handle.port, '/sub')).toBe(404)
+  })
+
+  it('rejects a symlink that escapes the served directory', async () => {
+    // A lexical guard alone would allow this: the link lives inside `dir` but resolves outside it.
+    const outside = mkdtempSync(join(tmpdir(), 'lr-secret-'))
+    try {
+      writeFileSync(join(outside, 'secret.txt'), 'top secret')
+      symlinkSync(join(outside, 'secret.txt'), join(dir, 'leak.txt'))
+      expect(await rawStatus(handle.port, '/leak.txt')).toBe(403)
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
   })
 })

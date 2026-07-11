@@ -68,6 +68,14 @@ export async function runWithInputs(
   options: RunWithInputsOptions = {}
 ): Promise<RunWithInputsResult> {
   const { file, sourcePath } = loadDeepnoteFile(input)
+
+  // Fail fast on an impossible request — persistence needs a path to write beside — before
+  // starting the engine, so an invalid config can't trigger execution or side effects. (An
+  // unset `persistSnapshot` with no path is fine: persistence is simply skipped.)
+  if (options.persistSnapshot === true && !sourcePath) {
+    throw new Error('persistSnapshot: true requires a file path input (a YAML string or object has nowhere to write).')
+  }
+
   applyInputOverrides(file, inputs)
 
   const pythonEnv = options.pythonEnv ?? detectDefaultPython()
