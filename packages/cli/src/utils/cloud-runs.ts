@@ -258,11 +258,17 @@ export async function pollRunUntilComplete(
   let lastStatus: string | undefined
 
   for (;;) {
+    // `timeoutMs` is the total wait: never start a request, backoff, or interval sleep that would
+    // run past the deadline.
+    if (now() >= deadline) {
+      throw new RunTimeoutError(runId, lastStatus)
+    }
+
     let run: NormalizedRun
     try {
       run = await getRun(baseUrl, token, runId, {
         snapshotDelivery: options.snapshotDelivery,
-        requestTimeoutMs,
+        requestTimeoutMs: Math.min(requestTimeoutMs, Math.max(1, deadline - now())),
       })
       transientFailures = 0
     } catch (err) {
@@ -272,7 +278,7 @@ export async function pollRunUntilComplete(
           throw new RunTimeoutError(runId, lastStatus)
         }
         const backoffMs = Math.min(intervalMs * 2 ** transientFailures, 30_000)
-        await sleep(backoffMs)
+        await sleep(Math.min(backoffMs, Math.max(0, deadline - now())))
         continue
       }
       throw err
@@ -287,7 +293,7 @@ export async function pollRunUntilComplete(
     if (now() >= deadline) {
       throw new RunTimeoutError(runId, lastStatus)
     }
-    await sleep(intervalMs)
+    await sleep(Math.min(intervalMs, Math.max(0, deadline - now())))
   }
 }
 
@@ -302,8 +308,9 @@ export interface FetchSnapshotOptions {
  *
  * - Inline delivery: returns `run.snapshot.snapshotContent` directly.
  * - URL delivery: downloads `run.snapshot.downloadUrl`. If that URL is cross-origin
- *   (e.g. a presigned S3 URL — its host differs from `baseUrl`), the bearer token is
- *   NOT attached; for a same-origin/relative API URL the token IS included.
+ *   (e.g. a presigned S3 URL — its origin differs from `baseUrl`, including a differing
+ *   scheme like http vs https), the bearer token is NOT attached; for a same-origin/relative
+ *   API URL the token IS included.
  * - Returns `null` if the run has no snapshot.
  */
 export async function fetchSnapshotContent(run: NormalizedRun, options: FetchSnapshotOptions): Promise<string | null> {
@@ -320,7 +327,7 @@ export async function fetchSnapshotContent(run: NormalizedRun, options: FetchSna
   }
 
   const resolved = new URL(downloadUrl, options.baseUrl)
-  const sameOrigin = resolved.host === new URL(options.baseUrl).host
+  const sameOrigin = resolved.origin === new URL(options.baseUrl).origin
   const response = await fetch(resolved.toString(), {
     method: 'GET',
     headers: sameOrigin ? authHeaders(options.token) : undefined,
