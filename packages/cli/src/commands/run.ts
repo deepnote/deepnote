@@ -499,7 +499,13 @@ async function resolveUpstreamExecutionBlockIds(
 export function createRunAction(program: Command): (path: string | undefined, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
-      const safeOptions = { ...options, token: options.token ? '[redacted]' : undefined }
+      // Redact token, and inputs/prompt (may hold secrets or PII) — only presence/count is logged.
+      const safeOptions = {
+        ...options,
+        token: options.token ? '[redacted]' : undefined,
+        input: options.input ? `[${options.input.length} value(s)]` : undefined,
+        prompt: options.prompt ? '[redacted]' : undefined,
+      }
       debug(`Options: ${JSON.stringify(safeOptions)}`)
 
       // Cloud execution: fully separate from the local ExecutionEngine path. Dispatched before the
