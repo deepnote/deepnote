@@ -33,10 +33,11 @@
       .switch { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
       button { font: inherit; font-weight: 600; font-size: .9rem; color: #fff; background: var(--accent); border: 0; border-radius: 9px; padding: .6rem 1.1rem; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; }
       button:disabled { opacity: .55; cursor: default; }
-      .bar { display: flex; align-items: center; gap: .9rem; margin: 1rem 0 1.75rem; }
+      button.cloud { background: none; color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); }
+      .bar { display: flex; align-items: center; gap: .9rem; margin: 1rem 0 1.75rem; flex-wrap: wrap; }
       .status { font-size: .82rem; color: var(--muted); }
       .status.ok { color: var(--teal); } .status.err { color: var(--red); }
-      .spin { width: 13px; height: 13px; border: 2px solid #fff; border-right-color: transparent; border-radius: 50%; animation: s .7s linear infinite; }
+      .spin { width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s .7s linear infinite; }
       @keyframes s { to { transform: rotate(360deg); } }
       h2 { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 .6rem; }
       .out { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .8rem 1rem; margin-bottom: .55rem; }
@@ -56,7 +57,8 @@
       <div id="inputs"></div>
 
       <div class="bar">
-        <button id="run"><span id="spin"></span>▶ Run</button>
+        <button id="run"><span id="spin"></span>▶ Run locally</button>
+        <button id="run-cloud" class="cloud"><span id="spin-cloud"></span>☁ Run in cloud</button>
         <span class="status" id="status"></span>
       </div>
 
@@ -136,6 +138,28 @@
           setStatus('✗ ' + e.message, 'err')
         } finally {
           btn.disabled = false; $('#spin').className = ''
+        }
+      }
+
+      // 3) The second way: run the same notebook in Deepnote Cloud (needs DEEPNOTE_TOKEN, and the
+      //    notebook opened in the cloud so its id resolves). Outputs come back the same shape.
+      $('#run-cloud').onclick = async () => {
+        $('#run').disabled = true; $('#run-cloud').disabled = true
+        $('#spin-cloud').className = 'spin'; setStatus('running in Deepnote Cloud…')
+        try {
+          const res = await fetch('/api/run-cloud', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ inputs: state }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          if (!data.success) throw new Error(data.error || `cloud run ${data.status}`)
+          render(data)
+          setStatus(`☁ cloud run ${data.status}`, 'ok')
+        } catch (e) {
+          setStatus('✗ ' + e.message, 'err')
+        } finally {
+          $('#run').disabled = false; $('#run-cloud').disabled = false; $('#spin-cloud').className = ''
         }
       }
 

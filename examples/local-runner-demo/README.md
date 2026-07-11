@@ -24,5 +24,19 @@ node examples/local-runner-demo/serve.mjs
 # open the printed http://127.0.0.1:<port>
 ```
 
-Edit "Greeting", drag "Count", toggle "Enabled", hit Run — the output echoes your inputs
-(`greeting = …`, `count = …`, `enabled = True/False`), executed for real in a local kernel.
+Edit "Greeting", drag "Count", toggle "Enabled", hit **Run locally** — the output echoes your
+inputs (`greeting = …`, `count = …`, `enabled = True/False`), executed for real in a local kernel.
+
+## The second way: Run in cloud
+
+The page also has a **☁ Run in cloud** button, wired to `POST /api/run-cloud` →
+`runInCloud` → the shared `@deepnote/cloud` client (the same one behind `deepnote run --cloud`).
+It runs the notebook in Deepnote Cloud and renders the returned snapshot's outputs.
+
+This needs a `DEEPNOTE_TOKEN` **and** the notebook to already exist in Deepnote (open it in the
+cloud first so its notebook id resolves). Without those it degrades gracefully — the status line
+shows what's missing. Run with a token:
+
+```bash
+DEEPNOTE_TOKEN=... node examples/local-runner-demo/serve.mjs
+```
