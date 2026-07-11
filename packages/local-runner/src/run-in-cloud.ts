@@ -3,6 +3,7 @@ import { coerceInputVariableValue, parseYaml } from '@deepnote/blocks'
 import {
   describeRunError,
   fetchSnapshotContent,
+  findNotebookId,
   isSuccessStatus,
   type PollOptions,
   pollRunUntilComplete,
@@ -57,10 +58,11 @@ export interface RunInCloudResult {
 /**
  * Run an existing notebook in Deepnote Cloud (the "second way" to run, alongside {@link runWithInputs}).
  *
- * Triggers a run of the notebook by id — resolved from the file, or passed via `notebookId` — with
- * the given input overrides, polls it to completion, and returns the executed snapshot plus the
- * per-block outputs parsed from it. This runs a notebook that already exists in Deepnote (open it in
- * the cloud first to obtain its id); it does not upload a local file.
+ * Resolves the notebook id (from `notebookId` or the file), triggers a run with the given input
+ * overrides, polls it to completion, and returns the executed snapshot plus the per-block outputs
+ * parsed from it. If that id isn't found, it looks the notebook up by name in the workspace and runs
+ * the real id; and if the notebook isn't in Deepnote at all, it uploads it ("Open in Deepnote") and
+ * returns a `launchUrl` (status `needs-open`) to import in a browser — unless `uploadIfMissing: false`.
  *
  * Requires a Deepnote API token (`options.token` or `DEEPNOTE_TOKEN`). A failed run is reported via
  * `success: false` + `error`; only missing config throws.
@@ -77,7 +79,7 @@ export async function runInCloud(
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
 
   const { file } = loadDeepnoteFile(input)
-  const notebookId = options.notebookId ?? resolveNotebookId(file)
+  let notebookId = options.notebookId ?? resolveNotebookId(file)
   // The cloud API validates input types (e.g. a slider value must be a string), so coerce each
   // override to its schema shape first — the same normalization the on-disk snapshot needs.
   const cloudInputs = coerceInputs(file, inputs)
@@ -86,9 +88,26 @@ export async function runInCloud(
   try {
     started = await triggerNotebookRun(baseUrl, token, { notebookId, inputs: cloudInputs, blockIds: options.blockIds })
   } catch (err) {
-    if (options.uploadIfMissing !== false && isNotFoundError(err)) {
-      // The notebook isn't in Deepnote yet — upload it ("Open in Deepnote"). Opening the returned
-      // launchUrl in a browser imports it (creating the notebook), after which it can be run by id.
+    if (!isNotFoundError(err)) {
+      throw err
+    }
+    // The file's id may not match Deepnote's (an import assigns new ids) — look the notebook up by
+    // name in the workspace and run its real id.
+    const found = await findNotebookId(baseUrl, token, {
+      projectName: file.project.name,
+      notebookName: notebookNameFor(file, notebookId),
+    }).catch(() => undefined)
+
+    if (found) {
+      notebookId = found
+      started = await triggerNotebookRun(baseUrl, token, {
+        notebookId,
+        inputs: cloudInputs,
+        blockIds: options.blockIds,
+      })
+    } else if (options.uploadIfMissing !== false) {
+      // Not in Deepnote yet — upload it ("Open in Deepnote"). Opening the returned launchUrl in a
+      // browser imports it; after that, this same call will find it by name and run it.
       const uploaded = await openInCloud(input, { inputs })
       return {
         runId: '',
@@ -99,8 +118,9 @@ export async function runInCloud(
         launchUrl: uploaded.launchUrl,
         error: 'Notebook not in Deepnote yet — open it in Deepnote (launchUrl) to import it, then run again.',
       }
+    } else {
+      throw err
     }
-    throw err
   }
   const run = await pollRunUntilComplete(baseUrl, token, started.runId, { snapshotDelivery: 'inline', ...options.poll })
 
@@ -125,6 +145,16 @@ function resolveNotebookId(file: DeepnoteFile): string {
     )
   }
   return id
+}
+
+/** The name of the notebook with the given id in the file (falls back to the first notebook). */
+function notebookNameFor(file: DeepnoteFile, notebookId: string): string | undefined {
+  for (const notebook of file.project.notebooks) {
+    if (notebook.id === notebookId) {
+      return notebook.name
+    }
+  }
+  return file.project.notebooks[0]?.name
 }
 
 /** True for a "notebook not found" style error (404 or a message that says so). */

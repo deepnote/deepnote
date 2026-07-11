@@ -6,6 +6,7 @@ const cloudMock = vi.hoisted(() => ({
   pollRunUntilComplete: vi.fn(),
   fetchSnapshotContent: vi.fn(),
   uploadNotebook: vi.fn(),
+  findNotebookId: vi.fn(),
 }))
 
 vi.mock('@deepnote/cloud', () => ({
@@ -13,6 +14,7 @@ vi.mock('@deepnote/cloud', () => ({
   pollRunUntilComplete: cloudMock.pollRunUntilComplete,
   fetchSnapshotContent: cloudMock.fetchSnapshotContent,
   uploadNotebook: cloudMock.uploadNotebook,
+  findNotebookId: cloudMock.findNotebookId,
   isSuccessStatus: (s: string) => s === 'success',
   describeRunError: (run: { error?: unknown }) => (typeof run.error === 'string' ? run.error : undefined),
 }))
@@ -77,6 +79,7 @@ beforeEach(() => {
   cloudMock.triggerNotebookRun.mockResolvedValue({ runId: 'r1', status: 'running' })
   cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' })
   cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_YAML)
+  cloudMock.findNotebookId.mockResolvedValue(undefined)
 })
 
 describe('runInCloud', () => {
@@ -122,6 +125,27 @@ describe('runInCloud', () => {
     } finally {
       if (prev !== undefined) process.env.DEEPNOTE_TOKEN = prev
     }
+  })
+
+  it('finds the notebook by name and runs it when the file id is not found', async () => {
+    cloudMock.triggerNotebookRun
+      .mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+      .mockResolvedValueOnce({ runId: 'r2', status: 'running' })
+    cloudMock.findNotebookId.mockResolvedValue('real-nb-id')
+
+    const result = await runInCloud(NOTEBOOK, { count: 7 }, { token: 't' })
+
+    expect(cloudMock.findNotebookId).toHaveBeenCalledWith('https://api.deepnote.com', 't', {
+      projectName: 'Test',
+      notebookName: 'NB',
+    })
+    expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith('https://api.deepnote.com', 't', {
+      notebookId: 'real-nb-id',
+      inputs: { count: '7' },
+      blockIds: undefined,
+    })
+    expect(cloudMock.uploadNotebook).not.toHaveBeenCalled()
+    expect(result.success).toBe(true)
   })
 
   it('uploads the notebook when it is not found in Deepnote (upload-if-missing)', async () => {
