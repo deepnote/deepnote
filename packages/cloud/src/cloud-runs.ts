@@ -76,6 +76,10 @@ const runSchema = z
     finishedAt: z.string().optional(),
     error: z.unknown().optional(),
     snapshot: snapshotSchema.optional(),
+    // Some deployments return the snapshot inline on the run object (flat) rather than nested
+    // under `snapshot`: `snapshotContent` (or null) + `snapshotDownloadUrl` (a presigned URL).
+    snapshotContent: z.string().nullish(),
+    snapshotDownloadUrl: z.string().nullish(),
   })
   .passthrough()
 
@@ -143,6 +147,16 @@ async function throwIfNotOk(response: Response, fallback: string): Promise<void>
   throw new ApiError(response.status, message)
 }
 
+/** Normalize the snapshot from either the nested `snapshot` object or the flat run fields. */
+function normalizeSnapshot(raw: z.infer<typeof runSchema>): NormalizedRun['snapshot'] {
+  if (raw.snapshot) {
+    return raw.snapshot
+  }
+  const snapshotContent = typeof raw.snapshotContent === 'string' ? raw.snapshotContent : undefined
+  const downloadUrl = typeof raw.snapshotDownloadUrl === 'string' ? raw.snapshotDownloadUrl : undefined
+  return snapshotContent || downloadUrl ? { snapshotContent, downloadUrl } : undefined
+}
+
 function normalizeRun(json: unknown): NormalizedRun {
   const envelope = runEnvelopeSchema.safeParse(json)
   const raw = envelope.success ? envelope.data.run : runSchema.parse(json)
@@ -158,7 +172,7 @@ function normalizeRun(json: unknown): NormalizedRun {
     createdAt: raw.createdAt,
     finishedAt: raw.finishedAt,
     error: raw.error,
-    snapshot: raw.snapshot,
+    snapshot: normalizeSnapshot(raw),
     raw,
   }
 }
