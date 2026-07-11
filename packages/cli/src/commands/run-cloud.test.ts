@@ -275,6 +275,22 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
     expect(process.exitCode).toBe(ExitCode.Success)
   })
 
+  it('fails a successful run that returns no snapshot content (exit 1, success=false)', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'success' }) // no snapshotContent, no downloadUrl
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, output: 'json' })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result = JSON.parse(logged)
+    expect(result.success).toBe(false)
+    expect(result.status).toBe('success')
+    expect(result.error).toMatch(/no snapshot content/i)
+    expect(result.snapshotPath).toBeUndefined()
+    expect(process.exitCode).toBe(ExitCode.Error)
+  })
+
   it('exits 1 on a failed run but preserves runId, status, error, and snapshotPath', async () => {
     const file = makeFile([{ id: 'nb-single', name: 'Main' }])
     installFetch({ terminalStatus: 'error', runError: 'kernel died', snapshotContent: serializeDeepnoteFile(file) })

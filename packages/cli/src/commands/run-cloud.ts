@@ -15,7 +15,7 @@ import dotenv from 'dotenv'
 import ora from 'ora'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, getOutputConfig, log, type OutputFormat, outputJson, outputToon, warn } from '../output'
+import { debug, getChalk, getOutputConfig, log, type OutputFormat, outputJson, outputToon } from '../output'
 import { MissingTokenError } from '../utils/auth'
 import {
   describeRunError,
@@ -316,10 +316,13 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   const success = isSuccessStatus(status)
   const runErrorMessage = describeRunError(finalRun)
 
-  // Download + write the snapshot (best-effort: a run that executed is still a real result even if
-  // the snapshot can't be saved — the exit code follows the run status, not snapshot presence).
+  // Download + persist the snapshot. Downloading it is this command's contract, so for a
+  // successful run any retrieval/persistence failure — or missing content — fails the command
+  // (machine clients must not see success without an artifact). For a run that already failed, a
+  // missing snapshot is expected, so we don't compound the failure.
   let snapshotPath: string | undefined
   let timestampedSnapshotPath: string | undefined
+  let snapshotError: string | undefined
   try {
     const content = await fetchSnapshotContent(finalRun, { baseUrl, token })
     if (content) {
@@ -333,23 +336,31 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       })
       snapshotPath = written.snapshotPath
       timestampedSnapshotPath = written.timestampedSnapshotPath
+    } else if (success) {
+      snapshotError = `Run ${finalRun.runId} completed but returned no snapshot content.`
     } else {
       debug(`Run ${finalRun.runId} returned no snapshot content.`)
     }
   } catch (err) {
-    if (spinner) {
-      spinner.stop()
+    const message = err instanceof Error ? err.message : String(err)
+    if (success) {
+      snapshotError = `Failed to save snapshot: ${message}`
+    } else {
+      debug(`Failed to save snapshot for failed run ${finalRun.runId}: ${message}`)
     }
-    warn(`Could not save snapshot: ${err instanceof Error ? err.message : String(err)}`)
   }
 
+  // The command succeeds only if the run succeeded AND its snapshot was saved.
+  const commandSucceeded = success && snapshotError === undefined
+  const errorMessage = runErrorMessage ?? snapshotError
+
   const result: CloudRunResult = {
-    success,
+    success: commandSucceeded,
     runId: finalRun.runId,
     status,
     ...(snapshotPath ? { snapshotPath } : {}),
     ...(timestampedSnapshotPath ? { timestampedSnapshotPath } : {}),
-    ...(runErrorMessage ? { error: runErrorMessage } : {}),
+    ...(errorMessage ? { error: errorMessage } : {}),
   }
 
   if (options.output === 'json') {
@@ -360,7 +371,7 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
     renderHumanResult(result, spinner)
   }
 
-  if (!success) {
+  if (!commandSucceeded) {
     process.exitCode = ExitCode.Error
   }
 }
@@ -380,7 +391,11 @@ function renderHumanResult(result: CloudRunResult, spinner: ReturnType<typeof or
     return
   }
 
-  const message = `Run ${result.runId} ${result.status}`
+  // status can be 'success' here when the run succeeded but its snapshot could not be saved.
+  const message =
+    result.status === 'success'
+      ? `Run ${result.runId} completed but the snapshot could not be saved`
+      : `Run ${result.runId} ${result.status}`
   if (spinner) {
     spinner.fail(message)
   } else {
