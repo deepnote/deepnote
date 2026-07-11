@@ -6,7 +6,8 @@ const cloudMock = vi.hoisted(() => ({
   pollRunUntilComplete: vi.fn(),
   fetchSnapshotContent: vi.fn(),
   uploadNotebook: vi.fn(),
-  findNotebookId: vi.fn(),
+  findNotebook: vi.fn(),
+  getWorkspace: vi.fn(),
 }))
 
 vi.mock('@deepnote/cloud', () => ({
@@ -14,9 +15,12 @@ vi.mock('@deepnote/cloud', () => ({
   pollRunUntilComplete: cloudMock.pollRunUntilComplete,
   fetchSnapshotContent: cloudMock.fetchSnapshotContent,
   uploadNotebook: cloudMock.uploadNotebook,
-  findNotebookId: cloudMock.findNotebookId,
+  findNotebook: cloudMock.findNotebook,
+  getWorkspace: cloudMock.getWorkspace,
   isSuccessStatus: (s: string) => s === 'success',
   describeRunError: (run: { error?: unknown }) => (typeof run.error === 'string' ? run.error : undefined),
+  notebookUrl: (p: { workspaceId: string; workspaceSlug?: string; projectId: string; notebookId: string }) =>
+    `https://deepnote.com/workspace/${p.workspaceSlug}-${p.workspaceId}/project/-${p.projectId}/notebook/${p.notebookId}?secondary-sidebar=runs`,
 }))
 
 import { runInCloud } from './run-in-cloud'
@@ -79,7 +83,8 @@ beforeEach(() => {
   cloudMock.triggerNotebookRun.mockResolvedValue({ runId: 'r1', status: 'running' })
   cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' })
   cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_YAML)
-  cloudMock.findNotebookId.mockResolvedValue(undefined)
+  cloudMock.findNotebook.mockResolvedValue(undefined)
+  cloudMock.getWorkspace.mockResolvedValue({ id: 'ws1', slug: 'deepnote' })
 })
 
 describe('runInCloud', () => {
@@ -131,11 +136,11 @@ describe('runInCloud', () => {
     cloudMock.triggerNotebookRun
       .mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
       .mockResolvedValueOnce({ runId: 'r2', status: 'running' })
-    cloudMock.findNotebookId.mockResolvedValue('real-nb-id')
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'real-nb-id', projectId: 'proj-1' })
 
     const result = await runInCloud(NOTEBOOK, { count: 7 }, { token: 't' })
 
-    expect(cloudMock.findNotebookId).toHaveBeenCalledWith('https://api.deepnote.com', 't', {
+    expect(cloudMock.findNotebook).toHaveBeenCalledWith('https://api.deepnote.com', 't', {
       projectName: 'Test',
       notebookName: 'NB',
     })
@@ -146,6 +151,10 @@ describe('runInCloud', () => {
     })
     expect(cloudMock.uploadNotebook).not.toHaveBeenCalled()
     expect(result.success).toBe(true)
+    // a "view in Deepnote" link is built from the resolved project/notebook + workspace
+    expect(result.viewUrl).toBe(
+      'https://deepnote.com/workspace/deepnote-ws1/project/-proj-1/notebook/real-nb-id?secondary-sidebar=runs'
+    )
   })
 
   it('uploads the notebook when it is not found in Deepnote (upload-if-missing)', async () => {

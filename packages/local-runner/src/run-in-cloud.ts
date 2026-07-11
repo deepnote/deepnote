@@ -3,8 +3,10 @@ import { coerceInputVariableValue, parseYaml } from '@deepnote/blocks'
 import {
   describeRunError,
   fetchSnapshotContent,
-  findNotebookId,
+  findNotebook,
+  getWorkspace,
   isSuccessStatus,
+  notebookUrl,
   type PollOptions,
   pollRunUntilComplete,
   triggerNotebookRun,
@@ -53,6 +55,8 @@ export interface RunInCloudResult {
    * in a browser to import it, then run again.
    */
   launchUrl?: string
+  /** Browser URL to open the notebook (with the runs sidebar) in Deepnote; set on a successful run. */
+  viewUrl?: string
 }
 
 /**
@@ -80,6 +84,7 @@ export async function runInCloud(
 
   const { file } = loadDeepnoteFile(input)
   let notebookId = options.notebookId ?? resolveNotebookId(file)
+  let projectId: string | undefined
   // The cloud API validates input types (e.g. a slider value must be a string), so coerce each
   // override to its schema shape first — the same normalization the on-disk snapshot needs.
   const cloudInputs = coerceInputs(file, inputs)
@@ -93,13 +98,14 @@ export async function runInCloud(
     }
     // The file's id may not match Deepnote's (an import assigns new ids) — look the notebook up by
     // name in the workspace and run its real id.
-    const found = await findNotebookId(baseUrl, token, {
+    const found = await findNotebook(baseUrl, token, {
       projectName: file.project.name,
       notebookName: notebookNameFor(file, notebookId),
     }).catch(() => undefined)
 
     if (found) {
-      notebookId = found
+      notebookId = found.notebookId
+      projectId = found.projectId
       started = await triggerNotebookRun(baseUrl, token, {
         notebookId,
         inputs: cloudInputs,
@@ -126,6 +132,9 @@ export async function runInCloud(
 
   const success = isSuccessStatus(run.status)
   const snapshotYaml = success ? await fetchSnapshotContent(run, { baseUrl, token }) : null
+  const viewUrl = success
+    ? await buildViewUrl(baseUrl, token, file, notebookId, projectId).catch(() => undefined)
+    : undefined
 
   return {
     runId: run.runId,
@@ -133,7 +142,44 @@ export async function runInCloud(
     success,
     outputs: snapshotYaml ? extractOutputs(snapshotYaml) : [],
     snapshotYaml,
+    viewUrl,
     error: success ? undefined : describeRunError(run),
+  }
+}
+
+/** Best-effort browser URL to view the notebook's runs in Deepnote after a successful run. */
+async function buildViewUrl(
+  baseUrl: string,
+  token: string,
+  file: DeepnoteFile,
+  notebookId: string,
+  knownProjectId: string | undefined
+): Promise<string | undefined> {
+  let projectId = knownProjectId
+  if (!projectId) {
+    const found = await findNotebook(baseUrl, token, {
+      projectName: file.project.name,
+      notebookName: notebookNameFor(file, notebookId),
+    }).catch(() => undefined)
+    projectId = found?.projectId
+  }
+  if (!projectId) {
+    return undefined
+  }
+  const workspace = await getWorkspace(baseUrl, token).catch(() => undefined)
+  if (!workspace) {
+    return undefined
+  }
+  const domain = deriveDomain(baseUrl)
+  return notebookUrl({ domain, workspaceId: workspace.id, workspaceSlug: workspace.slug, projectId, notebookId })
+}
+
+/** api.deepnote.com -> deepnote.com (the browser domain). */
+function deriveDomain(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).host.replace(/^api\./, '')
+  } catch {
+    return 'deepnote.com'
   }
 }
 

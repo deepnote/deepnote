@@ -127,6 +127,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         outputs: result.outputs,
         snapshotYaml: result.snapshotYaml,
         launchUrl: result.launchUrl,
+        viewUrl: result.viewUrl,
         error: result.error,
       })
       return
