@@ -33,10 +33,13 @@ The page also has a **☁ Run in cloud** button, wired to `POST /api/run-cloud` 
 `runInCloud` → the shared `@deepnote/cloud` client (the same one behind `deepnote run --cloud`).
 It runs the notebook in Deepnote Cloud and renders the returned snapshot's outputs.
 
-This needs a `DEEPNOTE_TOKEN` **and** the notebook to already exist in Deepnote (open it in the
-cloud first so its notebook id resolves). Without those it degrades gracefully — the status line
-shows what's missing. Run with a token:
+Needs a `DEEPNOTE_TOKEN`:
 
 ```bash
 DEEPNOTE_TOKEN=... node examples/local-runner-demo/serve.mjs
 ```
+
+If the notebook **already exists** in your Deepnote workspace, it runs there and the outputs come
+back. If it **doesn't exist yet**, `runInCloud` uploads it ("Open in Deepnote") and the button opens
+the returned import URL in a new tab — finish the import in Deepnote, then hit Run in cloud again.
+Without a token it degrades gracefully (the status line says what's missing).

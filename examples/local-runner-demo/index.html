@@ -153,6 +153,11 @@
           })
           const data = await res.json()
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          if (data.launchUrl) { // notebook wasn't in Deepnote yet — it was uploaded; open to import
+            window.open(data.launchUrl, '_blank', 'noopener')
+            setStatus('☁ Uploaded to Deepnote — opening it to import. Finish there, then Run in cloud again.', 'ok')
+            return
+          }
           if (!data.success) throw new Error(data.error || `cloud run ${data.status}`)
           render(data)
           setStatus(`☁ cloud run ${data.status}`, 'ok')
