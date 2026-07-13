@@ -188,6 +188,10 @@ OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sal
 OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 ```
 
+Input values are parsed according to their input block type. Text, date, file, slider, and single-select values remain
+strings; checkbox values must be `true` or `false`; multi-select values and absolute date ranges use JSON arrays of
+strings, for example `--input regions='["US","EU"]'`. Unknown input names and mismatched value shapes are rejected.
+
 #### Agent Block (`--prompt` and agent blocks)
 
 The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.

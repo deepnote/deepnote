@@ -279,7 +279,7 @@ ${c.bold('Examples:')}
     .option('--block <id>', 'Run only the specified block')
     .option(
       '-i, --input <key=value>',
-      'Set input variable value (can be repeated)',
+      'Set an input block value (repeatable; use JSON string arrays for multi-value inputs)',
       (val, prev: string[]) => {
         prev.push(val)
         return prev

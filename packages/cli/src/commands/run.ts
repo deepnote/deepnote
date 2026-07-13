@@ -2,8 +2,15 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
-import type { AgentBlock, DeepnoteBlock as BlocksDeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { coerceInputVariableValue, serializeDeepnoteFile } from '@deepnote/blocks'
+import type {
+  AgentBlock,
+  DeepnoteBlock as BlocksDeepnoteBlock,
+  DeepnoteFile,
+  InputBlock,
+  InputBlockValueOverride,
+  InputBlockValueOverrides,
+} from '@deepnote/blocks'
+import { getInputBlockValueOverrideValidationError, isInputBlock, serializeDeepnoteFile } from '@deepnote/blocks'
 import {
   InitNotebookResolutionError,
   type LoadedRunnableFile,
@@ -68,6 +75,14 @@ export class MissingInputError extends Error {
     super(message)
     this.name = 'MissingInputError'
     this.missingInputs = missingInputs
+  }
+}
+
+/** Error thrown when a provided input does not match the referenced input block. */
+export class InvalidInputError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InvalidInputError'
   }
 }
 
@@ -193,7 +208,7 @@ interface ProjectSetup {
   workingDirectory: string
   file: DeepnoteFile
   pythonEnv: string
-  inputs: Record<string, unknown>
+  inputs: InputBlockValueOverrides
   isMachineOutput: boolean
   convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
@@ -310,7 +325,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   const pythonEnv = await resolvePythonExecutable(options.python ?? detectDefaultPython())
 
-  const inputs = parseInputs(options.input)
+  const inputs = parseInputs(file, options.input, options.notebook)
 
   // Parse integrations file (if it exists)
   const integrationsFilePath = getDefaultIntegrationsFilePath(workingDirectory)
@@ -529,6 +544,7 @@ export function createRunAction(program: Command): (path: string | undefined, op
       const isAuthApiError = error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
         error instanceof FileResolutionError ||
+        error instanceof InvalidInputError ||
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
         error instanceof InitNotebookResolutionError ||
@@ -550,16 +566,19 @@ export function createRunAction(program: Command): (path: string | undefined, op
   }
 }
 
-/**
- * Parse --input flags into a Record<string, unknown>.
- * Supports: key=value, key=123 (number), key=true/false (boolean), key=null
- */
-function parseInputs(inputFlags: string[] | undefined): Record<string, unknown> {
+/** Parse CLI input flags according to the referenced input block types. */
+function parseInputs(
+  file: DeepnoteFile,
+  inputFlags: string[] | undefined,
+  notebookName?: string
+): InputBlockValueOverrides {
   if (!inputFlags || inputFlags.length === 0) {
     return {}
   }
 
-  const inputs: Record<string, unknown> = Object.create(null) as Record<string, unknown>
+  const inputBlocksByName = getInputBlocksByName(file, notebookName)
+  const inputs: InputBlockValueOverrides = Object.create(null) as InputBlockValueOverrides
+
   for (const flag of inputFlags) {
     const eqIndex = flag.indexOf('=')
     if (eqIndex === -1) {
@@ -573,14 +592,19 @@ function parseInputs(inputFlags: string[] | undefined): Record<string, unknown> 
       throw new Error(`Invalid input: empty key in "${flag}"`)
     }
 
-    // Try to parse as JSON for numbers, booleans, null, arrays, objects
-    // Fall back to string if not valid JSON
-    let value: unknown
-    try {
-      value = JSON.parse(rawValue)
-    } catch {
-      // Not valid JSON, treat as string
-      value = rawValue
+    const matchingBlocks = inputBlocksByName.get(key)
+    if (!matchingBlocks) {
+      throw new InvalidInputError(`Input "${key}" is not defined for the selected notebook scope`)
+    }
+
+    const values = matchingBlocks.map(block => parseInputValue(block, rawValue, key))
+    const value = values[0]
+    if (value === undefined) {
+      continue
+    }
+
+    if (values.some(candidate => !areInputValuesEqual(candidate, value))) {
+      throw new InvalidInputError(`Input "${key}" is used by blocks with incompatible input types`)
     }
 
     inputs[key] = value
@@ -589,27 +613,58 @@ function parseInputs(inputFlags: string[] | undefined): Record<string, unknown> 
   return inputs
 }
 
-/**
- * Apply CLI --input overrides to input block metadata.
- * Mutates the in-memory DeepnoteFile so input blocks use CLI-provided values
- * instead of their saved values.
- */
-export function applyInputOverrides(file: DeepnoteFile, inputs: Record<string, unknown>): void {
-  if (Object.keys(inputs).length === 0) return
+function getInputBlocksByName(file: DeepnoteFile, notebookName?: string): Map<string, InputBlock[]> {
+  const inputBlocksByName = new Map<string, InputBlock[]>()
 
-  for (const notebook of file.project.notebooks) {
+  for (const notebook of getNotebooksForExecutionScope(file, { notebook: notebookName })) {
     for (const block of notebook.blocks) {
-      if (!block.type.startsWith('input-')) continue
-      const metadata = block.metadata as Record<string, unknown>
-      const varName = metadata.deepnote_variable_name as string | undefined
-      if (varName && Object.hasOwn(inputs, varName)) {
-        // Coerce to the schema shape the block requires (e.g. slider → string) so the
-        // overridden file still serializes for snapshots. The kernel-injection payload
-        // passed to runProject({ inputs }) keeps the raw native value — do not coerce that.
-        metadata.deepnote_variable_value = coerceInputVariableValue(block, inputs[varName])
+      if (isInputBlock(block) && block.metadata.deepnote_variable_name) {
+        const name = block.metadata.deepnote_variable_name
+        const inputBlocks = inputBlocksByName.get(name) ?? []
+        inputBlocks.push(block)
+        inputBlocksByName.set(name, inputBlocks)
       }
     }
   }
+
+  return inputBlocksByName
+}
+
+function parseInputValue(block: InputBlock, rawValue: string, inputName: string): InputBlockValueOverride {
+  let value: unknown = rawValue
+
+  if (block.type === 'input-checkbox') {
+    if (rawValue === 'true') value = true
+    if (rawValue === 'false') value = false
+  } else if (block.type === 'input-select' && block.metadata.deepnote_allow_multiple_values === true) {
+    value = parseJsonValue(rawValue)
+  } else if (block.type === 'input-date-range') {
+    const parsed = parseJsonValue(rawValue)
+    value = Array.isArray(parsed) ? parsed : rawValue
+  }
+
+  const validationError = getInputBlockValueOverrideValidationError(block, value)
+  if (validationError) {
+    throw new InvalidInputError(`Input "${inputName}" ${validationError}`)
+  }
+
+  return value as InputBlockValueOverride
+}
+
+function parseJsonValue(rawValue: string): unknown {
+  try {
+    return JSON.parse(rawValue)
+  } catch {
+    return rawValue
+  }
+}
+
+function areInputValuesEqual(left: InputBlockValueOverride, right: InputBlockValueOverride): boolean {
+  if (!Array.isArray(left) || !Array.isArray(right)) {
+    return left === right
+  }
+
+  return left.length === right.length && left.every((value, index) => value === right[index])
 }
 
 /** Information about an input block */
@@ -768,7 +823,7 @@ async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise
  */
 async function validateRequirements(
   file: DeepnoteFile,
-  providedInputs: Record<string, unknown>,
+  providedInputs: InputBlockValueOverrides,
   pythonInterpreter: string,
   integrations: DatabaseIntegrationConfig[],
   notebookName?: string
@@ -870,9 +925,6 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
     await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
-
-  // Apply CLI --input overrides to input block metadata
-  applyInputOverrides(file, inputs)
 
   const state = createRunExecutionState(options, isMachineOutput)
   const engine = new ExecutionEngine({
