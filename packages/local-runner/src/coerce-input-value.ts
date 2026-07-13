@@ -1,5 +1,28 @@
-import type { InputBlock, InputBlockValueOverride } from '@deepnote/blocks'
-import { getInputBlockValueOverrideValidationError, InvalidValueError } from '@deepnote/blocks'
+import type { DeepnoteFile, InputBlock, InputBlockValueOverride } from '@deepnote/blocks'
+import { getInputBlockValueOverrideValidationError, InvalidValueError, isInputBlock } from '@deepnote/blocks'
+
+/**
+ * The file's input blocks, grouped by variable name — the lookup both the local and the cloud path
+ * need, so they cannot drift. A name can be defined by more than one block (across notebooks), and
+ * every one of them has to be overridden, so this maps to a list rather than a single block.
+ */
+export function inputBlocksByName(file: DeepnoteFile): Map<string, InputBlock[]> {
+  const byName = new Map<string, InputBlock[]>()
+  for (const notebook of file.project.notebooks) {
+    for (const block of notebook.blocks) {
+      if (!isInputBlock(block)) continue
+      const name = block.metadata.deepnote_variable_name
+      if (!name) continue
+      const blocks = byName.get(name)
+      if (blocks) {
+        blocks.push(block)
+      } else {
+        byName.set(name, [block])
+      }
+    }
+  }
+  return byName
+}
 
 /**
  * Coerce a value to the schema shape its input block requires — e.g. a slider value is stored

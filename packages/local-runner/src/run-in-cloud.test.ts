@@ -5,6 +5,7 @@ const cloudMock = vi.hoisted(() => ({
   triggerNotebookRun: vi.fn(),
   pollRunUntilComplete: vi.fn(),
   fetchSnapshotContent: vi.fn(),
+  getRun: vi.fn(),
   uploadNotebook: vi.fn(),
   findNotebook: vi.fn(),
   getWorkspace: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock('@deepnote/cloud', () => ({
   triggerNotebookRun: cloudMock.triggerNotebookRun,
   pollRunUntilComplete: cloudMock.pollRunUntilComplete,
   fetchSnapshotContent: cloudMock.fetchSnapshotContent,
+  getRun: cloudMock.getRun,
   uploadNotebook: cloudMock.uploadNotebook,
   findNotebook: cloudMock.findNotebook,
   getWorkspace: cloudMock.getWorkspace,
@@ -85,6 +87,7 @@ beforeEach(() => {
   cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_YAML)
   cloudMock.findNotebook.mockResolvedValue(undefined)
   cloudMock.getWorkspace.mockResolvedValue({ id: 'ws1', slug: 'deepnote' })
+  cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: { snapshotContent: SNAPSHOT_YAML } })
 })
 
 describe('runInCloud', () => {
@@ -102,6 +105,37 @@ describe('runInCloud', () => {
       { blockId: 'c1', outputs: [{ output_type: 'stream', name: 'stdout', text: 'hi\n' }], executionCount: 1 },
     ])
     expect(result.snapshotYaml).toContain('stdout')
+  })
+
+  it('re-fetches a terminal run that came back without an inline snapshot', async () => {
+    // Some deployments only attach the snapshot once the run is terminal. Without the re-fetch this
+    // returned success with no outputs at all.
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' }) // no snapshot
+    cloudMock.fetchSnapshotContent.mockImplementation(async (run: { snapshot?: unknown }) =>
+      run.snapshot ? SNAPSHOT_YAML : null
+    )
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+
+    expect(cloudMock.getRun).toHaveBeenCalledWith('https://api.deepnote.com', 't', 'r1', {
+      snapshotDelivery: 'inline',
+    })
+    expect(result.success).toBe(true)
+    expect(result.outputs).toHaveLength(1)
+    expect(result.snapshotYaml).toContain('stdout')
+  })
+
+  it('does not fail the run when the snapshot re-fetch itself fails', async () => {
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' })
+    cloudMock.getRun.mockRejectedValue(new Error('upstream exploded'))
+    cloudMock.fetchSnapshotContent.mockResolvedValue(null)
+
+    // The run finished; only the snapshot is missing. Report that, do not throw.
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+
+    expect(result.runId).toBe('r1')
+    expect(result.status).toBe('success')
+    expect(result.snapshotYaml).toBeNull()
   })
 
   it('uses an explicit notebookId and baseUrl when provided', async () => {

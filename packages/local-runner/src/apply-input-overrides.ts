@@ -1,6 +1,5 @@
 import type { DeepnoteFile, InputBlockValueOverrides } from '@deepnote/blocks'
-import { isInputBlock } from '@deepnote/blocks'
-import { coerceInputValue } from './coerce-input-value'
+import { coerceInputValue, inputBlocksByName } from './coerce-input-value'
 
 /**
  * Apply input overrides to a file's input blocks, in place.
@@ -16,15 +15,13 @@ export function applyInputOverrides(file: DeepnoteFile, inputs: Record<string, u
   const coerced: InputBlockValueOverrides = {}
   if (Object.keys(inputs).length === 0) return coerced
 
-  for (const notebook of file.project.notebooks) {
-    for (const block of notebook.blocks) {
-      if (!isInputBlock(block)) continue
-      const name = block.metadata.deepnote_variable_name
-      if (name && Object.hasOwn(inputs, name)) {
-        const value = coerceInputValue(block, inputs[name])
-        block.metadata.deepnote_variable_value = value as typeof block.metadata.deepnote_variable_value
-        coerced[name] = value
-      }
+  for (const [name, blocks] of inputBlocksByName(file)) {
+    if (!Object.hasOwn(inputs, name)) continue
+
+    for (const block of blocks) {
+      const value = coerceInputValue(block, inputs[name])
+      block.metadata.deepnote_variable_value = value as typeof block.metadata.deepnote_variable_value
+      coerced[name] = value
     }
   }
 

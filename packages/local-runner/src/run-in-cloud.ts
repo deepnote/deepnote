@@ -1,9 +1,10 @@
-import type { DeepnoteFile, InputBlock } from '@deepnote/blocks'
-import { isInputBlock, parseYaml } from '@deepnote/blocks'
+import type { DeepnoteFile } from '@deepnote/blocks'
+import { parseYaml } from '@deepnote/blocks'
 import {
   describeRunError,
   fetchSnapshotContent,
   findNotebook,
+  getRun,
   getWorkspace,
   isSuccessStatus,
   notebookUrl,
@@ -13,7 +14,7 @@ import {
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import type { IOutput } from '@deepnote/runtime-core'
-import { coerceInputValue } from './coerce-input-value'
+import { coerceInputValue, inputBlocksByName } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import { openInCloud } from './open-in-cloud'
@@ -129,7 +130,15 @@ export async function runInCloud(
       throw err
     }
   }
-  const run = await pollRunUntilComplete(baseUrl, token, started.runId, { snapshotDelivery: 'inline', ...options.poll })
+  let run = await pollRunUntilComplete(baseUrl, token, started.runId, { snapshotDelivery: 'inline', ...options.poll })
+
+  // Some deployments only attach the snapshot once the run is terminal, so a polled run can come
+  // back successful but empty. Re-fetch once rather than reporting a successful run with no outputs.
+  // Only worth doing on success — a failed run has no snapshot to wait for. The run already
+  // finished, so a failure here is not fatal; it just means no snapshot content.
+  if (isSuccessStatus(run.status) && !run.snapshot) {
+    run = await getRun(baseUrl, token, run.runId, { snapshotDelivery: 'inline' }).catch(() => run)
+  }
 
   const success = isSuccessStatus(run.status)
   const snapshotYaml = success ? await fetchSnapshotContent(run, { baseUrl, token }) : null
@@ -215,17 +224,10 @@ function isNotFoundError(err: unknown): boolean {
 
 /** Coerce each override to the schema shape its input block requires (slider → string, etc.). */
 function coerceInputs(file: DeepnoteFile, inputs: Record<string, unknown>): Record<string, unknown> {
-  const byName = new Map<string, InputBlock>()
-  for (const notebook of file.project.notebooks) {
-    for (const block of notebook.blocks) {
-      if (!isInputBlock(block)) continue
-      const name = block.metadata.deepnote_variable_name
-      if (name) byName.set(name, block)
-    }
-  }
+  const byName = inputBlocksByName(file)
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(inputs)) {
-    const block = byName.get(key)
+    const block = byName.get(key)?.[0]
     out[key] = block ? coerceInputValue(block, value) : value
   }
   return out
