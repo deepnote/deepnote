@@ -314,8 +314,15 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
     })
 
     // Defensive: some deployments only include the snapshot once terminal — re-fetch if absent.
+    // A failure here must not escape: the run itself already reached a terminal state, so throwing
+    // would discard its runId and status. Treat it as "no snapshot content" and let the snapshot
+    // error path below report it with those fields intact.
     if (!finalRun.snapshot) {
-      finalRun = await getRun(baseUrl, token, finalRun.runId, { snapshotDelivery: 'inline' })
+      try {
+        finalRun = await getRun(baseUrl, token, finalRun.runId, { snapshotDelivery: 'inline' })
+      } catch (err) {
+        debug(`Re-fetching run ${finalRun.runId} for its snapshot failed: ${err instanceof Error ? err.message : err}`)
+      }
     }
   } catch (err) {
     spinner?.fail('Deepnote run failed')
