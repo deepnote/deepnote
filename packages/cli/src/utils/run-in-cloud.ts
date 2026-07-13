@@ -24,41 +24,20 @@ import { getSnapshotDir, getSnapshotPath, resolveSnapshotNotebookId, splitDeepno
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import dotenv from 'dotenv'
 import ora from 'ora'
+import type { RunOptions } from '../commands/run'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, getOutputConfig, log, type OutputFormat, outputJson, outputToon } from '../output'
-import { MissingTokenError } from '../utils/auth'
-import { resolvePathToDeepnoteFile } from '../utils/file-resolver'
-import { parseInputs } from '../utils/parse-inputs'
+import { debug, getChalk, getOutputConfig, log, outputJson, outputToon } from '../output'
+import { MissingTokenError } from './auth'
+import { resolvePathToDeepnoteFile } from './file-resolver'
+import { parseInputs } from './parse-inputs'
 
 /**
- * Options consumed by the cloud run path. Structurally a subset of the `run` command's
- * `RunOptions`, declared locally so this module never imports `run.ts` (which would create a
- * circular dependency).
+ * Options consumed by the cloud run path — the `run` command's options, since `--cloud` is a flag
+ * on `run`. This is a type-only import, so it is erased at compile time and adds no runtime
+ * dependency on `run.ts` (which imports this module).
  */
-export interface RunCloudOptions {
-  cloud?: boolean
-  notebookId?: string
-  notebook?: string
-  block?: string
-  input?: string[]
-  out?: string
-  timeout?: number
-  output?: OutputFormat
-  token?: string
-  url?: string
-  push?: boolean
-  // Local-only flags — rejected in cloud mode (see assertNoIncompatibleFlags).
-  python?: string
-  cwd?: string
-  top?: boolean
-  profile?: boolean
-  open?: boolean
-  prompt?: string
-  dryRun?: boolean
-  listInputs?: boolean
-  context?: boolean
-}
+export type RunCloudOptions = RunOptions
 
 /** Machine-readable result of a cloud run (shape shared by `-o json` and `-o toon`). */
 export interface CloudRunResult {

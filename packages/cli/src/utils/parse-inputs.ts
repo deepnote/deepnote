@@ -13,9 +13,8 @@ export class InvalidInputError extends Error {
 /**
  * Parse CLI input flags according to the referenced input block types.
  *
- * Shared by the local `run` command and the cloud `run --cloud` path — kept in its own module so
- * `run-cloud.ts` can reuse it without importing `run.ts` (which would be a circular dependency).
- * `--input` therefore means the same thing either way: a value is typed by the block it names
+ * Shared by the local `run` command and the cloud `run --cloud` path (`utils/run-in-cloud.ts`), so
+ * `--input` means the same thing either way: a value is typed by the block it names
  * (`true`/`false` for a checkbox, a JSON string array for a multi-select, a plain string
  * otherwise), and unknown names or values the block cannot store are rejected.
  */

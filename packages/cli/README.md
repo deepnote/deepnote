@@ -797,6 +797,7 @@ $ deepnote inspect notebook.ipynb
 ## Related Packages
 
 - [`@deepnote/blocks`](../blocks) - Core package for working with Deepnote blocks
+- [`@deepnote/cloud`](../cloud) - Client for the Deepnote Cloud runs API (used by `run --cloud`)
 - [`@deepnote/convert`](../convert) - Convert between Jupyter and Deepnote formats
 - [`@deepnote/runtime-core`](../runtime-core) - Runtime engine for executing notebooks
 

@@ -1,7 +1,7 @@
 {
   "name": "@deepnote/cloud",
   "version": "0.1.0",
-  "description": "Client for the Deepnote Cloud runs API (trigger a notebook run, poll it, fetch its snapshot).",
+  "description": "Client for the Deepnote Cloud runs API",
   "keywords": [
     "deepnote",
     "cloud",
@@ -37,11 +37,7 @@
   },
   "dependencies": {
     "@deepnote/database-integrations": "workspace:*",
-    "zod": "^3.23.8"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.0.0"
+    "zod": "3.25.76"
   },
   "engines": {
     "node": ">=22.14.0",
