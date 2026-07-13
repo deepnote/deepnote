@@ -24,12 +24,5 @@
     "target": "ES2022",
     "types": ["vitest"]
   },
-  "exclude": [
-    "node_modules",
-    "dist",
-    // Browser-only modules: they need the DOM lib, which would otherwise collide with Node's
-    // fetch/FormData types across the whole workspace. Typechecked by packages/local-runner/tsconfig.json.
-    "packages/local-runner/src/browser.ts",
-    "packages/local-runner/src/snapshot-viewer.ts"
-  ]
+  "exclude": ["node_modules", "dist"]
 }

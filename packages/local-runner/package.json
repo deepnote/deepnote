@@ -21,7 +21,7 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./snapshot-viewer": "./dist/snapshot-viewer.iife.js"
+    "./snapshot-reader": "./dist/snapshot-reader.iife.js"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

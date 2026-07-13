@@ -8,9 +8,9 @@ export default defineConfig([
     external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/convert', '@deepnote/runtime-core'],
   },
   {
-    // The snapshot viewer ships as one self-contained file that a static page can <script> in, so
+    // The snapshot reader ships as one self-contained file that a static page can <script> in, so
     // its dependencies (the YAML parser, the block schemas) are bundled rather than externalized.
-    entry: { 'snapshot-viewer': 'src/browser.ts' },
+    entry: { 'snapshot-reader': 'src/browser.ts' },
     format: ['iife'],
     platform: 'browser',
     globalName: 'DeepnoteSnapshot',

@@ -1,11 +1,13 @@
 /**
- * Browser entry point: everything needed to render a `.deepnote` snapshot in a web page.
+ * Browser entry point: parse a `.deepnote` snapshot in a web page.
  *
- * Deliberately separate from `index.ts`, which reaches for `node:fs` and the Python
- * `ExecutionEngine`. Nothing reachable from here touches either, so this bundles for the browser.
+ * Separate from `index.ts`, which reaches for `node:fs` and the Python `ExecutionEngine`. Nothing
+ * reachable from here touches either, so this bundles for the browser — a page can read a snapshot
+ * with no server, no Python and no kernel.
+ *
+ * Rendering is deliberately not included: a DOM renderer is a page concern, and the shapes it
+ * produces (how a table looks, whether HTML output is sandboxed) belong to the page, not the
+ * library. See `examples/snapshot-viewer` for a complete one.
  */
-
 export type { SnapshotBlock, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'
-export type { MountOptions } from './snapshot-viewer'
-export { mountSnapshotViewer, renderSnapshot } from './snapshot-viewer'

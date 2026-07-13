@@ -1,6 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { readSnapshot } from './read-snapshot'
 import { parseSnapshot } from './snapshot-view'
@@ -96,6 +97,20 @@ describe('parseSnapshot', () => {
     expect(ids).toEqual(['b-input', 'b-md', 'b-sql', 'b-code'])
   })
 
+  it('reads a plain .deepnote file too, not just a snapshot', () => {
+    // A snapshot is a file plus required `execution`/`environment`. A file that carries inline
+    // outputs — e.g. one a run wrote back — still renders.
+    const plainFile = SNAPSHOT.replace(/^environment:[\s\S]*?^project:/m, 'project:').replace(
+      '  snapshotHash: abc123\n',
+      ''
+    )
+    const view = parseSnapshot(plainFile)
+
+    expect(view.projectName).toBe('Sales')
+    expect(view.finishedAt).toBeUndefined()
+    expect(view.notebooks[0].blocks.find(b => b.id === 'b-code')?.outputs).toHaveLength(1)
+  })
+
   it('rejects content that is not a Deepnote file', () => {
     expect(() => parseSnapshot('just: yaml')).toThrow(/not a valid \.deepnote snapshot/i)
     expect(() => parseSnapshot('\tnot: [valid')).toThrow(/not a valid \.deepnote snapshot/i)
@@ -110,5 +125,8 @@ describe('readSnapshot', () => {
 
     expect(readSnapshot(path).projectName).toBe('Sales')
     expect(readSnapshot(SNAPSHOT).projectName).toBe('Sales')
+
+    const file = deserializeDeepnoteFile(SNAPSHOT)
+    expect(readSnapshot(file).notebooks[0].blocks.map(b => b.id)).toEqual(['b-input', 'b-md', 'b-code', 'b-sql'])
   })
 })

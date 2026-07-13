@@ -73,8 +73,8 @@ await close();
 ```
 
 Deliberately minimal: binds to `127.0.0.1`, no WebSocket, no watch, no rendering. Bring your own
-page — or, to _view_ an existing snapshot rather than run one, use the snapshot viewer below, which
-needs no server at all.
+page — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs
+no server at all.
 
 ### Read a snapshot — no Python, no kernel
 
@@ -101,28 +101,32 @@ code blocks. `parseSnapshot(yaml)` is the same thing without the filesystem, and
 
 ### Share a snapshot as a static page
 
-`@deepnote/local-runner/snapshot-viewer` is a self-contained browser bundle — the YAML parser, the
-schemas, and a renderer in one file. Point it at a snapshot and it renders the notebook: source,
-outputs, images, tables, and the input values that produced them.
+`@deepnote/local-runner/snapshot-reader` is the same parser as one self-contained browser bundle —
+the YAML parser and the schemas in a single file a page can `<script>` in. A page can then read a
+snapshot with no server, no Python and no kernel:
 
 ```html
-<main id="app"></main>
-<script src="./snapshot-viewer.js"></script>
+<script src="./snapshot-reader.js"></script>
 <script>
-  DeepnoteSnapshot.mountSnapshotViewer(document.getElementById("app"), {
-    src: "./snapshot.deepnote", // fetched at load; re-run the notebook and refresh to update
-  });
+  const yaml = await (await fetch("./snapshot.deepnote")).text();
+  const view = DeepnoteSnapshot.parseSnapshot(yaml);
+  // render `view.notebooks[].blocks[]` however you like
 </script>
 ```
 
-To publish: put `index.html`, `snapshot-viewer.js`, and your `*.snapshot.deepnote` in one directory
-and serve it anywhere static (GitHub Pages, S3, `python3 -m http.server`). The reader needs a
-browser and nothing else — no Deepnote, no Python, no kernel. See
-[`examples/snapshot-viewer`](../../examples/snapshot-viewer) for a complete page.
+Rendering stays in the page, as it does for `serveStatic` — how a table looks, and whether HTML
+output is sandboxed, is a page decision, not a library one.
+[`examples/snapshot-viewer`](../../examples/snapshot-viewer) is a complete page (~60 lines) you can
+copy: source, outputs, images, tables, and the input values that produced them.
 
-HTML outputs are rendered in a **sandboxed iframe with scripts disabled**: a snapshot you hand to
-someone else must not be able to run script in their page. Opening the page from `file://` cannot
-auto-fetch the snapshot (browsers block it), so the viewer falls back to a file picker.
+To publish: put `index.html`, `snapshot-reader.js`, and your `*.snapshot.deepnote` in one directory
+and serve it anywhere static (GitHub Pages, S3, `python3 -m http.server`). The reader needs a
+browser and nothing else — no Deepnote, no Python, no kernel. Re-running the notebook rewrites
+`*_latest.snapshot.deepnote`, so a refresh shows the new outputs.
+
+The example renders HTML outputs in a **sandboxed iframe with scripts disabled**: a snapshot you
+hand to someone else must not be able to run script in their page. Opening the page from `file://`
+cannot auto-fetch the snapshot (browsers block it), so it falls back to a file picker.
 
 ## Testing
 
