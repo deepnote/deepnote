@@ -64,12 +64,15 @@ const meta = (file: DeepnoteFile, index: number) =>
 describe('applyInputOverrides', () => {
   it('coerces overrides per input type and keeps the file schema-valid', () => {
     const file = deserializeDeepnoteFile(NOTEBOOK)
-    applyInputOverrides(file, { greeting: 42, count: 7, enabled: 1, tags: ['a', 'b'] })
+    const coerced = applyInputOverrides(file, { greeting: 42, count: 7, enabled: 1, tags: ['a', 'b'] })
 
     expect(meta(file, 0).deepnote_variable_value).toBe('42')
     expect(meta(file, 1).deepnote_variable_value).toBe('7')
     expect(meta(file, 2).deepnote_variable_value).toBe(true)
     expect(meta(file, 3).deepnote_variable_value).toEqual(['a', 'b'])
+
+    // The coerced values are returned so callers can hand the engine schema-shaped values.
+    expect(coerced).toEqual({ greeting: '42', count: '7', enabled: true, tags: ['a', 'b'] })
 
     // The coerced file must still serialize (i.e. satisfy deepnoteFileSchema).
     expect(() => serializeDeepnoteFile(file)).not.toThrow()

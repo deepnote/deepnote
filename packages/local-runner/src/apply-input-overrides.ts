@@ -1,29 +1,34 @@
-import type { DeepnoteFile } from '@deepnote/blocks'
-import { coerceInputVariableValue } from '@deepnote/blocks'
+import type { DeepnoteFile, InputBlockValueOverrides } from '@deepnote/blocks'
+import { isInputBlock } from '@deepnote/blocks'
+import { coerceInputValue } from './coerce-input-value'
 
 /**
  * Apply input overrides to a file's input blocks, in place.
  *
- * Each value is coerced to the schema shape its input type requires (via
- * `coerceInputVariableValue` from `@deepnote/blocks`), so the mutated file still serializes
- * for snapshots — e.g. a slider value is stored as a string, not a number.
+ * Each value is coerced to the schema shape its input type requires, so the mutated file still
+ * serializes for snapshots — e.g. a slider value is stored as a string, not a number.
  *
- * NOTE: this mirrors the CLI's `applyInputOverrides`. The load-bearing part (coercion) is
- * shared from `@deepnote/blocks`; this thin loop is duplicated for now and is a candidate to
- * hoist into `@deepnote/blocks` in a follow-up.
+ * Returns the coerced values, keyed by variable name. Pass these — not the raw values — to
+ * `ExecutionEngine`, which validates overrides against the input block's schema shape before
+ * applying them. Names with no matching input block are not coerced and are not returned.
  */
-export function applyInputOverrides(file: DeepnoteFile, inputs: Record<string, unknown>): void {
-  if (Object.keys(inputs).length === 0) return
+export function applyInputOverrides(file: DeepnoteFile, inputs: Record<string, unknown>): InputBlockValueOverrides {
+  const coerced: InputBlockValueOverrides = {}
+  if (Object.keys(inputs).length === 0) return coerced
+
   for (const notebook of file.project.notebooks) {
     for (const block of notebook.blocks) {
-      if (!block.type.startsWith('input-')) continue
-      const metadata = block.metadata as Record<string, unknown>
-      const name = metadata.deepnote_variable_name as string | undefined
+      if (!isInputBlock(block)) continue
+      const name = block.metadata.deepnote_variable_name
       if (name && Object.hasOwn(inputs, name)) {
-        metadata.deepnote_variable_value = coerceInputVariableValue(block, inputs[name])
+        const value = coerceInputValue(block, inputs[name])
+        block.metadata.deepnote_variable_value = value as typeof block.metadata.deepnote_variable_value
+        coerced[name] = value
       }
     }
   }
+
+  return coerced
 }
 
 /** Metadata a UI needs to render an editable control for one input block. */

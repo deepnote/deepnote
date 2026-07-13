@@ -53,8 +53,9 @@ export interface RunWithInputsResult {
  * Run a `.deepnote` notebook locally with input overrides applied, returning the block
  * outputs and an execution snapshot.
  *
- * Overrides are coerced to the schema shape for the persisted file, while the raw native
- * values are what get injected into the kernel — these are intentionally different.
+ * Overrides are coerced to the schema shape their input block requires (a slider takes `7` or
+ * `'7'` and stores `'7'`), and the coerced values are what both the persisted file and the kernel
+ * see.
  *
  * By default it writes an execution snapshot next to a path input, like `deepnote run` (pass
  * `persistSnapshot: false` to skip; inputs without a path are never persisted).
@@ -76,7 +77,12 @@ export async function runWithInputs(
     throw new Error('persistSnapshot: true requires a file path input (a YAML string or object has nowhere to write).')
   }
 
-  applyInputOverrides(file, inputs)
+  const coercedInputs = applyInputOverrides(file, inputs)
+
+  // Values for names that match an input block are coerced to that block's schema shape; the
+  // engine validates against that same shape, so a raw `7` for a slider would be rejected. Names
+  // with no input block are passed through untouched for generic kernel injection.
+  const engineInputs = { ...inputs, ...coercedInputs }
 
   const pythonEnv = options.pythonEnv ?? detectDefaultPython()
   const workingDirectory = options.workingDirectory ?? (sourcePath ? dirname(sourcePath) : process.cwd())
@@ -94,8 +100,7 @@ export async function runWithInputs(
       notebookName: options.notebook,
       blockId: options.blockId,
       blockIds: options.blockIds,
-      // Raw native values for kernel injection — NOT the coerced metadata values.
-      inputs,
+      inputs: engineInputs,
       onBlockDone: result => {
         blockResults.push(result)
       },

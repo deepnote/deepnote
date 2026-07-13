@@ -3,7 +3,7 @@
 Run a `.deepnote` notebook with **edited inputs** against a **local** Python backend, and
 (optionally) serve it to a static web page. Local execution only — no cloud.
 
-Built on the committed primitives: `@deepnote/blocks` (parse + input coercion),
+Built on the committed primitives: `@deepnote/blocks` (parse + input-block schemas),
 `@deepnote/runtime-core` (`ExecutionEngine`), and `@deepnote/convert` (snapshots).
 
 ## Requirements
@@ -32,8 +32,9 @@ for (const { blockId, outputs } of outputs) {
 
 - By **default it writes a snapshot** next to a path input, like `deepnote run` (`snapshotPath`).
   Pass `{ persistSnapshot: false }` to skip; inputs without a path (YAML/object) are never persisted.
-- Input values are **coerced** to each block's schema shape for the persisted file (e.g. a
-  slider becomes a string), while the **raw native** values are injected into the kernel.
+- Input values are **coerced** to each block's schema shape (e.g. a slider takes `7` or `'7'` and
+  stores `'7'`). The coerced values are what both the persisted file and the kernel see — the CLI
+  requires already-schema-shaped values, and this coercion is what lets a UI pass native ones.
 - A failing block is reported via `summary.failedBlocks` — it is **not** thrown. Only
   infrastructure/config errors throw (no Python env, missing toolkit, an invalid file).
 

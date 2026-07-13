@@ -1,5 +1,5 @@
-import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
-import { coerceInputVariableValue, parseYaml } from '@deepnote/blocks'
+import type { DeepnoteFile, InputBlock } from '@deepnote/blocks'
+import { isInputBlock, parseYaml } from '@deepnote/blocks'
 import {
   describeRunError,
   fetchSnapshotContent,
@@ -13,6 +13,7 @@ import {
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import type { IOutput } from '@deepnote/runtime-core'
+import { coerceInputValue } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import { openInCloud } from './open-in-cloud'
@@ -214,19 +215,18 @@ function isNotFoundError(err: unknown): boolean {
 
 /** Coerce each override to the schema shape its input block requires (slider → string, etc.). */
 function coerceInputs(file: DeepnoteFile, inputs: Record<string, unknown>): Record<string, unknown> {
-  const byName = new Map<string, DeepnoteBlock>()
+  const byName = new Map<string, InputBlock>()
   for (const notebook of file.project.notebooks) {
     for (const block of notebook.blocks) {
-      if (typeof block.type === 'string' && block.type.startsWith('input-')) {
-        const name = (block.metadata as Record<string, unknown>).deepnote_variable_name as string | undefined
-        if (name) byName.set(name, block)
-      }
+      if (!isInputBlock(block)) continue
+      const name = block.metadata.deepnote_variable_name
+      if (name) byName.set(name, block)
     }
   }
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(inputs)) {
     const block = byName.get(key)
-    out[key] = block ? coerceInputVariableValue(block, value) : value
+    out[key] = block ? coerceInputValue(block, value) : value
   }
   return out
 }

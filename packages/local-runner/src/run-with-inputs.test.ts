@@ -84,14 +84,15 @@ beforeEach(() => {
 })
 
 describe('runWithInputs', () => {
-  it('coerces metadata but injects native inputs, and returns ordered outputs + a valid snapshot', async () => {
+  it('coerces inputs for both the file and the kernel, and returns ordered outputs + a valid snapshot', async () => {
     const result = await runWithInputs(NOTEBOOK, { count: 7 })
 
     // Metadata on the executed file is coerced to the schema shape (string), ...
     const sliderMeta = capturedFile?.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
     expect(sliderMeta.deepnote_variable_value).toBe('7')
-    // ... while the kernel-injection payload keeps the raw native value.
-    expect(capturedOptions?.inputs).toEqual({ count: 7 })
+    // ... and so is the kernel-injection payload: the engine validates overrides against the
+    // block's schema shape, so a raw `7` for a slider would be rejected.
+    expect(capturedOptions?.inputs).toEqual({ count: '7' })
 
     expect(result.outputs).toEqual([
       { blockId: 'c1', outputs: [{ output_type: 'stream', name: 'stdout', text: '7\n' }], executionCount: 1 },
@@ -103,6 +104,14 @@ describe('runWithInputs', () => {
 
     expect(engineMock.start).toHaveBeenCalledOnce()
     expect(engineMock.stop).toHaveBeenCalledOnce()
+  })
+
+  it('passes names with no input block through to the kernel untouched', async () => {
+    await runWithInputs(NOTEBOOK, { count: 7, not_a_block: { nested: 1 } })
+
+    // Unmatched names have no schema shape to coerce to, so they reach the engine as-is for
+    // generic Python-literal injection.
+    expect(capturedOptions?.inputs).toEqual({ count: '7', not_a_block: { nested: 1 } })
   })
 
   it('returns a failed summary without throwing when a block fails', async () => {
