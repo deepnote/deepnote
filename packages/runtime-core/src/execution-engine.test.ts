@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { decodeUtf8NoBom, deserializeDeepnoteFile } from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentBlockContext } from './agent-handler'
@@ -610,6 +610,49 @@ describe('ExecutionEngine', () => {
     })
 
     describe('input injection', () => {
+      it('stores slider overrides and uses the block-generated Python assignment', async () => {
+        const file = loadExampleFile('2_blocks.deepnote')
+
+        await engine.start()
+        await engine.runProject(file, {
+          notebookName: '2. Input blocks',
+          inputs: { input_slider: '7' },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toBe('input_slider = 7')
+
+        const slider = findBlockByType(file, 'input-slider')
+        expect(slider.metadata.deepnote_variable_value).toBe('7')
+        expect(() => serializeDeepnoteFile(file)).not.toThrow()
+      })
+
+      it('uses input-block Python generation for text and checkbox overrides', async () => {
+        const file = loadExampleFile('2_blocks.deepnote')
+
+        await engine.start()
+        await engine.runProject(file, {
+          notebookName: '2. Input blocks',
+          inputs: { input_text: 'true', input_checkbox: false },
+        })
+
+        const firstCall = mockKernelClient.execute.mock.calls[0][0] as string
+        expect(firstCall).toContain("input_text = 'true'")
+        expect(firstCall).toContain('input_checkbox = False')
+      })
+
+      it('rejects values that do not match their input block type', async () => {
+        const file = loadExampleFile('2_blocks.deepnote')
+
+        await engine.start()
+        await expect(
+          engine.runProject(file, {
+            notebookName: '2. Input blocks',
+            inputs: { input_slider: 7 },
+          })
+        ).rejects.toThrow('Input "input_slider" must be a string for input-slider')
+      })
+
       it('injects string inputs before execution', async () => {
         await engine.start()
         await engine.runProject(HELLO_WORLD, {
