@@ -1,9 +1,8 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
-import { deserializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
+import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { saveExecutionSnapshot } from '@deepnote/convert'
-import { mergeOutputsIntoFile, splitDeepnoteFile } from '@deepnote/convert'
 import {
   ApiError,
   type ApiIntegration,
@@ -104,13 +103,7 @@ vi.mock('@deepnote/convert', async importOriginal => {
   }
 })
 
-import {
-  applyInputOverrides,
-  createRunAction,
-  MissingInputError,
-  MissingIntegrationError,
-  type RunOptions,
-} from './run'
+import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
 
 // Helper to parse JSON from console output
 function getJsonOutput(spy: Mock): unknown {
@@ -122,6 +115,7 @@ function getJsonOutput(spy: Mock): unknown {
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+const MULTI_SELECT_FILE = join('test-fixtures', 'formats', 'deepnote', 'with-multi-select.deepnote')
 
 function parseDeepnoteFixture(path: string) {
   return deserializeDeepnoteFile(fs.readFileSync(path, 'utf-8'))
@@ -1886,107 +1880,133 @@ describe('run command', () => {
     })
 
     describe('--input flag', () => {
-      it('passes inputs to runFile', async () => {
+      it('passes CLI values using each input block value type', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['name=Alice', 'count=42'] })
+        await action(BLOCKS_FILE, {
+          input: [
+            'input_text=Alice',
+            'input_slider=42',
+            'input_checkbox=false',
+            'input_date_range=["2024-01-01","2024-01-31"]',
+          ],
+        })
 
         expect(mockRunProject).toHaveBeenCalledWith(
           expect.any(Object),
           expect.objectContaining({
-            inputs: { name: 'Alice', count: 42 },
+            inputs: {
+              input_text: 'Alice',
+              input_slider: '42',
+              input_checkbox: false,
+              input_date_range: ['2024-01-01', '2024-01-31'],
+            },
           })
         )
       })
 
-      it('parses string values', async () => {
+      it('keeps numeric- and boolean-looking text values as strings', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['greeting=Hello World'] })
+        await action(BLOCKS_FILE, { input: ['input_text=true', 'input_textarea=123'] })
 
         expect(mockRunProject).toHaveBeenCalledWith(
           expect.any(Object),
           expect.objectContaining({
-            inputs: { greeting: 'Hello World' },
+            inputs: { input_text: 'true', input_textarea: '123' },
           })
         )
       })
 
-      it('parses numeric values as JSON', async () => {
+      it('parses true checkbox values', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['int=123', 'float=3.14', 'negative=-5'] })
+        await action(BLOCKS_FILE, { input: ['input_checkbox=true'] })
+
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({ inputs: { input_checkbox: true } })
+        )
+      })
+
+      it('accepts JSON arrays for multi-selects and rejects plain strings', async () => {
+        setupSuccessfulRun()
+
+        await action(MULTI_SELECT_FILE, { input: ['input_select=["a","b"]'] })
+
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({ inputs: { input_select: ['a', 'b'] } })
+        )
+
+        await expect(action(MULTI_SELECT_FILE, { input: ['input_select=not-json'] })).rejects.toThrow(
+          'program.error called'
+        )
+
+        expect(programErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('must be an array of strings for input-select'),
+          expect.objectContaining({ exitCode: 2 })
+        )
+      })
+
+      it('handles string values containing equals signs', async () => {
+        setupSuccessfulRun()
+
+        await action(BLOCKS_FILE, { input: ['input_text=a=b+c'] })
 
         expect(mockRunProject).toHaveBeenCalledWith(
           expect.any(Object),
           expect.objectContaining({
-            inputs: { int: 123, float: 3.14, negative: -5 },
+            inputs: { input_text: 'a=b+c' },
           })
         )
       })
 
-      it('parses boolean values as JSON', async () => {
+      it('rejects inputs that are not defined by an input block', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['enabled=true', 'disabled=false'] })
+        await expect(action(HELLO_WORLD_FILE, { input: ['count=42'] })).rejects.toThrow('program.error called')
 
-        expect(mockRunProject).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            inputs: { enabled: true, disabled: false },
-          })
+        expect(programErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Input "count" is not defined'),
+          expect.objectContaining({ exitCode: 2 })
         )
       })
 
-      it('parses null values as JSON', async () => {
+      it('rejects non-boolean checkbox values', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['nothing=null'] })
+        await expect(action(BLOCKS_FILE, { input: ['input_checkbox=0'] })).rejects.toThrow('program.error called')
 
-        expect(mockRunProject).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            inputs: { nothing: null },
-          })
+        expect(programErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('must be a boolean for input-checkbox'),
+          expect.objectContaining({ exitCode: 2 })
         )
       })
 
-      it('parses array values as JSON', async () => {
+      it('rejects non-numeric slider strings', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['items=["a","b","c"]'] })
+        await expect(action(BLOCKS_FILE, { input: ['input_slider=not-a-number'] })).rejects.toThrow(
+          'program.error called'
+        )
 
-        expect(mockRunProject).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            inputs: { items: ['a', 'b', 'c'] },
-          })
+        expect(programErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('must be a numeric string for input-slider'),
+          expect.objectContaining({ exitCode: 2 })
         )
       })
 
-      it('parses object values as JSON', async () => {
+      it('rejects malformed date-range arrays', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['config={"debug":true,"level":3}'] })
-
-        expect(mockRunProject).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            inputs: { config: { debug: true, level: 3 } },
-          })
+        await expect(action(BLOCKS_FILE, { input: ['input_date_range=["2024-01-01"]'] })).rejects.toThrow(
+          'program.error called'
         )
-      })
 
-      it('handles values with equals signs', async () => {
-        setupSuccessfulRun()
-
-        await action(HELLO_WORLD_FILE, { input: ['equation=a=b+c'] })
-
-        expect(mockRunProject).toHaveBeenCalledWith(
-          expect.any(Object),
-          expect.objectContaining({
-            inputs: { equation: 'a=b+c' },
-          })
+        expect(programErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('must be a string or an array of exactly two strings for input-date-range'),
+          expect.objectContaining({ exitCode: 2 })
         )
       })
 
@@ -2023,12 +2043,12 @@ describe('run command', () => {
       it('handles empty values', async () => {
         setupSuccessfulRun()
 
-        await action(HELLO_WORLD_FILE, { input: ['empty='] })
+        await action(BLOCKS_FILE, { input: ['input_text='] })
 
         expect(mockRunProject).toHaveBeenCalledWith(
           expect.any(Object),
           expect.objectContaining({
-            inputs: { empty: '' },
+            inputs: { input_text: '' },
           })
         )
       })
@@ -2787,155 +2807,6 @@ describe('run command', () => {
         expect.stringContaining('--dry-run requires a file path'),
         expect.objectContaining({ exitCode: 2 })
       )
-    })
-  })
-
-  describe('applyInputOverrides', () => {
-    function makeInputBlock(varName: string, value: string) {
-      return {
-        id: `input-${varName}`,
-        type: 'input-text' as const,
-        content: '',
-        blockGroup: 'g1',
-        sortingKey: 'a0',
-        metadata: {
-          deepnote_variable_name: varName,
-          deepnote_variable_value: value,
-        },
-      }
-    }
-
-    function makeDeepnoteFile(blocks: ReturnType<typeof makeInputBlock>[]) {
-      return {
-        version: '1',
-        metadata: { createdAt: '2026-01-01T00:00:00Z' },
-        project: {
-          id: 'test-project',
-          name: 'test',
-          notebooks: [{ id: 'nb-1', name: 'Notebook 1', blocks }],
-        },
-      }
-    }
-
-    it('patches deepnote_variable_value for matching input blocks', () => {
-      const file = makeDeepnoteFile([makeInputBlock('my_var', 'saved_value')])
-
-      applyInputOverrides(file, { my_var: 'cli_value' })
-
-      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
-      expect(metadata.deepnote_variable_value).toBe('cli_value')
-    })
-
-    it('leaves non-matching input blocks untouched', () => {
-      const file = makeDeepnoteFile([makeInputBlock('other_var', 'original')])
-
-      applyInputOverrides(file, { my_var: 'cli_value' })
-
-      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
-      expect(metadata.deepnote_variable_value).toBe('original')
-    })
-
-    it('is a no-op when inputs object is empty', () => {
-      const file = makeDeepnoteFile([makeInputBlock('my_var', 'saved_value')])
-
-      applyInputOverrides(file, {})
-
-      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
-      expect(metadata.deepnote_variable_value).toBe('saved_value')
-    })
-
-    it('patches multiple input blocks across notebooks', () => {
-      const file = {
-        version: '1',
-        metadata: { createdAt: '2026-01-01T00:00:00Z' },
-        project: {
-          id: 'test-project',
-          name: 'test',
-          notebooks: [
-            { id: 'nb-1', name: 'Notebook 1', blocks: [makeInputBlock('var_a', 'old_a')] },
-            { id: 'nb-2', name: 'Notebook 2', blocks: [makeInputBlock('var_b', 'old_b')] },
-          ],
-        },
-      }
-
-      applyInputOverrides(file, { var_a: 'new_a', var_b: 'new_b' })
-
-      const metaA = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
-      const metaB = file.project.notebooks[1].blocks[0].metadata as Record<string, unknown>
-      expect(metaA.deepnote_variable_value).toBe('new_a')
-      expect(metaB.deepnote_variable_value).toBe('new_b')
-    })
-
-    it('skips non-input blocks', () => {
-      const file = {
-        version: '1',
-        metadata: { createdAt: '2026-01-01T00:00:00Z' },
-        project: {
-          id: 'test-project',
-          name: 'test',
-          notebooks: [
-            {
-              id: 'nb-1',
-              name: 'Notebook 1',
-              blocks: [
-                {
-                  id: 'code-1',
-                  type: 'code' as const,
-                  content: 'print("hello")',
-                  blockGroup: 'g1',
-                  sortingKey: 'a0',
-                  metadata: { deepnote_variable_name: 'my_var', deepnote_variable_value: 'original' },
-                },
-              ],
-            },
-          ],
-        },
-      }
-
-      applyInputOverrides(file, { my_var: 'cli_value' })
-
-      const metadata = file.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
-      expect(metadata.deepnote_variable_value).toBe('original')
-    })
-
-    it('coerces a numeric slider override so the execution snapshot serializes (regression)', () => {
-      // parseInputs turns `-i count=7` into the number 7. Before coercion, that landed in
-      // deepnote_variable_value verbatim and serializeDeepnoteSnapshot threw
-      // "Expected string, received number", silently dropping the snapshot.
-      const file = deserializeDeepnoteFile(`metadata:
-  createdAt: '2026-01-01T00:00:00.000Z'
-project:
-  id: p1
-  name: Test
-  notebooks:
-    - id: nb1
-      name: NB
-      blocks:
-        - blockGroup: g1
-          content: ''
-          id: input-count
-          metadata:
-            deepnote_variable_name: count
-            deepnote_variable_value: '3'
-            deepnote_slider_min_value: 1
-            deepnote_slider_max_value: 100
-            deepnote_slider_step: 1
-          sortingKey: a0
-          type: input-slider
-version: '1.0.0'
-`)
-
-      applyInputOverrides(file, { count: 7 })
-
-      const slider = file.project.notebooks[0].blocks[0]
-      expect((slider.metadata as Record<string, unknown>).deepnote_variable_value).toBe('7')
-
-      const merged = mergeOutputsIntoFile(file, [], {
-        startedAt: '2026-01-01T00:00:00.000Z',
-        finishedAt: '2026-01-01T00:00:01.000Z',
-      })
-      const { snapshot } = splitDeepnoteFile(merged)
-      expect(() => serializeDeepnoteSnapshot(snapshot)).not.toThrow()
     })
   })
 })

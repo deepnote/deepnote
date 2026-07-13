@@ -1,14 +1,23 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import type { DeepnoteBlock, DeepnoteFile, ExecutableBlock } from '@deepnote/blocks'
+import type {
+  DeepnoteBlock,
+  DeepnoteFile,
+  ExecutableBlock,
+  InputBlock,
+  InputBlockValueOverride,
+} from '@deepnote/blocks'
 import {
   createPythonCode,
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
   extractOutputsText,
   generateSortingKey,
+  getInputBlockValueOverrideValidationError,
+  InvalidValueError,
   isAgentBlock,
   isExecutableBlock,
+  isInputBlock,
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import {
@@ -162,11 +171,6 @@ export class ExecutionEngine {
       throw new Error('Engine not started. Call start() first.')
     }
 
-    // Inject input values before execution
-    if (options.inputs && Object.keys(options.inputs).length > 0) {
-      await this.injectInputs(options.inputs)
-    }
-
     const startTime = Date.now()
     let executedBlocks = 0
     let failedBlocks = 0
@@ -178,6 +182,11 @@ export class ExecutionEngine {
 
     if (options.notebookName && notebooks.length === 0) {
       throw new Error(`Notebook "${options.notebookName}" not found in project`)
+    }
+
+    // Apply overrides before execution so matching input blocks generate their normal Python assignments.
+    if (options.inputs && Object.keys(options.inputs).length > 0) {
+      await this.injectInputs(options.inputs, notebooks)
     }
 
     // Build block ID filter set: blockIds takes precedence over blockId
@@ -460,19 +469,45 @@ export class ExecutionEngine {
 
   /**
    * Inject input values into the kernel before execution.
-   * Converts values to Python literals and executes assignment statements.
+   * Names without a matching input block fall back to generic Python literal conversion.
    */
-  private async injectInputs(inputs: Record<string, unknown>): Promise<void> {
+  private async injectInputs(
+    inputs: Record<string, unknown>,
+    notebooks: DeepnoteFile['project']['notebooks']
+  ): Promise<void> {
     if (!this.kernel) {
       throw new Error('Engine not started. Call start() first.')
     }
 
     const assignments: string[] = []
     for (const [name, value] of Object.entries(inputs)) {
-      // Validate variable name to prevent code injection
+      const inputBlocks = this.getInputBlocksByName(notebooks, name)
+
+      if (inputBlocks.length > 0) {
+        for (const block of inputBlocks) {
+          const validationError = getInputBlockValueOverrideValidationError(block, value)
+          if (validationError) {
+            throw new InvalidValueError(`Input "${name}" ${validationError}`, { value })
+          }
+        }
+
+        const inputValue = value as InputBlockValueOverride
+        for (const block of inputBlocks) {
+          const metadata = block.metadata as { deepnote_variable_value: InputBlockValueOverride }
+          metadata.deepnote_variable_value = inputValue
+        }
+
+        for (const block of inputBlocks) {
+          assignments.push(createPythonCode(block).trim())
+        }
+        continue
+      }
+
+      // Preserve generic programmatic input injection when no input block exists.
       if (!this.isValidPythonIdentifier(name)) {
         throw new Error(`Invalid variable name: "${name}". Must be a valid Python identifier.`)
       }
+
       const pythonValue = toPythonLiteral(value)
       assignments.push(`${name} = ${pythonValue}`)
     }
@@ -486,5 +521,19 @@ export class ExecutionEngine {
         throw new Error(`Failed to set input values: ${errorMsg}`)
       }
     }
+  }
+
+  private getInputBlocksByName(notebooks: DeepnoteFile['project']['notebooks'], inputName: string): InputBlock[] {
+    const inputBlocks: InputBlock[] = []
+
+    for (const notebook of notebooks) {
+      for (const block of this.sortBlocks(notebook.blocks)) {
+        if (isInputBlock(block) && block.metadata.deepnote_variable_name === inputName) {
+          inputBlocks.push(block)
+        }
+      }
+    }
+
+    return inputBlocks
   }
 }
