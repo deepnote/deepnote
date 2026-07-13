@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
-import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import type { saveExecutionSnapshot } from '@deepnote/convert'
 import {
   ApiError,
@@ -115,27 +115,10 @@ function getJsonOutput(spy: Mock): unknown {
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+const MULTI_SELECT_FILE = join('test-fixtures', 'formats', 'deepnote', 'with-multi-select.deepnote')
 
 function parseDeepnoteFixture(path: string) {
   return deserializeDeepnoteFile(fs.readFileSync(path, 'utf-8'))
-}
-
-function createMultiSelectFixture(): { path: string; cleanup: () => void } {
-  const file = parseDeepnoteFixture(BLOCKS_FILE)
-  const selectBlock = file.project.notebooks
-    .flatMap(notebook => notebook.blocks)
-    .find(block => block.type === 'input-select')
-  if (!selectBlock || selectBlock.type !== 'input-select') {
-    throw new Error('Expected input-select block in fixture')
-  }
-
-  selectBlock.metadata.deepnote_allow_multiple_values = true
-  selectBlock.metadata.deepnote_variable_value = []
-
-  const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'run-input-test-'))
-  const path = join(tempDir, 'multi-select.deepnote')
-  fs.writeFileSync(path, serializeDeepnoteFile(file))
-  return { path, cleanup: () => fs.rmSync(tempDir, { recursive: true }) }
 }
 
 // Test helpers
@@ -1935,31 +1918,35 @@ describe('run command', () => {
         )
       })
 
-      it('parses and validates true checkboxes and multi-select arrays', async () => {
+      it('parses true checkbox values', async () => {
         setupSuccessfulRun()
-        const fixture = createMultiSelectFixture()
 
-        try {
-          await action(fixture.path, { input: ['input_checkbox=true', 'input_select=["a","b"]'] })
+        await action(BLOCKS_FILE, { input: ['input_checkbox=true'] })
 
-          expect(mockRunProject).toHaveBeenCalledWith(
-            expect.any(Object),
-            expect.objectContaining({
-              inputs: { input_checkbox: true, input_select: ['a', 'b'] },
-            })
-          )
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({ inputs: { input_checkbox: true } })
+        )
+      })
 
-          await expect(action(fixture.path, { input: ['input_select=not-json'] })).rejects.toThrow(
-            'program.error called'
-          )
+      it('parses and validates multi-select arrays', async () => {
+        setupSuccessfulRun()
 
-          expect(programErrorSpy).toHaveBeenCalledWith(
-            expect.stringContaining('must be an array of strings for input-select'),
-            expect.objectContaining({ exitCode: 2 })
-          )
-        } finally {
-          fixture.cleanup()
-        }
+        await action(MULTI_SELECT_FILE, { input: ['input_select=["a","b"]'] })
+
+        expect(mockRunProject).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({ inputs: { input_select: ['a', 'b'] } })
+        )
+
+        await expect(action(MULTI_SELECT_FILE, { input: ['input_select=not-json'] })).rejects.toThrow(
+          'program.error called'
+        )
+
+        expect(programErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('must be an array of strings for input-select'),
+          expect.objectContaining({ exitCode: 2 })
+        )
       })
 
       it('handles string values containing equals signs', async () => {

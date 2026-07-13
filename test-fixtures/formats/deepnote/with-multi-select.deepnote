@@ -1,0 +1,27 @@
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+project:
+  name: Multi-select Input Test
+  id: 00000000-0000-0000-0000-000000000010
+  notebooks:
+    - id: 00000000-0000-0000-0000-000000000011
+      name: Notebook with Multi-select
+      blocks:
+        - blockGroup: "0"
+          id: 00000000-0000-0000-0000-000000000012
+          sortingKey: "0"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: input_select
+            deepnote_variable_value: []
+            deepnote_variable_options:
+              - a
+              - b
+            deepnote_variable_custom_options:
+              - a
+              - b
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: true
+version: 1.0.0
