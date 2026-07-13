@@ -93,11 +93,6 @@ export function createPythonCodeForInputSelectBlock(block: InputSelectBlock): st
   }
 }
 
-function isFiniteNumberString(value: string): boolean {
-  const parsed = Number.parseFloat(value)
-  return Number.isFinite(parsed) && value.trim() === parsed.toString()
-}
-
 export function createPythonCodeForInputSliderBlock(block: InputSliderBlock): string {
   const sanitizedPythonVariableName = sanitizePythonVariableName(block.metadata.deepnote_variable_name)
   const value = block.metadata.deepnote_variable_value
@@ -249,11 +244,15 @@ export function getInputBlockValueOverrideValidationError(block: InputBlock, val
     case 'input-file':
     case 'input-date':
       return typeof value === 'string' ? null : `must be a string for ${block.type}`
-    case 'input-slider':
+    case 'input-slider': {
       if (typeof value !== 'string') {
         return `must be a string for ${block.type}`
       }
-      return isFiniteNumberString(value) ? null : `must be a numeric string for ${block.type}`
+      const parsed = Number.parseFloat(value)
+      return Number.isFinite(parsed) && value.trim() === parsed.toString()
+        ? null
+        : `must be a numeric string for ${block.type}`
+    }
     case 'input-select':
       if (block.metadata.deepnote_allow_multiple_values === true) {
         return isStringArray(value) ? null : `must be an array of strings for ${block.type}`
