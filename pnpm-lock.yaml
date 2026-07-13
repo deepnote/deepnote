@@ -174,15 +174,8 @@ importers:
         specifier: workspace:*
         version: link:../database-integrations
       zod:
-        specifier: ^3.23.8
+        specifier: 3.25.76
         version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.18.12
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
 
   packages/convert:
     dependencies:

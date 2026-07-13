@@ -1,6 +1,6 @@
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
 import chalk from 'chalk'
-import { Command, InvalidArgumentError, Option } from 'commander'
+import { Command, Option } from 'commander'
 // Note: We keep 'chalk' import for:
 // 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
 // 2. Setting chalk.level in preAction hook for backward compatibility
@@ -25,6 +25,7 @@ import { DEEPNOTE_TOKEN_ENV } from './constants'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
 import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
+import { parseTimeoutSeconds } from './utils/parse-timeout'
 import { version } from './version'
 
 /**
@@ -34,20 +35,6 @@ export interface GlobalOptions {
   color: boolean
   debug: boolean
   quiet: boolean
-}
-
-/** Parses the `--timeout <seconds>` value into a positive integer number of seconds. */
-function parseTimeoutSeconds(value: string): number {
-  // Validate the whole string: Number.parseInt would silently accept '1.5' or '10s'.
-  const normalized = value.trim()
-  if (!/^\d+$/.test(normalized)) {
-    throw new InvalidArgumentError('Timeout must be a positive integer number of seconds.')
-  }
-  const seconds = Number(normalized)
-  if (!Number.isSafeInteger(seconds) || seconds <= 0) {
-    throw new InvalidArgumentError('Timeout must be a positive integer number of seconds.')
-  }
-  return seconds
 }
 
 /**
@@ -312,8 +299,8 @@ ${c.bold('Examples:')}
     .option('--open', 'Open the project in Deepnote Cloud after successful execution')
     .option('--context', 'Include analysis context in machine-readable output (requires -o json/toon/llm)')
     .option('--prompt <text>', 'Run an LLM agent block with the given prompt')
-    .option('--url <url>', 'API base URL for fetching integrations', DEFAULT_API_URL)
-    .option('--token <token>', `Bearer token for fetching integrations (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--url <url>', 'API base URL (for integrations and cloud runs)', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .option('--cloud', 'Run the notebook in Deepnote Cloud, then download the resulting snapshot locally')
     .option('--notebook-id <uuid>', 'Cloud notebook id to run (with --cloud); alternative to a local .deepnote file')
     .option('--out <path>', 'Write the downloaded cloud snapshot to this exact path (with --cloud)')

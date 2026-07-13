@@ -1,21 +1,5 @@
-import { ApiError } from '@deepnote/database-integrations'
+import { ApiError, parseApiErrorMessage } from '@deepnote/database-integrations'
 import { z } from 'zod'
-
-/**
- * Extracts an error message from an API response body: the `error` field of a JSON body, else the
- * raw text, else the fallback. (Local copy so this package needs no dependency on the CLI.)
- */
-function parseApiErrorMessage(responseBody: string, fallback: string): string {
-  try {
-    const json = JSON.parse(responseBody)
-    if (json.error && typeof json.error === 'string') {
-      return json.error
-    }
-  } catch {
-    // Not JSON, use raw body
-  }
-  return responseBody || fallback
-}
 
 /**
  * Client for the Deepnote public "runs" API (preview).
@@ -159,7 +143,19 @@ function normalizeSnapshot(raw: z.infer<typeof runSchema>): NormalizedRun['snaps
 
 function normalizeRun(json: unknown): NormalizedRun {
   const envelope = runEnvelopeSchema.safeParse(json)
-  const raw = envelope.success ? envelope.data.run : runSchema.parse(json)
+  let raw: z.infer<typeof runSchema>
+  if (envelope.success) {
+    raw = envelope.data.run
+  } else {
+    // Surface a readable message instead of a raw ZodError dump, as `fetchIntegrations` does —
+    // this API is in preview, so an unexpected payload is a plausible failure mode.
+    const flat = runSchema.safeParse(json)
+    if (!flat.success) {
+      throw new ApiError(502, `Invalid Deepnote run response: ${flat.error.issues.map(i => i.message).join(', ')}`)
+    }
+    raw = flat.data
+  }
+
   const runId = raw.runId ?? raw.id
   if (!runId) {
     throw new ApiError(502, 'Deepnote run response did not include a run id.')

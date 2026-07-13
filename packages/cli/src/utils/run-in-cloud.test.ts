@@ -5,9 +5,9 @@ import { type DeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } f
 import { splitDeepnoteFile } from '@deepnote/convert'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
-import { MissingTokenError } from '../utils/auth'
-import { InvalidInputError } from '../utils/parse-inputs'
-import { CloudRunUsageError, runInDeepnoteCloud } from './run-cloud'
+import { MissingTokenError } from './auth'
+import { InvalidInputError } from './parse-inputs'
+import { CloudRunUsageError, runInDeepnoteCloud } from './run-in-cloud'
 
 const API_URL = 'https://api.example.com'
 

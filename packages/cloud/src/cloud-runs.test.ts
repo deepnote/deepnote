@@ -73,6 +73,16 @@ describe('triggerNotebookRun', () => {
     await expect(triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1' })).rejects.toBeInstanceOf(ApiError)
   })
 
+  it('throws a readable ApiError — not a raw ZodError — on an unparseable payload', async () => {
+    // The API is in preview, so a shape we cannot parse is a plausible failure. Users should see a
+    // message, not a Zod issue dump.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ run: { id: 5, status: [] } }))
+    await expect(triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1' })).rejects.toThrow(
+      /Invalid Deepnote run response/
+    )
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledOnce()
+  })
+
   it('maps 401 to a friendly ApiError', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(
       response('nope', { ok: false, status: 401, statusText: 'Unauthorized' })

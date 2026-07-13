@@ -1,4 +1,5 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
+import { NotFoundInProjectError } from '../exit-codes'
 
 /**
  * The notebooks a run applies to: the one named by `--notebook`, else every notebook in the file.
@@ -12,7 +13,7 @@ export function getNotebooksForExecutionScope(
     : file.project.notebooks
 
   if (options.notebook && notebooks.length === 0) {
-    throw new Error(`Notebook "${options.notebook}" not found in project`)
+    throw new NotFoundInProjectError(`Notebook "${options.notebook}" not found in project`)
   }
 
   return notebooks

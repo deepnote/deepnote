@@ -41,7 +41,7 @@ import { markedTerminal } from 'marked-terminal'
 marked.use(markedTerminal())
 
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
-import { ExitCode } from '../exit-codes'
+import { ExitCode, NotFoundInProjectError } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
 import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
@@ -64,7 +64,7 @@ import {
 import { getNotebooksForExecutionScope } from '../utils/notebook-scope'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { getInputBlocks, InvalidInputError, parseInputs } from '../utils/parse-inputs'
-import { CloudRunUsageError, runInDeepnoteCloud } from './run-cloud'
+import { CloudRunUsageError, runInDeepnoteCloud } from '../utils/run-in-cloud'
 
 /**
  * Error thrown when required inputs are missing.
@@ -547,6 +547,7 @@ export function createRunAction(program: Command): (path: string | undefined, op
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
         error instanceof InitNotebookResolutionError ||
+        error instanceof NotFoundInProjectError ||
         error instanceof CloudRunUsageError ||
         error instanceof MissingTokenError ||
         isAuthApiError

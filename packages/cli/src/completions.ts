@@ -111,7 +111,7 @@ _deepnote_completions() {
         run)
             # Complete notebook files and flags
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile --open" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile --open --cloud --notebook-id --out --timeout --url --token" -- "\${cur}") )
             else
                 # Enable extglob for pattern matching, restore original state after
                 local _extglob_was_off=0
@@ -340,6 +340,12 @@ ${commandEntries}
                         '--top[Display resource usage during execution]' \\
                         '--profile[Show per-block timing and memory usage]' \\
                         '--open[Open the project in Deepnote Cloud after successful execution]' \\
+                        '--cloud[Run the notebook in Deepnote Cloud and download the snapshot]' \\
+                        '--notebook-id[Cloud notebook id to run (with --cloud)]:notebook id:' \\
+                        '--out[Write the downloaded cloud snapshot to this path]:out path:_files' \\
+                        '--timeout[Max seconds to wait for a cloud run]:seconds:' \\
+                        '--url[API base URL]:url:' \\
+                        '--token[Bearer token for the Deepnote API]:token:' \\
                         '*:notebook file:_files -g "*.{deepnote,ipynb,qmd,py}"'
                     ;;
                 open)
@@ -541,6 +547,12 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l dry-run -d 'Show wh
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l top -d 'Display resource usage during execution'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l profile -d 'Show per-block timing and memory usage'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l open -d 'Open the project in Deepnote Cloud after successful execution'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l cloud -d 'Run the notebook in Deepnote Cloud and download the snapshot'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook-id -d 'Cloud notebook id to run (with --cloud)'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l out -d 'Write the downloaded cloud snapshot to this path'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l timeout -d 'Max seconds to wait for a cloud run'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l url -d 'API base URL'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l token -d 'Bearer token for the Deepnote API'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'
 
 # open subcommand
