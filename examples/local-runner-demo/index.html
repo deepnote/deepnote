@@ -45,6 +45,7 @@
       pre { font-family: var(--mono); font-size: .85rem; white-space: pre-wrap; margin: 0; }
       pre.err { color: var(--red); }
       img { max-width: 100%; border-radius: 8px; }
+      iframe.html-output { width: 100%; height: 16rem; border: 1px solid var(--border, #e6e8eb); border-radius: 8px; background: transparent; }
       .hint { color: var(--muted); font-size: .85rem; }
     </style>
   </head>
@@ -198,11 +199,25 @@
           const pre = el('pre', 'err'); pre.textContent = (o.traceback ? o.traceback.join('\n') : `${o.ename}: ${o.evalue}`).replace(/\x1b\[[0-9;]*m/g, ''); return pre
         }
         const data = o.data || {}
-        if (data['image/png']) { const img = el('img'); img.src = 'data:image/png;base64,' + join(data['image/png']).replace(/\s+/g, ''); return img }
-        // NOTE: notebook text/html output is injected as-is (standard for notebook viewers). This is
-        // an XSS sink for UNTRUSTED notebooks — a real app running shared notebooks must sanitize first.
-        if (data['text/html']) { const d = el('div'); d.innerHTML = join(data['text/html']); return d }
+        if (data['image/png']) { const img = el('img'); img.alt = 'Notebook image output'; img.src = 'data:image/png;base64,' + join(data['image/png']).replace(/\s+/g, ''); return img }
+        // Notebook text/html goes in a sandboxed iframe with scripts disabled, not innerHTML — a
+        // shared notebook must not be able to run script in the page. Needs no sanitizer dependency.
+        if (data['text/html']) { return sandbox(join(data['text/html'])) }
         const pre = el('pre'); pre.textContent = join(data['text/plain'] ?? ''); return pre
+      }
+
+      function sandbox(html) {
+        const frame = document.createElement('iframe')
+        frame.setAttribute('sandbox', '')
+        frame.title = 'Notebook HTML output'
+        frame.className = 'html-output'
+        // The frame is its own document and inherits none of this page's styles, so it carries its own.
+        frame.srcdoc = '<!doctype html><meta charset="utf-8"><style>:root{color-scheme:light dark}' +
+          'body{margin:0;padding:2px;background:#fff;color:#111;font:14px system-ui,sans-serif}' +
+          'table{border-collapse:collapse}th,td{border:1px solid #d8dce0;padding:4px 10px}' +
+          '@media (prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}th,td{border-color:#30363d}}' +
+          '</style>' + html
+        return frame
       }
 
       const join = (t) => (Array.isArray(t) ? t.join('') : t ?? '')

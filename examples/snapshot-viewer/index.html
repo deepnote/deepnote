@@ -20,6 +20,7 @@
       .md { white-space: pre-wrap }
       @media (prefers-color-scheme: dark) {
         body { background: #0d1117; color: #e6edf3 }
+        .meta { color: #8b949e }
         .source { background: #161b22; border-color: #30363d }
         .input { background: #1c2b47 }
         .error { background: #2a1215; color: #ff9c9c }
@@ -66,6 +67,7 @@
       const sandbox = html => {
         const frame = document.createElement('iframe')
         frame.setAttribute('sandbox', '')
+        frame.title = 'Notebook HTML output'
         frame.srcdoc = `<!doctype html><meta charset="utf-8"><style>${FRAME_CSS}</style>${html}`
         return frame
       }
@@ -89,6 +91,7 @@
         for (const mime of ['image/png', 'image/jpeg', 'image/gif']) {
           if (data[mime]) {
             const img = document.createElement('img')
+            img.alt = 'Notebook image output'
             img.src = `data:${mime};base64,${text(data[mime]).replace(/\s+/g, '')}`
             return img
           }
@@ -124,21 +127,35 @@
         }
       }
 
+      const fail = message => app.append(el('p', 'error', message))
+
+      // A snapshot we fetched but cannot parse is a different problem from one we cannot load, and
+      // must not be reported as the file:// hint below.
+      const parseAndRender = yaml => {
+        try {
+          render(DeepnoteSnapshot.parseSnapshot(yaml))
+        } catch (err) {
+          fail(`Could not parse this snapshot: ${err instanceof Error ? err.message : String(err)}`)
+        }
+      }
+
+      const offerPicker = () => {
+        // Browsers block fetch of sibling files from file://, so fall back to a picker.
+        app.append(el('p', '', `Could not load ${src}. Serve this directory over HTTP, or choose the snapshot:`))
+        const picker = document.createElement('input')
+        picker.type = 'file'
+        picker.accept = '.deepnote,.yaml,.yml'
+        picker.addEventListener('change', async () => {
+          const file = picker.files?.[0]
+          if (file) parseAndRender(await file.text())
+        })
+        app.append(picker)
+      }
+
       fetch(src)
         .then(r => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
-        .then(yaml => render(DeepnoteSnapshot.parseSnapshot(yaml)))
-        .catch(() => {
-          // Browsers block fetch of sibling files from file://, so fall back to a picker.
-          app.append(el('p', '', `Could not load ${src}. Serve this directory over HTTP, or choose the snapshot:`))
-          const picker = document.createElement('input')
-          picker.type = 'file'
-          picker.accept = '.deepnote,.yaml,.yml'
-          picker.addEventListener('change', async () => {
-            const file = picker.files?.[0]
-            if (file) render(DeepnoteSnapshot.parseSnapshot(await file.text()))
-          })
-          app.append(picker)
-        })
+        .then(parseAndRender)
+        .catch(offerPicker)
     </script>
   </body>
 </html>
