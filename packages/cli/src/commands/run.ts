@@ -576,7 +576,7 @@ function parseInputs(
     return {}
   }
 
-  const inputBlocksByName = getInputBlocksByName(file, notebookName)
+  const inputBlocks = getInputBlocks(file, notebookName)
   const inputs: InputBlockValueOverrides = Object.create(null) as InputBlockValueOverrides
 
   for (const flag of inputFlags) {
@@ -592,19 +592,21 @@ function parseInputs(
       throw new Error(`Invalid input: empty key in "${flag}"`)
     }
 
-    const matchingBlocks = inputBlocksByName.get(key)
-    if (!matchingBlocks) {
+    const firstMatchingBlock = inputBlocks.find(block => block.metadata.deepnote_variable_name === key)
+    if (!firstMatchingBlock) {
       throw new InvalidInputError(`Input "${key}" is not defined for the selected notebook scope`)
     }
 
-    const values = matchingBlocks.map(block => parseInputValue(block, rawValue, key))
-    const value = values[0]
-    if (value === undefined) {
-      continue
-    }
+    const value = parseInputValue(firstMatchingBlock, rawValue)
+    for (const block of inputBlocks) {
+      if (block.metadata.deepnote_variable_name !== key) {
+        continue
+      }
 
-    if (values.some(candidate => !areInputValuesEqual(candidate, value))) {
-      throw new InvalidInputError(`Input "${key}" is used by blocks with incompatible input types`)
+      const validationError = getInputBlockValueOverrideValidationError(block, value)
+      if (validationError) {
+        throw new InvalidInputError(`Input "${key}" ${validationError}`)
+      }
     }
 
     inputs[key] = value
@@ -613,24 +615,13 @@ function parseInputs(
   return inputs
 }
 
-function getInputBlocksByName(file: DeepnoteFile, notebookName?: string): Map<string, InputBlock[]> {
-  const inputBlocksByName = new Map<string, InputBlock[]>()
-
-  for (const notebook of getNotebooksForExecutionScope(file, { notebook: notebookName })) {
-    for (const block of notebook.blocks) {
-      if (isInputBlock(block) && block.metadata.deepnote_variable_name) {
-        const name = block.metadata.deepnote_variable_name
-        const inputBlocks = inputBlocksByName.get(name) ?? []
-        inputBlocks.push(block)
-        inputBlocksByName.set(name, inputBlocks)
-      }
-    }
-  }
-
-  return inputBlocksByName
+function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputBlock[] {
+  return getNotebooksForExecutionScope(file, { notebook: notebookName }).flatMap(notebook =>
+    notebook.blocks.filter(isInputBlock)
+  )
 }
 
-function parseInputValue(block: InputBlock, rawValue: string, inputName: string): InputBlockValueOverride {
+function parseInputValue(block: InputBlock, rawValue: string): InputBlockValueOverride {
   let value: unknown = rawValue
 
   if (block.type === 'input-checkbox') {
@@ -643,11 +634,6 @@ function parseInputValue(block: InputBlock, rawValue: string, inputName: string)
     value = Array.isArray(parsed) ? parsed : rawValue
   }
 
-  const validationError = getInputBlockValueOverrideValidationError(block, value)
-  if (validationError) {
-    throw new InvalidInputError(`Input "${inputName}" ${validationError}`)
-  }
-
   return value as InputBlockValueOverride
 }
 
@@ -657,66 +643,6 @@ function parseJsonValue(rawValue: string): unknown {
   } catch {
     return rawValue
   }
-}
-
-function areInputValuesEqual(left: InputBlockValueOverride, right: InputBlockValueOverride): boolean {
-  if (!Array.isArray(left) || !Array.isArray(right)) {
-    return left === right
-  }
-
-  return left.length === right.length && left.every((value, index) => value === right[index])
-}
-
-/** Information about an input block */
-interface InputInfo {
-  variableName: string
-  type: string
-  label?: string
-  currentValue: unknown
-  hasValue: boolean
-}
-
-/**
- * Extract input block information from a DeepnoteFile.
- */
-function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputInfo[] {
-  const notebooks = notebookName ? file.project.notebooks.filter(n => n.name === notebookName) : file.project.notebooks
-
-  const inputTypes = [
-    'input-text',
-    'input-textarea',
-    'input-checkbox',
-    'input-select',
-    'input-slider',
-    'input-date',
-    'input-date-range',
-    'input-file',
-  ]
-
-  const inputs: InputInfo[] = []
-  for (const notebook of notebooks) {
-    for (const block of notebook.blocks) {
-      if (inputTypes.includes(block.type)) {
-        const metadata = block.metadata as Record<string, unknown>
-        const variableName = metadata.deepnote_variable_name as string
-        const currentValue = metadata.deepnote_variable_value
-        const label = metadata.deepnote_input_label as string | undefined
-
-        // Check if input has a meaningful value
-        const hasValue = currentValue !== undefined && currentValue !== '' && currentValue !== null
-
-        inputs.push({
-          variableName,
-          type: block.type,
-          label,
-          currentValue,
-          hasValue,
-        })
-      }
-    }
-  }
-
-  return inputs
 }
 
 /**
@@ -732,18 +658,21 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
   const file = resolved.file
   emitInitResolverWarnings(resolved.warnings, isMachineOutput)
 
-  const inputs = getInputBlocks(file, options.notebook)
+  const inputs = getInputBlocks(file, options.notebook).map(block => {
+    const currentValue = block.metadata.deepnote_variable_value
+    return {
+      variableName: block.metadata.deepnote_variable_name,
+      type: block.type,
+      label: block.metadata.deepnote_input_label,
+      currentValue,
+      hasValue: currentValue !== '',
+    }
+  })
 
   if (options.output === 'json') {
     outputJson({
       path: absolutePath,
-      inputs: inputs.map(i => ({
-        variableName: i.variableName,
-        type: i.type,
-        label: i.label,
-        currentValue: i.currentValue,
-        hasValue: i.hasValue,
-      })),
+      inputs,
     })
     return
   }
