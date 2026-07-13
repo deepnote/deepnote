@@ -1880,7 +1880,7 @@ describe('run command', () => {
     })
 
     describe('--input flag', () => {
-      it('parses values according to their input block types', async () => {
+      it('passes CLI values using each input block value type', async () => {
         setupSuccessfulRun()
 
         await action(BLOCKS_FILE, {
@@ -1929,7 +1929,7 @@ describe('run command', () => {
         )
       })
 
-      it('parses and validates multi-select arrays', async () => {
+      it('accepts JSON arrays for multi-selects and rejects plain strings', async () => {
         setupSuccessfulRun()
 
         await action(MULTI_SELECT_FILE, { input: ['input_select=["a","b"]'] })

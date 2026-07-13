@@ -610,7 +610,7 @@ describe('ExecutionEngine', () => {
     })
 
     describe('input injection', () => {
-      it('applies slider overrides as schema strings and injects block-generated numeric Python', async () => {
+      it('stores slider overrides and uses the block-generated Python assignment', async () => {
         const file = loadExampleFile('2_blocks.deepnote')
 
         await engine.start()
@@ -627,7 +627,7 @@ describe('ExecutionEngine', () => {
         expect(() => serializeDeepnoteFile(file)).not.toThrow()
       })
 
-      it('uses the input block conversion for text and checkbox overrides', async () => {
+      it('uses input-block Python generation for text and checkbox overrides', async () => {
         const file = loadExampleFile('2_blocks.deepnote')
 
         await engine.start()

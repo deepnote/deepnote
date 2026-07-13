@@ -184,8 +184,7 @@ export class ExecutionEngine {
       throw new Error(`Notebook "${options.notebookName}" not found in project`)
     }
 
-    // Apply and inject input values before execution. Input blocks own the conversion
-    // from their persisted schema value to the corresponding Python value.
+    // Apply overrides before execution so matching input blocks generate their normal Python assignments.
     if (options.inputs && Object.keys(options.inputs).length > 0) {
       await this.injectInputs(options.inputs, notebooks)
     }
@@ -470,8 +469,7 @@ export class ExecutionEngine {
 
   /**
    * Inject input values into the kernel before execution.
-   * Input blocks convert their schema values to Python; unmatched programmatic inputs
-   * fall back to generic Python literal conversion.
+   * Names without a matching input block fall back to generic Python literal conversion.
    */
   private async injectInputs(
     inputs: Record<string, unknown>,

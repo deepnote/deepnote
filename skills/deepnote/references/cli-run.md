@@ -59,9 +59,9 @@ OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the dat
 OPENAI_API_KEY=sk-... deepnote run --prompt "Write a hello world script"
 ```
 
-Input values follow their block schema: text, date, file, slider, and single-select values are strings; checkboxes
-accept `true` or `false`; multi-select values and absolute date ranges use JSON arrays of strings. Unknown input names
-and mismatched value shapes are rejected before execution.
+Use plain strings for text, date, file, slider, and single-select inputs; use `true` or `false` for checkboxes; and use
+JSON arrays of strings for multi-select inputs and absolute date ranges. Unknown input names and invalid values are
+rejected before execution.
 
 **Environment variables for `--prompt` / agent blocks:**
 

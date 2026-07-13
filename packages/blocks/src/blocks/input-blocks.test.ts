@@ -445,7 +445,7 @@ describe('getInputBlockValueOverrideValidationError', () => {
     )
   })
 
-  it('validates single- and multi-select shapes without coercing', () => {
+  it('accepts strings for single-selects and string arrays for multi-selects', () => {
     const select: InputSelectBlock = {
       ...base,
       type: 'input-select',

@@ -231,10 +231,7 @@ export interface InputBlockValueOverrides {
   [inputName: string]: InputBlockValueOverride
 }
 
-/**
- * Validate an override against the value shape used by the corresponding input block.
- * This intentionally mirrors the Deepnote app contract: values are validated, not coerced.
- */
+/** Return an error when an override cannot be stored by the corresponding input block. */
 export function getInputBlockValueOverrideValidationError(block: InputBlock, value: unknown): string | null {
   switch (block.type) {
     case 'input-checkbox':
