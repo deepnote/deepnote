@@ -20,7 +20,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./snapshot-viewer": "./dist/snapshot-viewer.iife.js"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -40,7 +41,8 @@
     "@deepnote/blocks": "workspace:*",
     "@deepnote/cloud": "workspace:*",
     "@deepnote/convert": "workspace:*",
-    "@deepnote/runtime-core": "workspace:*"
+    "@deepnote/runtime-core": "workspace:*",
+    "@jupyterlab/nbformat": "^4.3.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

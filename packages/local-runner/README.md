@@ -9,7 +9,8 @@ Built on the committed primitives: `@deepnote/blocks` (parse + input-block schem
 ## Requirements
 
 Execution needs a Python environment with [`deepnote-toolkit[server]`](https://pypi.org/project/deepnote-toolkit/)
-installed. Parsing, input coercion, snapshot building, and the static server work without it.
+installed. Parsing, input coercion, snapshot building, **reading and viewing snapshots**, and the
+static server all work without it.
 
 ## Usage
 
@@ -71,8 +72,57 @@ const { port, close } = await serveStatic({
 await close();
 ```
 
-Deliberately minimal: binds to `127.0.0.1`, no WebSocket, no watch, no rendering. Bring your
-own page; a browser renderer is intentionally out of scope for this package.
+Deliberately minimal: binds to `127.0.0.1`, no WebSocket, no watch, no rendering. Bring your own
+page — or, to _view_ an existing snapshot rather than run one, use the snapshot viewer below, which
+needs no server at all.
+
+### Read a snapshot — no Python, no kernel
+
+A snapshot is a `.deepnote` file with the outputs stored inline, so reading one is parsing, not
+executing. `readSnapshot` needs no Python environment, no `ExecutionEngine`, and no toolkit:
+
+```ts
+import { readSnapshot } from "@deepnote/local-runner";
+
+const view = readSnapshot("snapshots/sales_latest.snapshot.deepnote"); // a path, YAML, or an object
+
+view.projectName; // "Sales"
+view.finishedAt; // when the run completed
+for (const block of view.notebooks[0].blocks) {
+  block.type; // "code" | "sql" | "markdown" | "input-slider" | ...
+  block.content; // the source
+  block.outputs; // Jupyter IOutput[] — exactly what the run produced
+  block.input; // for input blocks: { name, value } — the values this run used
+}
+```
+
+Outputs are read from **every** executable block (code, SQL, visualization, big-number…), not just
+code blocks. `parseSnapshot(yaml)` is the same thing without the filesystem, and is browser-safe.
+
+### Share a snapshot as a static page
+
+`@deepnote/local-runner/snapshot-viewer` is a self-contained browser bundle — the YAML parser, the
+schemas, and a renderer in one file. Point it at a snapshot and it renders the notebook: source,
+outputs, images, tables, and the input values that produced them.
+
+```html
+<main id="app"></main>
+<script src="./snapshot-viewer.js"></script>
+<script>
+  DeepnoteSnapshot.mountSnapshotViewer(document.getElementById("app"), {
+    src: "./snapshot.deepnote", // fetched at load; re-run the notebook and refresh to update
+  });
+</script>
+```
+
+To publish: put `index.html`, `snapshot-viewer.js`, and your `*.snapshot.deepnote` in one directory
+and serve it anywhere static (GitHub Pages, S3, `python3 -m http.server`). The reader needs a
+browser and nothing else — no Deepnote, no Python, no kernel. See
+[`examples/snapshot-viewer`](../../examples/snapshot-viewer) for a complete page.
+
+HTML outputs are rendered in a **sandboxed iframe with scripts disabled**: a snapshot you hand to
+someone else must not be able to run script in their page. Opening the page from `file://` cannot
+auto-fetch the snapshot (browsers block it), so the viewer falls back to a file picker.
 
 ## Testing
 

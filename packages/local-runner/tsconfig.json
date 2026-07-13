@@ -1,0 +1,13 @@
+{
+  // The browser-only modules, which the root config excludes: they need the DOM lib, and adding DOM
+  // to the root program makes lib.dom's fetch/FormData/Blob collide with Node's across every
+  // package. `pnpm -r exec tsc --noEmit` picks this up, so these files are still typechecked.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true
+  },
+  // Overrides the root `exclude`, which lists exactly these files.
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/browser.ts", "src/snapshot-viewer.ts"]
+}

@@ -231,6 +231,9 @@ importers:
       '@deepnote/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
+      '@jupyterlab/nbformat':
+        specifier: ^4.3.2
+        version: 4.5.2
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
