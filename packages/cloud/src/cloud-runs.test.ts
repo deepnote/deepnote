@@ -73,7 +73,7 @@ describe('triggerNotebookRun', () => {
     await expect(triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1' })).rejects.toBeInstanceOf(ApiError)
   })
 
-  it('throws a readable ApiError — not a raw ZodError — on an unparseable payload', async () => {
+  it('throws a readable ApiError — not a raw ZodError — on a payload it cannot parse', async () => {
     // The API is in preview, so a shape we cannot parse is a plausible failure. Users should see a
     // message, not a Zod issue dump.
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ run: { id: 5, status: [] } }))
