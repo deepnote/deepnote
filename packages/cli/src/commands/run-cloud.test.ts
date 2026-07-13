@@ -6,6 +6,7 @@ import { splitDeepnoteFile } from '@deepnote/convert'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
 import { MissingTokenError } from '../utils/auth'
+import { InvalidInputError } from '../utils/parse-inputs'
 import { CloudRunUsageError, runInDeepnoteCloud } from './run-cloud'
 
 const API_URL = 'https://api.example.com'
@@ -20,6 +21,27 @@ function makeFile(notebooks: Array<{ id: string; name: string }>): DeepnoteFile 
     },
     version: '1.0.0',
   }
+}
+
+/** A file whose only notebook defines one input of each shape `--input` types differently. */
+function makeFileWithInputs(): DeepnoteFile {
+  const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+  file.project.notebooks[0].blocks = [
+    inputBlock('blk-name', '0', 'input-text', { deepnote_variable_name: 'name', deepnote_variable_value: 'Bob' }),
+    inputBlock('blk-count', '1', 'input-slider', { deepnote_variable_name: 'count', deepnote_variable_value: '1' }),
+  ]
+  return file
+}
+
+function inputBlock(id: string, sortingKey: string, type: string, metadata: Record<string, unknown>) {
+  return {
+    id,
+    sortingKey,
+    blockGroup: sortingKey,
+    type,
+    content: '',
+    metadata,
+  } as unknown as DeepnoteFile['project']['notebooks'][number]['blocks'][number]
 }
 
 function response(body: unknown, init: { ok?: boolean; status?: number; statusText?: string } = {}): Response {
@@ -198,8 +220,8 @@ describe('runInDeepnoteCloud — notebook id resolution', () => {
 })
 
 describe('runInDeepnoteCloud — inputs and blocks', () => {
-  it('sends parsed inputs and a single blockId', async () => {
-    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+  it('types inputs against their input blocks, exactly as a local run does', async () => {
+    const file = makeFileWithInputs()
     const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })
     const path = await writeFixture('single.deepnote', file)
 
@@ -213,9 +235,42 @@ describe('runInDeepnoteCloud — inputs and blocks', () => {
 
     expect(postBodies[0]).toMatchObject({
       notebookId: 'nb-single',
-      inputs: { name: 'Alice', count: 42 },
+      // `count` is a slider, so it is sent as the numeric string its schema requires — not the
+      // JSON number an untyped parse would have produced.
+      inputs: { name: 'Alice', count: '42' },
       blockIds: ['blk-1'],
     })
+  })
+
+  it('rejects an input no block defines, and one the block cannot store', async () => {
+    const file = makeFileWithInputs()
+    installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+    const options = { cloud: true, token: 't', url: API_URL }
+
+    await expect(runInDeepnoteCloud(path, { ...options, input: ['nope=1'] })).rejects.toThrow(InvalidInputError)
+    await expect(runInDeepnoteCloud(path, { ...options, input: ['count=abc'] })).rejects.toThrow(/numeric string/)
+  })
+
+  it('requires the .deepnote file to type inputs when only --notebook-id is given', async () => {
+    const { postBodies } = installFetch({})
+
+    // Without the file there are no input blocks to type against, so we ask for it rather than
+    // send an unchecked payload.
+    await expect(
+      runInDeepnoteCloud(undefined, {
+        cloud: true,
+        token: 't',
+        url: API_URL,
+        notebookId: 'nb-remote',
+        input: ['count=42'],
+      })
+    ).rejects.toThrow(CloudRunUsageError)
+    expect(postBodies).toHaveLength(0)
+
+    // ...but a run with no inputs at all still works from just the id.
+    await runInDeepnoteCloud(undefined, { cloud: true, token: 't', url: API_URL, notebookId: 'nb-remote' })
+    expect(postBodies[0]).toMatchObject({ notebookId: 'nb-remote' })
   })
 })
 
