@@ -6,11 +6,9 @@ import type {
   AgentBlock,
   DeepnoteBlock as BlocksDeepnoteBlock,
   DeepnoteFile,
-  InputBlock,
-  InputBlockValueOverride,
   InputBlockValueOverrides,
 } from '@deepnote/blocks'
-import { getInputBlockValueOverrideValidationError, isInputBlock, serializeDeepnoteFile } from '@deepnote/blocks'
+import { serializeDeepnoteFile } from '@deepnote/blocks'
 import {
   InitNotebookResolutionError,
   type LoadedRunnableFile,
@@ -63,7 +61,9 @@ import {
   fetchMetrics,
   formatMemoryDelta,
 } from '../utils/metrics'
+import { getNotebooksForExecutionScope } from '../utils/notebook-scope'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
+import { getInputBlocks, InvalidInputError, parseInputs } from '../utils/parse-inputs'
 import { CloudRunUsageError, runInDeepnoteCloud } from './run-cloud'
 
 /**
@@ -77,14 +77,6 @@ export class MissingInputError extends Error {
     super(message)
     this.name = 'MissingInputError'
     this.missingInputs = missingInputs
-  }
-}
-
-/** Error thrown when a provided input does not match the referenced input block. */
-export class InvalidInputError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'InvalidInputError'
   }
 }
 
@@ -421,21 +413,6 @@ function collectExecutableBlocks(
   return executableBlocks
 }
 
-function getNotebooksForExecutionScope(
-  file: DeepnoteFile,
-  options: { notebook?: string }
-): DeepnoteFile['project']['notebooks'] {
-  const notebooks = options.notebook
-    ? file.project.notebooks.filter(notebook => notebook.name === options.notebook)
-    : file.project.notebooks
-
-  if (options.notebook && notebooks.length === 0) {
-    throw new Error(`Notebook "${options.notebook}" not found in project`)
-  }
-
-  return notebooks
-}
-
 function selectScopeNotebooks(
   notebooks: DeepnoteFile['project']['notebooks'],
   options: { notebook?: string; block?: string }
@@ -587,85 +564,6 @@ export function createRunAction(program: Command): (path: string | undefined, op
       }
       program.error(getChalk().red(message), { exitCode })
     }
-  }
-}
-
-/** Parse CLI input flags according to the referenced input block types. */
-function parseInputs(
-  file: DeepnoteFile,
-  inputFlags: string[] | undefined,
-  notebookName?: string
-): InputBlockValueOverrides {
-  if (!inputFlags || inputFlags.length === 0) {
-    return {}
-  }
-
-  const inputBlocks = getInputBlocks(file, notebookName)
-  const inputs: InputBlockValueOverrides = Object.create(null) as InputBlockValueOverrides
-
-  for (const flag of inputFlags) {
-    const eqIndex = flag.indexOf('=')
-    if (eqIndex === -1) {
-      throw new Error(`Invalid input format: "${flag}". Expected key=value`)
-    }
-
-    const key = flag.slice(0, eqIndex).trim()
-    const rawValue = flag.slice(eqIndex + 1)
-
-    if (!key) {
-      throw new Error(`Invalid input: empty key in "${flag}"`)
-    }
-
-    const firstMatchingBlock = inputBlocks.find(block => block.metadata.deepnote_variable_name === key)
-    if (!firstMatchingBlock) {
-      throw new InvalidInputError(`Input "${key}" is not defined for the selected notebook scope`)
-    }
-
-    const value = parseInputValue(firstMatchingBlock, rawValue)
-    for (const block of inputBlocks) {
-      if (block.metadata.deepnote_variable_name !== key) {
-        continue
-      }
-
-      const validationError = getInputBlockValueOverrideValidationError(block, value)
-      if (validationError) {
-        throw new InvalidInputError(`Input "${key}" ${validationError}`)
-      }
-    }
-
-    inputs[key] = value
-  }
-
-  return inputs
-}
-
-function getInputBlocks(file: DeepnoteFile, notebookName?: string): InputBlock[] {
-  return getNotebooksForExecutionScope(file, { notebook: notebookName }).flatMap(notebook =>
-    notebook.blocks.filter(isInputBlock)
-  )
-}
-
-function parseInputValue(block: InputBlock, rawValue: string): InputBlockValueOverride {
-  let value: unknown = rawValue
-
-  if (block.type === 'input-checkbox') {
-    if (rawValue === 'true') value = true
-    if (rawValue === 'false') value = false
-  } else if (block.type === 'input-select' && block.metadata.deepnote_allow_multiple_values === true) {
-    value = parseJsonValue(rawValue)
-  } else if (block.type === 'input-date-range') {
-    const parsed = parseJsonValue(rawValue)
-    value = Array.isArray(parsed) ? parsed : rawValue
-  }
-
-  return value as InputBlockValueOverride
-}
-
-function parseJsonValue(rawValue: string): unknown {
-  try {
-    return JSON.parse(rawValue)
-  } catch {
-    return rawValue
   }
 }
 

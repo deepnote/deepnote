@@ -6,6 +6,7 @@ import {
   deepnoteFileSchema,
   deepnoteSnapshotSchema,
   deserializeDeepnoteFile,
+  type InputBlockValueOverrides,
   parseYaml,
   serializeDeepnoteSnapshot,
 } from '@deepnote/blocks'
@@ -144,6 +145,34 @@ function resolveTargetNotebookId(options: RunCloudOptions, file: DeepnoteFile | 
 }
 
 /**
+ * Types `--input` values against the input blocks of the notebook that will run, using the same
+ * parser as a local run — so `--input` means one thing, cloud or not.
+ *
+ * That typing needs the notebook's blocks, and the only copy we have is the local file. When the
+ * target notebook isn't in it (`--notebook-id` for a remote notebook, with no local file), we
+ * cannot tell a checkbox from a text input, and guessing is what produced the wrong value types
+ * this parser exists to prevent — so we ask for the file instead of sending an unchecked payload.
+ */
+function parseCloudInputs(
+  options: RunCloudOptions,
+  file: DeepnoteFile | undefined,
+  notebookId: string
+): InputBlockValueOverrides {
+  if (!options.input || options.input.length === 0) {
+    return {}
+  }
+
+  const targetNotebook = file?.project.notebooks.find(notebook => notebook.id === notebookId)
+  if (!file || !targetNotebook) {
+    throw new CloudRunUsageError(
+      "--input needs the notebook's .deepnote file to type each value against its input block. Pass the file (e.g. `deepnote run my-project.deepnote --cloud`) instead of only --notebook-id."
+    )
+  }
+
+  return parseInputs(file, options.input, targetNotebook.name)
+}
+
+/**
  * Parses downloaded snapshot content into a {@link DeepnoteSnapshot}.
  * Accepts either a snapshot document or a full `.deepnote` file (split into a snapshot).
  * Returns `null` when the content is not recognizable (caller writes raw bytes instead).
@@ -274,7 +303,7 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
 
   const baseUrl = options.url ?? DEFAULT_API_URL
   const notebookId = resolveTargetNotebookId(options, localFile)
-  const inputs = parseInputs(options.input)
+  const inputs = parseCloudInputs(options, localFile, notebookId)
   const blockIds = options.block ? [options.block] : undefined
 
   const body: TriggerRunBody = {

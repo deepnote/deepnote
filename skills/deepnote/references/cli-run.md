@@ -91,6 +91,11 @@ copy, unless `--out <path>` is given (single file). `--input`, `--block`, `--not
 and `--token` are honored; local-only flags (`--python`, `--cwd`, `--top`, `--profile`, `--open`,
 `--prompt`, `--dry-run`, `--list-inputs`, `--context`) are not.
 
+`--input` follows the same rules as a local run: each value is typed by the input block it names,
+and unknown names or invalid values are rejected before the run is triggered. Typing a value
+requires the notebook's blocks, so `--input` needs the local `.deepnote` file — pass the file
+rather than only `--notebook-id`.
+
 **Machine output** (`-o json` / `-o toon`; `-o llm` resolves to `toon`):
 `{ success, runId, status, snapshotPath?, timestampedSnapshotPath?, error? }`.
 A completed run with status `error`/`internal_error`/`stopped` exits `1` but still reports the
