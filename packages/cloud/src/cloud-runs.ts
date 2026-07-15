@@ -1,5 +1,6 @@
-import { ApiError, parseApiErrorMessage } from '@deepnote/database-integrations'
+import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
+import { parseApiErrorMessage } from './parse-api-error'
 
 /**
  * Client for the Deepnote public "runs" API (preview).

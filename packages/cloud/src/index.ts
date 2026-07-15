@@ -16,3 +16,4 @@ export {
   type TriggerRunBody,
   triggerNotebookRun,
 } from './cloud-runs'
+export { parseApiErrorMessage } from './parse-api-error'
