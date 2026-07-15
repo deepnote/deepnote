@@ -1,7 +1,7 @@
 # @deepnote/local-runner
 
-Run a `.deepnote` notebook with **edited inputs** against a **local** Python backend, and
-(optionally) serve it to a static web page. Local execution only — no cloud.
+Run a `.deepnote` notebook with **edited inputs** — locally against a Python backend, or in
+**Deepnote Cloud** — and (optionally) serve it to a static web page.
 
 Built on the committed primitives: `@deepnote/blocks` (parse + input-block schemas),
 `@deepnote/runtime-core` (`ExecutionEngine`), and `@deepnote/convert` (snapshots).
@@ -89,9 +89,10 @@ const { port, close } = await serveStatic({
   dir: "./public", // your index.html + assets
   notebookPath: "examples/6_with_inputs.deepnote",
 });
-// GET  /api/info  -> { notebook, inputs }         (input blocks, to build controls)
-// POST /api/run   -> { inputs } -> { outputs, summary, snapshotYaml }
-// any other GET   -> a file from `dir` (path-traversal guarded)
+// GET  /api/info       -> { notebook, inputs }    (input blocks, to build controls)
+// POST /api/run        -> { inputs } -> { outputs, summary, snapshotYaml }
+// POST /api/run-cloud   -> { inputs } -> runs it in Deepnote Cloud (needs DEEPNOTE_TOKEN)
+// any other GET         -> a file from `dir` (path-traversal guarded)
 await close();
 ```
 
@@ -147,9 +148,10 @@ and serve it anywhere static (GitHub Pages, S3, `python3 -m http.server`). The r
 browser and nothing else — no Deepnote, no Python, no kernel. Re-running the notebook rewrites
 `*_latest.snapshot.deepnote`, so a refresh shows the new outputs.
 
-The example renders HTML outputs in a **sandboxed iframe with scripts disabled**: a snapshot you
-hand to someone else must not be able to run script in their page. Opening the page from `file://`
-cannot auto-fetch the snapshot (browsers block it), so it falls back to a file picker.
+The example renders HTML outputs in a **null-origin sandboxed iframe** (no `allow-same-origin`): a
+snapshot you hand to someone else can't run script in your page. `allow-scripts` is enabled only so
+each frame can report its height back for a clean fit. Opening the page from `file://` cannot
+auto-fetch the snapshot (browsers block it), so it falls back to a file picker.
 
 ## Testing
 

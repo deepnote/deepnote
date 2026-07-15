@@ -239,9 +239,11 @@
         return frame
       }
       window.addEventListener('message', (e) => {
-        if (!e.data || typeof e.data.h !== 'number') return
+        // Only trust height reports from one of our own sandboxed frames: a null-origin sender whose
+        // window matches the iframe named by the id. Anything else (other windows, extensions) is ignored.
+        if (e.origin !== 'null' || !e.data || typeof e.data.h !== 'number') return
         const f = document.querySelector('iframe[data-id=' + JSON.stringify(e.data.id) + ']')
-        if (f) f.style.height = e.data.h + 2 + 'px'
+        if (f && e.source === f.contentWindow) f.style.height = e.data.h + 2 + 'px'
       })
 
       function mdInline(s) {

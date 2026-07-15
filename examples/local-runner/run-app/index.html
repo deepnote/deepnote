@@ -172,20 +172,26 @@
       const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
       const state = {}
 
-      const info = await (await fetch('/api/info')).json()
-      $('#nb-name').textContent = info.notebook
-      $('#r-title').textContent = info.notebook
-
-      info.inputs.forEach((inp, i) => {
-        state[inp.variableName] = inp.value
-        const field = el('div', 'field')
-        field.style.animationDelay = `${i * 40}ms`
-        const label = el('label')
-        label.append(document.createTextNode(inp.label || inp.variableName))
-        const chip = el('span', 'var'); chip.textContent = inp.variableName; label.append(chip)
-        field.append(label, control(inp))
-        $('#inputs').append(field)
-      })
+      try {
+        const res = await fetch('/api/info')
+        if (!res.ok) throw new Error('HTTP ' + res.status)
+        const info = await res.json()
+        $('#nb-name').textContent = info.notebook
+        $('#r-title').textContent = info.notebook
+        info.inputs.forEach((inp, i) => {
+          state[inp.variableName] = inp.value
+          const field = el('div', 'field')
+          field.style.animationDelay = `${i * 40}ms`
+          const label = el('label')
+          label.append(document.createTextNode(inp.label || inp.variableName))
+          const chip = el('span', 'var'); chip.textContent = inp.variableName; label.append(chip)
+          field.append(label, control(inp))
+          $('#inputs').append(field)
+        })
+      } catch (e) {
+        $('#nb-name').textContent = 'Failed to load'
+        setStatus('Could not load the notebook — is the server running? (' + e.message + ')', 'err')
+      }
 
       function control(inp) {
         if (inp.type === 'input-slider') {
@@ -312,9 +318,11 @@
         return frame
       }
       window.addEventListener('message', (e) => {
-        if (!e.data || typeof e.data.h !== 'number') return
+        // Only trust height reports from one of our own sandboxed frames: a null-origin sender whose
+        // window matches the iframe named by the id. Anything else (other windows, extensions) is ignored.
+        if (e.origin !== 'null' || !e.data || typeof e.data.h !== 'number') return
         const f = document.querySelector(`iframe[data-id=${JSON.stringify(e.data.id)}]`)
-        if (f) f.style.height = e.data.h + 2 + 'px'
+        if (f && e.source === f.contentWindow) f.style.height = e.data.h + 2 + 'px'
       })
 
       const join = (t) => (Array.isArray(t) ? t.join('') : t ?? '')

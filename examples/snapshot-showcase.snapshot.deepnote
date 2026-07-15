@@ -5,7 +5,7 @@ execution:
 metadata:
   createdAt: 2026-03-31T09:00:00.000Z
   modifiedAt: 2026-03-31T09:00:00.000Z
-  snapshotHash: sha256:c0eafb122c75b58f5f185b793922823968a3d5ae175835d0ce399ae793d13484
+  snapshotHash: sha256:806a020021df0eeedd8ada46e61d1cc037a05e2af36708444d021dee5290f15d
 project:
   id: 9b1f7c00-0000-4a00-9000-locrunnershow1
   name: Sales performance
@@ -582,7 +582,7 @@ project:
         - id: b000000000000000000000000000000f
           blockGroup: g0000000-0000-0000-0000-00000000000f
           sortingKey: "000014"
-          contentHash: sha256:fa4ec054cbe344f6f8a7bae37549723fd8694f72e21e4223f93b7054b984dc5b
+          contentHash: sha256:51c054f538a4d310ca21a5c38acfa6d9ad92db17055dcac323714153f4588dee
           executionCount: 13
           outputs:
             - output_type: execute_result
@@ -602,19 +602,30 @@ project:
               execution_count: 13
           type: code
           content: >-
+            import html
+
+
             best = view.groupby("region")["revenue_k"].sum().idxmax()
 
             on_track = "on track" if pct >= 100 else f"{100 - pct:.0f}% short"
+
+
+            # Escape the free-text inputs before interpolating them into HTML.
+
+            title = html.escape(str(report_title))
+
+            notes = html.escape(str(analyst_notes))
+
 
             HTML(f'''
 
             <div style="font-family:system-ui,-apple-system,sans-serif;color:inherit;line-height:1.6;
                         border-left:3px solid #4a25c9;padding:2px 0 2px 14px">
-              <strong>{report_title}.</strong> Over the last {months} months
+              <strong>{title}.</strong> Over the last {months} months
               {('for ' + selected) if selected else 'across all regions'}, revenue reached
               <strong>${total:,.0f}</strong> — {pct:.0f}% of the ${target_total:,.0f} target ({on_track}).
               <strong>{best}</strong> led the period.
-              <div style="margin-top:8px;opacity:.75"><em>Analyst notes:</em> {analyst_notes}</div>
+              <div style="margin-top:8px;opacity:.75"><em>Analyst notes:</em> {notes}</div>
             </div>
 
             ''')
