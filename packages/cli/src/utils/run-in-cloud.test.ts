@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
 import { MissingTokenError } from './auth'
 import { InvalidInputError } from './parse-inputs'
-import { CloudRunUsageError, runInDeepnoteCloud } from './run-in-cloud'
+import { assertCloudOnlyFlagsRequireCloud, CloudRunUsageError, runInDeepnoteCloud } from './run-in-cloud'
 
 const API_URL = 'https://api.example.com'
 
@@ -148,6 +148,21 @@ describe('runInDeepnoteCloud — usage guards', () => {
     await expect(
       runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb', token: 't', dryRun: true })
     ).rejects.toThrow(/--dry-run/)
+  })
+
+  it('rejects cloud-only flags without --cloud', () => {
+    expect(() => assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb' })).toThrow(/--notebook-id requires --cloud/)
+    expect(() => assertCloudOnlyFlagsRequireCloud({ out: 'snap.deepnote' })).toThrow(/--out requires --cloud/)
+    expect(() => assertCloudOnlyFlagsRequireCloud({ timeout: 30 })).toThrow(/--timeout requires --cloud/)
+    expect(() => assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb', out: 'snap.deepnote', timeout: 30 })).toThrow(
+      /--notebook-id, --out, --timeout require --cloud/
+    )
+  })
+
+  it('allows cloud-only flags when --cloud is set', () => {
+    expect(() =>
+      assertCloudOnlyFlagsRequireCloud({ cloud: true, notebookId: 'nb', out: 'snap.deepnote', timeout: 30 })
+    ).not.toThrow()
   })
 
   it('requires a token (missing)', async () => {

@@ -82,6 +82,27 @@ function assertNoIncompatibleFlags(options: RunCloudOptions): void {
   }
 }
 
+/** Cloud-only flags that are meaningless on a local run; each rejected unless `--cloud` is set. */
+const CLOUD_ONLY_FLAGS: ReadonlyArray<readonly [keyof RunCloudOptions, string]> = [
+  ['notebookId', '--notebook-id'],
+  ['out', '--out'],
+  ['timeout', '--timeout'],
+]
+
+/**
+ * Rejects cloud-only flags when `--cloud` is absent so they fail loudly instead of being silently
+ * ignored on a local run. Called from `createRunAction` before the local execution path.
+ */
+export function assertCloudOnlyFlagsRequireCloud(options: RunCloudOptions): void {
+  if (options.cloud) {
+    return
+  }
+  const used = CLOUD_ONLY_FLAGS.filter(([key]) => options[key] !== undefined).map(([, flag]) => flag)
+  if (used.length > 0) {
+    throw new CloudRunUsageError(`${used.join(', ')} ${used.length === 1 ? 'requires' : 'require'} --cloud.`)
+  }
+}
+
 function normalizeToken(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
