@@ -117,8 +117,9 @@ export async function runInCloud(
     } else if (options.uploadIfMissing !== false) {
       // Not in Deepnote yet — upload it ("Open in Deepnote"). Opening the returned launchUrl in a
       // browser imports it; after that, this same call will find it by name and run it. Upload to the
-      // same domain as the API base URL so a custom deployment doesn't fall back to deepnote.com.
-      const uploaded = await openInCloud(input, { inputs, domain: deriveDomain(baseUrl) })
+      // same domain as the API base URL so a custom deployment doesn't fall back to deepnote.com, and
+      // scope the baked-in inputs to the target notebook so a same-named input elsewhere is untouched.
+      const uploaded = await openInCloud(input, { inputs, domain: deriveDomain(baseUrl), scope: { notebookId } })
       return {
         runId: '',
         status: 'needs-open',

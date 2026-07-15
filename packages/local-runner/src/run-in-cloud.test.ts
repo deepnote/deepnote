@@ -1,3 +1,4 @@
+import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the cloud client so tests hit no network.
@@ -309,6 +310,28 @@ describe('runInCloud', () => {
       inputs: { flag: true },
       blockIds: undefined,
     })
+  })
+
+  it('scopes inputs to the target notebook when uploading a not-found multi-notebook file', async () => {
+    // `flag` is a slider in nb1 and a checkbox in nb2. Uploading for nb2 must bake `true` into nb2's
+    // checkbox only; an unscoped upload would coerce `true` against nb1's slider and throw.
+    cloudMock.triggerNotebookRun.mockRejectedValue(new Error('{"message":"Notebook not found"}'))
+    cloudMock.uploadNotebook.mockResolvedValue({
+      importId: 'imp1',
+      launchUrl: 'https://deepnote.com/launch?importId=imp1',
+    })
+
+    const result = await runInCloud(MULTI_NOTEBOOK, { flag: true }, { token: 't', notebookId: 'nb2' })
+
+    expect(result.status).toBe('needs-open')
+    const yaml = new TextDecoder().decode(cloudMock.uploadNotebook.mock.calls[0]?.[0] as Uint8Array)
+    const uploaded = deserializeDeepnoteFile(yaml)
+    const flagValue = (id: string) => {
+      const block = uploaded.project.notebooks.flatMap(n => n.blocks).find(b => b.id === id)
+      return (block?.metadata as Record<string, unknown> | undefined)?.deepnote_variable_value
+    }
+    expect(flagValue('i-flag-checkbox')).toBe(true) // nb2's checkbox got the value
+    expect(flagValue('i-flag-slider')).toBe('1') // nb1's slider is untouched
   })
 
   it('uploads to the domain derived from a custom baseUrl (not deepnote.com)', async () => {
