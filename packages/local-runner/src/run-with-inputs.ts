@@ -3,7 +3,7 @@ import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import type { BlockExecutionOutput } from '@deepnote/convert'
 import { mergeOutputsIntoFile, saveExecutionSnapshot, splitDeepnoteFile } from '@deepnote/convert'
-import type { BlockExecutionResult, ExecutionSummary, IOutput } from '@deepnote/runtime-core'
+import type { AgentStreamEvent, BlockExecutionResult, ExecutionSummary, IOutput } from '@deepnote/runtime-core'
 import { detectDefaultPython, ExecutionEngine } from '@deepnote/runtime-core'
 import { applyInputOverrides } from './apply-input-overrides'
 import type { DeepnoteInput } from './load-file'
@@ -28,6 +28,12 @@ export interface RunWithInputsOptions {
   persistSnapshot?: boolean
   /** Called for each streamed output as it is produced. */
   onOutput?: (blockId: string, output: IOutput) => void
+  /**
+   * Called for each agent-block streaming event — text/reasoning deltas and tool calls — as the
+   * agent produces them. Where `onOutput` streams a code block's outputs live, this streams an
+   * agent block's incremental activity; the agent's final text still lands in the snapshot outputs.
+   */
+  onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
 }
 
 export interface RunBlockOutput {
@@ -110,6 +116,7 @@ export async function runWithInputs(
         blockResults.push(result)
       },
       onOutput: options.onOutput,
+      onAgentEvent: options.onAgentEvent,
     })
 
     const timing = { startedAt, finishedAt: new Date().toISOString() }

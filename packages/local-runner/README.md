@@ -39,6 +39,29 @@ for (const { blockId, outputs } of outputs) {
 - A failing block is reported via `summary.failedBlocks` — it is **not** thrown. Only
   infrastructure/config errors throw (no Python env, missing toolkit, an invalid file).
 
+### Stream output live
+
+Two callbacks deliver output incrementally instead of waiting for the whole run — a code block's
+Jupyter outputs, and an agent block's token/reasoning/tool activity as the LLM produces it:
+
+```ts
+await runWithInputs(
+  "notebook.deepnote",
+  {},
+  {
+    onOutput: (blockId, output) => {
+      // a code block's IOutput objects, streamed as the kernel emits them
+    },
+    onAgentEvent: (event) => {
+      // agent blocks: { type: "text_delta" | "reasoning_delta" | "tool_called" | "tool_output", ... }
+      if (event.type === "text_delta") process.stdout.write(event.text);
+    },
+  },
+);
+```
+
+The final agent text still lands in the snapshot outputs; `onAgentEvent` is purely the live channel.
+
 ### Run in Deepnote Cloud (the second way)
 
 ```ts

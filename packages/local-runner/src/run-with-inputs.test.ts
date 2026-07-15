@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
-import type { BlockExecutionResult, ExecutionOptions, ExecutionSummary } from '@deepnote/runtime-core'
+import type { AgentStreamEvent, BlockExecutionResult, ExecutionOptions, ExecutionSummary } from '@deepnote/runtime-core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the execution engine so tests need no Python / deepnote-toolkit. `vi.hoisted` makes the
@@ -165,6 +165,25 @@ describe('runWithInputs', () => {
     const nb2Flag = capturedFile?.project.notebooks[1].blocks[0].metadata as Record<string, unknown>
     expect(nb2Flag.deepnote_variable_value).toBe(true) // Second's checkbox got the value
     expect(nb1Flag.deepnote_variable_value).toBe('1') // First's slider is untouched
+  })
+
+  it('forwards agent-block streaming events to onAgentEvent as the engine emits them', async () => {
+    engineMock.runProject.mockImplementation(async (_file: DeepnoteFile, options: ExecutionOptions) => {
+      await options.onAgentEvent?.({ type: 'reasoning_delta', text: 'thinking' })
+      await options.onAgentEvent?.({ type: 'text_delta', text: 'hel' })
+      await options.onAgentEvent?.({ type: 'text_delta', text: 'lo' })
+      await options.onBlockDone?.(blockResult())
+      return SUMMARY
+    })
+
+    const events: AgentStreamEvent[] = []
+    await runWithInputs(NOTEBOOK, {}, { onAgentEvent: event => void events.push(event) })
+
+    expect(events).toEqual([
+      { type: 'reasoning_delta', text: 'thinking' },
+      { type: 'text_delta', text: 'hel' },
+      { type: 'text_delta', text: 'lo' },
+    ])
   })
 
   it('passes names with no input block through to the kernel untouched', async () => {

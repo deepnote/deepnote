@@ -1,3 +1,4 @@
+export type { AgentStreamEvent } from '@deepnote/runtime-core'
 export type { InputBlockInfo } from './apply-input-overrides'
 export { applyInputOverrides, listInputBlocks } from './apply-input-overrides'
 export type { DeepnoteInput, LoadedDeepnoteFile } from './load-file'
