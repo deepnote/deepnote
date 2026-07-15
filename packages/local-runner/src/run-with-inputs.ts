@@ -1,5 +1,5 @@
 import { dirname } from 'node:path'
-import type { DeepnoteSnapshot } from '@deepnote/blocks'
+import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import type { BlockExecutionOutput } from '@deepnote/convert'
 import { mergeOutputsIntoFile, saveExecutionSnapshot, splitDeepnoteFile } from '@deepnote/convert'
@@ -77,10 +77,12 @@ export async function runWithInputs(
     throw new Error('persistSnapshot: true requires a file path input (a YAML string or object has nowhere to write).')
   }
 
-  // Scope coercion to the notebook the engine will run (it injects inputs into the selected
-  // notebook, or all of them when none is named) so a value can't be shaped against — or mutate —
-  // a same-named input block of a different type in a notebook that isn't running.
-  const coercedInputs = applyInputOverrides(file, inputs, { notebook: options.notebook })
+  // Scope coercion to the notebook the engine will run. `--notebook` names it; a block-targeted run
+  // (`blockId`/`blockIds`) with no notebook is scoped to the block's own notebook so a same-named
+  // input in another notebook can't be coerced against — or mutated by — this run. The same scope is
+  // handed to the engine below, so injection and coercion stay in lockstep.
+  const notebookScope = options.notebook ?? notebookNameForTargetBlocks(file, options)
+  const coercedInputs = applyInputOverrides(file, inputs, { notebook: notebookScope })
 
   // Values for names that match an input block are coerced to that block's schema shape; the
   // engine validates against that same shape, so a raw `7` for a slider would be rejected. Names
@@ -100,7 +102,7 @@ export async function runWithInputs(
     started = true
 
     const summary = await engine.runProject(file, {
-      notebookName: options.notebook,
+      notebookName: notebookScope,
       blockId: options.blockId,
       blockIds: options.blockIds,
       inputs: engineInputs,
@@ -140,4 +142,24 @@ export async function runWithInputs(
   } finally {
     if (started) await engine.stop()
   }
+}
+
+/**
+ * The name of the single notebook that contains the targeted block(s), so a `blockId`/`blockIds` run
+ * with no explicit `--notebook` still scopes inputs (and the engine's injection) to that notebook.
+ * Returns undefined when no blocks are targeted, or when they span more than one notebook — the run
+ * then stays unscoped, exactly as before.
+ */
+function notebookNameForTargetBlocks(file: DeepnoteFile, options: RunWithInputsOptions): string | undefined {
+  const ids = options.blockIds ?? (options.blockId ? [options.blockId] : [])
+  if (ids.length === 0) return undefined
+
+  const idSet = new Set(ids)
+  const names = new Set<string>()
+  for (const notebook of file.project.notebooks) {
+    if (notebook.blocks.some(block => idSet.has(block.id))) {
+      names.add(notebook.name)
+    }
+  }
+  return names.size === 1 ? [...names][0] : undefined
 }

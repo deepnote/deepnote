@@ -54,6 +54,54 @@ project:
 version: '1.0.0'
 `
 
+// `flag` is a slider in "First" and a checkbox in "Second" — same name, different types — and each
+// notebook has its own code block to target by id.
+const MULTI = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: First
+      blocks:
+        - blockGroup: g0
+          content: ''
+          id: i-flag-1
+          metadata:
+            deepnote_variable_name: flag
+            deepnote_variable_value: '1'
+            deepnote_slider_min_value: 0
+            deepnote_slider_max_value: 10
+            deepnote_slider_step: 1
+          sortingKey: a0
+          type: input-slider
+        - blockGroup: g1
+          content: print(flag)
+          id: code-1
+          metadata: {}
+          sortingKey: a1
+          type: code
+    - id: nb2
+      name: Second
+      blocks:
+        - blockGroup: g0
+          content: ''
+          id: i-flag-2
+          metadata:
+            deepnote_variable_name: flag
+            deepnote_variable_value: false
+          sortingKey: a0
+          type: input-checkbox
+        - blockGroup: g1
+          content: print(flag)
+          id: code-2
+          metadata: {}
+          sortingKey: a1
+          type: code
+version: '1.0.0'
+`
+
 const SUMMARY: ExecutionSummary = { totalBlocks: 2, executedBlocks: 2, failedBlocks: 0, totalDurationMs: 5 }
 
 function blockResult(overrides: Partial<BlockExecutionResult> = {}): BlockExecutionResult {
@@ -104,6 +152,19 @@ describe('runWithInputs', () => {
 
     expect(engineMock.start).toHaveBeenCalledOnce()
     expect(engineMock.stop).toHaveBeenCalledOnce()
+  })
+
+  it('scopes a block-targeted run (no --notebook) to the targeted block’s notebook', async () => {
+    // `flag` is a slider in First and a checkbox in Second. Targeting Second's code block must type
+    // `flag` as a checkbox (true) and inject only into Second — not reject `true` against the slider.
+    await runWithInputs(MULTI, { flag: true }, { blockIds: ['code-2'] })
+
+    expect(capturedOptions?.notebookName).toBe('Second')
+    expect(capturedOptions?.inputs).toEqual({ flag: true })
+    const nb1Flag = capturedFile?.project.notebooks[0].blocks[0].metadata as Record<string, unknown>
+    const nb2Flag = capturedFile?.project.notebooks[1].blocks[0].metadata as Record<string, unknown>
+    expect(nb2Flag.deepnote_variable_value).toBe(true) // Second's checkbox got the value
+    expect(nb1Flag.deepnote_variable_value).toBe('1') // First's slider is untouched
   })
 
   it('passes names with no input block through to the kernel untouched', async () => {
