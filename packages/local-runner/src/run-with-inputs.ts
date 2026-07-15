@@ -77,7 +77,10 @@ export async function runWithInputs(
     throw new Error('persistSnapshot: true requires a file path input (a YAML string or object has nowhere to write).')
   }
 
-  const coercedInputs = applyInputOverrides(file, inputs)
+  // Scope coercion to the notebook the engine will run (it injects inputs into the selected
+  // notebook, or all of them when none is named) so a value can't be shaped against — or mutate —
+  // a same-named input block of a different type in a notebook that isn't running.
+  const coercedInputs = applyInputOverrides(file, inputs, { notebook: options.notebook })
 
   // Values for names that match an input block are coerced to that block's schema shape; the
   // engine validates against that same shape, so a raw `7` for a slider would be rejected. Names

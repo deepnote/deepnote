@@ -80,6 +80,73 @@ project:
 version: '1.0.0'
 `
 
+// A snapshot whose only output-bearing block is a SQL block (not code) — the case the old
+// code-only extraction dropped.
+const SNAPSHOT_WITH_SQL = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+  snapshotHash: h1
+environment:
+  pythonVersion: "3.12"
+execution:
+  startedAt: '2026-01-01T00:00:00.000Z'
+  finishedAt: '2026-01-01T00:00:05.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: NB
+      blocks:
+        - blockGroup: g1
+          content: select 1
+          id: s1
+          metadata: {}
+          sortingKey: a0
+          type: sql
+          executionCount: 2
+          outputs:
+            - output_type: execute_result
+              data:
+                text/html: "<table></table>"
+              metadata: {}
+version: '1.0.0'
+`
+
+// The variable \`flag\` is a slider in nb1 and a checkbox in nb2 — same name, different types.
+const MULTI_NOTEBOOK = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: First
+      blocks:
+        - blockGroup: g0
+          content: ''
+          id: i-flag-slider
+          metadata:
+            deepnote_variable_name: flag
+            deepnote_variable_value: '1'
+            deepnote_slider_min_value: 0
+            deepnote_slider_max_value: 10
+            deepnote_slider_step: 1
+          sortingKey: a0
+          type: input-slider
+    - id: nb2
+      name: Second
+      blocks:
+        - blockGroup: g0
+          content: ''
+          id: i-flag-checkbox
+          metadata:
+            deepnote_variable_name: flag
+            deepnote_variable_value: false
+          sortingKey: a0
+          type: input-checkbox
+version: '1.0.0'
+`
+
 beforeEach(() => {
   vi.clearAllMocks()
   cloudMock.triggerNotebookRun.mockResolvedValue({ runId: 'r1', status: 'running' })
@@ -210,5 +277,52 @@ describe('runInCloud', () => {
     cloudMock.triggerNotebookRun.mockRejectedValue(new Error('{"message":"Notebook not found"}'))
     await expect(runInCloud(NOTEBOOK, {}, { token: 't', uploadIfMissing: false })).rejects.toThrow(/not found/i)
     expect(cloudMock.uploadNotebook).not.toHaveBeenCalled()
+  })
+
+  it('includes outputs from non-code blocks (SQL/visualization), not just code', async () => {
+    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_WITH_SQL)
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })
+
+    expect(result.outputs).toHaveLength(1)
+    expect(result.outputs[0]).toMatchObject({ blockId: 's1', executionCount: 2 })
+    expect(result.outputs[0].outputs).toHaveLength(1)
+    expect(result.outputs[0].outputs[0]).toMatchObject({
+      output_type: 'execute_result',
+      data: { 'text/html': '<table></table>' },
+    })
+  })
+
+  it('coerces a name shared across notebooks against the notebook being run', async () => {
+    // Running nb1 types `flag` as its slider (→ '4'); running nb2 types the same name as its
+    // checkbox (→ true). A first-match lookup would apply nb1's slider to both and reject `true`.
+    await runInCloud(MULTI_NOTEBOOK, { flag: 4 }, { token: 't', notebookId: 'nb1' })
+    expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith('https://api.deepnote.com', 't', {
+      notebookId: 'nb1',
+      inputs: { flag: '4' },
+      blockIds: undefined,
+    })
+
+    await runInCloud(MULTI_NOTEBOOK, { flag: true }, { token: 't', notebookId: 'nb2' })
+    expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith('https://api.deepnote.com', 't', {
+      notebookId: 'nb2',
+      inputs: { flag: true },
+      blockIds: undefined,
+    })
+  })
+
+  it('uploads to the domain derived from a custom baseUrl (not deepnote.com)', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValue(new Error('{"message":"Notebook not found"}'))
+    cloudMock.uploadNotebook.mockResolvedValue({
+      importId: 'imp1',
+      launchUrl: 'https://staging.deepnote.com/launch?importId=imp1',
+    })
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't', baseUrl: 'https://api.staging.deepnote.com' })
+
+    expect(cloudMock.uploadNotebook).toHaveBeenCalledOnce()
+    const domainArg = (cloudMock.uploadNotebook.mock.calls[0]?.[2] as { domain?: string } | undefined)?.domain
+    expect(domainArg).toBe('staging.deepnote.com')
+    expect(result.status).toBe('needs-open')
   })
 })

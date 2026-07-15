@@ -1,5 +1,4 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { parseYaml } from '@deepnote/blocks'
 import {
   describeRunError,
   fetchSnapshotContent,
@@ -13,12 +12,13 @@ import {
   triggerNotebookRun,
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
-import type { IOutput } from '@deepnote/runtime-core'
-import { coerceInputValue, inputBlocksByName } from './coerce-input-value'
+import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import { openInCloud } from './open-in-cloud'
 import type { RunBlockOutput } from './run-with-inputs'
+import type { SnapshotView } from './snapshot-view'
+import { parseSnapshot } from './snapshot-view'
 
 /** Environment variable holding the Deepnote API token (matches the CLI). */
 const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN'
@@ -88,8 +88,9 @@ export async function runInCloud(
   let notebookId = options.notebookId ?? resolveNotebookId(file)
   let projectId: string | undefined
   // The cloud API validates input types (e.g. a slider value must be a string), so coerce each
-  // override to its schema shape first — the same normalization the on-disk snapshot needs.
-  const cloudInputs = coerceInputs(file, inputs)
+  // override to its schema shape first — the same normalization the on-disk snapshot needs. Scope
+  // to the notebook being run so a name shared across notebooks is typed against the right block.
+  const cloudInputs = coerceInputs(file, inputs, notebookId)
 
   let started: Awaited<ReturnType<typeof triggerNotebookRun>>
   try {
@@ -115,8 +116,9 @@ export async function runInCloud(
       })
     } else if (options.uploadIfMissing !== false) {
       // Not in Deepnote yet — upload it ("Open in Deepnote"). Opening the returned launchUrl in a
-      // browser imports it; after that, this same call will find it by name and run it.
-      const uploaded = await openInCloud(input, { inputs })
+      // browser imports it; after that, this same call will find it by name and run it. Upload to the
+      // same domain as the API base URL so a custom deployment doesn't fall back to deepnote.com.
+      const uploaded = await openInCloud(input, { inputs, domain: deriveDomain(baseUrl) })
       return {
         runId: '',
         status: 'needs-open',
@@ -222,32 +224,42 @@ function isNotFoundError(err: unknown): boolean {
   return /not found/i.test(message)
 }
 
-/** Coerce each override to the schema shape its input block requires (slider → string, etc.). */
-function coerceInputs(file: DeepnoteFile, inputs: Record<string, unknown>): Record<string, unknown> {
-  const byName = inputBlocksByName(file)
+/**
+ * Coerce each override to the schema shape its input block requires (slider → string, etc.), typed
+ * against the notebook being run so a name shared across notebooks resolves to the right block(s).
+ * Names with no in-scope input block pass through untouched (generic injection).
+ */
+function coerceInputs(
+  file: DeepnoteFile,
+  inputs: Record<string, unknown>,
+  notebookId: string
+): Record<string, unknown> {
+  const byName = inputBlocksByName(notebooksInScope(file, { notebookId }))
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(inputs)) {
-    const block = byName.get(key)?.[0]
-    out[key] = block ? coerceInputValue(block, value) : value
+    const blocks = byName.get(key)
+    out[key] = blocks ? coerceInputValueForBlocks(blocks, value) : value
   }
   return out
 }
 
-/** Parse the per-code-block outputs out of a cloud snapshot's YAML, in document order. */
+/**
+ * Parse the per-block outputs out of a cloud snapshot's YAML, in document order. Any executable
+ * block type carries outputs — code, SQL, visualization, big-number — so read them off whatever
+ * block has them (via {@link parseSnapshot}) rather than special-casing `code`.
+ */
 function extractOutputs(snapshotYaml: string): RunBlockOutput[] {
-  let doc: unknown
+  let view: SnapshotView
   try {
-    doc = parseYaml(snapshotYaml)
+    view = parseSnapshot(snapshotYaml)
   } catch {
     return []
   }
-  const notebooks = (doc as Partial<DeepnoteFile>)?.project?.notebooks ?? []
   const outputs: RunBlockOutput[] = []
-  for (const notebook of notebooks) {
-    for (const block of notebook.blocks ?? []) {
-      if (block.type === 'code') {
-        const b = block as { id?: string; outputs?: IOutput[]; executionCount?: number | null }
-        outputs.push({ blockId: b.id ?? '', outputs: b.outputs ?? [], executionCount: b.executionCount ?? null })
+  for (const notebook of view.notebooks) {
+    for (const block of notebook.blocks) {
+      if (block.outputs.length > 0) {
+        outputs.push({ blockId: block.id, outputs: block.outputs, executionCount: block.executionCount })
       }
     }
   }

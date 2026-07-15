@@ -1,7 +1,7 @@
 import type { InputBlock } from '@deepnote/blocks'
 import { InvalidValueError } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import { coerceInputValue } from './coerce-input-value'
+import { coerceInputValue, coerceInputValueForBlocks } from './coerce-input-value'
 
 const block = (type: string, metadata: Record<string, unknown> = {}): InputBlock =>
   ({
@@ -69,5 +69,19 @@ describe('coerceInputValue', () => {
 
     expect(() => coerceInputValue(range, ['only-one'])).toThrow(InvalidValueError)
     expect(() => coerceInputValue(range, ['a', 'b', 'c'])).toThrow(InvalidValueError)
+  })
+})
+
+describe('coerceInputValueForBlocks', () => {
+  it('coerces against the first block and accepts compatible siblings', () => {
+    // Two blocks of the same type under one name is fine — the coerced value fits both.
+    expect(coerceInputValueForBlocks([block('input-text'), block('input-text')], 42)).toBe('42')
+  })
+
+  it('throws when the same name is defined by blocks of incompatible types', () => {
+    const slider = block('input-slider')
+    const checkbox = block('input-checkbox', { deepnote_variable_value: false })
+    // 1 coerces to '1' for the slider, but that string is not a valid checkbox value.
+    expect(() => coerceInputValueForBlocks([slider, checkbox], 1)).toThrow(/different types/i)
   })
 })

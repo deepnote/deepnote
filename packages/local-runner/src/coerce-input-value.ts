@@ -1,14 +1,48 @@
 import type { DeepnoteFile, InputBlock, InputBlockValueOverride } from '@deepnote/blocks'
 import { getInputBlockValueOverrideValidationError, InvalidValueError, isInputBlock } from '@deepnote/blocks'
 
+/** The notebooks of a file — the unit input handling is scoped to. */
+type Notebooks = DeepnoteFile['project']['notebooks']
+
 /**
- * The file's input blocks, grouped by variable name — the lookup both the local and the cloud path
- * need, so they cannot drift. A name can be defined by more than one block (across notebooks), and
- * every one of them has to be overridden, so this maps to a list rather than a single block.
+ * Which notebook an input override applies to. A run executes exactly one notebook (`--notebook`
+ * locally, a `notebookId` in the cloud) or the whole file, and each override must be coerced against
+ * the input blocks of *that* scope — otherwise a value shaped for one notebook's block could be
+ * applied to a same-named block of a different type elsewhere, or mutate a notebook that isn't run.
  */
-export function inputBlocksByName(file: DeepnoteFile): Map<string, InputBlock[]> {
+export interface InputScope {
+  /** Restrict to the notebook with this name (matches the engine's `notebookName` scoping). */
+  notebook?: string
+  /** Restrict to the notebook with this id (the cloud run target). */
+  notebookId?: string
+}
+
+/**
+ * The notebooks in scope: the one matching `notebookId`, else the one matching `notebook`, else all.
+ * An unmatched `notebookId` falls back to every notebook (best-effort typing when the run targets a
+ * cloud id not present in the local file); an unmatched `notebook` name yields none (the engine then
+ * raises its own "notebook not found").
+ */
+export function notebooksInScope(file: DeepnoteFile, scope: InputScope = {}): Notebooks {
+  if (scope.notebookId !== undefined) {
+    const matched = file.project.notebooks.filter(notebook => notebook.id === scope.notebookId)
+    return matched.length > 0 ? matched : file.project.notebooks
+  }
+  if (scope.notebook !== undefined) {
+    return file.project.notebooks.filter(notebook => notebook.name === scope.notebook)
+  }
+  return file.project.notebooks
+}
+
+/**
+ * The given notebooks' input blocks, grouped by variable name — the lookup both the local and the
+ * cloud path need, so they cannot drift. A name can be defined by more than one block, and every one
+ * of them has to be overridden, so this maps to a list rather than a single block. Pass the notebooks
+ * already narrowed to the run's scope (see {@link notebooksInScope}).
+ */
+export function inputBlocksByName(notebooks: Notebooks): Map<string, InputBlock[]> {
   const byName = new Map<string, InputBlock[]>()
-  for (const notebook of file.project.notebooks) {
+  for (const notebook of notebooks) {
     for (const block of notebook.blocks) {
       if (!isInputBlock(block)) continue
       const name = block.metadata.deepnote_variable_name
@@ -22,6 +56,28 @@ export function inputBlocksByName(file: DeepnoteFile): Map<string, InputBlock[]>
     }
   }
   return byName
+}
+
+/**
+ * Coerce `value` to the schema shape a set of same-named input blocks require. Coerces against the
+ * first block, then requires the result to be valid for every other block in the set — so a value
+ * shaped for one block can never be injected into a sibling of a different type. `blocks` must be
+ * non-empty.
+ *
+ * @throws {InvalidValueError} when the name is defined by blocks of incompatible types in scope, or
+ *   the value cannot be coerced to the block's shape.
+ */
+export function coerceInputValueForBlocks(blocks: InputBlock[], value: unknown): InputBlockValueOverride {
+  const coerced = coerceInputValue(blocks[0], value)
+  for (let i = 1; i < blocks.length; i++) {
+    if (getInputBlockValueOverrideValidationError(blocks[i], coerced)) {
+      throw new InvalidValueError(
+        `Input "${blocks[0].metadata.deepnote_variable_name}" is defined by input blocks of different types in the notebook(s) being run, so one value cannot satisfy all of them. Run a single notebook, or make the definitions consistent.`,
+        { value }
+      )
+    }
+  }
+  return coerced
 }
 
 /**

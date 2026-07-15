@@ -1,5 +1,6 @@
 import type { DeepnoteFile, InputBlockValueOverrides } from '@deepnote/blocks'
-import { coerceInputValue, inputBlocksByName } from './coerce-input-value'
+import type { InputScope } from './coerce-input-value'
+import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 
 /**
  * Apply input overrides to a file's input blocks, in place.
@@ -7,22 +8,32 @@ import { coerceInputValue, inputBlocksByName } from './coerce-input-value'
  * Each value is coerced to the schema shape its input type requires, so the mutated file still
  * serializes for snapshots — e.g. a slider value is stored as a string, not a number.
  *
+ * Pass `scope` to restrict coercion and mutation to the notebook that will run — without it a value
+ * meant for one notebook's block could be coerced against, and mutate, a same-named block of a
+ * different type in a notebook that isn't being run. Defaults to the whole file (every notebook).
+ *
  * Returns the coerced values, keyed by variable name. Pass these — not the raw values — to
  * `ExecutionEngine`, which validates overrides against the input block's schema shape before
- * applying them. Names with no matching input block are not coerced and are not returned.
+ * applying them. Names with no in-scope input block are not coerced and are not returned.
  */
-export function applyInputOverrides(file: DeepnoteFile, inputs: Record<string, unknown>): InputBlockValueOverrides {
+export function applyInputOverrides(
+  file: DeepnoteFile,
+  inputs: Record<string, unknown>,
+  scope: InputScope = {}
+): InputBlockValueOverrides {
   const coerced: InputBlockValueOverrides = {}
   if (Object.keys(inputs).length === 0) return coerced
 
-  for (const [name, blocks] of inputBlocksByName(file)) {
-    if (!Object.hasOwn(inputs, name)) continue
+  const byName = inputBlocksByName(notebooksInScope(file, scope))
+  for (const [name, rawValue] of Object.entries(inputs)) {
+    const blocks = byName.get(name)
+    if (!blocks) continue
 
+    const value = coerceInputValueForBlocks(blocks, rawValue)
     for (const block of blocks) {
-      const value = coerceInputValue(block, inputs[name])
       block.metadata.deepnote_variable_value = value as typeof block.metadata.deepnote_variable_value
-      coerced[name] = value
     }
+    coerced[name] = value
   }
 
   return coerced

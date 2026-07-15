@@ -1,5 +1,5 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
+import { deserializeDeepnoteFile, InvalidValueError, serializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { applyInputOverrides, listInputBlocks } from './apply-input-overrides'
 
@@ -58,8 +58,46 @@ project:
 version: '1.0.0'
 `
 
+// `flag` is a slider in the first notebook and a checkbox in the second — same name, different types.
+const MULTI = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Multi
+  notebooks:
+    - id: nb1
+      name: First
+      blocks:
+        - blockGroup: g0
+          content: ''
+          id: i-flag-slider
+          metadata:
+            deepnote_variable_name: flag
+            deepnote_variable_value: '1'
+            deepnote_slider_min_value: 0
+            deepnote_slider_max_value: 10
+            deepnote_slider_step: 1
+          sortingKey: a0
+          type: input-slider
+    - id: nb2
+      name: Second
+      blocks:
+        - blockGroup: g0
+          content: ''
+          id: i-flag-checkbox
+          metadata:
+            deepnote_variable_name: flag
+            deepnote_variable_value: false
+          sortingKey: a0
+          type: input-checkbox
+version: '1.0.0'
+`
+
 const meta = (file: DeepnoteFile, index: number) =>
   file.project.notebooks[0].blocks[index].metadata as Record<string, unknown>
+
+const nbMeta = (file: DeepnoteFile, notebook: number, block: number) =>
+  file.project.notebooks[notebook].blocks[block].metadata as Record<string, unknown>
 
 describe('applyInputOverrides', () => {
   it('coerces overrides per input type and keeps the file schema-valid', () => {
@@ -85,6 +123,25 @@ describe('applyInputOverrides', () => {
 
     applyInputOverrides(file, { does_not_exist: 'x' })
     expect(meta(file, 1).deepnote_variable_value).toBe('3')
+  })
+
+  it('scopes coercion and mutation to the named notebook for a name shared across notebooks', () => {
+    const first = deserializeDeepnoteFile(MULTI)
+    expect(applyInputOverrides(first, { flag: 4 }, { notebook: 'First' })).toEqual({ flag: '4' }) // slider → string
+    expect(nbMeta(first, 0, 0).deepnote_variable_value).toBe('4')
+    expect(nbMeta(first, 1, 0).deepnote_variable_value).toBe(false) // the other notebook is untouched
+
+    const second = deserializeDeepnoteFile(MULTI)
+    expect(applyInputOverrides(second, { flag: 1 }, { notebook: 'Second' })).toEqual({ flag: true }) // checkbox → bool
+    expect(nbMeta(second, 1, 0).deepnote_variable_value).toBe(true)
+    expect(nbMeta(second, 0, 0).deepnote_variable_value).toBe('1') // the other notebook is untouched
+  })
+
+  it('rejects a name defined with incompatible types when no notebook is scoped', () => {
+    const file = deserializeDeepnoteFile(MULTI)
+    // Whole-file: `1` fits the slider but not the checkbox, so one value can't satisfy both.
+    expect(() => applyInputOverrides(file, { flag: 1 })).toThrow(InvalidValueError)
+    expect(() => applyInputOverrides(file, { flag: 1 })).toThrow(/different types/i)
   })
 })
 
