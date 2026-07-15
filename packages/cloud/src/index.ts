@@ -17,6 +17,7 @@ export {
   triggerNotebookRun,
 } from './cloud-runs'
 export { type UploadedNotebook, type UploadNotebookOptions, uploadNotebook } from './import'
+export { parseApiErrorMessage } from './parse-api-error'
 export {
   type FindNotebookQuery,
   type FoundNotebook,

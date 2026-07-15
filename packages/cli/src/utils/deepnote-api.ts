@@ -1,7 +1,7 @@
 // Re-exported so the API helpers stay importable from one place in the CLI. The implementation
-// lives in @deepnote/database-integrations, next to the ApiError it builds messages for, because
-// @deepnote/cloud needs it too and cannot depend on the CLI.
-export { parseApiErrorMessage } from '@deepnote/database-integrations'
+// lives in @deepnote/cloud alongside the rest of the Deepnote API-response handling — the CLI
+// already depends on @deepnote/cloud, and it isn't specific to database integrations.
+export { parseApiErrorMessage } from '@deepnote/cloud'
 
 /**
  * Default Deepnote domain.

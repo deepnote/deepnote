@@ -64,7 +64,7 @@ import {
 import { getNotebooksForExecutionScope } from '../utils/notebook-scope'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { getInputBlocks, InvalidInputError, parseInputs } from '../utils/parse-inputs'
-import { CloudRunUsageError, runInDeepnoteCloud } from '../utils/run-in-cloud'
+import { assertCloudOnlyFlagsRequireCloud, CloudRunUsageError, runInDeepnoteCloud } from '../utils/run-in-cloud'
 
 /**
  * Error thrown when required inputs are missing.
@@ -505,6 +505,9 @@ export function createRunAction(program: Command): (path: string | undefined, op
         await runInDeepnoteCloud(path, options)
         return
       }
+
+      // Cloud-only flags without --cloud are a user mistake — fail loudly rather than ignoring them.
+      assertCloudOnlyFlagsRequireCloud(options)
 
       if (!path && !options.prompt) {
         program.error(getChalk().red('Missing required argument: path (or use --prompt)'), {
