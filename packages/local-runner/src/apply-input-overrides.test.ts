@@ -143,6 +143,14 @@ describe('applyInputOverrides', () => {
     expect(() => applyInputOverrides(file, { flag: 1 })).toThrow(InvalidValueError)
     expect(() => applyInputOverrides(file, { flag: 1 })).toThrow(/different types/i)
   })
+
+  it('applies atomically: a later failing override leaves earlier blocks unchanged', () => {
+    const file = deserializeDeepnoteFile(NOTEBOOK)
+    // `greeting` coerces fine, but the checkbox rejects 'maybe' — so nothing should be applied.
+    expect(() => applyInputOverrides(file, { greeting: 'hello', enabled: 'maybe' })).toThrow(InvalidValueError)
+    expect(meta(file, 0).deepnote_variable_value).toBe('hi') // greeting untouched
+    expect(meta(file, 2).deepnote_variable_value).toBe(false) // checkbox untouched
+  })
 })
 
 describe('listInputBlocks', () => {

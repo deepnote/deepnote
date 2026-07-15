@@ -1,4 +1,4 @@
-import type { DeepnoteFile, InputBlockValueOverrides } from '@deepnote/blocks'
+import type { DeepnoteFile, InputBlock, InputBlockValueOverride, InputBlockValueOverrides } from '@deepnote/blocks'
 import type { InputScope } from './coerce-input-value'
 import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 
@@ -11,6 +11,9 @@ import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from '
  * Pass `scope` to restrict coercion and mutation to the notebook that will run — without it a value
  * meant for one notebook's block could be coerced against, and mutate, a same-named block of a
  * different type in a notebook that isn't being run. Defaults to the whole file (every notebook).
+ *
+ * Application is atomic: every value is coerced and validated before any block is mutated, so a
+ * failing override leaves the file unchanged rather than partially applied.
  *
  * Returns the coerced values, keyed by variable name. Pass these — not the raw values — to
  * `ExecutionEngine`, which validates overrides against the input block's schema shape before
@@ -25,11 +28,17 @@ export function applyInputOverrides(
   if (Object.keys(inputs).length === 0) return coerced
 
   const byName = inputBlocksByName(notebooksInScope(file, scope))
+
+  // First pass: coerce and validate everything. A failure here throws before any block is touched.
+  const pending: Array<{ name: string; blocks: InputBlock[]; value: InputBlockValueOverride }> = []
   for (const [name, rawValue] of Object.entries(inputs)) {
     const blocks = byName.get(name)
     if (!blocks) continue
+    pending.push({ name, blocks, value: coerceInputValueForBlocks(blocks, rawValue) })
+  }
 
-    const value = coerceInputValueForBlocks(blocks, rawValue)
+  // Second pass: apply. Reached only once every override coerced successfully.
+  for (const { name, blocks, value } of pending) {
     for (const block of blocks) {
       block.metadata.deepnote_variable_value = value as typeof block.metadata.deepnote_variable_value
     }
