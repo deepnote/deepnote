@@ -87,6 +87,7 @@ const CLOUD_ONLY_FLAGS: ReadonlyArray<readonly [keyof RunCloudOptions, string]> 
   ['notebookId', '--notebook-id'],
   ['out', '--out'],
   ['timeout', '--timeout'],
+  ['push', '--push'],
 ]
 
 /**

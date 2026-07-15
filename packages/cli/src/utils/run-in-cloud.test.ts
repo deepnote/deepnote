@@ -154,14 +154,15 @@ describe('runInDeepnoteCloud — usage guards', () => {
     expect(() => assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb' })).toThrow(/--notebook-id requires --cloud/)
     expect(() => assertCloudOnlyFlagsRequireCloud({ out: 'snap.deepnote' })).toThrow(/--out requires --cloud/)
     expect(() => assertCloudOnlyFlagsRequireCloud({ timeout: 30 })).toThrow(/--timeout requires --cloud/)
-    expect(() => assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb', out: 'snap.deepnote', timeout: 30 })).toThrow(
-      /--notebook-id, --out, --timeout require --cloud/
-    )
+    expect(() => assertCloudOnlyFlagsRequireCloud({ push: true })).toThrow(/--push requires --cloud/)
+    expect(() =>
+      assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb', out: 'snap.deepnote', timeout: 30, push: true })
+    ).toThrow(/--notebook-id, --out, --timeout, --push require --cloud/)
   })
 
   it('allows cloud-only flags when --cloud is set', () => {
     expect(() =>
-      assertCloudOnlyFlagsRequireCloud({ cloud: true, notebookId: 'nb', out: 'snap.deepnote', timeout: 30 })
+      assertCloudOnlyFlagsRequireCloud({ cloud: true, notebookId: 'nb', out: 'snap.deepnote', timeout: 30, push: true })
     ).not.toThrow()
   })
 
