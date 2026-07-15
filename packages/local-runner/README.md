@@ -139,7 +139,7 @@ snapshot with no server, no Python and no kernel:
 
 Rendering stays in the page, as it does for `serveStatic` — how a table looks, and whether HTML
 output is sandboxed, is a page decision, not a library one.
-[`examples/snapshot-viewer`](../../examples/snapshot-viewer) is a complete page (~60 lines) you can
+[`examples/local-runner/snapshot-viewer`](../../examples/local-runner/snapshot-viewer) is a complete page you can
 copy: source, outputs, images, tables, and the input values that produced them.
 
 To publish: put `index.html`, `snapshot-reader.js`, and your `*.snapshot.deepnote` in one directory

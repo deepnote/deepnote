@@ -7,7 +7,7 @@
  *
  * Rendering is deliberately not included: a DOM renderer is a page concern, and the shapes it
  * produces (how a table looks, whether HTML output is sandboxed) belong to the page, not the
- * library. See `examples/snapshot-viewer` for a complete one.
+ * library. See `examples/local-runner/snapshot-viewer` for a complete one.
  */
 export type { SnapshotBlock, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'
