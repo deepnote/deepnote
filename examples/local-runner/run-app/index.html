@@ -386,11 +386,21 @@
           const data = await res.json()
           if (gen !== displayGen) return
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-          if (data.success === false) throw new Error(data.error || `run ${data.status}`)
           render(data)
           // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
           shownRunId = null
           const where = endpoint.includes('cloud') ? 'cloud' : 'local'
+
+          // A failed run is still worth rendering: the blocks that ran before it broke produced real
+          // output, and throwing that away to show a bare error string loses the half of the story
+          // that says how far it got.
+          if (data.success === false) {
+            const why = cap(data.error || `The run failed (${data.status})`)
+            if (data.viewUrl) statusLink(`${why} — `, data.viewUrl, 'open the run in Deepnote →', 'err')
+            else setStatus(why, 'err')
+            return
+          }
+
           // `created` means the notebook wasn't in Deepnote and this run made it — worth saying once,
           // since it explains why the first cloud run is slower than the ones after it.
           const what = data.created ? `Created and ran in ${where}` : `Ran in ${where}`
@@ -407,8 +417,8 @@
       }
 
       function setStatus(text, cls = '') { const s = $('#status'); s.textContent = text; s.className = 'status ' + cls }
-      function statusLink(text, href, label) {
-        const s = $('#status'); s.className = 'status ok'; s.textContent = text
+      function statusLink(text, href, label, cls = 'ok') {
+        const s = $('#status'); s.className = 'status ' + cls; s.textContent = text
         const a = el('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label; s.append(a)
       }
 

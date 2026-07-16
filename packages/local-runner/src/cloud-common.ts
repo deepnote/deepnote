@@ -1,5 +1,6 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { findNotebook, getWorkspace, notebookUrl } from '@deepnote/cloud'
+import { deepnoteFileSchema, deepnoteSnapshotSchema, parseYaml } from '@deepnote/blocks'
+import { describeRunError, findNotebook, getWorkspace, type NormalizedRun, notebookUrl } from '@deepnote/cloud'
 import type { RunBlockOutput } from './run-with-inputs'
 import type { SnapshotView } from './snapshot-view'
 import { parseSnapshot } from './snapshot-view'
@@ -82,6 +83,72 @@ export async function buildViewUrl(
   }
   const domain = deriveDomain(baseUrl)
   return notebookUrl({ domain, workspaceId: workspace.id, workspaceSlug: workspace.slug, projectId, notebookId })
+}
+
+/**
+ * Why a run failed, in Deepnote's words if we have any.
+ *
+ * The API's own `error` is null even on genuine failures, which left both cloud entry points
+ * reporting `success: false` with nothing attached — a dead end at the one moment a reason is worth
+ * something. The snapshot usually knows: a block carries an error output, or an agent block records
+ * `deepnote_agent_status: failed`. The bare status is the last resort, never silence.
+ */
+export function describeFailure(run: NormalizedRun, snapshotYaml: string | null): string {
+  const reported = describeRunError(run)
+  if (reported) {
+    return reported
+  }
+  const fromBlocks = snapshotYaml ? describeFailedBlocks(snapshotYaml) : undefined
+  return fromBlocks ?? `The run finished with status "${run.status}" and Deepnote reported no reason.`
+}
+
+/**
+ * The first failing block's account of itself: an error output, or an agent that reports failure.
+ *
+ * Parsed with the block schemas rather than {@link parseSnapshot}, whose `SnapshotView` deliberately
+ * keeps only what a viewer needs — and an agent records its outcome in `metadata`, which that view
+ * drops. Diagnosis wants the whole block; rendering does not.
+ */
+function describeFailedBlocks(snapshotYaml: string): string | undefined {
+  let raw: unknown
+  try {
+    raw = parseYaml(snapshotYaml)
+  } catch {
+    return undefined
+  }
+
+  // Snapshot first, then plain file — the same leniency `parseSnapshot` has, and for the same
+  // reason: a snapshot missing its `execution`/`environment` envelope still describes real blocks.
+  // Being stricter here than the code that reads the outputs would mean explaining nothing about a
+  // run we were perfectly able to render.
+  const parsed = deepnoteSnapshotSchema.safeParse(raw)
+  const file = parsed.success ? parsed.data : deepnoteFileSchema.safeParse(raw).data
+  if (!file) {
+    return undefined
+  }
+
+  for (const notebook of file.project.notebooks) {
+    for (const block of notebook.blocks) {
+      const outputs = ('outputs' in block ? (block.outputs ?? []) : []) as Array<{
+        output_type?: string
+        ename?: string
+        evalue?: string
+      }>
+      const errorOutput = outputs.find(output => output.output_type === 'error')
+      if (errorOutput) {
+        const detail = [errorOutput.ename, errorOutput.evalue].filter(Boolean).join(': ')
+        return `The ${block.type} block failed: ${detail || 'no message'}`
+      }
+
+      // An agent block records its outcome in metadata rather than as an error output, so a failed
+      // agent is otherwise completely silent: no error output, and `run.error` is null.
+      const status = (block.metadata as { deepnote_agent_status?: unknown } | undefined)?.deepnote_agent_status
+      if (block.type === 'agent' && status === 'failed') {
+        return 'The agent block failed (deepnote_agent_status: failed). Deepnote gave no reason — open the run to see the agent log.'
+      }
+    }
+  }
+  return undefined
 }
 
 /**

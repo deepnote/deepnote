@@ -65,6 +65,28 @@ project:
 version: '1.0.0'
 `
 
+// A failed agent block says so only in its own metadata: no error output, and `run.error` is null.
+const SNAPSHOT_WITH_FAILED_AGENT = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: NB
+      blocks:
+        - blockGroup: g1
+          content: Write a readout.
+          id: a1
+          sortingKey: a0
+          type: agent
+          outputs: []
+          metadata:
+            deepnote_agent_model: auto
+            deepnote_agent_status: failed
+version: '1.0.0'
+`
+
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.DEEPNOTE_TOKEN = ''
@@ -156,16 +178,38 @@ describe('getCloudRun', () => {
     expect(result.snapshotYaml).toBe(SNAPSHOT_YAML)
   })
 
-  it('reports a failed run without fetching a snapshot it does not have', async () => {
-    cloudMock.getRun.mockResolvedValue({ runId: 'r3', status: 'error', error: 'kernel died' })
+  it('reports a failed run, keeping the outputs of everything that ran before it broke', async () => {
+    // Opening a failed run is asking what went wrong and how far it got. Discarding its snapshot
+    // answers neither.
+    cloudMock.getRun.mockResolvedValue({ runId: 'r3', status: 'error', error: 'kernel died', snapshot: {} })
 
     const result = await getCloudRun('r3', { token: 't' })
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('kernel died')
+    expect(result.snapshotYaml).toBe(SNAPSHOT_YAML)
+    expect(result.outputs).toHaveLength(1)
+  })
+
+  it('has no snapshot to read when the run produced none', async () => {
+    cloudMock.getRun.mockResolvedValue({ runId: 'r3', status: 'error', error: 'kernel died', snapshot: undefined })
+
+    const result = await getCloudRun('r3', { token: 't' })
+
     expect(result.snapshotYaml).toBeNull()
     expect(result.outputs).toEqual([])
     expect(cloudMock.fetchSnapshotContent).not.toHaveBeenCalled()
+  })
+
+  it('explains a failed agent block, which the API itself reports nothing about', async () => {
+    // This is the case that sent a real user asking "can you see why?" — and nothing could.
+    cloudMock.getRun.mockResolvedValue({ runId: 'r4', status: 'error', error: null, snapshot: {} })
+    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_WITH_FAILED_AGENT)
+
+    const result = await getCloudRun('r4', { token: 't' })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/agent block failed/i)
   })
 
   it('throws on a snapshot it cannot parse, rather than calling the run empty', async () => {

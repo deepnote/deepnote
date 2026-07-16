@@ -1,11 +1,11 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import {
   createProject,
-  describeRunError,
   fetchSnapshotContent,
   findNotebook,
   getRun,
   isSuccessStatus,
+  type NormalizedRun,
   type PollOptions,
   type ProjectSpec,
   pollRunUntilComplete,
@@ -13,11 +13,23 @@ import {
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { applyInputOverrides } from './apply-input-overrides'
-import { buildViewUrl, DEFAULT_CLOUD_API_URL, extractOutputs, notebookNameFor, requireToken } from './cloud-common'
+import {
+  buildViewUrl,
+  DEFAULT_CLOUD_API_URL,
+  describeFailure,
+  extractOutputs,
+  notebookNameFor,
+  requireToken,
+} from './cloud-common'
 import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import type { RunBlockOutput } from './run-with-inputs'
+
+/** How many times to re-fetch a terminal run whose snapshot has not landed yet, and how long to wait
+ * between tries. Small on purpose: the run has finished, so this only ever waits on a write. */
+const SNAPSHOT_SETTLE_ATTEMPTS = 3
+const SNAPSHOT_SETTLE_INTERVAL_MS = 1_500
 
 export interface RunInCloudOptions {
   /** Bearer token for the Deepnote API. Defaults to `process.env.DEEPNOTE_TOKEN`. */
@@ -45,15 +57,23 @@ export interface RunInCloudResult {
   runId: string
   status: string
   success: boolean
-  /** Per-block outputs parsed from the cloud snapshot, in document order (empty if none). */
+  /**
+   * Per-block outputs parsed from the cloud snapshot, in document order (empty if none).
+   *
+   * Populated on a failed run too — the blocks that ran before the failure produced real output, and
+   * seeing how far it got is half the diagnosis.
+   */
   outputs: RunBlockOutput[]
   /** The executed snapshot as `.deepnote` YAML, or `null` if the run produced none. */
   snapshotYaml: string | null
-  /** A human-readable message for a failed run. */
+  /**
+   * Why a failed run failed. Always set when `success` is false: Deepnote's own message if it gave
+   * one, else the first failing block's account of itself, else the bare status — never nothing.
+   */
   error?: string
   /** True when the notebook was not in Deepnote and this call created it before running. */
   created?: boolean
-  /** Browser URL to open the notebook (with the runs sidebar) in Deepnote; set on a successful run. */
+  /** Browser URL to open the notebook (with the runs sidebar) in Deepnote. Set for failures too. */
   viewUrl?: string
 }
 
@@ -153,21 +173,20 @@ export async function runInCloud(
       throw err
     }
   }
-  let run = await pollRunUntilComplete(baseUrl, token, started.runId, { snapshotDelivery: 'inline', ...options.poll })
+  const run = await pollRunUntilComplete(baseUrl, token, started.runId, {
+    snapshotDelivery: 'inline',
+    ...options.poll,
+  })
 
-  // Some deployments only attach the snapshot once the run is terminal, so a polled run can come
-  // back successful but empty. Re-fetch once rather than reporting a successful run with no outputs.
-  // Only worth doing on success — a failed run has no snapshot to wait for. The run already
-  // finished, so a failure here is not fatal; it just means no snapshot content.
-  if (isSuccessStatus(run.status) && !run.snapshot) {
-    run = await getRun(baseUrl, token, run.runId, { snapshotDelivery: 'inline' }).catch(() => run)
-  }
+  // Whatever the status. The snapshot holds the outputs, and on a failure it is usually the only
+  // account of what went wrong — a failed run is exactly when you need it, not when you can spare
+  // it. It can also lag the run's terminal status by a moment, hence the retry.
+  const snapshotYaml = await fetchSnapshotSettling(baseUrl, token, run, options)
 
   const success = isSuccessStatus(run.status)
-  const snapshotYaml = success ? await fetchSnapshotContent(run, { baseUrl, token }) : null
-  const viewUrl = success
-    ? await buildViewUrl(baseUrl, token, file, notebookId, projectId).catch(() => undefined)
-    : undefined
+  // Built for failures too: "open it in Deepnote" is the most useful thing to say to someone whose
+  // run just failed, and it was previously the one thing they couldn't do.
+  const viewUrl = await buildViewUrl(baseUrl, token, file, notebookId, projectId).catch(() => undefined)
 
   return {
     runId: run.runId,
@@ -177,7 +196,40 @@ export async function runInCloud(
     snapshotYaml,
     viewUrl,
     ...(created ? { created } : {}),
-    error: success ? undefined : describeRunError(run),
+    error: success ? undefined : describeFailure(run, snapshotYaml),
+  }
+}
+
+/**
+ * The run's snapshot, retried briefly while it is still being attached.
+ *
+ * A run can report a terminal status a moment before its snapshot lands, so a single immediate
+ * re-fetch loses that race and reports a successful run with no outputs. Retries are short and
+ * bounded: the run has already finished, so this is only ever waiting on a write, and giving up
+ * costs the outputs rather than the run.
+ */
+async function fetchSnapshotSettling(
+  baseUrl: string,
+  token: string,
+  run: NormalizedRun,
+  options: RunInCloudOptions
+): Promise<string | null> {
+  const sleep = options.poll?.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
+  let current = run
+
+  for (let attempt = 0; ; attempt++) {
+    const yaml = current.snapshot ? await fetchSnapshotContent(current, { baseUrl, token }).catch(() => null) : null
+    if (yaml || attempt === SNAPSHOT_SETTLE_ATTEMPTS) {
+      return yaml
+    }
+    // The first re-fetch is immediate: usually the snapshot is simply attached a beat after the
+    // status, and asking again is enough. Only wait once that has already failed.
+    if (attempt > 0) {
+      await sleep(SNAPSHOT_SETTLE_INTERVAL_MS)
+    }
+    // A failure here is not fatal: the run itself already finished, so keep what we have and let the
+    // loop give up on its own terms rather than throwing away a known status.
+    current = await getRun(baseUrl, token, current.runId, { snapshotDelivery: 'inline' }).catch(() => current)
   }
 }
 

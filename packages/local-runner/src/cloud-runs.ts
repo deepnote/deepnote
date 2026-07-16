@@ -1,5 +1,4 @@
 import {
-  describeRunError,
   fetchSnapshotContent,
   findNotebook,
   getRun,
@@ -7,7 +6,7 @@ import {
   listNotebookRuns,
   type RunSummary,
 } from '@deepnote/cloud'
-import { buildViewUrl, DEFAULT_CLOUD_API_URL, extractOutputs, requireToken } from './cloud-common'
+import { buildViewUrl, DEFAULT_CLOUD_API_URL, describeFailure, extractOutputs, requireToken } from './cloud-common'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import type { RunBlockOutput } from './run-with-inputs'
@@ -31,11 +30,18 @@ export interface CloudRun {
   runId: string
   status: string
   success: boolean
-  /** Per-block outputs parsed from the run's snapshot, in document order (empty if it has none). */
+  /**
+   * Per-block outputs parsed from the run's snapshot, in document order (empty if it has none).
+   *
+   * Populated for a failed run too — whatever ran before it broke produced real output.
+   */
   outputs: RunBlockOutput[]
   /** The run's snapshot as `.deepnote` YAML, or `null` if it produced none. */
   snapshotYaml: string | null
-  /** A human-readable message for a failed run. */
+  /**
+   * Why a failed run failed. Always set when `success` is false: Deepnote's own message if it gave
+   * one, else the first failing block's account of itself, else the bare status — never nothing.
+   */
   error?: string
 }
 
@@ -52,7 +58,10 @@ export async function getCloudRun(runId: string, options: GetCloudRunOptions = {
 
   const run = await getRun(baseUrl, token, runId, { snapshotDelivery: 'inline' })
   const success = isSuccessStatus(run.status)
-  const snapshotYaml = success ? await fetchSnapshotContent(run, { baseUrl, token }) : null
+  // Whatever the status: a failed run's snapshot holds both the outputs of everything that ran
+  // before it broke and, usually, the only account of what broke. Someone opening a failed run is
+  // asking exactly that question, so this is the last place to withhold the answer.
+  const snapshotYaml = run.snapshot ? await fetchSnapshotContent(run, { baseUrl, token }) : null
 
   return {
     runId: run.runId,
@@ -60,7 +69,7 @@ export async function getCloudRun(runId: string, options: GetCloudRunOptions = {
     success,
     outputs: snapshotYaml ? extractOutputs(snapshotYaml) : [],
     snapshotYaml,
-    error: success ? undefined : describeRunError(run),
+    error: success ? undefined : describeFailure(run, snapshotYaml),
   }
 }
 

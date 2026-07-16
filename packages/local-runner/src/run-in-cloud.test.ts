@@ -148,6 +148,54 @@ project:
 version: '1.0.0'
 `
 
+// A snapshot of a run where a code block raised.
+const SNAPSHOT_WITH_FAILED_BLOCK = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: NB
+      blocks:
+        - blockGroup: g1
+          content: raise ValueError("bad input")
+          id: c1
+          metadata: {}
+          sortingKey: a0
+          type: code
+          executionCount: 1
+          outputs:
+            - output_type: error
+              ename: ValueError
+              evalue: bad input
+              traceback:
+                - ValueError: bad input
+version: '1.0.0'
+`
+
+// A failed agent block: no error output, nothing on the run — it says so only in its own metadata.
+const SNAPSHOT_WITH_FAILED_AGENT = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: NB
+      blocks:
+        - blockGroup: g1
+          content: Write a readout.
+          id: a1
+          sortingKey: a0
+          type: agent
+          outputs: []
+          metadata:
+            deepnote_agent_model: auto
+            deepnote_agent_status: failed
+version: '1.0.0'
+`
+
 // Two notebooks, one name. Nothing forbids it, and it defeats any by-name matching.
 const DUPLICATE_NAMES = `metadata:
   createdAt: '2026-01-01T00:00:00.000Z'
@@ -244,12 +292,11 @@ describe('runInCloud', () => {
   })
 
   it('reports a failed run without throwing', async () => {
-    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', error: 'boom' })
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', error: 'boom', snapshot: {} })
     const result = await runInCloud(NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })
     expect(result.success).toBe(false)
     expect(result.error).toBe('boom')
-    expect(result.outputs).toEqual([])
-    expect(cloudMock.fetchSnapshotContent).not.toHaveBeenCalled()
+    expect(result.runId).toBe('r1')
   })
 
   it('throws when no token is available', async () => {
@@ -287,6 +334,84 @@ describe('runInCloud', () => {
     expect(result.viewUrl).toBe(
       'https://deepnote.com/workspace/deepnote-ws1/project/-proj-1/notebook/real-nb-id?secondary-sidebar=runs'
     )
+  })
+
+  it("keeps a failed run's outputs and view link instead of discarding them", async () => {
+    // The blocks that ran before the failure produced real output, and the link is the one thing
+    // worth offering someone whose run just failed. Both used to be thrown away.
+    cloudMock.pollRunUntilComplete.mockResolvedValue({
+      runId: 'r1',
+      status: 'error',
+      snapshot: {},
+      error: 'kernel died',
+    })
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'nb1', projectId: 'proj-1' }) // so the link resolves
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('kernel died')
+    expect(result.outputs).toHaveLength(1) // from SNAPSHOT_YAML, fetched despite the failure
+    expect(result.snapshotYaml).toBe(SNAPSHOT_YAML)
+    expect(result.viewUrl).toContain('secondary-sidebar=runs')
+  })
+
+  it('explains a failure the API gives no reason for, using the failing block', async () => {
+    // `run.error` is null on a real failed run more often than not.
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', snapshot: {}, error: null })
+    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_WITH_FAILED_BLOCK)
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+
+    expect(result.error).toMatch(/code block failed: ValueError: bad input/i)
+  })
+
+  it('reports a failed agent block, which reports itself in metadata and nowhere else', async () => {
+    // No error output, no run.error — a failed agent is otherwise completely silent.
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', snapshot: {}, error: null })
+    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_WITH_FAILED_AGENT)
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+
+    expect(result.error).toMatch(/agent block failed/i)
+    expect(result.error).toMatch(/deepnote_agent_status/i)
+  })
+
+  it('never reports a failure with no reason at all', async () => {
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', snapshot: {}, error: null })
+    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_YAML) // nothing in it failed
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+
+    expect(result.error).toMatch(/status "error" and Deepnote reported no reason/i)
+  })
+
+  it('retries a terminal run whose snapshot has not landed yet', async () => {
+    // The snapshot can lag the status by a moment; one immediate re-fetch loses that race and
+    // reports a successful run with no outputs.
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: undefined })
+    cloudMock.getRun
+      .mockResolvedValueOnce({ runId: 'r1', status: 'success', snapshot: undefined }) // still not there
+      .mockResolvedValueOnce({ runId: 'r1', status: 'success', snapshot: {} }) // landed
+    const sleep = vi.fn(async () => {})
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep } })
+
+    expect(result.success).toBe(true)
+    expect(result.outputs).toHaveLength(1)
+    // One immediate re-fetch, then one waited-for retry — not a wait before every try.
+    expect(sleep).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up on a snapshot that never lands, without failing the run', async () => {
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: undefined })
+    cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: undefined })
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })
+
+    expect(result.success).toBe(true)
+    expect(result.snapshotYaml).toBeNull()
+    expect(result.outputs).toEqual([])
   })
 
   it('creates the notebook in Deepnote and runs it when it is not found (one call, no browser)', async () => {
