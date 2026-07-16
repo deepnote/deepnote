@@ -275,11 +275,37 @@ describe('runInCloud', () => {
     cloudMock.fetchSnapshotContent.mockResolvedValue(null)
 
     // The run finished; only the snapshot is missing. Report that, do not throw.
-    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+    // `sleep` is stubbed because the settling loop would otherwise wait for real here.
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })
 
     expect(result.runId).toBe('r1')
     expect(result.status).toBe('success')
     expect(result.snapshotYaml).toBeNull()
+  })
+
+  it('throws when the snapshot exists but cannot be read, rather than calling the run empty', async () => {
+    // A download that keeps failing is not the same as a run with no outputs. Reporting
+    // `success: true` with nothing — or "Deepnote reported no reason" — would be inventing an answer.
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
+    cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
+    cloudMock.fetchSnapshotContent.mockRejectedValue(new ApiError(502, 'snapshot download failed'))
+
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })).rejects.toThrow(
+      /snapshot download failed/i
+    )
+  })
+
+  it('keeps retrying a snapshot download that fails once, then succeeds', async () => {
+    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
+    cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
+    cloudMock.fetchSnapshotContent
+      .mockRejectedValueOnce(new ApiError(503, 'try later'))
+      .mockResolvedValueOnce(SNAPSHOT_YAML)
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })
+
+    expect(result.success).toBe(true)
+    expect(result.outputs).toHaveLength(1)
   })
 
   it('uses an explicit notebookId and baseUrl when provided', async () => {
