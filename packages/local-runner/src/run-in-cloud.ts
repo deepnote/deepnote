@@ -109,15 +109,19 @@ export async function runInCloud(
     })
 
     if (found) {
+      // Matched by name, so this notebook's blocks carry ids Deepnote assigned and the file's
+      // address nothing here. The create path can remap; this one has no mapping to offer, and
+      // running the whole notebook — or some unrelated block — is worse than saying so.
+      if (options.blockIds?.length) {
+        throw new Error(
+          'runInCloud: blockIds cannot be used with a notebook matched by name — its blocks carry ids ' +
+            'Deepnote assigned, which this file does not know. Pass options.notebookId together with ' +
+            "that notebook's own block ids, or run the whole notebook."
+        )
+      }
       notebookId = found.notebookId
       projectId = found.projectId
-      started = await triggerNotebookRun(baseUrl, token, {
-        notebookId,
-        inputs: cloudInputs,
-        // This notebook was matched by name, so its blocks carry ids Deepnote assigned and the
-        // file's address nothing here. Unlike the create path there is no mapping to apply.
-        blockIds: rejectUnaddressableBlockIds(options.blockIds),
-      })
+      started = await triggerNotebookRun(baseUrl, token, { notebookId, inputs: cloudInputs })
     } else if (options.createIfMissing !== false) {
       // Not in Deepnote yet — create it there and run it, without leaving this call. We are
       // authenticated by definition (a token is required above), so the browser-based import flow
@@ -263,24 +267,6 @@ function localNotebookId(
       `${file.project.notebooks.length} notebooks, so there is no way to tell which one's input blocks ` +
       'should type these overrides. Run a file whose notebook id matches, or pass no inputs.'
   )
-}
-
-/**
- * Refuse a targeted run against a notebook we resolved by name.
- *
- * The ids came from the local file, but this notebook was matched by name, so Deepnote gave its
- * blocks ids of their own. Running the whole notebook instead — or some unrelated block — would both
- * be worse than saying so.
- */
-function rejectUnaddressableBlockIds(blockIds: string[] | undefined): undefined {
-  if (blockIds?.length) {
-    throw new Error(
-      'runInCloud: blockIds cannot be used with a notebook matched by name — its blocks carry ids ' +
-        'Deepnote assigned, which this file does not know. Pass options.notebookId together with that ' +
-        "notebook's own block ids, or run the whole notebook."
-    )
-  }
-  return undefined
 }
 
 /**
