@@ -6,6 +6,51 @@ import { describe, expect, it } from 'vitest'
 import { readSnapshot } from './read-snapshot'
 import { parseSnapshot } from './snapshot-view'
 
+/** Inputs carrying the per-type metadata that gives their values meaning. */
+const DESCRIBED_INPUTS = `
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  snapshotHash: abc123
+environment:
+  pythonVersion: "3.12"
+execution:
+  startedAt: 2025-01-01T00:00:00.000Z
+  finishedAt: 2025-01-01T00:00:01.000Z
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: NB
+      blocks:
+        - blockGroup: "1"
+          id: b-slider
+          sortingKey: "1"
+          type: input-slider
+          content: ""
+          metadata:
+            deepnote_variable_name: months
+            deepnote_input_label: Trailing months
+            deepnote_variable_value: "6"
+            deepnote_slider_min_value: 3
+            deepnote_slider_max_value: 12
+            deepnote_slider_step: 1
+        - blockGroup: "2"
+          id: b-select
+          sortingKey: "2"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: region
+            deepnote_input_label: Region
+            deepnote_variable_value: Europe
+            deepnote_variable_options:
+              - Europe
+              - Asia Pacific
+            deepnote_allow_multiple_values: false
+version: "1.0.0"
+`
+
 /** A snapshot with an input, a code block with outputs, a SQL block with outputs, and markdown. */
 const SNAPSHOT = `
 metadata:
@@ -75,7 +120,31 @@ describe('parseSnapshot', () => {
 
   it('surfaces the input values the run actually executed with', () => {
     const [input] = parseSnapshot(SNAPSHOT).notebooks[0].blocks
-    expect(input.input).toEqual({ name: 'count', value: '7' })
+    expect(input.input).toMatchObject({ name: 'count', type: 'input-slider', value: '7' })
+  })
+
+  it('describes what an input value means, not just what it was', () => {
+    // A value on its own is often not a fact you can show: `6` says nothing without `3–12`, and a
+    // select's value says nothing without its options. Same fields `listInputBlocks` gives a live
+    // UI — a reader of a finished run should not know less than one about to start it.
+    const [slider, select] = parseSnapshot(DESCRIBED_INPUTS).notebooks[0].blocks
+
+    expect(slider.input).toEqual({
+      name: 'months',
+      type: 'input-slider',
+      label: 'Trailing months',
+      value: '6',
+      min: 3,
+      max: 12,
+      step: 1,
+    })
+    expect(select.input).toMatchObject({
+      name: 'region',
+      label: 'Region',
+      value: 'Europe',
+      options: ['Europe', 'Asia Pacific'],
+      multiple: false,
+    })
   })
 
   it('reads outputs from every executable block type, not just code', () => {

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Explorer — Deepnote gallery</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --surface: #fcfcfb; --raised: #ffffff; --line: #e6e5e1;
+        --ink: #1a1a19; --ink-2: #55544e; --ink-3: #86847c;
+        --bar: #2a78d6; --bar-soft: #cde2fb; --sel: #eef4fd;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --surface: #1a1a19; --raised: #232322; --line: #34342f; --ink: #f2f1ec; --ink-2: #a8a69c; --ink-3: #78766d; --bar: #3987e5; --bar-soft: #184f95; --sel: #20293a; }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--surface); color: var(--ink); font-family: var(--sans); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 24px clamp(12px, 3vw, 24px) 64px; }
+      .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+      h1 { font-size: 1.1rem; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+      .lede { color: var(--ink-3); font-size: 0.8rem; margin: 2px 0 18px; }
+      .home { font-size: 0.76rem; color: var(--ink-3); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; }
+      .home:hover { color: var(--ink); }
+
+      .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); }
+      table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 640px; }
+      th { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; cursor: pointer; user-select: none; }
+      th:hover { background: var(--sel); }
+      th.on { background: var(--sel); }
+      th .name { font-size: 0.78rem; font-weight: 650; display: flex; align-items: center; gap: 5px; }
+      th .arrow { color: var(--bar); font-size: 0.7rem; }
+      th .dtype { font-family: var(--mono); font-size: 0.66rem; color: var(--ink-3); margin-top: 2px; }
+      th .meta { font-family: var(--mono); font-size: 0.66rem; color: var(--ink-3); margin-top: 1px; }
+      td { padding: 9px 14px; border-bottom: 1px solid var(--line); }
+      td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      tr:last-child td { border-bottom: 0; }
+      td.label { font-weight: 560; }
+
+      /* Distribution sparkline — the bins are precomputed in the snapshot, so this is a read. */
+      .spark { display: flex; align-items: flex-end; gap: 1px; height: 20px; margin-top: 5px; min-width: 70px; }
+      .spark i { flex: 1; background: var(--bar); border-radius: 2px 2px 0 0; min-height: 1px; opacity: 0.8; }
+      .spark i[data-empty="1"] { background: var(--line); }
+      .cats { display: flex; gap: 2px; margin-top: 5px; }
+      .cats i { height: 6px; background: var(--bar); border-radius: 2px; opacity: 0.8; }
+
+      .inspect { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); padding: 16px 18px; }
+      .inspect h2 { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; font-weight: 650; }
+      .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 0.8rem; }
+      .kv dt { color: var(--ink-3); }
+      .kv dd { margin: 0; font-family: var(--mono); font-size: 0.76rem; }
+      .bins { margin-top: 12px; display: flex; flex-direction: column; gap: 3px; }
+      .bin { display: grid; grid-template-columns: 12ch 1fr 3ch; gap: 8px; align-items: center; font-size: 0.72rem; color: var(--ink-3); font-family: var(--mono); }
+      .bin .track { height: 9px; background: var(--bar-soft); border-radius: 4px; overflow: hidden; }
+      .bin .fill { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
+      .note { margin-top: 12px; font-size: 0.74rem; color: var(--ink-3); }
+      .picker { padding: 40px; text-align: center; color: var(--ink-3); }
+      .empty { padding: 32px; text-align: center; color: var(--ink-3); font-size: 0.86rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <h1>Explorer</h1>
+        <a class="home" href="./">← gallery</a>
+      </div>
+      <p class="lede">The snapshot as a structured dataset. Nothing here is rendered by the notebook — the table, the dtypes and every distribution come out of the dataframe JSON the run left behind.</p>
+      <div id="root"></div>
+    </div>
+
+    <script src="./snapshot-reader.js"></script>
+    <script type="module">
+      // Sort state is in-memory and deliberately stays that way: no URL params, no persistence. This
+      // is a demo of what the data supports, not a grid component.
+      import { dataColumns, filePicker, findDataframe, loadSnapshot, rowLabel } from './gallery.js'
+
+      const $ = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
+      const root = document.getElementById('root')
+      let sort = { col: null, dir: -1 }
+      let selected = null
+      let df = null
+
+      loadSnapshot(view => { df = findDataframe(view); draw() }, (msg, show) => filePicker(root, msg, show))
+
+      function draw() {
+        root.replaceChildren()
+        if (!df) {
+          const e = $('div', 'empty')
+          e.textContent = 'This snapshot has no dataframe output — nothing to explore.'
+          root.append(e)
+          return
+        }
+        root.append(grid(), inspector())
+      }
+
+      function grid() {
+        const cols = dataColumns(df)
+        const rows = [...df.rows]
+        if (sort.col) {
+          rows.sort((a, b) => {
+            const x = a[sort.col], y = b[sort.col]
+            if (typeof x === 'number' && typeof y === 'number') return (x - y) * sort.dir
+            return String(x ?? '').localeCompare(String(y ?? '')) * sort.dir
+          })
+        }
+
+        const scroll = $('div', 'scroll')
+        const t = $('table')
+        const hr = $('tr')
+        const rowHead = $('th')
+        const rn = $('div', 'name'); rn.textContent = 'index'
+        const rd = $('div', 'dtype'); rd.textContent = 'object'
+        rowHead.append(rn, rd)
+        rowHead.onclick = () => { toggle('_deepnote_index_column'); }
+        hr.append(rowHead)
+        for (const col of cols) hr.append(header(col))
+        const thead = $('thead'); thead.append(hr)
+
+        const tb = $('tbody')
+        for (const row of rows) {
+          const tr = $('tr')
+          const lab = $('td', 'label'); lab.textContent = rowLabel(row)
+          tr.append(lab)
+          for (const col of cols) {
+            const td = $('td', typeof row[col.name] === 'number' ? 'num' : '')
+            td.textContent = String(row[col.name] ?? '')
+            tr.append(td)
+          }
+          tb.append(tr)
+        }
+        t.append(thead, tb)
+        scroll.append(t)
+        return scroll
+      }
+
+      function header(col) {
+        const cell = $('th', sort.col === col.name ? 'on' : '')
+        const name = $('div', 'name')
+        const label = document.createElement('span')
+        label.textContent = col.name
+        name.append(label)
+        if (sort.col === col.name) { const a = $('span', 'arrow'); a.textContent = sort.dir > 0 ? '▲' : '▼'; name.append(a) }
+        const dtype = $('div', 'dtype'); dtype.textContent = col.dtype ?? ''
+        cell.append(name, dtype)
+
+        const s = col.stats
+        if (s) {
+          if (Array.isArray(s.histogram) && s.histogram.length) {
+            const peak = Math.max(...s.histogram.map(b => b.count))
+            const spark = $('div', 'spark')
+            for (const bin of s.histogram) {
+              const i = $('i')
+              i.style.height = peak ? `${Math.max(6, (bin.count / peak) * 100)}%` : '1px'
+              if (!bin.count) i.dataset.empty = '1'
+              spark.append(i)
+            }
+            cell.append(spark)
+          } else if (Array.isArray(s.categories) && s.categories.length) {
+            const total = s.categories.reduce((n, c) => n + c.count, 0) || 1
+            const cats = $('div', 'cats')
+            for (const c of s.categories) { const i = $('i'); i.style.flex = String(c.count / total); cats.append(i) }
+            cell.append(cats)
+          }
+          const meta = $('div', 'meta')
+          meta.textContent = s.min != null ? `${s.min} – ${s.max}` : `${s.unique_count ?? '?'} unique · ${s.nan_count ?? 0} nan`
+          cell.append(meta)
+        }
+        cell.onclick = () => { selected = col.name; toggle(col.name) }
+        return cell
+      }
+
+      function toggle(name) {
+        if (sort.col === name) sort.dir *= -1
+        else sort = { col: name, dir: -1 }
+        draw()
+      }
+
+      function inspector() {
+        const col = dataColumns(df).find(c => c.name === selected) ?? dataColumns(df)[0]
+        const box = $('div', 'inspect')
+        const h = $('h2'); h.textContent = `Column · ${col.name}`
+        box.append(h)
+
+        const s = col.stats
+        const kv = $('dl', 'kv')
+        const pair = (k, v) => { const dt = $('dt'); dt.textContent = k; const dd = $('dd'); dd.textContent = v; kv.append(dt, dd) }
+        pair('dtype', col.dtype ?? '—')
+        pair('rows', String(df.row_count ?? df.rows.length))
+        if (s) {
+          pair('unique', String(s.unique_count ?? '—'))
+          pair('missing', String(s.nan_count ?? '—'))
+          if (s.min != null) pair('range', `${s.min} – ${s.max}`)
+        }
+        box.append(kv)
+
+        if (!s) {
+          const n = $('p', 'note'); n.textContent = 'This column carries no stats, so there is no distribution to show. The rows above are still exact.'
+          box.append(n)
+          return box
+        }
+
+        if (Array.isArray(s.histogram) && s.histogram.length) {
+          const peak = Math.max(...s.histogram.map(b => b.count))
+          const bins = $('div', 'bins')
+          for (const bin of s.histogram) {
+            const r = $('div', 'bin')
+            const range = document.createElement('span')
+            range.textContent = `${bin.bin_start.toFixed(0)}–${bin.bin_end.toFixed(0)}`
+            const track = $('div', 'track'); const fill = $('i', 'fill')
+            fill.style.width = peak ? `${(bin.count / peak) * 100}%` : '0'
+            track.append(fill)
+            const n = document.createElement('span'); n.textContent = String(bin.count)
+            r.append(range, track, n)
+            bins.append(r)
+          }
+          box.append(bins)
+        } else if (Array.isArray(s.categories)) {
+          const bins = $('div', 'bins')
+          const peak = Math.max(...s.categories.map(c => c.count))
+          for (const c of s.categories) {
+            const r = $('div', 'bin')
+            const name = document.createElement('span'); name.textContent = c.name
+            const track = $('div', 'track'); const fill = $('i', 'fill')
+            fill.style.width = `${(c.count / peak) * 100}%`
+            track.append(fill)
+            const n = document.createElement('span'); n.textContent = String(c.count)
+            r.append(name, track, n)
+            bins.append(r)
+          }
+          box.append(bins)
+          const note = $('p', 'note')
+          // Worth showing rather than hiding: the summary is lossy where the rows are not.
+          note.textContent = 'Categories are a summary — pandas collapses the tail into “N others”. The rows above hold every exact value.'
+          box.append(note)
+        }
+        return box
+      }
+    </script>
+  </body>
+</html>
