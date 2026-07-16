@@ -160,7 +160,15 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
     // re-running it. Checked before the bare `/api/cloud-runs` list route.
     const runMatch = pathname.match(/^\/api\/cloud-runs\/([^/]+)$/)
     if (req.method === 'GET' && runMatch) {
-      const runId = decodeURIComponent(runMatch[1])
+      // Decoded before the try, and separately: bad percent-encoding is a malformed request (400),
+      // not a failure to fetch the run (502). Matches how the static-file route reads a path.
+      let runId: string
+      try {
+        runId = decodeURIComponent(runMatch[1])
+      } catch {
+        sendJson(res, 400, { error: 'Invalid run id encoding' })
+        return
+      }
       try {
         const run = await cloudRunGetter(runId, { token: options.cloudToken })
         sendJson(res, 200, {

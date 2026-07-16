@@ -347,6 +347,39 @@ describe('runInCloud', () => {
     )
   })
 
+  it('rejects blockIds for a notebook matched by name, whose block ids we cannot know', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'real-nb-id', projectId: 'proj-1' })
+
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't', blockIds: ['c1'] })).rejects.toThrow(
+      /blockIds cannot be used with a notebook matched by name/i
+    )
+  })
+
+  it('types inputs against the only local notebook when notebookId is a cloud id', async () => {
+    // A cloud id names no local notebook, so the scope has to come from the file — not from
+    // notebooksInScope quietly widening to everything.
+    await runInCloud(NOTEBOOK, { count: 7 }, { token: 't', notebookId: 'cloud-assigned-id' })
+
+    expect(cloudMock.triggerNotebookRun).toHaveBeenCalledWith('https://api.deepnote.com', 't', {
+      notebookId: 'cloud-assigned-id',
+      inputs: { count: '7' }, // typed against the slider, not passed through raw
+      blockIds: undefined,
+    })
+  })
+
+  it('refuses to guess which notebook types the inputs when a cloud id names none of several', async () => {
+    await expect(
+      runInCloud(MULTI_NOTEBOOK, { flag: true }, { token: 't', notebookId: 'cloud-assigned-id' })
+    ).rejects.toThrow(/no way to tell which one's input blocks/i)
+  })
+
+  it('runs a multi-notebook file by cloud id when there are no inputs to type', async () => {
+    // Nothing to coerce, so the ambiguity above cannot bite.
+    const result = await runInCloud(MULTI_NOTEBOOK, {}, { token: 't', notebookId: 'cloud-assigned-id' })
+    expect(result.success).toBe(true)
+  })
+
   it('rethrows a not-found error when createIfMissing is false', async () => {
     cloudMock.triggerNotebookRun.mockRejectedValue(new Error('{"message":"Notebook not found"}'))
     await expect(runInCloud(NOTEBOOK, {}, { token: 't', createIfMissing: false })).rejects.toThrow(/not found/i)

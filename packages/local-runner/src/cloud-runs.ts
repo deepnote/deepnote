@@ -102,10 +102,14 @@ export async function listCloudRuns(
   let notebookId = options.notebookId
   let projectId: string | undefined
   if (!notebookId) {
+    // Not caught: a lookup that succeeds and matches nothing means "never run in the cloud", and
+    // answers with no runs. A lookup that *fails* means we don't know — reporting an empty history
+    // would be a guess, and a caller can't tell the two apart from `{ runs: [] }`. Somewhere that
+    // genuinely wants quiet (the demo's `/api/cloud-runs`) can catch this itself.
     const found = await findNotebook(baseUrl, token, {
       projectName: file.project.name,
       notebookName: file.project.notebooks[0]?.name,
-    }).catch(() => undefined)
+    })
     if (!found) {
       return { runs: [] }
     }

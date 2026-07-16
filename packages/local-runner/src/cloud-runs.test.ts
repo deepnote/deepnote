@@ -129,6 +129,14 @@ describe('listCloudRuns', () => {
     expect(result.viewUrl).toBeUndefined()
   })
 
+  it('propagates a failed lookup instead of reporting an empty history', async () => {
+    // "Found nothing" and "couldn't look" are different answers, and `{ runs: [] }` can only say the
+    // first. A caller that wants quiet (the demo route) can catch this itself.
+    cloudMock.findNotebook.mockRejectedValue(new Error('503 Service Unavailable'))
+
+    await expect(listCloudRuns(NOTEBOOK, { token: 't' })).rejects.toThrow(/service unavailable/i)
+  })
+
   it('throws without a token', async () => {
     await expect(listCloudRuns(NOTEBOOK)).rejects.toThrow(/token is required/i)
   })
@@ -158,6 +166,13 @@ describe('getCloudRun', () => {
     expect(result.snapshotYaml).toBeNull()
     expect(result.outputs).toEqual([])
     expect(cloudMock.fetchSnapshotContent).not.toHaveBeenCalled()
+  })
+
+  it('throws on a snapshot it cannot parse, rather than calling the run empty', async () => {
+    // The run succeeded, so "no outputs" would be a claim about the notebook — and a false one.
+    cloudMock.fetchSnapshotContent.mockResolvedValue('this: is: not: a: snapshot\n\t- broken')
+
+    await expect(getCloudRun('r2', { token: 't' })).rejects.toThrow(/could not be parsed/i)
   })
 
   it('throws without a token', async () => {

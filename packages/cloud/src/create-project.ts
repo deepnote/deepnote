@@ -114,7 +114,15 @@ async function request<T>(
   }
 
   const text = await response.text()
-  const parsed = schema.safeParse(text ? JSON.parse(text) : {})
+  let json: unknown
+  try {
+    json = text ? JSON.parse(text) : {}
+  } catch {
+    // A body that isn't JSON is the API misbehaving, and callers of this package expect ApiError —
+    // a raw SyntaxError would escape that contract and read as a bug in the caller.
+    throw new ApiError(502, `Invalid Deepnote response for ${fallback}: the body was not valid JSON.`)
+  }
+  const parsed = schema.safeParse(json)
   if (!parsed.success) {
     throw new ApiError(
       502,

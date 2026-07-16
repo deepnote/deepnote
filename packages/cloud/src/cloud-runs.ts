@@ -306,7 +306,17 @@ export async function listNotebookRuns(
   })
   await throwIfNotOk(response, 'Failed to list Deepnote runs')
 
-  const parsed = runsPageSchema.safeParse(await response.json())
+  // `response.json()` throws a raw SyntaxError on a non-JSON body, which would escape this package's
+  // ApiError contract — so read the text and parse it where the failure can be reported properly.
+  const body = await response.text()
+  let json: unknown
+  try {
+    json = body ? JSON.parse(body) : {}
+  } catch {
+    throw new ApiError(502, 'Invalid Deepnote runs response: the body was not valid JSON.')
+  }
+
+  const parsed = runsPageSchema.safeParse(json)
   if (!parsed.success) {
     throw new ApiError(502, `Invalid Deepnote runs response: ${parsed.error.issues.map(i => i.message).join(', ')}`)
   }

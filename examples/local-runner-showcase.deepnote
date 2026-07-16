@@ -158,7 +158,10 @@ project:
             ]
             df = pd.DataFrame(rows)
 
-            # --- apply the notebook inputs (input values arrive as strings) -------------
+            # --- apply the notebook inputs ---------------------------------------------
+            # Input blocks assign native Python values: a slider is an int, a checkbox a
+            # bool, a text input a str. The coercions below are belt-and-braces, so the
+            # notebook also survives being handed a raw string.
             def _num(x):
                 return float(str(x))
 

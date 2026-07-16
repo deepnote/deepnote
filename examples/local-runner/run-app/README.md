@@ -64,5 +64,7 @@ is 16 round-trips before the run even starts. Later runs reuse the notebook and 
   is on so the frame can report its height, and `postMessage` is the channel it uses — which is why the
   listener checks both the origin and the sending frame before believing a number.
 - Input values are coerced to each block's schema shape before running, so native control values just
-  work: an HTML range input hands over the number `7`, an `input-slider` block stores a string, and the
-  kernel and snapshot both end up seeing `'7'`.
+  work: the range input hands over the number `7` and the `input-slider` block stores `'7'`, because a
+  slider's value is a string in the schema. That is a storage detail, not what your code sees — the
+  block's generated Python is `months = 7`, so the kernel has an `int`. A text input stores and
+  injects a string, and a checkbox a real `True`/`False`.

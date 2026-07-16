@@ -123,6 +123,18 @@ describe('createProject', () => {
     ])
   })
 
+  it('reports a non-JSON body as an ApiError, not a raw SyntaxError', async () => {
+    // Callers of this package catch ApiError; a bare SyntaxError from JSON.parse would escape that
+    // and read as a bug in their code rather than the API misbehaving.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('<html>502 Bad Gateway</html>', { status: 201 }))
+    )
+
+    await expect(createProject(BASE, TOKEN, SPEC)).rejects.toThrow(ApiError)
+    await expect(createProject(BASE, TOKEN, SPEC)).rejects.toThrow(/not valid JSON/i)
+  })
+
   it('surfaces a bad token as a 401 ApiError', async () => {
     vi.stubGlobal(
       'fetch',

@@ -79,13 +79,16 @@ export async function runInCloud(
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
 
   const { file } = loadDeepnoteFile(input)
+  // Two different identities, only ever the same id by luck: `notebookId` addresses a notebook in
+  // Deepnote, while coercion needs the *local* blocks that define these inputs. An import — or our
+  // own create — assigns new ids, so a cloud id routinely names no local notebook.
   let notebookId = options.notebookId ?? resolveNotebookId(file)
   let projectId: string | undefined
   let created = false
   // The cloud API validates input types (e.g. a slider value must be a string), so coerce each
   // override to its schema shape first — the same normalization the on-disk snapshot needs. Scope
   // to the notebook being run so a name shared across notebooks is typed against the right block.
-  const cloudInputs = coerceInputs(file, inputs, notebookId)
+  const cloudInputs = coerceInputs(file, inputs, localNotebookId(file, inputs, options.notebookId))
 
   let started: Awaited<ReturnType<typeof triggerNotebookRun>>
   try {
@@ -111,7 +114,9 @@ export async function runInCloud(
       started = await triggerNotebookRun(baseUrl, token, {
         notebookId,
         inputs: cloudInputs,
-        blockIds: options.blockIds,
+        // This notebook was matched by name, so its blocks carry ids Deepnote assigned and the
+        // file's address nothing here. Unlike the create path there is no mapping to apply.
+        blockIds: rejectUnaddressableBlockIds(options.blockIds),
       })
     } else if (options.createIfMissing !== false) {
       // Not in Deepnote yet — create it there and run it, without leaving this call. We are
@@ -226,6 +231,59 @@ async function createFromFile(
 }
 
 /**
+ * The local notebook whose input blocks should type the overrides, or undefined when there is
+ * nothing to type and the scope cannot matter.
+ *
+ * Worth deciding explicitly, because `notebooksInScope` silently widens to *every* notebook when an
+ * id names none of them. That is harmless for a single-notebook file and wrong for anything else — a
+ * name defined in two notebooks would be typed against whichever came first — and a cloud id names
+ * no local notebook as a matter of course, so the fallback would be doing the deciding.
+ */
+function localNotebookId(
+  file: DeepnoteFile,
+  inputs: Record<string, unknown>,
+  explicitCloudId: string | undefined
+): string | undefined {
+  if (Object.keys(inputs).length === 0) {
+    return undefined
+  }
+  if (explicitCloudId === undefined) {
+    // The id came from the file itself, so it names a local notebook by construction.
+    return resolveNotebookId(file)
+  }
+  if (file.project.notebooks.some(notebook => notebook.id === explicitCloudId)) {
+    return explicitCloudId
+  }
+  const only = file.project.notebooks.length === 1 ? file.project.notebooks[0] : undefined
+  if (only) {
+    return only.id
+  }
+  throw new Error(
+    `runInCloud: notebookId "${explicitCloudId}" is not in this file, and the file has ` +
+      `${file.project.notebooks.length} notebooks, so there is no way to tell which one's input blocks ` +
+      'should type these overrides. Run a file whose notebook id matches, or pass no inputs.'
+  )
+}
+
+/**
+ * Refuse a targeted run against a notebook we resolved by name.
+ *
+ * The ids came from the local file, but this notebook was matched by name, so Deepnote gave its
+ * blocks ids of their own. Running the whole notebook instead — or some unrelated block — would both
+ * be worse than saying so.
+ */
+function rejectUnaddressableBlockIds(blockIds: string[] | undefined): undefined {
+  if (blockIds?.length) {
+    throw new Error(
+      'runInCloud: blockIds cannot be used with a notebook matched by name — its blocks carry ids ' +
+        'Deepnote assigned, which this file does not know. Pass options.notebookId together with that ' +
+        "notebook's own block ids, or run the whole notebook."
+    )
+  }
+  return undefined
+}
+
+/**
  * Translate the caller's source block ids into the ids Deepnote assigned when creating the notebook.
  *
  * Throws on an id that didn't map rather than silently dropping it: a targeted run that quietly ran
@@ -273,9 +331,9 @@ function isNotFoundError(err: unknown): boolean {
 function coerceInputs(
   file: DeepnoteFile,
   inputs: Record<string, unknown>,
-  notebookId: string
+  notebookId: string | undefined
 ): Record<string, unknown> {
-  const byName = inputBlocksByName(notebooksInScope(file, { notebookId }))
+  const byName = inputBlocksByName(notebooksInScope(file, notebookId === undefined ? {} : { notebookId }))
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(inputs)) {
     const blocks = byName.get(key)

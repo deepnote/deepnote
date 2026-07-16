@@ -157,6 +157,11 @@ describe('serveStatic', () => {
     }
   })
 
+  it('GET /api/cloud-runs/{runId} returns 400 for a malformed run id, not 500', async () => {
+    // Bad percent-encoding is a malformed request, not a failure to reach Deepnote.
+    expect(await rawStatus(handle.port, '/api/cloud-runs/%E0%A4%A')).toBe(400)
+  })
+
   it('GET /api/cloud-runs answers with an empty list when listing fails (no token, say)', async () => {
     // A demo without a token is a normal state, not a server error.
     const quiet = await serveStatic({
