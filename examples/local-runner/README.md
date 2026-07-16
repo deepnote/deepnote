@@ -14,8 +14,10 @@ hosting.** Both scripts build the package first, so a clean checkout works with 
 Both examples draw on two committed artifacts at the `examples/` root:
 
 - [`local-runner-showcase.deepnote`](../local-runner-showcase.deepnote) — an input-rich sales
-  dashboard (a KPI, a table, a chart, and a written summary). Deterministic and key-free, so the
-  run-app can execute it live.
+  dashboard (a KPI, a table, a chart, and a written summary), closing with an **agent block** that
+  writes an executive readout. The dashboard is deterministic and key-free; only the agent block
+  needs a key, and it runs last, so a keyless run still renders the whole dashboard and reports the
+  error on that block alone.
 - [`snapshot-showcase.snapshot.deepnote`](../snapshot-showcase.snapshot.deepnote) — that dashboard,
   already run, plus an **agent block with precomputed output**. The snapshot viewer renders it with
   zero setup, showing agent-block support without anyone needing an API key.

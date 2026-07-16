@@ -22,7 +22,11 @@ project:
           content: |-
             Edit the inputs, then **Run** — the notebook recomputes a small revenue
             dashboard (a KPI, a table, and a chart) from deterministic synthetic data.
-            No API keys, no network.
+
+            The dashboard needs no API keys and no network. The **agent block** at the
+            end does: **Run** reads `OPENAI_API_KEY` from the environment, while **Run
+            in cloud** needs only `DEEPNOTE_TOKEN` — Deepnote supplies the model there.
+            With no key the dashboard still renders and only the agent block errors.
           metadata: {}
         - blockGroup: g0000000-0000-0000-0000-000000000003
           id: b0000000000000000000000000000003
@@ -290,4 +294,24 @@ project:
             </div>
             ''')
           metadata: {}
+        - blockGroup: g0000000-0000-0000-0000-000000000010
+          id: b0000000000000000000000000000010
+          sortingKey: b5
+          type: agent
+          content: |-
+            Write a short executive readout of this quarter for the sales lead.
+
+            Work from what the notebook already computed — the `view` dataframe (the
+            selected regions and months), `by_region`, and the `total`, `target_total`,
+            `pct` and `delta` values. Do not reload or regenerate the data.
+
+            1. Add one code block that ranks each region in `view` by month-over-month
+               growth and prints the strongest and weakest with their rates.
+            2. Add one markdown block: three bullets on what stands out this period,
+               then one recommendation line.
+
+            Stop after those two blocks. Quote the actual numbers you computed, and
+            take the analyst notes above into account.
+          metadata:
+            deepnote_agent_model: auto
 version: 1.0.0
