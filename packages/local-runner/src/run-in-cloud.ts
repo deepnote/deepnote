@@ -5,28 +5,19 @@ import {
   fetchSnapshotContent,
   findNotebook,
   getRun,
-  getWorkspace,
   isSuccessStatus,
-  listNotebookRuns,
-  notebookUrl,
   type PollOptions,
   type ProjectSpec,
   pollRunUntilComplete,
-  type RunSummary,
   triggerNotebookRun,
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { applyInputOverrides } from './apply-input-overrides'
+import { buildViewUrl, DEFAULT_CLOUD_API_URL, extractOutputs, notebookNameFor, requireToken } from './cloud-common'
 import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import type { RunBlockOutput } from './run-with-inputs'
-import type { SnapshotView } from './snapshot-view'
-import { parseSnapshot } from './snapshot-view'
-
-/** Environment variable holding the Deepnote API token (matches the CLI). */
-const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN'
-const DEFAULT_CLOUD_API_URL = 'https://api.deepnote.com'
 
 export interface RunInCloudOptions {
   /** Bearer token for the Deepnote API. Defaults to `process.env.DEEPNOTE_TOKEN`. */
@@ -84,10 +75,7 @@ export async function runInCloud(
   inputs: Record<string, unknown> = {},
   options: RunInCloudOptions = {}
 ): Promise<RunInCloudResult> {
-  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
-  if (!token) {
-    throw new Error(`runInCloud: a Deepnote API token is required (pass options.token or set ${DEEPNOTE_TOKEN_ENV}).`)
-  }
+  const token = requireToken('runInCloud', options.token)
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
 
   const { file } = loadDeepnoteFile(input)
@@ -166,112 +154,6 @@ export async function runInCloud(
   }
 }
 
-export interface GetCloudRunOptions {
-  /** Bearer token for the Deepnote API. Defaults to `process.env.DEEPNOTE_TOKEN`. */
-  token?: string
-  /** API base URL. Defaults to `https://api.deepnote.com`. */
-  baseUrl?: string
-}
-
-export interface CloudRun {
-  runId: string
-  status: string
-  success: boolean
-  /** Per-block outputs parsed from the run's snapshot, in document order (empty if it has none). */
-  outputs: RunBlockOutput[]
-  /** The run's snapshot as `.deepnote` YAML, or `null` if it produced none. */
-  snapshotYaml: string | null
-  /** A human-readable message for a failed run. */
-  error?: string
-}
-
-/**
- * Fetch a finished run and parse its snapshot — the outputs of a run you already know the id of,
- * without re-running anything.
- *
- * Pairs with {@link listCloudRuns}: list the history, then read any run out of it. Only the run id is
- * needed; the local file is irrelevant, since the snapshot is whatever Deepnote executed.
- */
-export async function getCloudRun(runId: string, options: GetCloudRunOptions = {}): Promise<CloudRun> {
-  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
-  if (!token) {
-    throw new Error(`getCloudRun: a Deepnote API token is required (pass options.token or set ${DEEPNOTE_TOKEN_ENV}).`)
-  }
-  const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
-
-  const run = await getRun(baseUrl, token, runId, { snapshotDelivery: 'inline' })
-  const success = isSuccessStatus(run.status)
-  const snapshotYaml = success ? await fetchSnapshotContent(run, { baseUrl, token }) : null
-
-  return {
-    runId: run.runId,
-    status: run.status,
-    success,
-    outputs: snapshotYaml ? extractOutputs(snapshotYaml) : [],
-    snapshotYaml,
-    error: success ? undefined : describeRunError(run),
-  }
-}
-
-export interface ListCloudRunsOptions {
-  /** Bearer token for the Deepnote API. Defaults to `process.env.DEEPNOTE_TOKEN`. */
-  token?: string
-  /** API base URL. Defaults to `https://api.deepnote.com`. */
-  baseUrl?: string
-  /** List runs for this cloud notebook id directly, skipping resolution from the file. */
-  notebookId?: string
-  /** How many runs to fetch. The API decides the default. */
-  limit?: number
-}
-
-export interface ListCloudRunsResult {
-  /** The notebook's runs, newest first. Empty when the notebook isn't in Deepnote yet. */
-  runs: RunSummary[]
-  /** The cloud notebook id, once resolved. Undefined when the notebook isn't in Deepnote. */
-  notebookId?: string
-  /** Browser URL to the notebook's runs sidebar in Deepnote. */
-  viewUrl?: string
-}
-
-/**
- * List a file's runs in Deepnote, newest first.
- *
- * Resolves the notebook by name (the file's own id is not Deepnote's), so a file that has never been
- * run in the cloud simply returns no runs rather than throwing — that is the normal empty state, not
- * an error. Includes runs started anywhere, including from the Deepnote UI.
- */
-export async function listCloudRuns(
-  input: DeepnoteInput,
-  options: ListCloudRunsOptions = {}
-): Promise<ListCloudRunsResult> {
-  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
-  if (!token) {
-    throw new Error(
-      `listCloudRuns: a Deepnote API token is required (pass options.token or set ${DEEPNOTE_TOKEN_ENV}).`
-    )
-  }
-  const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
-  const { file } = loadDeepnoteFile(input)
-
-  let notebookId = options.notebookId
-  let projectId: string | undefined
-  if (!notebookId) {
-    const found = await findNotebook(baseUrl, token, {
-      projectName: file.project.name,
-      notebookName: file.project.notebooks[0]?.name,
-    }).catch(() => undefined)
-    if (!found) {
-      return { runs: [] }
-    }
-    notebookId = found.notebookId
-    projectId = found.projectId
-  }
-
-  const page = await listNotebookRuns(baseUrl, token, notebookId, { pageSize: options.limit })
-  const viewUrl = await buildViewUrl(baseUrl, token, file, notebookId, projectId).catch(() => undefined)
-  return { runs: page.runs, notebookId, viewUrl }
-}
-
 /**
  * Create the file's project, notebooks, and blocks in Deepnote, and return the ids of the notebook
  * matching `target.notebookId` in the source (falling back to the first).
@@ -324,42 +206,6 @@ async function createFromFile(
   return { notebookId: match.id, projectId: result.projectId }
 }
 
-/** Best-effort browser URL to view the notebook's runs in Deepnote after a successful run. */
-async function buildViewUrl(
-  baseUrl: string,
-  token: string,
-  file: DeepnoteFile,
-  notebookId: string,
-  knownProjectId: string | undefined
-): Promise<string | undefined> {
-  let projectId = knownProjectId
-  if (!projectId) {
-    const found = await findNotebook(baseUrl, token, {
-      projectName: file.project.name,
-      notebookName: notebookNameFor(file, notebookId),
-    }).catch(() => undefined)
-    projectId = found?.projectId
-  }
-  if (!projectId) {
-    return undefined
-  }
-  const workspace = await getWorkspace(baseUrl, token).catch(() => undefined)
-  if (!workspace) {
-    return undefined
-  }
-  const domain = deriveDomain(baseUrl)
-  return notebookUrl({ domain, workspaceId: workspace.id, workspaceSlug: workspace.slug, projectId, notebookId })
-}
-
-/** api.deepnote.com -> deepnote.com (the browser domain). */
-function deriveDomain(baseUrl: string): string {
-  try {
-    return new URL(baseUrl).host.replace(/^api\./, '')
-  } catch {
-    return 'deepnote.com'
-  }
-}
-
 function resolveNotebookId(file: DeepnoteFile): string {
   const id = resolveSnapshotNotebookId(file)
   if (!id) {
@@ -368,16 +214,6 @@ function resolveNotebookId(file: DeepnoteFile): string {
     )
   }
   return id
-}
-
-/** The name of the notebook with the given id in the file (falls back to the first notebook). */
-function notebookNameFor(file: DeepnoteFile, notebookId: string): string | undefined {
-  for (const notebook of file.project.notebooks) {
-    if (notebook.id === notebookId) {
-      return notebook.name
-    }
-  }
-  return file.project.notebooks[0]?.name
 }
 
 /** True for a "notebook not found" style error (404 or a message that says so). */
@@ -406,27 +242,4 @@ function coerceInputs(
     out[key] = blocks ? coerceInputValueForBlocks(blocks, value) : value
   }
   return out
-}
-
-/**
- * Parse the per-block outputs out of a cloud snapshot's YAML, in document order. Any executable
- * block type carries outputs — code, SQL, visualization, big-number — so read them off whatever
- * block has them (via {@link parseSnapshot}) rather than special-casing `code`.
- */
-function extractOutputs(snapshotYaml: string): RunBlockOutput[] {
-  let view: SnapshotView
-  try {
-    view = parseSnapshot(snapshotYaml)
-  } catch {
-    return []
-  }
-  const outputs: RunBlockOutput[] = []
-  for (const notebook of view.notebooks) {
-    for (const block of notebook.blocks) {
-      if (block.outputs.length > 0) {
-        outputs.push({ blockId: block.id, outputs: block.outputs, executionCount: block.executionCount })
-      }
-    }
-  }
-  return outputs
 }
