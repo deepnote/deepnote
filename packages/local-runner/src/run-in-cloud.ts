@@ -228,18 +228,21 @@ async function createFromFile(
     onWarning: options.onWarning,
   })
 
-  // Deepnote assigns new ids, so map back by name — the file's own id is meaningless there.
-  const wantedName = notebookNameFor(file, target.notebookId)
-  const index = result.notebooks.findIndex(n => n.name === wantedName)
-  const match = index >= 0 ? result.notebooks[index] : result.notebooks[0]
+  // Deepnote assigns new ids, so the created notebook has to be identified some other way — by
+  // position, because `createProject` creates them in the order it was handed them. Not by name: a
+  // file may have two notebooks sharing one, and then the name picks whichever comes first rather
+  // than the one being run.
+  const index = toCreate.project.notebooks.findIndex(notebook => notebook.id === target.notebookId)
+  const match = index >= 0 ? result.notebooks[index] : undefined
   if (!match) {
-    throw new Error('runInCloud: created the project in Deepnote but it reported no notebooks.')
+    throw new Error(
+      'runInCloud: created the project in Deepnote, but could not tell which of its notebooks is the one being run.'
+    )
   }
 
   // source block id -> created block id, positionally, for the notebook being run.
-  const source = sortedBlocks[index >= 0 ? index : 0] ?? []
   const blockIds = new Map<string, string>()
-  source.forEach((block, i) => {
+  sortedBlocks[index].forEach((block, i) => {
     const created = match.blockIds[i]
     if (created) blockIds.set(block.id, created)
   })

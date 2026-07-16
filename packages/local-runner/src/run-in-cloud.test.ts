@@ -148,6 +148,34 @@ project:
 version: '1.0.0'
 `
 
+// Two notebooks, one name. Nothing forbids it, and it defeats any by-name matching.
+const DUPLICATE_NAMES = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: Same
+      blocks:
+        - blockGroup: g0
+          content: print("first")
+          id: first-code
+          metadata: {}
+          sortingKey: a0
+          type: code
+    - id: nb2
+      name: Same
+      blocks:
+        - blockGroup: g0
+          content: print("second")
+          id: second-code
+          metadata: {}
+          sortingKey: a0
+          type: code
+version: '1.0.0'
+`
+
 beforeEach(() => {
   vi.clearAllMocks()
   cloudMock.triggerNotebookRun.mockResolvedValue({ runId: 'r1', status: 'running' })
@@ -331,6 +359,29 @@ describe('runInCloud', () => {
       'https://api.deepnote.com',
       't',
       expect.objectContaining({ notebookId: 'new-nb', blockIds: ['cloud-code'] })
+    )
+  })
+
+  it('creates and runs the notebook that was asked for when two of them share a name', async () => {
+    // nb2 is the target. Identifying the created notebook by name would land on the first one, and
+    // take its block ids with it — the run would silently be of the wrong notebook.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [
+        { id: 'created-first', name: 'Same', blockIds: ['first-cloud'] },
+        { id: 'created-second', name: 'Same', blockIds: ['second-cloud'] },
+      ],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    await runInCloud(DUPLICATE_NAMES, {}, { token: 't', notebookId: 'nb2', blockIds: ['second-code'] })
+
+    expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith(
+      'https://api.deepnote.com',
+      't',
+      expect.objectContaining({ notebookId: 'created-second', blockIds: ['second-cloud'] })
     )
   })
 
