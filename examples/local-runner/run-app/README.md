@@ -1,8 +1,9 @@
 # run-app
 
 A page that runs [`../../local-runner-showcase.deepnote`](../../local-runner-showcase.deepnote)
-locally: edit the inputs, click **Run**, and real Python output — a KPI, a table, a chart — comes
-back, powered entirely by [`@deepnote/local-runner`](../../../packages/local-runner)'s `serveStatic`.
+locally: edit the inputs, click **Run**, and real Python output — a KPI, a table, a chart, and an
+agent-written readout — comes back, powered entirely by
+[`@deepnote/local-runner`](../../../packages/local-runner)'s `serveStatic`.
 
 It's an app shell, not a document: an inputs panel on the left, a results canvas on the right. Two
 files do the work — [`serve.mjs`](./serve.mjs) (`serveStatic({ dir, notebookPath })`) and
@@ -22,13 +23,26 @@ pnpm example:local-runner
 That builds the package and starts the server. Edit the inputs and hit **Run** — the notebook
 executes in a local kernel and the dashboard updates.
 
+The notebook's last block is an **agent block**, which needs an OpenAI key to run locally:
+
+```bash
+OPENAI_API_KEY=sk-... pnpm example:local-runner
+```
+
+`serve.mjs` also reads a `.env` in the working directory (like `deepnote run`), so the key can live
+there instead — the startup banner prints which keys it found. Without one, the dashboard still
+renders in full and only the agent block reports the missing key: it runs last, and the engine stops
+at the first failing block. `deepnote_agent_model: auto` resolves to `$OPENAI_MODEL` (default
+`gpt-5`) locally; in the cloud Deepnote picks the model.
+
 ## Run in Deepnote Cloud
 
 The page also has a **Run in cloud** button, wired to `POST /api/run-cloud` → `runInCloud` → the
 shared `@deepnote/cloud` client (the same one behind `deepnote run --cloud`). It runs the notebook in
 Deepnote Cloud and renders the returned snapshot.
 
-It needs a `DEEPNOTE_TOKEN`:
+It needs a `DEEPNOTE_TOKEN` — and only that: the agent block runs on Deepnote's side there, so no
+`OPENAI_API_KEY` is involved in a cloud run.
 
 ```bash
 DEEPNOTE_TOKEN=... pnpm example:local-runner
