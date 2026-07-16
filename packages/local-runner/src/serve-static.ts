@@ -4,8 +4,15 @@ import { extname, resolve, sep } from 'node:path'
 import { listInputBlocks } from './apply-input-overrides'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
-import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
-import { runInCloud } from './run-in-cloud'
+import type {
+  CloudRun,
+  GetCloudRunOptions,
+  ListCloudRunsOptions,
+  ListCloudRunsResult,
+  RunInCloudOptions,
+  RunInCloudResult,
+} from './run-in-cloud'
+import { getCloudRun, listCloudRuns, runInCloud } from './run-in-cloud'
 import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 import { runWithInputs } from './run-with-inputs'
 
@@ -20,6 +27,10 @@ export type CloudRunnerFn = (
   inputs: Record<string, unknown>,
   options?: RunInCloudOptions
 ) => Promise<RunInCloudResult>
+
+export type CloudRunListerFn = (input: DeepnoteInput, options?: ListCloudRunsOptions) => Promise<ListCloudRunsResult>
+
+export type CloudRunGetterFn = (runId: string, options?: GetCloudRunOptions) => Promise<CloudRun>
 
 export interface ServeStaticOptions {
   /** Directory of static files to serve (e.g. an `index.html` that drives the API). */
@@ -38,6 +49,10 @@ export interface ServeStaticOptions {
   runner?: RunnerFn
   /** Override the cloud runner (advanced; mainly for testing). Defaults to `runInCloud`. */
   cloudRunner?: CloudRunnerFn
+  /** Override the cloud-run lister (advanced; mainly for testing). Defaults to `listCloudRuns`. */
+  cloudRunLister?: CloudRunListerFn
+  /** Override the single cloud-run fetch (advanced; mainly for testing). Defaults to `getCloudRun`. */
+  cloudRunGetter?: CloudRunGetterFn
 }
 
 export interface ServeStaticHandle {
@@ -70,8 +85,13 @@ const CONTENT_TYPES: Record<string, string> = {
  * - `GET /api/info` → `{ notebook, inputs }` (input blocks for building controls)
  * - `POST /api/run` → `{ inputs }` → `{ outputs, summary, snapshotYaml }`; writes a snapshot next
  *   to `notebookPath` by default (like `deepnote run`), unless `persistSnapshot: false`
- * - `POST /api/run-cloud` → `{ inputs }` → `{ status, success, outputs, snapshotYaml }` via Deepnote
- *   Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`)
+ * - `POST /api/run-cloud` → `{ inputs }` → `{ status, success, outputs, snapshotYaml, created }` via
+ *   Deepnote Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`). Creates the notebook there
+ *   first if it doesn't exist, so one call is always enough.
+ * - `GET  /api/cloud-runs` → `{ runs, viewUrl }` — the notebook's run history in Deepnote. Answers
+ *   `{ runs: [] }` rather than an error when there's no token or the notebook isn't in Deepnote.
+ * - `GET  /api/cloud-runs/{runId}` → `{ status, success, outputs, snapshotYaml }` — one past run's
+ *   outputs, read from its snapshot without re-running it.
  * - any other GET → a file from `dir` (path-traversal + symlink guarded)
  *
  * Bad requests get a specific status: `400` for malformed JSON / bad path encoding / a non-object
@@ -84,6 +104,8 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   const rootDir = resolve(options.dir)
   const runner = options.runner ?? runWithInputs
   const cloudRunner = options.cloudRunner ?? runInCloud
+  const cloudRunLister = options.cloudRunLister ?? listCloudRuns
+  const cloudRunGetter = options.cloudRunGetter ?? getCloudRun
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -136,6 +158,37 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         viewUrl: result.viewUrl,
         error: result.error,
       })
+      return
+    }
+
+    // `/api/cloud-runs/{runId}` — one run's outputs, so the page can show a past run without
+    // re-running it. Checked before the bare `/api/cloud-runs` list route.
+    const runMatch = pathname.match(/^\/api\/cloud-runs\/([^/]+)$/)
+    if (req.method === 'GET' && runMatch) {
+      const runId = decodeURIComponent(runMatch[1])
+      try {
+        const run = await cloudRunGetter(runId, { token: options.cloudToken })
+        sendJson(res, 200, {
+          runId: run.runId,
+          status: run.status,
+          success: run.success,
+          outputs: run.outputs,
+          snapshotYaml: run.snapshotYaml,
+          error: run.error,
+        })
+      } catch (error) {
+        sendJson(res, 502, { error: error instanceof Error ? error.message : String(error) })
+      }
+      return
+    }
+
+    if (req.method === 'GET' && pathname === '/api/cloud-runs') {
+      // A notebook that has never run in the cloud is the normal empty state, and so is having no
+      // token at all — neither is worth an error in a demo, so both answer with an empty list and
+      // let the page stay quiet about it. Asking for a *specific* run that can't be read is
+      // different, and 502s above.
+      const listed = await cloudRunLister(notebookPath, { token: options.cloudToken }).catch(() => undefined)
+      sendJson(res, 200, listed ? { runs: listed.runs, viewUrl: listed.viewUrl } : { runs: [] })
       return
     }
 

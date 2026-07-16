@@ -114,6 +114,25 @@
       .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp 0.7s linear infinite; }
       @keyframes sp { to { transform: rotate(360deg); } }
 
+      /* Cloud runs — pinned to the bottom of the inputs panel (which is a flex column). */
+      .runs { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
+      .runs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+      .runs-head h2 { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin: 0; font-weight: 650; }
+      .runs-head a { font-size: 0.72rem; color: var(--accent); text-decoration: none; }
+      .runs-head a:hover { text-decoration: underline; }
+      .runs ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+      .run { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; font-size: 0.78rem; color: var(--ink-2); width: 100%; font-family: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+      .run:hover { background: var(--surface-2); }
+      .run.on { background: var(--accent-soft); color: var(--ink); }
+      .run:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .run .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--ink-3); }
+      .run .dot.success { background: var(--pos); }
+      .run .dot.failed { background: var(--neg); }
+      .run .dot.live { background: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
+      .run .when { color: var(--ink-3); }
+      .run .dur { margin-left: auto; font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); }
+      @keyframes pulse { 50% { opacity: 0.3; } }
+
       .results { padding: 26px clamp(18px, 4vw, 44px) 60px; overflow: auto; }
       .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
       .results-head h1 { font-size: 1.35rem; letter-spacing: -0.02em; margin: 0; font-weight: 660; }
@@ -150,6 +169,14 @@
           <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
         </div>
         <div class="status" id="status"></div>
+
+        <div class="runs" id="runs-panel" hidden>
+          <div class="runs-head">
+            <h2>Cloud runs</h2>
+            <a id="runs-link" href="#" target="_blank" rel="noopener" hidden>Open in Deepnote →</a>
+          </div>
+          <ul id="runs-list"></ul>
+        </div>
       </aside>
 
       <section class="results">
@@ -171,6 +198,10 @@
       const $ = (s) => document.querySelector(s)
       const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
       const state = {}
+
+      let lastRuns = null      // the most recent /api/cloud-runs payload, so the list can re-render
+      let shownRunId = null    // the past run on the canvas, if any (highlighted in the sidebar)
+      let rendered = false     // anything on the canvas yet? gates the open-on-latest-run behaviour
 
       try {
         const res = await fetch('/api/info')
@@ -245,6 +276,92 @@
       $('#run').onclick = () => go('/api/run', '#spin', 'Running in a local kernel…')
       $('#run-cloud').onclick = () => go('/api/run-cloud', '#spin-cloud', 'Running in Deepnote Cloud…')
 
+      loadCloudRuns()
+
+      // The notebook's run history in Deepnote — including runs started from the Deepnote UI, not
+      // just this page. Silent on failure: no token (or a notebook not in Deepnote yet) is a normal
+      // state for this demo, and the server already answers with an empty list.
+      async function loadCloudRuns() {
+        try {
+          const res = await fetch('/api/cloud-runs')
+          if (!res.ok) return
+          renderRuns(await res.json())
+        } catch {}
+      }
+
+      function renderRuns(data) {
+        lastRuns = data
+        const { runs, viewUrl } = data
+        const panel = $('#runs-panel')
+        if (!runs?.length) { panel.hidden = true; return }
+        panel.hidden = false
+
+        const link = $('#runs-link')
+        link.hidden = !viewUrl
+        if (viewUrl) link.href = viewUrl
+
+        const list = $('#runs-list')
+        list.innerHTML = ''
+        for (const run of runs.slice(0, 8)) {
+          const row = el('button', `run${run.runId === shownRunId ? ' on' : ''}`)
+          row.type = 'button'
+          const dot = el('span', `dot ${dotClass(run.status)}`)
+          const name = el('span'); name.textContent = label(run.status)
+          const when = el('span', 'when'); when.textContent = ago(run.createdAt)
+          const dur = el('span', 'dur'); dur.textContent = took(run)
+          row.append(dot, name, when, dur)
+          row.onclick = () => showRun(run.runId)
+          const li = el('li')
+          li.append(row)
+          list.append(li)
+        }
+
+        // Opening on "nothing ran yet" while a finished run sits in the sidebar is silly — its
+        // outputs are a fetch away. Show the newest one, unless something is already on the canvas.
+        if (!rendered) {
+          const latest = runs.find((r) => r.status === 'success')
+          if (latest) showRun(latest.runId)
+        }
+      }
+
+      // Render a past run's outputs from its snapshot, without re-running it.
+      async function showRun(runId) {
+        try {
+          const res = await fetch(`/api/cloud-runs/${encodeURIComponent(runId)}`)
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          shownRunId = runId
+          rendered = true
+          render(data)
+          const when = lastRuns?.runs.find((r) => r.runId === runId)?.createdAt
+          setStatus(`Showing a cloud run from ${ago(when)}`, 'ok')
+          if (lastRuns) renderRuns(lastRuns) // move the highlight
+        } catch (e) {
+          setStatus(cap(e.message), 'err')
+        }
+      }
+
+      const dotClass = (s) =>
+        s === 'success' ? 'success' : ['error', 'internal_error', 'stopped'].includes(s) ? 'failed' : 'live'
+
+      // 'internal_error' → 'Internal error'
+      const label = (s) => cap(String(s).replace(/_/g, ' '))
+
+      function ago(iso) {
+        if (!iso) return ''
+        const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
+        if (secs < 60) return 'just now'
+        if (secs < 3600) return `${Math.floor(secs / 60)}m ago`
+        if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`
+        return `${Math.floor(secs / 86400)}d ago`
+      }
+
+      function took({ createdAt, completedAt }) {
+        if (!completedAt || !createdAt) return ''
+        const secs = Math.round((new Date(completedAt) - new Date(createdAt)) / 1000)
+        return secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`
+      }
+
       async function go(endpoint, spinSel, msg) {
         $('#run').disabled = true; $('#run-cloud').disabled = true
         $(spinSel).className = 'spin'; setStatus(msg)
@@ -254,6 +371,9 @@
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
           if (data.success === false) throw new Error(data.error || `run ${data.status}`)
           render(data)
+          // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
+          rendered = true
+          shownRunId = null
           const where = endpoint.includes('cloud') ? 'cloud' : 'local'
           // `created` means the notebook wasn't in Deepnote and this run made it — worth saying once,
           // since it explains why the first cloud run is slower than the ones after it.
@@ -264,6 +384,8 @@
           setStatus(cap(e.message), 'err')
         } finally {
           $('#run').disabled = false; $('#run-cloud').disabled = false; $(spinSel).className = ''
+          // A cloud run adds to the history — including a failed one, which is worth seeing.
+          if (endpoint.includes('cloud')) loadCloudRuns()
         }
       }
 

@@ -237,6 +237,91 @@ export async function getRun(
   return normalizeRun(await response.json())
 }
 
+const runSummarySchema = z
+  .object({
+    runId: z.string(),
+    notebookId: z.string().optional(),
+    status: z.string(),
+    createdAt: z.string().optional(),
+    completedAt: z.string().nullish(),
+  })
+  .passthrough()
+
+const runsPageSchema = z
+  .object({
+    runs: z.array(runSummarySchema),
+    pagination: z
+      .object({ nextPageToken: z.string().nullish(), hasMore: z.boolean().optional() })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough()
+
+/** One run in a notebook's history. Lighter than {@link NormalizedRun}: no snapshot, no error body. */
+export interface RunSummary {
+  runId: string
+  status: string
+  createdAt?: string
+  /** Null while the run is still going. */
+  completedAt?: string | null
+}
+
+export interface RunsPage {
+  runs: RunSummary[]
+  nextPageToken?: string
+  hasMore: boolean
+}
+
+export interface ListRunsOptions {
+  /** Runs per page. The API decides the default (20 at time of writing). */
+  pageSize?: number
+  pageToken?: string
+  signal?: AbortSignal
+  requestTimeoutMs?: number
+}
+
+/**
+ * List a notebook's runs, newest first (`GET {baseUrl}/v2/notebooks/{notebookId}/runs`).
+ *
+ * Covers every run of the notebook, not just ones this client started — a run triggered from the
+ * Deepnote UI shows up here too.
+ */
+export async function listNotebookRuns(
+  baseUrl: string,
+  token: string,
+  notebookId: string,
+  options: ListRunsOptions = {}
+): Promise<RunsPage> {
+  const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/notebooks/${encodeURIComponent(notebookId)}/runs`)
+  if (options.pageSize != null) {
+    endpoint.searchParams.set('pageSize', String(options.pageSize))
+  }
+  if (options.pageToken) {
+    endpoint.searchParams.set('pageToken', options.pageToken)
+  }
+  const response = await fetch(endpoint.toString(), {
+    method: 'GET',
+    headers: authHeaders(token),
+    signal: options.signal ?? AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+  })
+  await throwIfNotOk(response, 'Failed to list Deepnote runs')
+
+  const parsed = runsPageSchema.safeParse(await response.json())
+  if (!parsed.success) {
+    throw new ApiError(502, `Invalid Deepnote runs response: ${parsed.error.issues.map(i => i.message).join(', ')}`)
+  }
+  return {
+    runs: parsed.data.runs.map(r => ({
+      runId: r.runId,
+      status: r.status,
+      createdAt: r.createdAt,
+      completedAt: r.completedAt,
+    })),
+    nextPageToken: parsed.data.pagination?.nextPageToken ?? undefined,
+    hasMore: parsed.data.pagination?.hasMore ?? false,
+  }
+}
+
 /** Transient = worth retrying: rate limits, server errors, per-request timeouts, network failures. */
 function isTransientError(err: unknown): boolean {
   if (err instanceof ApiError) {

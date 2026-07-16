@@ -6,8 +6,15 @@ export { loadDeepnoteFile } from './load-file'
 export type { OpenInCloudOptions } from './open-in-cloud'
 export { openInCloud } from './open-in-cloud'
 export { readSnapshot } from './read-snapshot'
-export type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
-export { runInCloud } from './run-in-cloud'
+export type {
+  CloudRun,
+  GetCloudRunOptions,
+  ListCloudRunsOptions,
+  ListCloudRunsResult,
+  RunInCloudOptions,
+  RunInCloudResult,
+} from './run-in-cloud'
+export { getCloudRun, listCloudRuns, runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 export { runWithInputs } from './run-with-inputs'
 export type { RunnerFn, ServeStaticHandle, ServeStaticOptions } from './serve-static'

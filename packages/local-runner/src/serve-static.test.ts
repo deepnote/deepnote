@@ -66,6 +66,18 @@ beforeEach(async () => {
       outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
       snapshotYaml: `cloud ${JSON.stringify(inputs)}`,
     }),
+    cloudRunLister: async () => ({
+      runs: [{ runId: 'r1', status: 'success', createdAt: '2026-01-01T00:00:00.000Z', completedAt: null }],
+      notebookId: 'nb-cloud',
+      viewUrl: 'https://deepnote.com/workspace/w/project/-p/notebook/nb-cloud?secondary-sidebar=runs',
+    }),
+    cloudRunGetter: async runId => ({
+      runId,
+      status: 'success',
+      success: true,
+      outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
+      snapshotYaml: `snapshot of ${runId}`,
+    }),
   })
   base = `http://127.0.0.1:${handle.port}`
 })
@@ -107,6 +119,60 @@ describe('serveStatic', () => {
     expect(body.success).toBe(true)
     expect(body.status).toBe('success')
     expect(body.snapshotYaml).toContain('"count":3')
+  })
+
+  it('GET /api/cloud-runs returns the notebook run history and a view link', async () => {
+    const res = await fetch(`${base}/api/cloud-runs`)
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { runs: Array<{ runId: string; status: string }>; viewUrl: string }
+    expect(body.runs).toHaveLength(1)
+    expect(body.runs[0]).toMatchObject({ runId: 'r1', status: 'success' })
+    expect(body.viewUrl).toContain('secondary-sidebar=runs')
+  })
+
+  it("GET /api/cloud-runs/{runId} returns that run's outputs, so a past run can be shown", async () => {
+    const res = await fetch(`${base}/api/cloud-runs/r1`)
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { runId: string; success: boolean; snapshotYaml: string }
+    expect(body.runId).toBe('r1')
+    expect(body.success).toBe(true)
+    expect(body.snapshotYaml).toBe('snapshot of r1')
+  })
+
+  it('GET /api/cloud-runs/{runId} reports a fetch failure as an error, unlike the list route', async () => {
+    // Asking for a specific run that cannot be read IS an error — there is no sensible empty state.
+    const failing = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudRunGetter: async () => {
+        throw new Error('no such run')
+      },
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${failing.port}/api/cloud-runs/nope`)
+      expect(res.status).toBe(502)
+      expect((await res.json()) as { error: string }).toMatchObject({ error: 'no such run' })
+    } finally {
+      await failing.close()
+    }
+  })
+
+  it('GET /api/cloud-runs answers with an empty list when listing fails (no token, say)', async () => {
+    // A demo without a token is a normal state, not a server error.
+    const quiet = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudRunLister: async () => {
+        throw new Error('a Deepnote API token is required')
+      },
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${quiet.port}/api/cloud-runs`)
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ runs: [] })
+    } finally {
+      await quiet.close()
+    }
   })
 
   it('POST /api/run with an invalid body returns a 400 error JSON', async () => {
