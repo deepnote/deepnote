@@ -75,10 +75,14 @@ const result = await runInCloud(
 // result.status / result.success / result.outputs / result.snapshotYaml
 ```
 
-Runs a notebook that **already exists in Deepnote** (open it in the cloud first to get its id) via
-the runs API — trigger → poll → fetch snapshot — reusing the shared `@deepnote/cloud` client that
-also powers `deepnote run --cloud`. Needs a `DEEPNOTE_TOKEN`. `serveStatic` exposes it at
-`POST /api/run-cloud`.
+Runs the notebook in Deepnote via the runs API — trigger → poll → fetch snapshot — reusing the shared
+`@deepnote/cloud` client that also powers `deepnote run --cloud`. Needs a `DEEPNOTE_TOKEN`, and
+nothing else: if the notebook isn't in Deepnote yet, this creates it there (project, notebook, blocks)
+and runs it in the same call, reporting `created: true`. No browser step. Pass `createIfMissing: false`
+to fail instead. `serveStatic` exposes it at `POST /api/run-cloud`.
+
+The first run of a new notebook is the slow one — blocks are created one API request each — and
+`onCreateProgress` reports that. Later runs find the notebook by name and skip straight to running.
 
 ### Serve it to a static page
 

@@ -59,8 +59,10 @@ is 16 round-trips before the run even starts. Later runs reuse the notebook and 
 
 ## Notes
 
-- HTML outputs (the KPI cards, the table) render in a `sandbox`ed iframe with a **null origin**, so a
-  notebook's output can never touch this page. `allow-scripts` is used only to let the frame report
-  its height for a clean fit.
-- Input values are coerced to each block's schema shape before running — a slider yields `7`, the
-  kernel and snapshot see `'7'` — so native control values just work.
+- HTML outputs (the KPI cards, the table) render in a `sandbox`ed iframe with a **null origin**, so
+  output can't reach this page's DOM, storage, or cookies. It isn't sealed off entirely: `allow-scripts`
+  is on so the frame can report its height, and `postMessage` is the channel it uses — which is why the
+  listener checks both the origin and the sending frame before believing a number.
+- Input values are coerced to each block's schema shape before running, so native control values just
+  work: an HTML range input hands over the number `7`, an `input-slider` block stores a string, and the
+  kernel and snapshot both end up seeing `'7'`.

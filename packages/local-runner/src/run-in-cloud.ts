@@ -96,10 +96,14 @@ export async function runInCloud(
     }
     // The file's id may not match Deepnote's (an import assigns new ids) — look the notebook up by
     // name in the workspace and run its real id.
+    //
+    // Deliberately not caught: only a successful lookup that finds nothing means "not in Deepnote".
+    // A transient failure here would otherwise read as absence and create a duplicate project, so a
+    // flaky network would quietly litter the workspace. Failing is the lesser harm.
     const found = await findNotebook(baseUrl, token, {
       projectName: file.project.name,
       notebookName: notebookNameFor(file, notebookId),
-    }).catch(() => undefined)
+    })
 
     if (found) {
       notebookId = found.notebookId
@@ -120,7 +124,8 @@ export async function runInCloud(
       started = await triggerNotebookRun(baseUrl, token, {
         notebookId,
         inputs: cloudInputs,
-        blockIds: options.blockIds,
+        // Deepnote assigned new block ids, so the file's own ids address nothing there.
+        blockIds: mapBlockIds(options.blockIds, target.blockIds),
       })
     } else {
       throw err
@@ -168,27 +173,31 @@ async function createFromFile(
   file: DeepnoteFile,
   target: { notebookId: string; inputs: Record<string, unknown> },
   options: RunInCloudOptions
-): Promise<{ notebookId: string; projectId: string }> {
+): Promise<{ notebookId: string; projectId: string; blockIds: Map<string, string> }> {
   // Bake the overrides into a copy, so the caller's file is untouched.
   const toCreate: DeepnoteFile = structuredClone(file)
   if (Object.keys(target.inputs).length > 0) {
     applyInputOverrides(toCreate, target.inputs, { notebookId: target.notebookId })
   }
 
+  // Sorted once and reused below: `createProject` returns block ids in the order it was given the
+  // blocks, so this same ordering is what maps a source block onto its new cloud id.
+  const sortedBlocks = toCreate.project.notebooks.map(notebook =>
+    [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+  )
+
   const spec: ProjectSpec = {
     name: toCreate.project.name,
-    notebooks: toCreate.project.notebooks.map(notebook => ({
+    notebooks: toCreate.project.notebooks.map((notebook, i) => ({
       name: notebook.name,
-      blocks: [...notebook.blocks]
-        .sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
-        .map(block => ({
-          type: block.type,
-          content: block.content,
-          metadata: block.metadata,
-          ...('integrationId' in block && typeof block.integrationId === 'string'
-            ? { integrationId: block.integrationId }
-            : {}),
-        })),
+      blocks: sortedBlocks[i].map(block => ({
+        type: block.type,
+        content: block.content,
+        metadata: block.metadata,
+        ...('integrationId' in block && typeof block.integrationId === 'string'
+          ? { integrationId: block.integrationId }
+          : {}),
+      })),
     })),
   }
 
@@ -199,11 +208,42 @@ async function createFromFile(
 
   // Deepnote assigns new ids, so map back by name — the file's own id is meaningless there.
   const wantedName = notebookNameFor(file, target.notebookId)
-  const match = result.notebooks.find(n => n.name === wantedName) ?? result.notebooks[0]
+  const index = result.notebooks.findIndex(n => n.name === wantedName)
+  const match = index >= 0 ? result.notebooks[index] : result.notebooks[0]
   if (!match) {
     throw new Error('runInCloud: created the project in Deepnote but it reported no notebooks.')
   }
-  return { notebookId: match.id, projectId: result.projectId }
+
+  // source block id -> created block id, positionally, for the notebook being run.
+  const source = sortedBlocks[index >= 0 ? index : 0] ?? []
+  const blockIds = new Map<string, string>()
+  source.forEach((block, i) => {
+    const created = match.blockIds[i]
+    if (created) blockIds.set(block.id, created)
+  })
+
+  return { notebookId: match.id, projectId: result.projectId, blockIds }
+}
+
+/**
+ * Translate the caller's source block ids into the ids Deepnote assigned when creating the notebook.
+ *
+ * Throws on an id that didn't map rather than silently dropping it: a targeted run that quietly ran
+ * a different set of blocks — or the whole notebook — is worse than one that fails.
+ */
+function mapBlockIds(requested: string[] | undefined, created: Map<string, string>): string[] | undefined {
+  if (!requested?.length) {
+    return undefined
+  }
+  return requested.map(id => {
+    const mapped = created.get(id)
+    if (!mapped) {
+      throw new Error(
+        `runInCloud: block "${id}" is not in the notebook that was created in Deepnote, so it cannot be run.`
+      )
+    }
+    return mapped
+  })
 }
 
 function resolveNotebookId(file: DeepnoteFile): string {

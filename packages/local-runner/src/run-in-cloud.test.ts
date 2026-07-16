@@ -1,3 +1,4 @@
+import { ApiError } from '@deepnote/database-integrations'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the cloud client so tests hit no network.
@@ -300,6 +301,50 @@ describe('runInCloud', () => {
     expect(spec.notebooks[0].blocks.map((b: { type: string }) => b.type)).toEqual(['input-slider', 'code'])
     // The override is baked into the created block, coerced to the slider's schema shape.
     expect(spec.notebooks[0].blocks[0].metadata).toMatchObject({ deepnote_variable_value: '7' })
+  })
+
+  it('does not create anything when the notebook lookup itself fails', async () => {
+    // A transient /v2/projects failure is not evidence of absence. Treating it as "not found" would
+    // create a duplicate project every time the network hiccuped.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockRejectedValue(new ApiError(503, 'Service Unavailable'))
+
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't' })).rejects.toThrow(/service unavailable/i)
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('runs the created block ids, not the source file ids, for a targeted run', async () => {
+    // Deepnote assigns new block ids on create, so forwarding the file's own ids would target
+    // nothing — or worse, something else.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [{ id: 'new-nb', name: 'NB', blockIds: ['cloud-slider', 'cloud-code'] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    // 'c1' is the code block, second in sortingKey order -> 'cloud-code'.
+    await runInCloud(NOTEBOOK, {}, { token: 't', blockIds: ['c1'] })
+
+    expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith(
+      'https://api.deepnote.com',
+      't',
+      expect.objectContaining({ notebookId: 'new-nb', blockIds: ['cloud-code'] })
+    )
+  })
+
+  it('fails a targeted run asking for a block the created notebook does not have', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [{ id: 'new-nb', name: 'NB', blockIds: ['cloud-slider', 'cloud-code'] }],
+    })
+
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't', blockIds: ['nope'] })).rejects.toThrow(
+      /block "nope" is not in the notebook/i
+    )
   })
 
   it('rethrows a not-found error when createIfMissing is false', async () => {

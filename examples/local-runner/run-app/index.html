@@ -333,9 +333,15 @@
           shownRunId = runId
           rendered = true
           render(data)
-          const when = lastRuns?.runs.find((r) => r.runId === runId)?.createdAt
-          setStatus(`Showing a cloud run from ${ago(when)}`, 'ok')
           if (lastRuns) renderRuns(lastRuns) // move the highlight
+          const when = ago(lastRuns?.runs.find((r) => r.runId === runId)?.createdAt)
+          // A failed run has no outputs to show, so saying "showing a run" in green over an empty
+          // canvas reads as success. Report the failure instead.
+          if (data.success === false) {
+            setStatus(`That run ${label(data.status).toLowerCase()} ${when}${data.error ? ': ' + data.error : ''}`, 'err')
+          } else {
+            setStatus(`Showing a cloud run from ${when}`, 'ok')
+          }
         } catch (e) {
           setStatus(cap(e.message), 'err')
         }
