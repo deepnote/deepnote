@@ -368,16 +368,28 @@ describe('runInCloud', () => {
     })
   })
 
-  it('refuses to guess which notebook types the inputs when a cloud id names none of several', async () => {
+  it('refuses to guess which notebook a cloud id means when typing inputs against several', async () => {
     await expect(
       runInCloud(MULTI_NOTEBOOK, { flag: true }, { token: 't', notebookId: 'cloud-assigned-id' })
-    ).rejects.toThrow(/no way to tell which one's input blocks/i)
+    ).rejects.toThrow(/no way to tell which one of them it means/i)
   })
 
-  it('runs a multi-notebook file by cloud id when there are no inputs to type', async () => {
-    // Nothing to coerce, so the ambiguity above cannot bite.
+  it('runs a multi-notebook file by cloud id when nothing needs resolving locally', async () => {
+    // No inputs to type, and the id ran first time, so which local notebook it means never comes up.
     const result = await runInCloud(MULTI_NOTEBOOK, {}, { token: 't', notebookId: 'cloud-assigned-id' })
     expect(result.success).toBe(true)
+  })
+
+  it('refuses to guess which notebook to find or create when a cloud id names none of several', async () => {
+    // Even with no inputs: the by-name lookup and the create path both have to pick a notebook of
+    // the file, and `notebookNameFor` would quietly pick the first.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+
+    await expect(runInCloud(MULTI_NOTEBOOK, {}, { token: 't', notebookId: 'cloud-assigned-id' })).rejects.toThrow(
+      /no way to tell which one of them it means/i
+    )
+    expect(cloudMock.findNotebook).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
   it('rethrows a not-found error when createIfMissing is false', async () => {

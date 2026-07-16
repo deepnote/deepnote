@@ -67,8 +67,12 @@ export interface RunInCloudResult {
  * this call (`created: true`) — unless `createIfMissing: false`.
  *
  * Requires a Deepnote API token (`options.token` or `DEEPNOTE_TOKEN`), so it is always authenticated
- * and never needs the browser-based `/v1/import` flow that {@link openInCloud} exists for. A failed
- * run is reported via `success: false` + `error`; only missing config throws.
+ * and never needs the browser-based `/v1/import` flow that {@link openInCloud} exists for.
+ *
+ * A run that *executes* and fails is reported, not thrown: `success: false` plus `error`. Everything
+ * that stops us getting that far does throw — a missing token, an ambiguous request, a failed
+ * lookup or create, and a response we cannot read (including a snapshot that will not parse). The
+ * split is whether Deepnote ran the notebook and told us how it went, not whether the news is good.
  */
 export async function runInCloud(
   input: DeepnoteInput,
@@ -88,7 +92,9 @@ export async function runInCloud(
   // The cloud API validates input types (e.g. a slider value must be a string), so coerce each
   // override to its schema shape first — the same normalization the on-disk snapshot needs. Scope
   // to the notebook being run so a name shared across notebooks is typed against the right block.
-  const cloudInputs = coerceInputs(file, inputs, localNotebookId(file, inputs, options.notebookId))
+  // Nothing to coerce means nothing to scope, so don't resolve (or reject) an id we won't use.
+  const cloudInputs =
+    Object.keys(inputs).length > 0 ? coerceInputs(file, inputs, localNotebookId(file, options.notebookId)) : {}
 
   let started: Awaited<ReturnType<typeof triggerNotebookRun>>
   try {
@@ -100,12 +106,17 @@ export async function runInCloud(
     // The file's id may not match Deepnote's (an import assigns new ids) — look the notebook up by
     // name in the workspace and run its real id.
     //
+    // Both branches below need to know which *local* notebook this is — to look it up by name, and
+    // to create it. That is not something a cloud id can answer, so resolve it (or refuse) here,
+    // before either can act on `notebookNameFor`'s fall back to the first notebook.
+    const localId = localNotebookId(file, options.notebookId)
+
     // Deliberately not caught: only a successful lookup that finds nothing means "not in Deepnote".
     // A transient failure here would otherwise read as absence and create a duplicate project, so a
     // flaky network would quietly litter the workspace. Failing is the lesser harm.
     const found = await findNotebook(baseUrl, token, {
       projectName: file.project.name,
-      notebookName: notebookNameFor(file, notebookId),
+      notebookName: notebookNameFor(file, localId),
     })
 
     if (found) {
@@ -126,7 +137,9 @@ export async function runInCloud(
       // Not in Deepnote yet — create it there and run it, without leaving this call. We are
       // authenticated by definition (a token is required above), so the browser-based import flow
       // that `openInCloud` uses has nothing to offer here.
-      const target = await createFromFile(baseUrl, token, file, { notebookId, inputs }, options)
+      // `localId`, not `notebookId`: this picks which notebook of the file to run, and a cloud id
+      // names none of them.
+      const target = await createFromFile(baseUrl, token, file, { notebookId: localId, inputs }, options)
       notebookId = target.notebookId
       projectId = target.projectId
       created = true
@@ -235,22 +248,18 @@ async function createFromFile(
 }
 
 /**
- * The local notebook whose input blocks should type the overrides, or undefined when there is
- * nothing to type and the scope cannot matter.
+ * Which notebook *of the file* a request means — the one whose input blocks type the overrides, and
+ * whose name we look up (or create) in Deepnote.
  *
- * Worth deciding explicitly, because `notebooksInScope` silently widens to *every* notebook when an
- * id names none of them. That is harmless for a single-notebook file and wrong for anything else — a
- * name defined in two notebooks would be typed against whichever came first — and a cloud id names
- * no local notebook as a matter of course, so the fallback would be doing the deciding.
+ * Worth deciding in one place, because two helpers quietly guess when an id names no local notebook:
+ * `notebooksInScope` widens to every notebook, and `notebookNameFor` picks the first. Either is
+ * harmless for a single-notebook file and a coin flip for anything else — and a cloud id names no
+ * local notebook as a matter of course, so those fallbacks would be doing the deciding.
+ *
+ * Only call this where the answer is actually needed; a run that neither coerces nor falls back
+ * never has to know.
  */
-function localNotebookId(
-  file: DeepnoteFile,
-  inputs: Record<string, unknown>,
-  explicitCloudId: string | undefined
-): string | undefined {
-  if (Object.keys(inputs).length === 0) {
-    return undefined
-  }
+function localNotebookId(file: DeepnoteFile, explicitCloudId: string | undefined): string {
   if (explicitCloudId === undefined) {
     // The id came from the file itself, so it names a local notebook by construction.
     return resolveNotebookId(file)
@@ -264,8 +273,8 @@ function localNotebookId(
   }
   throw new Error(
     `runInCloud: notebookId "${explicitCloudId}" is not in this file, and the file has ` +
-      `${file.project.notebooks.length} notebooks, so there is no way to tell which one's input blocks ` +
-      'should type these overrides. Run a file whose notebook id matches, or pass no inputs.'
+      `${file.project.notebooks.length} notebooks, so there is no way to tell which one of them it means. ` +
+      'Run a file whose notebook id matches it, or a single-notebook file.'
   )
 }
 
@@ -317,9 +326,9 @@ function isNotFoundError(err: unknown): boolean {
 function coerceInputs(
   file: DeepnoteFile,
   inputs: Record<string, unknown>,
-  notebookId: string | undefined
+  notebookId: string
 ): Record<string, unknown> {
-  const byName = inputBlocksByName(notebooksInScope(file, notebookId === undefined ? {} : { notebookId }))
+  const byName = inputBlocksByName(notebooksInScope(file, { notebookId }))
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(inputs)) {
     const blocks = byName.get(key)

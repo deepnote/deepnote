@@ -201,7 +201,11 @@
 
       let lastRuns = null      // the most recent /api/cloud-runs payload, so the list can re-render
       let shownRunId = null    // the past run on the canvas, if any (highlighted in the sidebar)
-      let rendered = false     // anything on the canvas yet? gates the open-on-latest-run behaviour
+      // Bumped by everything that claims the results canvas. Several fetches can be in flight at
+      // once — the history loading on open, a run, a click on a past run — and they finish in
+      // whatever order they like, so each checks it still owns the canvas before painting. Zero also
+      // means "nothing has claimed it yet", which is what gates opening on the latest run.
+      let displayGen = 0
 
       try {
         const res = await fetch('/api/info')
@@ -317,8 +321,9 @@
         }
 
         // Opening on "nothing ran yet" while a finished run sits in the sidebar is silly — its
-        // outputs are a fetch away. Show the newest one, unless something is already on the canvas.
-        if (!rendered) {
+        // outputs are a fetch away. Show the newest one, unless a click got in first while this
+        // list was still loading; that run is the one the user asked for.
+        if (displayGen === 0) {
           const latest = runs.find((r) => r.status === 'success')
           if (latest) showRun(latest.runId)
         }
@@ -326,12 +331,14 @@
 
       // Render a past run's outputs from its snapshot, without re-running it.
       async function showRun(runId) {
+        const gen = ++displayGen
         try {
           const res = await fetch(`/api/cloud-runs/${encodeURIComponent(runId)}`)
           const data = await res.json()
+          // Superseded while this was in flight — say nothing rather than paint over newer output.
+          if (gen !== displayGen) return
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
           shownRunId = runId
-          rendered = true
           render(data)
           if (lastRuns) renderRuns(lastRuns) // move the highlight
           const when = ago(lastRuns?.runs.find((r) => r.runId === runId)?.createdAt)
@@ -343,7 +350,7 @@
             setStatus(`Showing a cloud run from ${when}`, 'ok')
           }
         } catch (e) {
-          setStatus(cap(e.message), 'err')
+          if (gen === displayGen) setStatus(cap(e.message), 'err')
         }
       }
 
@@ -369,16 +376,19 @@
       }
 
       async function go(endpoint, spinSel, msg) {
+        // Claimed up front, not on arrival: this is the newest thing the user asked for, so a
+        // history fetch still in flight from page load must not land on top of it.
+        const gen = ++displayGen
         $('#run').disabled = true; $('#run-cloud').disabled = true
         $(spinSel).className = 'spin'; setStatus(msg)
         try {
           const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: state }) })
           const data = await res.json()
+          if (gen !== displayGen) return
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
           if (data.success === false) throw new Error(data.error || `run ${data.status}`)
           render(data)
           // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
-          rendered = true
           shownRunId = null
           const where = endpoint.includes('cloud') ? 'cloud' : 'local'
           // `created` means the notebook wasn't in Deepnote and this run made it — worth saying once,
@@ -387,8 +397,9 @@
           if (data.viewUrl) statusLink(`${what} — `, data.viewUrl, 'view in Deepnote →')
           else setStatus(`Ran ${data.summary?.executedBlocks ?? ''} blocks in ${where}`.replace(/\s+/g, ' ').trim(), 'ok')
         } catch (e) {
-          setStatus(cap(e.message), 'err')
+          if (gen === displayGen) setStatus(cap(e.message), 'err')
         } finally {
+          // The buttons re-enable either way — a superseded run still released them.
           $('#run').disabled = false; $('#run-cloud').disabled = false; $(spinSel).className = ''
           // A cloud run adds to the history — including a failed one, which is worth seeing.
           if (endpoint.includes('cloud')) loadCloudRuns()

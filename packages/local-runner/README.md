@@ -34,8 +34,10 @@ for (const { blockId, outputs } of outputs) {
 - By **default it writes a snapshot** next to a path input, like `deepnote run` (`snapshotPath`).
   Pass `{ persistSnapshot: false }` to skip; inputs without a path (YAML/object) are never persisted.
 - Input values are **coerced** to each block's schema shape (e.g. a slider takes `7` or `'7'` and
-  stores `'7'`). The coerced values are what both the persisted file and the kernel see — the CLI
-  requires already-schema-shaped values, and this coercion is what lets a UI pass native ones.
+  stores `'7'`), which is what lets a UI pass native control values where the CLI requires
+  already-schema-shaped ones. That shape is how the value is **stored**, not what your code sees: the
+  input block's generated Python is `months = 7`, so a slider reaches the kernel as an `int`. A text
+  input stays a `str`, a checkbox becomes a real `True`/`False`.
 - A failing block is reported via `summary.failedBlocks` — it is **not** thrown. Only
   infrastructure/config errors throw (no Python env, missing toolkit, an invalid file).
 
