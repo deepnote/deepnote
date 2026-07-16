@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
@@ -215,6 +215,13 @@ describe('runWithInputs', () => {
       expect(result.snapshotPath).toBeDefined()
       expect(existsSync(result.snapshotPath ?? '')).toBe(true)
       expect(readdirSync(join(dir, 'snapshots')).some(f => f.endsWith('.snapshot.deepnote'))).toBe(true)
+
+      // What was written, not just that something was. The returned snapshot and the persisted one
+      // are built from the same (file, outputs, timing) precisely so they cannot drift — which is
+      // only worth anything if something checks. A write or serialization regression shows up here.
+      const written = readFileSync(result.snapshotPath ?? '', 'utf8')
+      expect(written).toBe(result.snapshotYaml)
+      expect(written).toContain('output_type: stream') // the block's outputs really are inline
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
