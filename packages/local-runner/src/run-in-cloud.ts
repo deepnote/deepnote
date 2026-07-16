@@ -182,12 +182,13 @@ export async function runInCloud(
 }
 
 /**
- * Create the file's project, notebooks, and blocks in Deepnote, and return the ids of the notebook
- * matching `target.notebookId` in the source (falling back to the first).
+ * Create the file's project, notebooks, and blocks in Deepnote, and return the ids of the one
+ * `target.notebookId` names — by position, never by falling back to the first, since running the
+ * wrong notebook is worse than not running.
  *
  * Input overrides are baked into the created blocks, scoped to the target notebook so a same-named
- * input in another notebook is left alone — the same scoping the upload path used, for the same
- * reason. Blocks are created in `sortingKey` order, which is the order the engine runs them in.
+ * input in another notebook is left alone. Blocks are created in `sortingKey` order, which is both
+ * the order the engine runs them in and what maps a source block onto its new cloud id.
  */
 async function createFromFile(
   baseUrl: string,
