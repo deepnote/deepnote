@@ -48,11 +48,14 @@ It needs a `DEEPNOTE_TOKEN` — and only that: the agent block runs on Deepnote'
 DEEPNOTE_TOKEN=... pnpm example:local-runner
 ```
 
-If the notebook already exists in your Deepnote workspace, it runs there and the outputs come back
-(with a "view in Deepnote" link). If it doesn't exist yet, `runInCloud` uploads it ("Open in
-Deepnote") and the button opens the import URL in a new tab — finish the import in Deepnote, then hit
-**Run in cloud** again. Without a token the button degrades gracefully and the status line says
-what's missing.
+One click is enough, whether or not the notebook is in Deepnote yet. If it already exists there, it
+runs and the outputs come back with a "view in Deepnote" link. If it doesn't, `runInCloud` creates it
+— project, notebook, blocks — and runs it in the same call, reporting `created: true`. Nothing opens
+a browser: a token is required either way, so there's no reason to hand the job to a logged-in
+session. Without a token the button degrades gracefully and the status line says what's missing.
+
+The first cloud run is the slow one — blocks are created one API request each, so a 16-block notebook
+is 16 round-trips before the run even starts. Later runs reuse the notebook and skip straight to it.
 
 ## Notes
 

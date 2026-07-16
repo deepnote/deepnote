@@ -132,7 +132,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         success: result.success,
         outputs: result.outputs,
         snapshotYaml: result.snapshotYaml,
-        launchUrl: result.launchUrl,
+        created: result.created,
         viewUrl: result.viewUrl,
         error: result.error,
       })

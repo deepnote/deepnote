@@ -252,14 +252,13 @@
           const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: state }) })
           const data = await res.json()
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-          if (data.launchUrl) {
-            window.open(data.launchUrl, '_blank', 'noopener')
-            setStatus('Uploaded to Deepnote — finish the import, then Run in cloud again.', 'ok'); return
-          }
           if (data.success === false) throw new Error(data.error || `run ${data.status}`)
           render(data)
           const where = endpoint.includes('cloud') ? 'cloud' : 'local'
-          if (data.viewUrl) statusLink(`Ran in ${where} — `, data.viewUrl, 'view in Deepnote →')
+          // `created` means the notebook wasn't in Deepnote and this run made it — worth saying once,
+          // since it explains why the first cloud run is slower than the ones after it.
+          const what = data.created ? `Created and ran in ${where}` : `Ran in ${where}`
+          if (data.viewUrl) statusLink(`${what} — `, data.viewUrl, 'view in Deepnote →')
           else setStatus(`Ran ${data.summary?.executedBlocks ?? ''} blocks in ${where}`.replace(/\s+/g, ' ').trim(), 'ok')
         } catch (e) {
           setStatus(cap(e.message), 'err')

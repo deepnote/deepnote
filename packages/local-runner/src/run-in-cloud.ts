@@ -1,5 +1,6 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import {
+  createProject,
   describeRunError,
   fetchSnapshotContent,
   findNotebook,
@@ -8,14 +9,15 @@ import {
   isSuccessStatus,
   notebookUrl,
   type PollOptions,
+  type ProjectSpec,
   pollRunUntilComplete,
   triggerNotebookRun,
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
+import { applyInputOverrides } from './apply-input-overrides'
 import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
-import { openInCloud } from './open-in-cloud'
 import type { RunBlockOutput } from './run-with-inputs'
 import type { SnapshotView } from './snapshot-view'
 import { parseSnapshot } from './snapshot-view'
@@ -36,10 +38,14 @@ export interface RunInCloudOptions {
   /** Polling controls forwarded to the cloud client (interval, timeout, onStatus, …). */
   poll?: PollOptions
   /**
-   * When the notebook is not found in Deepnote, upload it first ("Open in Deepnote") and return a
-   * `launchUrl` (status `needs-open`) to complete the import in a browser. Defaults to `true`.
+   * When the notebook is not in Deepnote, create it there (project, notebook, blocks) and run it.
+   * Defaults to `true`; pass `false` to fail with the original "not found" error instead.
    */
-  uploadIfMissing?: boolean
+  createIfMissing?: boolean
+  /** Called while creating a missing notebook's blocks — one request each, so this can be slow. */
+  onCreateProgress?: (created: number, total: number) => void
+  /** Sink for non-fatal problems while creating (e.g. a placeholder notebook left behind). */
+  onWarning?: (message: string) => void
 }
 
 export interface RunInCloudResult {
@@ -52,26 +58,24 @@ export interface RunInCloudResult {
   snapshotYaml: string | null
   /** A human-readable message for a failed run. */
   error?: string
-  /**
-   * Set when the notebook was not in Deepnote and was uploaded (status `needs-open`): open this URL
-   * in a browser to import it, then run again.
-   */
-  launchUrl?: string
+  /** True when the notebook was not in Deepnote and this call created it before running. */
+  created?: boolean
   /** Browser URL to open the notebook (with the runs sidebar) in Deepnote; set on a successful run. */
   viewUrl?: string
 }
 
 /**
- * Run an existing notebook in Deepnote Cloud (the "second way" to run, alongside {@link runWithInputs}).
+ * Run a notebook in Deepnote Cloud (the "second way" to run, alongside {@link runWithInputs}).
  *
  * Resolves the notebook id (from `notebookId` or the file), triggers a run with the given input
  * overrides, polls it to completion, and returns the executed snapshot plus the per-block outputs
  * parsed from it. If that id isn't found, it looks the notebook up by name in the workspace and runs
- * the real id; and if the notebook isn't in Deepnote at all, it uploads it ("Open in Deepnote") and
- * returns a `launchUrl` (status `needs-open`) to import in a browser — unless `uploadIfMissing: false`.
+ * the real id; and if the notebook isn't in Deepnote at all, it creates it there and runs it, all in
+ * this call (`created: true`) — unless `createIfMissing: false`.
  *
- * Requires a Deepnote API token (`options.token` or `DEEPNOTE_TOKEN`). A failed run is reported via
- * `success: false` + `error`; only missing config throws.
+ * Requires a Deepnote API token (`options.token` or `DEEPNOTE_TOKEN`), so it is always authenticated
+ * and never needs the browser-based `/v1/import` flow that {@link openInCloud} exists for. A failed
+ * run is reported via `success: false` + `error`; only missing config throws.
  */
 export async function runInCloud(
   input: DeepnoteInput,
@@ -87,6 +91,7 @@ export async function runInCloud(
   const { file } = loadDeepnoteFile(input)
   let notebookId = options.notebookId ?? resolveNotebookId(file)
   let projectId: string | undefined
+  let created = false
   // The cloud API validates input types (e.g. a slider value must be a string), so coerce each
   // override to its schema shape first — the same normalization the on-disk snapshot needs. Scope
   // to the notebook being run so a name shared across notebooks is typed against the right block.
@@ -114,21 +119,19 @@ export async function runInCloud(
         inputs: cloudInputs,
         blockIds: options.blockIds,
       })
-    } else if (options.uploadIfMissing !== false) {
-      // Not in Deepnote yet — upload it ("Open in Deepnote"). Opening the returned launchUrl in a
-      // browser imports it; after that, this same call will find it by name and run it. Upload to the
-      // same domain as the API base URL so a custom deployment doesn't fall back to deepnote.com, and
-      // scope the baked-in inputs to the target notebook so a same-named input elsewhere is untouched.
-      const uploaded = await openInCloud(input, { inputs, domain: deriveDomain(baseUrl), scope: { notebookId } })
-      return {
-        runId: '',
-        status: 'needs-open',
-        success: false,
-        outputs: [],
-        snapshotYaml: null,
-        launchUrl: uploaded.launchUrl,
-        error: 'Notebook not in Deepnote yet — open it in Deepnote (launchUrl) to import it, then run again.',
-      }
+    } else if (options.createIfMissing !== false) {
+      // Not in Deepnote yet — create it there and run it, without leaving this call. We are
+      // authenticated by definition (a token is required above), so the browser-based import flow
+      // that `openInCloud` uses has nothing to offer here.
+      const target = await createFromFile(baseUrl, token, file, { notebookId, inputs }, options)
+      notebookId = target.notebookId
+      projectId = target.projectId
+      created = true
+      started = await triggerNotebookRun(baseUrl, token, {
+        notebookId,
+        inputs: cloudInputs,
+        blockIds: options.blockIds,
+      })
     } else {
       throw err
     }
@@ -156,8 +159,61 @@ export async function runInCloud(
     outputs: snapshotYaml ? extractOutputs(snapshotYaml) : [],
     snapshotYaml,
     viewUrl,
+    ...(created ? { created } : {}),
     error: success ? undefined : describeRunError(run),
   }
+}
+
+/**
+ * Create the file's project, notebooks, and blocks in Deepnote, and return the ids of the notebook
+ * matching `target.notebookId` in the source (falling back to the first).
+ *
+ * Input overrides are baked into the created blocks, scoped to the target notebook so a same-named
+ * input in another notebook is left alone — the same scoping the upload path used, for the same
+ * reason. Blocks are created in `sortingKey` order, which is the order the engine runs them in.
+ */
+async function createFromFile(
+  baseUrl: string,
+  token: string,
+  file: DeepnoteFile,
+  target: { notebookId: string; inputs: Record<string, unknown> },
+  options: RunInCloudOptions
+): Promise<{ notebookId: string; projectId: string }> {
+  // Bake the overrides into a copy, so the caller's file is untouched.
+  const toCreate: DeepnoteFile = structuredClone(file)
+  if (Object.keys(target.inputs).length > 0) {
+    applyInputOverrides(toCreate, target.inputs, { notebookId: target.notebookId })
+  }
+
+  const spec: ProjectSpec = {
+    name: toCreate.project.name,
+    notebooks: toCreate.project.notebooks.map(notebook => ({
+      name: notebook.name,
+      blocks: [...notebook.blocks]
+        .sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+        .map(block => ({
+          type: block.type,
+          content: block.content,
+          metadata: block.metadata,
+          ...('integrationId' in block && typeof block.integrationId === 'string'
+            ? { integrationId: block.integrationId }
+            : {}),
+        })),
+    })),
+  }
+
+  const result = await createProject(baseUrl, token, spec, {
+    onProgress: options.onCreateProgress,
+    onWarning: options.onWarning,
+  })
+
+  // Deepnote assigns new ids, so map back by name — the file's own id is meaningless there.
+  const wantedName = notebookNameFor(file, target.notebookId)
+  const match = result.notebooks.find(n => n.name === wantedName) ?? result.notebooks[0]
+  if (!match) {
+    throw new Error('runInCloud: created the project in Deepnote but it reported no notebooks.')
+  }
+  return { notebookId: match.id, projectId: result.projectId }
 }
 
 /** Best-effort browser URL to view the notebook's runs in Deepnote after a successful run. */
