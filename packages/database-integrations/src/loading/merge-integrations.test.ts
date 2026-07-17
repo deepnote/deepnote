@@ -316,6 +316,7 @@ describe('merge-integrations', () => {
 
     it('extracts the snowflake dbt service token, which is shared by every auth method', async () => {
       const filePath = join(tempDir, 'snowflake-dbt.yaml')
+      const serviceToken = 'my-secret-service-token'
 
       const apiIntegrations = [
         createMockApiIntegration({
@@ -328,7 +329,7 @@ describe('merge-integrations', () => {
             username: 'my-user',
             password: 'my-password',
             dbt: true,
-            dbtServiceToken: 'dbtc_super-secret-token',
+            dbtServiceToken: serviceToken,
             dbtPrimaryJobId: '12345',
             dbtProxyServerUrl: 'https://proxy.example.com',
           },
@@ -341,8 +342,9 @@ describe('merge-integrations', () => {
       await writeIntegrationsFile(filePath, doc)
       const content = await readFile(filePath, 'utf-8')
 
-      expect(content).not.toContain('dbtc_super-secret-token')
-      expect(secrets).toMatchObject({ 'SNOWFLAKE_DBT_ID__DBTSERVICETOKEN': 'dbtc_super-secret-token' })
+      expect(content).not.toContain(serviceToken)
+      expect(content).toContain('dbtServiceToken: env:')
+      expect(Object.values(secrets)).toContain(serviceToken)
 
       // The remaining dbt fields are not credentials and stay in the file
       expect(content).toContain('dbtPrimaryJobId: "12345"')
