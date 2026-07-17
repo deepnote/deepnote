@@ -343,8 +343,8 @@ describe('merge-integrations', () => {
       const content = await readFile(filePath, 'utf-8')
 
       expect(content).not.toContain(serviceToken)
-      expect(content).toContain('dbtServiceToken: env:')
-      expect(Object.values(secrets)).toContain(serviceToken)
+      expect(content).toContain('dbtServiceToken: env:SNOWFLAKE_DBT_ID__DBTSERVICETOKEN')
+      expect(secrets).toMatchObject({ 'SNOWFLAKE_DBT_ID__DBTSERVICETOKEN': serviceToken })
 
       // The remaining dbt fields are not credentials and stay in the file
       expect(content).toContain('dbtPrimaryJobId: "12345"')
