@@ -187,12 +187,13 @@ describe('integrations command', () => {
       expect(paths).toContain('password')
     })
 
-    it('handles snowflake secrets (password, privateKey, privateKeyPassphrase)', async () => {
+    it('handles snowflake secrets (password, privateKey, privateKeyPassphrase, dbtServiceToken)', async () => {
       const { getSecretFieldPaths } = await import('@deepnote/database-integrations')
       const paths = getSecretFieldPaths('snowflake')
       expect(paths).toContain('password')
       expect(paths).toContain('privateKey')
       expect(paths).toContain('privateKeyPassphrase')
+      expect(paths).toContain('dbtServiceToken')
     })
 
     it('handles bigquery service account', async () => {
