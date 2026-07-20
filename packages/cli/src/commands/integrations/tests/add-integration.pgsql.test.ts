@@ -1,9 +1,12 @@
 import crypto from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
+import { Command, CommanderError } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ExitCode } from '../../../exit-codes'
 
 vi.mock('../../../output', () => ({
   debug: vi.fn(),
@@ -12,7 +15,20 @@ vi.mock('../../../output', () => ({
   error: vi.fn(),
 }))
 
-import { createIntegration } from '../add-integration'
+import { MalformedIntegrationsFileError } from '../../integrations'
+import { createIntegration, createIntegrationsAddAction } from '../add-integration'
+
+// Reproduction from issue #424: an integrations file left with unresolved git merge
+// conflict markers.
+const CONFLICT_MARKERS_YAML = [
+  'integrations:',
+  '<<<<<<< HEAD',
+  '  - id: a',
+  '=======',
+  '  - id: b',
+  '>>>>>>> branch',
+  '',
+].join('\n')
 
 describe('add-integration pgsql', () => {
   let tempDir: string
@@ -302,5 +318,65 @@ describe('add-integration pgsql', () => {
       AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT=cert-content-here
       "
     `)
+  })
+
+  it('throws MalformedIntegrationsFileError and writes nothing when the file has invalid YAML', async () => {
+    const filePath = join(tempDir, 'conflict-markers.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, CONFLICT_MARKERS_YAML)
+
+    const promise = createIntegration({ file: filePath, envFile: envFilePath })
+
+    // `createIntegration` prompts before it reads the file, so the answers have to be
+    // supplied before the read can fail.
+    await fillBaseFields()
+    await declineSshAndSsl()
+
+    try {
+      await promise
+      expect.fail('Should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(MalformedIntegrationsFileError)
+
+      const malformedError = error as MalformedIntegrationsFileError
+      expect(malformedError.message).toContain('Invalid YAML in integrations file:')
+      expect(malformedError.message).toContain(filePath)
+      expect(malformedError.filePath).toBe(filePath)
+    }
+
+    // The answers collected above must not have been persisted anywhere.
+    expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
+    expect(existsSync(envFilePath)).toBe(false)
+  })
+
+  it('exits with code 2 when the file has invalid YAML', async () => {
+    const filePath = join(tempDir, 'conflict-markers.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, CONFLICT_MARKERS_YAML)
+
+    const program = new Command()
+    program.exitOverride()
+
+    const promise = createIntegrationsAddAction(program)({ file: filePath, envFile: envFilePath })
+
+    await fillBaseFields()
+    await declineSshAndSsl()
+
+    try {
+      await promise
+      expect.fail('Should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(CommanderError)
+
+      const commanderError = error as CommanderError
+      expect(commanderError.exitCode).toBe(ExitCode.InvalidUsage)
+      expect(commanderError.message).toContain('Invalid YAML in integrations file:')
+      expect(commanderError.message).toContain(filePath)
+    }
+
+    expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
+    expect(existsSync(envFilePath)).toBe(false)
   })
 })

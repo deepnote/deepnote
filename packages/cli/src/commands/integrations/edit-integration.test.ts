@@ -2,7 +2,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
+import { Command, CommanderError } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ExitCode } from '../../exit-codes'
 
 vi.mock('../../output', () => ({
   debug: vi.fn(),
@@ -11,7 +13,20 @@ vi.mock('../../output', () => ({
   error: vi.fn(),
 }))
 
-import { editIntegration } from './edit-integration'
+import { MalformedIntegrationsFileError } from '../integrations'
+import { createIntegrationsEditAction, editIntegration } from './edit-integration'
+
+// Reproduction from issue #424: an integrations file left with unresolved git merge
+// conflict markers.
+const CONFLICT_MARKERS_YAML = [
+  'integrations:',
+  '<<<<<<< HEAD',
+  '  - id: a',
+  '=======',
+  '  - id: b',
+  '>>>>>>> branch',
+  '',
+].join('\n')
 
 describe('edit-integration shared error handling', () => {
   let tempDir: string
@@ -67,6 +82,82 @@ describe('edit-integration shared error handling', () => {
     await expect(editIntegration({ file: filePath, envFile: envFilePath, id: 'nonexistent-id' })).rejects.toThrow(
       'Integration with ID "nonexistent-id" not found'
     )
+  })
+
+  it('throws MalformedIntegrationsFileError when the file has invalid YAML', async () => {
+    const filePath = join(tempDir, 'conflict-markers.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, CONFLICT_MARKERS_YAML)
+
+    // The read happens before any prompt, so there is nothing to drive here.
+    try {
+      await editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
+      expect.fail('Should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(MalformedIntegrationsFileError)
+
+      const malformedError = error as MalformedIntegrationsFileError
+      expect(malformedError.message).toContain('Invalid YAML in integrations file:')
+      expect(malformedError.message).toContain(filePath)
+      expect(malformedError.filePath).toBe(filePath)
+    }
+
+    expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
+  })
+})
+
+describe('edit-integration action exit codes', () => {
+  let tempDir: string
+  let program: Command
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    vi.restoreAllMocks()
+    program = new Command()
+    program.exitOverride()
+    tempDir = await mkdtemp(join(tmpdir(), 'edit-integration-exit-code-test-'))
+  })
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  it('exits with code 2 and leaves the file untouched when the YAML is invalid', async () => {
+    const filePath = join(tempDir, 'conflict-markers.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    await writeFile(filePath, CONFLICT_MARKERS_YAML)
+
+    try {
+      await createIntegrationsEditAction(program)('some-id', { file: filePath, envFile: envFilePath })
+      expect.fail('Should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(CommanderError)
+
+      const commanderError = error as CommanderError
+      expect(commanderError.exitCode).toBe(ExitCode.InvalidUsage)
+      expect(commanderError.message).toContain('Invalid YAML in integrations file:')
+      expect(commanderError.message).toContain(filePath)
+    }
+
+    expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
+  })
+
+  it('exits with code 1 when the file is simply missing', async () => {
+    const filePath = join(tempDir, 'nonexistent.yaml')
+    const envFilePath = join(tempDir, '.env')
+
+    try {
+      await createIntegrationsEditAction(program)('some-id', { file: filePath, envFile: envFilePath })
+      expect.fail('Should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(CommanderError)
+
+      const commanderError = error as CommanderError
+      expect(commanderError.exitCode).toBe(ExitCode.Error)
+      expect(commanderError.message).toContain('No integrations file found')
+    }
   })
 })
 

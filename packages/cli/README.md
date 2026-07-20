@@ -524,6 +524,8 @@ deepnote integrations pull
 | `--file <path>`     | Path to integrations file                      | `integrations.yaml` |
 | `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`              |
 
+If the local integrations file contains invalid YAML (for example, unresolved merge conflict markers), the command fails with exit code 2 and does not modify any files — fix or delete the file manually, then re-run.
+
 **Examples:**
 
 ```bash
