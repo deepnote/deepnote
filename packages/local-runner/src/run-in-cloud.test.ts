@@ -81,6 +81,57 @@ project:
 version: '1.0.0'
 `
 
+// A SQL block as a `.deepnote` file stores it: the connection lives in `metadata`, which is exactly
+// where `POST /v2/blocks` refuses to take it.
+const SQL_NOTEBOOK = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: NB
+      blocks:
+        - blockGroup: g0
+          content: select 1
+          id: s1
+          metadata:
+            sql_integration_id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+            deepnote_variable_name: stories
+          sortingKey: a0
+          type: sql
+version: '1.0.0'
+`
+
+// Two notebooks, where the first calls the second as a function.
+const FUNCTION_NOTEBOOK = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: p1
+  name: Test
+  notebooks:
+    - id: nb1
+      name: First
+      blocks:
+        - blockGroup: g0
+          content: ''
+          id: f1
+          metadata:
+            function_notebook_id: nb2
+          sortingKey: a0
+          type: notebook-function
+    - id: nb2
+      name: Second
+      blocks:
+        - blockGroup: g1
+          content: print("hi")
+          id: c2
+          metadata: {}
+          sortingKey: a0
+          type: code
+version: '1.0.0'
+`
+
 // A snapshot whose only output-bearing block is a SQL block (not code) — the case the old
 // code-only extraction dropped.
 const SNAPSHOT_WITH_SQL = `metadata:
@@ -665,6 +716,100 @@ describe('runInCloud', () => {
       't',
       expect.objectContaining({ notebookId: 'new-nb2' })
     )
+  })
+
+  it('lifts a SQL block’s integration out of metadata, where Deepnote refuses it', async () => {
+    // `POST /v2/blocks` rejects `metadata.sql_integration_id` outright and takes the connection as a
+    // top-level `integrationId`, writing that same key itself. Sent as-is, every SQL block 400s.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [{ id: 'new-nb', name: 'NB', blockIds: [] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    await runInCloud(SQL_NOTEBOOK, {}, { token: 't' })
+
+    const block = cloudMock.createProject.mock.calls[0][2].notebooks[0].blocks[0]
+    expect(block.integrationId).toBe('100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d')
+    expect(block.metadata).not.toHaveProperty('sql_integration_id')
+    expect(block.metadata).toMatchObject({ deepnote_variable_name: 'stories' })
+  })
+
+  it('drops an integration Deepnote cannot be given, and says so', async () => {
+    // The built-in dataframe connection is not a UUID, so it is rejected as an `integrationId` and
+    // rejected inside metadata — it cannot be sent at all, and the block is created unbound.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [{ id: 'new-nb', name: 'NB', blockIds: [] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+    const onWarning = vi.fn()
+
+    await runInCloud(
+      SQL_NOTEBOOK.replace('100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d', 'deepnote-dataframe-sql'),
+      {},
+      {
+        token: 't',
+        onWarning,
+      }
+    )
+
+    const block = cloudMock.createProject.mock.calls[0][2].notebooks[0].blocks[0]
+    expect(block).not.toHaveProperty('integrationId')
+    expect(block.metadata).not.toHaveProperty('sql_integration_id')
+    expect(onWarning.mock.calls[0][0]).toMatch(/without a connection/i)
+  })
+
+  it('does not treat a bad block id as a missing notebook', async () => {
+    // `Block not found in notebook` is a 400 about the block, not the notebook. Recovering from it
+    // would answer a typo by looking the notebook up and creating a duplicate project.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Block not found in notebook"}'))
+
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't', blockIds: ['c1'] })).rejects.toThrow(/block not found/i)
+    expect(cloudMock.findNotebook).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('does not treat a lost workspace membership as a missing notebook', async () => {
+    // The trigger endpoint's only 404 is a bare `Not found`, meaning the token's owner is no longer
+    // a member. Creating a project in response to that is the last thing anyone wants.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new ApiError(404, '{"message":"Not found"}'))
+
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't' })).rejects.toThrow(/not found/i)
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('refuses an input the notebook does not define, before starting anything', async () => {
+    // Deepnote accepts only names its input blocks define — unlike a local run, where an unmatched
+    // name is injected into the kernel.
+    await expect(runInCloud(NOTEBOOK, { total: 7 }, { token: 't' })).rejects.toThrow(/"total" is not an input/)
+    expect(cloudMock.triggerNotebookRun).not.toHaveBeenCalled()
+  })
+
+  it('refuses a block that is not in the notebook before creating a project for it', async () => {
+    // The old order created the project first and only then discovered the typo, leaving it behind.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+
+    await expect(runInCloud(NOTEBOOK, {}, { token: 't', blockIds: ['nope'] })).rejects.toThrow(
+      /block "nope" is not in the notebook/
+    )
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('refuses to create a file whose notebook-function calls another notebook of the same file', async () => {
+    // Creating the file gives that notebook a new id, and the reference would not follow it.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+
+    await expect(runInCloud(FUNCTION_NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
+      /runs another notebook of this same file/
+    )
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
   it('creates against a custom baseUrl rather than the default api.deepnote.com', async () => {

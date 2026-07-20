@@ -1,5 +1,6 @@
-import type { DeepnoteFile } from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, InputBlockValueOverride } from '@deepnote/blocks'
 import {
+  type BlockSpec,
   createProject,
   fetchSnapshotContent,
   findNotebook,
@@ -30,6 +31,9 @@ import type { RunBlockOutput } from './run-with-inputs'
  * between tries. Small on purpose: the run has finished, so this only ever waits on a write. */
 const SNAPSHOT_SETTLE_ATTEMPTS = 3
 const SNAPSHOT_SETTLE_INTERVAL_MS = 1_500
+
+/** Deepnote constrains a block's `integrationId` to a UUID, so anything else cannot be sent at all. */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export interface RunInCloudOptions {
   /** Bearer token for the Deepnote API. Defaults to `process.env.DEEPNOTE_TOKEN`. */
@@ -120,7 +124,7 @@ export async function runInCloud(
   try {
     started = await triggerNotebookRun(baseUrl, token, { notebookId, inputs: cloudInputs, blockIds: options.blockIds })
   } catch (err) {
-    if (!isNotFoundError(err)) {
+    if (!isNotebookNotFoundError(err)) {
       throw err
     }
     // The file's id may not match Deepnote's (an import assigns new ids) — look the notebook up by
@@ -285,18 +289,26 @@ async function createFromFile(
     [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
   )
 
+  // Deepnote assigns new ids, so the created notebook has to be identified some other way — by
+  // position, because `createProject` creates them in the order it was handed them. Not by name: a
+  // file may have two notebooks sharing one, and then the name picks whichever comes first rather
+  // than the one being run.
+  //
+  // Resolved before anything is created, along with the checks below: every one of them is a fact
+  // about the local file, and finding out afterwards would mean throwing with a stray project left
+  // in the workspace.
+  const index = toCreate.project.notebooks.findIndex(notebook => notebook.id === target.notebookId)
+  if (index < 0) {
+    throw new Error(`runInCloud: notebook "${target.notebookId}" is not in this file, so there is nothing to create.`)
+  }
+  assertBlocksAreInTarget(options.blockIds, sortedBlocks[index])
+  assertNoInternalNotebookFunctions(toCreate)
+
   const spec: ProjectSpec = {
     name: toCreate.project.name,
     notebooks: toCreate.project.notebooks.map((notebook, i) => ({
       name: notebook.name,
-      blocks: sortedBlocks[i].map(block => ({
-        type: block.type,
-        content: block.content,
-        metadata: block.metadata,
-        ...('integrationId' in block && typeof block.integrationId === 'string'
-          ? { integrationId: block.integrationId }
-          : {}),
-      })),
+      blocks: sortedBlocks[i].map(block => toBlockSpec(block, options.onWarning)),
     })),
   }
 
@@ -305,12 +317,7 @@ async function createFromFile(
     onWarning: options.onWarning,
   })
 
-  // Deepnote assigns new ids, so the created notebook has to be identified some other way — by
-  // position, because `createProject` creates them in the order it was handed them. Not by name: a
-  // file may have two notebooks sharing one, and then the name picks whichever comes first rather
-  // than the one being run.
-  const index = toCreate.project.notebooks.findIndex(notebook => notebook.id === target.notebookId)
-  const match = index >= 0 ? result.notebooks[index] : undefined
+  const match = result.notebooks[index]
   if (!match) {
     throw new Error(
       'runInCloud: created the project in Deepnote, but could not tell which of its notebooks is the one being run.'
@@ -325,6 +332,91 @@ async function createFromFile(
   })
 
   return { notebookId: match.id, projectId: result.projectId, blockIds }
+}
+
+/**
+ * Check the requested blocks against the notebook that is about to be created.
+ *
+ * `mapBlockIds` would catch a stray id anyway, but only once the project exists — so a typo would
+ * leave one behind and then refuse to run. The same answer is available from the local file, for
+ * free, before any of that. Duplicates are refused too, since Deepnote rejects a repeated block id.
+ */
+function assertBlocksAreInTarget(requested: string[] | undefined, target: DeepnoteBlock[]): void {
+  if (!requested?.length) {
+    return
+  }
+  const available = new Set(target.map(block => block.id))
+  const seen = new Set<string>()
+  for (const id of requested) {
+    if (!available.has(id)) {
+      throw new Error(`runInCloud: block "${id}" is not in the notebook being run, so it cannot be run.`)
+    }
+    if (seen.has(id)) {
+      throw new Error(`runInCloud: block "${id}" was requested more than once.`)
+    }
+    seen.add(id)
+  }
+}
+
+/**
+ * Refuse a file whose notebook-function block calls another notebook of that same file.
+ *
+ * `function_notebook_id` names the notebook to invoke, and Deepnote resolves it at execution time
+ * without validating it on the way in. Creating the file gives every notebook a new id, so that
+ * reference would survive pointing at the original — invoking someone's real notebook, or failing
+ * obscurely once the run is already going. Rewriting it would mean threading a whole old-to-new
+ * notebook map through the create, which is only ever worth it for multi-notebook files.
+ *
+ * A reference *out* of the file is left alone: that one names a notebook already in Deepnote, and
+ * is as correct after the create as before it.
+ */
+function assertNoInternalNotebookFunctions(file: DeepnoteFile): void {
+  const own = new Set(file.project.notebooks.map(notebook => notebook.id))
+  for (const notebook of file.project.notebooks) {
+    for (const block of notebook.blocks) {
+      const target = (block.metadata as { function_notebook_id?: unknown } | undefined)?.function_notebook_id
+      if (typeof target === 'string' && own.has(target)) {
+        throw new Error(
+          `runInCloud: the ${block.type} block in "${notebook.name}" runs another notebook of this same ` +
+            'file, and creating the file in Deepnote gives that notebook a new id the block would not ' +
+            'follow. Create the project in Deepnote first, then run it by id.'
+        )
+      }
+    }
+  }
+}
+
+/**
+ * A `.deepnote` block as `POST /v2/blocks` wants it.
+ *
+ * The two disagree about exactly one thing. A SQL block records its connection in
+ * `metadata.sql_integration_id`; Deepnote rejects that key outright — a 400, not a silent strip —
+ * and takes the connection as a top-level `integrationId`, which it then writes into that very key
+ * itself. So the value has to be lifted out of the metadata rather than sent inside it.
+ *
+ * It also has to be a UUID naming an integration in this workspace. Deepnote's built-in dataframe
+ * connection (`deepnote-dataframe-sql`) is not one, and neither are older ids, so those are dropped
+ * and the block is created unbound — the only shape the API will accept. The caller is told, since
+ * a SQL block that has lost its connection is a real difference from the file it came from.
+ */
+function toBlockSpec(block: DeepnoteBlock, onWarning?: (message: string) => void): BlockSpec {
+  const spec: BlockSpec = { type: block.type, content: block.content, metadata: block.metadata }
+
+  const metadata = block.metadata as Record<string, unknown> | undefined
+  const integrationId = metadata?.sql_integration_id
+  if (typeof integrationId !== 'string') {
+    return spec
+  }
+
+  const { sql_integration_id: _lifted, ...rest } = metadata as Record<string, unknown>
+  if (!UUID_PATTERN.test(integrationId)) {
+    onWarning?.(
+      `The ${block.type} block's integration ("${integrationId}") is not one Deepnote can be given ` +
+        'when creating a block, so it was created without a connection. Set its integration in Deepnote.'
+    )
+    return { ...spec, metadata: rest }
+  }
+  return { ...spec, metadata: rest, integrationId }
 }
 
 /**
@@ -389,30 +481,49 @@ function resolveNotebookId(file: DeepnoteFile): string {
   return id
 }
 
-/** True for a "notebook not found" style error (404 or a message that says so). */
-function isNotFoundError(err: unknown): boolean {
-  if (err && typeof err === 'object' && (err as { statusCode?: number }).statusCode === 404) {
-    return true
-  }
+/**
+ * True only for Deepnote's "this notebook does not exist" answer — the one thing worth recovering
+ * from by looking the notebook up by name, or creating it.
+ *
+ * Deliberately narrow, because everything this matches triggers a lookup and possibly a whole new
+ * project. `POST /v2/runs` says `Notebook not found` (a 400, not a 404) for that case alone, while
+ * several unrelated failures also say "not found": `Block not found in notebook` for a bad block
+ * id, a bare `Not found` 404 when the token's owner has left the workspace, and a couple of 500s
+ * about missing users. Treating any of those as a missing notebook would answer a bad block id — or
+ * an expired membership — by creating a duplicate project.
+ */
+function isNotebookNotFoundError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err)
-  return /not found/i.test(message)
+  return /\bnotebook not found\b/i.test(message)
 }
 
 /**
  * Coerce each override to the schema shape its input block requires (slider → string, etc.), typed
  * against the notebook being run so a name shared across notebooks resolves to the right block(s).
- * Names with no in-scope input block pass through untouched (generic injection).
+ *
+ * A name no input block defines is refused, which is where the cloud parts ways with
+ * {@link runWithInputs}: locally an unmatched name is a variable injected into the kernel, but
+ * Deepnote has no such notion and answers `Input "x" is not defined for this notebook`. Refusing
+ * here costs nothing and says so before a run is started — or, on the create path, before a whole
+ * project is.
  */
 function coerceInputs(
   file: DeepnoteFile,
   inputs: Record<string, unknown>,
   notebookId: string
-): Record<string, unknown> {
+): Record<string, InputBlockValueOverride> {
   const byName = inputBlocksByName(notebooksInScope(file, { notebookId }))
-  const out: Record<string, unknown> = {}
+  const out: Record<string, InputBlockValueOverride> = {}
   for (const [key, value] of Object.entries(inputs)) {
     const blocks = byName.get(key)
-    out[key] = blocks ? coerceInputValueForBlocks(blocks, value) : value
+    if (!blocks) {
+      throw new Error(
+        `runInCloud: "${key}" is not an input of the notebook being run, and Deepnote only accepts ` +
+          'values for names its input blocks define. Check the name, or use runWithInputs to inject ' +
+          'it into a local kernel.'
+      )
+    }
+    out[key] = coerceInputValueForBlocks(blocks, value)
   }
   return out
 }
