@@ -41,13 +41,14 @@ describe('findNotebook', () => {
     const found = await findNotebook(BASE_URL, TOKEN, { projectName: 'My Project', notebookName: 'Main' })
 
     const [url, init] = fetchSpy.mock.calls[0]
-    expect(url).toBe(`${BASE_URL}/v2/projects`)
+    // Narrowed server-side, or a project past the first page of 50 would look absent.
+    expect(url).toEqual(expect.urlWithQueryParams(`${BASE_URL}/v2/projects?nameContains=My+Project`))
     expect(init?.method).toBe('GET')
     expect(init?.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` })
     expect(found).toEqual({ notebookId: 'nb-b', projectId: 'p-new' })
   })
 
-  it('falls back to the first notebook when the named one is not present', async () => {
+  it('does not substitute another notebook when the named one is absent', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(
       response({
         projects: [
@@ -62,26 +63,77 @@ describe('findNotebook', () => {
         ],
       })
     )
-    expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P', notebookName: 'missing' })).toEqual({
-      notebookId: 'nb1',
-      projectId: 'p1',
-    })
+    // Names are unique within a project, so "A" is not a stand-in for "missing" — answering with it
+    // would run the wrong notebook.
+    expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P', notebookName: 'missing' })).toBeUndefined()
   })
 
-  it('returns undefined when no project matches or the body is the wrong shape', async () => {
+  it('takes the first notebook only when no name was requested', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({
+        projects: [
+          {
+            id: 'p1',
+            name: 'P',
+            notebooks: [
+              { id: 'nb1', name: 'A' },
+              { id: 'nb2', name: 'B' },
+            ],
+          },
+        ],
+      })
+    )
+    expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P' })).toEqual({ notebookId: 'nb1', projectId: 'p1' })
+  })
+
+  it('reads every page before concluding a project is absent', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        response({
+          projects: [{ id: 'p-other', name: 'Other', notebooks: [{ id: 'nb-x', name: 'Main' }] }],
+          pagination: { nextPageToken: 'page-2' },
+        })
+      )
+      .mockResolvedValueOnce(
+        response({
+          projects: [{ id: 'p-wanted', name: 'P', notebooks: [{ id: 'nb-y', name: 'Main' }] }],
+          pagination: { nextPageToken: null },
+        })
+      )
+
+    expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P', notebookName: 'Main' })).toEqual({
+      notebookId: 'nb-y',
+      projectId: 'p-wanted',
+    })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(fetchSpy.mock.calls[1][0]).toEqual(
+      expect.urlWithQueryParams(`${BASE_URL}/v2/projects?nameContains=P&pageToken=page-2`)
+    )
+  })
+
+  it('returns undefined when no project matches', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(
       response({ projects: [{ id: 'p1', name: 'Other', notebooks: [] }] })
     )
     expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'Nope' })).toBeUndefined()
+  })
 
+  it('throws rather than reporting absence when the body is the wrong shape', async () => {
+    // Absence sends `createIfMissing` off to create a duplicate project, so a response we cannot
+    // read must not be mistaken for an empty workspace.
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ unexpected: true }))
-    expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P' })).toBeUndefined()
+    const err = await findNotebook(BASE_URL, TOKEN, { projectName: 'P' }).catch(e => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.statusCode).toBe(502)
   })
 
   it('strips a trailing slash from the base URL', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ projects: [] }))
     await findNotebook('https://api.example.com/', TOKEN, { projectName: 'P' })
-    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/v2/projects')
+    expect(fetchSpy.mock.calls[0][0]).toEqual(
+      expect.urlWithQueryParams('https://api.example.com/v2/projects?nameContains=P')
+    )
   })
 
   it('throws ApiError on a non-ok response', async () => {

@@ -12,7 +12,14 @@ const projectSchema = z
     notebooks: z.array(notebookSchema).optional(),
   })
   .passthrough()
-const projectsSchema = z.object({ projects: z.array(projectSchema) }).passthrough()
+const paginationSchema = z.object({ nextPageToken: z.string().nullish() }).passthrough()
+const projectsSchema = z
+  .object({ projects: z.array(projectSchema), pagination: paginationSchema.optional() })
+  .passthrough()
+
+/** A runaway guard, not a real limit: `nameContains` narrows server-side, so a name that needs more
+ * than this many pages of matches is pathological rather than large. */
+const MAX_PROJECT_PAGES = 20
 
 const workspaceSchema = z.object({ id: z.string(), slug: z.string().optional(), name: z.string().optional() })
 const meSchema = z.object({ workspace: workspaceSchema.optional() }).passthrough()
@@ -20,7 +27,7 @@ const meSchema = z.object({ workspace: workspaceSchema.optional() }).passthrough
 export interface FindNotebookQuery {
   /** The project (workspace) name to match, e.g. from `file.project.name`. */
   projectName: string
-  /** The notebook name to match within the project; falls back to the first notebook. */
+  /** The notebook name to match within the project. Omit to take the project's first notebook. */
   notebookName?: string
 }
 
@@ -39,6 +46,12 @@ export interface RequestOptions {
  *
  * Useful after an import ("Open in Deepnote"), where Deepnote assigns new ids that don't match the
  * local file. Prefers the most recently created matching project. Returns `undefined` if none match.
+ *
+ * Only a lookup that completes and matches nothing means "not in Deepnote". The endpoint pages (50
+ * projects at a time), so a single unfiltered request would report a project that exists as absent
+ * and send `createIfMissing` off to create a duplicate — hence `nameContains` to narrow it
+ * server-side, every matching page read, and a response we cannot parse thrown rather than returned
+ * as absence.
  */
 export async function findNotebook(
   baseUrl: string,
@@ -46,28 +59,52 @@ export async function findNotebook(
   query: FindNotebookQuery,
   options: RequestOptions = {}
 ): Promise<FoundNotebook | undefined> {
-  const url = `${baseUrl.replace(/\/+$/, '')}/v2/projects`
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(options.requestTimeoutMs ?? 30_000),
-  })
-  if (!response.ok) {
-    throw new ApiError(response.status, `Failed to list Deepnote projects: HTTP ${response.status}`)
-  }
-  const parsed = projectsSchema.safeParse(await response.json())
-  if (!parsed.success) {
-    return undefined
+  const matches: z.infer<typeof projectSchema>[] = []
+  let pageToken: string | undefined
+
+  for (let page = 0; page < MAX_PROJECT_PAGES; page++) {
+    const url = new URL(`${baseUrl.replace(/\/+$/, '')}/v2/projects`)
+    // A case-insensitive substring match, so it narrows the pages rather than answering the
+    // question — the exact-name filter below is still what decides.
+    url.searchParams.set('nameContains', query.projectName)
+    if (pageToken) {
+      url.searchParams.set('pageToken', pageToken)
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(options.requestTimeoutMs ?? 30_000),
+    })
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to list Deepnote projects: HTTP ${response.status}`)
+    }
+    const parsed = projectsSchema.safeParse(await response.json())
+    if (!parsed.success) {
+      throw new ApiError(
+        502,
+        `Invalid Deepnote response for list projects: ${parsed.error.issues.map(i => i.message).join(', ')}`
+      )
+    }
+
+    matches.push(...parsed.data.projects.filter(project => project.name === query.projectName))
+    pageToken = parsed.data.pagination?.nextPageToken ?? undefined
+    if (!pageToken) {
+      break
+    }
   }
 
-  const projects = parsed.data.projects
-    .filter(project => project.name === query.projectName)
-    .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+  const projects = matches.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
 
   for (const project of projects) {
     const notebooks = project.notebooks ?? []
-    const match = query.notebookName ? notebooks.find(notebook => notebook.name === query.notebookName) : undefined
-    const notebook = match ?? notebooks[0]
+    // Notebook names are unique within a Deepnote project, so a different notebook is never a
+    // stand-in for the one that was asked for — falling back to the first would run the wrong
+    // notebook, and in a newer half-built project that is exactly what it would do. The first
+    // notebook is only ever an answer to "any notebook of this project".
+    const notebook = query.notebookName
+      ? notebooks.find(candidate => candidate.name === query.notebookName)
+      : notebooks[0]
     if (notebook) {
       return { notebookId: notebook.id, projectId: project.id }
     }
