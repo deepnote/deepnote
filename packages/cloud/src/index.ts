@@ -13,6 +13,7 @@ export {
   type PollOptions,
   pollRunUntilComplete,
   RUN_STATUSES,
+  type RunInputValue,
   type RunStatus,
   type RunSummary,
   type RunsPage,

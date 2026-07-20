@@ -58,7 +58,10 @@ const runSchema = z
     notebookId: z.string().optional(),
     projectId: z.string().optional(),
     createdAt: z.string().optional(),
-    finishedAt: z.string().optional(),
+    // `completedAt`, not `finishedAt`: the run API renames the column at its boundary, and
+    // `finishedAt` appears only *inside* a snapshot document. Reading the wrong one silently
+    // dropped every completion timestamp.
+    completedAt: z.string().nullish(),
     error: z.unknown().optional(),
     snapshot: snapshotSchema.optional(),
     // Some deployments return the snapshot inline on the run object (flat) rather than nested
@@ -78,17 +81,25 @@ export interface NormalizedRun {
   notebookId?: string
   projectId?: string
   createdAt?: string
-  finishedAt?: string
+  /** Null while the run is still going. Matches {@link RunSummary.completedAt}. */
+  completedAt?: string | null
   error?: unknown
   snapshot?: { snapshotContent?: string; downloadUrl?: string } & Record<string, unknown>
   /** The raw parsed response, for debugging / forward-compatibility. */
   raw: unknown
 }
 
+/**
+ * The values Deepnote accepts for an input. Narrow on purpose: the API takes exactly this union,
+ * and only for names the notebook's own input blocks define — there is no kernel-injection path
+ * where an arbitrary value would mean anything.
+ */
+export type RunInputValue = string | boolean | string[]
+
 /** Request body for {@link triggerNotebookRun}. Deliberately minimal (see plan point 13). */
 export interface TriggerRunBody {
   notebookId: string
-  inputs?: Record<string, unknown>
+  inputs?: Record<string, RunInputValue>
   blockIds?: string[]
 }
 
@@ -167,7 +178,7 @@ function normalizeRun(json: unknown): NormalizedRun {
     notebookId: raw.notebookId,
     projectId: raw.projectId,
     createdAt: raw.createdAt,
-    finishedAt: raw.finishedAt,
+    completedAt: raw.completedAt,
     error: raw.error,
     snapshot: normalizeSnapshot(raw),
     raw,

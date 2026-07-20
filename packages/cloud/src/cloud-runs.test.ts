@@ -51,7 +51,7 @@ describe('triggerNotebookRun', () => {
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(response({ run: { id: 'run-1', status: 'pending', notebookId: 'nb-1' } }))
 
-    const run = await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', inputs: { a: 1 } })
+    const run = await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', inputs: { a: '1' } })
 
     expect(run.runId).toBe('run-1')
     expect(run.status).toBe('pending')
@@ -59,7 +59,7 @@ describe('triggerNotebookRun', () => {
     expect(url).toBe(`${BASE_URL}/v2/runs`)
     expect(init?.method).toBe('POST')
     expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
-    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: 1 } })
+    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: '1' } })
   })
 
   it('normalizes a top-level {runId,status} response', async () => {
