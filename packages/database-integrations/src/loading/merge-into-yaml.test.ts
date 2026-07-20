@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { assert, describe, expect, it } from 'vitest'
 import type { ApiIntegration } from './fetch-integrations'
 import { IntegrationsYamlParseError } from './integrations-document'
 import { InvalidIntegrationsTypeError } from './merge-integrations'
@@ -25,9 +25,8 @@ function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiI
   }
 }
 
-// Reproduction from issue #424: an integrations file left with unresolved git merge
-// conflict markers. This used to reach serialization and fail with the opaque
-// "Document with errors cannot be stringified".
+// An integrations file left with unresolved git merge conflict markers. This used to reach
+// serialization and fail with the opaque "Document with errors cannot be stringified".
 const CONFLICT_MARKERS_YAML = [
   'integrations:',
   '<<<<<<< HEAD',
@@ -38,7 +37,7 @@ const CONFLICT_MARKERS_YAML = [
   '',
 ].join('\n')
 
-// The other repro from the issue: a plain hand-edit typo.
+// A plain hand-edit typo.
 const TYPO_YAML = 'a: b: c\n'
 
 const EXISTING_WITH_COMMENTS = `# Databases used by the nightly ETL job
@@ -141,13 +140,12 @@ describe('mergeApiIntegrationsIntoYaml', () => {
       mergeApiIntegrationsIntoYaml(CONFLICT_MARKERS_YAML, [createMockApiIntegration()])
       expect.fail('Should have thrown')
     } catch (error) {
-      expect(error).toBeInstanceOf(IntegrationsYamlParseError)
+      assert(error instanceof IntegrationsYamlParseError)
 
-      const parseError = error as IntegrationsYamlParseError
-      expect(parseError.errors.length).toBeGreaterThan(0)
-      expect(parseError.message).toMatch(/at line \d+, column \d+/)
+      expect(error.errors.length).toBeGreaterThan(0)
+      expect(error.message).toMatch(/at line \d+, column \d+/)
       // The pre-fix failure mode, which said nothing about where the file was broken.
-      expect(parseError.message).not.toContain('Document with errors cannot be stringified')
+      expect(error.message).not.toContain('Document with errors cannot be stringified')
     }
   })
 

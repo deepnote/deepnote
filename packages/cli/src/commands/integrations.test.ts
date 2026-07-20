@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ApiError, type ApiIntegration, apiResponseSchema } from '@deepnote/database-integrations'
 import { Command, CommanderError } from 'commander'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, assert, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
 import { MissingTokenError } from '../utils/auth'
 
@@ -38,8 +38,8 @@ import { DEEPNOTE_TOKEN_ENV } from '../constants'
 // Import after mocks are set up
 import { createIntegrationsPullAction, MalformedIntegrationsFileError, readIntegrationsDocument } from './integrations'
 
-// Reproduction from issue #424: an integrations file left with unresolved git merge
-// conflict markers. The file reads fine; it just is not valid YAML.
+// An integrations file left with unresolved git merge conflict markers. The file reads
+// fine; it just is not valid YAML.
 const CONFLICT_MARKERS_YAML = [
   'integrations:',
   '<<<<<<< HEAD',
@@ -352,14 +352,13 @@ describe('integrations command', () => {
         await readIntegrationsDocument(filePath)
         expect.fail('Should have thrown')
       } catch (error) {
-        expect(error).toBeInstanceOf(MalformedIntegrationsFileError)
+        assert(error instanceof MalformedIntegrationsFileError)
 
-        const malformedError = error as MalformedIntegrationsFileError
-        expect(malformedError.name).toBe('MalformedIntegrationsFileError')
-        expect(malformedError.message).toContain('Invalid YAML in integrations file:')
-        expect(malformedError.message).toContain(filePath)
-        expect(malformedError.filePath).toBe(filePath)
-        expect(malformedError.cause).toBeInstanceOf(IntegrationsYamlParseError)
+        expect(error.name).toBe('MalformedIntegrationsFileError')
+        expect(error.message).toContain('Invalid YAML in integrations file:')
+        expect(error.message).toContain(filePath)
+        expect(error.filePath).toBe(filePath)
+        expect(error.cause).toBeInstanceOf(IntegrationsYamlParseError)
       }
 
       // Reading must never rewrite the file it failed to parse.
@@ -855,12 +854,11 @@ integrations:
           await runPullCommand(['--file', filePath, '--env-file', envFilePath])
           expect.fail('Should have thrown')
         } catch (error) {
-          expect(error).toBeInstanceOf(CommanderError)
+          assert(error instanceof CommanderError)
 
-          const commanderError = error as CommanderError
-          expect(commanderError.exitCode).toBe(ExitCode.InvalidUsage)
-          expect(commanderError.message).toContain('Invalid YAML in integrations file:')
-          expect(commanderError.message).toContain(filePath)
+          expect(error.exitCode).toBe(ExitCode.InvalidUsage)
+          expect(error.message).toContain('Invalid YAML in integrations file:')
+          expect(error.message).toContain(filePath)
         }
 
         // A failed pull must leave the user's file exactly as they left it, and must
@@ -880,12 +878,11 @@ integrations:
           await runPullCommand(['--file', filePath, '--env-file', envFilePath])
           expect.fail('Should have thrown')
         } catch (error) {
-          expect(error).toBeInstanceOf(CommanderError)
+          assert(error instanceof CommanderError)
 
-          const commanderError = error as CommanderError
-          expect(commanderError.exitCode).toBe(ExitCode.InvalidUsage)
-          expect(commanderError.message).toContain('Invalid YAML in integrations file:')
-          expect(commanderError.message).toContain(filePath)
+          expect(error.exitCode).toBe(ExitCode.InvalidUsage)
+          expect(error.message).toContain('Invalid YAML in integrations file:')
+          expect(error.message).toContain(filePath)
         }
 
         expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)

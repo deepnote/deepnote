@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { assert, describe, expect, it } from 'vitest'
 import { isDocument, YAMLError } from 'yaml'
 import {
   IntegrationsYamlParseError,
@@ -6,10 +6,9 @@ import {
   serializeIntegrationsDocument,
 } from './integrations-document'
 
-// Reproduction from issue #424: an integrations file left with unresolved git merge
-// conflict markers. `yaml` collects parse errors on the returned Document instead of
-// throwing, so this used to surface much later as the opaque
-// "Document with errors cannot be stringified".
+// An integrations file left with unresolved git merge conflict markers. `yaml` collects
+// parse errors on the returned Document instead of throwing, so this used to surface much
+// later as the opaque "Document with errors cannot be stringified".
 const CONFLICT_MARKERS_YAML = [
   'integrations:',
   '<<<<<<< HEAD',
@@ -20,7 +19,7 @@ const CONFLICT_MARKERS_YAML = [
   '',
 ].join('\n')
 
-// The other repro from the issue: a plain hand-edit typo.
+// A plain hand-edit typo.
 const TYPO_YAML = 'a: b: c\n'
 
 const VALID_YAML = `integrations:
@@ -68,16 +67,15 @@ describe('integrations-document', () => {
         parseIntegrationsDocument(CONFLICT_MARKERS_YAML)
         expect.fail('Should have thrown')
       } catch (error) {
-        expect(error).toBeInstanceOf(IntegrationsYamlParseError)
+        assert(error instanceof IntegrationsYamlParseError)
 
-        const parseError = error as IntegrationsYamlParseError
-        expect(parseError.name).toBe('IntegrationsYamlParseError')
+        expect(error.name).toBe('IntegrationsYamlParseError')
         // How many errors `yaml` reports for a given fixture is its own business;
         // only that it reported some, and that they can be inspected, matters here.
-        expect(parseError.errors.length).toBeGreaterThan(0)
-        expect(parseError.errors[0]).toBeInstanceOf(YAMLError)
+        expect(error.errors.length).toBeGreaterThan(0)
+        expect(error.errors[0]).toBeInstanceOf(YAMLError)
         // The message must carry enough for a user to find the broken line.
-        expect(parseError.message).toMatch(/at line \d+, column \d+/)
+        expect(error.message).toMatch(/at line \d+, column \d+/)
       }
     })
   })

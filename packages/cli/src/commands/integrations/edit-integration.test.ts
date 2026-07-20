@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { screen } from '@inquirer/testing/vitest'
 import { Command, CommanderError } from 'commander'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExitCode } from '../../exit-codes'
 
 vi.mock('../../output', () => ({
@@ -16,8 +16,7 @@ vi.mock('../../output', () => ({
 import { MalformedIntegrationsFileError } from '../integrations'
 import { createIntegrationsEditAction, editIntegration } from './edit-integration'
 
-// Reproduction from issue #424: an integrations file left with unresolved git merge
-// conflict markers.
+// An integrations file left with unresolved git merge conflict markers.
 const CONFLICT_MARKERS_YAML = [
   'integrations:',
   '<<<<<<< HEAD',
@@ -95,12 +94,11 @@ describe('edit-integration shared error handling', () => {
       await editIntegration({ file: filePath, envFile: envFilePath, id: 'pg-id-001' })
       expect.fail('Should have thrown')
     } catch (error) {
-      expect(error).toBeInstanceOf(MalformedIntegrationsFileError)
+      assert(error instanceof MalformedIntegrationsFileError)
 
-      const malformedError = error as MalformedIntegrationsFileError
-      expect(malformedError.message).toContain('Invalid YAML in integrations file:')
-      expect(malformedError.message).toContain(filePath)
-      expect(malformedError.filePath).toBe(filePath)
+      expect(error.message).toContain('Invalid YAML in integrations file:')
+      expect(error.message).toContain(filePath)
+      expect(error.filePath).toBe(filePath)
     }
 
     expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
@@ -133,12 +131,11 @@ describe('edit-integration action exit codes', () => {
       await createIntegrationsEditAction(program)('some-id', { file: filePath, envFile: envFilePath })
       expect.fail('Should have thrown')
     } catch (error) {
-      expect(error).toBeInstanceOf(CommanderError)
+      assert(error instanceof CommanderError)
 
-      const commanderError = error as CommanderError
-      expect(commanderError.exitCode).toBe(ExitCode.InvalidUsage)
-      expect(commanderError.message).toContain('Invalid YAML in integrations file:')
-      expect(commanderError.message).toContain(filePath)
+      expect(error.exitCode).toBe(ExitCode.InvalidUsage)
+      expect(error.message).toContain('Invalid YAML in integrations file:')
+      expect(error.message).toContain(filePath)
     }
 
     expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
@@ -152,11 +149,10 @@ describe('edit-integration action exit codes', () => {
       await createIntegrationsEditAction(program)('some-id', { file: filePath, envFile: envFilePath })
       expect.fail('Should have thrown')
     } catch (error) {
-      expect(error).toBeInstanceOf(CommanderError)
+      assert(error instanceof CommanderError)
 
-      const commanderError = error as CommanderError
-      expect(commanderError.exitCode).toBe(ExitCode.Error)
-      expect(commanderError.message).toContain('No integrations file found')
+      expect(error.exitCode).toBe(ExitCode.Error)
+      expect(error.message).toContain('No integrations file found')
     }
   })
 })
