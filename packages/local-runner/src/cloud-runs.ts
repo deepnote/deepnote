@@ -6,7 +6,15 @@ import {
   listNotebookRuns,
   type RunSummary,
 } from '@deepnote/cloud'
-import { buildViewUrl, DEFAULT_CLOUD_API_URL, describeFailure, extractOutputs, requireToken } from './cloud-common'
+import { resolveSnapshotNotebookId } from '@deepnote/convert'
+import {
+  buildViewUrl,
+  DEFAULT_CLOUD_API_URL,
+  describeFailure,
+  extractOutputs,
+  notebookNameFor,
+  requireToken,
+} from './cloud-common'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import type { RunBlockOutput } from './run-with-inputs'
@@ -111,13 +119,23 @@ export async function listCloudRuns(
   let notebookId = options.notebookId
   let projectId: string | undefined
   if (!notebookId) {
+    // Run history belongs to one notebook, so which one has to be answerable — the same question
+    // `runInCloud` refuses to guess at. Taking the first notebook of a multi-notebook file would
+    // return a real, plausible history that simply belongs to something else.
+    const localId = resolveSnapshotNotebookId(file)
+    if (!localId) {
+      throw new Error(
+        'listCloudRuns: could not resolve a notebook from the file (it has multiple notebooks), and runs ' +
+          'belong to one notebook. Pass options.notebookId.'
+      )
+    }
     // Not caught: a lookup that succeeds and matches nothing means "never run in the cloud", and
     // answers with no runs. A lookup that *fails* means we don't know — reporting an empty history
     // would be a guess, and a caller can't tell the two apart from `{ runs: [] }`. Somewhere that
     // genuinely wants quiet (the demo's `/api/cloud-runs`) can catch this itself.
     const found = await findNotebook(baseUrl, token, {
       projectName: file.project.name,
-      notebookName: file.project.notebooks[0]?.name,
+      notebookName: notebookNameFor(file, localId),
     })
     if (!found) {
       return { runs: [] }

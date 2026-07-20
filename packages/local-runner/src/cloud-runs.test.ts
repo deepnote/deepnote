@@ -118,6 +118,26 @@ describe('listCloudRuns', () => {
     expect(result.viewUrl).toContain('secondary-sidebar=runs')
   })
 
+  it('refuses to guess which notebook of a multi-notebook file the runs belong to', async () => {
+    // Run history is scoped to one notebook, so taking the first would answer with a real history
+    // that simply belongs to something else — the ambiguity `runInCloud` already refuses.
+    const multi = NOTEBOOK.replace('    - id: nb1', '    - id: nb0\n      name: Other\n      blocks: []\n    - id: nb1')
+
+    await expect(listCloudRuns(multi, { token: 't' })).rejects.toThrow(/multiple notebooks/)
+    expect(cloudMock.listNotebookRuns).not.toHaveBeenCalled()
+  })
+
+  it('lists the runs of an explicitly named notebook of a multi-notebook file', async () => {
+    const multi = NOTEBOOK.replace('    - id: nb1', '    - id: nb0\n      name: Other\n      blocks: []\n    - id: nb1')
+
+    const result = await listCloudRuns(multi, { token: 't', notebookId: 'given-nb' })
+
+    expect(cloudMock.listNotebookRuns).toHaveBeenCalledWith('https://api.deepnote.com', 't', 'given-nb', {
+      pageSize: undefined,
+    })
+    expect(result.notebookId).toBe('given-nb')
+  })
+
   it('returns no runs (not an error) when the notebook is not in Deepnote', async () => {
     // Never pushed is the normal empty state for a local file, not a failure.
     cloudMock.findNotebook.mockResolvedValue(undefined)
