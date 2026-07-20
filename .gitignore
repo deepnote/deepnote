@@ -1,43 +1,22 @@
-!packages/**/*.png
-!packages/**/*.png
-.DS_Store
 .DS_Store
 .env
-.env
-.npmrc
 .npmrc
 .pnpm-store
-.pnpm-store
-.qlty/cache
 .qlty/cache
 .qlty/logs
-.qlty/logs
-.qlty/out
 .qlty/out
 .qlty/plugin_cachedir
-.qlty/plugin_cachedir
-.qlty/results
 .qlty/results
 *.png
-*.png
+!packages/**/*.png
 *.tsbuildinfo
-*.tsbuildinfo
-# Copied in by the steps in README.md — build output and your own snapshot, not source.
-# Copied in by the steps in README.md — build output and your own snapshot, not source.
-# Copied in by the steps in README.md — build output and your own snapshot, not source.
-coverage
 coverage
 dist
-dist
-examples/report.md
 examples/report.md
 examples/snapshots/*_T*.snapshot.deepnote
-examples/snapshots/*_T*.snapshot.deepnote
 node_modules
-node_modules
+
+# Copied in by the steps in README.md — build output and your own snapshot, not source.
 snapshot-reader.js
 snapshot-viewer.js
-snapshot-viewer.js
-snapshot.deepnote
-snapshot.deepnote
 snapshot.deepnote

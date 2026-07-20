@@ -37,9 +37,6 @@
     "**/*.{md,yml,yaml}": [
       "pnpm exec prettier --write"
     ],
-    ".gitignore": [
-      "sort -o .gitignore .gitignore"
-    ],
     "**/package.json": "sort-package-json"
   },
   "devDependencies": {
