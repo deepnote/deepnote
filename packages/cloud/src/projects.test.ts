@@ -119,6 +119,21 @@ describe('findNotebook', () => {
     expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'Nope' })).toBeUndefined()
   })
 
+  it('reports a non-JSON body as an ApiError, not a raw SyntaxError', async () => {
+    // Callers of this package catch ApiError; a bare SyntaxError from JSON.parse would escape that
+    // and read as a bug in their code rather than the API misbehaving.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+    } as unknown as Response)
+
+    const err = await findNotebook(BASE_URL, TOKEN, { projectName: 'P' }).catch(e => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.statusCode).toBe(502)
+    expect(err.message).toMatch(/not valid JSON/i)
+  })
+
   it('throws rather than reporting absence when the body is the wrong shape', async () => {
     // Absence sends `createIfMissing` off to create a duplicate project, so a response we cannot
     // read must not be mistaken for an empty workspace.

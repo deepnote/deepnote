@@ -41,6 +41,19 @@ export interface RequestOptions {
 }
 
 /**
+ * A response body as JSON, with a non-JSON body reported as the {@link ApiError} callers of this
+ * package expect — a raw `SyntaxError` would escape that contract and read as a bug in their code
+ * rather than the API misbehaving. Mirrors the guard in `create-project.ts`'s `request`.
+ */
+async function readJson(response: Response, what: string): Promise<unknown> {
+  try {
+    return await response.json()
+  } catch {
+    throw new ApiError(502, `Invalid Deepnote response for ${what}: the body was not valid JSON.`)
+  }
+}
+
+/**
  * Look up a notebook (and its project) in the workspace by project + notebook name via
  * `GET {baseUrl}/v2/projects`.
  *
@@ -79,7 +92,7 @@ export async function findNotebook(
     if (!response.ok) {
       throw new ApiError(response.status, `Failed to list Deepnote projects: HTTP ${response.status}`)
     }
-    const parsed = projectsSchema.safeParse(await response.json())
+    const parsed = projectsSchema.safeParse(await readJson(response, 'list projects'))
     if (!parsed.success) {
       throw new ApiError(
         502,
@@ -133,7 +146,7 @@ export async function getWorkspace(
   if (!response.ok) {
     throw new ApiError(response.status, `Failed to fetch Deepnote workspace: HTTP ${response.status}`)
   }
-  const parsed = meSchema.safeParse(await response.json())
+  const parsed = meSchema.safeParse(await readJson(response, 'fetch workspace'))
   return parsed.success ? parsed.data.workspace : undefined
 }
 
