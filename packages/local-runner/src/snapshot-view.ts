@@ -1,6 +1,8 @@
 import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
-import { deepnoteFileSchema, deepnoteSnapshotSchema, isInputBlock, parseYaml } from '@deepnote/blocks'
+import { deepnoteFileSchema, deepnoteSnapshotSchema, parseYaml } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
+import type { InputBlockInfo } from './input-info'
+import { inputInfoFor } from './input-info'
 
 /**
  * Reading a snapshot is pure parsing — no Python, no kernel, no filesystem. This module has no
@@ -18,10 +20,20 @@ export interface SnapshotBlock {
   outputs: IOutput[]
   executionCount: number | null
   /**
-   * For input blocks, the variable and the value this run used. A snapshot records the values the
-   * run actually executed with, so a reader can see what produced these outputs.
+   * For input blocks, the variable and the value this run used, plus what that value means: its
+   * label, and the bounds or options it was chosen from. A snapshot records the values the run
+   * actually executed with, so a reader can see what produced these outputs.
+   *
+   * The extra fields matter because a value alone is often not a fact you can show: a slider's `6`
+   * says little without `3–12`, and `region = "All regions"` says little without the list it came
+   * from. Same shape as {@link listInputBlocks}, which is where a live UI reads them from.
    */
-  input?: { name: string; value: unknown }
+  input?: SnapshotInput
+}
+
+/** An input block's variable, the value this run used, and what that value means. */
+export interface SnapshotInput extends Omit<InputBlockInfo, 'variableName'> {
+  name: string
 }
 
 export interface SnapshotNotebook {
@@ -95,11 +107,10 @@ function toSnapshotBlock(block: DeepnoteFile['project']['notebooks'][number]['bl
     executionCount: withOutputs.executionCount ?? null,
   }
 
-  if (isInputBlock(block)) {
-    snapshotBlock.input = {
-      name: block.metadata.deepnote_variable_name,
-      value: block.metadata.deepnote_variable_value,
-    }
+  const info = inputInfoFor(block)
+  if (info) {
+    const { variableName, ...rest } = info
+    snapshotBlock.input = { name: variableName, ...rest }
   }
 
   return snapshotBlock
