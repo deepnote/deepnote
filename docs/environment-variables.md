@@ -21,7 +21,7 @@ os.environ.get("VARIABLE_NAME")
 
 You might be storing your data in a database that does not yet have a native integration in Deepnote. Or perhaps you need to use a third-party library that issues an API key (e.g. [Mailgun](https://www.mailgun.com/)).
 
-In this case, you can add an environment variable which will let you access the remote integration or third party service. An example is Deepnote's [neptune.ai integration](https://docs.neptune.ai/integrations-and-supported-tools/ide-and-notebooks/deepnote).
+In this case, you can add an environment variable which will let you access the remote integration or third party service. For example, you can store the API token for an experiment tracking tool like [neptune.ai](https://neptune.ai/) as an environment variable and read it from your notebook.
 
 <Callout status="warning">
 Some integrations can't be used just by including environment variables. [Let us know](https://deepnote.typeform.com/to/agk6aN) if you are looking to use a service like this in Deepnote.
