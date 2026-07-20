@@ -19,7 +19,9 @@ const SPEC: ProjectSpec = {
 }
 
 /** Route each request to a canned response, and record what was sent. */
-function mockApi(overrides: { projectNotebooks?: Array<{ id: string }>; onDelete?: () => Response } = {}) {
+function mockApi(
+  overrides: { projectNotebooks?: Array<{ id: string; name?: string }>; onDelete?: () => Response } = {}
+) {
   const calls: Array<{ method: string; path: string; body: unknown }> = []
   const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname
@@ -98,6 +100,59 @@ describe('createProject', () => {
     const firstDelete = calls.findIndex(c => c.method === 'DELETE')
     const createNotebook = calls.findIndex(c => c.method === 'POST' && c.path === '/v2/notebooks')
     expect(createNotebook).toBeLessThan(firstDelete)
+  })
+
+  it('adopts the seeded notebook when a source notebook wants its name, rather than colliding with it', async () => {
+    // `POST /v2/notebooks` 409s on a duplicate name and there is no rename endpoint, so a notebook
+    // called "Notebook 1" — Deepnote's own default — is only creatable by taking over the seed.
+    const calls = mockApi({ projectNotebooks: [{ id: 'ph-1', name: 'Notebook 1' }] })
+
+    const result = await createProject(BASE, TOKEN, {
+      name: 'Sales',
+      notebooks: [{ name: 'Notebook 1', blocks: [{ type: 'code', content: 'print(1)', metadata: {} }] }],
+    })
+
+    expect(calls.filter(c => c.path === '/v2/notebooks' && c.method === 'POST')).toHaveLength(0)
+    expect(calls.filter(c => c.method === 'DELETE')).toHaveLength(0)
+    expect(result.notebooks).toEqual([{ id: 'ph-1', name: 'Notebook 1', blockIds: ['blk-2'] }])
+    expect(calls.find(c => c.path === '/v2/blocks')?.body).toMatchObject({ notebookId: 'ph-1' })
+  })
+
+  it('still deletes a seeded notebook no source notebook adopted', async () => {
+    const calls = mockApi({ projectNotebooks: [{ id: 'ph-1', name: 'Notebook 1' }, { id: 'ph-2' }] })
+
+    await createProject(BASE, TOKEN, {
+      name: 'Sales',
+      notebooks: [{ name: 'Notebook 1', blocks: [] }],
+    })
+
+    expect(calls.filter(c => c.method === 'DELETE').map(c => c.path)).toEqual(['/v2/notebooks/ph-2'])
+  })
+
+  it('refuses two notebooks sharing a name before it creates anything', async () => {
+    // Names are unique within a project, so this 409s partway through and strands a half-built
+    // project — the request is worth refusing while it still costs nothing.
+    const calls = mockApi()
+
+    await expect(
+      createProject(BASE, TOKEN, {
+        name: 'Sales',
+        notebooks: [
+          { name: 'Dupe', blocks: [] },
+          { name: 'Dupe', blocks: [] },
+        ],
+      })
+    ).rejects.toThrow(/both named "Dupe"/)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a nameless notebook before it creates anything', async () => {
+    const calls = mockApi()
+
+    await expect(
+      createProject(BASE, TOKEN, { name: 'Sales', notebooks: [{ name: '  ', blocks: [] }] })
+    ).rejects.toThrow(/needs a name/)
+    expect(calls).toHaveLength(0)
   })
 
   it('reports a placeholder it could not delete as a warning, without failing the create', async () => {

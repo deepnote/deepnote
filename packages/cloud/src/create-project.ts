@@ -15,8 +15,10 @@ import { parseApiErrorMessage } from './parse-api-error'
  * - `DELETE {baseUrl}/v2/notebooks/{id}`     — drop the placeholder notebook (see below)
  *
  * Two API details shape this:
- * - `POST /v2/projects` seeds the new project with an empty placeholder notebook. We create our own
- *   notebooks and then delete the placeholders, because there is no endpoint to rename one.
+ * - `POST /v2/projects` seeds the new project with an empty placeholder notebook (called
+ *   `Notebook 1`), and there is no endpoint to rename one. So we adopt a placeholder whose name a
+ *   source notebook already wants — `POST /v2/notebooks` rejects a duplicate name with a 409, and
+ *   `Notebook 1` is far too common a name to lose to that — and delete the rest.
  * - There is no bulk block endpoint, so blocks cost one request each and are created sequentially to
  *   keep `position` meaningful. A large notebook is a lot of round-trips; {@link CreateProjectOptions.onProgress}
  *   exists so a caller can report that rather than appear hung.
@@ -84,6 +86,29 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, '')
 }
 
+/**
+ * Refuse a spec Deepnote is bound to reject, before anything is created.
+ *
+ * Notebook names are unique within a project (case-sensitively), and blocks are created after their
+ * notebook — so a duplicate name fails partway through and leaves a half-built project behind. The
+ * same request is worth refusing while it still costs nothing.
+ */
+function assertCreatableNotebooks(notebooks: NotebookSpec[]): void {
+  const seen = new Set<string>()
+  for (const notebook of notebooks) {
+    if (!notebook.name.trim()) {
+      throw new Error('createProject: every notebook needs a name, and at least one has none.')
+    }
+    if (seen.has(notebook.name)) {
+      throw new Error(
+        `createProject: two notebooks are both named "${notebook.name}", but names must be unique ` +
+          'within a Deepnote project. Rename one of them.'
+      )
+    }
+    seen.add(notebook.name)
+  }
+}
+
 async function request<T>(
   baseUrl: string,
   token: string,
@@ -139,7 +164,8 @@ async function request<T>(
  * {@link CreatedProject} is the only way to address the new content.
  *
  * Throws {@link ApiError} on any failed request; partial content may exist if it fails midway, since
- * there is no transactional create.
+ * there is no transactional create. A spec Deepnote would refuse — a nameless notebook, or two
+ * sharing a name — throws before the first request instead, so it leaves nothing behind.
  */
 export async function createProject(
   baseUrl: string,
@@ -147,6 +173,8 @@ export async function createProject(
   spec: ProjectSpec,
   options: CreateProjectOptions = {}
 ): Promise<CreatedProject> {
+  assertCreatableNotebooks(spec.notebooks)
+
   const timeout = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
   const call = <T>(method: string, path: string, schema: z.ZodType<T>, body: unknown, fallback: string) =>
     request(baseUrl, token, method, path, schema, body, timeout, fallback)
@@ -154,21 +182,32 @@ export async function createProject(
   const created = await call('POST', '/v2/projects', createdProjectSchema, { name: spec.name }, 'create project')
   const projectId = created.project.id
   // Captured before we add our own, so we only ever delete notebooks Deepnote seeded, never ours.
-  const placeholders = (created.project.notebooks ?? []).map(n => n.id)
+  const placeholders = created.project.notebooks ?? []
+  const adopted = new Set<string>()
 
   const totalBlocks = spec.notebooks.reduce((n, nb) => n + nb.blocks.length, 0)
   let done = 0
   const notebooks: CreatedNotebook[] = []
 
   for (const source of spec.notebooks) {
-    const madeNotebook = await call(
-      'POST',
-      '/v2/notebooks',
-      createdNotebookSchema,
-      { projectId, name: source.name },
-      `create notebook "${source.name}"`
-    )
-    const notebookId = madeNotebook.notebook.id
+    // Deepnote seeds the project with `Notebook 1` and 409s on a second notebook of that name, so a
+    // source notebook called `Notebook 1` can only be created by taking over the one already there.
+    // Seeded notebooks come with no blocks, so adopting one is the same as having created it.
+    const placeholder = placeholders.find(candidate => candidate.name === source.name && !adopted.has(candidate.id))
+    if (placeholder) {
+      adopted.add(placeholder.id)
+    }
+    const notebookId =
+      placeholder?.id ??
+      (
+        await call(
+          'POST',
+          '/v2/notebooks',
+          createdNotebookSchema,
+          { projectId, name: source.name },
+          `create notebook "${source.name}"`
+        )
+      ).notebook.id
     const blockIds: string[] = []
 
     // Sequential, and `position` is explicit: the API has no bulk create, and concurrent posts
@@ -198,7 +237,10 @@ export async function createProject(
   // Only now that our notebooks exist — a project must keep at least one, and this way a failed
   // delete leaves a tidy-up problem rather than an empty project. Best-effort by design: the
   // content is already created and usable, so a stray placeholder must not fail the whole call.
-  for (const id of placeholders) {
+  for (const { id } of placeholders) {
+    if (adopted.has(id)) {
+      continue
+    }
     try {
       await call('DELETE', `/v2/notebooks/${id}`, z.unknown(), undefined, 'delete placeholder notebook')
     } catch (error) {
