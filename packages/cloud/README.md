@@ -53,6 +53,20 @@ is in preview and its exact shape may drift. Failures throw `ApiError`
 | `RUN_STATUSES`, `RunStatus`                                                               | The known run statuses.                                                                                        |
 | `RunTimeoutError`                                                                         | Thrown when `pollRunUntilComplete` exceeds its deadline. Carries the `runId` — the run may still be executing. |
 | `NormalizedRun`, `TriggerRunBody`, `GetRunOptions`, `PollOptions`, `FetchSnapshotOptions` | Types.                                                                                                         |
+| `listAllProjects(baseUrl, token, opts?)`                                                  | `GET /v2/projects` — every project in the workspace, walking pagination to exhaustion.                         |
+| `getProjectDetail(baseUrl, token, projectId, opts?)`                                      | `GET /v2/projects/{id}` — one project, including its working-directory file inventory.                         |
+| `exportProject(baseUrl, token, projectId, opts?)`                                         | `GET /v2/projects/{id}/export` — the project as one deterministic `.deepnote` YAML document. See below.        |
+| `importProject(baseUrl, token, projectId, yaml, opts?)`                                   | `POST /v2/projects/{id}/import` — reconcile a `.deepnote` document into the project. See below.                |
+| `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                             | `GET /v2/files/download` — raw bytes of one working-directory file.                                            |
+
+**Note on `exportProject` / `importProject`:** the export is deterministic — an unchanged project
+exports byte-identically, so callers can diff or skip by byte comparison — and its
+`metadata.modifiedAt` is the project's change fingerprint. Pass it back as
+`importProject`'s `baseModifiedAt` and the server rejects the import with a 409 when the project
+changed in between (lost-update protection); `force` skips that check. Imports reconcile by
+notebook id (unmatched notebooks are created, missing ones deleted only with
+`deleteMissingNotebooks`) and never apply the project name, integrations, or
+`settings.requirements` from the document.
 
 **Note on `fetchSnapshotContent`:** the bearer token is sent only when the download URL is
 same-origin with `baseUrl`. A cross-origin URL (e.g. a presigned S3 link) is fetched without auth,

@@ -483,6 +483,60 @@ deepnote open my-project.deepnote
 deepnote open my-project.deepnote -o json
 ```
 
+### `sync [dir]`
+
+Sync Deepnote projects with a local directory: every project in your workspace becomes
+`<folder path>/<project name>.deepnote`, mirroring the workspace folder tree. Local edits to
+tracked files are pushed back to Deepnote on the next sync.
+
+```bash
+deepnote sync workspace
+```
+
+Sync state lives in `.deepnote-sync.json` in the synced directory. Projects are tracked by id
+(names are not unique in Deepnote), so cloud renames become local file moves, and name collisions
+are disambiguated deterministically with a short id suffix. The server's export is deterministic,
+so unchanged projects are detected by byte comparison and skipped.
+
+A project edited both locally and in the cloud is a conflict: by default sync asks per project
+whether to keep the cloud version or skip (without a terminal, conflicts are skipped). Pushes send
+the last-synced `modifiedAt`, so a concurrent cloud edit is rejected by the server instead of being
+overwritten, and you get the same override-or-skip choice.
+
+Sync never creates or deletes cloud projects, never deletes local files unless you pass `--prune`,
+and does not run git — commit and push yourself. A pushed document never applies the project name,
+integrations, or `settings.requirements` (`requirements.txt` in the project files is the source of
+truth for requirements).
+
+**Options:**
+
+| Option                       | Description                                                             | Default      |
+| ---------------------------- | ----------------------------------------------------------------------- | ------------ |
+| `--url <url>`                | API base URL                                                            | Deepnote API |
+| `--token <token>`            | Bearer token (or use `DEEPNOTE_TOKEN` env var)                          |              |
+| `--all-files`                | Also download each project's working-directory files (incremental)      | off          |
+| `--on-conflict <mode>`       | Conflict handling: `ask`, `skip`, or `override`                         | `ask`        |
+| `--delete-missing-notebooks` | When pushing, delete cloud notebooks removed from the local file        | off          |
+| `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
+| `--dry-run`                  | Show what would be synced without writing anything                      | off          |
+| `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
+
+**Examples:**
+
+```bash
+# Mirror the whole workspace into ./workspace
+deepnote sync workspace
+
+# Also download working-directory files (data, requirements.txt, …)
+deepnote sync workspace --all-files
+
+# Non-interactive: skip anything conflicting (good for cron/CI)
+deepnote sync workspace --on-conflict skip
+
+# Preview without writing
+deepnote sync workspace --dry-run
+```
+
 ### `validate <path>`
 
 Validate a `.deepnote` file against the schema.

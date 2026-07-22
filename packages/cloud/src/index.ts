@@ -42,3 +42,17 @@ export {
   type RequestOptions,
   type Workspace,
 } from './projects'
+export {
+  downloadProjectFile,
+  exportProject,
+  getProjectDetail,
+  type ImportedNotebook,
+  type ImportProjectOptions,
+  type ImportProjectResult,
+  importProject,
+  listAllProjects,
+  type ProjectDetail,
+  type ProjectFileEntry,
+  type ProjectFolder,
+  type SyncProject,
+} from './sync'
