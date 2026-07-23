@@ -12,7 +12,7 @@ library functions and then disagrees completely about what a notebook run looks 
 | --------------------------------- | ----------------------------------------------------------------------------------------- |
 | [**dashboard**](./dashboard.html) | the snapshot as **product-ready metrics** — recomputes its own KPIs, no notebook in sight |
 | [**explorer**](./explorer.html)   | the snapshot as a **structured dataset** — sortable columns, dtypes, distributions        |
-| [**deck**](./deck.html)           | the snapshot as **presentation data** — one idea per slide, arrow keys                    |
+| [**deck**](./deck.html)           | the snapshot as **presentation data** — one idea per slide, click or arrow keys           |
 | [**terminal**](./terminal.html)   | the snapshot as a **plain-text log** — ASCII bars instead of the PNG                      |
 
 ## The point

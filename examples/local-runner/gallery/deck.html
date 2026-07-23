@@ -91,6 +91,16 @@
           if (e.key === 'Home') go(0)
           if (e.key === 'End') go(slides.length - 1)
         })
+
+        // Click anywhere on the slide to advance, as every projector deck does. Bound to the stage
+        // rather than the document so the chrome needs no exceptions: the gallery link and the dots
+        // are fixed siblings, not descendants, so their clicks never reach here.
+        document.querySelector('.stage').addEventListener('click', () => {
+          // A click that ends a text selection is the user copying the AI readout, not asking for
+          // the next slide. The click that clears the selection advances, as it should.
+          if (!getSelection().isCollapsed) return
+          go(at + 1)
+        })
         go(0)
       }
 
