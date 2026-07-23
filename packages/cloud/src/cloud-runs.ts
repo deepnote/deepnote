@@ -100,6 +100,7 @@ export type RunInputValue = string | boolean | string[]
 export interface TriggerRunBody {
   notebookId: string
   inputs?: Record<string, RunInputValue>
+  /** Run only these blocks. Omitted from the request when empty — see {@link toRequestBody}. */
   blockIds?: string[]
 }
 
@@ -204,6 +205,22 @@ export function describeRunError(run: NormalizedRun): string | undefined {
   return String(error)
 }
 
+/**
+ * A {@link TriggerRunBody} as `POST /v2/runs` wants it. Two rules of that endpoint live here, so no
+ * caller has to know them:
+ *
+ * - A run is `detached` unless it says otherwise — a background run that leaves the live editor
+ *   session alone — and a detached run refuses `blockIds` outright (`blockIds is not supported for
+ *   detached runs`, a 400). Deepnote only runs selected blocks in live mode, so asking for blocks is
+ *   asking for a live run, and the body says so rather than being sent to fail.
+ * - `blockIds` must name at least one block. An empty array is not "no blocks in particular" to the
+ *   API, it is a validation error — and it is exactly what a caller means by omitting it, so it is
+ *   dropped.
+ */
+function toRequestBody({ blockIds, ...rest }: TriggerRunBody): Record<string, unknown> {
+  return blockIds?.length ? { ...rest, blockIds, detached: false } : rest
+}
+
 /** Start a cloud run of an existing notebook. Returns the initial run (usually `pending`/`running`). */
 export async function triggerNotebookRun(
   baseUrl: string,
@@ -215,7 +232,7 @@ export async function triggerNotebookRun(
   const response = await fetch(url, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify(body),
+    body: JSON.stringify(toRequestBody(body)),
     signal: AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
   })
   await throwIfNotOk(response, 'Failed to start Deepnote run')
