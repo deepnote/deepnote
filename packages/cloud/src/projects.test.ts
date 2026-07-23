@@ -14,6 +14,11 @@ function response(body: unknown, init: { ok?: boolean; status?: number } = {}): 
   } as unknown as Response
 }
 
+/** A page of `GET /v2/projects` as the endpoint sends it — pagination always present. */
+function projectsPage(projects: unknown[], nextPageToken: string | null = null): Response {
+  return response({ projects, pagination: { pageSize: 50, nextPageToken, hasMore: nextPageToken != null } })
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -21,21 +26,19 @@ afterEach(() => {
 describe('findNotebook', () => {
   it('GETs /v2/projects with bearer auth, preferring the newest matching project and the named notebook', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      response({
-        projects: [
-          { id: 'p-old', name: 'My Project', createdAt: '2026-01-01', notebooks: [{ id: 'nb-old', name: 'Main' }] },
-          {
-            id: 'p-new',
-            name: 'My Project',
-            createdAt: '2026-02-01',
-            notebooks: [
-              { id: 'nb-a', name: 'Other' },
-              { id: 'nb-b', name: 'Main' },
-            ],
-          },
-          { id: 'p-x', name: 'Different', createdAt: '2026-03-01', notebooks: [{ id: 'nb-z', name: 'Main' }] },
-        ],
-      })
+      projectsPage([
+        { id: 'p-old', name: 'My Project', createdAt: '2026-01-01', notebooks: [{ id: 'nb-old', name: 'Main' }] },
+        {
+          id: 'p-new',
+          name: 'My Project',
+          createdAt: '2026-02-01',
+          notebooks: [
+            { id: 'nb-a', name: 'Other' },
+            { id: 'nb-b', name: 'Main' },
+          ],
+        },
+        { id: 'p-x', name: 'Different', createdAt: '2026-03-01', notebooks: [{ id: 'nb-z', name: 'Main' }] },
+      ])
     )
 
     const found = await findNotebook(BASE_URL, TOKEN, { projectName: 'My Project', notebookName: 'Main' })
@@ -50,18 +53,16 @@ describe('findNotebook', () => {
 
   it('does not substitute another notebook when the named one is absent', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      response({
-        projects: [
-          {
-            id: 'p1',
-            name: 'P',
-            notebooks: [
-              { id: 'nb1', name: 'A' },
-              { id: 'nb2', name: 'B' },
-            ],
-          },
-        ],
-      })
+      projectsPage([
+        {
+          id: 'p1',
+          name: 'P',
+          notebooks: [
+            { id: 'nb1', name: 'A' },
+            { id: 'nb2', name: 'B' },
+          ],
+        },
+      ])
     )
     // Names are unique within a project, so "A" is not a stand-in for "missing" — answering with it
     // would run the wrong notebook.
@@ -70,18 +71,16 @@ describe('findNotebook', () => {
 
   it('takes the first notebook only when no name was requested', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      response({
-        projects: [
-          {
-            id: 'p1',
-            name: 'P',
-            notebooks: [
-              { id: 'nb1', name: 'A' },
-              { id: 'nb2', name: 'B' },
-            ],
-          },
-        ],
-      })
+      projectsPage([
+        {
+          id: 'p1',
+          name: 'P',
+          notebooks: [
+            { id: 'nb1', name: 'A' },
+            { id: 'nb2', name: 'B' },
+          ],
+        },
+      ])
     )
     expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P' })).toEqual({ notebookId: 'nb1', projectId: 'p1' })
   })
@@ -90,17 +89,9 @@ describe('findNotebook', () => {
     const fetchSpy = vi
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(
-        response({
-          projects: [{ id: 'p-other', name: 'Other', notebooks: [{ id: 'nb-x', name: 'Main' }] }],
-          pagination: { nextPageToken: 'page-2' },
-        })
+        projectsPage([{ id: 'p-other', name: 'Other', notebooks: [{ id: 'nb-x', name: 'Main' }] }], 'page-2')
       )
-      .mockResolvedValueOnce(
-        response({
-          projects: [{ id: 'p-wanted', name: 'P', notebooks: [{ id: 'nb-y', name: 'Main' }] }],
-          pagination: { nextPageToken: null },
-        })
-      )
+      .mockResolvedValueOnce(projectsPage([{ id: 'p-wanted', name: 'P', notebooks: [{ id: 'nb-y', name: 'Main' }] }]))
 
     expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P', notebookName: 'Main' })).toEqual({
       notebookId: 'nb-y',
@@ -113,10 +104,33 @@ describe('findNotebook', () => {
   })
 
   it('returns undefined when no project matches', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      response({ projects: [{ id: 'p1', name: 'Other', notebooks: [] }] })
-    )
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(projectsPage([{ id: 'p1', name: 'Other', notebooks: [] }]))
     expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'Nope' })).toBeUndefined()
+  })
+
+  it('throws rather than reporting absence when the page walk runs out of pages', async () => {
+    // A workspace still offering pages is a lookup that has not finished. Answering "not here" from
+    // it is how `createIfMissing` ends up creating a project that already exists.
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(projectsPage([{ id: 'p1', name: 'Other', notebooks: [] }], 'more'))
+
+    const err = await findNotebook(BASE_URL, TOKEN, { projectName: 'P' }).catch(e => e)
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.message).toMatch(/gave up looking/i)
+    expect(fetchSpy).toHaveBeenCalledTimes(20)
+  })
+
+  it('throws rather than reporting absence when a page carries no pagination', async () => {
+    // The endpoint always sends it, so its absence is a response we do not understand — and
+    // "no pagination" reads exactly like "that was the last page".
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ projects: [] }))
+
+    const err = await findNotebook(BASE_URL, TOKEN, { projectName: 'P' }).catch(e => e)
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.statusCode).toBe(502)
   })
 
   it('reports a non-JSON body as an ApiError, not a raw SyntaxError', async () => {
@@ -144,7 +158,7 @@ describe('findNotebook', () => {
   })
 
   it('strips a trailing slash from the base URL', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ projects: [] }))
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(projectsPage([]))
     await findNotebook('https://api.example.com/', TOKEN, { projectName: 'P' })
     expect(fetchSpy.mock.calls[0][0]).toEqual(
       expect.urlWithQueryParams('https://api.example.com/v2/projects?nameContains=P')
