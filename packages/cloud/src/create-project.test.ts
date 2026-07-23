@@ -1,6 +1,6 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createProject, type ProjectSpec } from './create-project'
+import { type BlockSpec, createProject, type ProjectSpec } from './create-project'
 
 const BASE = 'https://api.deepnote.com'
 const TOKEN = 't'
@@ -23,6 +23,7 @@ function mockApi(
   overrides: { projectNotebooks?: Array<{ id: string; name?: string }>; onDelete?: () => Response } = {}
 ) {
   const calls: Array<{ method: string; path: string; body: unknown }> = []
+  let notebooksCreated = 0
   const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname
     const method = init?.method ?? 'GET'
@@ -38,7 +39,8 @@ function mockApi(
         201
       )
     }
-    if (method === 'POST' && path === '/v2/notebooks') return json({ notebook: { id: 'nb-1', name: body.name } }, 201)
+    if (method === 'POST' && path === '/v2/notebooks')
+      return json({ notebook: { id: `nb-${++notebooksCreated}`, name: body.name } }, 201)
     if (method === 'POST' && path === '/v2/blocks') return json({ block: { id: `blk-${calls.length}` } }, 201)
     if (method === 'DELETE' && path.startsWith('/v2/notebooks/')) return overrides.onDelete?.() ?? json({}, 200)
     return json({ message: 'unexpected' }, 500)
@@ -127,6 +129,64 @@ describe('createProject', () => {
     })
 
     expect(calls.filter(c => c.method === 'DELETE').map(c => c.path)).toEqual(['/v2/notebooks/ph-2'])
+  })
+
+  it('creates every notebook before any block, so a block can reference one of them', async () => {
+    // A notebook-function block names the notebook it invokes, and that name has to be Deepnote's
+    // id for it — which does not exist while the notebooks are still being created one at a time.
+    const calls = mockApi()
+
+    await createProject(BASE, TOKEN, {
+      name: 'Sales',
+      notebooks: [
+        { name: 'First', blocks: [{ type: 'code', content: 'a', metadata: {} }] },
+        { name: 'Second', blocks: [{ type: 'code', content: 'b', metadata: {} }] },
+      ],
+    })
+
+    expect(calls.map(c => `${c.method} ${c.path}`)).toEqual([
+      'POST /v2/projects',
+      'POST /v2/notebooks',
+      'POST /v2/notebooks',
+      'POST /v2/blocks',
+      'POST /v2/blocks',
+      'DELETE /v2/notebooks/ph-1',
+    ])
+  })
+
+  it('rewrites a block against the ids Deepnote assigned, keyed by the caller’s own ids', async () => {
+    const calls = mockApi()
+    const rewriteBlock = vi.fn((block: BlockSpec, notebookIds: ReadonlyMap<string, string>) => {
+      const target = (block.metadata as { calls?: string }).calls
+      return target ? { ...block, metadata: { calls: notebookIds.get(target) } } : block
+    })
+
+    const result = await createProject(
+      BASE,
+      TOKEN,
+      {
+        name: 'Sales',
+        notebooks: [
+          {
+            sourceId: 'local-1',
+            name: 'First',
+            blocks: [{ type: 'notebook-function', metadata: { calls: 'local-2' } }],
+          },
+          { sourceId: 'local-2', name: 'Second', blocks: [] },
+        ],
+      },
+      { rewriteBlock }
+    )
+
+    // The reference now names the created notebook, not the one the caller knew about.
+    const second = result.notebooks[1].id
+    expect(calls.find(c => c.path === '/v2/blocks')?.body).toMatchObject({ metadata: { calls: second } })
+    expect(rewriteBlock.mock.calls[0][1]).toEqual(
+      new Map([
+        ['local-1', result.notebooks[0].id],
+        ['local-2', second],
+      ])
+    )
   })
 
   it('refuses two notebooks sharing a name before it creates anything', async () => {

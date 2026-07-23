@@ -801,15 +801,62 @@ describe('runInCloud', () => {
     expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
-  it('refuses to create a file whose notebook-function calls another notebook of the same file', async () => {
-    // Creating the file gives that notebook a new id, and the reference would not follow it.
+  it('re-points a notebook-function at the notebook Deepnote created, not the one the file named', async () => {
+    // Creating the file gives every notebook a new id. Left alone, `function_notebook_id` would go
+    // on naming the local one — which in Deepnote is either nothing or someone else's notebook.
     cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
     cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [
+        { id: 'new-nb1', name: 'First', blockIds: ['cloud-f1'] },
+        { id: 'new-nb2', name: 'Second', blockIds: ['cloud-c2'] },
+      ],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
 
-    await expect(runInCloud(FUNCTION_NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
-      /runs another notebook of this same file/
+    const result = await runInCloud(FUNCTION_NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })
+
+    expect(result.created).toBe(true)
+    // Each notebook carries the file's own id, so the rewrite has something to key on…
+    const [, , spec, createOptions] = cloudMock.createProject.mock.calls[0]
+    expect(spec.notebooks.map((n: { sourceId: string }) => n.sourceId)).toEqual(['nb1', 'nb2'])
+    // …and the block's reference follows nb2 to the id Deepnote gave it.
+    const notebookIds = new Map([
+      ['nb1', 'new-nb1'],
+      ['nb2', 'new-nb2'],
+    ])
+    const block = spec.notebooks[0].blocks[0]
+    expect(createOptions.rewriteBlock(block, notebookIds).metadata).toEqual({ function_notebook_id: 'new-nb2' })
+  })
+
+  it('leaves a notebook-function pointing outside the file alone', async () => {
+    // That id already names a notebook in Deepnote, and is as correct after the create as before it.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [
+        { id: 'new-nb1', name: 'First', blockIds: ['cloud-f1'] },
+        { id: 'new-nb2', name: 'Second', blockIds: ['cloud-c2'] },
+      ],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    await runInCloud(
+      FUNCTION_NOTEBOOK.replace('function_notebook_id: nb2', 'function_notebook_id: elsewhere'),
+      {},
+      {
+        token: 't',
+        notebookId: 'nb1',
+      }
     )
-    expect(cloudMock.createProject).not.toHaveBeenCalled()
+
+    const [, , spec, createOptions] = cloudMock.createProject.mock.calls[0]
+    const block = spec.notebooks[0].blocks[0]
+    expect(createOptions.rewriteBlock(block, new Map([['nb2', 'new-nb2']])).metadata).toEqual({
+      function_notebook_id: 'elsewhere',
+    })
   })
 
   it('creates against a custom baseUrl rather than the default api.deepnote.com', async () => {

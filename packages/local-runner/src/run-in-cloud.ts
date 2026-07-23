@@ -269,6 +269,10 @@ async function fetchSnapshotSettling(
  * Input overrides are baked into the created blocks, scoped to the target notebook so a same-named
  * input in another notebook is left alone. Blocks are created in `sortingKey` order, which is both
  * the order the engine runs them in and what maps a source block onto its new cloud id.
+ *
+ * Every notebook of the file is created, not just the target: a notebook-function block in the one
+ * being run may call any of them, and a call to a notebook that was left behind is not a run of this
+ * file. Those calls are re-pointed at the created notebooks by {@link rewriteNotebookFunctionId}.
  */
 async function createFromFile(
   baseUrl: string,
@@ -302,11 +306,13 @@ async function createFromFile(
     throw new Error(`runInCloud: notebook "${target.notebookId}" is not in this file, so there is nothing to create.`)
   }
   assertBlocksAreInTarget(options.blockIds, sortedBlocks[index])
-  assertNoInternalNotebookFunctions(toCreate)
 
   const spec: ProjectSpec = {
     name: toCreate.project.name,
     notebooks: toCreate.project.notebooks.map((notebook, i) => ({
+      // The file's own id for this notebook, so `rewriteBlock` below can turn a block's reference to
+      // it into the id Deepnote assigns.
+      sourceId: notebook.id,
       name: notebook.name,
       blocks: sortedBlocks[i].map(block => toBlockSpec(block, options.onWarning)),
     })),
@@ -315,6 +321,7 @@ async function createFromFile(
   const result = await createProject(baseUrl, token, spec, {
     onProgress: options.onCreateProgress,
     onWarning: options.onWarning,
+    rewriteBlock: rewriteNotebookFunctionId,
   })
 
   const match = result.notebooks[index]
@@ -359,31 +366,26 @@ function assertBlocksAreInTarget(requested: string[] | undefined, target: Deepno
 }
 
 /**
- * Refuse a file whose notebook-function block calls another notebook of that same file.
+ * Point a notebook-function block at the notebook Deepnote created, rather than the one the file
+ * named.
  *
  * `function_notebook_id` names the notebook to invoke, and Deepnote resolves it at execution time
- * without validating it on the way in. Creating the file gives every notebook a new id, so that
- * reference would survive pointing at the original — invoking someone's real notebook, or failing
- * obscurely once the run is already going. Rewriting it would mean threading a whole old-to-new
- * notebook map through the create, which is only ever worth it for multi-notebook files.
+ * without validating it on the way in. Creating the file gives every notebook a new id, so a
+ * reference carried across as it stands would survive pointing at the original — invoking someone
+ * else's real notebook, or failing obscurely once the run is already going.
  *
- * A reference *out* of the file is left alone: that one names a notebook already in Deepnote, and
- * is as correct after the create as before it.
+ * Only references *into* this file are rewritten, which is what `notebookIds` holding exactly its
+ * notebooks means. One that names a notebook already in Deepnote is as correct after the create as
+ * before it and is left alone, as is the `null` of an unconfigured block.
  */
-function assertNoInternalNotebookFunctions(file: DeepnoteFile): void {
-  const own = new Set(file.project.notebooks.map(notebook => notebook.id))
-  for (const notebook of file.project.notebooks) {
-    for (const block of notebook.blocks) {
-      const target = (block.metadata as { function_notebook_id?: unknown } | undefined)?.function_notebook_id
-      if (typeof target === 'string' && own.has(target)) {
-        throw new Error(
-          `runInCloud: the ${block.type} block in "${notebook.name}" runs another notebook of this same ` +
-            'file, and creating the file in Deepnote gives that notebook a new id the block would not ' +
-            'follow. Create the project in Deepnote first, then run it by id.'
-        )
-      }
-    }
+function rewriteNotebookFunctionId(block: BlockSpec, notebookIds: ReadonlyMap<string, string>): BlockSpec {
+  const metadata = block.metadata as Record<string, unknown> | undefined
+  const target = metadata?.function_notebook_id
+  if (typeof target !== 'string') {
+    return block
   }
+  const created = notebookIds.get(target)
+  return created ? { ...block, metadata: { ...metadata, function_notebook_id: created } } : block
 }
 
 /**

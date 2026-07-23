@@ -22,6 +22,10 @@ import { parseApiErrorMessage } from './parse-api-error'
  * - There is no bulk block endpoint, so blocks cost one request each and are created sequentially to
  *   keep `position` meaningful. A large notebook is a lot of round-trips; {@link CreateProjectOptions.onProgress}
  *   exists so a caller can report that rather than appear hung.
+ *
+ * Every notebook is created before any block, so that a block which references another notebook of
+ * the same project can be written with the id Deepnote just assigned it — see
+ * {@link CreateProjectOptions.rewriteBlock}.
  */
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
@@ -54,6 +58,12 @@ export interface BlockSpec {
 export interface NotebookSpec {
   name: string
   blocks: BlockSpec[]
+  /**
+   * The caller's own id for this notebook, handed back to {@link CreateProjectOptions.rewriteBlock}
+   * as the key of the id Deepnote assigned. Opaque here — this client never reads it, it only
+   * carries it across the gap between the caller's ids and Deepnote's.
+   */
+  sourceId?: string
 }
 
 /** The content to create. Deliberately plain: `@deepnote/cloud` stays a thin client, so callers map
@@ -80,6 +90,16 @@ export interface CreateProjectOptions {
   onProgress?: (created: number, total: number) => void
   /** Sink for non-fatal problems (e.g. a placeholder notebook that could not be deleted). */
   onWarning?: (message: string) => void
+  /**
+   * Rewrite a block once every notebook exists, and before any block is created.
+   *
+   * A block can name another notebook of the same project — a notebook-function block names the one
+   * it invokes — and that name has to be Deepnote's id for it, which does not exist until this call
+   * assigns it. This is the one moment where every id is known and no block has been created yet, so
+   * it is where such a block is fixed up. `notebookIds` maps each {@link NotebookSpec.sourceId} to
+   * the id Deepnote gave it; return the block unchanged when there is nothing to rewrite.
+   */
+  rewriteBlock?: (block: BlockSpec, notebookIds: ReadonlyMap<string, string>) => BlockSpec
 }
 
 function trimTrailingSlash(url: string): string {
@@ -185,10 +205,10 @@ export async function createProject(
   const placeholders = created.project.notebooks ?? []
   const adopted = new Set<string>()
 
-  const totalBlocks = spec.notebooks.reduce((n, nb) => n + nb.blocks.length, 0)
-  let done = 0
-  const notebooks: CreatedNotebook[] = []
-
+  // Every notebook first, then every block. A block may name another notebook of this same project,
+  // and until all of them exist there is no id to name it with.
+  const createdIds: string[] = []
+  const notebookIds = new Map<string, string>()
   for (const source of spec.notebooks) {
     // Deepnote seeds the project with `Notebook 1` and 409s on a second notebook of that name, so a
     // source notebook called `Notebook 1` can only be created by taking over the one already there.
@@ -208,11 +228,24 @@ export async function createProject(
           `create notebook "${source.name}"`
         )
       ).notebook.id
+    createdIds.push(notebookId)
+    if (source.sourceId !== undefined) {
+      notebookIds.set(source.sourceId, notebookId)
+    }
+  }
+
+  const totalBlocks = spec.notebooks.reduce((n, nb) => n + nb.blocks.length, 0)
+  let done = 0
+  const notebooks: CreatedNotebook[] = []
+
+  for (const [index, source] of spec.notebooks.entries()) {
+    const notebookId = createdIds[index]
     const blockIds: string[] = []
 
     // Sequential, and `position` is explicit: the API has no bulk create, and concurrent posts
     // would race for ordering.
-    for (const [position, block] of source.blocks.entries()) {
+    for (const [position, sourceBlock] of source.blocks.entries()) {
+      const block = options.rewriteBlock?.(sourceBlock, notebookIds) ?? sourceBlock
       const madeBlock = await call(
         'POST',
         '/v2/blocks',
