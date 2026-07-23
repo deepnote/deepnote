@@ -12,6 +12,7 @@ import {
   mergeApiIntegrationsIntoDocument,
   mergeProcessedIntegrations,
 } from './merge-integrations'
+import { parseIntegrations } from './parse-integrations'
 
 async function readIntegrationsDocument(filePath: string): Promise<Document | null> {
   const content = await readFile(filePath, 'utf-8')
@@ -312,6 +313,56 @@ describe('merge-integrations', () => {
       // All secrets should be extracted
       expect(Object.values(secrets)).toContain('some-private-key')
       expect(Object.values(secrets)).toContain('some-passphrase')
+    })
+
+    it('extracts the snowflake dbt service token, which is shared by every auth method', async () => {
+      const filePath = join(tempDir, 'snowflake-dbt.yaml')
+      const serviceToken = 'my-secret-service-token'
+
+      const apiIntegrations = [
+        createMockApiIntegration({
+          id: 'snowflake-dbt-id',
+          name: 'Snowflake with dbt',
+          type: 'snowflake',
+          metadata: {
+            accountName: 'my-account',
+            authMethod: 'password',
+            username: 'my-user',
+            password: 'my-password',
+            dbt: true,
+            dbtServiceToken: serviceToken,
+            dbtPrimaryJobId: '12345',
+            dbtProxyServerUrl: 'https://proxy.example.com',
+          },
+        }),
+      ]
+
+      const doc = createNewDocument()
+      const { secrets } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+
+      await writeIntegrationsFile(filePath, doc)
+      const content = await readFile(filePath, 'utf-8')
+
+      // The token must not reach the file, and the reference left behind must name
+      // the env var the user is expected to define.
+      expect(content).not.toContain(serviceToken)
+      expect(content).toContain('dbtServiceToken: env:SNOWFLAKE_DBT_ID__DBTSERVICETOKEN')
+      expect(secrets).toMatchObject({ 'SNOWFLAKE_DBT_ID__DBTSERVICETOKEN': serviceToken })
+
+      // Reading the file back through the parser that consumes it must resolve the
+      // reference to the original token — a reference that does not match the key in
+      // `secrets` would surface here as an env_var_not_defined issue.
+      const { integrations, issues } = parseIntegrations({ yaml: content, env: secrets })
+      expect(issues).toEqual([])
+      const integration = integrations[0]
+      if (integration?.type !== 'snowflake') {
+        throw new Error('Expected a snowflake integration')
+      }
+      expect(integration.metadata.dbtServiceToken).toBe(serviceToken)
+
+      // The remaining dbt fields are not credentials and stay in the file
+      expect(content).toContain('dbtPrimaryJobId: "12345"')
+      expect(content).toContain('dbtProxyServerUrl: https://proxy.example.com')
     })
 
     it('handles integrations with no secrets', async () => {

@@ -54,8 +54,8 @@ const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] 
   // BigQuery - service account or OAuth
   'big-query': ['service_account', 'clientSecret'],
 
-  // Snowflake - various auth methods
-  snowflake: ['password', 'clientSecret', 'privateKey', 'privateKeyPassphrase'],
+  // Snowflake - various auth methods. `dbtServiceToken` is shared by all of them.
+  snowflake: ['password', 'clientSecret', 'privateKey', 'privateKeyPassphrase', 'dbtServiceToken'],
 
   // Redshift - password or IAM
   redshift: ['password', 'caCertificateText'],
@@ -76,7 +76,7 @@ const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] 
  *
  * @example
  * getSecretFieldPaths('pgsql') // => ['password', 'caCertificateText']
- * getSecretFieldPaths('snowflake') // => ['password', 'clientSecret', 'privateKey', 'privateKeyPassphrase']
+ * getSecretFieldPaths('snowflake') // => ['password', 'clientSecret', 'privateKey', 'privateKeyPassphrase', 'dbtServiceToken']
  */
 export function getSecretFieldPaths(type: DatabaseIntegrationType): readonly string[] {
   return SECRET_PATHS[type] ?? []
