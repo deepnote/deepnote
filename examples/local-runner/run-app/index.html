@@ -187,6 +187,17 @@
       .portfolio th:first-child, .portfolio td:first-child { text-align: left; }
       .portfolio th { color: var(--ink-3); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
       .memo { white-space: pre-wrap; font-family: var(--sans); color: var(--ink-2); line-height: 1.65; }
+      .provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+      .provider-review { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; background: var(--surface-2); }
+      .provider-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+      .provider-name { font-weight: 650; }
+      .provider-model { color: var(--ink-3); font-family: var(--mono); font-size: 0.72rem; }
+      .provider-decision { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pos); }
+      .provider-decision.intervene, .provider-decision.unavailable { color: var(--neg); }
+      .consensus { color: var(--ink-2); margin: -2px 0 13px; }
+      .provider-review a { display: inline-block; margin-top: 10px; font-size: 0.8rem; }
+      .arbiter-review { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+      .arbiter-review .provider-review { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
       .card h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-3); margin: 0 0 11px; }
       .card a { color: var(--accent); }
       .empty { display: flex; min-height: 55vh; align-items: center; justify-content: center; flex-direction: column; text-align: center; color: var(--ink-3); gap: 6px; }
@@ -214,13 +225,13 @@
           <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
           <button id="run-pipeline" class="btn pipeline"><span id="spin-pipeline"></span>Run orchestrated pipeline</button>
         </div>
-        <p class="pipeline-note">Fan out regional notebooks, quality-gate their outputs, rerun only incomplete data, then ask a separate agent notebook for the decision.</p>
+        <p class="pipeline-note">Fan out regional notebooks, compare the same evidence with GPT and Claude, then fan their reviews into a final arbiter.</p>
         <div class="status" id="status"></div>
 
         <div class="pipeline-progress" id="pipeline-progress" hidden>
           <h2>Live pipeline</h2>
-          <svg class="pipeline-graph" id="pipeline-graph" viewBox="0 0 300 408" role="img" aria-labelledby="pipeline-graph-title">
-            <title id="pipeline-graph-title">Regional analyses fan out, join at a quality gate, optionally recover, aggregate, and run an executive agent</title>
+          <svg class="pipeline-graph" id="pipeline-graph" viewBox="0 0 300 506" role="img" aria-labelledby="pipeline-graph-title">
+            <title id="pipeline-graph-title">Regional analyses fan out, join at a quality gate, optionally recover, aggregate, fan out to GPT and Claude reviews, then join at a final decision arbiter</title>
             <text class="graph-stage-label" x="150" y="12" text-anchor="middle">Parallel fan-out</text>
 
             <path class="graph-edge" data-edge="fanout" d="M150 20V31H48V44 M150 31H252V44 M150 20V44" />
@@ -280,14 +291,35 @@
               <text class="node-state" x="60" y="36" text-anchor="middle">waiting</text>
             </g>
 
-            <path class="graph-edge" data-edge="agent" d="M150 318V340" />
-            <a class="graph-node-link" data-run-step="executive-agent-decision" data-label="Executive agent decision">
-              <g class="graph-node pending" data-step-id="executive-agent-decision" transform="translate(82 340)">
+            <path class="graph-edge" data-edge="providers" d="M150 318V338H80V354 M150 338H220V354" />
+            <text class="graph-stage-label" x="150" y="348" text-anchor="middle">Model-provider fan-out</text>
+            <a class="graph-node-link" data-run-step="decision-gpt" data-label="OpenAI GPT-5.5 decision review">
+              <g class="graph-node pending" data-step-id="decision-gpt" transform="translate(16 354)">
+                <rect width="128" height="54" rx="7" />
+                <circle class="node-dot" cx="10" cy="10" r="3" />
+                <text class="node-link-hint" x="119" y="13">↗</text>
+                <text class="node-name" x="64" y="23" text-anchor="middle">OpenAI · GPT-5.5</text>
+                <text class="node-state" x="64" y="40" text-anchor="middle">waiting</text>
+              </g>
+            </a>
+            <a class="graph-node-link" data-run-step="decision-claude" data-label="Anthropic Claude Sonnet 5 decision review">
+              <g class="graph-node pending" data-step-id="decision-claude" transform="translate(156 354)">
+                <rect width="128" height="54" rx="7" />
+                <circle class="node-dot" cx="10" cy="10" r="3" />
+                <text class="node-link-hint" x="119" y="13">↗</text>
+                <text class="node-name" x="64" y="23" text-anchor="middle">Anthropic · Claude 5</text>
+                <text class="node-state" x="64" y="40" text-anchor="middle">waiting</text>
+              </g>
+            </a>
+
+            <path class="graph-edge" data-edge="arbiter" d="M80 408V422H150V438 M220 408V422H150" />
+            <a class="graph-node-link" data-run-step="final-arbiter" data-label="Final decision arbiter">
+              <g class="graph-node pending" data-step-id="final-arbiter" transform="translate(82 438)">
                 <rect width="136" height="54" rx="7" />
                 <circle class="node-dot" cx="10" cy="10" r="3" />
                 <text class="node-link-hint" x="127" y="13">↗</text>
-                <text class="node-name" x="68" y="23" text-anchor="middle">Executive agent</text>
-                <text class="node-state" x="68" y="40" text-anchor="middle">waiting</text>
+                <text class="node-name" x="68" y="23" text-anchor="middle">Final decision arbiter</text>
+                <text class="node-state" x="68" y="40" text-anchor="middle">waiting for reviews</text>
               </g>
             </a>
           </svg>
@@ -551,13 +583,10 @@
           renderOrchestration(finalResult)
           const value = finalResult.value
           const summary = `${value.notebookRuns} notebook runs · ${value.recoveredRegions.length} conditional recovery`
-          if (value.reportViewUrl) {
-            statusLink(`${cap(value.target)} pipeline complete — ${summary} — `, value.reportViewUrl, 'view agent run →')
-          } else if (value.reportError) {
-            setStatus(`Pipeline decision complete; agent unavailable: ${value.reportError}`, 'err')
-          } else {
-            setStatus(`${cap(value.target)} pipeline complete — ${summary}`, 'ok')
-          }
+          const conclusion = value.finalDecision
+            ? `final arbiter recommends ${value.finalDecision}`
+            : `final arbiter unavailable: ${value.finalReview.error ?? 'no structured decision'}`
+          setStatus(`${cap(value.target)} pipeline complete — ${summary} — ${conclusion}`, value.finalDecision ? 'ok' : 'err')
         } catch (e) {
           if (gen === displayGen) setStatus(cap(e.message), 'err')
         } finally {
@@ -617,13 +646,17 @@
         setGraphEdge('join', analysesDone ? 'done' : analysesStarted ? 'active' : 'pending')
 
         const recoveryState = pipelineStepStates.get('recover-europe')
-        const agentState = pipelineStepStates.get('executive-agent-decision')
+        const providerStates = ['decision-gpt', 'decision-claude']
+          .map(id => pipelineStepStates.get(id))
+          .filter(Boolean)
+        const providersStarted = providerStates.length > 0
+        const arbiterState = pipelineStepStates.get('final-arbiter')
         if (recoveryState) {
           setGraphNode(graphStage('gate'), 'done', 'Europe below 95%')
           setGraphEdge('gate-pass', 'skipped')
           setGraphEdge('recovery', recoveryState === 'done' ? 'done' : 'active')
           if (recoveryState === 'done') setGraphNode(graphStage('aggregate'), 'active', 'combining results')
-        } else if (agentState) {
+        } else if (providersStarted) {
           setGraphNode(graphStage('gate'), 'done', 'all regions passed')
           setGraphNode(graphNodeForStep('recover-europe'), 'skipped', 'not needed')
           setGraphEdge('gate-pass', 'done')
@@ -633,9 +666,14 @@
           setGraphEdge('gate-pass', 'active')
         }
 
-        if (agentState) {
+        if (providersStarted) {
           setGraphNode(graphStage('aggregate'), 'done', '3 validated regions')
-          setGraphEdge('agent', agentState === 'done' ? 'done' : 'active')
+          const providersFinished = providerStates.length === 2 && providerStates.every(state => ['done', 'failed'].includes(state))
+          setGraphEdge('providers', providersFinished ? 'done' : 'active')
+        }
+        if (arbiterState) {
+          setGraphEdge('providers', 'done')
+          setGraphEdge('arbiter', ['done', 'failed'].includes(arbiterState) ? 'done' : 'active')
         }
       }
 
@@ -649,7 +687,26 @@
         setGraphNode(graphStage('aggregate'), 'done', `${value.regions.length} validated regions`)
         setGraphEdge('fanout', 'done')
         setGraphEdge('join', 'done')
-        setGraphEdge('agent', 'done')
+        if (value.target === 'cloud') {
+          setGraphEdge('providers', 'done')
+          for (const review of value.providerReviews) {
+            const node = graphNodeForStep(review.id)
+            setGraphNode(node, review.readout ? 'done' : 'failed', review.decision ?? 'unavailable')
+          }
+          setGraphEdge('arbiter', 'done')
+          setGraphNode(
+            graphNodeForStep('final-arbiter'),
+            value.finalReview.readout ? 'done' : 'failed',
+            value.finalDecision ?? 'unavailable'
+          )
+        } else {
+          setGraphEdge('providers', 'skipped')
+          setGraphEdge('arbiter', 'skipped')
+          for (const review of value.providerReviews) {
+            setGraphNode(graphNodeForStep(review.id), 'skipped', 'cloud only')
+          }
+          setGraphNode(graphNodeForStep('final-arbiter'), 'skipped', 'cloud only')
+        }
         if (value.recoveredRegions.length) {
           setGraphNode(graphNodeForStep('recover-europe'), 'done', 'Europe recovered')
           setGraphEdge('gate-pass', 'skipped')
@@ -768,14 +825,19 @@
           `  → quality gate ≥ ${(value.qualityThreshold * 100).toFixed(0)}%\n` +
           `  → conditional recovery: ${recovered}\n` +
           `  → validated aggregation\n` +
-          `  → executive agent notebook`
+          `  → parallel provider review\n` +
+          `      ↳ OpenAI · GPT-5.5\n` +
+          `      ↳ Anthropic · Claude Sonnet 5\n` +
+          `  → final decision arbiter (fan-in)`
         flow.append(flowTitle, flowText)
 
         const summary = el('div', 'card')
         const summaryTitle = el('h2'); summaryTitle.textContent = 'Pipeline result'
         const metrics = el('div', 'metrics')
         const entries = [
-          ['Decision', value.decision],
+          ['Final decision', value.finalDecision ?? 'unavailable'],
+          ['Rule proposal', value.decision],
+          ['Provider verdict', value.providerConsensus.status],
           ['Notebook runs', value.notebookRuns],
           ['Recovered', value.recoveredRegions.length],
           ['Forecast vs target', money(value.totals.forecastK - value.totals.targetK)],
@@ -783,7 +845,8 @@
         for (const [key, val] of entries) {
           const metric = el('div', 'metric')
           const k = el('div', 'k'); k.textContent = key
-          const v = el('div', key === 'Decision' ? `v decision ${value.decision}` : 'v'); v.textContent = val
+          const v = el('div', key === 'Final decision' ? `v decision ${value.finalDecision ?? 'intervene'}` : 'v')
+          v.textContent = val
           metric.append(k, v); metrics.append(metric)
         }
         summary.append(summaryTitle, metrics)
@@ -814,18 +877,53 @@
         }
         table.append(body); regional.append(regionalTitle, table)
 
-        const memo = el('div', 'card')
-        const memoTitle = el('h2'); memoTitle.textContent = 'Executive agent memo'
-        const memoText = el('div', 'memo')
-        memoText.textContent = value.executiveReadout || value.reportError || 'No agent memo was returned.'
-        memo.append(memoTitle, memoText)
-        if (value.reportViewUrl) {
-          const link = el('a'); link.href = value.reportViewUrl; link.target = '_blank'; link.rel = 'noopener'
-          link.textContent = 'Open the final notebook run in Deepnote →'
-          memo.append(document.createElement('br'), link)
+        const comparison = el('div', 'card')
+        const comparisonTitle = el('h2'); comparisonTitle.textContent = 'Independent model-provider review'
+        const consensus = el('div', 'consensus')
+        consensus.textContent = value.providerConsensus.summary
+        const providerGrid = el('div', 'provider-grid')
+        for (const review of value.providerReviews) {
+          const providerCard = el('article', 'provider-review')
+          const head = el('div', 'provider-head')
+          const identity = el('div')
+          const providerName = el('div', 'provider-name'); providerName.textContent = review.provider
+          const providerModel = el('div', 'provider-model'); providerModel.textContent = review.model
+          identity.append(providerName, providerModel)
+          const providerDecision = el('div', `provider-decision ${review.decision ?? 'unavailable'}`)
+          providerDecision.textContent = review.decision ?? 'unavailable'
+          head.append(identity, providerDecision)
+          const reviewText = el('div', 'memo')
+          reviewText.textContent = review.readout || review.error || 'No provider review was returned.'
+          providerCard.append(head, reviewText)
+          if (review.viewUrl) {
+            const link = el('a'); link.href = review.viewUrl; link.target = '_blank'; link.rel = 'noopener'
+            link.textContent = `Open ${review.model} run in Deepnote →`
+            providerCard.append(link)
+          }
+          providerGrid.append(providerCard)
         }
+        const arbiter = el('div', 'arbiter-review')
+        const arbiterCard = el('article', 'provider-review')
+        const arbiterHead = el('div', 'provider-head')
+        const arbiterIdentity = el('div')
+        const arbiterName = el('div', 'provider-name'); arbiterName.textContent = 'Final arbiter'
+        const arbiterModel = el('div', 'provider-model'); arbiterModel.textContent = 'Deepnote · Auto'
+        arbiterIdentity.append(arbiterName, arbiterModel)
+        const finalDecision = el('div', `provider-decision ${value.finalDecision ?? 'unavailable'}`)
+        finalDecision.textContent = value.finalDecision ?? 'unavailable'
+        arbiterHead.append(arbiterIdentity, finalDecision)
+        const arbiterText = el('div', 'memo')
+        arbiterText.textContent = value.finalReview.readout || value.finalReview.error || 'No final decision was returned.'
+        arbiterCard.append(arbiterHead, arbiterText)
+        if (value.finalReview.viewUrl) {
+          const link = el('a'); link.href = value.finalReview.viewUrl; link.target = '_blank'; link.rel = 'noopener'
+          link.textContent = 'Open final arbiter run in Deepnote →'
+          arbiterCard.append(link)
+        }
+        arbiter.append(arbiterCard)
+        comparison.append(comparisonTitle, consensus, providerGrid, arbiter)
 
-        grid.append(flow, summary, regional, memo)
+        grid.append(flow, summary, regional, comparison)
         root.append(grid)
       }
 

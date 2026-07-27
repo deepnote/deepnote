@@ -8,7 +8,21 @@ import { orchestrate, serveStatic } from '../../../packages/local-runner/dist/in
 const here = dirname(fileURLToPath(import.meta.url))
 const dashboardNotebook = join(here, '..', '..', 'local-runner-showcase.deepnote')
 const regionalNotebook = join(here, 'regional-analysis.deepnote')
-const decisionNotebook = join(here, 'executive-decision.deepnote')
+const decisionProviders = [
+  {
+    id: 'decision-gpt',
+    provider: 'OpenAI',
+    model: 'GPT-5.5',
+    notebook: join(here, 'decision-gpt.deepnote'),
+  },
+  {
+    id: 'decision-claude',
+    provider: 'Anthropic',
+    model: 'Claude Sonnet 5',
+    notebook: join(here, 'decision-claude.deepnote'),
+  },
+]
+const arbiterNotebook = join(here, 'decision-arbiter.deepnote')
 
 // Read `.env` from the working directory, like `deepnote run` does, so the keys the notebook's
 // agent block needs can live in a file rather than your shell: OPENAI_API_KEY for `Run` (local
@@ -79,20 +93,89 @@ async function runSalesPipeline(inputs, emit) {
         regions: validated,
         totals,
       }
-      const report = await run({
-        id: 'executive-agent-decision',
-        notebook: decisionNotebook,
-        inputs: { portfolio_json: JSON.stringify(portfolio) },
-        allowFailure: true,
-      })
-
-      let executiveReadout = null
-      let reportError = report.error
-      if (report.success) {
-        try {
-          executiveReadout = outputs.lastAgentText(report)
-        } catch (error) {
-          reportError = error instanceof Error ? error.message : String(error)
+      const providerReviews =
+        target === 'cloud'
+          ? await Promise.all(
+              decisionProviders.map(async provider => {
+                const step = await run({
+                  id: provider.id,
+                  notebook: provider.notebook,
+                  inputs: { portfolio_json: JSON.stringify(portfolio) },
+                  cloud: { createIfMissing: true },
+                  allowFailure: true,
+                })
+                let readout = null
+                let error = step.error
+                if (step.success) {
+                  try {
+                    readout = outputs.lastAgentText(step)
+                  } catch (outputError) {
+                    error = outputError instanceof Error ? outputError.message : String(outputError)
+                  }
+                }
+                return {
+                  id: provider.id,
+                  provider: provider.provider,
+                  model: provider.model,
+                  decision: parseProviderDecision(readout),
+                  readout,
+                  error,
+                  viewUrl: step.viewUrl,
+                }
+              })
+            )
+          : decisionProviders.map(provider => ({
+              id: provider.id,
+              provider: provider.provider,
+              model: provider.model,
+              decision: null,
+              readout: null,
+              error: 'Native provider selection runs in Deepnote Cloud; set DEEPNOTE_TOKEN to enable this review.',
+              viewUrl: null,
+            }))
+      const providerConsensus = compareProviderDecisions(providerReviews)
+      let finalReview = {
+        provider: 'Deepnote',
+        model: 'Auto',
+        decision: null,
+        readout: null,
+        error: 'The final arbiter runs in Deepnote Cloud; set DEEPNOTE_TOKEN to enable it.',
+        viewUrl: null,
+      }
+      if (target === 'cloud') {
+        const arbitrationContext = {
+          portfolio,
+          providerReviews: providerReviews.map(({ provider, model, decision: providerDecision, readout, error }) => ({
+            provider,
+            model,
+            decision: providerDecision,
+            readout,
+            error,
+          })),
+        }
+        const arbiter = await run({
+          id: 'final-arbiter',
+          notebook: arbiterNotebook,
+          inputs: { decision_context_json: JSON.stringify(arbitrationContext) },
+          cloud: { createIfMissing: true },
+          allowFailure: true,
+        })
+        let readout = null
+        let error = arbiter.error
+        if (arbiter.success) {
+          try {
+            readout = outputs.lastAgentText(arbiter)
+          } catch (outputError) {
+            error = outputError instanceof Error ? outputError.message : String(outputError)
+          }
+        }
+        finalReview = {
+          provider: 'Deepnote',
+          model: 'Auto',
+          decision: parseFinalDecision(readout),
+          readout,
+          error,
+          viewUrl: arbiter.viewUrl,
         }
       }
 
@@ -104,10 +187,11 @@ async function runSalesPipeline(inputs, emit) {
         totals,
         qualityGateFailures: needsRecovery.map(({ value }) => value.region),
         recoveredRegions: recoveryResults.map(({ value }) => value.region),
-        notebookRuns: initial.length + recoveries.length + 1,
-        executiveReadout,
-        reportError,
-        reportViewUrl: report.viewUrl,
+        notebookRuns: initial.length + recoveries.length + (target === 'cloud' ? decisionProviders.length + 1 : 0),
+        providerReviews,
+        providerConsensus,
+        finalDecision: finalReview.decision,
+        finalReview,
       }
     },
     {
@@ -141,4 +225,37 @@ function sum(values) {
 
 function slug(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+}
+
+function parseProviderDecision(readout) {
+  const match = readout?.match(/decision\s*:\s*\**\s*(proceed|intervene)/i)
+  return match?.[1]?.toLowerCase() ?? null
+}
+
+function parseFinalDecision(readout) {
+  const match = readout?.match(/final\s+decision\s*:\s*\**\s*(proceed|intervene)/i)
+  return match?.[1]?.toLowerCase() ?? null
+}
+
+function compareProviderDecisions(reviews) {
+  const decisions = reviews.map(review => review.decision).filter(Boolean)
+  if (decisions.length !== reviews.length) {
+    return {
+      status: 'incomplete',
+      decision: null,
+      summary: `${decisions.length} of ${reviews.length} providers returned a structured decision`,
+    }
+  }
+  if (new Set(decisions).size === 1) {
+    return {
+      status: 'agreement',
+      decision: decisions[0],
+      summary: `Both providers independently recommend ${decisions[0]}`,
+    }
+  }
+  return {
+    status: 'split',
+    decision: null,
+    summary: `${reviews[0].model} recommends ${reviews[0].decision}; ${reviews[1].model} recommends ${reviews[1].decision}`,
+  }
 }
