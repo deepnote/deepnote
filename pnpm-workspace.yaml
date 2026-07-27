@@ -1,2 +1,3 @@
 packages:
   - 'packages/*'
+  - 'examples/local-runner/workflow-orchestration'

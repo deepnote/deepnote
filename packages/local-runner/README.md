@@ -86,6 +86,93 @@ to fail instead. `serveStatic` exposes it at `POST /api/run-cloud`.
 The first run of a new notebook is the slow one — blocks are created one API request each — and
 `onCreateProgress` reports that. Later runs find the notebook by name and skip straight to running.
 
+### Orchestrate notebook pipelines
+
+`orchestrate` turns the existing local and cloud runners into a small one-shot pipeline API. Ordinary
+TypeScript supplies sequencing, fan-out, loops, and branching:
+
+```ts
+import { orchestrate } from "@deepnote/local-runner";
+
+const pipeline = await orchestrate(
+  async ({ run, outputs }) => {
+    const [north, europe] = await Promise.all([
+      run({
+        id: "north",
+        notebook: "inputs.deepnote",
+        inputs: { region: "North America" },
+      }),
+      run({
+        id: "europe",
+        notebook: "inputs.deepnote",
+        inputs: { region: "Europe" },
+      }),
+    ]);
+
+    const report = await run({
+      id: "report",
+      notebook: "report-with-agent.deepnote",
+      inputs: {
+        analyst_notes: [outputs.allText(north), outputs.allText(europe)].join(
+          "\n",
+        ),
+      },
+    });
+
+    return outputs.lastAgentText(report);
+  },
+  {
+    defaultTarget: process.env.DEEPNOTE_TOKEN ? "cloud" : "local",
+    onEvent: (event) => console.log(event),
+  },
+);
+```
+
+Each result has the same normalized shape regardless of target: status, outputs, parsed snapshot,
+timing, and cloud metadata when applicable. Failed notebook blocks throw by default; set
+`allowFailure: true` on a step when failure is data the pipeline should inspect. Step IDs are unique
+within a run and every progress event carries its step ID.
+
+The output helpers read text or JSON from the resulting snapshot. `allText` is useful for cloud runs
+because a newly created cloud notebook can have different block IDs from its source file, while
+`lastAgentText` handles both local agent output and cloud agent runs that append their answer as a
+generated markdown block.
+
+See [`examples/local-runner/orchestration`](../../examples/local-runner/orchestration) for a
+complete local-or-cloud pipeline.
+
+### Make notebook steps durable with Workflow SDK
+
+Durability is an optional layer rather than part of the one-shot API. Install
+[`workflow`](https://www.npmjs.com/package/workflow) and your supported framework integration, then
+import the serializable Deepnote step:
+
+```ts
+import { runNotebookStep } from "@deepnote/local-runner/workflows";
+
+export async function reportWorkflow(region: string) {
+  "use workflow";
+
+  const result = await runNotebookStep({
+    id: "report",
+    notebook: "./report-with-agent.deepnote",
+    target: "cloud",
+    inputs: { region },
+  });
+
+  return result.success;
+}
+```
+
+The application must re-export `runNotebookStep` from its own workflow directory so the
+consumer-side compiler assigns it a stable step ID. Credentials are deliberately excluded from the
+serializable step arguments; cloud steps read `DEEPNOTE_TOKEN` inside the step. Automatic retries
+are disabled because notebooks and agent blocks may have non-idempotent side effects or model cost.
+
+See
+[`examples/local-runner/workflow-orchestration`](../../examples/local-runner/workflow-orchestration)
+for a complete Nitro/Vite example using Workflow SDK's local development world.
+
 ### Serve it to a static page
 
 ```ts

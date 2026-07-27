@@ -21,6 +21,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./workflows": {
+      "types": "./dist/workflows.d.ts",
+      "import": "./dist/workflows.js",
+      "require": "./dist/workflows.cjs"
+    },
     "./snapshot-reader": "./dist/snapshot-reader.iife.js"
   },
   "main": "./dist/index.cjs",
@@ -48,6 +53,14 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.22.4",
     "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "workflow": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "workflow": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22.14.0",

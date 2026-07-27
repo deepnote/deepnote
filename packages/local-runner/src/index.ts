@@ -12,6 +12,26 @@ export type { DeepnoteInput, LoadedDeepnoteFile } from './load-file'
 export { loadDeepnoteFile } from './load-file'
 export type { OpenInCloudOptions } from './open-in-cloud'
 export { openInCloud } from './open-in-cloud'
+export type {
+  LocalOrchestrationOptions,
+  OrchestrateOptions,
+  OrchestrationContext,
+  OrchestrationEvent,
+  OrchestrationOutputHelpers,
+  OrchestrationResult,
+  OrchestrationStep,
+  OrchestrationStepResult,
+  OrchestrationTarget,
+} from './orchestrate'
+export {
+  allOutputText,
+  lastAgentText,
+  OrchestrationStepError,
+  orchestrate,
+  orchestrationOutputs,
+  outputJson,
+  outputText,
+} from './orchestrate'
 export { readSnapshot } from './read-snapshot'
 export type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 export { runInCloud } from './run-in-cloud'
