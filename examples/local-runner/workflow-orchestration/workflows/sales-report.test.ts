@@ -162,12 +162,20 @@ function agentStep(): OrchestrationStepResult {
               id: 'agent',
               type: 'agent',
               content: 'Write a memo',
-              outputs: [],
+              outputs: [
+                {
+                  output_type: 'display_data',
+                  data: {
+                    'text/plain': 'Added the requested decision memo.',
+                  },
+                  metadata: {},
+                },
+              ],
               executionCount: null,
             },
             {
               id: 'memo',
-              type: 'markdown',
+              type: 'text-cell-p',
               content: 'Intervene now: the validated forecast is below target.',
               outputs: [],
               executionCount: null,

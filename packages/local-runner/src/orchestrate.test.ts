@@ -341,6 +341,31 @@ describe('orchestration output helpers', () => {
     expect(lastAgentText(step)).toBe('Cloud agent answer')
   })
 
+  it('prefers a generated cloud text cell over the agent completion summary', () => {
+    const step = result()
+    const blocks = step.snapshot?.notebooks[0].blocks
+    const agent = blocks?.find(block => block.type === 'agent')
+    if (!blocks || !agent) {
+      throw new Error('Invalid test snapshot')
+    }
+    agent.outputs = [
+      {
+        output_type: 'display_data',
+        data: { 'text/plain': 'Added the requested decision memo.' },
+        metadata: {},
+      },
+    ]
+    blocks.push({
+      id: 'agent-generated-text-cell',
+      type: 'text-cell-p',
+      content: 'Decision: intervene now.',
+      outputs: [],
+      executionCount: null,
+    })
+
+    expect(lastAgentText(step)).toBe('Decision: intervene now.')
+  })
+
   it('extracts all text without relying on stable block ids', () => {
     expect(allOutputText(result())).toBe('hello\nagent answer')
   })

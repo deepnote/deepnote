@@ -165,6 +165,7 @@ export async function salesDecisionWorkflow(request: SalesDecisionRequest = {}):
     },
     allowFailure: true,
   })
+  const executiveReadout = report.success ? lastAgentOutput(report) : null
 
   return {
     decision,
@@ -177,8 +178,12 @@ export async function salesDecisionWorkflow(request: SalesDecisionRequest = {}):
       agentCompleted: report.success,
     },
     portfolio,
-    executiveReadout: report.success ? lastAgentOutput(report) : null,
-    reportError: report.error,
+    executiveReadout,
+    reportError:
+      report.error ??
+      (report.success && executiveReadout === null
+        ? 'The agent completed, but its snapshot contained no readable final text.'
+        : undefined),
     reportViewUrl: report.viewUrl,
   }
 }
@@ -231,34 +236,48 @@ function regionalResult(run: OrchestrationStepResult): RegionalResult {
   throw new Error(`Step "${run.id}" did not emit its regional result.`)
 }
 
-function lastAgentOutput(result: OrchestrationStepResult): string {
+function lastAgentOutput(result: OrchestrationStepResult): string | null {
   const blocks = result.snapshot?.notebooks.flatMap(notebook => notebook.blocks) ?? []
   const agentIndex = blocks.map(block => block.type).lastIndexOf('agent')
   if (agentIndex === -1) {
-    throw new Error(`Step "${result.id}" has no agent output.`)
+    return null
   }
 
-  const directOutput = streamOutputs(blocks[agentIndex].outputs)
-  if (directOutput) {
-    return directOutput
+  for (let index = blocks.length - 1; index > agentIndex; index -= 1) {
+    const block = blocks[index]
+    if (isTextContentBlock(block.type) && block.content.trim()) {
+      return block.content
+    }
+    const output = textOutputs(block.outputs)
+    if (output) {
+      return output
+    }
   }
 
-  const generatedMarkdown = blocks
-    .slice(agentIndex + 1)
-    .filter(block => block.type === 'markdown' && block.content.trim())
-    .at(-1)
-  if (generatedMarkdown) {
-    return generatedMarkdown.content
-  }
-
-  throw new Error(`Step "${result.id}" has no textual agent output.`)
+  return textOutputs(blocks[agentIndex].outputs) || null
 }
 
-function streamOutputs(outputs: OrchestrationStepResult['outputs'][number]['outputs']): string {
+function textOutputs(outputs: OrchestrationStepResult['outputs'][number]['outputs']): string {
   return outputs
-    .filter(output => output.output_type === 'stream')
-    .map(output => multilineText(output.text))
+    .flatMap(output => {
+      if (output.output_type === 'stream') {
+        return multilineText(output.text)
+      }
+      if ('data' in output && isRecord(output.data)) {
+        for (const mime of ['text/markdown', 'text/plain', 'text/html'] as const) {
+          const text = multilineText(output.data[mime])
+          if (text) {
+            return text
+          }
+        }
+      }
+      return ''
+    })
     .join('')
+}
+
+function isTextContentBlock(type: string): boolean {
+  return type === 'markdown' || type.startsWith('text-cell-')
 }
 
 function multilineText(value: unknown): string {
@@ -269,6 +288,10 @@ function multilineText(value: unknown): string {
     return value.join('')
   }
   return ''
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function sum(values: number[]): number {

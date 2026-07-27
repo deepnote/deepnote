@@ -373,22 +373,23 @@ export function lastAgentText(result: OrchestrationStepResult): string {
     throw new Error(`Step "${result.id}" has no agent block in its snapshot.`)
   }
 
-  const directOutput = textPartsForBlock(blocks[agentIndex]).join('')
-  if (directOutput) {
-    return directOutput
-  }
-
   // Local execution stores the agent's final response on the agent block. Cloud agent runs can
-  // instead append generated code/markdown blocks, leaving the original agent block output empty.
+  // instead append generated code or text-cell blocks. Prefer those generated blocks over the
+  // agent block's own output, which may contain only a tool-completion summary.
   for (let index = blocks.length - 1; index > agentIndex; index -= 1) {
     const block = blocks[index]
+    if (isTextContentBlock(block) && block.content.trim()) {
+      return block.content
+    }
     const output = textPartsForBlock(block).join('')
     if (output) {
       return output
     }
-    if (block.type === 'markdown' && block.content.trim()) {
-      return block.content
-    }
+  }
+
+  const directOutput = textPartsForBlock(blocks[agentIndex]).join('')
+  if (directOutput) {
+    return directOutput
   }
 
   throw new Error(`The last agent block in step "${result.id}" produced no textual output.`)
@@ -472,6 +473,10 @@ function textPartsForBlock(block: SnapshotBlock): string[] {
     }
     return ''
   })
+}
+
+function isTextContentBlock(block: SnapshotBlock): boolean {
+  return block.type === 'markdown' || block.type.startsWith('text-cell-')
 }
 
 function multilineText(value: unknown): string {
