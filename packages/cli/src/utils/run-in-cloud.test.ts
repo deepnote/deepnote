@@ -255,6 +255,9 @@ describe('runInDeepnoteCloud — inputs and blocks', () => {
       // JSON number an untyped parse would have produced.
       inputs: { name: 'Alice', count: '42' },
       blockIds: ['blk-1'],
+      // Deepnote only runs selected blocks in live mode, and rejects blockIds on the detached run
+      // it would otherwise default to — so `--block` has to ask for one.
+      detached: false,
     })
   })
 

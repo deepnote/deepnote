@@ -58,7 +58,10 @@ const runSchema = z
     notebookId: z.string().optional(),
     projectId: z.string().optional(),
     createdAt: z.string().optional(),
-    finishedAt: z.string().optional(),
+    // `completedAt`, not `finishedAt`: the run API renames the column at its boundary, and
+    // `finishedAt` appears only *inside* a snapshot document. Reading the wrong one silently
+    // dropped every completion timestamp.
+    completedAt: z.string().nullish(),
     error: z.unknown().optional(),
     snapshot: snapshotSchema.optional(),
     // Some deployments return the snapshot inline on the run object (flat) rather than nested
@@ -78,17 +81,26 @@ export interface NormalizedRun {
   notebookId?: string
   projectId?: string
   createdAt?: string
-  finishedAt?: string
+  /** Null while the run is still going. Matches {@link RunSummary.completedAt}. */
+  completedAt?: string | null
   error?: unknown
   snapshot?: { snapshotContent?: string; downloadUrl?: string } & Record<string, unknown>
   /** The raw parsed response, for debugging / forward-compatibility. */
   raw: unknown
 }
 
+/**
+ * The values Deepnote accepts for an input. Narrow on purpose: the API takes exactly this union,
+ * and only for names the notebook's own input blocks define — there is no kernel-injection path
+ * where an arbitrary value would mean anything.
+ */
+export type RunInputValue = string | boolean | string[]
+
 /** Request body for {@link triggerNotebookRun}. Deliberately minimal (see plan point 13). */
 export interface TriggerRunBody {
   notebookId: string
-  inputs?: Record<string, unknown>
+  inputs?: Record<string, RunInputValue>
+  /** Run only these blocks. Omitted from the request when empty — see {@link toRequestBody}. */
   blockIds?: string[]
 }
 
@@ -167,7 +179,7 @@ function normalizeRun(json: unknown): NormalizedRun {
     notebookId: raw.notebookId,
     projectId: raw.projectId,
     createdAt: raw.createdAt,
-    finishedAt: raw.finishedAt,
+    completedAt: raw.completedAt,
     error: raw.error,
     snapshot: normalizeSnapshot(raw),
     raw,
@@ -193,6 +205,22 @@ export function describeRunError(run: NormalizedRun): string | undefined {
   return String(error)
 }
 
+/**
+ * A {@link TriggerRunBody} as `POST /v2/runs` wants it. Two rules of that endpoint live here, so no
+ * caller has to know them:
+ *
+ * - A run is `detached` unless it says otherwise — a background run that leaves the live editor
+ *   session alone — and a detached run refuses `blockIds` outright (`blockIds is not supported for
+ *   detached runs`, a 400). Deepnote only runs selected blocks in live mode, so asking for blocks is
+ *   asking for a live run, and the body says so rather than being sent to fail.
+ * - `blockIds` must name at least one block. An empty array is not "no blocks in particular" to the
+ *   API, it is a validation error — and it is exactly what a caller means by omitting it, so it is
+ *   dropped.
+ */
+function toRequestBody({ blockIds, ...rest }: TriggerRunBody): Record<string, unknown> {
+  return blockIds?.length ? { ...rest, blockIds, detached: false } : rest
+}
+
 /** Start a cloud run of an existing notebook. Returns the initial run (usually `pending`/`running`). */
 export async function triggerNotebookRun(
   baseUrl: string,
@@ -204,7 +232,7 @@ export async function triggerNotebookRun(
   const response = await fetch(url, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify(body),
+    body: JSON.stringify(toRequestBody(body)),
     signal: AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
   })
   await throwIfNotOk(response, 'Failed to start Deepnote run')
@@ -235,6 +263,101 @@ export async function getRun(
   })
   await throwIfNotOk(response, 'Failed to fetch Deepnote run')
   return normalizeRun(await response.json())
+}
+
+const runSummarySchema = z
+  .object({
+    runId: z.string(),
+    notebookId: z.string().optional(),
+    status: z.string(),
+    createdAt: z.string().optional(),
+    completedAt: z.string().nullish(),
+  })
+  .passthrough()
+
+const runsPageSchema = z
+  .object({
+    runs: z.array(runSummarySchema),
+    pagination: z
+      .object({ nextPageToken: z.string().nullish(), hasMore: z.boolean().optional() })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough()
+
+/** One run in a notebook's history. Lighter than {@link NormalizedRun}: no snapshot, no error body. */
+export interface RunSummary {
+  runId: string
+  status: string
+  createdAt?: string
+  /** Null while the run is still going. */
+  completedAt?: string | null
+}
+
+export interface RunsPage {
+  runs: RunSummary[]
+  nextPageToken?: string
+  hasMore: boolean
+}
+
+export interface ListRunsOptions {
+  /** Runs per page. The API decides the default (20 at time of writing). */
+  pageSize?: number
+  pageToken?: string
+  signal?: AbortSignal
+  requestTimeoutMs?: number
+}
+
+/**
+ * List a notebook's runs, newest first (`GET {baseUrl}/v2/notebooks/{notebookId}/runs`).
+ *
+ * Covers every run of the notebook, not just ones this client started — a run triggered from the
+ * Deepnote UI shows up here too.
+ */
+export async function listNotebookRuns(
+  baseUrl: string,
+  token: string,
+  notebookId: string,
+  options: ListRunsOptions = {}
+): Promise<RunsPage> {
+  const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/notebooks/${encodeURIComponent(notebookId)}/runs`)
+  if (options.pageSize != null) {
+    endpoint.searchParams.set('pageSize', String(options.pageSize))
+  }
+  if (options.pageToken) {
+    endpoint.searchParams.set('pageToken', options.pageToken)
+  }
+  const response = await fetch(endpoint.toString(), {
+    method: 'GET',
+    headers: authHeaders(token),
+    signal: options.signal ?? AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+  })
+  await throwIfNotOk(response, 'Failed to list Deepnote runs')
+
+  // `response.json()` throws a raw SyntaxError on a non-JSON body, which would escape this package's
+  // ApiError contract — so read the text and parse it where the failure can be reported properly.
+  const body = await response.text()
+  let json: unknown
+  try {
+    json = body ? JSON.parse(body) : {}
+  } catch {
+    throw new ApiError(502, 'Invalid Deepnote runs response: the body was not valid JSON.')
+  }
+
+  const parsed = runsPageSchema.safeParse(json)
+  if (!parsed.success) {
+    throw new ApiError(502, `Invalid Deepnote runs response: ${parsed.error.issues.map(i => i.message).join(', ')}`)
+  }
+  return {
+    runs: parsed.data.runs.map(r => ({
+      runId: r.runId,
+      status: r.status,
+      createdAt: r.createdAt,
+      completedAt: r.completedAt,
+    })),
+    nextPageToken: parsed.data.pagination?.nextPageToken ?? undefined,
+    hasMore: parsed.data.pagination?.hasMore ?? false,
+  }
 }
 
 /** Transient = worth retrying: rate limits, server errors, per-request timeouts, network failures. */
