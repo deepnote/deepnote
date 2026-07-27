@@ -97,7 +97,7 @@ importers:
         version: 4.6.2(@nestjs/common@11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28(@nestjs/common@11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.1(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(magicast@0.5.3)(typescript@5.9.3)(ws@8.21.0)
     devDependencies:
       vite:
-        specifier: ^8.0.16
+        specifier: '>=8.0.16'
         version: 8.0.16(@types/node@22.18.12)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.8.3)
 
   packages/blocks:
