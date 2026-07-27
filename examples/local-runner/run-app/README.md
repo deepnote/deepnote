@@ -14,7 +14,7 @@ table, a chart, and an agent-written readout.
 
 It's an app shell, not a document: an inputs panel on the left, a results canvas on the right.
 [`serve.mjs`](./serve.mjs) supplies `serveStatic` with an application-owned `orchestrationRunner`;
-[`index.html`](./index.html) streams its NDJSON progress and renders the timeline and decision. No
+[`index.html`](./index.html) streams its NDJSON progress and renders the live fork/join graph and decision. No
 framework, no frontend build step.
 
 ## Run it
@@ -70,7 +70,7 @@ Click **Run orchestrated pipeline** in the same page. The orchestration always r
 process; each notebook step runs in Deepnote Cloud when `DEEPNOTE_TOKEN` is present, otherwise in
 local Python kernels. This is one-shot orchestration, so it needs no Workflow SDK server.
 
-The live timeline makes the control flow visible:
+The live graph makes the control flow visible instead of flattening concurrent work into a list:
 
 ```text
 North America ─┐

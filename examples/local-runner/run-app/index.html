@@ -138,13 +138,25 @@
       .pipeline-note { font-size: 0.74rem; color: var(--ink-3); margin: 8px 2px 0; line-height: 1.45; }
       .pipeline-progress { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
       .pipeline-progress h2 { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px; font-weight: 650; }
-      .pipeline-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
-      .pipe-step { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 0.76rem; color: var(--ink-2); padding: 4px 3px; }
-      .pipe-step .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
-      .pipe-step.done .dot { background: var(--pos); animation: none; }
-      .pipe-step.failed .dot { background: var(--neg); animation: none; }
-      .pipe-step .step-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .pipe-step .step-state { color: var(--ink-3); font-family: var(--mono); font-size: 0.68rem; }
+      .pipeline-graph { display: block; width: 100%; height: auto; overflow: visible; }
+      .graph-stage-label { fill: var(--ink-3); font: 600 8px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; }
+      .graph-branch-label { fill: var(--ink-3); font: 500 7px var(--mono); }
+      .graph-edge { fill: none; stroke: var(--line); stroke-width: 1.5; transition: stroke 0.2s, opacity 0.2s; }
+      .graph-edge.active { stroke: var(--accent); stroke-dasharray: 4 4; animation: dash 0.7s linear infinite; }
+      .graph-edge.done { stroke: var(--pos); }
+      .graph-edge.skipped { stroke-dasharray: 3 4; opacity: 0.45; }
+      @keyframes dash { to { stroke-dashoffset: -8; } }
+      .graph-node rect { fill: var(--surface-2); stroke: var(--line); stroke-width: 1; transition: fill 0.2s, stroke 0.2s; }
+      .graph-node .node-dot { fill: var(--ink-3); transition: fill 0.2s; }
+      .graph-node .node-name { fill: var(--ink-2); font: 600 8px var(--sans); }
+      .graph-node .node-state { fill: var(--ink-3); font: 500 7px var(--mono); }
+      .graph-node.active rect { fill: var(--accent-soft); stroke: var(--accent); }
+      .graph-node.active .node-dot { fill: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
+      .graph-node.done rect { stroke: color-mix(in srgb, var(--pos) 70%, var(--line)); }
+      .graph-node.done .node-dot { fill: var(--pos); }
+      .graph-node.failed rect { stroke: var(--neg); }
+      .graph-node.failed .node-dot { fill: var(--neg); }
+      .graph-node.skipped { opacity: 0.5; }
 
       .results { padding: 26px clamp(18px, 4vw, 44px) 60px; overflow: auto; }
       .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -200,8 +212,64 @@
         <div class="status" id="status"></div>
 
         <div class="pipeline-progress" id="pipeline-progress" hidden>
-          <h2>Pipeline steps</h2>
-          <ul class="pipeline-steps" id="pipeline-steps"></ul>
+          <h2>Live pipeline</h2>
+          <svg class="pipeline-graph" id="pipeline-graph" viewBox="0 0 300 408" role="img" aria-labelledby="pipeline-graph-title">
+            <title id="pipeline-graph-title">Regional analyses fan out, join at a quality gate, optionally recover, aggregate, and run an executive agent</title>
+            <text class="graph-stage-label" x="150" y="12" text-anchor="middle">Parallel fan-out</text>
+
+            <path class="graph-edge" data-edge="fanout" d="M150 20V31H48V44 M150 31H252V44 M150 20V44" />
+            <g class="graph-node pending" data-step-id="analyze-north-america" transform="translate(4 44)">
+              <rect width="88" height="50" rx="7" />
+              <circle class="node-dot" cx="10" cy="10" r="3" />
+              <text class="node-name" x="44" y="22" text-anchor="middle">North America</text>
+              <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
+            </g>
+            <g class="graph-node pending" data-step-id="analyze-europe" transform="translate(106 44)">
+              <rect width="88" height="50" rx="7" />
+              <circle class="node-dot" cx="10" cy="10" r="3" />
+              <text class="node-name" x="44" y="22" text-anchor="middle">Europe</text>
+              <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
+            </g>
+            <g class="graph-node pending" data-step-id="analyze-asia-pacific" transform="translate(208 44)">
+              <rect width="88" height="50" rx="7" />
+              <circle class="node-dot" cx="10" cy="10" r="3" />
+              <text class="node-name" x="44" y="22" text-anchor="middle">Asia Pacific</text>
+              <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
+            </g>
+
+            <path class="graph-edge" data-edge="join" d="M48 94V110H150V124 M252 94V110H150 M150 94V124" />
+            <g class="graph-node pending" data-stage="gate" transform="translate(90 124)">
+              <rect width="120" height="52" rx="7" />
+              <circle class="node-dot" cx="10" cy="10" r="3" />
+              <text class="node-name" x="60" y="22" text-anchor="middle">95% quality gate</text>
+              <text class="node-state" x="60" y="39" text-anchor="middle">waiting for regions</text>
+            </g>
+
+            <path class="graph-edge" data-edge="gate-pass" d="M150 176V270" />
+            <path class="graph-edge" data-edge="recovery" d="M210 150C258 150 248 184 248 200 M248 250C248 270 220 294 210 294" />
+            <text class="graph-branch-label" x="246" y="188" text-anchor="middle">below 95%</text>
+            <g class="graph-node pending" data-step-id="recover-europe" transform="translate(196 200)">
+              <rect width="100" height="50" rx="7" />
+              <circle class="node-dot" cx="10" cy="10" r="3" />
+              <text class="node-name" x="50" y="22" text-anchor="middle">Recover Europe</text>
+              <text class="node-state" x="50" y="38" text-anchor="middle">conditional</text>
+            </g>
+
+            <g class="graph-node pending" data-stage="aggregate" transform="translate(90 270)">
+              <rect width="120" height="48" rx="7" />
+              <circle class="node-dot" cx="10" cy="10" r="3" />
+              <text class="node-name" x="60" y="21" text-anchor="middle">Aggregate portfolio</text>
+              <text class="node-state" x="60" y="36" text-anchor="middle">waiting</text>
+            </g>
+
+            <path class="graph-edge" data-edge="agent" d="M150 318V340" />
+            <g class="graph-node pending" data-step-id="executive-agent-decision" transform="translate(82 340)">
+              <rect width="136" height="54" rx="7" />
+              <circle class="node-dot" cx="10" cy="10" r="3" />
+              <text class="node-name" x="68" y="23" text-anchor="middle">Executive agent</text>
+              <text class="node-state" x="68" y="40" text-anchor="middle">waiting</text>
+            </g>
+          </svg>
         </div>
 
         <div class="runs" id="runs-panel" hidden>
@@ -232,9 +300,11 @@
       const $ = (s) => document.querySelector(s)
       const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
       const state = {}
+      const analysisSteps = ['analyze-north-america', 'analyze-europe', 'analyze-asia-pacific']
 
       let lastRuns = null      // the most recent /api/cloud-runs payload, so the list can re-render
       let shownRunId = null    // the past run on the canvas, if any (highlighted in the sidebar)
+      let pipelineStepStates = new Map()
       // Bumped by everything that claims the results canvas. Several fetches can be in flight at
       // once — the history loading on open, a run, a click on a past run — and they finish in
       // whatever order they like, so each checks it still owns the canvas before painting. Zero also
@@ -415,7 +485,7 @@
         setButtonsDisabled(true)
         $('#spin-pipeline').className = 'spin'
         $('#pipeline-progress').hidden = false
-        $('#pipeline-steps').innerHTML = ''
+        resetPipelineGraph()
         setStatus('Starting the orchestrated pipeline…')
         let finalResult = null
 
@@ -456,6 +526,7 @@
           if (gen !== displayGen) return
 
           shownRunId = null
+          finalizePipelineGraph(finalResult.value)
           renderOrchestration(finalResult)
           const value = finalResult.value
           const summary = `${value.notebookRuns} notebook runs · ${value.recoveredRegions.length} conditional recovery`
@@ -476,34 +547,111 @@
 
       function renderPipelineEvent(event) {
         if (!['step_started', 'step_status', 'step_completed', 'step_failed'].includes(event.type)) return
-        let row = document.querySelector(`[data-step-id=${JSON.stringify(event.stepId)}]`)
-        if (!row) {
-          row = el('li', 'pipe-step')
-          row.dataset.stepId = event.stepId
-          const dot = el('span', 'dot')
-          const name = el('span', 'step-name'); name.textContent = stepLabel(event.stepId)
-          const status = el('span', 'step-state'); status.textContent = event.target
-          row.append(dot, name, status)
-          $('#pipeline-steps').append(row)
-        }
-        const status = row.querySelector('.step-state')
+        const node = graphNodeForStep(event.stepId)
+        let state = pipelineStepStates.get(event.stepId) ?? 'pending'
+        let label
         if (event.type === 'step_completed') {
-          row.className = 'pipe-step done'
-          status.textContent = formatDuration(event.result.durationMs)
+          state = 'done'
+          label = formatDuration(event.result.durationMs)
         } else if (event.type === 'step_failed') {
-          row.className = 'pipe-step failed'
-          status.textContent = 'failed'
+          state = 'failed'
+          label = 'failed'
         } else if (event.type === 'step_status') {
-          status.textContent = event.status
+          state = 'active'
+          label = event.status
+        } else {
+          state = 'active'
+          label = event.target
+        }
+        pipelineStepStates.set(event.stepId, state)
+        if (node) setGraphNode(node, state, label)
+        updatePipelineGraph()
+      }
+
+      function resetPipelineGraph() {
+        pipelineStepStates = new Map()
+        for (const node of document.querySelectorAll('#pipeline-graph .graph-node')) {
+          const conditional = node.dataset.stepId === 'recover-europe'
+          setGraphNode(node, 'pending', conditional ? 'conditional' : 'waiting')
+        }
+        setGraphNode(graphStage('gate'), 'pending', 'waiting for regions')
+        setGraphNode(graphStage('aggregate'), 'pending', 'waiting')
+        for (const edge of document.querySelectorAll('#pipeline-graph .graph-edge')) {
+          edge.setAttribute('class', 'graph-edge')
         }
       }
 
-      function stepLabel(id) {
-        return id
-          .replace(/^analyze-/, 'Analyze · ')
-          .replace(/^recover-/, 'Recover · ')
-          .replace('executive-agent-decision', 'Executive agent decision')
-          .replace(/-/g, ' ')
+      function updatePipelineGraph() {
+        const analysisStates = analysisSteps.map(id => pipelineStepStates.get(id) ?? 'pending')
+        const analysesStarted = analysisStates.some(state => state !== 'pending')
+        const analysesDone = analysisStates.every(state => state === 'done')
+        setGraphEdge('fanout', analysesDone ? 'done' : analysesStarted ? 'active' : 'pending')
+        setGraphEdge('join', analysesDone ? 'done' : analysesStarted ? 'active' : 'pending')
+
+        const recoveryState = pipelineStepStates.get('recover-europe')
+        const agentState = pipelineStepStates.get('executive-agent-decision')
+        if (recoveryState) {
+          setGraphNode(graphStage('gate'), 'done', 'Europe below 95%')
+          setGraphEdge('gate-pass', 'skipped')
+          setGraphEdge('recovery', recoveryState === 'done' ? 'done' : 'active')
+          if (recoveryState === 'done') setGraphNode(graphStage('aggregate'), 'active', 'combining results')
+        } else if (agentState) {
+          setGraphNode(graphStage('gate'), 'done', 'all regions passed')
+          setGraphNode(graphNodeForStep('recover-europe'), 'skipped', 'not needed')
+          setGraphEdge('gate-pass', 'done')
+          setGraphEdge('recovery', 'skipped')
+        } else if (analysesDone) {
+          setGraphNode(graphStage('gate'), 'active', 'checking quality')
+          setGraphEdge('gate-pass', 'active')
+        }
+
+        if (agentState) {
+          setGraphNode(graphStage('aggregate'), 'done', '3 validated regions')
+          setGraphEdge('agent', agentState === 'done' ? 'done' : 'active')
+        }
+      }
+
+      function finalizePipelineGraph(value) {
+        setGraphNode(
+          graphStage('gate'),
+          'done',
+          value.qualityGateFailures.length ? `${value.qualityGateFailures.length} below threshold` : 'all regions passed'
+        )
+        setGraphNode(graphStage('aggregate'), 'done', `${value.regions.length} validated regions`)
+        setGraphEdge('fanout', 'done')
+        setGraphEdge('join', 'done')
+        setGraphEdge('agent', 'done')
+        if (value.recoveredRegions.length) {
+          setGraphNode(graphNodeForStep('recover-europe'), 'done', 'Europe recovered')
+          setGraphEdge('gate-pass', 'skipped')
+          setGraphEdge('recovery', 'done')
+        } else {
+          setGraphNode(graphNodeForStep('recover-europe'), 'skipped', 'not needed')
+          setGraphEdge('gate-pass', 'done')
+          setGraphEdge('recovery', 'skipped')
+        }
+      }
+
+      function graphNodeForStep(stepId) {
+        return [...document.querySelectorAll('#pipeline-graph .graph-node[data-step-id]')].find(
+          node => node.dataset.stepId === stepId
+        )
+      }
+
+      function graphStage(stage) {
+        return document.querySelector(`#pipeline-graph .graph-node[data-stage="${stage}"]`)
+      }
+
+      function setGraphNode(node, state, label) {
+        if (!node) return
+        node.setAttribute('class', `graph-node ${state}`)
+        const text = node.querySelector('.node-state')
+        if (text && label) text.textContent = label
+      }
+
+      function setGraphEdge(name, state) {
+        const edge = document.querySelector(`#pipeline-graph .graph-edge[data-edge="${name}"]`)
+        if (edge) edge.setAttribute('class', `graph-edge${state === 'pending' ? '' : ` ${state}`}`)
       }
 
       function formatDuration(ms) {
