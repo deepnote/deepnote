@@ -83,6 +83,10 @@ region reruns with backfilling. The page then shows the validated regional table
 target decision, number of notebook runs, recovery count, and final agent memo. The backend uses
 `outputs.lastJson(step)`, so it does not depend on source block IDs surviving cloud creation.
 
+When the pipeline targets Deepnote Cloud, every notebook node becomes a keyboard-focusable link to
+that exact run as soon as its `viewUrl` arrives. The quality gate and aggregation stay non-clickable
+because they are local orchestration decisions, not notebook executions.
+
 The agent step needs `OPENAI_API_KEY` when notebook steps run locally. Without it, the deterministic
 regional pipeline and decision still complete and the page reports that only the memo is
 unavailable.

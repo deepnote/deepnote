@@ -150,6 +150,12 @@
       .graph-node .node-dot { fill: var(--ink-3); transition: fill 0.2s; }
       .graph-node .node-name { fill: var(--ink-2); font: 600 8px var(--sans); }
       .graph-node .node-state { fill: var(--ink-3); font: 500 7px var(--mono); }
+      .graph-node .node-link-hint { fill: var(--accent); font: 600 9px var(--sans); opacity: 0; transition: opacity 0.15s; }
+      .graph-node-link[href] { cursor: pointer; }
+      .graph-node-link[href] .node-link-hint { opacity: 0.8; }
+      .graph-node-link[href]:hover .graph-node rect,
+      .graph-node-link[href]:focus-visible .graph-node rect { stroke: var(--accent); stroke-width: 1.8; }
+      .graph-node-link:focus { outline: none; }
       .graph-node.active rect { fill: var(--accent-soft); stroke: var(--accent); }
       .graph-node.active .node-dot { fill: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
       .graph-node.done rect { stroke: color-mix(in srgb, var(--pos) 70%, var(--line)); }
@@ -218,24 +224,33 @@
             <text class="graph-stage-label" x="150" y="12" text-anchor="middle">Parallel fan-out</text>
 
             <path class="graph-edge" data-edge="fanout" d="M150 20V31H48V44 M150 31H252V44 M150 20V44" />
-            <g class="graph-node pending" data-step-id="analyze-north-america" transform="translate(4 44)">
-              <rect width="88" height="50" rx="7" />
-              <circle class="node-dot" cx="10" cy="10" r="3" />
-              <text class="node-name" x="44" y="22" text-anchor="middle">North America</text>
-              <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
-            </g>
-            <g class="graph-node pending" data-step-id="analyze-europe" transform="translate(106 44)">
-              <rect width="88" height="50" rx="7" />
-              <circle class="node-dot" cx="10" cy="10" r="3" />
-              <text class="node-name" x="44" y="22" text-anchor="middle">Europe</text>
-              <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
-            </g>
-            <g class="graph-node pending" data-step-id="analyze-asia-pacific" transform="translate(208 44)">
-              <rect width="88" height="50" rx="7" />
-              <circle class="node-dot" cx="10" cy="10" r="3" />
-              <text class="node-name" x="44" y="22" text-anchor="middle">Asia Pacific</text>
-              <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
-            </g>
+            <a class="graph-node-link" data-run-step="analyze-north-america" data-label="North America analysis">
+              <g class="graph-node pending" data-step-id="analyze-north-america" transform="translate(4 44)">
+                <rect width="88" height="50" rx="7" />
+                <circle class="node-dot" cx="10" cy="10" r="3" />
+                <text class="node-link-hint" x="79" y="13">↗</text>
+                <text class="node-name" x="44" y="22" text-anchor="middle">North America</text>
+                <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
+              </g>
+            </a>
+            <a class="graph-node-link" data-run-step="analyze-europe" data-label="Europe analysis">
+              <g class="graph-node pending" data-step-id="analyze-europe" transform="translate(106 44)">
+                <rect width="88" height="50" rx="7" />
+                <circle class="node-dot" cx="10" cy="10" r="3" />
+                <text class="node-link-hint" x="79" y="13">↗</text>
+                <text class="node-name" x="44" y="22" text-anchor="middle">Europe</text>
+                <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
+              </g>
+            </a>
+            <a class="graph-node-link" data-run-step="analyze-asia-pacific" data-label="Asia Pacific analysis">
+              <g class="graph-node pending" data-step-id="analyze-asia-pacific" transform="translate(208 44)">
+                <rect width="88" height="50" rx="7" />
+                <circle class="node-dot" cx="10" cy="10" r="3" />
+                <text class="node-link-hint" x="79" y="13">↗</text>
+                <text class="node-name" x="44" y="22" text-anchor="middle">Asia Pacific</text>
+                <text class="node-state" x="44" y="38" text-anchor="middle">waiting</text>
+              </g>
+            </a>
 
             <path class="graph-edge" data-edge="join" d="M48 94V110H150V124 M252 94V110H150 M150 94V124" />
             <g class="graph-node pending" data-stage="gate" transform="translate(90 124)">
@@ -248,12 +263,15 @@
             <path class="graph-edge" data-edge="gate-pass" d="M150 176V270" />
             <path class="graph-edge" data-edge="recovery" d="M210 150C258 150 248 184 248 200 M248 250C248 270 220 294 210 294" />
             <text class="graph-branch-label" x="246" y="188" text-anchor="middle">below 95%</text>
-            <g class="graph-node pending" data-step-id="recover-europe" transform="translate(196 200)">
-              <rect width="100" height="50" rx="7" />
-              <circle class="node-dot" cx="10" cy="10" r="3" />
-              <text class="node-name" x="50" y="22" text-anchor="middle">Recover Europe</text>
-              <text class="node-state" x="50" y="38" text-anchor="middle">conditional</text>
-            </g>
+            <a class="graph-node-link" data-run-step="recover-europe" data-label="Europe recovery">
+              <g class="graph-node pending" data-step-id="recover-europe" transform="translate(196 200)">
+                <rect width="100" height="50" rx="7" />
+                <circle class="node-dot" cx="10" cy="10" r="3" />
+                <text class="node-link-hint" x="91" y="13">↗</text>
+                <text class="node-name" x="50" y="22" text-anchor="middle">Recover Europe</text>
+                <text class="node-state" x="50" y="38" text-anchor="middle">conditional</text>
+              </g>
+            </a>
 
             <g class="graph-node pending" data-stage="aggregate" transform="translate(90 270)">
               <rect width="120" height="48" rx="7" />
@@ -263,12 +281,15 @@
             </g>
 
             <path class="graph-edge" data-edge="agent" d="M150 318V340" />
-            <g class="graph-node pending" data-step-id="executive-agent-decision" transform="translate(82 340)">
-              <rect width="136" height="54" rx="7" />
-              <circle class="node-dot" cx="10" cy="10" r="3" />
-              <text class="node-name" x="68" y="23" text-anchor="middle">Executive agent</text>
-              <text class="node-state" x="68" y="40" text-anchor="middle">waiting</text>
-            </g>
+            <a class="graph-node-link" data-run-step="executive-agent-decision" data-label="Executive agent decision">
+              <g class="graph-node pending" data-step-id="executive-agent-decision" transform="translate(82 340)">
+                <rect width="136" height="54" rx="7" />
+                <circle class="node-dot" cx="10" cy="10" r="3" />
+                <text class="node-link-hint" x="127" y="13">↗</text>
+                <text class="node-name" x="68" y="23" text-anchor="middle">Executive agent</text>
+                <text class="node-state" x="68" y="40" text-anchor="middle">waiting</text>
+              </g>
+            </a>
           </svg>
         </div>
 
@@ -526,7 +547,7 @@
           if (gen !== displayGen) return
 
           shownRunId = null
-          finalizePipelineGraph(finalResult.value)
+          finalizePipelineGraph(finalResult.value, finalResult.steps)
           renderOrchestration(finalResult)
           const value = finalResult.value
           const summary = `${value.notebookRuns} notebook runs · ${value.recoveredRegions.length} conditional recovery`
@@ -564,12 +585,19 @@
           label = event.target
         }
         pipelineStepStates.set(event.stepId, state)
+        bindGraphRunLink(event.stepId, event.result?.viewUrl)
         if (node) setGraphNode(node, state, label)
         updatePipelineGraph()
       }
 
       function resetPipelineGraph() {
         pipelineStepStates = new Map()
+        for (const link of document.querySelectorAll('#pipeline-graph .graph-node-link')) {
+          link.removeAttribute('href')
+          link.removeAttribute('target')
+          link.removeAttribute('rel')
+          link.setAttribute('aria-label', `${link.dataset.label}; run link available after completion`)
+        }
         for (const node of document.querySelectorAll('#pipeline-graph .graph-node')) {
           const conditional = node.dataset.stepId === 'recover-europe'
           setGraphNode(node, 'pending', conditional ? 'conditional' : 'waiting')
@@ -611,7 +639,8 @@
         }
       }
 
-      function finalizePipelineGraph(value) {
+      function finalizePipelineGraph(value, steps = []) {
+        for (const step of steps) bindGraphRunLink(step.id, step.viewUrl)
         setGraphNode(
           graphStage('gate'),
           'done',
@@ -636,6 +665,18 @@
         return [...document.querySelectorAll('#pipeline-graph .graph-node[data-step-id]')].find(
           node => node.dataset.stepId === stepId
         )
+      }
+
+      function bindGraphRunLink(stepId, viewUrl) {
+        if (!viewUrl) return
+        const link = [...document.querySelectorAll('#pipeline-graph .graph-node-link[data-run-step]')].find(
+          candidate => candidate.dataset.runStep === stepId
+        )
+        if (!link) return
+        link.setAttribute('href', viewUrl)
+        link.setAttribute('target', '_blank')
+        link.setAttribute('rel', 'noopener')
+        link.setAttribute('aria-label', `${link.dataset.label}; open this notebook run in Deepnote`)
       }
 
       function graphStage(stage) {
