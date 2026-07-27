@@ -20,6 +20,7 @@
     "example:orchestration": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/orchestration/run.mjs",
     "example:snapshot-viewer": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/snapshot-viewer/serve.mjs",
     "example:workflow-orchestration": "pnpm --filter @deepnote/local-runner... build && pnpm --filter @deepnote/example-workflow-orchestration dev",
+    "example:workflow-orchestration:run": "pnpm --filter @deepnote/example-workflow-orchestration run demo",
     "license-check": "license-checker-rseidelsohn --json --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC\" --excludePackages \"deepnote\"",
     "lintAndFormat": "biome check . && pnpm run prettier:check",
     "lintAndFormat:fix": "biome check --write . && pnpm run prettier",

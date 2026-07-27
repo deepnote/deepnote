@@ -4,6 +4,9 @@ import { workflow } from 'workflow/vite'
 
 export default defineConfig({
   plugins: [nitro(), workflow()],
+  server: {
+    host: '127.0.0.1',
+  },
   nitro: {
     serverDir: './',
     // Treat this example as the Workflow SDK project boundary. Otherwise Nitro selects the pnpm

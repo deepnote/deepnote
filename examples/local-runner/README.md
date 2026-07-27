@@ -2,12 +2,12 @@
 
 Reference apps for running, viewing, and composing `.deepnote` notebooks.
 
-| Example                                                | What it is                                                                                                           | Run it                                |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| [**run-app**](./run-app)                               | A page that **runs** a notebook with edited inputs against a local Python kernel or Deepnote Cloud.                  | `pnpm example:local-runner`           |
-| [**snapshot-viewer**](./snapshot-viewer)               | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.  | `pnpm example:snapshot-viewer`        |
-| [**orchestration**](./orchestration)                   | A one-shot local-or-cloud pipeline using plain TypeScript control flow, normalized results, and output helpers.      | `pnpm example:orchestration`          |
-| [**workflow-orchestration**](./workflow-orchestration) | The same pattern as a durable, observable Workflow SDK pipeline whose notebook and agent steps execute in the cloud. | `pnpm example:workflow-orchestration` |
+| Example                                                | What it is                                                                                                                            | Run it                                |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| [**run-app**](./run-app)                               | A page that **runs** a notebook with edited inputs against a local Python kernel or Deepnote Cloud.                                   | `pnpm example:local-runner`           |
+| [**snapshot-viewer**](./snapshot-viewer)               | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.                   | `pnpm example:snapshot-viewer`        |
+| [**orchestration**](./orchestration)                   | A one-shot local-or-cloud pipeline using plain TypeScript control flow, normalized results, and output helpers.                       | `pnpm example:orchestration`          |
+| [**workflow-orchestration**](./workflow-orchestration) | An end-to-end durable decision pipeline: regional fan-out, contained failure, quality-gated recovery, aggregation, and an agent memo. | `pnpm example:workflow-orchestration` |
 
 The rule of thumb: **run notebooks when you have a server; view snapshots when you only have static
 hosting; orchestrate when several runs form one result.** The root scripts build the packages they

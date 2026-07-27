@@ -1,56 +1,234 @@
 import type { OrchestrationStepResult } from '@deepnote/local-runner'
 import { runNotebookStep } from './deepnote'
 
-const INPUTS_NOTEBOOK = '../../6_with_inputs.deepnote'
-const REPORT_NOTEBOOK = '../../local-runner-showcase.deepnote'
+const ANALYSIS_NOTEBOOK = './notebooks/regional-sales-analysis.deepnote'
+const DECISION_NOTEBOOK = './notebooks/executive-decision.deepnote'
+const RESULT_MARKER = 'DEEPNOTE_PIPELINE_RESULT='
 
-export async function salesReportWorkflow(region: string) {
+const REGIONS = [
+  { name: 'North America', targetK: 2100 },
+  { name: 'Europe', targetK: 1800 },
+  { name: 'Asia Pacific', targetK: 1500 },
+] as const
+
+type RegionName = (typeof REGIONS)[number]['name']
+type Decision = 'proceed' | 'intervene' | 'manual-review'
+
+export interface SalesDecisionRequest {
+  /** Percentage adjustment applied to current regional revenue. Defaults to a -10% stress case. */
+  demandShockPct?: number
+  /** Results below this score are rerun with backfilling enabled. Defaults to 0.95. */
+  qualityThreshold?: number
+  /** The first attempt for this region intentionally fails, demonstrating recovery. */
+  simulateFailureRegion?: RegionName | null
+}
+
+interface RegionalResult {
+  region: RegionName
+  revenueK: number
+  targetK: number
+  forecastK: number
+  growthPct: number
+  qualityScore: number
+  backfilled: boolean
+  onTrack: boolean
+}
+
+interface RegionalAttempt {
+  config: (typeof REGIONS)[number]
+  run: OrchestrationStepResult
+  result: RegionalResult | null
+}
+
+export interface SalesDecisionResult {
+  decision: Decision
+  workflowValue: {
+    fanOut: number
+    initialFailures: RegionName[]
+    qualityGateFailures: RegionName[]
+    recoveredRegions: RegionName[]
+    notebookRuns: number
+    agentCompleted: boolean
+  }
+  portfolio: {
+    demandShockPct: number
+    qualityThreshold: number
+    regions: RegionalResult[]
+    totals: {
+      revenueK: number
+      forecastK: number
+      targetK: number
+      varianceK: number
+    }
+  }
+  executiveReadout: string | null
+  reportError?: string
+  reportViewUrl?: string
+}
+
+/**
+ * A complete durable decision pipeline:
+ *
+ * 1. Seed the cloud notebook, then fan out independent regional runs.
+ * 2. Treat notebook failures as data and recover them through a conditional branch.
+ * 3. Apply a quality gate and rerun incomplete regions with backfilling.
+ * 4. Aggregate only validated results and pass them to a final agent notebook.
+ */
+export async function salesDecisionWorkflow(request: SalesDecisionRequest = {}): Promise<SalesDecisionResult> {
   'use workflow'
 
-  // Keep the first two runs sequential: on a brand-new account the first run may create the cloud
-  // notebook, and this avoids racing a second create for the same file.
-  const first = await runNotebookStep({
-    id: 'prepare-first',
-    notebook: INPUTS_NOTEBOOK,
-    target: 'cloud',
-    inputs: { greeting: `${region} source A ready`, count: 6, enabled: true },
-  })
-  const second = await runNotebookStep({
-    id: 'prepare-second',
-    notebook: INPUTS_NOTEBOOK,
-    target: 'cloud',
-    inputs: { greeting: `${region} source B ready`, count: 9, enabled: true },
-  })
+  const demandShockPct = request.demandShockPct ?? -10
+  const qualityThreshold = request.qualityThreshold ?? 0.95
+  const simulateFailureRegion =
+    request.simulateFailureRegion === undefined ? 'Asia Pacific' : request.simulateFailureRegion
 
-  const analystNotes = [streamText(first), streamText(second)].join('; ')
+  // A first successful call guarantees create-if-missing has finished. The remaining independent
+  // regions can then fan out without racing to create the same cloud notebook on a new account.
+  const seedConfig = REGIONS.find(config => config.name !== simulateFailureRegion) ?? REGIONS[0]
+  const fanOutConfigs = REGIONS.filter(config => config.name !== seedConfig.name)
+  const seed = await runRegion(seedConfig, {
+    demandShockPct,
+    simulateFailure: false,
+    backfillMissing: false,
+    createIfMissing: true,
+  })
+  const fanOut = await Promise.all(
+    fanOutConfigs.map(config =>
+      runRegion(config, {
+        demandShockPct,
+        simulateFailure: config.name === simulateFailureRegion,
+        backfillMissing: false,
+        createIfMissing: false,
+      })
+    )
+  )
+  const initial = [seed, ...fanOut]
 
+  const initialFailures = initial.filter(attempt => !attempt.run.success).map(attempt => attempt.config.name)
+  const qualityGateFailures = initial
+    .filter(attempt => attempt.result !== null && attempt.result.qualityScore < qualityThreshold)
+    .map(attempt => attempt.config.name)
+  const needsRecovery = initial.filter(
+    attempt => !attempt.run.success || attempt.result === null || attempt.result.qualityScore < qualityThreshold
+  )
+
+  // Only failed or incomplete regions incur another cloud run. These recoveries are independent,
+  // so Workflow SDK can execute and durably record them in parallel.
+  const recoveries = await Promise.all(
+    needsRecovery.map(attempt =>
+      runRegion(attempt.config, {
+        demandShockPct,
+        simulateFailure: false,
+        backfillMissing: true,
+        createIfMissing: false,
+        recovery: true,
+      })
+    )
+  )
+  const finalAttempts = initial.map(
+    attempt => recoveries.find(recovery => recovery.config.name === attempt.config.name) ?? attempt
+  )
+  const validatedRegions = finalAttempts.flatMap(attempt =>
+    attempt.run.success && attempt.result ? [attempt.result] : []
+  )
+
+  const totals = {
+    revenueK: sum(validatedRegions.map(region => region.revenueK)),
+    forecastK: sum(validatedRegions.map(region => region.forecastK)),
+    targetK: sum(validatedRegions.map(region => region.targetK)),
+    varianceK: 0,
+  }
+  totals.varianceK = round(totals.forecastK - totals.targetK)
+
+  const decision: Decision =
+    validatedRegions.length !== REGIONS.length
+      ? 'manual-review'
+      : totals.forecastK < totals.targetK
+        ? 'intervene'
+        : 'proceed'
+
+  const portfolio = {
+    demandShockPct,
+    qualityThreshold,
+    regions: validatedRegions,
+    totals,
+  }
   const report = await runNotebookStep({
-    id: 'agent-report',
-    notebook: REPORT_NOTEBOOK,
+    id: 'executive-agent-decision',
+    notebook: DECISION_NOTEBOOK,
     target: 'cloud',
     inputs: {
-      report_title: 'Durable orchestrated sales review',
-      region,
-      trailing_months: 6,
-      analyst_notes: analystNotes,
+      portfolio_json: JSON.stringify({
+        ...portfolio,
+        proposedDecision: decision,
+      }),
     },
     allowFailure: true,
   })
 
   return {
-    reportSucceeded: report.success,
+    decision,
+    workflowValue: {
+      fanOut: fanOutConfigs.length,
+      initialFailures,
+      qualityGateFailures,
+      recoveredRegions: recoveries.map(attempt => attempt.config.name),
+      notebookRuns: initial.length + recoveries.length + 1,
+      agentCompleted: report.success,
+    },
+    portfolio,
     executiveReadout: report.success ? lastAgentOutput(report) : null,
-    error: report.error,
+    reportError: report.error,
+    reportViewUrl: report.viewUrl,
   }
 }
 
-function streamText(result: OrchestrationStepResult): string {
-  return result.outputs
-    .flatMap(block => block.outputs)
-    .filter(output => output.output_type === 'stream')
-    .map(output => (Array.isArray(output.text) ? output.text.join('') : output.text))
-    .join('')
-    .trim()
+async function runRegion(
+  config: (typeof REGIONS)[number],
+  options: {
+    demandShockPct: number
+    simulateFailure: boolean
+    backfillMissing: boolean
+    createIfMissing: boolean
+    recovery?: boolean
+  }
+): Promise<RegionalAttempt> {
+  const id = `${options.recovery ? 'recover' : 'analyze'}-${slug(config.name)}`
+  const run = await runNotebookStep({
+    id,
+    notebook: ANALYSIS_NOTEBOOK,
+    target: 'cloud',
+    inputs: {
+      region: config.name,
+      target_revenue_k: config.targetK,
+      demand_shock_pct: options.demandShockPct,
+      simulate_failure: options.simulateFailure,
+      backfill_missing: options.backfillMissing,
+    },
+    cloud: { createIfMissing: options.createIfMissing },
+    allowFailure: true,
+  })
+
+  return {
+    config,
+    run,
+    result: run.success ? regionalResult(run) : null,
+  }
+}
+
+function regionalResult(run: OrchestrationStepResult): RegionalResult {
+  for (const output of run.outputs.flatMap(block => block.outputs)) {
+    if (output.output_type !== 'stream') {
+      continue
+    }
+    const text = multilineText(output.text)
+    const markerIndex = text.lastIndexOf(RESULT_MARKER)
+    if (markerIndex !== -1) {
+      const json = text.slice(markerIndex + RESULT_MARKER.length).trim()
+      return JSON.parse(json) as RegionalResult
+    }
+  }
+  throw new Error(`Step "${run.id}" did not emit its regional result.`)
 }
 
 function lastAgentOutput(result: OrchestrationStepResult): string {
@@ -65,7 +243,6 @@ function lastAgentOutput(result: OrchestrationStepResult): string {
     return directOutput
   }
 
-  // Cloud agent runs append generated blocks; their original agent block can have no output.
   const generatedMarkdown = blocks
     .slice(agentIndex + 1)
     .filter(block => block.type === 'markdown' && block.content.trim())
@@ -80,6 +257,28 @@ function lastAgentOutput(result: OrchestrationStepResult): string {
 function streamOutputs(outputs: OrchestrationStepResult['outputs'][number]['outputs']): string {
   return outputs
     .filter(output => output.output_type === 'stream')
-    .map(output => (Array.isArray(output.text) ? output.text.join('') : output.text))
+    .map(output => multilineText(output.text))
     .join('')
+}
+
+function multilineText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (Array.isArray(value) && value.every(part => typeof part === 'string')) {
+    return value.join('')
+  }
+  return ''
+}
+
+function sum(values: number[]): number {
+  return round(values.reduce((total, value) => total + value, 0))
+}
+
+function round(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
+function slug(value: string): string {
+  return value.toLowerCase().replaceAll(' ', '-')
 }
