@@ -26,6 +26,7 @@ export type {
 export {
   allOutputText,
   lastAgentText,
+  lastOutputJson,
   OrchestrationStepError,
   orchestrate,
   orchestrationOutputs,
@@ -37,7 +38,12 @@ export type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 export { runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 export { runWithInputs } from './run-with-inputs'
-export type { RunnerFn, ServeStaticHandle, ServeStaticOptions } from './serve-static'
+export type {
+  OrchestrationRunnerFn,
+  RunnerFn,
+  ServeStaticHandle,
+  ServeStaticOptions,
+} from './serve-static'
 export { serveStatic } from './serve-static'
 export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'

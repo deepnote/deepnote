@@ -136,7 +136,12 @@ within a run and every progress event carries its step ID.
 The output helpers read text or JSON from the resulting snapshot. `allText` is useful for cloud runs
 because a newly created cloud notebook can have different block IDs from its source file, while
 `lastAgentText` handles both local agent output and cloud agent runs that append their answer as a
-generated markdown block.
+generated markdown block. `lastJson` reads the final structured JSON value without a block ID, so
+fan-out steps remain portable when cloud creation remaps those IDs:
+
+```ts
+const region = outputs.lastJson<RegionalResult>(regionalRun);
+```
 
 See [`examples/local-runner/orchestration`](../../examples/local-runner/orchestration) for a
 complete local-or-cloud pipeline.
@@ -181,17 +186,25 @@ import { serveStatic } from "@deepnote/local-runner";
 const { port, close } = await serveStatic({
   dir: "./public", // your index.html + assets
   notebookPath: "examples/6_with_inputs.deepnote",
+  orchestrationRunner: (inputs, emit) =>
+    orchestrate((context) => buildPipeline(context, inputs), { onEvent: emit }),
 });
 // GET  /api/info       -> { notebook, inputs }    (input blocks, to build controls)
 // POST /api/run        -> { inputs } -> { outputs, summary, snapshotYaml }
 // POST /api/run-cloud   -> { inputs } -> runs it in Deepnote Cloud (needs DEEPNOTE_TOKEN)
+// POST /api/orchestrate -> NDJSON progress events, then the application-owned pipeline result
 // any other GET         -> a file from `dir` (path-traversal guarded)
 await close();
 ```
 
-Deliberately minimal: binds to `127.0.0.1`, no WebSocket, no watch, no rendering. Bring your own
-page — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs
-no server at all.
+`orchestrationRunner` is optional. It receives the same input map as the single-run routes and an
+`emit` callback intended for `orchestrate`'s `onEvent`. The endpoint streams newline-delimited JSON
+frames (`event`, then `result`, or `error`), which a plain page can consume incrementally without
+WebSockets.
+
+The server stays deliberately minimal: it binds to `127.0.0.1`, has no watch mode, and does no
+rendering. Bring your own page — or, to _view_ an existing snapshot rather than run one, read it
+directly (below); that needs no server at all.
 
 ### Read a snapshot — no Python, no kernel
 

@@ -78,6 +78,32 @@ beforeEach(async () => {
       outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
       snapshotYaml: `snapshot of ${runId}`,
     }),
+    orchestrationRunner: async (inputs, emit) => {
+      emit({
+        type: 'step_started',
+        stepId: 'prepare',
+        target: 'local',
+        startedAt: '2026-01-01T00:00:00.000Z',
+      })
+      emit({
+        type: 'step_completed',
+        stepId: 'prepare',
+        target: 'local',
+        result: {
+          id: 'prepare',
+          target: 'local',
+          success: true,
+          status: 'success',
+          outputs: [],
+          snapshotYaml: null,
+          snapshot: null,
+          startedAt: '2026-01-01T00:00:00.000Z',
+          finishedAt: '2026-01-01T00:00:01.000Z',
+          durationMs: 1_000,
+        },
+      })
+      return { decision: 'proceed', inputs }
+    },
   })
   base = `http://127.0.0.1:${handle.port}`
 })
@@ -119,6 +145,74 @@ describe('serveStatic', () => {
     expect(body.success).toBe(true)
     expect(body.status).toBe('success')
     expect(body.snapshotYaml).toContain('"count":3')
+  })
+
+  it('POST /api/orchestrate streams tagged progress followed by the application result', async () => {
+    const res = await fetch(`${base}/api/orchestrate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ inputs: { count: 12 } }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('application/x-ndjson')
+    const frames = (await res.text())
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line) as { type: string; event?: { type: string }; result?: unknown })
+    expect(frames.map(frame => frame.type)).toEqual(['event', 'event', 'result'])
+    expect(frames[0].event?.type).toBe('step_started')
+    expect(frames[2].result).toEqual({ decision: 'proceed', inputs: { count: 12 } })
+  })
+
+  it('POST /api/orchestrate returns 404 when no application pipeline is configured', async () => {
+    const withoutPipeline = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${withoutPipeline.port}/api/orchestrate`, {
+        method: 'POST',
+        body: JSON.stringify({ inputs: {} }),
+      })
+      expect(res.status).toBe(404)
+      expect(await res.json()).toEqual({ error: 'No orchestration runner is configured' })
+    } finally {
+      await withoutPipeline.close()
+    }
+  })
+
+  it('POST /api/orchestrate ends the stream with a tagged error when the pipeline fails', async () => {
+    const failing = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      orchestrationRunner: async (_inputs, emit) => {
+        emit({
+          type: 'step_started',
+          stepId: 'broken',
+          target: 'cloud',
+          startedAt: '2026-01-01T00:00:00.000Z',
+        })
+        throw new Error('warehouse unavailable')
+      },
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${failing.port}/api/orchestrate`, {
+        method: 'POST',
+        body: JSON.stringify({ inputs: {} }),
+      })
+      expect(res.status).toBe(200)
+      const frames = (await res.text())
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line) as { type: string; error?: string })
+      expect(frames).toEqual([
+        expect.objectContaining({ type: 'event' }),
+        { type: 'error', error: 'warehouse unavailable' },
+      ])
+    } finally {
+      await failing.close()
+    }
   })
 
   it('GET /api/cloud-runs returns the notebook run history and a view link', async () => {

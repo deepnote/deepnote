@@ -101,7 +101,7 @@
       .switch input:focus-visible + .track { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
       .switch .txt { font-size: 0.84rem; color: var(--ink-2); }
 
-      .actions { display: flex; gap: 8px; margin-top: 6px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
       .btn { font: inherit; font-weight: 600; font-size: 0.86rem; border-radius: var(--r); padding: 9px 16px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 7px; transition: transform 0.08s, filter 0.15s, background 0.15s, border-color 0.15s; }
       .btn:active { transform: translateY(1px); }
       .btn:disabled { opacity: 0.5; cursor: default; }
@@ -109,6 +109,8 @@
       .btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
       .btn.ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
       .btn.ghost:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+      .btn.pipeline { flex-basis: 100%; justify-content: center; background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 20%, var(--line)); }
+      .btn.pipeline:hover:not(:disabled) { border-color: var(--accent); }
       .status { font-size: 0.8rem; color: var(--ink-3); margin-top: 13px; min-height: 1.2em; display: flex; align-items: center; gap: 7px; }
       .status.ok { color: var(--pos); } .status.err { color: var(--neg); } .status a { color: var(--accent); }
       .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp 0.7s linear infinite; }
@@ -133,6 +135,17 @@
       .run .dur { margin-left: auto; font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); }
       @keyframes pulse { 50% { opacity: 0.3; } }
 
+      .pipeline-note { font-size: 0.74rem; color: var(--ink-3); margin: 8px 2px 0; line-height: 1.45; }
+      .pipeline-progress { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+      .pipeline-progress h2 { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px; font-weight: 650; }
+      .pipeline-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+      .pipe-step { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 0.76rem; color: var(--ink-2); padding: 4px 3px; }
+      .pipe-step .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
+      .pipe-step.done .dot { background: var(--pos); animation: none; }
+      .pipe-step.failed .dot { background: var(--neg); animation: none; }
+      .pipe-step .step-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .pipe-step .step-state { color: var(--ink-3); font-family: var(--mono); font-size: 0.68rem; }
+
       .results { padding: 26px clamp(18px, 4vw, 44px) 60px; overflow: auto; }
       .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
       .results-head h1 { font-size: 1.35rem; letter-spacing: -0.02em; margin: 0; font-weight: 660; }
@@ -144,6 +157,20 @@
       pre.err { color: var(--neg); }
       img.out { max-width: 100%; border-radius: var(--r); display: block; }
       iframe.htmlout { width: 100%; border: 0; background: transparent; display: block; }
+      .flow { color: var(--ink-2); font-family: var(--mono); font-size: 0.78rem; line-height: 1.8; }
+      .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+      .metric { padding: 13px 14px; border-radius: var(--r); background: var(--surface-2); }
+      .metric .k { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+      .metric .v { font-size: 1.2rem; font-weight: 650; margin-top: 3px; }
+      .decision { color: var(--pos); text-transform: uppercase; }
+      .decision.intervene { color: var(--neg); }
+      .portfolio { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+      .portfolio th, .portfolio td { border-bottom: 1px solid var(--line); padding: 8px 9px; text-align: right; }
+      .portfolio th:first-child, .portfolio td:first-child { text-align: left; }
+      .portfolio th { color: var(--ink-3); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      .memo { white-space: pre-wrap; font-family: var(--sans); color: var(--ink-2); line-height: 1.65; }
+      .card h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-3); margin: 0 0 11px; }
+      .card a { color: var(--accent); }
       .empty { display: flex; min-height: 55vh; align-items: center; justify-content: center; flex-direction: column; text-align: center; color: var(--ink-3); gap: 6px; }
       .empty .glyph { width: 42px; height: 42px; border-radius: 10px; border: 1.5px dashed var(--line); display: grid; place-items: center; color: var(--accent); margin-bottom: 6px; font-size: 1.1rem; }
       .empty b { color: var(--ink-2); font-weight: 600; }
@@ -167,8 +194,15 @@
         <div class="actions">
           <button id="run" class="btn primary"><span id="spin"></span>Run</button>
           <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
+          <button id="run-pipeline" class="btn pipeline"><span id="spin-pipeline"></span>Run orchestrated pipeline</button>
         </div>
+        <p class="pipeline-note">Fan out regional notebooks, quality-gate their outputs, rerun only incomplete data, then ask a separate agent notebook for the decision.</p>
         <div class="status" id="status"></div>
+
+        <div class="pipeline-progress" id="pipeline-progress" hidden>
+          <h2>Pipeline steps</h2>
+          <ul class="pipeline-steps" id="pipeline-steps"></ul>
+        </div>
 
         <div class="runs" id="runs-panel" hidden>
           <div class="runs-head">
@@ -279,6 +313,7 @@
 
       $('#run').onclick = () => go('/api/run', '#spin', 'Running in a local kernel…')
       $('#run-cloud').onclick = () => go('/api/run-cloud', '#spin-cloud', 'Running in Deepnote Cloud…')
+      $('#run-pipeline').onclick = runPipeline
 
       loadCloudRuns()
 
@@ -375,11 +410,117 @@
         return secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`
       }
 
+      async function runPipeline() {
+        const gen = ++displayGen
+        setButtonsDisabled(true)
+        $('#spin-pipeline').className = 'spin'
+        $('#pipeline-progress').hidden = false
+        $('#pipeline-steps').innerHTML = ''
+        setStatus('Starting the orchestrated pipeline…')
+        let finalResult = null
+
+        try {
+          const res = await fetch('/api/orchestrate', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ inputs: state }),
+          })
+          if (!res.ok) {
+            const data = await res.json()
+            throw new Error(data.error || `HTTP ${res.status}`)
+          }
+          if (!res.body) throw new Error('The pipeline response cannot be streamed in this browser.')
+
+          const reader = res.body.getReader()
+          const decoder = new TextDecoder()
+          let buffered = ''
+          while (true) {
+            const { done, value } = await reader.read()
+            buffered += decoder.decode(value, { stream: !done })
+            const lines = buffered.split('\n')
+            buffered = lines.pop() ?? ''
+            for (const line of lines) {
+              const frame = JSON.parse(line)
+              if (frame.type === 'event') renderPipelineEvent(frame.event)
+              else if (frame.type === 'result') finalResult = frame.result
+              else if (frame.type === 'error') throw new Error(frame.error)
+            }
+            if (done) break
+          }
+          if (buffered.trim()) {
+            const frame = JSON.parse(buffered)
+            if (frame.type === 'result') finalResult = frame.result
+            else if (frame.type === 'error') throw new Error(frame.error)
+          }
+          if (!finalResult) throw new Error('The pipeline ended without a result.')
+          if (gen !== displayGen) return
+
+          shownRunId = null
+          renderOrchestration(finalResult)
+          const value = finalResult.value
+          const summary = `${value.notebookRuns} notebook runs · ${value.recoveredRegions.length} conditional recovery`
+          if (value.reportViewUrl) {
+            statusLink(`${cap(value.target)} pipeline complete — ${summary} — `, value.reportViewUrl, 'view agent run →')
+          } else if (value.reportError) {
+            setStatus(`Pipeline decision complete; agent unavailable: ${value.reportError}`, 'err')
+          } else {
+            setStatus(`${cap(value.target)} pipeline complete — ${summary}`, 'ok')
+          }
+        } catch (e) {
+          if (gen === displayGen) setStatus(cap(e.message), 'err')
+        } finally {
+          setButtonsDisabled(false)
+          $('#spin-pipeline').className = ''
+        }
+      }
+
+      function renderPipelineEvent(event) {
+        if (!['step_started', 'step_status', 'step_completed', 'step_failed'].includes(event.type)) return
+        let row = document.querySelector(`[data-step-id=${JSON.stringify(event.stepId)}]`)
+        if (!row) {
+          row = el('li', 'pipe-step')
+          row.dataset.stepId = event.stepId
+          const dot = el('span', 'dot')
+          const name = el('span', 'step-name'); name.textContent = stepLabel(event.stepId)
+          const status = el('span', 'step-state'); status.textContent = event.target
+          row.append(dot, name, status)
+          $('#pipeline-steps').append(row)
+        }
+        const status = row.querySelector('.step-state')
+        if (event.type === 'step_completed') {
+          row.className = 'pipe-step done'
+          status.textContent = formatDuration(event.result.durationMs)
+        } else if (event.type === 'step_failed') {
+          row.className = 'pipe-step failed'
+          status.textContent = 'failed'
+        } else if (event.type === 'step_status') {
+          status.textContent = event.status
+        }
+      }
+
+      function stepLabel(id) {
+        return id
+          .replace(/^analyze-/, 'Analyze · ')
+          .replace(/^recover-/, 'Recover · ')
+          .replace('executive-agent-decision', 'Executive agent decision')
+          .replace(/-/g, ' ')
+      }
+
+      function formatDuration(ms) {
+        return ms >= 1000 ? `${(ms / 1000).toFixed(ms >= 10_000 ? 0 : 1)}s` : `${ms}ms`
+      }
+
+      function setButtonsDisabled(disabled) {
+        $('#run').disabled = disabled
+        $('#run-cloud').disabled = disabled
+        $('#run-pipeline').disabled = disabled
+      }
+
       async function go(endpoint, spinSel, msg) {
         // Claimed up front, not on arrival: this is the newest thing the user asked for, so a
         // history fetch still in flight from page load must not land on top of it.
         const gen = ++displayGen
-        $('#run').disabled = true; $('#run-cloud').disabled = true
+        setButtonsDisabled(true)
         $(spinSel).className = 'spin'; setStatus(msg)
         try {
           const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: state }) })
@@ -410,7 +551,7 @@
           if (gen === displayGen) setStatus(cap(e.message), 'err')
         } finally {
           // The buttons re-enable either way — a superseded run still released them.
-          $('#run').disabled = false; $('#run-cloud').disabled = false; $(spinSel).className = ''
+          setButtonsDisabled(false); $(spinSel).className = ''
           // A cloud run adds to the history — including a failed one, which is worth seeing.
           if (endpoint.includes('cloud')) loadCloudRuns()
         }
@@ -422,7 +563,91 @@
         const a = el('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label; s.append(a)
       }
 
+      function renderOrchestration(result) {
+        const value = result.value
+        $('#r-title').textContent = 'Orchestrated sales decision'
+        $('#r-caption').textContent = `${value.target} · ${formatDuration(result.durationMs)}`
+        const root = $('#output'); root.innerHTML = ''
+        const grid = el('div', 'grid')
+
+        const flow = el('div', 'card')
+        const flowTitle = el('h2'); flowTitle.textContent = 'What ran'
+        const flowText = el('div', 'flow')
+        const recovered = value.recoveredRegions.length ? value.recoveredRegions.join(', ') : 'none'
+        flowText.textContent =
+          `3 regional analyses (fan-out)\n` +
+          `  → quality gate ≥ ${(value.qualityThreshold * 100).toFixed(0)}%\n` +
+          `  → conditional recovery: ${recovered}\n` +
+          `  → validated aggregation\n` +
+          `  → executive agent notebook`
+        flow.append(flowTitle, flowText)
+
+        const summary = el('div', 'card')
+        const summaryTitle = el('h2'); summaryTitle.textContent = 'Pipeline result'
+        const metrics = el('div', 'metrics')
+        const entries = [
+          ['Decision', value.decision],
+          ['Notebook runs', value.notebookRuns],
+          ['Recovered', value.recoveredRegions.length],
+          ['Forecast vs target', money(value.totals.forecastK - value.totals.targetK)],
+        ]
+        for (const [key, val] of entries) {
+          const metric = el('div', 'metric')
+          const k = el('div', 'k'); k.textContent = key
+          const v = el('div', key === 'Decision' ? `v decision ${value.decision}` : 'v'); v.textContent = val
+          metric.append(k, v); metrics.append(metric)
+        }
+        summary.append(summaryTitle, metrics)
+
+        const regional = el('div', 'card')
+        const regionalTitle = el('h2'); regionalTitle.textContent = 'Validated regional portfolio'
+        const table = el('table', 'portfolio')
+        const head = el('thead')
+        const headRow = el('tr')
+        for (const label of ['Region', 'Revenue', 'Forecast', 'Target', 'Quality']) {
+          const th = el('th'); th.textContent = label; headRow.append(th)
+        }
+        head.append(headRow); table.append(head)
+        const body = el('tbody')
+        for (const region of value.regions) {
+          const row = el('tr')
+          const cells = [
+            region.region,
+            money(region.revenueK),
+            money(region.forecastK),
+            money(region.targetK),
+            `${Math.round(region.qualityScore * 100)}%${region.backfilled ? ' · recovered' : ''}`,
+          ]
+          for (const text of cells) {
+            const td = el('td'); td.textContent = text; row.append(td)
+          }
+          body.append(row)
+        }
+        table.append(body); regional.append(regionalTitle, table)
+
+        const memo = el('div', 'card')
+        const memoTitle = el('h2'); memoTitle.textContent = 'Executive agent memo'
+        const memoText = el('div', 'memo')
+        memoText.textContent = value.executiveReadout || value.reportError || 'No agent memo was returned.'
+        memo.append(memoTitle, memoText)
+        if (value.reportViewUrl) {
+          const link = el('a'); link.href = value.reportViewUrl; link.target = '_blank'; link.rel = 'noopener'
+          link.textContent = 'Open the final notebook run in Deepnote →'
+          memo.append(document.createElement('br'), link)
+        }
+
+        grid.append(flow, summary, regional, memo)
+        root.append(grid)
+      }
+
+      function money(value) {
+        const sign = value < 0 ? '−' : ''
+        return `${sign}$${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}k`
+      }
+
       function render(data) {
+        $('#r-title').textContent = $('#nb-name').textContent
+        $('#r-caption').textContent = ''
         const root = $('#output'); root.innerHTML = ''
         const withOut = data.outputs.filter((b) => b.outputs.length)
         if (!withOut.length) { root.innerHTML = '<div class="empty"><b>No output.</b></div>'; return }

@@ -12,6 +12,7 @@ vi.mock('./run-in-cloud', () => ({ runInCloud: runnerMock.runInCloud }))
 import {
   allOutputText,
   lastAgentText,
+  lastOutputJson,
   type OrchestrationEvent,
   type OrchestrationStepResult,
   orchestrate,
@@ -374,8 +375,45 @@ describe('orchestration output helpers', () => {
     expect(outputJson<{ answer: number }>(result(), 'json-block')).toEqual({ answer: 42 })
   })
 
+  it('returns the last JSON value without relying on a block id', () => {
+    expect(lastOutputJson<{ answer: number }>(result())).toEqual({ answer: 42 })
+
+    const step = result()
+    const blocks = step.snapshot?.notebooks[0].blocks
+    if (!blocks) {
+      throw new Error('Invalid test snapshot')
+    }
+    blocks.push({
+      id: 'cloud-remapped-result',
+      type: 'code',
+      content: 'print result',
+      outputs: [{ output_type: 'stream', name: 'stdout', text: '{"answer":84}\n' }],
+      executionCount: 4,
+    })
+
+    expect(lastOutputJson<{ answer: number }>(step)).toEqual({ answer: 84 })
+  })
+
+  it('skips later human-readable output when finding the last JSON value', () => {
+    const step = result()
+    const blocks = step.snapshot?.notebooks[0].blocks
+    if (!blocks) {
+      throw new Error('Invalid test snapshot')
+    }
+    blocks.push({
+      id: 'plain-log',
+      type: 'code',
+      content: 'print status',
+      outputs: [{ output_type: 'stream', name: 'stdout', text: 'pipeline complete\n' }],
+      executionCount: 4,
+    })
+
+    expect(lastOutputJson<{ answer: number }>(step)).toEqual({ answer: 42 })
+  })
+
   it('fails descriptively when a snapshot or block output is unavailable', () => {
     expect(() => outputText(result(null), 'text-block')).toThrow(/has no snapshot/)
     expect(() => outputText(result(), 'missing')).toThrow(/has no block "missing"/)
+    expect(() => lastOutputJson(result(null))).toThrow(/has no snapshot/)
   })
 })

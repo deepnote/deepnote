@@ -118,6 +118,8 @@ export interface OrchestrationOutputHelpers {
   lastAgentText: typeof lastAgentText
   /** A block's `application/json` output, or its textual output parsed as JSON. */
   json: typeof outputJson
+  /** The last structured JSON value in a run, without relying on stable cloud block ids. */
+  lastJson: typeof lastOutputJson
 }
 
 export interface OrchestrationContext {
@@ -161,6 +163,7 @@ export const orchestrationOutputs: OrchestrationOutputHelpers = {
   allText: allOutputText,
   lastAgentText,
   json: outputJson,
+  lastJson: lastOutputJson,
 }
 
 /**
@@ -416,6 +419,38 @@ export function outputJson<T = unknown>(result: OrchestrationStepResult, blockId
   return parseJson<T>(result, blockId, textForBlock(result, block))
 }
 
+/**
+ * Return the last structured JSON value produced by a step.
+ *
+ * This is the block-id-independent counterpart to {@link outputJson}: it works when Deepnote Cloud
+ * assigns different block ids while creating a notebook. Structured `application/json` output is
+ * preferred, then text-like outputs containing a complete JSON value are considered.
+ */
+export function lastOutputJson<T = unknown>(result: OrchestrationStepResult): T {
+  const blocks = snapshotBlocks(result)
+  for (let blockIndex = blocks.length - 1; blockIndex >= 0; blockIndex -= 1) {
+    const block = blocks[blockIndex]
+    for (let outputIndex = block.outputs.length - 1; outputIndex >= 0; outputIndex -= 1) {
+      const output = block.outputs[outputIndex]
+      if ('data' in output && isRecord(output.data) && 'application/json' in output.data) {
+        const value = output.data['application/json']
+        return typeof value === 'string' ? parseJson<T>(result, block.id, value) : (value as T)
+      }
+
+      const text = textPartsForOutput(output).trim()
+      if (!text) {
+        continue
+      }
+      try {
+        return JSON.parse(text) as T
+      } catch {
+        // A later human-readable output is not an error: keep looking for structured data.
+      }
+    }
+  }
+  throw new Error(`Step "${result.id}" produced no structured JSON output.`)
+}
+
 function parseJson<T>(result: OrchestrationStepResult, blockId: string, text: string): T {
   try {
     return JSON.parse(text) as T
@@ -455,24 +490,26 @@ function textForBlock(result: OrchestrationStepResult, block: SnapshotBlock): st
 }
 
 function textPartsForBlock(block: SnapshotBlock): string[] {
-  return block.outputs.flatMap(output => {
-    if (output.output_type === 'stream') {
-      return multilineText(output.text)
-    }
-    if (output.output_type === 'error') {
-      return [output.ename, output.evalue].filter(Boolean).join(': ')
-    }
-    if ('data' in output && isRecord(output.data)) {
-      for (const mime of ['text/markdown', 'text/plain', 'text/html'] as const) {
-        const value = output.data[mime]
-        const text = multilineText(value)
-        if (text) {
-          return text
-        }
+  return block.outputs.map(textPartsForOutput)
+}
+
+function textPartsForOutput(output: IOutput): string {
+  if (output.output_type === 'stream') {
+    return multilineText(output.text)
+  }
+  if (output.output_type === 'error') {
+    return [output.ename, output.evalue].filter(Boolean).join(': ')
+  }
+  if ('data' in output && isRecord(output.data)) {
+    for (const mime of ['text/markdown', 'text/plain', 'text/html'] as const) {
+      const value = output.data[mime]
+      const text = multilineText(value)
+      if (text) {
+        return text
       }
     }
-    return ''
-  })
+  }
+  return ''
 }
 
 function isTextContentBlock(block: SnapshotBlock): boolean {

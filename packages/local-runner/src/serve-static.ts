@@ -6,6 +6,7 @@ import type { CloudRun, GetCloudRunOptions, ListCloudRunsOptions, ListCloudRunsR
 import { getCloudRun, listCloudRuns } from './cloud-runs'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
+import type { OrchestrationEvent } from './orchestrate'
 import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 import { runInCloud } from './run-in-cloud'
 import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
@@ -26,6 +27,17 @@ export type CloudRunnerFn = (
 export type CloudRunListerFn = (input: DeepnoteInput, options?: ListCloudRunsOptions) => Promise<ListCloudRunsResult>
 
 export type CloudRunGetterFn = (runId: string, options?: GetCloudRunOptions) => Promise<CloudRun>
+
+/**
+ * An application-owned notebook pipeline exposed by {@link serveStatic}.
+ *
+ * `emit` streams the same tagged events produced by {@link orchestrate}; the final return value can
+ * be any JSON-serializable result useful to the page.
+ */
+export type OrchestrationRunnerFn = (
+  inputs: Record<string, unknown>,
+  emit: (event: OrchestrationEvent) => void
+) => Promise<unknown>
 
 export interface ServeStaticOptions {
   /** Directory of static files to serve (e.g. an `index.html` that drives the API). */
@@ -48,6 +60,13 @@ export interface ServeStaticOptions {
   cloudRunLister?: CloudRunListerFn
   /** Override the single cloud-run fetch (advanced; mainly for testing). Defaults to `getCloudRun`. */
   cloudRunGetter?: CloudRunGetterFn
+  /**
+   * Optional application-owned pipeline exposed at `POST /api/orchestrate`.
+   *
+   * The response is newline-delimited JSON: progress events followed by the final result. This
+   * keeps `serveStatic` generic while allowing a plain page to show orchestration live.
+   */
+  orchestrationRunner?: OrchestrationRunnerFn
 }
 
 export interface ServeStaticHandle {
@@ -87,6 +106,7 @@ const CONTENT_TYPES: Record<string, string> = {
  *   `{ runs: [] }` rather than an error when there's no token or the notebook isn't in Deepnote.
  * - `GET  /api/cloud-runs/{runId}` → `{ status, success, outputs, snapshotYaml }` — one past run's
  *   outputs, read from its snapshot without re-running it.
+ * - `POST /api/orchestrate` → NDJSON progress + result when `orchestrationRunner` is provided.
  * - any other GET → a file from `dir` (path-traversal + symlink guarded)
  *
  * Bad requests get a specific status: `400` for malformed JSON / bad path encoding / a non-object
@@ -153,6 +173,38 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         viewUrl: result.viewUrl,
         error: result.error,
       })
+      return
+    }
+
+    if (req.method === 'POST' && pathname === '/api/orchestrate') {
+      if (!options.orchestrationRunner) {
+        sendJson(res, 404, { error: 'No orchestration runner is configured' })
+        return
+      }
+      const body = await readJsonBody(req, res)
+      if (!body.ok) return
+      const inputs = readInputMap(body.value)
+      if (!inputs.ok) {
+        sendJson(res, 400, { error: 'Request "inputs" must be an object' })
+        return
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Cache-Control': 'no-store',
+      })
+      const sendFrame = (frame: unknown): void => {
+        res.write(`${JSON.stringify(frame)}\n`)
+      }
+      try {
+        const result = await options.orchestrationRunner(inputs.inputs, event => {
+          sendFrame({ type: 'event', event })
+        })
+        sendFrame({ type: 'result', result })
+      } catch (error) {
+        sendFrame({ type: 'error', error: error instanceof Error ? error.message : String(error) })
+      }
+      res.end()
       return
     }
 
