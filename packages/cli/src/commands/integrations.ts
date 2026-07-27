@@ -123,8 +123,6 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
   const fetchedIntegrations = await fetchIntegrations(baseUrl, token)
 
   // Read existing document (if any) - preserves comments and formatting.
-  // Done before the empty-response return so a malformed local file is reported
-  // on every pull, not just when the workspace has integrations.
   const existingDoc = await readIntegrationsDocument(filePath)
   debug(`Read existing document from ${filePath}: ${existingDoc ? 'found' : 'not found'}`)
 

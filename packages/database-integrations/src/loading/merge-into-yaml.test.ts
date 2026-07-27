@@ -58,8 +58,10 @@ integrations:
 `
 
 describe('mergeApiIntegrationsIntoYaml', () => {
-  it('creates a fresh document when there is no existing content', () => {
-    const { content, secrets, stats, skipped } = mergeApiIntegrationsIntoYaml(null, [createMockApiIntegration()])
+  it.each([null, ''] as const)('creates a fresh document when there is no existing content', existingContent => {
+    const { content, secrets, stats, skipped } = mergeApiIntegrationsIntoYaml(existingContent, [
+      createMockApiIntegration(),
+    ])
 
     expect(content).toMatchInlineSnapshot(`
       "#yaml-language-server: $schema=https://raw.githubusercontent.com/deepnote/deepnote/refs/heads/tk/integrations-config-file-schema/json-schemas/integrations-file-schema.json
@@ -80,14 +82,6 @@ describe('mergeApiIntegrationsIntoYaml', () => {
     expect(secrets).toEqual({ 'TEST_ID__PASSWORD': 'test-password' })
     expect(stats).toEqual({ existingCount: 0, newCount: 1, updatedCount: 0 })
     expect(skipped).toEqual([])
-  })
-
-  it('treats empty existing content the same as no content', () => {
-    const fromNull = mergeApiIntegrationsIntoYaml(null, [createMockApiIntegration()])
-    const fromEmpty = mergeApiIntegrationsIntoYaml('', [createMockApiIntegration()])
-
-    expect(fromEmpty.content).toEqual(fromNull.content)
-    expect(fromEmpty.secrets).toEqual(fromNull.secrets)
   })
 
   it('merges into existing content, preserving comments, local-only entries and custom env var names', () => {
