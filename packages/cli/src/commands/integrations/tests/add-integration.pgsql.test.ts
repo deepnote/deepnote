@@ -17,17 +17,7 @@ vi.mock('../../../output', () => ({
 
 import { MalformedIntegrationsFileError } from '../../integrations'
 import { createIntegration, createIntegrationsAddAction } from '../add-integration'
-
-// An integrations file left with unresolved git merge conflict markers.
-const CONFLICT_MARKERS_YAML = [
-  'integrations:',
-  '<<<<<<< HEAD',
-  '  - id: a',
-  '=======',
-  '  - id: b',
-  '>>>>>>> branch',
-  '',
-].join('\n')
+import { CONFLICT_MARKERS_YAML } from '../test-helpers'
 
 describe('add-integration pgsql', () => {
   let tempDir: string

@@ -37,18 +37,7 @@ import {
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 // Import after mocks are set up
 import { createIntegrationsPullAction, MalformedIntegrationsFileError, readIntegrationsDocument } from './integrations'
-
-// An integrations file left with unresolved git merge conflict markers. The file reads
-// fine; it just is not valid YAML.
-const CONFLICT_MARKERS_YAML = [
-  'integrations:',
-  '<<<<<<< HEAD',
-  '  - id: a',
-  '=======',
-  '  - id: b',
-  '>>>>>>> branch',
-  '',
-].join('\n')
+import { CONFLICT_MARKERS_YAML } from './integrations/test-helpers'
 
 describe('integrations command', () => {
   beforeEach(() => {

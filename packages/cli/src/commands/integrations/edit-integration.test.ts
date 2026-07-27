@@ -15,17 +15,7 @@ vi.mock('../../output', () => ({
 
 import { MalformedIntegrationsFileError } from '../integrations'
 import { createIntegrationsEditAction, editIntegration } from './edit-integration'
-
-// An integrations file left with unresolved git merge conflict markers.
-const CONFLICT_MARKERS_YAML = [
-  'integrations:',
-  '<<<<<<< HEAD',
-  '  - id: a',
-  '=======',
-  '  - id: b',
-  '>>>>>>> branch',
-  '',
-].join('\n')
+import { CONFLICT_MARKERS_YAML } from './test-helpers'
 
 describe('edit-integration shared error handling', () => {
   let tempDir: string
