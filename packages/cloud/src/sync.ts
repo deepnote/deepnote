@@ -92,7 +92,7 @@ const importedNotebookSchema = z
 
 const importProjectResponseSchema = z
   .object({
-    project: z.object({ id: z.string() }).passthrough(),
+    project: z.object({ id: z.string(), modifiedAt: z.string().optional() }).passthrough(),
     notebooks: z.array(importedNotebookSchema),
   })
   .passthrough()
@@ -136,18 +136,31 @@ export interface ImportedNotebook {
 export interface ImportProjectResult {
   projectId: string
   notebooks: ImportedNotebook[]
+  /** The project's content fingerprint after the import — what a fresh export's
+   * `metadata.modifiedAt` would say. Usable as the next push's `baseModifiedAt` without an
+   * intermediate export. */
+  modifiedAt?: string
 }
 
 export interface ImportProjectOptions extends RequestOptions {
   /**
    * The `metadata.modifiedAt` of the export this import was edited from. When set, the server
-   * rejects the import with a 409 if the project changed after that point (lost-update protection).
-   * Always pass it when you have one — omitting it silently disables the check.
+   * rejects the import with a 409 if the project changed *structurally* after that point —
+   * notebooks created, deleted, renamed, or restored, or another import applied. Editor edits to
+   * block content do not advance this fingerprint; pass {@link baseContentHash} to catch those too.
    */
   baseModifiedAt?: string
+  /**
+   * Hex SHA-256 of the exact `.deepnote` bytes this import was edited from. When set, the server
+   * rejects the import with a 409 if the project would currently export different bytes. Exports
+   * are byte-deterministic, so this catches every concurrent change — including the editor
+   * block-content edits `baseModifiedAt` cannot see. Always pass it when you have one.
+   */
+  baseContentHash?: string
   /** Delete notebooks that exist in the project but are absent from the document. Default false. */
   deleteMissingNotebooks?: boolean
-  /** Skip the `baseModifiedAt` conflict check and overwrite regardless of concurrent cloud edits. */
+  /** Skip the `baseModifiedAt`/`baseContentHash` conflict checks and overwrite regardless of
+   * concurrent cloud edits. */
   force?: boolean
 }
 
@@ -261,8 +274,9 @@ export async function getProjectDetail(
  *
  * The export is deterministic: an unchanged project yields a byte-identical document (no outputs,
  * no per-run execution metadata), so callers can use plain byte comparison to skip unchanged
- * projects. The document's `metadata.modifiedAt` is the project's change fingerprint — save it and
- * send it back as {@link ImportProjectOptions.baseModifiedAt} when pushing edits.
+ * projects. Two fingerprints to save for the next push: the document's `metadata.modifiedAt`
+ * (send back as {@link ImportProjectOptions.baseModifiedAt}) and the SHA-256 of the exact bytes
+ * (send back as {@link ImportProjectOptions.baseContentHash}).
  */
 export async function exportProject(
   baseUrl: string,
@@ -285,13 +299,16 @@ export async function exportProject(
  *
  * The server reconciles rather than replaces: notebooks matched by id are overwritten (block
  * identity and comments preserved), unmatched ones are created, and missing ones are deleted only
- * with {@link ImportProjectOptions.deleteMissingNotebooks}. Project name, integrations, and
- * `settings.requirements` are never applied from the document (`requirements.txt` in the project's
- * files is the source of truth for requirements; `settings.requirements` is a lossy projection).
+ * with {@link ImportProjectOptions.deleteMissingNotebooks}. A document with no notebooks is
+ * accepted: a no-op by default, a delete-every-notebook under `deleteMissingNotebooks`. Project
+ * name, integrations, and `settings.requirements` are never applied from the document
+ * (`requirements.txt` in the project's files is the source of truth for requirements;
+ * `settings.requirements` is a lossy projection).
  *
  * Notable failures, all thrown as {@link ApiError}: 409 when the project changed after
- * `baseModifiedAt` (or is suspended), 422 for a malformed document, 403 for permissions or the
- * notebook limit.
+ * `baseModifiedAt`/`baseContentHash` (or is suspended), 413 for a document over the server's size
+ * limit, 422 for a malformed document or one that violates naming or structure rules, 403 for
+ * permissions or the notebook limit.
  */
 export async function importProject(
   baseUrl: string,
@@ -303,6 +320,9 @@ export async function importProject(
   const url = new URL(`${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}/import`)
   if (options.baseModifiedAt) {
     url.searchParams.set('baseModifiedAt', options.baseModifiedAt)
+  }
+  if (options.baseContentHash) {
+    url.searchParams.set('baseContentHash', options.baseContentHash)
   }
   if (options.deleteMissingNotebooks) {
     url.searchParams.set('deleteMissingNotebooks', 'true')
@@ -322,7 +342,7 @@ export async function importProject(
     'Failed to import Deepnote project'
   )
   const parsed = await parseJsonResponse(response, importProjectResponseSchema, 'import project')
-  return { projectId: parsed.project.id, notebooks: parsed.notebooks }
+  return { projectId: parsed.project.id, notebooks: parsed.notebooks, modifiedAt: parsed.project.modifiedAt }
 }
 
 /**

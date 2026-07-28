@@ -144,15 +144,17 @@ describe('exportProject', () => {
 
 describe('importProject', () => {
   it('POSTs the document as YAML with every provided reconciliation flag', async () => {
+    const baseContentHash = 'c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2'
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
       response({
-        project: { id: 'p1' },
+        project: { id: 'p1', modifiedAt: '2026-01-03T00:00:00.000Z' },
         notebooks: [{ id: 'nb1', name: 'Main', action: 'overwritten' }],
       })
     )
 
     const result = await importProject(BASE_URL, TOKEN, 'p1', 'version: 1.0.0\n', {
       baseModifiedAt: '2026-01-02T00:00:00.000Z',
+      baseContentHash,
       deleteMissingNotebooks: true,
       force: true,
     })
@@ -160,7 +162,7 @@ describe('importProject', () => {
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toEqual(
       expect.urlWithQueryParams(
-        `${BASE_URL}/v2/projects/p1/import?baseModifiedAt=2026-01-02T00%3A00%3A00.000Z&deleteMissingNotebooks=true&force=true`
+        `${BASE_URL}/v2/projects/p1/import?baseModifiedAt=2026-01-02T00%3A00%3A00.000Z&baseContentHash=${baseContentHash}&deleteMissingNotebooks=true&force=true`
       )
     )
     expect(init).toMatchObject({
@@ -171,6 +173,7 @@ describe('importProject', () => {
     expect(result).toEqual({
       projectId: 'p1',
       notebooks: [{ id: 'nb1', name: 'Main', action: 'overwritten' }],
+      modifiedAt: '2026-01-03T00:00:00.000Z',
     })
   })
 

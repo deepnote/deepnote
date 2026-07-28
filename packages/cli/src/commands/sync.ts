@@ -35,9 +35,10 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, planProjectPaths } fr
  * The whole design leans on two server guarantees:
  * - Exports are deterministic: an unchanged project exports byte-identically, so "did anything
  *   change" is a hash comparison against the manifest, not a timestamp heuristic.
- * - Imports reconcile: pushing sends the edited document with `baseModifiedAt` from the manifest,
- *   and the server rejects with 409 when the cloud copy moved on — lost updates are impossible
- *   without an explicit override.
+ * - Imports reconcile: pushing sends the edited document with the manifest's `baseModifiedAt` and
+ *   `baseContentHash`, and the server rejects with 409 when the cloud copy moved on — the
+ *   timestamp catches structural changes, the content hash everything down to a single block
+ *   edit — so lost updates are impossible without an explicit override.
  *
  * Git is deliberately out of scope: sync writes ordinary files and the user runs git themselves.
  */
@@ -98,26 +99,48 @@ function normalizeToken(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
-/**
- * The export's `metadata.modifiedAt`, read without validating the whole document — sync must not
- * fail because the server knows a newer block type than this CLI's schema does.
- */
-export function readExportModifiedAt(deepnoteYaml: string): string | undefined {
+/** Parse a `.deepnote` document without validating it — sync must not fail because the server
+ * knows a newer block type than this CLI's schema does. `undefined` when it is not a YAML map. */
+function parseDocumentLoosely(deepnoteYaml: string): Record<string, unknown> | undefined {
   let parsed: unknown
   try {
     parsed = parseYaml(deepnoteYaml)
   } catch {
     return undefined
   }
-  if (typeof parsed !== 'object' || parsed === null) {
+  return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined
+}
+
+/** The export's `metadata.modifiedAt`, read loosely (see {@link parseDocumentLoosely}). */
+export function readExportModifiedAt(deepnoteYaml: string): string | undefined {
+  const document = parseDocumentLoosely(deepnoteYaml)
+  if (!document) {
     return undefined
   }
-  const metadata = (parsed as { metadata?: unknown }).metadata
+  const metadata = document.metadata
   if (typeof metadata !== 'object' || metadata === null) {
     return undefined
   }
   const modifiedAt = (metadata as { modifiedAt?: unknown }).modifiedAt
   return typeof modifiedAt === 'string' ? modifiedAt : undefined
+}
+
+/**
+ * Whether the document contains at least one notebook, read loosely like
+ * {@link readExportModifiedAt}. `undefined` when the notebook list cannot be read at all — the
+ * server, not this check, is the validator of malformed documents.
+ */
+export function documentHasNotebooks(deepnoteYaml: string): boolean | undefined {
+  const document = parseDocumentLoosely(deepnoteYaml)
+  if (!document) {
+    return undefined
+  }
+  const project = document.project
+  if (typeof project !== 'object' || project === null) {
+    return undefined
+  }
+  const notebooks = (project as { notebooks?: unknown }).notebooks
+  return Array.isArray(notebooks) ? notebooks.length > 0 : undefined
 }
 
 /** How one project should sync, decided purely from content hashes (see the manifest docs). */
@@ -244,24 +267,51 @@ interface PushResult {
   notebooks: ImportedNotebook[]
 }
 
+/** A push that was declined, with the reason to report in the outcome. */
+interface PushSkipped {
+  skipped: string
+}
+
 /**
- * Push local edits: import with `baseModifiedAt` for lost-update protection, then re-export.
+ * Push local edits: import with `baseModifiedAt` + `baseContentHash` for lost-update protection
+ * (the timestamp catches structural changes, the hash catches editor block edits the timestamp
+ * cannot see), then re-export.
  *
  * The re-export is not cosmetic. The import may create notebooks (server-assigned ids) and never
  * applies certain fields (project name, integrations, `settings.requirements` — `requirements.txt`
  * is the source of truth for requirements), so the canonical post-push state only exists in the
  * cloud. Writing it back keeps the local file and manifest in step for the next sync.
  *
- * Returns `null` when a 409 conflict was resolved as `skip`.
+ * Returns {@link PushSkipped} when the push was declined: a 409 conflict resolved as `skip`, or
+ * the empty-document guard below.
  */
 async function pushProject(
   ctx: SyncContext,
   project: SyncProject,
   localYaml: string,
   record: ManifestProjectRecord
-): Promise<PushResult | null> {
+): Promise<PushResult | PushSkipped> {
+  // The API accepts a no-notebook document (a no-op, or a delete-every-notebook under
+  // deleteMissingNotebooks). Locally an empty file is more often an accident — a truncation, an
+  // editor mishap — than an intent to wipe the project, so the destructive combination is
+  // confirmed like a conflict instead of carried out silently.
+  if ((ctx.options.deleteMissingNotebooks ?? false) && documentHasNotebooks(localYaml) === false) {
+    const choice = await resolveConflict(
+      ctx,
+      `The local file for "${project.name}" contains no notebooks. Pushing it with --delete-missing-notebooks deletes every notebook in the cloud project. Push anyway?`,
+      'Push and delete every notebook in the cloud project'
+    )
+    if (choice === 'skip') {
+      return {
+        skipped:
+          'local file has no notebooks; pushing with --delete-missing-notebooks would delete every cloud notebook',
+      }
+    }
+  }
+
   const importOptions = {
     baseModifiedAt: record.modifiedAt,
+    baseContentHash: record.contentHash,
     deleteMissingNotebooks: ctx.options.deleteMissingNotebooks ?? false,
     force: false,
   }
@@ -279,7 +329,7 @@ async function pushProject(
       'Overwrite the cloud version with the local file'
     )
     if (choice === 'skip') {
-      return null
+      return { skipped: 'cloud changed after the local edit' }
     }
     notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localYaml, { ...importOptions, force: true }))
       .notebooks
@@ -393,13 +443,15 @@ async function syncOneProject(
         outcome = { ...base, action: 'pushed', detail: 'dry run: local edits would be imported' }
       } else {
         // classifySyncStep only returns 'push' for tracked files, so record is present.
-        const pushed = record ? await pushProject(ctx, project, localBytes?.toString('utf-8') ?? '', record) : null
-        if (pushed) {
+        const pushed = record
+          ? await pushProject(ctx, project, localBytes?.toString('utf-8') ?? '', record)
+          : { skipped: 'no manifest record for a push' }
+        if ('skipped' in pushed) {
+          outcome = { ...base, action: 'skipped-conflict', detail: pushed.skipped }
+        } else {
           await writeFileEnsuringDir(toAbsolute(ctx, plan.deepnotePath), pushed.yaml)
           commitRecord(pushed.yaml, record?.files)
           outcome = { ...base, action: 'pushed', notebooks: pushed.notebooks }
-        } else {
-          outcome = { ...base, action: 'skipped-conflict', detail: 'cloud changed after the local edit' }
         }
       }
     } else {
