@@ -60,13 +60,15 @@ is in preview and its exact shape may drift. Failures throw `ApiError`
 | `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                             | `GET /v2/files/download` — raw bytes of one working-directory file.                                            |
 
 **Note on `exportProject` / `importProject`:** the export is deterministic — an unchanged project
-exports byte-identically, so callers can diff or skip by byte comparison — and its
-`metadata.modifiedAt` is the project's change fingerprint. Pass it back as
-`importProject`'s `baseModifiedAt` and the server rejects the import with a 409 when the project
-changed in between (lost-update protection); `force` skips that check. Imports reconcile by
-notebook id (unmatched notebooks are created, missing ones deleted only with
-`deleteMissingNotebooks`) and never apply the project name, integrations, or
-`settings.requirements` from the document.
+exports byte-identically, so callers can diff or skip by byte comparison — and it carries two
+change fingerprints. Pass its `metadata.modifiedAt` back as `importProject`'s `baseModifiedAt` to
+detect structural changes (notebooks created/deleted/renamed, other imports), and the SHA-256 of
+the exact export bytes as `baseContentHash` to also detect editor block edits, which never advance
+the timestamp; on either mismatch the server rejects the import with a 409 (lost-update
+protection), and `force` skips both checks. Imports reconcile by notebook id (unmatched notebooks
+are created, missing ones deleted only with `deleteMissingNotebooks`; a document with no notebooks
+is a no-op, or a delete-every-notebook under that flag) and never apply the project name,
+integrations, or `settings.requirements` from the document.
 
 **Note on `fetchSnapshotContent`:** the bearer token is sent only when the download URL is
 same-origin with `baseUrl`. A cross-origin URL (e.g. a presigned S3 link) is fetched without auth,

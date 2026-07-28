@@ -1,10 +1,11 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { loadSyncManifest, SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
-import { classifySyncStep, readExportModifiedAt, syncWorkspace } from './sync'
+import { classifySyncStep, documentHasNotebooks, readExportModifiedAt, syncWorkspace } from './sync'
 
 const API_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
@@ -214,11 +215,10 @@ describe('syncWorkspace', () => {
     expect(await fs.readFile(path.join(tempDir, 'Alpha.deepnote'), 'utf-8')).toContain('cloud-edit')
   })
 
-  it('pushes a local edit with baseModifiedAt and refreshes the file from the canonical re-export', async () => {
+  it('pushes a local edit with the base fingerprints and refreshes the file from the canonical re-export', async () => {
+    const baseYaml = projectYaml('p1', '2026-01-02T00:00:00.000Z')
     const canonical = projectYaml('p1', '2026-01-09T00:00:00.000Z', 'canonical-after-import')
-    const projects: CloudProject[] = [
-      { id: 'p1', name: 'Alpha', yaml: projectYaml('p1', '2026-01-02T00:00:00.000Z'), yamlAfterImport: canonical },
-    ]
+    const projects: CloudProject[] = [{ id: 'p1', name: 'Alpha', yaml: baseYaml, yamlAfterImport: canonical }]
     const cloud = installCloud(projects)
     await syncWorkspace(tempDir, baseOptions)
 
@@ -238,8 +238,13 @@ describe('syncWorkspace', () => {
         body: localEdit,
       }),
     ])
-    // Lost-update protection: the manifest's modifiedAt travels back as baseModifiedAt.
+    // Lost-update protection: the manifest's modifiedAt travels back as baseModifiedAt, and the
+    // manifest's contentHash (the sha256 of the base export's bytes) as baseContentHash — the
+    // latter is what catches editor block edits the timestamp cannot see.
     expect(cloud.importCalls[0].url.searchParams.get('baseModifiedAt')).toBe('2026-01-02T00:00:00.000Z')
+    expect(cloud.importCalls[0].url.searchParams.get('baseContentHash')).toBe(
+      crypto.createHash('sha256').update(baseYaml).digest('hex')
+    )
     expect(cloud.importCalls[0].url.searchParams.get('force')).toBeNull()
     // The import may rewrite ids / drop never-applied fields, so the cloud's canonical form
     // replaces the local edit and the manifest fingerprints the new state.
@@ -288,6 +293,46 @@ describe('syncWorkspace', () => {
     expect(cloud.importCalls).toHaveLength(2)
     expect(cloud.importCalls[1].url.searchParams.get('force')).toBe('true')
     expect(await fs.readFile(path.join(tempDir, 'Alpha.deepnote'), 'utf-8')).toBe(canonical)
+  })
+
+  it('skips pushing a no-notebook document under --delete-missing-notebooks instead of wiping the project', async () => {
+    // The fixture document has `notebooks: []`, so the local edit below is a delete-everything
+    // push. Without a terminal, `ask` degrades to skip — the destructive combination never
+    // reaches the API.
+    const projects: CloudProject[] = [{ id: 'p1', name: 'Alpha', yaml: projectYaml('p1', '2026-01-02T00:00:00.000Z') }]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, { ...baseOptions, deleteMissingNotebooks: true })
+
+    const localEdit = projectYaml('p1', '2026-01-02T00:00:00.000Z', 'local-edit')
+    await fs.writeFile(path.join(tempDir, 'Alpha.deepnote'), localEdit, 'utf-8')
+    const result = await syncWorkspace(tempDir, { ...baseOptions, deleteMissingNotebooks: true })
+
+    expect(result.projects).toEqual([
+      expect.objectContaining({ action: 'skipped-conflict', detail: expect.stringContaining('no notebooks') }),
+    ])
+    expect(cloud.importCalls).toEqual([])
+    expect(await fs.readFile(path.join(tempDir, 'Alpha.deepnote'), 'utf-8')).toBe(localEdit)
+  })
+
+  it('pushes the delete-everything document when --on-conflict override accepts the guard', async () => {
+    const projects: CloudProject[] = [{ id: 'p1', name: 'Alpha', yaml: projectYaml('p1', '2026-01-02T00:00:00.000Z') }]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, { ...baseOptions, deleteMissingNotebooks: true })
+
+    await fs.writeFile(
+      path.join(tempDir, 'Alpha.deepnote'),
+      projectYaml('p1', '2026-01-02T00:00:00.000Z', 'local-edit'),
+      'utf-8'
+    )
+    const result = await syncWorkspace(tempDir, {
+      ...baseOptions,
+      deleteMissingNotebooks: true,
+      onConflict: 'override',
+    })
+
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'pushed' })])
+    expect(cloud.importCalls).toHaveLength(1)
+    expect(cloud.importCalls[0].url.searchParams.get('deleteMissingNotebooks')).toBe('true')
   })
 
   it('treats "changed locally AND in the cloud" as a conflict: override takes the cloud version', async () => {
@@ -458,5 +503,18 @@ describe('readExportModifiedAt', () => {
   it('returns undefined for documents it cannot read', () => {
     expect(readExportModifiedAt('not yaml: [')).toBeUndefined()
     expect(readExportModifiedAt('version: 1.0.0\n')).toBeUndefined()
+  })
+})
+
+describe('documentHasNotebooks', () => {
+  it('distinguishes empty and non-empty notebook lists without validating the whole document', () => {
+    expect(documentHasNotebooks(projectYaml('p1', '2026-01-02T00:00:00.000Z'))).toBe(false)
+    expect(documentHasNotebooks('project:\n  notebooks:\n    - id: nb1\n')).toBe(true)
+  })
+
+  it('returns undefined when the notebook list cannot be read', () => {
+    expect(documentHasNotebooks('not yaml: [')).toBeUndefined()
+    expect(documentHasNotebooks('version: 1.0.0\n')).toBeUndefined()
+    expect(documentHasNotebooks('project: {}\n')).toBeUndefined()
   })
 })

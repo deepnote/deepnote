@@ -50,8 +50,9 @@ Per project, comparing the local file and a fresh export against the last-synced
 
 - both match → unchanged (the export is deterministic, so this is a byte comparison)
 - only cloud changed → pull (overwrite the local file)
-- only local changed → push (`POST /import` with `baseModifiedAt` for lost-update protection;
-  a 409 means the cloud moved concurrently → override or skip)
+- only local changed → push (`POST /import` with `baseModifiedAt` + `baseContentHash` for
+  lost-update protection — the hash catches editor block edits the timestamp cannot see; a 409
+  means the cloud moved concurrently → override or skip)
 - both changed → conflict → keep the cloud version or skip (per `--on-conflict`; `ask` degrades
   to skip when there is no terminal)
 
@@ -69,6 +70,9 @@ With `--all-files`, each project's working-directory files are downloaded into
 - Sync never creates or deletes cloud projects. Local-only `.deepnote` files are reported and left
   alone (use `deepnote open` to import one).
 - Local files are never deleted unless `--prune` is passed.
+- Pushing a local file with **no notebooks** under `--delete-missing-notebooks` would delete every
+  notebook in the cloud project, so sync confirms it like a conflict first (`ask` prompts,
+  `override` proceeds, `skip` — and `ask` without a terminal — skips).
 - Git is not involved: sync writes ordinary files; commit/branch/push yourself.
 
 **Exit codes:** `0` success (skipped conflicts included), `1` one or more projects failed, `2`
