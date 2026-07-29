@@ -1,7 +1,7 @@
 // Serves the gallery with zero copy steps: the built snapshot reader and the sample snapshot are
 // resolved straight from the repo, so `node serve.mjs` just works.
 //
-// One server for all four frontends on purpose — the comparison is the point, and flipping between
+// One server for all five frontends on purpose — the comparison is the point, and flipping between
 // them should be a click, not a second terminal.
 
 import { readFile } from 'node:fs/promises'
@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const page = name => [join(here, name), 'text/html; charset=utf-8']
+const pipelineSnapshot = id => [join(here, 'pipeline-snapshots', `${id}.snapshot.deepnote`), 'text/yaml; charset=utf-8']
 
 // What a fully-static copy of this gallery would contain: the pages, the reader bundle, and one
 // snapshot. Every route is spelled out — no directory serving, so no traversal to guard against.
@@ -20,7 +21,16 @@ const routes = {
   '/explorer': page('explorer.html'),
   '/deck': page('deck.html'),
   '/terminal': page('terminal.html'),
+  '/pipeline': page('pipeline.html'),
   '/gallery.js': [join(here, 'gallery.js'), 'text/javascript; charset=utf-8'],
+  '/pipeline.json': [join(here, 'pipeline.json'), 'application/json; charset=utf-8'],
+  '/pipeline-snapshots/analyze-north-america.snapshot.deepnote': pipelineSnapshot('analyze-north-america'),
+  '/pipeline-snapshots/analyze-europe.snapshot.deepnote': pipelineSnapshot('analyze-europe'),
+  '/pipeline-snapshots/analyze-asia-pacific.snapshot.deepnote': pipelineSnapshot('analyze-asia-pacific'),
+  '/pipeline-snapshots/recover-europe.snapshot.deepnote': pipelineSnapshot('recover-europe'),
+  '/pipeline-snapshots/decision-gpt.snapshot.deepnote': pipelineSnapshot('decision-gpt'),
+  '/pipeline-snapshots/decision-claude.snapshot.deepnote': pipelineSnapshot('decision-claude'),
+  '/pipeline-snapshots/final-arbiter.snapshot.deepnote': pipelineSnapshot('final-arbiter'),
   '/snapshot-reader.js': [
     join(here, '..', '..', '..', 'packages', 'local-runner', 'dist', 'snapshot-reader.iife.js'),
     'text/javascript; charset=utf-8',
@@ -53,5 +63,5 @@ server.listen(0, '127.0.0.1', () => {
   const { port } = server.address()
   const at = `http://127.0.0.1:${port}`
   console.log(`\n  Deepnote local-runner · gallery → ${at}`)
-  console.log(`  ${at}/dashboard   ${at}/explorer   ${at}/deck   ${at}/terminal\n`)
+  console.log(`  ${at}/dashboard   ${at}/explorer   ${at}/deck   ${at}/terminal   ${at}/pipeline\n`)
 })

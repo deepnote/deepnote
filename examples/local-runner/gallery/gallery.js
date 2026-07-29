@@ -1,8 +1,8 @@
-// Shared reading helpers for the four gallery pages.
+// Shared reading helpers for the snapshot gallery pages.
 //
 // This is page code, not library code: `@deepnote/local-runner` hands you a parsed `SnapshotView`
 // and stops there, deliberately — what a snapshot should *look* like is the page's business. But
-// four pages independently re-deriving "which output holds the dataframe" would drift, and the
+// multiple pages independently re-deriving "which output holds the dataframe" would drift, and the
 // fiddly bits below (nbformat's string-or-array values, base64 whitespace) are easy to get subtly
 // wrong. So: finding things lives here, showing things lives in each page.
 //

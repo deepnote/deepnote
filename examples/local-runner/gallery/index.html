@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gallery — one snapshot, four frontends</title>
+    <title>Gallery — static notebook outputs, five frontends</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -46,6 +46,12 @@
       .t-term i { height: 4px; background: #3c3a30; }
       .t-term .p { width: 42%; background: #6f9d5f; }
       .t-term .b { background: #4a6f9c; width: 72%; }
+      .t-pipe { flex-direction: row; align-items: center; gap: 3px; padding: 10px 6px; }
+      .t-pipe i { width: 17px; height: 17px; flex: none; border: 1px solid var(--line); background: var(--raised); }
+      .t-pipe .fork { display: flex; flex-direction: column; gap: 3px; }
+      .t-pipe .fork i { width: 19px; height: 11px; border-color: var(--accent); }
+      .t-pipe b { width: 9px; height: 1px; background: var(--line); flex: none; }
+      .t-pipe .end { background: var(--accent); opacity: .3; }
 
       .foot { margin-top: 30px; font-size: 0.8rem; color: var(--ink-3); line-height: 1.6; max-width: 62ch; }
       .foot code { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-2); }
@@ -53,10 +59,10 @@
   </head>
   <body>
     <div class="wrap">
-      <h1>One snapshot, four frontends</h1>
+      <h1>Static notebook outputs, five frontends</h1>
       <p class="lede">
-        The same <code>.deepnote</code> file, read four ways. Each page calls the same two library
-        functions and then disagrees completely about what a notebook run looks like.
+        Four views reinterpret one <code>.deepnote</code> snapshot. A fifth replays an entire
+        multi-model pipeline from seven immutable step snapshots.
       </p>
       <p class="src">snapshot-showcase.snapshot.deepnote · 17 blocks · rendered by DeepnoteSnapshot.parseSnapshot()</p>
 
@@ -96,11 +102,23 @@
           <h2>Terminal →</h2>
           <p>The snapshot as a plain-text log. ASCII bars instead of the PNG — same numbers.</p>
         </a>
+
+        <a class="card" href="./pipeline">
+          <div class="thumb t-pipe">
+            <i></i><b></b>
+            <span class="fork"><i></i><i></i></span><b></b>
+            <i></i><b></b>
+            <span class="fork"><i></i><i></i></span><b></b>
+            <i class="end"></i>
+          </div>
+          <h2>Pipeline →</h2>
+          <p>A real cloud run, left to right. Inspect every snapshot or jump to its notebook run.</p>
+        </a>
       </div>
 
       <p class="foot">
         Why this exists, what the library does and doesn’t hand a browser, and the one gap building
-        these four exposed: see <code>README.md</code>.
+        these views exposed: see <code>README.md</code>.
       </p>
     </div>
   </body>
