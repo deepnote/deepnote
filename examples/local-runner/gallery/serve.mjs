@@ -22,6 +22,7 @@ const routes = {
   '/deck': page('deck.html'),
   '/terminal': page('terminal.html'),
   '/pipeline': page('pipeline.html'),
+  '/pipeline.html': page('pipeline.html'),
   '/gallery.js': [join(here, 'gallery.js'), 'text/javascript; charset=utf-8'],
   '/pipeline.json': [join(here, 'pipeline.json'), 'application/json; charset=utf-8'],
   '/pipeline-snapshots/analyze-north-america.snapshot.deepnote': pipelineSnapshot('analyze-north-america'),

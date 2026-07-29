@@ -125,4 +125,5 @@ Any static host. For a single-snapshot view, copy the page (renamed `index.html`
 `snapshot-reader.js` from `packages/local-runner/dist/snapshot-reader.iife.js` (~70 kB gzipped,
 everything inlined), and a `snapshot.deepnote`. For the pipeline view, copy `pipeline.html`,
 `pipeline.json`, `gallery.js`, the reader, and `pipeline-snapshots/`. No application server, build,
-Python or credentials are required.
+Python or credentials are required. Link to `pipeline.html` directly on an ordinary static host;
+the shorter `/pipeline` URL is only available when the host supplies a rewrite, as `serve.mjs` does.

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { parseSnapshot } from '../../../packages/local-runner/src/snapshot-view'
 
@@ -85,5 +86,15 @@ describe('static pipeline gallery', () => {
     const html = await readFile(join(here, 'pipeline.html'), 'utf8')
     expect(html).toContain(': manifest.concludingStepId')
     expect(html).toContain('Concluding notebook · selected by default')
+  })
+
+  it('treats a malformed hash fragment as no selection', async () => {
+    const html = await readFile(join(here, 'pipeline.html'), 'utf8')
+    const source = html.match(/function decodeHashStep\(hash\) \{[\s\S]*?\n {6}\}/)?.[0]
+    expect(source).toBeDefined()
+    const decodeHashStep = runInNewContext(`(${source})`) as (hash: string) => string
+
+    expect(decodeHashStep('#decision-gpt')).toBe('decision-gpt')
+    expect(decodeHashStep('#%')).toBe('')
   })
 })

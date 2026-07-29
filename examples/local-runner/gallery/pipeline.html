@@ -481,7 +481,7 @@
         manifest = await response.json()
         renderHeader()
         renderGraph()
-        const hashStep = decodeURIComponent(location.hash.slice(1))
+        const hashStep = decodeHashStep(location.hash)
         const initial = manifest.nodes.some(node => node.id === hashStep && node.snapshot)
           ? hashStep
           : manifest.concludingStepId
@@ -494,9 +494,17 @@
       }
 
       window.addEventListener('hashchange', () => {
-        const step = decodeURIComponent(location.hash.slice(1))
+        const step = decodeHashStep(location.hash)
         if (manifest?.nodes.some(node => node.id === step && node.snapshot)) selectStep(step, false)
       })
+
+      function decodeHashStep(hash) {
+        try {
+          return decodeURIComponent(hash.slice(1))
+        } catch {
+          return ''
+        }
+      }
 
       function renderHeader() {
         document.querySelector('#title').textContent = manifest.title
