@@ -24,6 +24,7 @@ const routes = {
   '/pipeline': page('pipeline.html'),
   '/pipeline.html': page('pipeline.html'),
   '/gallery.js': [join(here, 'gallery.js'), 'text/javascript; charset=utf-8'],
+  '/pipeline-data.js': [join(here, 'pipeline-data.js'), 'text/javascript; charset=utf-8'],
   '/pipeline.json': [join(here, 'pipeline.json'), 'application/json; charset=utf-8'],
   '/pipeline-snapshots/analyze-north-america.snapshot.deepnote': pipelineSnapshot('analyze-north-america'),
   '/pipeline-snapshots/analyze-europe.snapshot.deepnote': pipelineSnapshot('analyze-europe'),

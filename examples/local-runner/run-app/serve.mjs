@@ -45,11 +45,23 @@ async function runSalesPipeline(inputs, emit) {
   const qualityThreshold = 0.95
 
   return orchestrate(
-    async ({ run, outputs }) => {
-      const analyze = (config, backfillMissing = false) =>
+    async ({ run, control, outputs }) => {
+      await control(
+        {
+          id: 'pipeline-inputs',
+          label: 'Pipeline inputs',
+          metadata: { trailingMonths, monthlyTargetK, qualityThreshold },
+        },
+        () => ({ trailingMonths, monthlyTargetK, qualityThreshold })
+      )
+
+      const analyze = (config, backfillMissing = false, dependsOn = ['pipeline-inputs']) =>
         run({
           id: `${backfillMissing ? 'recover' : 'analyze'}-${slug(config.name)}`,
+          label: `${config.name}${backfillMissing ? ' recovery' : ' analysis'}`,
           notebook: regionalNotebook,
+          dependsOn,
+          metadata: { region: config.name, recovery: backfillMissing },
           inputs: {
             region: config.name,
             trailing_months: trailingMonths,
@@ -70,36 +82,72 @@ async function runSalesPipeline(inputs, emit) {
         step,
         value: outputs.lastJson(step),
       }))
-      const needsRecovery = initialResults.filter(({ value }) => value.qualityScore < qualityThreshold)
-      const recoveries = await Promise.all(needsRecovery.map(({ config }) => analyze(config, true)))
+      const recoveryRegions = await control(
+        {
+          id: 'quality-gate',
+          kind: 'gate',
+          label: '95% quality gate',
+          dependsOn: initial.map(step => step.id),
+          metadata: { threshold: qualityThreshold },
+        },
+        () =>
+          initialResults.filter(({ value }) => value.qualityScore < qualityThreshold).map(({ value }) => value.region)
+      )
+      const needsRecovery = initialResults.filter(({ value }) => recoveryRegions.includes(value.region))
+      const recoveries = await Promise.all(
+        needsRecovery.map(({ config }) =>
+          analyze(config, true, [{ id: 'quality-gate', label: `quality below ${qualityThreshold}` }])
+        )
+      )
       const recoveryResults = recoveries.map(step => ({ step, value: outputs.lastJson(step) }))
-      const validated = initialResults.map(initialResult => {
-        return (recoveryResults.find(recovery => recovery.value.region === initialResult.value.region) ?? initialResult)
-          .value
-      })
-
-      const totals = {
-        revenueK: sum(validated.map(region => region.revenueK)),
-        forecastK: sum(validated.map(region => region.forecastK)),
-        targetK: sum(validated.map(region => region.targetK)),
-      }
-      const decision = totals.forecastK >= totals.targetK ? 'proceed' : 'intervene'
-      const portfolio = {
-        title: String(inputs.report_title ?? 'Orchestrated sales review'),
-        trailingMonths,
-        qualityThreshold,
-        analystNotes: String(inputs.analyst_notes ?? ''),
-        proposedDecision: decision,
-        regions: validated,
-        totals,
-      }
+      const { validated, totals, decision, portfolio } = await control(
+        {
+          id: 'aggregate',
+          kind: 'join',
+          label: 'Validated portfolio',
+          dependsOn: [
+            { id: 'quality-gate', label: 'passed regions' },
+            ...recoveries.map(recovery => ({ id: recovery.id, label: 'recovered region' })),
+          ],
+        },
+        () => {
+          const validated = initialResults.map(initialResult => {
+            return (
+              recoveryResults.find(recovery => recovery.value.region === initialResult.value.region) ?? initialResult
+            ).value
+          })
+          const totals = {
+            revenueK: sum(validated.map(region => region.revenueK)),
+            forecastK: sum(validated.map(region => region.forecastK)),
+            targetK: sum(validated.map(region => region.targetK)),
+          }
+          const decision = totals.forecastK >= totals.targetK ? 'proceed' : 'intervene'
+          return {
+            validated,
+            totals,
+            decision,
+            portfolio: {
+              title: String(inputs.report_title ?? 'Orchestrated sales review'),
+              trailingMonths,
+              qualityThreshold,
+              analystNotes: String(inputs.analyst_notes ?? ''),
+              proposedDecision: decision,
+              regions: validated,
+              totals,
+            },
+          }
+        }
+      )
       const providerReviews =
         target === 'cloud'
           ? await Promise.all(
               decisionProviders.map(async provider => {
                 const step = await run({
                   id: provider.id,
+                  label: `${provider.provider} ${provider.model} review`,
                   notebook: provider.notebook,
+                  dependsOn: ['aggregate'],
+                  metadata: { provider: provider.provider, model: provider.model },
                   inputs: { portfolio_json: JSON.stringify(portfolio) },
                   cloud: { createIfMissing: true },
                   allowFailure: true,
@@ -155,7 +203,11 @@ async function runSalesPipeline(inputs, emit) {
         }
         const arbiter = await run({
           id: 'final-arbiter',
+          label: 'Final decision',
           notebook: arbiterNotebook,
+          dependsOn: decisionProviders.map(provider => provider.id),
+          concluding: true,
+          metadata: { provider: 'Deepnote', model: 'Auto' },
           inputs: { decision_context_json: JSON.stringify(arbitrationContext) },
           cloud: { createIfMissing: true },
           allowFailure: true,
@@ -180,6 +232,7 @@ async function runSalesPipeline(inputs, emit) {
       }
 
       return {
+        title: portfolio.title,
         target,
         decision,
         qualityThreshold,

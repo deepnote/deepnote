@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { parseSnapshot } from '../../../packages/local-runner/src/snapshot-view'
+import { normalizePipelineManifest } from './pipeline-data.js'
 
 interface PipelineNode {
   id: string
@@ -28,6 +29,71 @@ const here = dirname(fileURLToPath(import.meta.url))
 const manifest = JSON.parse(await readFile(join(here, 'pipeline.json'), 'utf8')) as PipelineManifest
 
 describe('static pipeline gallery', () => {
+  it('renders a persisted orchestrate result without a hand-authored graph manifest', () => {
+    const normalized = normalizePipelineManifest({
+      status: 'completed',
+      result: {
+        value: { title: 'Generated pipeline', finalDecision: 'proceed' },
+        steps: [
+          { id: 'north', target: 'cloud', durationMs: 10, snapshotYaml: 'north snapshot', runId: 'run-north' },
+          { id: 'final', target: 'cloud', durationMs: 20, snapshotYaml: 'final snapshot', runId: 'run-final' },
+        ],
+        graph: {
+          concludingNodeId: 'final',
+          nodes: [
+            { id: 'inputs', label: 'Inputs', kind: 'control', status: 'success', startedAt: '2026-01-01' },
+            {
+              id: 'north',
+              label: 'North',
+              kind: 'notebook',
+              target: 'cloud',
+              status: 'success',
+              startedAt: '2026-01-01',
+            },
+            {
+              id: 'gate',
+              label: 'Quality gate',
+              kind: 'gate',
+              status: 'success',
+              startedAt: '2026-01-01',
+            },
+            {
+              id: 'final',
+              label: 'Final',
+              kind: 'notebook',
+              target: 'cloud',
+              status: 'success',
+              concluding: true,
+              startedAt: '2026-01-01',
+            },
+          ],
+          edges: [
+            { from: 'inputs', to: 'north' },
+            { from: 'north', to: 'gate' },
+            { from: 'gate', to: 'final', label: 'passed' },
+          ],
+        },
+        startedAt: '2026-01-01T00:00:00.000Z',
+        finishedAt: '2026-01-01T00:00:01.000Z',
+        durationMs: 1_000,
+      },
+    })
+
+    expect(normalized).toMatchObject({
+      schemaVersion: 2,
+      title: 'Generated pipeline',
+      concludingStepId: 'final',
+      summary: { notebookRuns: 2, finalDecision: 'proceed' },
+    })
+    expect(normalized.nodes).toEqual([
+      expect.objectContaining({ id: 'inputs', kind: 'local', column: 0, lane: 1 }),
+      expect.objectContaining({ id: 'north', kind: 'notebook', column: 1, snapshotYaml: 'north snapshot' }),
+      expect.objectContaining({ id: 'gate', kind: 'local', column: 2 }),
+      expect.objectContaining({ id: 'final', kind: 'notebook', column: 3, snapshotYaml: 'final snapshot' }),
+    ])
+    expect(normalized.stageLabels?.at(-1)).toBe('CONCLUSION')
+  })
+
   it('is a left-to-right DAG whose conclusion is the final node', () => {
     const nodes = new Map(manifest.nodes.map(node => [node.id, node]))
     const conclusion = nodes.get(manifest.concludingStepId)

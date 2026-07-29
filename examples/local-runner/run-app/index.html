@@ -579,7 +579,7 @@
           if (gen !== displayGen) return
 
           shownRunId = null
-          finalizePipelineGraph(finalResult.value, finalResult.steps)
+          finalizePipelineGraph(finalResult.value, finalResult.graph)
           renderOrchestration(finalResult)
           const value = finalResult.value
           const summary = `${value.notebookRuns} notebook runs · ${value.recoveredRegions.length} conditional recovery`
@@ -596,6 +596,21 @@
       }
 
       function renderPipelineEvent(event) {
+        if (['control_started', 'control_completed', 'control_failed'].includes(event.type)) {
+          const node = event.node.id === 'quality-gate' ? graphStage('gate') : event.node.id === 'aggregate' ? graphStage('aggregate') : null
+          if (!node) return
+          const state = event.type === 'control_started' ? 'active' : event.type === 'control_completed' ? 'done' : 'failed'
+          const label =
+            event.type === 'control_started'
+              ? event.node.kind === 'gate'
+                ? 'checking quality'
+                : 'combining results'
+              : event.type === 'control_completed'
+                ? formatDuration(event.node.durationMs)
+                : 'failed'
+          setGraphNode(node, state, label)
+          return
+        }
         if (!['step_started', 'step_status', 'step_completed', 'step_failed'].includes(event.type)) return
         const node = graphNodeForStep(event.stepId)
         let state = pipelineStepStates.get(event.stepId) ?? 'pending'
@@ -677,8 +692,8 @@
         }
       }
 
-      function finalizePipelineGraph(value, steps = []) {
-        for (const step of steps) bindGraphRunLink(step.id, step.viewUrl)
+      function finalizePipelineGraph(value, graph = { nodes: [] }) {
+        for (const node of graph.nodes) bindGraphRunLink(node.id, node.viewUrl)
         setGraphNode(
           graphStage('gate'),
           'done',

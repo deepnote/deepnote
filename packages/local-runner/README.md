@@ -88,35 +88,49 @@ The first run of a new notebook is the slow one — blocks are created one API r
 
 ### Orchestrate notebook pipelines
 
-`orchestrate` turns the existing local and cloud runners into a small one-shot pipeline API. Ordinary
-TypeScript supplies sequencing, fan-out, loops, and branching:
+`orchestrate` turns the existing local and cloud runners into a small imperative pipeline API.
+Ordinary TypeScript supplies sequencing, fan-out, loops, and branching. Explicit `control` nodes
+make local gates, joins, and decisions visible in the generated runtime graph:
 
 ```ts
 import { orchestrate } from "@deepnote/local-runner";
 
 const pipeline = await orchestrate(
-  async ({ run, outputs }) => {
+  async ({ run, control, outputs }) => {
+    await control({ id: "inputs", label: "Pipeline inputs" }, () => ({
+      regions: ["North America", "Europe"],
+    }));
+
     const [north, europe] = await Promise.all([
       run({
         id: "north",
         notebook: "inputs.deepnote",
+        dependsOn: ["inputs"],
         inputs: { region: "North America" },
       }),
       run({
         id: "europe",
         notebook: "inputs.deepnote",
+        dependsOn: ["inputs"],
         inputs: { region: "Europe" },
       }),
     ]);
 
+    const notes = await control(
+      {
+        id: "combine",
+        kind: "join",
+        dependsOn: [north.id, europe.id],
+      },
+      () => [outputs.allText(north), outputs.allText(europe)].join("\n"),
+    );
+
     const report = await run({
       id: "report",
       notebook: "report-with-agent.deepnote",
-      inputs: {
-        analyst_notes: [outputs.allText(north), outputs.allText(europe)].join(
-          "\n",
-        ),
-      },
+      dependsOn: ["combine"],
+      concluding: true,
+      inputs: { analyst_notes: notes },
     });
 
     return outputs.lastAgentText(report);
@@ -133,6 +147,12 @@ timing, and cloud metadata when applicable. Failed notebook blocks throw by defa
 `allowFailure: true` on a step when failure is data the pipeline should inspect. Step IDs are unique
 within a run and every progress event carries its step ID.
 
+`pipeline.graph` contains every notebook and explicit local control node, their runtime statuses,
+dependency edges, timing, snapshots, and cloud links. `dependsOn` is intentionally explicit:
+JavaScript cannot infer which returned values a later callback used, and explicit edges avoid
+inventing false dependencies between sequential scheduling work. Mark one node `concluding: true`
+to tell renderers which result to select first.
+
 The output helpers read text or JSON from the resulting snapshot. `allText` is useful for cloud runs
 because a newly created cloud notebook can have different block IDs from its source file, while
 `lastAgentText` handles both local agent output and cloud agent runs that append their answer as a
@@ -146,9 +166,31 @@ const region = outputs.lastJson<RegionalResult>(regionalRun);
 See [`examples/local-runner/orchestration`](../../examples/local-runner/orchestration) for a
 complete local-or-cloud pipeline.
 
+### Resume a local one-shot run
+
+Add an opt-in JSON checkpoint file when a script should survive a local process restart:
+
+```ts
+await orchestrate(buildPipeline, {
+  persistence: { file: ".deepnote-runs/sales-review.json" },
+});
+```
+
+Successful notebook and control nodes are restored when the same callback runs again. Node
+definitions and inputs are fingerprinted; changed or removed nodes fail clearly instead of mixing
+in stale outputs while resuming an interrupted run. A completed file returns its immutable recorded
+result immediately. Set `resume: false` or choose a new file whenever code or inputs should start a
+fresh run. The file contains the completed result and generated graph as well as notebook outputs
+and snapshots, so it can also feed a static run viewer. Keep it out of source control and protect it
+like any other data artifact.
+
+This recovery is deliberately **at-least-once**: if the process exits while a notebook is running,
+that invocation runs again because no completed checkpoint exists. Use Workflow SDK for durable
+deployment, scheduling, and stronger workflow lifecycle semantics.
+
 ### Make notebook steps durable with Workflow SDK
 
-Durability is an optional layer rather than part of the one-shot API. Install
+Workflow SDK remains the full durable layer rather than being embedded in the lightweight API. Install
 [`workflow`](https://www.npmjs.com/package/workflow) and your supported framework integration, then
 import the serializable Deepnote step:
 

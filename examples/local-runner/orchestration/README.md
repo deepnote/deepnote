@@ -14,5 +14,18 @@ with `deepnote-toolkit[server]` and a model key for the agent. A failed agent re
 available for inspection, so it does not discard the successful preparation steps.
 
 The important part is [`run.mjs`](./run.mjs): standard `await`, `Promise.all`, loops, and conditions
-compose `ctx.run(...)` calls. The same step definitions target local kernels or cloud runs. There is
-no pipeline DSL or server to configure.
+compose `ctx.run(...)` calls. `ctx.control(...)` records local joins and decisions, while
+`dependsOn` records their actual edges. The returned graph therefore describes the pipeline that
+really ran—including timing and cloud links—without a separately maintained diagram or pipeline
+DSL.
+
+To checkpoint the run locally, provide a state file:
+
+```bash
+ORCHESTRATION_STATE_FILE=.deepnote-runs/one-shot.json pnpm example:orchestration
+```
+
+If the process exits, run the same command again. Completed matching nodes are restored and only
+unfinished work runs again. Delete the state file or choose another path for a fresh run. Recovery
+is at-least-once for a notebook interrupted before its checkpoint; the Workflow SDK example is the
+full durable option.

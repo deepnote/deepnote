@@ -463,6 +463,7 @@
     <script src="./snapshot-reader.js"></script>
     <script type="module">
       import { firstNotebook, fmtValue, inputs, streamText } from './gallery.js'
+      import { normalizePipelineManifest } from './pipeline-data.js'
 
       const svgNs = 'http://www.w3.org/2000/svg'
       const nodeWidth = 164
@@ -478,11 +479,11 @@
       try {
         const response = await fetch('./pipeline.json')
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        manifest = await response.json()
+        manifest = normalizePipelineManifest(await response.json())
         renderHeader()
         renderGraph()
         const hashStep = decodeHashStep(location.hash)
-        const initial = manifest.nodes.some(node => node.id === hashStep && node.snapshot)
+        const initial = manifest.nodes.some(node => node.id === hashStep && hasSnapshot(node))
           ? hashStep
           : manifest.concludingStepId
         await selectStep(initial, false)
@@ -495,7 +496,7 @@
 
       window.addEventListener('hashchange', () => {
         const step = decodeHashStep(location.hash)
-        if (manifest?.nodes.some(node => node.id === step && node.snapshot)) selectStep(step, false)
+        if (manifest?.nodes.some(node => node.id === step && hasSnapshot(node))) selectStep(step, false)
       })
 
       function decodeHashStep(hash) {
@@ -529,6 +530,11 @@
 
       function renderGraph() {
         const graph = document.querySelector('#graph')
+        const maxColumn = Math.max(0, ...manifest.nodes.map(node => node.column))
+        const maxLane = Math.max(0, ...manifest.nodes.map(node => node.lane))
+        const graphWidth = x(maxColumn) + nodeWidth + xOrigin
+        graph.setAttribute('viewBox', `0 0 ${graphWidth} ${y(maxLane) + nodeHeight + 45}`)
+        graph.style.minWidth = `${graphWidth}px`
         const defs = svg('defs')
         const marker = svg('marker', {
           id: 'arrow',
@@ -542,7 +548,15 @@
         defs.append(marker)
         graph.append(defs)
 
-        const stages = ['INPUTS', 'REGIONAL FAN-OUT', 'QUALITY', 'RECOVERY', 'PORTFOLIO', 'MODEL PROVIDERS', 'ARBITER']
+        const stages = manifest.stageLabels ?? [
+          'INPUTS',
+          'REGIONAL FAN-OUT',
+          'QUALITY',
+          'RECOVERY',
+          'PORTFOLIO',
+          'MODEL PROVIDERS',
+          'ARBITER',
+        ]
         stages.forEach((stage, column) => {
           const label = svg('text', {
             x: String(x(column) + nodeWidth / 2),
@@ -601,7 +615,7 @@
         detail.textContent = node.detail
         group.append(label, detail)
 
-        if (node.snapshot) {
+        if (hasSnapshot(node)) {
           group.setAttribute('role', 'button')
           group.setAttribute('tabindex', '0')
           group.setAttribute('aria-label', `Inspect ${node.label} snapshot`)
@@ -641,7 +655,7 @@
       }
 
       async function selectStep(id, updateHash = true) {
-        const node = manifest.nodes.find(candidate => candidate.id === id && candidate.snapshot)
+        const node = manifest.nodes.find(candidate => candidate.id === id && hasSnapshot(candidate))
         if (!node) return
         const generation = ++selectionGeneration
         for (const candidate of document.querySelectorAll('.node')) {
@@ -651,12 +665,16 @@
         document.querySelector('#snapshot-body').replaceChildren(loading('Loading snapshot…'))
         if (updateHash) history.replaceState(null, '', `#${encodeURIComponent(id)}`)
         try {
-          let view = cache.get(node.snapshot)
+          let view = cache.get(node.id)
           if (!view) {
-            const response = await fetch(node.snapshot)
-            if (!response.ok) throw new Error(`HTTP ${response.status}`)
-            view = DeepnoteSnapshot.parseSnapshot(await response.text())
-            cache.set(node.snapshot, view)
+            if (node.snapshotYaml) {
+              view = DeepnoteSnapshot.parseSnapshot(node.snapshotYaml)
+            } else {
+              const response = await fetch(node.snapshot)
+              if (!response.ok) throw new Error(`HTTP ${response.status}`)
+              view = DeepnoteSnapshot.parseSnapshot(await response.text())
+            }
+            cache.set(node.id, view)
           }
           if (generation === selectionGeneration) renderSnapshot(view)
         } catch (error) {
@@ -673,14 +691,23 @@
         const title = element('h2')
         title.textContent = node.label
         const meta = element('div', 'step-meta')
-        meta.textContent = `${node.detail} · ${duration(node.durationMs)} · run ${node.runId}`
+        meta.textContent = [node.detail, duration(node.durationMs), node.runId ? `run ${node.runId}` : null]
+          .filter(Boolean)
+          .join(' · ')
         copy.append(kicker, title, meta)
-        const link = element('a', 'open-run')
-        link.href = node.viewUrl
-        link.target = '_blank'
-        link.rel = 'noopener'
-        link.textContent = 'Open notebook run ↗'
-        root.append(copy, link)
+        root.append(copy)
+        if (node.viewUrl) {
+          const link = element('a', 'open-run')
+          link.href = node.viewUrl
+          link.target = '_blank'
+          link.rel = 'noopener'
+          link.textContent = 'Open notebook run ↗'
+          root.append(link)
+        }
+      }
+
+      function hasSnapshot(node) {
+        return Boolean(node.snapshot || node.snapshotYaml)
       }
 
       function renderSnapshot(view) {

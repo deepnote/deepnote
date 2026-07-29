@@ -35,6 +35,11 @@ default; selecting any notebook node renders that step's snapshot below the grap
 link opens the corresponding notebook's run history in Deepnote. Local control-flow stages remain
 visible but are deliberately not links because they are JavaScript decisions, not notebook runs.
 
+The page also accepts an `orchestrate()` persistence journal directly as `pipeline.json`. It derives
+the layout from `result.graph` and reads the snapshots embedded in the completed step results, so
+new static pipeline replays require no hand-authored nodes, edges, columns, or separate snapshot
+files. Include `pipeline-data.js` alongside the page when deploying it.
+
 The static capture demonstrates the separation the orchestration API is built around: local code
 owns branching and joins; Deepnote Cloud executes the notebook and agent steps. Replaying the result
 needs no token, server, kernel or AI provider key.
