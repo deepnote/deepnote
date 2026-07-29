@@ -22,6 +22,8 @@ export {
   triggerNotebookRun,
 } from './cloud-runs'
 export {
+  type AddNotebooksOptions,
+  addNotebooksToProject,
   type BlockSpec,
   type CreatedNotebook,
   type CreatedProject,
@@ -35,7 +37,10 @@ export { parseApiErrorMessage } from './parse-api-error'
 export {
   type FindNotebookQuery,
   type FoundNotebook,
+  type FoundProject,
+  type FoundProjectNotebook,
   findNotebook,
+  findProject,
   getWorkspace,
   type NotebookUrlParams,
   notebookUrl,

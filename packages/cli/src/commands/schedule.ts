@@ -7,7 +7,7 @@ import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, error as logError, output, outputJson, warn } from '../output'
+import { debug, getChalk, log, error as logError, output, outputJson, warn } from '../output'
 import { MissingTokenError } from '../utils/auth'
 import { openInBrowser } from '../utils/browser'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
@@ -26,6 +26,7 @@ export interface ScheduleOptions extends ScheduleExpressionOptions {
   output?: 'json'
 }
 
+/** Build the Commander action while keeping command failures inside the CLI exit-code contract. */
 export function createScheduleAction(
   _program: Command
 ): (path: string | undefined, options: ScheduleOptions) => Promise<void> {
@@ -53,6 +54,7 @@ export function createScheduleAction(
   }
 }
 
+/** Resolve a file and schedule its selected notebook in Deepnote Cloud. */
 async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const file = deserializeDeepnoteFile(await fs.readFile(absolutePath, 'utf8'))
@@ -73,15 +75,28 @@ async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleO
     notebookId,
     timezone: schedule.timezone,
     createIfMissing: options.create,
+    onCreateProgress:
+      options.output === 'json'
+        ? undefined
+        : (created, total) => log(`Creating notebook in Deepnote Cloud: ${created}/${total} blocks`),
     onWarning: message => warn(message),
   })
 
   if (options.open && result.viewUrl) {
-    await openInBrowser(result.viewUrl)
+    try {
+      await openInBrowser(result.viewUrl)
+    } catch (error) {
+      // The schedule already exists. A desktop/browser integration failure must not turn that
+      // successful remote mutation into a failed command or encourage the user to retry it.
+      warn(
+        `The schedule was created, but its URL could not be opened: ${error instanceof Error ? error.message : error}`
+      )
+    }
   }
   renderResult(absolutePath, schedule.description, result, options)
 }
 
+/** Match an optional notebook name to its local id, refusing ambiguous files. */
 function resolveNotebookId(
   notebooks: Array<{ id: string; name: string }>,
   requestedName: string | undefined
@@ -106,6 +121,7 @@ function resolveNotebookId(
   return matches[0].id
 }
 
+/** Render either the stable JSON contract or the human-readable schedule summary. */
 function renderResult(
   path: string,
   description: string,

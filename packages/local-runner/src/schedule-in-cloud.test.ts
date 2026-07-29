@@ -4,14 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const cloudMock = vi.hoisted(() => ({
   upsertNotebookSchedule: vi.fn(),
   findNotebook: vi.fn(),
+  findProject: vi.fn(),
   createProject: vi.fn(),
+  addNotebooksToProject: vi.fn(),
   getWorkspace: vi.fn(),
 }))
 
 vi.mock('@deepnote/cloud', () => ({
   upsertNotebookSchedule: cloudMock.upsertNotebookSchedule,
   findNotebook: cloudMock.findNotebook,
+  findProject: cloudMock.findProject,
   createProject: cloudMock.createProject,
+  addNotebooksToProject: cloudMock.addNotebooksToProject,
   getWorkspace: cloudMock.getWorkspace,
   notebookUrl: (params: { workspaceId: string; projectId: string; notebookId: string }) =>
     `https://deepnote.com/workspace/${params.workspaceId}/project/-${params.projectId}/notebook/${params.notebookId}`,
@@ -60,6 +64,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   cloudMock.getWorkspace.mockResolvedValue({ id: 'workspace-1' })
   cloudMock.findNotebook.mockResolvedValue(undefined)
+  cloudMock.findProject.mockResolvedValue(undefined)
   cloudMock.upsertNotebookSchedule.mockResolvedValue(schedule('notebook-local'))
 })
 
@@ -103,6 +108,18 @@ describe('scheduleInCloud', () => {
     )
     expect(result).toMatchObject({ notebookId: 'notebook-cloud' })
     expect(result).not.toHaveProperty('created')
+  })
+
+  it('preserves an explicitly empty timezone so the cloud client can validate it', async () => {
+    await scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token', timezone: '' })
+
+    expect(cloudMock.upsertNotebookSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      'notebook-local',
+      { cron: '0 9 * * *', timezone: '' },
+      { requestTimeoutMs: undefined }
+    )
   })
 
   it('creates a missing project and then schedules its assigned notebook id', async () => {
@@ -149,13 +166,49 @@ describe('scheduleInCloud', () => {
     })
   })
 
+  it('adds a missing notebook to an existing project instead of creating a duplicate project', async () => {
+    cloudMock.upsertNotebookSchedule
+      .mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+      .mockResolvedValueOnce(schedule('notebook-created'))
+    cloudMock.findProject.mockResolvedValue({
+      projectId: 'project-existing',
+      notebooks: [{ id: 'other-cloud', name: 'Other report' }],
+    })
+    cloudMock.addNotebooksToProject.mockResolvedValue({
+      projectId: 'project-existing',
+      notebooks: [{ id: 'notebook-created', name: 'Daily report', blockIds: ['block-created'] }],
+    })
+
+    const result = await scheduleInCloud(NOTEBOOK, '0 * * * *', { token: 'token' })
+
+    expect(cloudMock.addNotebooksToProject).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      'project-existing',
+      [
+        expect.objectContaining({
+          sourceId: 'notebook-local',
+          name: 'Daily report',
+        }),
+      ],
+      expect.objectContaining({ existingNotebookIds: new Map() })
+    )
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+    expect(result).toMatchObject({
+      notebookId: 'notebook-created',
+      created: true,
+    })
+  })
+
   it('does not create content when createIfMissing is false', async () => {
     cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
 
     await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token', createIfMissing: false })).rejects.toThrow(
       /Notebook not found/
     )
+    expect(cloudMock.findProject).not.toHaveBeenCalled()
     expect(cloudMock.createProject).not.toHaveBeenCalled()
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
   })
 
   it('does not treat permission or network failures as a missing notebook', async () => {

@@ -1,5 +1,5 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { findNotebook, type NotebookSchedule, upsertNotebookSchedule } from '@deepnote/cloud'
+import { findNotebook, findProject, type NotebookSchedule, upsertNotebookSchedule } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { ApiError } from '@deepnote/database-integrations'
 import { buildViewUrl, DEFAULT_CLOUD_API_URL, notebookNameFor, requireToken } from './cloud-common'
@@ -32,7 +32,7 @@ export interface ScheduleInCloudOptions {
 export interface ScheduleInCloudResult {
   notebookId: string
   schedule: NotebookSchedule
-  /** True when the project and notebook had to be created before scheduling. */
+  /** True when cloud notebook content had to be created before scheduling. */
   created?: boolean
   /** Browser URL for the scheduled notebook. */
   viewUrl?: string
@@ -55,7 +55,7 @@ export async function scheduleInCloud(
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
   const { file } = loadDeepnoteFile(input)
   const initialNotebookId = options.notebookId ?? resolveNotebookId(file)
-  const body = { cron, ...(options.timezone ? { timezone: options.timezone } : {}) }
+  const body = { cron, ...(options.timezone !== undefined ? { timezone: options.timezone } : {}) }
   const requestOptions = { requestTimeoutMs: options.requestTimeoutMs }
 
   try {
@@ -83,6 +83,9 @@ export async function scheduleInCloud(
       notebookId = found.notebookId
       projectId = found.projectId
     } else if (options.createIfMissing !== false) {
+      // A matching project can exist without this notebook. Add to it rather than creating a
+      // duplicate project; only a completed lookup that finds no project authorizes a new one.
+      const project = await findProject(baseUrl, token, file.project.name)
       const target = await createFromFile(
         baseUrl,
         token,
@@ -91,7 +94,8 @@ export async function scheduleInCloud(
         {
           onCreateProgress: options.onCreateProgress,
           onWarning: options.onWarning,
-        }
+        },
+        project
       )
       notebookId = target.notebookId
       projectId = target.projectId

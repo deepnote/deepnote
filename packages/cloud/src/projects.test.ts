@@ -1,6 +1,6 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { findNotebook, getWorkspace, notebookUrl } from './projects'
+import { findNotebook, findProject, getWorkspace, notebookUrl } from './projects'
 
 const BASE_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
@@ -170,6 +170,34 @@ describe('findNotebook', () => {
     const err = await findNotebook(BASE_URL, TOKEN, { projectName: 'P' }).catch(e => e)
     expect(err).toBeInstanceOf(ApiError)
     expect(err.statusCode).toBe(401)
+  })
+})
+
+describe('findProject', () => {
+  it('returns the newest exact-name project and its notebooks', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([
+        { id: 'old', name: 'P', createdAt: '2026-01-01', notebooks: [{ id: 'old-nb', name: 'Old' }] },
+        {
+          id: 'new',
+          name: 'P',
+          createdAt: '2026-02-01',
+          notebooks: [{ id: 'new-nb', name: 'Existing' }],
+        },
+        { id: 'substring', name: 'P copy', createdAt: '2026-03-01', notebooks: [] },
+      ])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({
+      projectId: 'new',
+      notebooks: [{ id: 'new-nb', name: 'Existing' }],
+    })
+  })
+
+  it('returns undefined when no exact-name project exists', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(projectsPage([{ id: 'p1', name: 'P copy', notebooks: [] }]))
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toBeUndefined()
   })
 })
 

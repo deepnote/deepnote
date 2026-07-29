@@ -80,6 +80,7 @@ describe('schedule command', () => {
       notebookId: undefined,
       timezone: 'Europe/London',
       createIfMissing: true,
+      onCreateProgress: expect.any(Function),
       onWarning: expect.any(Function),
     })
     expect(logSpy.mock.calls.flat().join('\n')).toContain('Scheduled in Deepnote Cloud')
@@ -108,6 +109,11 @@ describe('schedule command', () => {
   it('outputs a single machine-readable JSON document', async () => {
     await createScheduleAction(new Command())(HELLO_WORLD_FILE, options({ output: 'json' }))
 
+    expect(localRunnerMock.scheduleInCloud).toHaveBeenCalledWith(
+      HELLO_WORLD_FILE,
+      expect.any(String),
+      expect.objectContaining({ onCreateProgress: undefined })
+    )
     const parsed = JSON.parse(logSpy.mock.calls.flat().join('\n'))
     expect(parsed).toEqual({
       success: true,
@@ -124,6 +130,36 @@ describe('schedule command', () => {
     await createScheduleAction(new Command())(HELLO_WORLD_FILE, options({ open: true }))
 
     expect(openInBrowser).toHaveBeenCalledWith(RESULT.viewUrl)
+  })
+
+  it('does not open the scheduled notebook by default', async () => {
+    await createScheduleAction(new Command())(HELLO_WORLD_FILE, options({ open: false }))
+
+    expect(openInBrowser).not.toHaveBeenCalled()
+  })
+
+  it('reports creation progress in human-readable mode', async () => {
+    localRunnerMock.scheduleInCloud.mockImplementationOnce(
+      async (_path, _cron, scheduleOptions: { onCreateProgress?: (created: number, total: number) => void }) => {
+        scheduleOptions.onCreateProgress?.(3, 7)
+        return RESULT
+      }
+    )
+
+    await createScheduleAction(new Command())(HELLO_WORLD_FILE, options())
+
+    expect(logSpy.mock.calls.flat().join('\n')).toContain('Creating notebook in Deepnote Cloud: 3/7 blocks')
+  })
+
+  it('keeps a successful schedule successful when the browser cannot be opened', async () => {
+    vi.mocked(openInBrowser).mockRejectedValueOnce(new Error('browser unavailable'))
+
+    await createScheduleAction(new Command())(HELLO_WORLD_FILE, options({ open: true }))
+
+    expect(process.exitCode).toBeUndefined()
+    expect(logSpy.mock.calls.flat().join('\n')).toContain('Scheduled in Deepnote Cloud')
+    expect(errorSpy.mock.calls.flat().join('\n')).toContain('schedule was created')
+    expect(errorSpy.mock.calls.flat().join('\n')).toContain('browser unavailable')
   })
 
   it('reports an unknown notebook as invalid usage', async () => {

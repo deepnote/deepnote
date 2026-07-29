@@ -1,9 +1,12 @@
 import type { DeepnoteBlock, DeepnoteFile, InputBlockValueOverride } from '@deepnote/blocks'
 import {
+  addNotebooksToProject,
   type BlockSpec,
   createProject,
+  type FoundProject,
   fetchSnapshotContent,
   findNotebook,
+  findProject,
   getRun,
   isSuccessStatus,
   type NormalizedRun,
@@ -163,7 +166,8 @@ export async function runInCloud(
       // that `openInCloud` uses has nothing to offer here.
       // `localId`, not `notebookId`: this picks which notebook of the file to run, and a cloud id
       // names none of them.
-      const target = await createFromFile(baseUrl, token, file, { notebookId: localId, inputs }, options)
+      const project = await findProject(baseUrl, token, file.project.name)
+      const target = await createFromFile(baseUrl, token, file, { notebookId: localId, inputs }, options, project)
       notebookId = target.notebookId
       projectId = target.projectId
       created = true
@@ -270,17 +274,17 @@ async function fetchSnapshotSettling(
  * input in another notebook is left alone. Blocks are created in `sortingKey` order, which is both
  * the order the engine runs them in and what maps a source block onto its new cloud id.
  *
- * Every notebook of the file is created, not just the target: a notebook-function block in the one
- * being run may call any of them, and a call to a notebook that was left behind is not a run of this
- * file. Those calls are re-pointed at the created notebooks by {@link rewriteNotebookFunctionId}.
+ * For a new project, every notebook of the file is created so notebook-function calls remain
+ * complete. For an existing project, only the missing target is added and references to exact-name
+ * siblings already there are remapped. A missing sibling is refused before anything is created.
  */
-/** Internal shared create path used by cloud runs and schedules. Not exported from the package. */
 export async function createFromFile(
   baseUrl: string,
   token: string,
   file: DeepnoteFile,
   target: { notebookId: string; inputs: Record<string, unknown> },
-  options: RunInCloudOptions
+  options: RunInCloudOptions,
+  destination?: FoundProject
 ): Promise<{ notebookId: string; projectId: string; blockIds: Map<string, string> }> {
   // Bake the overrides into a copy, so the caller's file is untouched.
   const toCreate: DeepnoteFile = structuredClone(file)
@@ -308,24 +312,31 @@ export async function createFromFile(
   }
   assertBlocksAreInTarget(options.blockIds, sortedBlocks[index])
 
+  const allNotebookSpecs: ProjectSpec['notebooks'] = toCreate.project.notebooks.map((notebook, i) => ({
+    // The file's own id for this notebook, so `rewriteBlock` below can turn a block's reference to
+    // it into the id Deepnote assigns.
+    sourceId: notebook.id,
+    name: notebook.name,
+    blocks: sortedBlocks[i].map(block => toBlockSpec(block, options.onWarning)),
+  }))
   const spec: ProjectSpec = {
     name: toCreate.project.name,
-    notebooks: toCreate.project.notebooks.map((notebook, i) => ({
-      // The file's own id for this notebook, so `rewriteBlock` below can turn a block's reference to
-      // it into the id Deepnote assigns.
-      sourceId: notebook.id,
-      name: notebook.name,
-      blocks: sortedBlocks[i].map(block => toBlockSpec(block, options.onWarning)),
-    })),
+    notebooks: allNotebookSpecs,
   }
 
-  const result = await createProject(baseUrl, token, spec, {
+  const createOptions = {
     onProgress: options.onCreateProgress,
     onWarning: options.onWarning,
     rewriteBlock: rewriteNotebookFunctionId,
-  })
+  }
 
-  const match = result.notebooks[index]
+  const result = destination
+    ? await addNotebookToExistingProject(baseUrl, token, destination, toCreate, index, allNotebookSpecs[index], {
+        ...createOptions,
+      })
+    : await createProject(baseUrl, token, spec, createOptions)
+
+  const match = result.notebooks[destination ? 0 : index]
   if (!match) {
     throw new Error(
       'runInCloud: created the project in Deepnote, but could not tell which of its notebooks is the one being run.'
@@ -340,6 +351,72 @@ export async function createFromFile(
   })
 
   return { notebookId: match.id, projectId: result.projectId, blockIds }
+}
+
+/**
+ * Add only the target notebook to an existing exact-name project.
+ *
+ * Local sibling ids are mapped to existing cloud notebooks by exact name. Any notebook-function
+ * reference to an unavailable local sibling fails before the first POST, since leaving the local id
+ * in place would create a block that fails only when the schedule or run executes.
+ */
+async function addNotebookToExistingProject(
+  baseUrl: string,
+  token: string,
+  destination: FoundProject,
+  file: DeepnoteFile,
+  targetIndex: number,
+  target: ProjectSpec['notebooks'][number],
+  options: {
+    onProgress?: (created: number, total: number) => void
+    onWarning?: (message: string) => void
+    rewriteBlock: (block: BlockSpec, notebookIds: ReadonlyMap<string, string>) => BlockSpec
+  }
+): Promise<Awaited<ReturnType<typeof addNotebooksToProject>>> {
+  const existingNotebookIds = new Map<string, string>()
+  for (const [index, notebook] of file.project.notebooks.entries()) {
+    if (index === targetIndex) {
+      continue
+    }
+    const existing = destination.notebooks.find(candidate => candidate.name === notebook.name)
+    if (existing) {
+      existingNotebookIds.set(notebook.id, existing.id)
+    }
+  }
+
+  assertNotebookFunctionTargetsAvailable(file, targetIndex, existingNotebookIds)
+  return addNotebooksToProject(baseUrl, token, destination.projectId, [target], {
+    ...options,
+    existingNotebookIds,
+  })
+}
+
+/**
+ * Ensure every in-file notebook-function target will have a cloud id after adding the target.
+ */
+function assertNotebookFunctionTargetsAvailable(
+  file: DeepnoteFile,
+  targetIndex: number,
+  existingNotebookIds: ReadonlyMap<string, string>
+): void {
+  const target = file.project.notebooks[targetIndex]
+  const localIds = new Set(file.project.notebooks.map(notebook => notebook.id))
+  for (const block of target.blocks) {
+    const metadata = block.metadata as Record<string, unknown> | undefined
+    const referencedId = metadata?.function_notebook_id
+    if (
+      typeof referencedId === 'string' &&
+      localIds.has(referencedId) &&
+      referencedId !== target.id &&
+      !existingNotebookIds.has(referencedId)
+    ) {
+      const referenced = file.project.notebooks.find(notebook => notebook.id === referencedId)
+      throw new Error(
+        `runInCloud: cannot add notebook "${target.name}" to the existing project because its ` +
+          `notebook-function block calls "${referenced?.name ?? referencedId}", which is not in that project.`
+      )
+    }
+  }
 }
 
 /**
