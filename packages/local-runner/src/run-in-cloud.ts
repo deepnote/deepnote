@@ -274,7 +274,8 @@ async function fetchSnapshotSettling(
  * being run may call any of them, and a call to a notebook that was left behind is not a run of this
  * file. Those calls are re-pointed at the created notebooks by {@link rewriteNotebookFunctionId}.
  */
-async function createFromFile(
+/** Internal shared create path used by cloud runs and schedules. Not exported from the package. */
+export async function createFromFile(
   baseUrl: string,
   token: string,
   file: DeepnoteFile,

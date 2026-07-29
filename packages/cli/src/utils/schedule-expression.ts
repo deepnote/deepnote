@@ -1,0 +1,137 @@
+export interface ScheduleExpressionOptions {
+  hourly?: boolean
+  daily?: boolean
+  weekly?: string
+  monthly?: string
+  cron?: string
+  at?: string
+  timezone?: string
+}
+
+export interface ResolvedScheduleExpression {
+  cron: string
+  timezone: string
+  description: string
+}
+
+const WEEKDAYS = new Map<string, number>([
+  ['sunday', 0],
+  ['sun', 0],
+  ['monday', 1],
+  ['mon', 1],
+  ['tuesday', 2],
+  ['tue', 2],
+  ['wednesday', 3],
+  ['wed', 3],
+  ['thursday', 4],
+  ['thu', 4],
+  ['friday', 5],
+  ['fri', 5],
+  ['saturday', 6],
+  ['sat', 6],
+])
+
+export class ScheduleExpressionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ScheduleExpressionError'
+  }
+}
+
+/** Convert friendly CLI schedule flags into the cron + timezone accepted by Deepnote Cloud. */
+export function resolveScheduleExpression(options: ScheduleExpressionOptions): ResolvedScheduleExpression {
+  const choices = [
+    options.hourly ? 'hourly' : undefined,
+    options.daily ? 'daily' : undefined,
+    options.weekly !== undefined ? 'weekly' : undefined,
+    options.monthly !== undefined ? 'monthly' : undefined,
+    options.cron !== undefined ? 'cron' : undefined,
+  ].filter((choice): choice is string => choice !== undefined)
+
+  if (choices.length === 0) {
+    throw new ScheduleExpressionError(
+      'Choose a schedule: --hourly, --daily, --weekly <day>, --monthly <day>, or --cron <expression>.'
+    )
+  }
+  if (choices.length > 1) {
+    throw new ScheduleExpressionError(
+      `Choose only one schedule; received ${choices.map(choice => `--${choice}`).join(', ')}.`
+    )
+  }
+
+  const timezone = resolveTimezone(options.timezone)
+  if (options.cron !== undefined) {
+    const cron = options.cron.trim()
+    if (!cron) {
+      throw new ScheduleExpressionError('--cron cannot be empty.')
+    }
+    if (cron.split(/\s+/).length !== 5) {
+      throw new ScheduleExpressionError('--cron must contain exactly five fields, for example "0 9 * * 1-5".')
+    }
+    if (options.at !== undefined) {
+      throw new ScheduleExpressionError('--at cannot be combined with --cron; put the time in the cron expression.')
+    }
+    return { cron, timezone, description: `cron ${cron}` }
+  }
+  if (options.hourly) {
+    if (options.at !== undefined) {
+      throw new ScheduleExpressionError('--at cannot be combined with --hourly.')
+    }
+    return { cron: '0 * * * *', timezone, description: 'hourly' }
+  }
+
+  const { hour, minute, display } = parseTime(options.at ?? '09:00')
+  if (options.daily) {
+    return { cron: `${minute} ${hour} * * *`, timezone, description: `daily at ${display}` }
+  }
+  if (options.weekly !== undefined) {
+    const normalized = options.weekly.trim().toLowerCase()
+    const weekday = WEEKDAYS.get(normalized)
+    if (weekday === undefined) {
+      throw new ScheduleExpressionError(
+        `Invalid weekday "${options.weekly}". Use Monday-Sunday (abbreviations such as Mon are accepted).`
+      )
+    }
+    const name = normalized.slice(0, 3)
+    return {
+      cron: `${minute} ${hour} * * ${weekday}`,
+      timezone,
+      description: `weekly on ${name[0].toUpperCase()}${name.slice(1)} at ${display}`,
+    }
+  }
+
+  const day = Number(options.monthly)
+  if (!Number.isInteger(day) || day < 1 || day > 31) {
+    throw new ScheduleExpressionError('--monthly <day> must be an integer from 1 to 31.')
+  }
+  return {
+    cron: `${minute} ${hour} ${day} * *`,
+    timezone,
+    description: `monthly on day ${day} at ${display}`,
+  }
+}
+
+function parseTime(value: string): { hour: number; minute: number; display: string } {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim())
+  if (!match) {
+    throw new ScheduleExpressionError(`Invalid time "${value}". Use 24-hour HH:mm, for example 09:30.`)
+  }
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+  if (hour > 23 || minute > 59) {
+    throw new ScheduleExpressionError(`Invalid time "${value}". Hour must be 0-23 and minute 0-59.`)
+  }
+  return { hour, minute, display: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` }
+}
+
+function resolveTimezone(value: string | undefined): string {
+  const timezone = value?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format()
+  } catch {
+    throw new ScheduleExpressionError(
+      `Invalid timezone "${timezone}". Use an IANA timezone such as Europe/London or America/New_York.`
+    )
+  }
+  return timezone
+}

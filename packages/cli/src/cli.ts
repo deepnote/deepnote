@@ -17,6 +17,7 @@ import { createIntegrationsEditAction } from './commands/integrations/edit-integ
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
+import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStatsAction } from './commands/stats'
 import { createValidateAction } from './commands/validate'
@@ -108,6 +109,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Open a .deepnote file in Deepnote Cloud')}
   $ deepnote open my-project.deepnote
+
+  ${c.dim('# Schedule a notebook to run daily in Deepnote Cloud')}
+  $ deepnote schedule my-project.deepnote --daily --at 09:00
 
   ${c.dim('# Check for issues')}
   $ deepnote lint my-project.deepnote
@@ -415,6 +419,60 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createOpenAction(program))
+
+  // Schedule command - install a recurring Deepnote Cloud run for a local notebook
+  program
+    .command('schedule')
+    .description('Schedule recurring notebook runs in Deepnote Cloud')
+    .argument('<path>', 'Path to a .deepnote file to schedule')
+    .option('--hourly', 'Run every hour')
+    .option('--daily', 'Run every day')
+    .option('--weekly <day>', 'Run weekly on a weekday, for example Monday')
+    .option('--monthly <day>', 'Run monthly on a day from 1 to 31')
+    .option('--cron <expression>', 'Use a custom five-field cron expression')
+    .option('--at <time>', 'Time for daily, weekly, or monthly schedules (defaults to 09:00)')
+    .option('--timezone <timezone>', 'IANA timezone (defaults to the local system timezone)')
+    .option('--notebook <name>', 'Schedule a specific notebook in a multi-notebook file')
+    .option('--token <token>', `Deepnote API token (defaults to ${DEEPNOTE_TOKEN_ENV})`)
+    .option('--url <url>', 'Deepnote API base URL', DEFAULT_API_URL)
+    .option('--no-create', 'Do not create the project in Deepnote Cloud when it is missing')
+    .option('--open', 'Open the scheduled notebook in your default browser')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Creates or updates the recurring Deepnote Cloud schedule for this project.
+  If the local project is not in Deepnote yet, it is created without running it.
+  A project has one schedule, so scheduling another notebook updates that schedule.
+
+${c.bold('Examples:')}
+  ${c.dim('# Run every day at 09:00 in your local timezone')}
+  $ deepnote schedule report.deepnote --daily
+
+  ${c.dim('# Run every Monday at 08:30 in London')}
+  $ deepnote schedule report.deepnote --weekly Monday --at 08:30 --timezone Europe/London
+
+  ${c.dim('# Schedule one notebook from a multi-notebook project')}
+  $ deepnote schedule project.deepnote --notebook "Daily report" --daily
+
+  ${c.dim('# Use a custom cron expression and print machine-readable output')}
+  $ deepnote schedule report.deepnote --cron "0 6 * * 1-5" --timezone UTC -o json
+
+  ${c.dim('# Schedule and open the cloud notebook')}
+  $ deepnote schedule report.deepnote --daily --open
+
+${c.bold('Authentication:')}
+  Set ${c.dim(DEEPNOTE_TOKEN_ENV)} in your environment or in a .env file next to the notebook.
+  You can also pass ${c.dim('--token')}. Scheduling availability depends on your Deepnote plan.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success
+  ${c.dim('1')}  API or network failure
+  ${c.dim('2')}  Invalid usage, authentication, or plan permissions
+`
+    })
+    .action(createScheduleAction(program))
 
   // Convert command - convert between notebook formats
   program

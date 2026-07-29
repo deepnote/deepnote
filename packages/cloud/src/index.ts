@@ -42,3 +42,9 @@ export {
   type RequestOptions,
   type Workspace,
 } from './projects'
+export {
+  type NotebookSchedule,
+  type ScheduleRequestOptions,
+  type UpsertNotebookScheduleBody,
+  upsertNotebookSchedule,
+} from './schedules'

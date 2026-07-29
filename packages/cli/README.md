@@ -45,6 +45,9 @@ deepnote validate path/to/file.deepnote
 
 # Convert between notebook formats
 deepnote convert notebook.ipynb
+
+# Schedule recurring runs in Deepnote Cloud
+deepnote schedule report.deepnote --daily --at 09:00
 ```
 
 ## Commands
@@ -481,6 +484,53 @@ deepnote open my-project.deepnote
 
 # Open with JSON output (for scripting)
 deepnote open my-project.deepnote -o json
+```
+
+### `schedule <path>`
+
+Create or update a recurring notebook run in Deepnote Cloud. This does not run the notebook
+immediately. If the local project is missing in Deepnote, the CLI creates it without opening a browser first.
+
+```bash
+deepnote schedule report.deepnote --daily --at 09:00
+```
+
+Choose exactly one frequency:
+
+| Option                  | Description                                     | Default                    |
+| ----------------------- | ----------------------------------------------- | -------------------------- |
+| `--hourly`              | Run every hour                                  |                            |
+| `--daily`               | Run every day                                   |                            |
+| `--weekly <day>`        | Run weekly on Monday-Sunday                     |                            |
+| `--monthly <day>`       | Run monthly on day 1-31                         |                            |
+| `--cron <expression>`   | Use a custom five-field cron expression         |                            |
+| `--at <HH:mm>`          | Time for daily, weekly, and monthly presets     | `09:00`                    |
+| `--timezone <timezone>` | IANA timezone                                   | local system timezone      |
+| `--notebook <name>`     | Target a notebook in a multi-notebook file      | single notebook            |
+| `--token <token>`       | Deepnote API token                              | `DEEPNOTE_TOKEN` or `.env` |
+| `--url <url>`           | Deepnote API base URL                           | `https://api.deepnote.com` |
+| `--no-create`           | Fail rather than create a missing project       | `false`                    |
+| `--open`                | Open the scheduled notebook after configuration | `false`                    |
+| `-o, --output json`     | Print machine-readable JSON                     | text                       |
+
+Deepnote supports one scheduled notebook per project. Re-running this command updates that project
+schedule, including when a different notebook is selected. Scheduling availability depends on the
+workspace plan.
+
+**Examples:**
+
+```bash
+# Every weekday morning in London
+deepnote schedule report.deepnote --cron "0 8 * * 1-5" --timezone Europe/London
+
+# Every Monday, selecting one notebook from the project
+deepnote schedule project.deepnote --notebook "Weekly review" --weekly Monday --at 08:30
+
+# Configure it and open the cloud notebook
+deepnote schedule report.deepnote --daily --open
+
+# Machine-readable output
+deepnote schedule report.deepnote --hourly -o json
 ```
 
 ### `validate <path>`

@@ -110,6 +110,9 @@ importers:
       '@deepnote/database-integrations':
         specifier: workspace:*
         version: link:../database-integrations
+      '@deepnote/local-runner':
+        specifier: workspace:*
+        version: link:../local-runner
       '@deepnote/reactivity':
         specifier: workspace:*
         version: link:../reactivity

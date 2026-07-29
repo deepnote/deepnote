@@ -86,6 +86,27 @@ to fail instead. `serveStatic` exposes it at `POST /api/run-cloud`.
 The first run of a new notebook is the slow one — blocks are created one API request each — and
 `onCreateProgress` reports that. Later runs find the notebook by name and skip straight to running.
 
+### Schedule recurring Deepnote Cloud runs
+
+```ts
+import { scheduleInCloud } from "@deepnote/local-runner";
+
+const result = await scheduleInCloud(
+  "examples/6_with_inputs.deepnote",
+  "0 9 * * 1-5",
+  {
+    token: process.env.DEEPNOTE_TOKEN,
+    timezone: "Europe/London",
+  },
+);
+// result.schedule.nextRunAt / result.notebookId / result.viewUrl
+```
+
+This creates or updates the recurring schedule in Deepnote Cloud without running the notebook
+immediately. If the project is missing, it is created first; pass `createIfMissing: false` to require
+an existing cloud notebook. Deepnote has one schedule per project, so scheduling another notebook
+from the same project re-points that schedule.
+
 ### Serve it to a static page
 
 ```ts
