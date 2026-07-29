@@ -14,6 +14,8 @@ vi.mock('./run-in-cloud', () => ({ runInCloud: runnerMock.runInCloud }))
 
 import {
   allOutputText,
+  definePipeline,
+  defineRunPolicy,
   lastAgentText,
   lastOutputJson,
   type OrchestrationEvent,
@@ -307,6 +309,264 @@ describe('orchestrate', () => {
     })
 
     expect(result.steps.map(step => step.id)).toEqual(['first', 'second'])
+  })
+
+  it('retries an explicitly idempotent notebook and records every attempt in the graph', async () => {
+    runnerMock.runWithInputs
+      .mockResolvedValueOnce(localResult({ summary: { ...SUCCESS_SUMMARY, failedBlocks: 1 } }))
+      .mockResolvedValueOnce(localResult())
+    const policy = defineRunPolicy({
+      idempotent: true,
+      retry: { maxAttempts: 2 },
+    })
+
+    const result = await orchestrate(({ runWithPolicy }) =>
+      runWithPolicy({ id: 'regional-analysis', notebook: 'region.deepnote' }, policy)
+    )
+
+    expect(result.value).toMatchObject({
+      id: 'regional-analysis-attempt-2',
+      success: true,
+      policyNodeId: 'regional-analysis',
+      attempt: 2,
+    })
+    expect(result.graph.nodes).toEqual([
+      expect.objectContaining({ id: 'regional-analysis', kind: 'policy', status: 'success' }),
+      expect.objectContaining({ id: 'regional-analysis-attempt-1', kind: 'notebook', status: 'failed' }),
+      expect.objectContaining({ id: 'regional-analysis-attempt-2', kind: 'notebook', status: 'success' }),
+    ])
+    expect(result.graph.edges).toEqual([
+      {
+        from: 'regional-analysis-attempt-1',
+        to: 'regional-analysis-attempt-2',
+        label: 'retry 2/2',
+      },
+      { from: 'regional-analysis-attempt-2', to: 'regional-analysis', label: 'resolved' },
+    ])
+  })
+
+  it('requires retries to declare idempotency before starting a notebook', async () => {
+    await expect(
+      orchestrate(({ runWithPolicy }) =>
+        runWithPolicy({ id: 'unsafe-agent', notebook: 'agent.deepnote' }, { retry: { maxAttempts: 2 } })
+      )
+    ).rejects.toThrow(/idempotent to be explicitly true/)
+    expect(runnerMock.runWithInputs).not.toHaveBeenCalled()
+  })
+
+  it('runs a fallback notebook after retries are exhausted', async () => {
+    runnerMock.runWithInputs
+      .mockResolvedValueOnce(localResult({ summary: { ...SUCCESS_SUMMARY, failedBlocks: 1 } }))
+      .mockResolvedValueOnce(localResult())
+
+    const result = await orchestrate(({ runWithPolicy }) =>
+      runWithPolicy(
+        { id: 'load-source', notebook: 'primary.deepnote' },
+        {
+          fallback: {
+            notebook: 'backfill.deepnote',
+            inputs: { backfill: true },
+            label: 'Backfill source',
+          },
+        }
+      )
+    )
+
+    expect(runnerMock.runWithInputs).toHaveBeenNthCalledWith(
+      2,
+      'backfill.deepnote',
+      { backfill: true },
+      expect.any(Object)
+    )
+    expect(result.value).toMatchObject({
+      id: 'load-source-fallback',
+      success: true,
+      policyNodeId: 'load-source',
+      attempt: undefined,
+    })
+    expect(result.graph.edges).toContainEqual({
+      from: 'load-source-attempt-1',
+      to: 'load-source-fallback',
+      label: 'fallback',
+    })
+    expect(result.graph.edges).toContainEqual({
+      from: 'load-source-fallback',
+      to: 'load-source',
+      label: 'fallback result',
+    })
+  })
+
+  it('honors retryOn and preserves an allowed final failure', async () => {
+    runnerMock.runWithInputs.mockResolvedValue(localResult({ summary: { ...SUCCESS_SUMMARY, failedBlocks: 1 } }))
+
+    const result = await orchestrate(({ runWithPolicy }) =>
+      runWithPolicy(
+        { id: 'optional-source', notebook: 'source.deepnote', allowFailure: true },
+        {
+          idempotent: true,
+          retry: { maxAttempts: 2, retryOn: 'error' },
+        }
+      )
+    )
+
+    expect(runnerMock.runWithInputs).toHaveBeenCalledOnce()
+    expect(result.value).toMatchObject({
+      success: false,
+      policyNodeId: 'optional-source',
+      attempt: 1,
+    })
+    expect(result.graph.nodes[0]).toMatchObject({
+      id: 'optional-source',
+      kind: 'policy',
+      status: 'failed',
+    })
+  })
+
+  it('scopes reusable sub-pipeline nodes and preserves nested graph ownership', async () => {
+    const regionalPipeline = definePipeline<{ region: string }, string>({
+      name: 'Regional quality check',
+      async run({ run, control }, input) {
+        const analysis = await run({
+          id: 'analysis',
+          notebook: 'region.deepnote',
+          inputs: { region: input.region },
+        })
+        return control(
+          {
+            id: 'quality-gate',
+            kind: 'gate',
+            dependsOn: [analysis.id],
+          },
+          () => input.region
+        )
+      },
+    })
+
+    const result = await orchestrate(async ({ invoke, run }) => {
+      const [north, europe] = await Promise.all([
+        invoke({ id: 'north', pipeline: regionalPipeline, input: { region: 'North America' } }),
+        invoke({ id: 'europe', pipeline: regionalPipeline, input: { region: 'Europe' } }),
+      ])
+      await run({
+        id: 'portfolio',
+        notebook: 'portfolio.deepnote',
+        inputs: { regions: [north, europe] },
+        dependsOn: ['north', 'europe'],
+        concluding: true,
+      })
+    })
+
+    expect(result.graph.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'north', kind: 'pipeline', status: 'success' }),
+        expect.objectContaining({ id: 'north/analysis', kind: 'notebook', parentId: 'north' }),
+        expect.objectContaining({ id: 'north/quality-gate', kind: 'gate', parentId: 'north' }),
+        expect.objectContaining({ id: 'europe', kind: 'pipeline', status: 'success' }),
+        expect.objectContaining({ id: 'europe/analysis', kind: 'notebook', parentId: 'europe' }),
+        expect.objectContaining({ id: 'europe/quality-gate', kind: 'gate', parentId: 'europe' }),
+      ])
+    )
+    expect(result.graph.edges).toContainEqual({
+      from: 'north/analysis',
+      to: 'north/quality-gate',
+      label: undefined,
+    })
+    expect(result.graph.edges).toContainEqual({ from: 'north', to: 'portfolio', label: undefined })
+    expect(result.graph.edges).toContainEqual({ from: 'europe', to: 'portfolio', label: undefined })
+  })
+
+  it('nests reusable sub-pipelines with stable hierarchical IDs', async () => {
+    const inner = definePipeline<string, string>({
+      name: 'Inner',
+      run: ({ control }, value) => control({ id: 'value' }, () => value.toUpperCase()),
+    })
+    const outer = definePipeline<string, string>({
+      name: 'Outer',
+      run: ({ invoke }, value) => invoke({ id: 'inner', pipeline: inner, input: value }),
+    })
+
+    const result = await orchestrate(({ invoke }) => invoke({ id: 'outer', pipeline: outer, input: 'nested' }))
+
+    expect(result.value).toBe('NESTED')
+    expect(result.graph.nodes).toEqual([
+      expect.objectContaining({ id: 'outer', kind: 'pipeline', parentId: undefined }),
+      expect.objectContaining({ id: 'outer/inner', kind: 'pipeline', parentId: 'outer' }),
+      expect.objectContaining({ id: 'outer/inner/value', kind: 'control', parentId: 'outer/inner' }),
+    ])
+  })
+
+  it('resumes policy attempts without repeating their notebook runs', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'deepnote-orchestration-'))
+    const stateFile = join(directory, 'run.json')
+    const policy = defineRunPolicy({ idempotent: true, retry: { maxAttempts: 2 } })
+    const pipeline = async ({ run, runWithPolicy }: Parameters<Parameters<typeof orchestrate>[0]>[0]) => {
+      const prepared = await runWithPolicy({ id: 'prepare', notebook: 'prepare.deepnote' }, policy)
+      return run({
+        id: 'publish',
+        notebook: 'publish.deepnote',
+        dependsOn: [prepared.policyNodeId ?? prepared.id],
+      })
+    }
+
+    try {
+      runnerMock.runWithInputs.mockResolvedValueOnce(localResult()).mockRejectedValueOnce(new Error('process lost'))
+      await expect(orchestrate(pipeline, { persistence: { file: stateFile } })).rejects.toThrow(/process lost/)
+
+      runnerMock.runWithInputs.mockResolvedValueOnce(localResult())
+      const resumed = await orchestrate(pipeline, { persistence: { file: stateFile } })
+
+      expect(runnerMock.runWithInputs).toHaveBeenCalledTimes(3)
+      expect(resumed.steps).toEqual([
+        expect.objectContaining({ id: 'prepare-attempt-1', cached: true }),
+        expect.objectContaining({ id: 'publish', success: true }),
+      ])
+      expect(resumed.graph.edges).toContainEqual({ from: 'prepare', to: 'publish', label: undefined })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('includes sub-pipeline inputs in persisted child fingerprints', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'deepnote-orchestration-'))
+    const stateFile = join(directory, 'run.json')
+    const selectRegion = definePipeline<string, string>({
+      name: 'Select region',
+      run: ({ control }, region) => control({ id: 'selection' }, () => region),
+    })
+
+    try {
+      runnerMock.runWithInputs.mockRejectedValueOnce(new Error('stop after pipeline'))
+      await expect(
+        orchestrate(
+          async ({ invoke, run }) => {
+            await invoke({ id: 'regional', pipeline: selectRegion, input: 'Europe' })
+            await run({ id: 'stop', notebook: 'stop.deepnote' })
+          },
+          { persistence: { file: stateFile } }
+        )
+      ).rejects.toThrow(/stop after pipeline/)
+
+      await expect(
+        orchestrate(({ invoke }) => invoke({ id: 'regional', pipeline: selectRegion, input: 'Asia Pacific' }), {
+          persistence: { file: stateFile },
+        })
+      ).rejects.toThrow(/definition or inputs changed/)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('validates reusable pipeline and retry definitions eagerly', () => {
+    expect(() => definePipeline({ name: ' ', run: () => undefined })).toThrow(/name cannot be empty/)
+    expect(() => defineRunPolicy({ idempotent: true, retry: { maxAttempts: 0 } })).toThrow(
+      /maxAttempts must be a positive integer/
+    )
+    expect(() =>
+      defineRunPolicy({
+        idempotent: true,
+        retry: { maxAttempts: 2, backoffMultiplier: 0.5 },
+      })
+    ).toThrow(/backoffMultiplier/)
   })
 
   it('captures notebook dependencies and explicit local control nodes as a runtime graph', async () => {

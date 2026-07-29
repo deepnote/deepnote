@@ -188,6 +188,83 @@ This recovery is deliberately **at-least-once**: if the process exits while a no
 that invocation runs again because no completed checkpoint exists. Use Workflow SDK for durable
 deployment, scheduling, and stronger workflow lifecycle semantics.
 
+### Reuse retry and recovery policies
+
+`runWithPolicy` records each attempt, fallback, and final policy outcome as separate graph nodes.
+Retries require an explicit idempotency assertion because notebook and agent blocks may have
+external side effects:
+
+```ts
+import { defineRunPolicy } from "@deepnote/local-runner";
+
+const warehouseRecovery = defineRunPolicy({
+  idempotent: true,
+  retry: {
+    maxAttempts: 3,
+    initialDelayMs: 500,
+    backoffMultiplier: 2,
+    maxDelayMs: 5_000,
+  },
+  fallback: {
+    notebook: "backfilled-source.deepnote",
+  },
+});
+
+const source = await runWithPolicy(
+  {
+    id: "warehouse-source",
+    notebook: "live-source.deepnote",
+    inputs: { region },
+  },
+  warehouseRecovery,
+);
+```
+
+The fallback inherits the original target, inputs, and runner options unless it overrides them.
+Notebook execution failures and infrastructure errors are both retried by default; `retryOn` can
+limit the policy to either category. Downstream graph dependencies should use the stable policy
+node ID (`source.policyNodeId`, or the original `"warehouse-source"`) rather than an individual
+attempt ID.
+
+### Compose reusable sub-pipelines
+
+`definePipeline` packages ordinary orchestration code with typed inputs and outputs. Every
+invocation scopes its child IDs and records `parentId`, so the same pipeline can run repeatedly or
+nest without collisions:
+
+```ts
+import { definePipeline } from "@deepnote/local-runner";
+
+const analyzeRegion = definePipeline<{ region: string }, RegionalResult>({
+  name: "Analyze region",
+  async run({ run, control, outputs }, { region }) {
+    const analysis = await run({
+      id: "analysis",
+      notebook: "regional-analysis.deepnote",
+      inputs: { region },
+    });
+    return control(
+      {
+        id: "quality-gate",
+        kind: "gate",
+        dependsOn: [analysis.id],
+      },
+      () => outputs.lastJson<RegionalResult>(analysis),
+    );
+  },
+});
+
+const europe = await invoke({
+  id: "europe",
+  pipeline: analyzeRegion,
+  input: { region: "Europe" },
+});
+// Child graph IDs: europe/analysis, europe/quality-gate
+```
+
+Sub-pipeline inputs participate in persistence fingerprints. Resuming with different inputs fails
+instead of restoring child values from another invocation.
+
 ### Make notebook steps durable with Workflow SDK
 
 Workflow SDK remains the full durable layer rather than being embedded in the lightweight API. Install

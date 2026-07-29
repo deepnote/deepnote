@@ -29,8 +29,9 @@ export function normalizePipelineManifest(record) {
     }
   })
   const value = result.value && typeof result.value === 'object' ? result.value : {}
+  const requestedConclusion = nodes.find(node => node.id === result.graph.concludingNodeId)
   const concludingStepId =
-    result.graph.concludingNodeId ??
+    (requestedConclusion?.snapshotYaml ? requestedConclusion.id : undefined) ??
     [...nodes].reverse().find(node => node.kind === 'notebook' && node.snapshotYaml)?.id
 
   return {
@@ -54,12 +55,26 @@ export function normalizePipelineManifest(record) {
 }
 
 function layoutNodes(nodes, edges) {
-  const columns = new Map()
-  for (const node of nodes) {
-    const parents = edges.filter(edge => edge.to === node.id)
-    const column = parents.length === 0 ? 0 : Math.max(...parents.map(edge => (columns.get(edge.from) ?? -1) + 1))
-    columns.set(node.id, column)
+  const columns = new Map(nodes.map(node => [node.id, 0]))
+  const incoming = new Map(nodes.map(node => [node.id, 0]))
+  const outgoing = new Map(nodes.map(node => [node.id, []]))
+  for (const edge of edges) {
+    if (!incoming.has(edge.from) || !incoming.has(edge.to)) continue
+    incoming.set(edge.to, incoming.get(edge.to) + 1)
+    outgoing.get(edge.from).push(edge.to)
   }
+  const ready = nodes.filter(node => incoming.get(node.id) === 0).map(node => node.id)
+  let visited = 0
+  while (ready.length > 0) {
+    const id = ready.shift()
+    visited += 1
+    for (const child of outgoing.get(id)) {
+      columns.set(child, Math.max(columns.get(child), columns.get(id) + 1))
+      incoming.set(child, incoming.get(child) - 1)
+      if (incoming.get(child) === 0) ready.push(child)
+    }
+  }
+  if (visited !== nodes.length) throw new TypeError('The captured orchestration graph contains a cycle.')
 
   const grouped = new Map()
   for (const node of nodes) {

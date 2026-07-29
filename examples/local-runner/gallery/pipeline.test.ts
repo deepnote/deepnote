@@ -94,6 +94,58 @@ describe('static pipeline gallery', () => {
     expect(normalized.stageLabels?.at(-1)).toBe('CONCLUSION')
   })
 
+  it('lays out policy attempts before their earlier-created resolution node', () => {
+    const normalized = normalizePipelineManifest({
+      status: 'completed',
+      result: {
+        value: {},
+        steps: [
+          { id: 'load-attempt-1', durationMs: 10, snapshotYaml: 'failed' },
+          { id: 'load-attempt-2', durationMs: 10, snapshotYaml: 'recovered' },
+        ],
+        graph: {
+          concludingNodeId: 'load',
+          nodes: [
+            {
+              id: 'load',
+              label: 'Load with recovery',
+              kind: 'policy',
+              status: 'success',
+              concluding: true,
+              startedAt: '2026-01-01',
+            },
+            {
+              id: 'load-attempt-1',
+              label: 'Attempt one',
+              kind: 'notebook',
+              status: 'failed',
+              startedAt: '2026-01-01',
+            },
+            {
+              id: 'load-attempt-2',
+              label: 'Attempt two',
+              kind: 'notebook',
+              status: 'success',
+              startedAt: '2026-01-01',
+            },
+          ],
+          edges: [
+            { from: 'load-attempt-1', to: 'load-attempt-2', label: 'retry' },
+            { from: 'load-attempt-2', to: 'load', label: 'resolved' },
+          ],
+        },
+        startedAt: '2026-01-01T00:00:00.000Z',
+        finishedAt: '2026-01-01T00:00:01.000Z',
+        durationMs: 1_000,
+      },
+    })
+
+    expect(normalized.nodes.find(node => node.id === 'load-attempt-1')?.column).toBe(0)
+    expect(normalized.nodes.find(node => node.id === 'load-attempt-2')?.column).toBe(1)
+    expect(normalized.nodes.find(node => node.id === 'load')?.column).toBe(2)
+    expect(normalized.concludingStepId).toBe('load-attempt-2')
+  })
+
   it('is a left-to-right DAG whose conclusion is the final node', () => {
     const nodes = new Map(manifest.nodes.map(node => [node.id, node]))
     const conclusion = nodes.get(manifest.concludingStepId)
