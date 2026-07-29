@@ -194,6 +194,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         'Cache-Control': 'no-store',
       })
       const sendFrame = (frame: unknown): void => {
+        if (res.writableEnded || res.finished || res.destroyed) return
         res.write(`${JSON.stringify(frame)}\n`)
       }
       try {

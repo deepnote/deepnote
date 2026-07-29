@@ -181,7 +181,7 @@ for a complete Nitro/Vite example using Workflow SDK's local development world.
 ### Serve it to a static page
 
 ```ts
-import { serveStatic } from "@deepnote/local-runner";
+import { orchestrate, serveStatic } from "@deepnote/local-runner";
 
 const { port, close } = await serveStatic({
   dir: "./public", // your index.html + assets

@@ -21,7 +21,7 @@ Those branches then fan back into a final Deepnote Auto arbiter, which weighs bo
 validated data and owns the concluding decision. Regional analysis can still run locally; native
 multi-provider selection requires `DEEPNOTE_TOKEN`.
 
-Both examples draw on two committed artifacts at the `examples/` root:
+The run app and snapshot viewer draw on two committed artifacts at the `examples/` root:
 
 - [`local-runner-showcase.deepnote`](../local-runner-showcase.deepnote) — an input-rich sales
   dashboard (a KPI, a table, a chart, and a written summary), closing with an **agent block** that

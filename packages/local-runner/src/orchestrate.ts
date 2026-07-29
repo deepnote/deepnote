@@ -299,6 +299,7 @@ async function runCloudStep(
       ...stepPoll,
       onStatus: (status, run) => {
         inheritedPoll?.onStatus?.(status, run)
+        // A step may deliberately reuse the inherited callback; notify that function only once.
         if (stepPoll?.onStatus !== inheritedPoll?.onStatus) {
           stepPoll?.onStatus?.(status, run)
         }

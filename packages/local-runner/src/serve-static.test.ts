@@ -215,6 +215,45 @@ describe('serveStatic', () => {
     }
   })
 
+  it('ignores events emitted after the orchestration response has ended', async () => {
+    let resolveLate!: () => void
+    let rejectLate!: (error: unknown) => void
+    const lateEmission = new Promise<void>((resolve, reject) => {
+      resolveLate = resolve
+      rejectLate = reject
+    })
+    const lateEvents = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      orchestrationRunner: async (_inputs, emit) => {
+        setTimeout(() => {
+          try {
+            emit({
+              type: 'step_started',
+              stepId: 'too-late',
+              target: 'local',
+              startedAt: '2026-01-01T00:00:00.000Z',
+            })
+            resolveLate()
+          } catch (error) {
+            rejectLate(error)
+          }
+        }, 10)
+        return { decision: 'proceed' }
+      },
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${lateEvents.port}/api/orchestrate`, {
+        method: 'POST',
+        body: JSON.stringify({ inputs: {} }),
+      })
+      expect(await res.text()).toBe('{"type":"result","result":{"decision":"proceed"}}\n')
+      await expect(lateEmission).resolves.toBeUndefined()
+    } finally {
+      await lateEvents.close()
+    }
+  })
+
   it('GET /api/cloud-runs returns the notebook run history and a view link', async () => {
     const res = await fetch(`${base}/api/cloud-runs`)
     expect(res.status).toBe(200)

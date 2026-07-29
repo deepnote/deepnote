@@ -8,7 +8,9 @@ const examples = join(here, '..', '..')
 
 try {
   process.loadEnvFile()
-} catch {}
+} catch (error) {
+  if (error?.code !== 'ENOENT') throw error
+}
 
 const target = process.env.DEEPNOTE_TOKEN ? 'cloud' : 'local'
 

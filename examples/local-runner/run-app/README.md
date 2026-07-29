@@ -5,8 +5,8 @@ A page that shows all three ways to compose [`@deepnote/local-runner`](../../../
 - **Run** one notebook in a local Python kernel.
 - **Run in cloud** runs that notebook in Deepnote Cloud.
 - **Run orchestrated pipeline** fans out three regional notebooks, quality-gates their structured
-  results, conditionally reruns incomplete data, aggregates the validated portfolio, and sends it to
-  a separate agent notebook for an executive decision.
+  results, conditionally reruns incomplete data, aggregates the validated portfolio, asks GPT and
+  Claude for independent reviews, and fans those reviews into a final arbiter notebook.
 
 The same edited inputs drive all three paths. Single runs use
 [`../../local-runner-showcase.deepnote`](../../local-runner-showcase.deepnote), returning a KPI, a
@@ -74,22 +74,24 @@ The live graph makes the control flow visible instead of flattening concurrent w
 
 ```text
 North America ─┐
-Europe ────────┼─ quality gate ─ Europe recovery ─ aggregate ─ agent decision
-Asia Pacific ──┘
+Europe ────────┼─ quality gate ─ Europe recovery ─ aggregate ─┬─ GPT-5.5 ───────┐
+Asia Pacific ──┘                                              └─ Claude Sonnet 5 ┴─ Auto arbiter
 ```
 
 Europe deliberately starts with one missing month. Its quality score falls below 95%, so only that
 region reruns with backfilling. The page then shows the validated regional table, forecast-versus-
-target decision, number of notebook runs, recovery count, and final agent memo. The backend uses
-`outputs.lastJson(step)`, so it does not depend on source block IDs surviving cloud creation.
+target decision, number of notebook runs, recovery count, both provider reviews, and the arbiter's
+final decision. The backend uses `outputs.lastJson(step)`, so it does not depend on source block IDs
+surviving cloud creation.
 
 When the pipeline targets Deepnote Cloud, every notebook node becomes a keyboard-focusable link to
 that exact run as soon as its `viewUrl` arrives. The quality gate and aggregation stay non-clickable
 because they are local orchestration decisions, not notebook executions.
 
-The agent step needs `OPENAI_API_KEY` when notebook steps run locally. Without it, the deterministic
-regional pipeline and decision still complete and the page reports that only the memo is
-unavailable.
+The GPT-5.5 and Claude Sonnet 5 reviews and the final Deepnote Auto arbiter run only in Deepnote
+Cloud, so they require `DEEPNOTE_TOKEN`. Without it, the regional fan-out, quality gate, recovery,
+aggregation, and rule-based proposal still complete locally; the page marks the provider and
+arbiter nodes as cloud-only.
 
 ## Notes
 

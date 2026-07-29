@@ -5,7 +5,7 @@ const runNotebookStepMock = vi.hoisted(() => vi.fn())
 
 vi.mock('./deepnote', () => ({ runNotebookStep: runNotebookStepMock }))
 
-import { salesDecisionWorkflow } from './sales-report'
+import { parseSalesDecisionRequest, salesDecisionWorkflow } from './sales-report'
 
 const RESULTS = {
   'North America': {
@@ -42,22 +42,7 @@ const RESULTS = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  runNotebookStepMock.mockImplementation(async step => {
-    if (step.id === 'analyze-asia-pacific' && step.inputs.simulate_failure) {
-      return failedStep(step.id)
-    }
-    if (step.id === 'executive-agent-decision') {
-      return agentStep()
-    }
-
-    const region = step.inputs.region as keyof typeof RESULTS
-    const result = {
-      ...RESULTS[region],
-      backfilled: step.inputs.backfill_missing,
-      qualityScore: step.inputs.backfill_missing || region !== 'Europe' ? 1 : 0.917,
-    }
-    return successfulStep(step.id, result)
-  })
+  runNotebookStepMock.mockImplementation(defaultNotebookStep)
 })
 
 describe('salesDecisionWorkflow', () => {
@@ -120,20 +105,90 @@ describe('salesDecisionWorkflow', () => {
     })
     expect(runNotebookStepMock).toHaveBeenCalledTimes(4)
   })
+
+  it.each([
+    ['missing result marker', 'analysis completed without a structured result\n'],
+    ['invalid result JSON', 'DEEPNOTE_PIPELINE_RESULT={not-json}\n'],
+  ])('recovers a successful notebook with %s', async (_scenario, output) => {
+    runNotebookStepMock.mockImplementation(async step => {
+      if (step.id === 'analyze-europe') {
+        return successfulTextStep(step.id, output)
+      }
+      return defaultNotebookStep(step)
+    })
+
+    const result = await salesDecisionWorkflow({
+      qualityThreshold: 0.9,
+      simulateFailureRegion: null,
+    })
+
+    expect(result.workflowValue).toMatchObject({
+      initialFailures: [],
+      qualityGateFailures: [],
+      recoveredRegions: ['Europe'],
+      notebookRuns: 5,
+    })
+    expect(runNotebookStepMock.mock.calls.map(([step]) => step.id)).toContain('recover-europe')
+    expect(result.portfolio.regions).toHaveLength(3)
+  })
 })
 
+describe('parseSalesDecisionRequest', () => {
+  it('accepts a valid request', () => {
+    expect(
+      parseSalesDecisionRequest({
+        demandShockPct: -12.5,
+        qualityThreshold: 0.97,
+        simulateFailureRegion: 'Europe',
+      })
+    ).toEqual({
+      demandShockPct: -12.5,
+      qualityThreshold: 0.97,
+      simulateFailureRegion: 'Europe',
+    })
+  })
+
+  it.each([
+    ['a non-object body', null],
+    ['a string demand shock', { demandShockPct: '-10' }],
+    ['a non-finite demand shock', { demandShockPct: Number.NaN }],
+    ['an out-of-range quality threshold', { qualityThreshold: 1.1 }],
+    ['an unknown failure region', { simulateFailureRegion: 'Atlantis' }],
+  ])('rejects %s', (_scenario, request) => {
+    expect(() => parseSalesDecisionRequest(request)).toThrow(TypeError)
+  })
+})
+
+async function defaultNotebookStep(step: {
+  id: string
+  inputs: Record<string, unknown>
+}): Promise<OrchestrationStepResult> {
+  if (step.id === 'analyze-asia-pacific' && step.inputs.simulate_failure) {
+    return failedStep(step.id)
+  }
+  if (step.id === 'executive-agent-decision') {
+    return agentStep()
+  }
+
+  const region = step.inputs.region as keyof typeof RESULTS
+  const result = {
+    ...RESULTS[region],
+    backfilled: step.inputs.backfill_missing,
+    qualityScore: step.inputs.backfill_missing || region !== 'Europe' ? 1 : 0.917,
+  }
+  return successfulStep(step.id, result)
+}
+
 function successfulStep(id: string, result: object): OrchestrationStepResult {
+  return successfulTextStep(id, `DEEPNOTE_PIPELINE_RESULT=${JSON.stringify(result)}\n`)
+}
+
+function successfulTextStep(id: string, text: string): OrchestrationStepResult {
   return baseStep(id, {
     outputs: [
       {
         blockId: 'regional-analysis',
-        outputs: [
-          {
-            output_type: 'stream',
-            name: 'stdout',
-            text: `DEEPNOTE_PIPELINE_RESULT=${JSON.stringify(result)}\n`,
-          },
-        ],
+        outputs: [{ output_type: 'stream', name: 'stdout', text }],
         executionCount: 1,
       },
     ],

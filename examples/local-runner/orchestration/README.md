@@ -1,7 +1,8 @@
 # One-shot notebook orchestration
 
-This is the smallest useful pipeline: two notebooks fan out in parallel, their output feeds a third
-notebook, and that notebook finishes with an agent block.
+This is the smallest useful pipeline: two source notebooks feed a third notebook, which finishes
+with an agent block. Local kernels run the two source notebooks in parallel; cloud execution runs
+them sequentially so two first runs cannot race to create the same notebook.
 
 ```bash
 pnpm example:orchestration

@@ -23,6 +23,34 @@ export interface SalesDecisionRequest {
   simulateFailureRegion?: RegionName | null
 }
 
+/** Validate untrusted HTTP input before starting a durable workflow. */
+export function parseSalesDecisionRequest(value: unknown): SalesDecisionRequest {
+  if (!isRecord(value)) {
+    throw new TypeError('Request body must be an object.')
+  }
+
+  const request: SalesDecisionRequest = {}
+  if (value.demandShockPct !== undefined) {
+    request.demandShockPct = finiteNumber(value.demandShockPct, 'demandShockPct')
+  }
+  if (value.qualityThreshold !== undefined) {
+    const threshold = finiteNumber(value.qualityThreshold, 'qualityThreshold')
+    if (threshold < 0 || threshold > 1) {
+      throw new TypeError('"qualityThreshold" must be between 0 and 1.')
+    }
+    request.qualityThreshold = threshold
+  }
+  if (value.simulateFailureRegion !== undefined) {
+    if (value.simulateFailureRegion !== null && !isRegionName(value.simulateFailureRegion)) {
+      throw new TypeError(
+        `"simulateFailureRegion" must be null or one of: ${REGIONS.map(region => region.name).join(', ')}.`
+      )
+    }
+    request.simulateFailureRegion = value.simulateFailureRegion
+  }
+  return request
+}
+
 interface RegionalResult {
   region: RegionName
   revenueK: number
@@ -221,7 +249,7 @@ async function runRegion(
   }
 }
 
-function regionalResult(run: OrchestrationStepResult): RegionalResult {
+function regionalResult(run: OrchestrationStepResult): RegionalResult | null {
   for (const output of run.outputs.flatMap(block => block.outputs)) {
     if (output.output_type !== 'stream') {
       continue
@@ -230,10 +258,14 @@ function regionalResult(run: OrchestrationStepResult): RegionalResult {
     const markerIndex = text.lastIndexOf(RESULT_MARKER)
     if (markerIndex !== -1) {
       const json = text.slice(markerIndex + RESULT_MARKER.length).trim()
-      return JSON.parse(json) as RegionalResult
+      try {
+        return JSON.parse(json) as RegionalResult
+      } catch {
+        return null
+      }
     }
   }
-  throw new Error(`Step "${run.id}" did not emit its regional result.`)
+  return null
 }
 
 function lastAgentOutput(result: OrchestrationStepResult): string | null {
@@ -292,6 +324,17 @@ function multilineText(value: unknown): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function finiteNumber(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError(`"${field}" must be a finite number.`)
+  }
+  return value
+}
+
+function isRegionName(value: unknown): value is RegionName {
+  return typeof value === 'string' && REGIONS.some(region => region.name === value)
 }
 
 function sum(values: number[]): number {

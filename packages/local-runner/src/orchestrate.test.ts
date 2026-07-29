@@ -218,6 +218,27 @@ describe('orchestrate', () => {
     })
   })
 
+  it('notifies a reused inherited cloud status callback only once', async () => {
+    const sharedStatus = vi.fn()
+    runnerMock.runInCloud.mockImplementation(async (_notebook, _inputs, options) => {
+      options.poll.onStatus('running', { runId: 'run-1' })
+      return cloudResult()
+    })
+
+    await orchestrate(
+      ({ run }) =>
+        run({
+          id: 'publish',
+          notebook: 'publish.deepnote',
+          target: 'cloud',
+          cloud: { poll: { onStatus: sharedStatus } },
+        }),
+      { cloud: { poll: { onStatus: sharedStatus } } }
+    )
+
+    expect(sharedStatus).toHaveBeenCalledOnce()
+  })
+
   it('fails fast on an unsuccessful notebook run by default', async () => {
     runnerMock.runWithInputs.mockResolvedValue(
       localResult({
