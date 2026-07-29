@@ -5,6 +5,7 @@ const startMock = vi.hoisted(() => vi.fn())
 vi.mock('workflow/api', () => ({ start: startMock }))
 
 import handler from './api/run.post'
+import { salesDecisionWorkflow } from './workflows/sales-report'
 
 const invoke = handler as unknown as (event: { req: Request }) => Promise<unknown>
 
@@ -24,6 +25,13 @@ describe('POST /api/run', () => {
     })
 
     expect(startMock).toHaveBeenCalledOnce()
+    expect(startMock).toHaveBeenCalledWith(salesDecisionWorkflow, [
+      {
+        demandShockPct: -8,
+        qualityThreshold: 0.96,
+        simulateFailureRegion: 'Europe',
+      },
+    ])
     expect(result).toEqual({
       runId: 'workflow-run-1',
       statusUrl: '/api/runs/workflow-run-1',

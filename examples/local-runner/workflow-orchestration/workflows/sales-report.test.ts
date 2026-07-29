@@ -152,6 +152,7 @@ describe('parseSalesDecisionRequest', () => {
     ['a non-object body', null],
     ['a string demand shock', { demandShockPct: '-10' }],
     ['a non-finite demand shock', { demandShockPct: Number.NaN }],
+    ['a negative quality threshold', { qualityThreshold: -0.01 }],
     ['an out-of-range quality threshold', { qualityThreshold: 1.1 }],
     ['an unknown failure region', { simulateFailureRegion: 'Atlantis' }],
   ])('rejects %s', (_scenario, request) => {
