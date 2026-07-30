@@ -119,13 +119,20 @@ const { port, close } = await serveStatic({
 // GET  /api/info       -> { notebook, inputs }    (input blocks, to build controls)
 // POST /api/run        -> { inputs } -> { outputs, summary, snapshotYaml }
 // POST /api/run-cloud   -> { inputs } -> runs it in Deepnote Cloud (needs DEEPNOTE_TOKEN)
+// POST /api/schedule-cloud -> { cron, timezone?, createIfMissing? } -> recurring cloud schedule
+// GET  /api/cloud-runs  -> { runs, viewUrl }       (for history/navigation)
 // any other GET         -> a file from `dir` (path-traversal guarded)
 await close();
 ```
 
-Deliberately minimal: binds to `127.0.0.1`, no WebSocket, no watch, no rendering. Bring your own
-page — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs
-no server at all.
+`POST /api/schedule-cloud` is deliberately frontend-neutral: the page decides whether to show cron
+directly, a daily/weekly picker, or a single opinionated button. The server validates the small JSON
+contract and uses the same token and create-if-missing flow as cloud runs. It configures the
+schedule without executing the notebook.
+
+The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. Bring your own page
+— or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no
+server at all.
 
 ### Read a snapshot — no Python, no kernel
 

@@ -1,7 +1,6 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { findNotebook, findProject, type NotebookSchedule, upsertNotebookSchedule } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
-import { ApiError } from '@deepnote/database-integrations'
 import { buildViewUrl, DEFAULT_CLOUD_API_URL, notebookNameFor, requireToken } from './cloud-common'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
@@ -66,7 +65,10 @@ export async function scheduleInCloud(
       : undefined
     return { notebookId: schedule.notebookId, schedule, ...(viewUrl ? { viewUrl } : {}) }
   } catch (error) {
-    if (!(error instanceof ApiError) || error.statusCode !== 404) {
+    // This crosses package/build boundaries: `@deepnote/cloud` and this package can each contain
+    // their own copy of ApiError, making `instanceof` false even though the error contract is the
+    // same. The public statusCode is the stable boundary.
+    if (errorStatusCode(error) !== 404) {
       throw error
     }
 
@@ -113,6 +115,15 @@ export async function scheduleInCloud(
       ...(viewUrl ? { viewUrl } : {}),
     }
   }
+}
+
+/** Read the public status-code contract without depending on a cross-bundle class identity. */
+function errorStatusCode(error: unknown): number | undefined {
+  if (typeof error !== 'object' || error === null || !('statusCode' in error)) {
+    return undefined
+  }
+  const statusCode = error.statusCode
+  return typeof statusCode === 'number' ? statusCode : undefined
 }
 
 function resolveNotebookId(file: DeepnoteFile): string {

@@ -10,6 +10,8 @@ import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 import { runInCloud } from './run-in-cloud'
 import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 import { runWithInputs } from './run-with-inputs'
+import type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
+import { scheduleInCloud } from './schedule-in-cloud'
 
 export type RunnerFn = (
   input: DeepnoteInput,
@@ -26,6 +28,12 @@ export type CloudRunnerFn = (
 export type CloudRunListerFn = (input: DeepnoteInput, options?: ListCloudRunsOptions) => Promise<ListCloudRunsResult>
 
 export type CloudRunGetterFn = (runId: string, options?: GetCloudRunOptions) => Promise<CloudRun>
+
+export type CloudSchedulerFn = (
+  input: DeepnoteInput,
+  cron: string,
+  options?: ScheduleInCloudOptions
+) => Promise<ScheduleInCloudResult>
 
 export interface ServeStaticOptions {
   /** Directory of static files to serve (e.g. an `index.html` that drives the API). */
@@ -48,6 +56,8 @@ export interface ServeStaticOptions {
   cloudRunLister?: CloudRunListerFn
   /** Override the single cloud-run fetch (advanced; mainly for testing). Defaults to `getCloudRun`. */
   cloudRunGetter?: CloudRunGetterFn
+  /** Override the cloud scheduler (advanced; mainly for testing). Defaults to `scheduleInCloud`. */
+  cloudScheduler?: CloudSchedulerFn
 }
 
 export interface ServeStaticHandle {
@@ -87,6 +97,8 @@ const CONTENT_TYPES: Record<string, string> = {
  *   `{ runs: [] }` rather than an error when there's no token or the notebook isn't in Deepnote.
  * - `GET  /api/cloud-runs/{runId}` → `{ status, success, outputs, snapshotYaml }` — one past run's
  *   outputs, read from its snapshot without re-running it.
+ * - `POST /api/schedule-cloud` → `{ cron, timezone?, createIfMissing? }` → the created or updated
+ *   recurring Deepnote Cloud schedule. This does not execute the notebook immediately.
  * - any other GET → a file from `dir` (path-traversal + symlink guarded)
  *
  * Bad requests get a specific status: `400` for malformed JSON / bad path encoding / a non-object
@@ -101,6 +113,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   const cloudRunner = options.cloudRunner ?? runInCloud
   const cloudRunLister = options.cloudRunLister ?? listCloudRuns
   const cloudRunGetter = options.cloudRunGetter ?? getCloudRun
+  const cloudScheduler = options.cloudScheduler ?? scheduleInCloud
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -152,6 +165,28 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         created: result.created,
         viewUrl: result.viewUrl,
         error: result.error,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && pathname === '/api/schedule-cloud') {
+      const body = await readJsonBody(req, res)
+      if (!body.ok) return
+      const request = readScheduleRequest(body.value)
+      if (!request.ok) {
+        sendJson(res, 400, { error: request.error })
+        return
+      }
+      const result = await cloudScheduler(notebookPath, request.cron, {
+        token: options.cloudToken,
+        timezone: request.timezone,
+        createIfMissing: request.createIfMissing,
+      })
+      sendJson(res, 200, {
+        notebookId: result.notebookId,
+        schedule: result.schedule,
+        created: result.created,
+        viewUrl: result.viewUrl,
       })
       return
     }
@@ -212,6 +247,35 @@ function readInputMap(parsed: unknown): { ok: true; inputs: Record<string, unkno
   if (raw === undefined || raw === null) return { ok: true, inputs: {} }
   if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false }
   return { ok: true, inputs: raw as Record<string, unknown> }
+}
+
+interface ScheduleRequest {
+  cron: string
+  timezone?: string
+  createIfMissing?: boolean
+}
+
+/** Validate the small JSON contract exposed by `POST /api/schedule-cloud`. */
+function readScheduleRequest(parsed: unknown): ({ ok: true } & ScheduleRequest) | { ok: false; error: string } {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: 'Request body must be an object' }
+  }
+  const body = parsed as Record<string, unknown>
+  if (typeof body.cron !== 'string' || !body.cron.trim()) {
+    return { ok: false, error: 'Request "cron" must be a non-empty string' }
+  }
+  if (body.timezone !== undefined && (typeof body.timezone !== 'string' || !body.timezone.trim())) {
+    return { ok: false, error: 'Request "timezone" must be a non-empty string when provided' }
+  }
+  if (body.createIfMissing !== undefined && typeof body.createIfMissing !== 'boolean') {
+    return { ok: false, error: 'Request "createIfMissing" must be a boolean when provided' }
+  }
+  return {
+    ok: true,
+    cron: body.cron.trim(),
+    ...(body.timezone !== undefined ? { timezone: body.timezone.trim() } : {}),
+    ...(body.createIfMissing !== undefined ? { createIfMissing: body.createIfMissing } : {}),
+  }
 }
 
 /** Read + JSON-parse the body, sending the right error status on failure (`400`/`413`). */

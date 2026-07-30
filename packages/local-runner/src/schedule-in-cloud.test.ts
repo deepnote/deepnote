@@ -89,7 +89,9 @@ describe('scheduleInCloud', () => {
 
   it('falls back to the cloud notebook matched by project and notebook name', async () => {
     cloudMock.upsertNotebookSchedule
-      .mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+      // Built workspace packages can carry separate ApiError class identities, so this intentionally
+      // looks like the public error contract without being an instanceof the local copy.
+      .mockRejectedValueOnce(Object.assign(new Error('Notebook not found'), { statusCode: 404 }))
       .mockResolvedValueOnce(schedule('notebook-cloud'))
     cloudMock.findNotebook.mockResolvedValue({ notebookId: 'notebook-cloud', projectId: 'project-cloud' })
 
