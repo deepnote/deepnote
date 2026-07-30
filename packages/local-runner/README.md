@@ -130,6 +130,11 @@ directly, a daily/weekly picker, or a single opinionated button. The server vali
 contract and uses the same token and create-if-missing flow as cloud runs. It configures the
 schedule without executing the notebook.
 
+Cloud scheduling and execution may run concurrently. If the notebook does not exist yet,
+`runInCloud` and `scheduleInCloud` coordinate creation inside the library: same-notebook calls share
+one creation, while different notebooks in the same project serialize creation to avoid duplicate
+projects. Frontends do not need their own creation lock.
+
 The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. Bring your own page
 — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no
 server at all.

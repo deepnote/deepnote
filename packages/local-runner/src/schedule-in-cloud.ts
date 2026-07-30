@@ -2,6 +2,7 @@ import type { DeepnoteFile } from '@deepnote/blocks'
 import { findNotebook, findProject, type NotebookSchedule, upsertNotebookSchedule } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { buildViewUrl, DEFAULT_CLOUD_API_URL, notebookNameFor, requireToken } from './cloud-common'
+import { coordinateCloudNotebook } from './cloud-notebook-coordinator'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import { createFromFile } from './run-in-cloud'
@@ -73,45 +74,52 @@ export async function scheduleInCloud(
     }
 
     const localId = localNotebookId(file, options.notebookId)
-    const found = await findNotebook(baseUrl, token, {
-      projectName: file.project.name,
-      notebookName: notebookNameFor(file, localId),
-    })
-
-    let notebookId: string
-    let projectId: string | undefined
-    let created = false
-    if (found) {
-      notebookId = found.notebookId
-      projectId = found.projectId
-    } else if (options.createIfMissing !== false) {
-      // A matching project can exist without this notebook. Add to it rather than creating a
-      // duplicate project; only a completed lookup that finds no project authorizes a new one.
-      const project = await findProject(baseUrl, token, file.project.name)
-      const target = await createFromFile(
+    const notebookName = notebookNameFor(file, localId)
+    const target = await coordinateCloudNotebook(
+      {
         baseUrl,
         token,
-        file,
-        { notebookId: localId, inputs: {} },
-        {
-          onCreateProgress: options.onCreateProgress,
-          onWarning: options.onWarning,
-        },
-        project
-      )
-      notebookId = target.notebookId
-      projectId = target.projectId
-      created = true
-    } else {
-      throw error
-    }
+        projectName: file.project.name,
+        notebookId: localId,
+        notebookName,
+        allowCreate: options.createIfMissing !== false,
+      },
+      async () => {
+        const found = await findNotebook(baseUrl, token, {
+          projectName: file.project.name,
+          notebookName,
+        })
+        if (found) {
+          return { notebookId: found.notebookId, projectId: found.projectId, created: false }
+        }
+        if (options.createIfMissing === false) {
+          throw error
+        }
 
-    const schedule = await upsertNotebookSchedule(baseUrl, token, notebookId, body, requestOptions)
-    const viewUrl = await buildViewUrl(baseUrl, token, file, notebookId, projectId).catch(() => undefined)
+        // A matching project can exist without this notebook. Add to it rather than creating a
+        // duplicate project; the coordinator serializes this check with cloud runs and schedules.
+        const project = await findProject(baseUrl, token, file.project.name)
+        const createdTarget = await createFromFile(
+          baseUrl,
+          token,
+          file,
+          { notebookId: localId, inputs: {} },
+          {
+            onCreateProgress: options.onCreateProgress,
+            onWarning: options.onWarning,
+          },
+          project
+        )
+        return { ...createdTarget, created: true }
+      }
+    )
+
+    const schedule = await upsertNotebookSchedule(baseUrl, token, target.notebookId, body, requestOptions)
+    const viewUrl = await buildViewUrl(baseUrl, token, file, target.notebookId, target.projectId).catch(() => undefined)
     return {
-      notebookId,
+      notebookId: target.notebookId,
       schedule,
-      ...(created ? { created: true } : {}),
+      ...(target.created ? { created: true } : {}),
       ...(viewUrl ? { viewUrl } : {}),
     }
   }

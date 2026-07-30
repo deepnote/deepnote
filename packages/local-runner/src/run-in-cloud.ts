@@ -25,6 +25,7 @@ import {
   notebookNameFor,
   requireToken,
 } from './cloud-common'
+import { coordinateCloudNotebook } from './cloud-notebook-coordinator'
 import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
@@ -138,15 +139,47 @@ export async function runInCloud(
     // before either can act on `notebookNameFor`'s fall back to the first notebook.
     const localId = localNotebookId(file, options.notebookId)
 
-    // Deliberately not caught: only a successful lookup that finds nothing means "not in Deepnote".
-    // A transient failure here would otherwise read as absence and create a duplicate project, so a
-    // flaky network would quietly litter the workspace. Failing is the lesser harm.
-    const found = await findNotebook(baseUrl, token, {
-      projectName: file.project.name,
-      notebookName: notebookNameFor(file, localId),
-    })
+    const notebookName = notebookNameFor(file, localId)
+    const target = await coordinateCloudNotebook(
+      {
+        baseUrl,
+        token,
+        projectName: file.project.name,
+        notebookId: localId,
+        notebookName,
+        allowCreate: options.createIfMissing !== false,
+      },
+      async () => {
+        // Deliberately not caught: only a successful lookup that finds nothing means "not in
+        // Deepnote". A transient failure here would otherwise read as absence and create a
+        // duplicate project, so a flaky network would quietly litter the workspace.
+        const found = await findNotebook(baseUrl, token, {
+          projectName: file.project.name,
+          notebookName,
+        })
+        if (found) {
+          return { notebookId: found.notebookId, projectId: found.projectId, created: false }
+        }
+        if (options.createIfMissing === false) {
+          throw err
+        }
 
-    if (found) {
+        // Not in Deepnote yet — create it there and run it, without leaving this call. The
+        // coordinator makes the lookup + create atomic with scheduleInCloud and other runs.
+        const project = await findProject(baseUrl, token, file.project.name)
+        const createdTarget = await createFromFile(
+          baseUrl,
+          token,
+          file,
+          { notebookId: localId, inputs },
+          options,
+          project
+        )
+        return { ...createdTarget, created: true }
+      }
+    )
+
+    if (!target.created) {
       // Matched by name, so this notebook's blocks carry ids Deepnote assigned and the file's
       // address nothing here. The create path can remap; this one has no mapping to offer, and
       // running the whole notebook — or some unrelated block — is worse than saying so.
@@ -157,17 +190,10 @@ export async function runInCloud(
             "that notebook's own block ids, or run the whole notebook."
         )
       }
-      notebookId = found.notebookId
-      projectId = found.projectId
+      notebookId = target.notebookId
+      projectId = target.projectId
       started = await triggerNotebookRun(baseUrl, token, { notebookId, inputs: cloudInputs })
-    } else if (options.createIfMissing !== false) {
-      // Not in Deepnote yet — create it there and run it, without leaving this call. We are
-      // authenticated by definition (a token is required above), so the browser-based import flow
-      // that `openInCloud` uses has nothing to offer here.
-      // `localId`, not `notebookId`: this picks which notebook of the file to run, and a cloud id
-      // names none of them.
-      const project = await findProject(baseUrl, token, file.project.name)
-      const target = await createFromFile(baseUrl, token, file, { notebookId: localId, inputs }, options, project)
+    } else {
       notebookId = target.notebookId
       projectId = target.projectId
       created = true
@@ -175,10 +201,8 @@ export async function runInCloud(
         notebookId,
         inputs: cloudInputs,
         // Deepnote assigned new block ids, so the file's own ids address nothing there.
-        blockIds: mapBlockIds(options.blockIds, target.blockIds),
+        blockIds: mapBlockIds(options.blockIds, target.blockIds ?? new Map()),
       })
-    } else {
-      throw err
     }
   }
   const run = await pollRunUntilComplete(baseUrl, token, started.runId, {
@@ -536,7 +560,7 @@ function localNotebookId(file: DeepnoteFile, explicitCloudId: string | undefined
  * Throws on an id that didn't map rather than silently dropping it: a targeted run that quietly ran
  * a different set of blocks — or the whole notebook — is worse than one that fails.
  */
-function mapBlockIds(requested: string[] | undefined, created: Map<string, string>): string[] | undefined {
+function mapBlockIds(requested: string[] | undefined, created: ReadonlyMap<string, string>): string[] | undefined {
   if (!requested?.length) {
     return undefined
   }

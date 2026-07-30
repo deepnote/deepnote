@@ -69,6 +69,10 @@ use the input values stored in Deepnote; when scheduling creates the notebook, t
 defaults committed in the `.deepnote` file. Deepnote allows one scheduled notebook per project, so
 saving again updates that project schedule.
 
+The scheduler remains available while a cloud run is active. The local-runner library coordinates
+the first create-if-missing operation, so custom frontends can safely offer the same concurrency
+without implementing their own lock.
+
 ## Notes
 
 - HTML outputs (the KPI cards, the table) render in a `sandbox`ed iframe with a **null origin**, so

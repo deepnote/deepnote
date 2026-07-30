@@ -334,7 +334,7 @@
           const frequency = $('#schedule-frequency').value
           const tail = frequency === 'weekdays' ? '* * 1-5' : frequency === 'monday' ? '* * 1' : '* * *'
           const cron = `${minute} ${hour} ${tail}`
-          setControlsDisabled(true)
+          setScheduleControlsDisabled(true)
           $('#spin-schedule').className = 'spin'
           setStatus('Saving the recurring Deepnote Cloud schedule…')
           const res = await fetch('/api/schedule-cloud', {
@@ -354,13 +354,16 @@
           setStatus(cap(e.message), 'err')
         } finally {
           $('#spin-schedule').className = ''
-          setControlsDisabled(false)
+          setScheduleControlsDisabled(false)
         }
       }
 
-      function setControlsDisabled(disabled) {
+      function setRunControlsDisabled(disabled) {
         $('#run').disabled = disabled
         $('#run-cloud').disabled = disabled
+      }
+
+      function setScheduleControlsDisabled(disabled) {
         $('#schedule-toggle').disabled = disabled
         $('#schedule-save').disabled = disabled
         $('#schedule-cancel').disabled = disabled
@@ -463,7 +466,7 @@
         // Claimed up front, not on arrival: this is the newest thing the user asked for, so a
         // history fetch still in flight from page load must not land on top of it.
         const gen = ++displayGen
-        setControlsDisabled(true)
+        setRunControlsDisabled(true)
         $(spinSel).className = 'spin'; setStatus(msg)
         try {
           const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: state }) })
@@ -494,7 +497,7 @@
           if (gen === displayGen) setStatus(cap(e.message), 'err')
         } finally {
           // The buttons re-enable either way — a superseded run still released them.
-          setControlsDisabled(false); $(spinSel).className = ''
+          setRunControlsDisabled(false); $(spinSel).className = ''
           // A cloud run adds to the history — including a failed one, which is worth seeing.
           if (endpoint.includes('cloud')) loadCloudRuns()
         }

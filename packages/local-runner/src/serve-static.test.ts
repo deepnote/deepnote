@@ -189,6 +189,41 @@ describe('serveStatic', () => {
     }
   })
 
+  it('POST /api/schedule-cloud allows its own browser origin', async () => {
+    const res = await fetch(`${base}/api/schedule-cloud`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ cron: '0 9 * * *' }),
+    })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('POST /api/schedule-cloud rejects a foreign browser origin before scheduling', async () => {
+    const cloudScheduler = vi.fn(async () => {
+      throw new Error('scheduler must not be called')
+    })
+    const protectedServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${protectedServer.port}/api/schedule-cloud`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'https://attacker.example' },
+        body: JSON.stringify({ cron: '0 9 * * *' }),
+      })
+
+      expect(res.status).toBe(403)
+      expect(await res.json()).toEqual({ error: 'Cross-origin requests are not allowed' })
+      expect(cloudScheduler).not.toHaveBeenCalled()
+    } finally {
+      await protectedServer.close()
+    }
+  })
+
   it.each([
     [{}, /cron/],
     [{ cron: '' }, /cron/],

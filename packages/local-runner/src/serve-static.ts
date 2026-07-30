@@ -170,6 +170,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
     }
 
     if (req.method === 'POST' && pathname === '/api/schedule-cloud') {
+      if (rejectCrossOriginRequest(req, res)) return
       const body = await readJsonBody(req, res)
       if (!body.ok) return
       const request = readScheduleRequest(body.value)
@@ -247,6 +248,19 @@ function readInputMap(parsed: unknown): { ok: true; inputs: Record<string, unkno
   if (raw === undefined || raw === null) return { ok: true, inputs: {} }
   if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false }
   return { ok: true, inputs: raw as Record<string, unknown> }
+}
+
+/**
+ * Reject browser requests from another origin before a token-backed mutation reads its body.
+ * Requests without Origin remain available to scripts and CLI clients.
+ */
+function rejectCrossOriginRequest(req: IncomingMessage, res: ServerResponse): boolean {
+  const origin = req.headers.origin
+  if (origin === undefined || origin === `http://${req.headers.host}`) {
+    return false
+  }
+  sendJson(res, 403, { error: 'Cross-origin requests are not allowed' })
+  return true
 }
 
 interface ScheduleRequest {
