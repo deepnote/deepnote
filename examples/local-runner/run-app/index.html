@@ -78,7 +78,7 @@
       .field { margin-bottom: 15px; animation: rise 0.45s both; }
       .field label { display: flex; align-items: baseline; gap: 8px; font-size: 0.82rem; font-weight: 560; margin-bottom: 7px; color: var(--ink-2); }
       .field .var { font-family: var(--mono); font-size: 0.68rem; color: var(--accent); font-weight: 500; margin-left: auto; opacity: 0.85; }
-      input[type="text"], input[type="date"], textarea, select {
+      input[type="text"], input[type="date"], input[type="time"], input[type="number"], textarea, select {
         width: 100%; font: inherit; font-size: 0.88rem; color: var(--ink); background: var(--bg);
         border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; transition: border-color 0.15s, box-shadow 0.15s;
       }
@@ -115,11 +115,13 @@
         box-shadow: var(--shadow);
       }
       .scheduler[hidden] { display: none; }
-      .scheduler-grid { display: grid; grid-template-columns: 1fr 94px; gap: 8px; }
+      .scheduler-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 94px; gap: 8px; }
+      .scheduler-grid.daily { grid-template-columns: minmax(0, 1fr) 94px; }
       .scheduler label { display: block; font-size: 0.7rem; color: var(--ink-3); margin-bottom: 4px; }
       .scheduler select, .scheduler input { background: var(--surface); }
       .scheduler-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
       .scheduler-actions .btn { padding: 7px 11px; font-size: 0.78rem; }
+      .scheduler-summary { color: var(--ink-2); font-size: 0.75rem; font-weight: 600; margin-top: 9px; }
       .scheduler-note { color: var(--ink-3); font-size: 0.7rem; line-height: 1.4; margin-top: 9px; }
       .scheduler-zone { margin-left: auto; color: var(--ink-3); font-family: var(--mono); font-size: 0.68rem; }
       .status { font-size: 0.8rem; color: var(--ink-3); margin-top: 13px; min-height: 1.2em; display: flex; align-items: center; gap: 7px; }
@@ -182,20 +184,37 @@
           <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
           <button id="schedule-toggle" class="btn ghost">Schedule</button>
           <div class="scheduler" id="scheduler" hidden>
-            <div class="scheduler-grid">
+            <div class="scheduler-grid" id="scheduler-grid">
               <div>
                 <label for="schedule-frequency">Frequency</label>
                 <select id="schedule-frequency">
                   <option value="daily">Daily</option>
-                  <option value="weekdays" selected>Weekdays</option>
-                  <option value="monday">Every Monday</option>
+                  <option value="weekly" selected>Weekly</option>
+                  <option value="monthly">Monthly</option>
                 </select>
+              </div>
+              <div id="schedule-weekday-field">
+                <label for="schedule-weekday">On</label>
+                <select id="schedule-weekday">
+                  <option value="1" selected>Monday</option>
+                  <option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option>
+                  <option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                  <option value="6">Saturday</option>
+                  <option value="0">Sunday</option>
+                </select>
+              </div>
+              <div id="schedule-month-field" hidden>
+                <label for="schedule-month-day">Day</label>
+                <input id="schedule-month-day" type="number" min="1" max="31" step="1" value="1" />
               </div>
               <div>
                 <label for="schedule-time">At</label>
                 <input id="schedule-time" type="time" value="09:00" />
               </div>
             </div>
+            <div id="schedule-summary" class="scheduler-summary">Every Monday at 09:00</div>
             <div class="scheduler-actions">
               <button id="schedule-save" class="btn primary"><span id="spin-schedule"></span>Save schedule</button>
               <button id="schedule-cancel" class="btn ghost">Cancel</button>
@@ -323,6 +342,11 @@
       $('#schedule-toggle').onclick = () => { $('#scheduler').hidden = !$('#scheduler').hidden }
       $('#schedule-cancel').onclick = () => { $('#scheduler').hidden = true }
       $('#schedule-save').onclick = saveSchedule
+      $('#schedule-frequency').onchange = updateScheduleBuilder
+      $('#schedule-weekday').onchange = updateScheduleSummary
+      $('#schedule-month-day').oninput = updateScheduleSummary
+      $('#schedule-time').oninput = updateScheduleSummary
+      updateScheduleBuilder()
 
       loadCloudRuns()
 
@@ -330,23 +354,24 @@
         try {
           const time = $('#schedule-time').value
           if (!/^\d{2}:\d{2}$/.test(time)) throw new Error('Choose a time for the schedule')
-          const [hour, minute] = time.split(':').map(Number)
           const frequency = $('#schedule-frequency').value
-          const tail = frequency === 'weekdays' ? '* * 1-5' : frequency === 'monday' ? '* * 1' : '* * *'
-          const cron = `${minute} ${hour} ${tail}`
+          const schedule = { frequency, time }
+          if (frequency === 'weekly') schedule.dayOfWeek = Number($('#schedule-weekday').value)
+          if (frequency === 'monthly') schedule.dayOfMonth = Number($('#schedule-month-day').value)
           setScheduleControlsDisabled(true)
           $('#spin-schedule').className = 'spin'
           setStatus('Saving the recurring Deepnote Cloud schedule…')
           const res = await fetch('/api/schedule-cloud', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ cron, timezone: scheduleTimezone }),
+            body: JSON.stringify({ schedule, timezone: scheduleTimezone }),
           })
           const data = await res.json()
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
           $('#scheduler').hidden = true
           const next = new Date(data.schedule.nextRunAt).toLocaleString()
-          const message = `${data.created ? 'Created the cloud notebook and scheduled it' : 'Schedule updated'} · next ${next}`
+          const cadence = data.description ? `${data.description} · ` : ''
+          const message = `${data.created ? 'Created the cloud notebook and scheduled it' : 'Schedule updated'} · ${cadence}next ${next}`
           if (data.viewUrl) statusLink(`${message} — `, data.viewUrl, 'open in Deepnote →')
           else setStatus(message, 'ok')
           loadCloudRuns()
@@ -356,6 +381,26 @@
           $('#spin-schedule').className = ''
           setScheduleControlsDisabled(false)
         }
+      }
+
+      function updateScheduleBuilder() {
+        const frequency = $('#schedule-frequency').value
+        $('#schedule-weekday-field').hidden = frequency !== 'weekly'
+        $('#schedule-month-field').hidden = frequency !== 'monthly'
+        $('#scheduler-grid').classList.toggle('daily', frequency === 'daily')
+        updateScheduleSummary()
+      }
+
+      function updateScheduleSummary() {
+        const frequency = $('#schedule-frequency').value
+        const time = $('#schedule-time').value || '—'
+        let summary = `Daily at ${time}`
+        if (frequency === 'weekly') {
+          summary = `Every ${$('#schedule-weekday').selectedOptions[0].textContent} at ${time}`
+        } else if (frequency === 'monthly') {
+          summary = `Every month on day ${$('#schedule-month-day').value || '—'} at ${time}`
+        }
+        $('#schedule-summary').textContent = summary
       }
 
       function setRunControlsDisabled(disabled) {

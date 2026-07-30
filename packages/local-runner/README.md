@@ -119,16 +119,27 @@ const { port, close } = await serveStatic({
 // GET  /api/info       -> { notebook, inputs }    (input blocks, to build controls)
 // POST /api/run        -> { inputs } -> { outputs, summary, snapshotYaml }
 // POST /api/run-cloud   -> { inputs } -> runs it in Deepnote Cloud (needs DEEPNOTE_TOKEN)
-// POST /api/schedule-cloud -> { cron, timezone?, createIfMissing? } -> recurring cloud schedule
+// POST /api/schedule-cloud -> { schedule: { frequency, time, ... }, timezone? } -> cloud schedule
 // GET  /api/cloud-runs  -> { runs, viewUrl }       (for history/navigation)
 // any other GET         -> a file from `dir` (path-traversal guarded)
 await close();
 ```
 
-`POST /api/schedule-cloud` is deliberately frontend-neutral: the page decides whether to show cron
-directly, a daily/weekly picker, or a single opinionated button. The server validates the small JSON
-contract and uses the same token and create-if-missing flow as cloud runs. It configures the
-schedule without executing the notebook.
+`POST /api/schedule-cloud` accepts a reusable friendly cadence: `{ frequency: "daily", time }`,
+`{ frequency: "weekly", dayOfWeek, time }` (Sunday = `0`), or
+`{ frequency: "monthly", dayOfMonth, time }`. The server validates it and converts it to cron, so
+custom frontends do not need scheduling logic. Advanced frontends can still send `{ cron }`
+directly. Both forms accept `timezone` and `createIfMissing`; scheduling does not execute the
+notebook.
+
+The same conversion is available without the server:
+
+```ts
+import { resolveRecurringSchedule } from "@deepnote/local-runner";
+
+resolveRecurringSchedule({ frequency: "weekly", dayOfWeek: 5, time: "17:45" });
+// { cron: "45 17 * * 5", description: "Every Friday at 17:45" }
+```
 
 Cloud scheduling and execution may run concurrently. If the notebook does not exist yet,
 `runInCloud` and `scheduleInCloud` coordinate creation inside the library: same-notebook calls share

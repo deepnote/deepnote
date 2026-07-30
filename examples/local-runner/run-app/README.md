@@ -59,10 +59,11 @@ is 16 round-trips before the run even starts. Later runs reuse the notebook and 
 
 ## Schedule recurring cloud runs
 
-The **Schedule** control is a thin frontend over `POST /api/schedule-cloud`. The page turns its
-friendly daily/weekdays/Monday picker into `{ cron, timezone }`; `serveStatic` validates that generic
-request and calls `scheduleInCloud`. Custom frontends can expose cron directly or build a completely
-different scheduling interaction without replacing the server.
+The **Schedule** control is a thin frontend over `POST /api/schedule-cloud`. It sends a structured
+Daily, Weekly (choose weekday), or Monthly (choose calendar day) cadence plus time and timezone.
+`serveStatic` validates and converts that cadence to cron before calling `scheduleInCloud`, so custom
+frontends can reuse the scheduling behavior without implementing cron conversion. Advanced
+frontends can still send raw cron.
 
 Scheduling creates the cloud notebook if necessary but does not run it immediately. Recurring runs
 use the input values stored in Deepnote; when scheduling creates the notebook, those are the

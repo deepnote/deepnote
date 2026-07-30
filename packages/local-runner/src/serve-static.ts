@@ -6,6 +6,8 @@ import type { CloudRun, GetCloudRunOptions, ListCloudRunsOptions, ListCloudRunsR
 import { getCloudRun, listCloudRuns } from './cloud-runs'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
+import type { RecurringSchedule } from './recurring-schedule'
+import { resolveRecurringSchedule } from './recurring-schedule'
 import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 import { runInCloud } from './run-in-cloud'
 import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
@@ -97,8 +99,9 @@ const CONTENT_TYPES: Record<string, string> = {
  *   `{ runs: [] }` rather than an error when there's no token or the notebook isn't in Deepnote.
  * - `GET  /api/cloud-runs/{runId}` → `{ status, success, outputs, snapshotYaml }` — one past run's
  *   outputs, read from its snapshot without re-running it.
- * - `POST /api/schedule-cloud` → `{ cron, timezone?, createIfMissing? }` → the created or updated
- *   recurring Deepnote Cloud schedule. This does not execute the notebook immediately.
+ * - `POST /api/schedule-cloud` → `{ schedule: { frequency, time, ... }, timezone?,
+ *   createIfMissing? }` (or raw `{ cron, ... }`) → the created or updated recurring Deepnote Cloud
+ *   schedule. This does not execute the notebook immediately.
  * - any other GET → a file from `dir` (path-traversal + symlink guarded)
  *
  * Bad requests get a specific status: `400` for malformed JSON / bad path encoding / a non-object
@@ -186,6 +189,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
       sendJson(res, 200, {
         notebookId: result.notebookId,
         schedule: result.schedule,
+        description: request.description,
         created: result.created,
         viewUrl: result.viewUrl,
       })
@@ -265,6 +269,7 @@ function rejectCrossOriginRequest(req: IncomingMessage, res: ServerResponse): bo
 
 interface ScheduleRequest {
   cron: string
+  description?: string
   timezone?: string
   createIfMissing?: boolean
 }
@@ -275,8 +280,27 @@ function readScheduleRequest(parsed: unknown): ({ ok: true } & ScheduleRequest) 
     return { ok: false, error: 'Request body must be an object' }
   }
   const body = parsed as Record<string, unknown>
-  if (typeof body.cron !== 'string' || !body.cron.trim()) {
-    return { ok: false, error: 'Request "cron" must be a non-empty string' }
+  const hasCron = body.cron !== undefined
+  const hasSchedule = body.schedule !== undefined
+  if (hasCron === hasSchedule) {
+    return { ok: false, error: 'Provide exactly one of request "cron" or "schedule"' }
+  }
+
+  let cron: string
+  let description: string | undefined
+  if (hasCron) {
+    if (typeof body.cron !== 'string' || !body.cron.trim()) {
+      return { ok: false, error: 'Request "cron" must be a non-empty string' }
+    }
+    cron = body.cron.trim()
+  } else {
+    try {
+      const resolved = resolveRecurringSchedule(body.schedule as RecurringSchedule)
+      cron = resolved.cron
+      description = resolved.description
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
   }
   if (body.timezone !== undefined && (typeof body.timezone !== 'string' || !body.timezone.trim())) {
     return { ok: false, error: 'Request "timezone" must be a non-empty string when provided' }
@@ -286,7 +310,8 @@ function readScheduleRequest(parsed: unknown): ({ ok: true } & ScheduleRequest) 
   }
   return {
     ok: true,
-    cron: body.cron.trim(),
+    cron,
+    ...(description !== undefined ? { description } : {}),
     ...(body.timezone !== undefined ? { timezone: body.timezone.trim() } : {}),
     ...(body.createIfMissing !== undefined ? { createIfMissing: body.createIfMissing } : {}),
   }

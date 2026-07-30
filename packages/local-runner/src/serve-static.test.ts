@@ -189,6 +189,52 @@ describe('serveStatic', () => {
     }
   })
 
+  it('POST /api/schedule-cloud resolves a friendly weekly cadence in the library', async () => {
+    const cloudScheduler = vi.fn(async (_input: DeepnoteInput, cron: string, options?: ScheduleInCloudOptions) => ({
+      notebookId: 'nb-scheduled',
+      schedule: {
+        notebookId: 'nb-scheduled',
+        cron,
+        timezone: options?.timezone ?? 'UTC',
+        nextRunAt: '2026-07-31T16:45:00.000Z',
+        createdAt: '2026-07-30T12:00:00.000Z',
+        updatedAt: '2026-07-30T12:00:00.000Z',
+      },
+      viewUrl: 'https://deepnote.com/notebook/nb-scheduled',
+    }))
+    const scheduled = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${scheduled.port}/api/schedule-cloud`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schedule: { frequency: 'weekly', dayOfWeek: 5, time: '17:45' },
+          timezone: 'Europe/London',
+        }),
+      })
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual(
+        expect.objectContaining({
+          description: 'Every Friday at 17:45',
+          schedule: expect.objectContaining({ cron: '45 17 * * 5' }),
+        })
+      )
+      expect(cloudScheduler).toHaveBeenCalledWith(join(dir, 'notebook.deepnote'), '45 17 * * 5', {
+        token: 'cloud-token',
+        timezone: 'Europe/London',
+        createIfMissing: undefined,
+      })
+    } finally {
+      await scheduled.close()
+    }
+  })
+
   it('POST /api/schedule-cloud allows its own browser origin', async () => {
     const res = await fetch(`${base}/api/schedule-cloud`, {
       method: 'POST',
@@ -225,8 +271,11 @@ describe('serveStatic', () => {
   })
 
   it.each([
-    [{}, /cron/],
+    [{}, /exactly one/],
     [{ cron: '' }, /cron/],
+    [{ cron: '0 9 * * *', schedule: { frequency: 'daily', time: '09:00' } }, /exactly one/],
+    [{ schedule: { frequency: 'weekly', time: '09:00', dayOfWeek: 8 } }, /dayOfWeek/],
+    [{ schedule: { frequency: 'monthly', time: '09:00', dayOfMonth: 0 } }, /dayOfMonth/],
     [{ cron: '0 9 * * *', timezone: '' }, /timezone/],
     [{ cron: '0 9 * * *', createIfMissing: 'yes' }, /createIfMissing/],
   ])('POST /api/schedule-cloud rejects an invalid request %#', async (requestBody, error) => {
