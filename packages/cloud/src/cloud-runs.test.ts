@@ -51,7 +51,7 @@ describe('triggerNotebookRun', () => {
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(response({ run: { id: 'run-1', status: 'pending', notebookId: 'nb-1' } }))
 
-    const run = await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', inputs: { a: 1 } })
+    const run = await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', inputs: { a: '1' } })
 
     expect(run.runId).toBe('run-1')
     expect(run.status).toBe('pending')
@@ -59,7 +59,32 @@ describe('triggerNotebookRun', () => {
     expect(url).toBe(`${BASE_URL}/v2/runs`)
     expect(init?.method).toBe('POST')
     expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
-    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: 1 } })
+    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: '1' } })
+  })
+
+  it('asks for a live run when blocks are targeted, since a detached run refuses them', async () => {
+    // Runs are detached unless told otherwise, and `POST /v2/runs` answers a detached run carrying
+    // blockIds with `blockIds is not supported for detached runs` — so every targeted run 400s
+    // unless the body says `detached: false` for itself.
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ runId: 'run-1', status: 'pending' }))
+
+    await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', blockIds: ['blk-1', 'blk-2'] })
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({
+      notebookId: 'nb-1',
+      blockIds: ['blk-1', 'blk-2'],
+      detached: false,
+    })
+  })
+
+  it('omits an empty blockIds array, and stays detached', async () => {
+    // The API takes `blockIds` as a non-empty list, so `[]` is a validation error rather than the
+    // "no blocks in particular" the caller meant by it.
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ runId: 'run-1', status: 'pending' }))
+
+    await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', blockIds: [] })
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({ notebookId: 'nb-1' })
   })
 
   it('normalizes a top-level {runId,status} response', async () => {

@@ -368,7 +368,7 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       const written = await writeCloudSnapshot({
         content,
         runId: finalRun.runId,
-        finishedAt: finalRun.finishedAt,
+        finishedAt: finalRun.completedAt ?? undefined,
         sourcePath,
         localFile,
         out: options.out,

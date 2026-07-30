@@ -1,0 +1,60 @@
+{
+  "name": "@deepnote/local-runner",
+  "version": "0.1.0",
+  "description": "Run a .deepnote notebook with edited inputs against a local Python backend, and serve it to a static page.",
+  "keywords": [
+    "deepnote",
+    "notebook",
+    "runner",
+    "inputs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/local-runner"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./snapshot-reader": "./dist/snapshot-reader.iife.js"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown --watch"
+  },
+  "dependencies": {
+    "@deepnote/blocks": "workspace:*",
+    "@deepnote/cloud": "workspace:*",
+    "@deepnote/convert": "workspace:*",
+    "@deepnote/runtime-core": "workspace:*",
+    "@jupyterlab/nbformat": "^4.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}
