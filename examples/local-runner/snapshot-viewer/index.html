@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deepnote snapshot</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfbfd;
+        --surface: #ffffff;
+        --surface-2: #f5f5f9;
+        --ink: #17151f;
+        --ink-2: #57546a;
+        --ink-3: #8b889b;
+        --line: #e9e8f1;
+        --line-2: #f1f0f7;
+        --accent: #5b3df5;
+        --accent-soft: #efecff;
+        --pos: #0f8f7f;
+        --neg: #d6425f;
+        --shadow: 0 1px 2px rgba(20, 18, 40, 0.04), 0 10px 30px -16px rgba(20, 18, 40, 0.16);
+        --r: 8px;
+        --r-lg: 12px;
+        --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0c0b12;
+          --surface: #141220;
+          --surface-2: #1b1828;
+          --ink: #ece9f7;
+          --ink-2: #a9a6bd;
+          --ink-3: #726f86;
+          --line: #262233;
+          --line-2: #1d1a29;
+          --accent: #a78bfa;
+          --accent-soft: #211b3b;
+          --pos: #35d0b6;
+          --neg: #ff6b86;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 34px -18px rgba(0, 0, 0, 0.7);
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.6;
+        -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
+      }
+      .wrap { max-width: 860px; margin: 0 auto; padding: 40px clamp(18px, 5vw, 32px) 96px; }
+
+      header.report { border-bottom: 1px solid var(--line); padding-bottom: 22px; margin-bottom: 26px; }
+      .badge {
+        display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600;
+        letter-spacing: 0.03em; color: var(--accent); background: var(--accent-soft);
+        padding: 4px 10px; border-radius: 999px; text-transform: uppercase;
+      }
+      .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+      header.report h1 { font-size: 1.9rem; letter-spacing: -0.025em; margin: 14px 0 4px; font-weight: 680; }
+      header.report .meta { color: var(--ink-3); font-size: 0.86rem; }
+      header.report .meta b { color: var(--ink-2); font-weight: 600; }
+
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 4px; }
+      .chip {
+        display: inline-flex; align-items: baseline; gap: 6px; font-size: 0.78rem;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+      }
+      .chip .k { color: var(--ink-3); font-family: var(--mono); font-size: 0.72rem; }
+      .chip .v { color: var(--ink); font-weight: 560; }
+
+      .block { margin-top: 30px; animation: rise 0.5s both; }
+      h2.h { font-size: 1.35rem; letter-spacing: -0.02em; font-weight: 660; margin: 38px 0 2px; }
+      h3.h { font-size: 1.08rem; letter-spacing: -0.01em; font-weight: 640; margin: 30px 0 2px; }
+      .md { color: var(--ink-2); font-size: 0.98rem; max-width: 68ch; }
+      .md strong { color: var(--ink); font-weight: 640; }
+      .md code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; }
+
+      .outputs { margin-top: 10px; }
+      figure.out { margin: 0; }
+      img.out { max-width: 100%; border-radius: var(--r-lg); border: 1px solid var(--line); display: block; box-shadow: var(--shadow); }
+      .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 14px; overflow: hidden; }
+      iframe.htmlout { width: 100%; border: 0; background: transparent; display: block; }
+      pre.stream { font-family: var(--mono); font-size: 0.8rem; white-space: pre-wrap; margin: 0; color: var(--ink-3); }
+      pre.err { color: var(--neg); }
+      .caption { color: var(--ink-3); font-family: var(--mono); font-size: 0.8rem; margin-top: 6px; }
+
+      details.src { margin-top: 12px; }
+      details.src > summary {
+        cursor: pointer; list-style: none; font-size: 0.76rem; color: var(--ink-3);
+        font-family: var(--mono); display: inline-flex; align-items: center; gap: 6px; user-select: none;
+      }
+      details.src > summary::-webkit-details-marker { display: none; }
+      details.src > summary::before { content: "▸"; font-size: 0.7em; transition: transform 0.15s; }
+      details.src[open] > summary::before { transform: rotate(90deg); }
+      details.src pre { font-family: var(--mono); font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 10px 0 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: var(--r); color: var(--ink-2); line-height: 1.55; }
+
+      .agent { border-left: 2px solid var(--accent); padding-left: 18px; }
+      .agent-head { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--ink-2); margin-bottom: 10px; }
+      .agent-head .tag { font-weight: 640; color: var(--accent); }
+      .agent-head .model { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); background: var(--surface-2); padding: 2px 7px; border-radius: 5px; }
+      .agent-out { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 16px 18px; }
+      .agent-out pre { font-family: var(--sans); font-size: 0.92rem; line-height: 1.62; white-space: pre-wrap; margin: 0; color: var(--ink); }
+
+      .loader, .picker { display: grid; place-items: center; min-height: 60vh; text-align: center; color: var(--ink-3); gap: 10px; }
+      .picker button { font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: var(--r); padding: 9px 18px; cursor: pointer; }
+      .picker .err { color: var(--neg); font-size: 0.85rem; max-width: 40ch; }
+      @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="root">
+      <div class="loader">Loading snapshot…</div>
+    </div>
+
+    <script src="./snapshot-reader.js"></script>
+    <script>
+      const $ = (id) => document.getElementById(id)
+      const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
+      const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m])
+      const join = (t) => (Array.isArray(t) ? t.join('') : t ?? '')
+
+      const params = new URLSearchParams(location.search)
+      const src = params.get('snapshot') || './snapshot.deepnote'
+
+      fetch(src)
+        .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text() })
+        .then(renderYaml)
+        .catch(() => showPicker())
+
+      function showPicker(msg) {
+        const root = $('root'); root.innerHTML = ''
+        const box = el('div', 'picker')
+        box.innerHTML = '<div>Opening from <code>file://</code> blocks auto-loading the snapshot.</div>'
+        if (msg) { const e = el('div', 'err'); e.textContent = msg; box.append(e) }
+        const inp = el('input'); inp.type = 'file'; inp.accept = '.deepnote,.yaml,.yml'; inp.style.display = 'none'
+        const btn = el('button'); btn.textContent = 'Choose a .deepnote snapshot'
+        btn.onclick = () => inp.click()
+        inp.onchange = () => { const f = inp.files[0]; if (!f) return; f.text().then(renderYaml).catch((e) => showPicker(e.message)) }
+        box.append(btn, inp); root.append(box)
+      }
+
+      function renderYaml(yaml) {
+        let view
+        try { view = DeepnoteSnapshot.parseSnapshot(yaml) } catch (e) { return showPicker(e.message) }
+        const root = $('root'); root.innerHTML = ''
+
+        const head = el('header', 'report')
+        head.innerHTML =
+          '<span class="badge"><span class="dot"></span>Static snapshot</span>' +
+          '<h1>' + esc(view.projectName || 'Deepnote snapshot') + '</h1>' +
+          '<div class="meta">' + (view.finishedAt ? 'Ran <b>' + esc(fmtDate(view.finishedAt)) + '</b> · ' : '') +
+          'rendered read-only — no server, no kernel</div>'
+        root.append(head)
+
+        const nb = view.notebooks[0] || { blocks: [] }
+
+        // Input values the run used → chips.
+        const inputs = nb.blocks.filter((b) => b.input)
+        if (inputs.length) {
+          const chips = el('div', 'chips')
+          for (const b of inputs) {
+            const c = el('span', 'chip')
+            c.innerHTML = '<span class="k">' + esc(b.input.name) + '</span><span class="v">' + esc(fmtVal(b.input.value)) + '</span>'
+            chips.append(c)
+          }
+          root.append(chips)
+        }
+
+        // Blocks in document order; inputs are already summarized above, and a leading H1 that just
+        // repeats the project name is dropped (the header already shows it).
+        const title = (view.projectName || '').trim()
+        nb.blocks
+          .filter((b) => !b.input && !(b.type === 'text-cell-h1' && (b.content || '').trim() === title))
+          .forEach((b, i) => {
+            const node = renderBlock(b)
+            if (node) { node.style.animationDelay = i * 45 + 'ms'; root.append(node) }
+          })
+      }
+
+      function renderBlock(b) {
+        if (/^text-cell-h1$/.test(b.type)) return heading('h2', b.content)
+        if (/^text-cell-h[23]$/.test(b.type)) return heading(b.type.endsWith('2') ? 'h2' : 'h3', b.content)
+        if (b.type === 'markdown') { const s = el('div', 'block'); const m = el('div', 'md'); m.innerHTML = mdInline(b.content); s.append(m); return s }
+        if (b.type === 'agent') return renderAgent(b)
+        // code / sql / other executable blocks: outputs first, source secondary.
+        const s = el('div', 'block')
+        if (b.outputs.length) s.append(renderOutputs(b.outputs))
+        if ((b.content || '').trim()) {
+          const d = el('details', 'src'); const sm = el('summary'); sm.textContent = b.type === 'sql' ? 'SQL' : 'code'
+          const pre = el('pre'); pre.textContent = b.content; d.append(sm, pre); s.append(d)
+        }
+        return b.outputs.length || (b.content || '').trim() ? s : null
+      }
+
+      function heading(tag, text) { const s = el('div', 'block'); const h = el(tag, 'h'); h.textContent = text; s.append(h); return s }
+
+      function renderAgent(b) {
+        const s = el('div', 'block agent')
+        const head = el('div', 'agent-head')
+        head.innerHTML = '<span class="tag">✦ Agent</span><span class="model">precomputed output</span>'
+        s.append(head)
+        const text = b.outputs.map((o) => (o.output_type === 'stream' ? join(o.text) : join(o.data?.['text/plain']))).join('')
+        const out = el('div', 'agent-out'); const pre = el('pre'); pre.textContent = text.trim(); out.append(pre); s.append(out)
+        if ((b.content || '').trim()) {
+          const d = el('details', 'src'); const sm = el('summary'); sm.textContent = 'prompt'
+          const pre = el('pre'); pre.textContent = b.content; d.append(sm, pre); s.append(d)
+        }
+        return s
+      }
+
+      function renderOutputs(outputs) {
+        const wrap = el('div', 'outputs')
+        for (const o of outputs) { const n = renderOutput(o); if (n) wrap.append(n) }
+        return wrap
+      }
+
+      function renderOutput(o) {
+        if (o.output_type === 'stream') { const pre = el('pre', 'stream' + (o.name === 'stderr' ? ' err' : '')); pre.textContent = join(o.text); return pre }
+        if (o.output_type === 'error') { const pre = el('pre', 'stream err'); pre.textContent = (o.traceback ? o.traceback.join('\n') : (o.ename + ': ' + o.evalue)).replace(/\x1b\[[0-9;]*m/g, ''); return pre }
+        const d = o.data || {}
+        if (d['image/png']) { const f = el('figure', 'out'); const img = el('img', 'out'); img.alt = 'Chart'; img.src = 'data:image/png;base64,' + join(d['image/png']).replace(/\s+/g, ''); f.append(img); return f }
+        if (d['text/html']) { const p = el('div', 'panel'); p.append(sandbox(join(d['text/html']))); return p }
+        const pre = el('pre', 'stream'); pre.textContent = join(d['text/plain'] ?? ''); return pre
+      }
+
+      // Shared snapshots are untrusted, so HTML outputs render in a null-origin sandbox (no
+      // allow-same-origin): scripts inside can never reach this page. allow-scripts is used only so
+      // the frame can report its height back for a clean, scrollbar-free fit.
+      function sandbox(html) {
+        const frame = el('iframe', 'htmlout'); frame.setAttribute('sandbox', 'allow-scripts'); frame.title = 'HTML output'; frame.style.height = '60px'
+        const id = 'f' + Math.random().toString(36).slice(2); frame.dataset.id = id
+        frame.srcdoc =
+          '<!doctype html><meta charset="utf-8"><style>:root{color-scheme:light dark}' +
+          'html,body{margin:0}body{font:14px/1.55 ui-sans-serif,-apple-system,"Segoe UI",sans-serif;color:#17151f;padding:2px}' +
+          'table{border-collapse:collapse;font-size:13px;width:100%}th,td{border:1px solid #e3e2ec;padding:6px 12px;text-align:right}th{color:#57546a;font-weight:600}td:first-child,th:first-child{text-align:left}' +
+          '@media(prefers-color-scheme:dark){body{color:#ece9f7}th,td{border-color:#2a2638}th{color:#a9a6bd}}</style>' +
+          html +
+          '<script>const post=()=>parent.postMessage({h:document.documentElement.scrollHeight,id:' + JSON.stringify(id) + '},"*");new ResizeObserver(post).observe(document.documentElement);addEventListener("load",post)<\/script>'
+        return frame
+      }
+      window.addEventListener('message', (e) => {
+        // Only trust height reports from one of our own sandboxed frames: a null-origin sender whose
+        // window matches the iframe named by the id. Anything else (other windows, extensions) is ignored.
+        if (e.origin !== 'null' || !e.data || typeof e.data.h !== 'number') return
+        const f = document.querySelector('iframe[data-id=' + JSON.stringify(e.data.id) + ']')
+        if (f && e.source === f.contentWindow) f.style.height = e.data.h + 2 + 'px'
+      })
+
+      function mdInline(s) {
+        return esc(s)
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, ' ')
+      }
+      function fmtVal(v) { return Array.isArray(v) ? v.join(' → ') : String(v) }
+      function fmtDate(iso) {
+        try { return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return iso }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terminal — Deepnote gallery</title>
+    <style>
+      /* One place in the gallery that ignores the design system on purpose: a terminal has its own,
+         and the whole point of this page is that the same data survives a medium with no pixels. */
+      :root {
+        color-scheme: dark;
+        --bg: #14140f; --fg: #d6d3c4; --dim: #7d7a6b; --accent: #7fb4f0;
+        --good: #86c98a; --warn: #e2c275; --bar: #7fb4f0;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg); min-height: 100vh;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 13px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+      }
+      .term { max-width: 900px; margin: 0 auto; padding: 20px clamp(10px, 3vw, 20px) 60px; }
+      .bar { display: flex; align-items: center; gap: 8px; padding-bottom: 14px; color: var(--dim); font-size: 12px; }
+      .bar .dot { width: 10px; height: 10px; border-radius: 50%; background: #3a3a30; }
+      .bar .dot:first-child { background: #c9584f; }
+      .bar .dot:nth-child(2) { background: #d8a657; }
+      .bar .dot:nth-child(3) { background: #7fa563; }
+      .bar a { margin-left: auto; color: var(--dim); text-decoration: none; }
+      .bar a:hover { color: var(--fg); }
+
+      pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; }
+      .cmd { color: var(--fg); margin-top: 18px; }
+      .cmd::before { content: "$ "; color: var(--good); }
+      .out { color: var(--dim); }
+      .out b { color: var(--fg); font-weight: 400; }
+      .k { color: var(--accent); }
+      .g { color: var(--good); }
+      .w { color: var(--warn); }
+      .rule { color: #33332a; }
+      .cursor { display: inline-block; width: 7px; height: 14px; background: var(--fg); vertical-align: text-bottom; animation: blink 1.05s step-end infinite; }
+      @keyframes blink { 50% { opacity: 0; } }
+      .picker { padding: 40px; text-align: center; color: var(--dim); }
+    </style>
+  </head>
+  <body>
+    <div class="term">
+      <div class="bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span>snapshot.deepnote — 80×24</span>
+        <a href="./">← gallery</a>
+      </div>
+      <div id="root"></div>
+    </div>
+
+    <script src="./snapshot-reader.js"></script>
+    <script type="module">
+      // The snapshot as a plain-text log artifact.
+      //
+      // A terminal cannot show the PNG the notebook plotted — so this page doesn't. It draws the same
+      // revenue comparison out of the dataframe's numbers instead, in block characters. That is the
+      // argument in its bluntest form: the figures are data, and the chart was only ever one way of
+      // saying them. A medium with no pixels loses nothing that matters.
+      import { agentText, filePicker, findDataframe, inputs, inputValue, loadSnapshot, rowLabel, streamText } from './gallery.js'
+
+      const $ = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
+      const root = document.getElementById('root')
+      const money = n => '$' + Math.round(n).toLocaleString('en-US')
+      const BLOCKS = ['▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
+
+      loadSnapshot(render, (msg, show) => filePicker(root, msg, show))
+
+      /** A proportional bar in eighths of a cell — the same trick every CLI chart uses. */
+      function bar(fraction, cells = 28) {
+        const units = Math.max(0, Math.round(fraction * cells * 8))
+        const full = Math.floor(units / 8)
+        const rest = units % 8
+        return '█'.repeat(full) + (rest ? BLOCKS[rest - 1] : '')
+      }
+
+      const cmd = text => { const p = $('pre', 'cmd'); p.textContent = text; root.append(p); }
+      const out = (text, cls = 'out') => { const p = $('pre', cls); p.textContent = text; root.append(p); return p }
+
+      function render(view) {
+        root.replaceChildren()
+
+        cmd('deepnote snapshot info')
+        out([
+          `project     ${view.projectName}`,
+          `notebook    ${view.notebooks[0]?.name ?? '-'}`,
+          `finished    ${view.finishedAt ? new Date(view.finishedAt).toISOString() : '-'}`,
+          `blocks      ${view.notebooks[0]?.blocks.length ?? 0}`,
+        ].join('\n'))
+
+        const params = inputs(view)
+        if (params.length) {
+          cmd('deepnote snapshot inputs')
+          const width = Math.max(...params.map(p => p.name.length))
+          // `min`/`max`/`options` arrive with the input now, so even a terminal can show what a value
+          // was picked from rather than just what it was.
+          out(
+            params
+              .map(p => {
+                const range = p.min != null ? `  [${p.min}–${p.max}]` : Array.isArray(p.options) ? `  [${p.options.length} options]` : ''
+                return `${p.name.padEnd(width)}  ${fmt(p.value)}${range}`
+              })
+              .join('\n')
+          )
+        }
+
+        const stdout = streamText(view)
+        if (stdout) {
+          cmd('deepnote snapshot stdout')
+          out(stdout)
+        }
+
+        const df = findDataframe(view)
+        if (df) {
+          table(df)
+          chart(df, view)
+        } else {
+          cmd('deepnote snapshot table')
+          out('no dataframe output in this snapshot')
+        }
+
+        const readout = agentText(view)
+        if (readout) {
+          cmd('deepnote snapshot agent')
+          out(readout)
+        }
+
+        const done = $('pre', 'cmd')
+        done.append(document.createTextNode(''), $('span', 'cursor'))
+        root.append(done)
+      }
+
+      const fmt = v => (Array.isArray(v) ? v.join(' → ') : typeof v === 'boolean' ? String(v) : String(v ?? ''))
+
+      /** An ASCII table, sized to its widest cell — the dataframe rendered the way `psql` would. */
+      function table(df) {
+        cmd('deepnote snapshot table')
+        const cols = df.columns.filter(c => c.name !== '_deepnote_index_column').map(c => c.name)
+        const head = ['region', ...cols]
+        const body = df.rows.map(r => [rowLabel(r), ...cols.map(c => String(r[c] ?? ''))])
+        const width = head.map((h, i) => Math.max(h.length, ...body.map(r => r[i].length)))
+        const line = (l, m, rr) => l + width.map(w => '─'.repeat(w + 2)).join(m) + rr
+        const row = cells => '│ ' + cells.map((c, i) => (i === 0 ? c.padEnd(width[i]) : c.padStart(width[i]))).join(' │ ') + ' │'
+
+        out([line('┌', '┬', '┐'), row(head), line('├', '┼', '┤'), ...body.map(row), line('└', '┴', '┘')].join('\n'))
+        out(`(${df.row_count ?? df.rows.length} rows)`)
+      }
+
+      /** The chart the notebook drew as a PNG, redrawn from the numbers behind it. */
+      function chart(df, view) {
+        const col = 'Revenue ($k)'
+        const rows = df.rows.filter(r => typeof r[col] === 'number')
+        if (!rows.length) return
+
+        cmd('deepnote snapshot chart --ascii')
+        const max = Math.max(...rows.map(r => r[col]))
+        const width = Math.max(...rows.map(r => rowLabel(r).length))
+        const lines = [...rows]
+          .sort((a, b) => b[col] - a[col])
+          .map(r => `${rowLabel(r).padEnd(width)}  ${bar(r[col] / max).padEnd(29)} ${String(r[col]).padStart(7)}`)
+        out(lines.join('\n'), 'k')
+
+        const revenue = rows.reduce((s, r) => s + r[col], 0) * 1000
+        const months = Number(inputValue(view, 'trailing_months'))
+        const target = Number(inputValue(view, 'target_revenue_k')) * months * 1000
+        if (!Number.isFinite(target) || !target) return
+        const pct = (revenue / target) * 100
+        const p = out('', pct >= 100 ? 'g' : 'w')
+        p.textContent = `\ntotal ${money(revenue)} · target ${money(target)} · ${pct.toFixed(1)}% ${pct >= 100 ? '✓ on track' : '✗ short'}`
+      }
+    </script>
+  </body>
+</html>

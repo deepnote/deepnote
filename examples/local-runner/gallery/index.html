@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gallery — one snapshot, four frontends</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --surface: #fcfcfb; --raised: #ffffff; --line: #e6e5e1;
+        --ink: #1a1a19; --ink-2: #55544e; --ink-3: #86847c; --accent: #2a78d6;
+        --shadow: 0 1px 2px rgba(20, 20, 18, 0.04), 0 12px 32px -18px rgba(20, 20, 18, 0.2);
+        --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --surface: #1a1a19; --raised: #232322; --line: #34342f; --ink: #f2f1ec; --ink-2: #a8a69c; --ink-3: #78766d; --accent: #3987e5; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 34px -18px rgba(0,0,0,.8); }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--surface); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+      .wrap { max-width: 900px; margin: 0 auto; padding: 56px clamp(16px, 4vw, 24px) 72px; }
+      h1 { font-size: 1.6rem; letter-spacing: -0.025em; margin: 0; font-weight: 660; }
+      .lede { color: var(--ink-2); margin: 10px 0 4px; font-size: 0.95rem; max-width: 60ch; line-height: 1.6; }
+      .src { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-3); margin-top: 10px; }
+
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 28px; }
+      a.card { display: block; text-decoration: none; color: inherit; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); transition: transform .1s, border-color .15s; }
+      a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
+      a.card h2 { font-size: 0.95rem; margin: 0; font-weight: 620; }
+      a.card p { font-size: 0.8rem; color: var(--ink-3); margin: 5px 0 0; line-height: 1.5; }
+
+      /* Each thumbnail is drawn in CSS — a hint of the layout, not a screenshot to keep in sync. */
+      .thumb { height: 74px; border-radius: 7px; border: 1px solid var(--line); margin-bottom: 12px; padding: 7px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; background: var(--surface); }
+      .thumb i { display: block; background: var(--line); border-radius: 2px; }
+      .t-dash .row { display: flex; gap: 4px; }
+      .t-dash .row i { height: 15px; flex: 1; }
+      .t-dash .wide { height: 22px; background: var(--accent); opacity: .25; }
+      .t-dash .lines i { height: 4px; margin-top: 3px; }
+      .t-exp i { height: 6px; }
+      .t-exp .head { display: flex; gap: 3px; align-items: flex-end; height: 18px; }
+      .t-exp .head i { width: 4px; background: var(--accent); opacity: .55; border-radius: 1px 1px 0 0; }
+      .t-deck { align-items: center; justify-content: center; }
+      .t-deck i { height: 13px; width: 60%; background: var(--accent); opacity: .3; }
+      .t-deck .sm { height: 5px; width: 34%; }
+      .t-term { background: #14140f; gap: 3px; }
+      .t-term i { height: 4px; background: #3c3a30; }
+      .t-term .p { width: 42%; background: #6f9d5f; }
+      .t-term .b { background: #4a6f9c; width: 72%; }
+
+      .foot { margin-top: 30px; font-size: 0.8rem; color: var(--ink-3); line-height: 1.6; max-width: 62ch; }
+      .foot code { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-2); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>One snapshot, four frontends</h1>
+      <p class="lede">
+        The same <code>.deepnote</code> file, read four ways. Each page calls the same two library
+        functions and then disagrees completely about what a notebook run looks like.
+      </p>
+      <p class="src">snapshot-showcase.snapshot.deepnote · 17 blocks · rendered by DeepnoteSnapshot.parseSnapshot()</p>
+
+      <div class="grid">
+        <a class="card" href="./dashboard">
+          <div class="thumb t-dash">
+            <div class="row"><i></i><i></i><i></i></div>
+            <i class="wide"></i>
+            <div class="lines"><i></i><i></i></div>
+          </div>
+          <h2>Dashboard →</h2>
+          <p>The snapshot as product-ready metrics. Recomputes its own KPIs; no notebook in sight.</p>
+        </a>
+
+        <a class="card" href="./explorer">
+          <div class="thumb t-exp">
+            <div class="head"><i style="height:60%"></i><i style="height:100%"></i><i style="height:35%"></i><i style="height:80%"></i><i style="height:20%"></i></div>
+            <i></i><i></i><i></i><i></i>
+          </div>
+          <h2>Explorer →</h2>
+          <p>The snapshot as a structured dataset. Sortable columns, distributions, dtypes.</p>
+        </a>
+
+        <a class="card" href="./deck">
+          <div class="thumb t-deck">
+            <i></i>
+            <i class="sm"></i>
+          </div>
+          <h2>Deck →</h2>
+          <p>The snapshot as presentation data. One idea per slide, click or arrow keys, projector-sized.</p>
+        </a>
+
+        <a class="card" href="./terminal">
+          <div class="thumb t-term">
+            <i class="p"></i><i></i><i class="b"></i><i></i><i class="b" style="width:56%"></i>
+          </div>
+          <h2>Terminal →</h2>
+          <p>The snapshot as a plain-text log. ASCII bars instead of the PNG — same numbers.</p>
+        </a>
+      </div>
+
+      <p class="foot">
+        Why this exists, what the library does and doesn’t hand a browser, and the one gap building
+        these four exposed: see <code>README.md</code>.
+      </p>
+    </div>
+  </body>
+</html>

@@ -32,8 +32,18 @@ describe('deepnote-api', () => {
       expect(parseApiErrorMessage('', 'fallback message')).toBe('fallback message')
     })
 
-    it('returns raw body for JSON without error field', () => {
-      const body = JSON.stringify({ message: 'something else' })
+    it('extracts message from JSON response (the /v2 API answers with that key)', () => {
+      const body = JSON.stringify({ message: 'Notebook not found' })
+      expect(parseApiErrorMessage(body, 'fallback')).toBe('Notebook not found')
+    })
+
+    it('prefers error over message when a response carries both', () => {
+      const body = JSON.stringify({ error: 'from v1', message: 'from v2' })
+      expect(parseApiErrorMessage(body, 'fallback')).toBe('from v1')
+    })
+
+    it('returns raw body for JSON with neither field', () => {
+      const body = JSON.stringify({ detail: 'something else' })
       expect(parseApiErrorMessage(body, 'fallback')).toBe(body)
     })
 
