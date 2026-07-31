@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deepnote local-runner · run app</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfbfd;
+        --surface: #ffffff;
+        --surface-2: #f5f5f9;
+        --ink: #17151f;
+        --ink-2: #57546a;
+        --ink-3: #8b889b;
+        --line: #e9e8f1;
+        --line-2: #f1f0f7;
+        --accent: #5b3df5;
+        --accent-soft: #efecff;
+        --pos: #0f8f7f;
+        --neg: #d6425f;
+        --shadow: 0 1px 2px rgba(20, 18, 40, 0.04), 0 10px 30px -16px rgba(20, 18, 40, 0.16);
+        --r: 8px;
+        --r-lg: 12px;
+        --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0c0b12;
+          --surface: #141220;
+          --surface-2: #1b1828;
+          --ink: #ece9f7;
+          --ink-2: #a9a6bd;
+          --ink-3: #726f86;
+          --line: #262233;
+          --line-2: #1d1a29;
+          --accent: #a78bfa;
+          --accent-soft: #211b3b;
+          --pos: #35d0b6;
+          --neg: #ff6b86;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 34px -18px rgba(0, 0, 0, 0.7);
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0; background: var(--bg); color: var(--ink);
+        font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased;
+        font-variant-numeric: tabular-nums;
+      }
+      .topbar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 20px; height: 52px; border-bottom: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface) 82%, transparent);
+        backdrop-filter: saturate(1.2) blur(8px); position: sticky; top: 0; z-index: 5;
+      }
+      .brand { display: flex; align-items: center; gap: 9px; font-weight: 640; letter-spacing: -0.01em; font-size: 0.95rem; }
+      .brand .mark { width: 15px; height: 15px; border-radius: 4px; background: var(--accent); rotate: 45deg; }
+      .brand .dim { color: var(--ink-3); font-weight: 500; }
+      .badge {
+        font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; color: var(--accent);
+        background: var(--accent-soft); padding: 4px 10px; border-radius: 999px;
+        display: inline-flex; align-items: center; gap: 6px;
+      }
+      .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+      .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: calc(100% - 52px); }
+      @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+      .inputs-panel {
+        border-right: 1px solid var(--line); padding: 22px 20px 28px; background: var(--surface);
+        display: flex; flex-direction: column;
+      }
+      @media (max-width: 820px) { .inputs-panel { border-right: 0; border-bottom: 1px solid var(--line); } }
+      .panel-head { margin-bottom: 16px; }
+      .panel-head h2 { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin: 0; font-weight: 650; }
+      .nb-name { display: block; font-size: 1.05rem; font-weight: 620; letter-spacing: -0.01em; color: var(--ink); margin-top: 5px; }
+
+      .field { margin-bottom: 15px; animation: rise 0.45s both; }
+      .field label { display: flex; align-items: baseline; gap: 8px; font-size: 0.82rem; font-weight: 560; margin-bottom: 7px; color: var(--ink-2); }
+      .field .var { font-family: var(--mono); font-size: 0.68rem; color: var(--accent); font-weight: 500; margin-left: auto; opacity: 0.85; }
+      input[type="text"], input[type="date"], textarea, select {
+        width: 100%; font: inherit; font-size: 0.88rem; color: var(--ink); background: var(--bg);
+        border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      textarea { resize: vertical; min-height: 62px; line-height: 1.45; }
+      input:focus, textarea:focus, select:focus {
+        outline: none; border-color: var(--accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+      }
+      .dates { display: flex; align-items: center; gap: 8px; }
+      .dates span { color: var(--ink-3); font-size: 0.8rem; }
+      .range { display: flex; align-items: center; gap: 12px; }
+      input[type="range"] { flex: 1; accent-color: var(--accent); height: 4px; }
+      .range .val { font-family: var(--mono); font-weight: 600; color: var(--accent); min-width: 3.5ch; text-align: right; font-size: 0.85rem; }
+      .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+      .switch input { position: absolute; opacity: 0; }
+      .track { width: 38px; height: 22px; border-radius: 999px; background: var(--line); position: relative; transition: background 0.18s; flex: none; }
+      .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform 0.18s; }
+      .switch input:checked + .track { background: var(--accent); }
+      .switch input:checked + .track::after { transform: translateX(16px); }
+      .switch input:focus-visible + .track { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+      .switch .txt { font-size: 0.84rem; color: var(--ink-2); }
+
+      .actions { display: flex; gap: 8px; margin-top: 6px; }
+      .btn { font: inherit; font-weight: 600; font-size: 0.86rem; border-radius: var(--r); padding: 9px 16px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 7px; transition: transform 0.08s, filter 0.15s, background 0.15s, border-color 0.15s; }
+      .btn:active { transform: translateY(1px); }
+      .btn:disabled { opacity: 0.5; cursor: default; }
+      .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 1px 2px rgba(91,61,245,.3); flex: 1; justify-content: center; }
+      .btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+      .btn.ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
+      .btn.ghost:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+      .status { font-size: 0.8rem; color: var(--ink-3); margin-top: 13px; min-height: 1.2em; display: flex; align-items: center; gap: 7px; }
+      .status.ok { color: var(--pos); } .status.err { color: var(--neg); } .status a { color: var(--accent); }
+      .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp 0.7s linear infinite; }
+      @keyframes sp { to { transform: rotate(360deg); } }
+
+      /* Cloud runs — pinned to the bottom of the inputs panel (which is a flex column). */
+      .runs { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
+      .runs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+      .runs-head h2 { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin: 0; font-weight: 650; }
+      .runs-head a { font-size: 0.72rem; color: var(--accent); text-decoration: none; }
+      .runs-head a:hover { text-decoration: underline; }
+      .runs ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+      .run { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; font-size: 0.78rem; color: var(--ink-2); width: 100%; font-family: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+      .run:hover { background: var(--surface-2); }
+      .run.on { background: var(--accent-soft); color: var(--ink); }
+      .run:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .run .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--ink-3); }
+      .run .dot.success { background: var(--pos); }
+      .run .dot.failed { background: var(--neg); }
+      .run .dot.live { background: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
+      .run .when { color: var(--ink-3); }
+      .run .dur { margin-left: auto; font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); }
+      @keyframes pulse { 50% { opacity: 0.3; } }
+
+      .results { padding: 26px clamp(18px, 4vw, 44px) 60px; overflow: auto; }
+      .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+      .results-head h1 { font-size: 1.35rem; letter-spacing: -0.02em; margin: 0; font-weight: 660; }
+      .caption { color: var(--ink-3); font-size: 0.85rem; font-family: var(--mono); }
+      .grid { display: grid; gap: 16px; margin-top: 22px; }
+      .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 16px 18px; animation: rise 0.5s both; }
+      .card.flush { padding: 14px; }
+      pre { font-family: var(--mono); font-size: 0.82rem; white-space: pre-wrap; margin: 0; color: var(--ink-2); }
+      pre.err { color: var(--neg); }
+      img.out { max-width: 100%; border-radius: var(--r); display: block; }
+      iframe.htmlout { width: 100%; border: 0; background: transparent; display: block; }
+      .empty { display: flex; min-height: 55vh; align-items: center; justify-content: center; flex-direction: column; text-align: center; color: var(--ink-3); gap: 6px; }
+      .empty .glyph { width: 42px; height: 42px; border-radius: 10px; border: 1.5px dashed var(--line); display: grid; place-items: center; color: var(--accent); margin-bottom: 6px; font-size: 1.1rem; }
+      .empty b { color: var(--ink-2); font-weight: 600; }
+
+      @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand"><span class="mark"></span>Deepnote <span class="dim">local-runner</span></div>
+      <div class="badge"><span class="dot"></span>Local kernel</div>
+    </div>
+
+    <div class="layout">
+      <aside class="inputs-panel">
+        <div class="panel-head">
+          <h2>Inputs</h2>
+          <span class="nb-name" id="nb-name">Loading…</span>
+        </div>
+        <div id="inputs"></div>
+        <div class="actions">
+          <button id="run" class="btn primary"><span id="spin"></span>Run</button>
+          <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
+        </div>
+        <div class="status" id="status"></div>
+
+        <div class="runs" id="runs-panel" hidden>
+          <div class="runs-head">
+            <h2>Cloud runs</h2>
+            <a id="runs-link" href="#" target="_blank" rel="noopener" hidden>Open in Deepnote →</a>
+          </div>
+          <ul id="runs-list"></ul>
+        </div>
+      </aside>
+
+      <section class="results">
+        <div class="results-head">
+          <h1 id="r-title">Dashboard</h1>
+          <span class="caption" id="r-caption"></span>
+        </div>
+        <div id="output">
+          <div class="empty">
+            <div class="glyph">▷</div>
+            <b>Edit the inputs, then Run.</b>
+            <div>The notebook executes in a local Python kernel and its output appears here.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module">
+      const $ = (s) => document.querySelector(s)
+      const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
+      const state = {}
+
+      let lastRuns = null      // the most recent /api/cloud-runs payload, so the list can re-render
+      let shownRunId = null    // the past run on the canvas, if any (highlighted in the sidebar)
+      // Bumped by everything that claims the results canvas. Several fetches can be in flight at
+      // once — the history loading on open, a run, a click on a past run — and they finish in
+      // whatever order they like, so each checks it still owns the canvas before painting. Zero also
+      // means "nothing has claimed it yet", which is what gates opening on the latest run.
+      let displayGen = 0
+
+      try {
+        const res = await fetch('/api/info')
+        if (!res.ok) throw new Error('HTTP ' + res.status)
+        const info = await res.json()
+        $('#nb-name').textContent = info.notebook
+        $('#r-title').textContent = info.notebook
+        info.inputs.forEach((inp, i) => {
+          state[inp.variableName] = inp.value
+          const field = el('div', 'field')
+          field.style.animationDelay = `${i * 40}ms`
+          const label = el('label')
+          label.append(document.createTextNode(inp.label || inp.variableName))
+          const chip = el('span', 'var'); chip.textContent = inp.variableName; label.append(chip)
+          field.append(label, control(inp))
+          $('#inputs').append(field)
+        })
+      } catch (e) {
+        $('#nb-name').textContent = 'Failed to load'
+        setStatus('Could not load the notebook — is the server running? (' + e.message + ')', 'err')
+      }
+
+      function control(inp) {
+        if (inp.type === 'input-slider') {
+          state[inp.variableName] = Number(inp.value)
+          const row = el('div', 'range')
+          const range = el('input'); range.type = 'range'
+          range.min = inp.min ?? 0; range.max = inp.max ?? 100; range.step = inp.step ?? 1; range.value = inp.value
+          const out = el('span', 'val'); out.textContent = inp.value
+          range.oninput = () => { state[inp.variableName] = Number(range.value); out.textContent = range.value }
+          row.append(range, out); return row
+        }
+        if (inp.type === 'input-checkbox') {
+          const wrap = el('label', 'switch')
+          const box = el('input'); box.type = 'checkbox'; box.checked = inp.value === true
+          const track = el('span', 'track'); const txt = el('span', 'txt'); txt.textContent = box.checked ? 'On' : 'Off'
+          box.onchange = () => { state[inp.variableName] = box.checked; txt.textContent = box.checked ? 'On' : 'Off' }
+          wrap.append(box, track, txt); return wrap
+        }
+        if (inp.type === 'input-select') {
+          const sel = el('select'); sel.multiple = !!inp.multiple
+          for (const opt of inp.options ?? []) {
+            const o = el('option'); o.value = opt; o.textContent = opt
+            o.selected = Array.isArray(inp.value) ? inp.value.includes(opt) : inp.value === opt
+            sel.append(o)
+          }
+          sel.onchange = () => { state[inp.variableName] = inp.multiple ? [...sel.selectedOptions].map((o) => o.value) : sel.value }
+          return sel
+        }
+        if (inp.type === 'input-textarea') {
+          const ta = el('textarea'); ta.rows = 3; ta.value = inp.value ?? ''
+          ta.oninput = () => { state[inp.variableName] = ta.value }; return ta
+        }
+        if (inp.type === 'input-date') {
+          const d = el('input'); d.type = 'date'; d.value = inp.value ?? ''
+          d.oninput = () => { state[inp.variableName] = d.value }; return d
+        }
+        if (inp.type === 'input-date-range') {
+          const wrap = el('div', 'dates')
+          const v = Array.isArray(inp.value) ? inp.value : ['', '']
+          const a = el('input'); a.type = 'date'; a.value = v[0] ?? ''
+          const arrow = el('span'); arrow.textContent = '→'
+          const b = el('input'); b.type = 'date'; b.value = v[1] ?? ''
+          const sync = () => { state[inp.variableName] = [a.value, b.value] }
+          a.oninput = sync; b.oninput = sync
+          wrap.append(a, arrow, b); return wrap
+        }
+        const text = el('input'); text.type = 'text'; text.value = inp.value ?? ''
+        text.oninput = () => { state[inp.variableName] = text.value }; return text
+      }
+
+      $('#run').onclick = () => go('/api/run', '#spin', 'Running in a local kernel…')
+      $('#run-cloud').onclick = () => go('/api/run-cloud', '#spin-cloud', 'Running in Deepnote Cloud…')
+
+      loadCloudRuns()
+
+      // The notebook's run history in Deepnote — including runs started from the Deepnote UI, not
+      // just this page. Silent on failure: no token (or a notebook not in Deepnote yet) is a normal
+      // state for this demo, and the server already answers with an empty list.
+      async function loadCloudRuns() {
+        try {
+          const res = await fetch('/api/cloud-runs')
+          if (!res.ok) return
+          renderRuns(await res.json())
+        } catch {}
+      }
+
+      function renderRuns(data) {
+        lastRuns = data
+        const { runs, viewUrl } = data
+        const panel = $('#runs-panel')
+        if (!runs?.length) { panel.hidden = true; return }
+        panel.hidden = false
+
+        const link = $('#runs-link')
+        link.hidden = !viewUrl
+        if (viewUrl) link.href = viewUrl
+
+        const list = $('#runs-list')
+        list.innerHTML = ''
+        for (const run of runs.slice(0, 8)) {
+          const row = el('button', `run${run.runId === shownRunId ? ' on' : ''}`)
+          row.type = 'button'
+          const dot = el('span', `dot ${dotClass(run.status)}`)
+          const name = el('span'); name.textContent = label(run.status)
+          const when = el('span', 'when'); when.textContent = ago(run.createdAt)
+          const dur = el('span', 'dur'); dur.textContent = took(run)
+          row.append(dot, name, when, dur)
+          row.onclick = () => showRun(run.runId)
+          const li = el('li')
+          li.append(row)
+          list.append(li)
+        }
+
+        // Opening on "nothing ran yet" while a finished run sits in the sidebar is silly — its
+        // outputs are a fetch away. Show the newest one, unless a click got in first while this
+        // list was still loading; that run is the one the user asked for.
+        if (displayGen === 0) {
+          const latest = runs.find((r) => r.status === 'success')
+          if (latest) showRun(latest.runId)
+        }
+      }
+
+      // Render a past run's outputs from its snapshot, without re-running it.
+      async function showRun(runId) {
+        const gen = ++displayGen
+        try {
+          const res = await fetch(`/api/cloud-runs/${encodeURIComponent(runId)}`)
+          const data = await res.json()
+          // Superseded while this was in flight — say nothing rather than paint over newer output.
+          if (gen !== displayGen) return
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          shownRunId = runId
+          render(data)
+          if (lastRuns) renderRuns(lastRuns) // move the highlight
+          const when = ago(lastRuns?.runs.find((r) => r.runId === runId)?.createdAt)
+          // A failed run has no outputs to show, so saying "showing a run" in green over an empty
+          // canvas reads as success. Report the failure instead.
+          if (data.success === false) {
+            setStatus(`That run ${label(data.status).toLowerCase()} ${when}${data.error ? ': ' + data.error : ''}`, 'err')
+          } else {
+            setStatus(`Showing a cloud run from ${when}`, 'ok')
+          }
+        } catch (e) {
+          if (gen === displayGen) setStatus(cap(e.message), 'err')
+        }
+      }
+
+      const dotClass = (s) =>
+        s === 'success' ? 'success' : ['error', 'internal_error', 'stopped'].includes(s) ? 'failed' : 'live'
+
+      // 'internal_error' → 'Internal error'
+      const label = (s) => cap(String(s).replace(/_/g, ' '))
+
+      function ago(iso) {
+        if (!iso) return ''
+        const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
+        if (secs < 60) return 'just now'
+        if (secs < 3600) return `${Math.floor(secs / 60)}m ago`
+        if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`
+        return `${Math.floor(secs / 86400)}d ago`
+      }
+
+      function took({ createdAt, completedAt }) {
+        if (!completedAt || !createdAt) return ''
+        const secs = Math.round((new Date(completedAt) - new Date(createdAt)) / 1000)
+        return secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`
+      }
+
+      async function go(endpoint, spinSel, msg) {
+        // Claimed up front, not on arrival: this is the newest thing the user asked for, so a
+        // history fetch still in flight from page load must not land on top of it.
+        const gen = ++displayGen
+        $('#run').disabled = true; $('#run-cloud').disabled = true
+        $(spinSel).className = 'spin'; setStatus(msg)
+        try {
+          const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: state }) })
+          const data = await res.json()
+          if (gen !== displayGen) return
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          render(data)
+          // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
+          shownRunId = null
+          const where = endpoint.includes('cloud') ? 'cloud' : 'local'
+
+          // A failed run is still worth rendering: the blocks that ran before it broke produced real
+          // output, and throwing that away to show a bare error string loses the half of the story
+          // that says how far it got.
+          if (data.success === false) {
+            const why = cap(data.error || `The run failed (${data.status})`)
+            if (data.viewUrl) statusLink(`${why} — `, data.viewUrl, 'open the run in Deepnote →', 'err')
+            else setStatus(why, 'err')
+            return
+          }
+
+          // `created` means the notebook wasn't in Deepnote and this run made it — worth saying once,
+          // since it explains why the first cloud run is slower than the ones after it.
+          const what = data.created ? `Created and ran in ${where}` : `Ran in ${where}`
+          if (data.viewUrl) statusLink(`${what} — `, data.viewUrl, 'view in Deepnote →')
+          else setStatus(`Ran ${data.summary?.executedBlocks ?? ''} blocks in ${where}`.replace(/\s+/g, ' ').trim(), 'ok')
+        } catch (e) {
+          if (gen === displayGen) setStatus(cap(e.message), 'err')
+        } finally {
+          // The buttons re-enable either way — a superseded run still released them.
+          $('#run').disabled = false; $('#run-cloud').disabled = false; $(spinSel).className = ''
+          // A cloud run adds to the history — including a failed one, which is worth seeing.
+          if (endpoint.includes('cloud')) loadCloudRuns()
+        }
+      }
+
+      function setStatus(text, cls = '') { const s = $('#status'); s.textContent = text; s.className = 'status ' + cls }
+      function statusLink(text, href, label, cls = 'ok') {
+        const s = $('#status'); s.className = 'status ' + cls; s.textContent = text
+        const a = el('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label; s.append(a)
+      }
+
+      function render(data) {
+        const root = $('#output'); root.innerHTML = ''
+        const withOut = data.outputs.filter((b) => b.outputs.length)
+        if (!withOut.length) { root.innerHTML = '<div class="empty"><b>No output.</b></div>'; return }
+        const grid = el('div', 'grid')
+        withOut.forEach((block, i) => {
+          const card = el('div', 'card'); card.style.animationDelay = `${i * 60}ms`
+          let onlyMedia = true
+          for (const o of block.outputs) {
+            const node = renderOutput(o)
+            if (!node) continue
+            card.append(node)
+            if (node.tagName !== 'IMG' && !node.classList.contains('htmlout')) onlyMedia = false
+          }
+          if (onlyMedia) card.classList.add('flush')
+          grid.append(card)
+        })
+        root.append(grid)
+      }
+
+      function renderOutput(o) {
+        if (o.output_type === 'stream') { const pre = el('pre', o.name === 'stderr' ? 'err' : ''); pre.textContent = join(o.text); return pre }
+        if (o.output_type === 'error') { const pre = el('pre', 'err'); pre.textContent = (o.traceback ? o.traceback.join('\n') : `${o.ename}: ${o.evalue}`).replace(/\x1b\[[0-9;]*m/g, ''); return pre }
+        const d = o.data || {}
+        if (d['image/png']) { const img = el('img', 'out'); img.alt = 'Chart output'; img.src = 'data:image/png;base64,' + join(d['image/png']).replace(/\s+/g, ''); return img }
+        if (d['text/html']) return sandbox(join(d['text/html']))
+        const pre = el('pre'); pre.textContent = join(d['text/plain'] ?? ''); return pre
+      }
+
+      // HTML outputs render in a null-origin sandbox (no allow-same-origin), so they can never touch
+      // this page. `allow-scripts` is used only to let the frame report its own height for a clean fit.
+      function sandbox(html) {
+        const frame = el('iframe', 'htmlout'); frame.setAttribute('sandbox', 'allow-scripts'); frame.title = 'HTML output'; frame.style.height = '60px'
+        const id = 'f' + Math.random().toString(36).slice(2); frame.dataset.id = id
+        frame.srcdoc =
+          '<!doctype html><meta charset="utf-8"><style>:root{color-scheme:light dark}' +
+          'html,body{margin:0}body{font:14px/1.5 ui-sans-serif,-apple-system,"Segoe UI",sans-serif;color:#17151f;padding:2px}' +
+          'table{border-collapse:collapse;font-size:13px}th,td{border:1px solid #e3e2ec;padding:5px 11px;text-align:right}th{color:#57546a;font-weight:600}td:first-child,th:first-child{text-align:left}' +
+          '@media(prefers-color-scheme:dark){body{color:#ece9f7}th,td{border-color:#2a2638}th{color:#a9a6bd}}</style>' +
+          html +
+          '<script>const post=()=>parent.postMessage({h:document.documentElement.scrollHeight,id:' + JSON.stringify(id) + '},"*");new ResizeObserver(post).observe(document.documentElement);addEventListener("load",post)<\/script>'
+        return frame
+      }
+      window.addEventListener('message', (e) => {
+        // Only trust height reports from one of our own sandboxed frames: a null-origin sender whose
+        // window matches the iframe named by the id. Anything else (other windows, extensions) is ignored.
+        if (e.origin !== 'null' || !e.data || typeof e.data.h !== 'number') return
+        const f = document.querySelector(`iframe[data-id=${JSON.stringify(e.data.id)}]`)
+        if (f && e.source === f.contentWindow) f.style.height = e.data.h + 2 + 'px'
+      })
+
+      const join = (t) => (Array.isArray(t) ? t.join('') : t ?? '')
+      const cap = (s) => (s ? String(s)[0].toUpperCase() + String(s).slice(1) : s)
+    </script>
+  </body>
+</html>
