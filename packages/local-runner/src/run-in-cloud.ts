@@ -16,7 +16,6 @@ import {
   triggerNotebookRun,
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
-import { applyInputOverrides } from './apply-input-overrides'
 import {
   buildViewUrl,
   DEFAULT_CLOUD_API_URL,
@@ -139,6 +138,12 @@ export async function runInCloud(
     // before either can act on `notebookNameFor`'s fall back to the first notebook.
     const localId = localNotebookId(file, options.notebookId)
 
+    // Before the coordinator, not inside it: `blockIds` is this run's alone, and a typo in it is a
+    // fact about this call that can be settled from the local file. Finding out inside a shared
+    // resolution would fail whichever concurrent schedule happened to join it — a valid schedule
+    // rejected by somebody else's bad argument.
+    assertBlocksAreInTarget(options.blockIds, blocksOfNotebook(file, localId))
+
     const notebookName = notebookNameFor(file, localId)
     const target = await coordinateCloudNotebook(
       {
@@ -167,14 +172,7 @@ export async function runInCloud(
         // Not in Deepnote yet — create it there and run it, without leaving this call. The
         // coordinator makes the lookup + create atomic with scheduleInCloud and other runs.
         const project = await findProject(baseUrl, token, file.project.name)
-        const createdTarget = await createFromFile(
-          baseUrl,
-          token,
-          file,
-          { notebookId: localId, inputs },
-          options,
-          project
-        )
+        const createdTarget = await createFromFile(baseUrl, token, file, { notebookId: localId }, options, project)
         return { ...createdTarget, created: true }
       }
     )
@@ -294,9 +292,15 @@ async function fetchSnapshotSettling(
  * `target.notebookId` names — by position, never by falling back to the first, since running the
  * wrong notebook is worse than not running.
  *
- * Input overrides are baked into the created blocks, scoped to the target notebook so a same-named
- * input in another notebook is left alone. Blocks are created in `sortingKey` order, which is both
- * the order the engine runs them in and what maps a source block onto its new cloud id.
+ * What is created is the file as it stands — no caller's input overrides baked in. This operation
+ * is shared: a run and a schedule racing for the same missing notebook resolve through one create
+ * (see `coordinateCloudNotebook`), so anything one caller wrote into it would become everyone
+ * else's too — a schedule joining a run would take that run's arguments as its recurring defaults.
+ * A run still executes with its overrides; it passes them to `triggerNotebookRun`, where they
+ * belong to that run rather than to the notebook.
+ *
+ * Blocks are created in `sortingKey` order, which is both the order the engine runs them in and
+ * what maps a source block onto its new cloud id.
  *
  * For a new project, every notebook of the file is created so notebook-function calls remain
  * complete. For an existing project, only the missing target is added and references to exact-name
@@ -306,15 +310,12 @@ export async function createFromFile(
   baseUrl: string,
   token: string,
   file: DeepnoteFile,
-  target: { notebookId: string; inputs: Record<string, unknown> },
+  target: { notebookId: string },
   options: RunInCloudOptions,
   destination?: FoundProject
 ): Promise<{ notebookId: string; projectId: string; blockIds: Map<string, string> }> {
-  // Bake the overrides into a copy, so the caller's file is untouched.
+  // A copy, so nothing below can reach the caller's file through the specs it builds.
   const toCreate: DeepnoteFile = structuredClone(file)
-  if (Object.keys(target.inputs).length > 0) {
-    applyInputOverrides(toCreate, target.inputs, { notebookId: target.notebookId })
-  }
 
   // Sorted once and reused below: `createProject` returns block ids in the order it was given the
   // blocks, so this same ordering is what maps a source block onto its new cloud id.
@@ -397,10 +398,23 @@ async function addNotebookToExistingProject(
     rewriteBlock: (block: BlockSpec, notebookIds: ReadonlyMap<string, string>) => BlockSpec
   }
 ): Promise<Awaited<ReturnType<typeof addNotebooksToProject>>> {
+  const referenced = referencedNotebookIds(file, targetIndex)
   const existingNotebookIds = new Map<string, string>()
   for (const [index, notebook] of file.project.notebooks.entries()) {
     if (index === targetIndex) {
       continue
+    }
+    // The `.deepnote` schema allows two local notebooks to share a name, and matching by name maps
+    // both onto whichever cloud notebook comes first. For a notebook nobody calls that is merely
+    // unused; for one a notebook-function block names, it silently runs the wrong notebook — so
+    // refuse rather than pick. The fresh-project path already refuses duplicate names outright.
+    if (referenced.has(notebook.id) && sharesNameWithSibling(file, index)) {
+      throw new Error(
+        `runInCloud: cannot add notebook "${file.project.notebooks[targetIndex].name}" to the existing ` +
+          `project because its notebook-function block calls "${notebook.name}", and this file has more ` +
+          'than one notebook by that name — which of them the call means cannot be determined. Rename ' +
+          'them so each is unique.'
+      )
     }
     const existing = destination.notebooks.find(candidate => candidate.name === notebook.name)
     if (existing) {
@@ -413,6 +427,30 @@ async function addNotebookToExistingProject(
     ...options,
     existingNotebookIds,
   })
+}
+
+/** The blocks of one local notebook, for checks that must run before anything is created. */
+function blocksOfNotebook(file: DeepnoteFile, notebookId: string): DeepnoteBlock[] {
+  return file.project.notebooks.find(notebook => notebook.id === notebookId)?.blocks ?? []
+}
+
+/** Local notebook ids the target's notebook-function blocks call, excluding the target itself. */
+function referencedNotebookIds(file: DeepnoteFile, targetIndex: number): Set<string> {
+  const target = file.project.notebooks[targetIndex]
+  const referenced = new Set<string>()
+  for (const block of target.blocks) {
+    const referencedId = (block.metadata as Record<string, unknown> | undefined)?.function_notebook_id
+    if (typeof referencedId === 'string' && referencedId !== target.id) {
+      referenced.add(referencedId)
+    }
+  }
+  return referenced
+}
+
+/** True when another notebook in the file carries the same name as the one at `index`. */
+function sharesNameWithSibling(file: DeepnoteFile, index: number): boolean {
+  const { name } = file.project.notebooks[index]
+  return file.project.notebooks.some((candidate, i) => i !== index && candidate.name === name)
 }
 
 /**

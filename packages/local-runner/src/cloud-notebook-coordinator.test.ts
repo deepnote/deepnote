@@ -152,6 +152,13 @@ describe('cloud notebook creation coordination', () => {
     expect(cloudMock.createProject).toHaveBeenCalledOnce()
     expect(cloudMock.findProject).toHaveBeenCalledOnce()
     expect(cloudMock.findNotebook).toHaveBeenCalledOnce()
+
+    // The shared create is neutral whichever caller reached it first. The run's `audience` override
+    // travels with the run below, and never becomes the schedule's recurring default — which is the
+    // whole reason two operations are allowed to share one create at all.
+    const createdBlocks = cloudMock.createProject.mock.calls[0][2].notebooks[0].blocks
+    const createdInput = createdBlocks.find((block: { type: string }) => block.type === 'input-text')
+    expect(createdInput?.metadata).toMatchObject({ deepnote_variable_value: 'Everyone' })
     expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith('https://api.deepnote.com', 'token', {
       notebookId: 'notebook-cloud',
       inputs: { audience: 'Leadership' },

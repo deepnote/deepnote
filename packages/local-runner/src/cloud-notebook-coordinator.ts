@@ -27,6 +27,11 @@ const projectTails = new Map<string, Promise<void>>()
  * project are serialized so the second lookup sees the project created by the first instead of
  * racing it into a duplicate project.
  *
+ * Sharing a resolution is only safe because what it creates is neutral — the file's own content,
+ * with no caller's one-off state baked in (see `createFromFile`). A resolver that wrote the first
+ * caller's input overrides would hand them to everyone who joined it, and a schedule that joined a
+ * run would inherit that run's arguments as its recurring defaults.
+ *
  * The token is part of the ephemeral key so two authenticated workspaces cannot share state. Keys
  * are removed as soon as their operation settles.
  */
