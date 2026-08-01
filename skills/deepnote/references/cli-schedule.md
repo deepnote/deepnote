@@ -24,16 +24,20 @@ deepnote schedule report.deepnote --cron "0 8 * * 1-5"
 Friendly daily, weekly, and monthly schedules default to `09:00`. `--timezone` accepts an IANA name
 such as `Europe/London`; otherwise the CLI uses the system timezone.
 
+`--hourly` runs at the minute the schedule was created, not at `:00`, so schedules created at
+different times spread across the hour instead of all firing on the same execution spike. Pass
+`--at :15` (or `--at 15`) to pin a specific minute.
+
 ## Options
 
 | Option                  | Meaning                                                           |
 | ----------------------- | ----------------------------------------------------------------- |
-| `--hourly`              | Run at the start of every hour                                    |
+| `--hourly`              | Run every hour, at the creation minute unless `--at` sets one     |
 | `--daily`               | Run once per day                                                  |
 | `--weekly <day>`        | Run on a weekday (full names and three-letter abbreviations work) |
 | `--monthly <day>`       | Run on day 1-31 of each month                                     |
 | `--cron <expression>`   | Five-field cron expression                                        |
-| `--at <HH:mm>`          | Time for daily, weekly, or monthly schedules                      |
+| `--at <HH:mm>`          | Time for daily, weekly, or monthly schedules; minute for hourly   |
 | `--timezone <timezone>` | IANA timezone                                                     |
 | `--notebook <name>`     | Select one notebook from a multi-notebook file                    |
 | `--token <token>`       | API token; defaults to `DEEPNOTE_TOKEN` or `.env` beside the file |
@@ -42,7 +46,8 @@ such as `Europe/London`; otherwise the CLI uses the system timezone.
 | `--open`                | Open the scheduled notebook after configuration                   |
 | `-o, --output json`     | Machine-readable result                                           |
 
-`--at` is invalid with `--hourly` or `--cron`.
+`--at` is invalid with `--cron`. With `--hourly` it sets the minute, so it takes `:15`, `15`, or an
+`HH:mm` whose hour is `00`.
 
 ## Cloud Semantics
 

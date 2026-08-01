@@ -425,12 +425,15 @@ ${c.bold('Exit Codes:')}
     .command('schedule')
     .description('Schedule recurring notebook runs in Deepnote Cloud')
     .argument('<path>', 'Path to a .deepnote file to schedule')
-    .option('--hourly', 'Run every hour')
+    .option('--hourly', 'Run every hour (at the current minute unless --at sets one)')
     .option('--daily', 'Run every day')
     .option('--weekly <day>', 'Run weekly on a weekday, for example Monday')
     .option('--monthly <day>', 'Run monthly on a day from 1 to 31')
     .option('--cron <expression>', 'Use a custom five-field cron expression')
-    .option('--at <time>', 'Time for daily, weekly, or monthly schedules (defaults to 09:00)')
+    .option(
+      '--at <time>',
+      'Time for daily, weekly, or monthly schedules (defaults to 09:00), or the minute for --hourly'
+    )
     .option('--timezone <timezone>', 'IANA timezone (defaults to the local system timezone)')
     .option('--notebook <name>', 'Schedule a specific notebook in a multi-notebook file')
     .option('--token <token>', `Deepnote API token (defaults to ${DEEPNOTE_TOKEN_ENV})`)

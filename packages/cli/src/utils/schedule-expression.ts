@@ -38,8 +38,16 @@ export class ScheduleExpressionError extends Error {
   }
 }
 
-/** Convert friendly CLI schedule flags into the cron + timezone accepted by Deepnote Cloud. */
-export function resolveScheduleExpression(options: ScheduleExpressionOptions): ResolvedScheduleExpression {
+/**
+ * Convert friendly CLI schedule flags into the cron + timezone accepted by Deepnote Cloud.
+ *
+ * `now` decides the default minute of an `--hourly` schedule and is injectable for tests; every
+ * other cadence is a pure function of its flags.
+ */
+export function resolveScheduleExpression(
+  options: ScheduleExpressionOptions,
+  now: Date = new Date()
+): ResolvedScheduleExpression {
   const choices = [
     options.hourly ? 'hourly' : undefined,
     options.daily ? 'daily' : undefined,
@@ -74,10 +82,16 @@ export function resolveScheduleExpression(options: ScheduleExpressionOptions): R
     return { cron, timezone, description: `cron ${cron}` }
   }
   if (options.hourly) {
-    if (options.at !== undefined) {
-      throw new ScheduleExpressionError('--at cannot be combined with --hourly.')
+    // Not minute zero. Deepnote spreads hourly schedules across the hour on purpose, and a CLI that
+    // pinned every one of them to :00 would pile its users' runs onto the same execution spike. The
+    // creation minute is the cheapest well-distributed choice available here, and `--at` overrides
+    // it for anyone who wants a specific minute.
+    const minute = options.at === undefined ? now.getMinutes() : parseHourlyMinute(options.at)
+    return {
+      cron: `${minute} * * * *`,
+      timezone,
+      description: `hourly at :${String(minute).padStart(2, '0')}`,
     }
-    return { cron: '0 * * * *', timezone, description: 'hourly' }
   }
 
   const { hour, minute, display } = parseTime(options.at ?? '09:00')
@@ -109,6 +123,35 @@ export function resolveScheduleExpression(options: ScheduleExpressionOptions): R
     timezone,
     description: `monthly on day ${day} at ${display}`,
   }
+}
+
+/**
+ * Read the minute an `--hourly` schedule should fire on.
+ *
+ * Accepts the bare minute users reach for first (`:15`, `15`) and the `HH:mm` the other cadences
+ * take, where only the minute is meaningful — an hourly schedule has no hour to honour, so an hour
+ * that would be silently dropped is refused instead.
+ */
+function parseHourlyMinute(value: string): number {
+  const trimmed = value.trim()
+  const bare = /^:?(\d{1,2})$/.exec(trimmed)
+  if (bare) {
+    const minute = Number(bare[1])
+    if (minute > 59) {
+      throw new ScheduleExpressionError(
+        `Invalid minute "${value}" for --hourly. Use a minute from 0-59, for example :15.`
+      )
+    }
+    return minute
+  }
+
+  const { hour, minute } = parseTime(trimmed)
+  if (hour !== 0) {
+    throw new ScheduleExpressionError(
+      `--at "${value}" sets an hour, which --hourly has no use for. Pass the minute alone, for example --at :${String(minute).padStart(2, '0')}.`
+    )
+  }
+  return minute
 }
 
 function parseTime(value: string): { hour: number; minute: number; display: string } {

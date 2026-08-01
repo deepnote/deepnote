@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ApiError } from '@deepnote/database-integrations'
 import type { ScheduleInCloudResult } from '@deepnote/local-runner'
@@ -53,6 +56,15 @@ function options(overrides: Partial<ScheduleOptions> = {}): ScheduleOptions {
 describe('schedule command', () => {
   let logSpy: ReturnType<typeof vi.spyOn>
   let errorSpy: ReturnType<typeof vi.spyOn>
+  const tempDirs: string[] = []
+
+  function writeTempFile(name: string, contents: string): string {
+    const dir = mkdtempSync(join(tmpdir(), 'cli-schedule-'))
+    tempDirs.push(dir)
+    const path = join(dir, name)
+    writeFileSync(path, contents)
+    return path
+  }
 
   beforeEach(() => {
     resetOutputConfig()
@@ -68,6 +80,9 @@ describe('schedule command', () => {
     resetOutputConfig()
     vi.restoreAllMocks()
     vi.clearAllMocks()
+    while (tempDirs.length > 0) {
+      rmSync(tempDirs.pop() as string, { recursive: true, force: true })
+    }
   })
 
   it('converts a friendly schedule and installs it without running the notebook', async () => {
@@ -205,6 +220,58 @@ describe('schedule command', () => {
 
     expect(process.exitCode).toBe(2)
     expect(errorSpy.mock.calls.flat().join('\n')).toContain('Invalid cron expression')
+  })
+
+  it('reports a malformed file as invalid usage', async () => {
+    // The command's own help text promises exit code 2 for a file it cannot read, and the
+    // other file commands already classify a ParseError that way.
+    const path = writeTempFile('broken.deepnote', 'project: [unclosed\n')
+
+    await createScheduleAction(new Command())(path, options())
+
+    expect(process.exitCode).toBe(2)
+    expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+  })
+
+  it('reports a file that fails the schema as invalid usage', async () => {
+    const path = writeTempFile('wrong-shape.deepnote', 'version: "1.0.0"\nproject: "not an object"\n')
+
+    await createScheduleAction(new Command())(path, options())
+
+    expect(process.exitCode).toBe(2)
+    expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+  })
+
+  it('schedules the main notebook of a composed [init, main] file without --notebook', async () => {
+    // Two notebooks, but only one of them is runnable — the other is the init that runs before it.
+    // Every other command resolves this shape rather than calling it ambiguous.
+    const path = writeTempFile(
+      'composed.deepnote',
+      `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: project-local
+  name: Composed report
+  initNotebookId: notebook-init
+  notebooks:
+    - id: notebook-init
+      name: Setup
+      blocks: []
+    - id: notebook-main
+      name: Daily report
+      blocks: []
+version: '1.0.0'
+`
+    )
+
+    await createScheduleAction(new Command())(path, options())
+
+    expect(process.exitCode).toBeUndefined()
+    expect(localRunnerMock.scheduleInCloud).toHaveBeenCalledWith(
+      path,
+      '30 8 * * 1',
+      expect.objectContaining({ notebookId: 'notebook-main' })
+    )
   })
 
   it('reports other API failures as runtime errors in JSON mode', async () => {

@@ -499,12 +499,12 @@ Choose exactly one frequency:
 
 | Option                  | Description                                     | Default                    |
 | ----------------------- | ----------------------------------------------- | -------------------------- |
-| `--hourly`              | Run every hour                                  |                            |
+| `--hourly`              | Run every hour                                  | the creation minute        |
 | `--daily`               | Run every day                                   |                            |
 | `--weekly <day>`        | Run weekly on Monday-Sunday                     |                            |
 | `--monthly <day>`       | Run monthly on day 1-31                         |                            |
 | `--cron <expression>`   | Use a custom five-field cron expression         |                            |
-| `--at <HH:mm>`          | Time for daily, weekly, and monthly presets     | `09:00`                    |
+| `--at <HH:mm>`          | Time for daily/weekly/monthly; minute if hourly | `09:00`                    |
 | `--timezone <timezone>` | IANA timezone                                   | local system timezone      |
 | `--notebook <name>`     | Target a notebook in a multi-notebook file      | single notebook            |
 | `--token <token>`       | Deepnote API token                              | `DEEPNOTE_TOKEN` or `.env` |
@@ -516,6 +516,9 @@ Choose exactly one frequency:
 Deepnote supports one scheduled notebook per project. Re-running this command updates that project
 schedule, including when a different notebook is selected. Scheduling availability depends on the
 workspace plan.
+
+`--hourly` fires at the minute the schedule was created rather than at `:00`, so hourly schedules
+spread across the hour instead of piling onto the same execution spike. Pass `--at :15` to pin one.
 
 **Examples:**
 

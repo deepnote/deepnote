@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { type DeepnoteFile, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
+import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import { type ScheduleInCloudResult, scheduleInCloud } from '@deepnote/local-runner'
 import type { Command } from 'commander'
@@ -39,6 +40,9 @@ export function createScheduleAction(
         error instanceof ApiError && (error.statusCode === 400 || error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
         error instanceof FileResolutionError ||
+        // Malformed YAML or a file that fails the schema: the same "invalid usage" the other file
+        // commands report, and what this command's own help text promises for a bad file.
+        error instanceof ParseError ||
         error instanceof ScheduleExpressionError ||
         error instanceof MissingTokenError ||
         isUsageApiError
@@ -58,7 +62,7 @@ export function createScheduleAction(
 async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleOptions): Promise<void> {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const file = deserializeDeepnoteFile(await fs.readFile(absolutePath, 'utf8'))
-  const notebookId = resolveNotebookId(file.project.notebooks, options.notebook)
+  const notebookId = resolveNotebookId(file, options.notebook)
   const schedule = resolveScheduleExpression(options)
 
   dotenv.config({ path: join(dirname(absolutePath), DEFAULT_ENV_FILE), quiet: true })
@@ -96,13 +100,21 @@ async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleO
   renderResult(absolutePath, schedule.description, result, options)
 }
 
-/** Match an optional notebook name to its local id, refusing ambiguous files. */
-function resolveNotebookId(
-  notebooks: Array<{ id: string; name: string }>,
-  requestedName: string | undefined
-): string | undefined {
+/**
+ * Match an optional notebook name to its local id, refusing genuinely ambiguous files.
+ *
+ * A composed `[init, main]` file names two notebooks but has only one that can be run, so it is not
+ * ambiguous — `resolveSnapshotNotebookId` picks the main one, the same way every other command that
+ * reads this shape does. Only a file it cannot resolve needs `--notebook`.
+ */
+function resolveNotebookId(file: DeepnoteFile, requestedName: string | undefined): string | undefined {
+  const notebooks = file.project.notebooks
   if (!requestedName) {
     if (notebooks.length > 1) {
+      const composed = resolveSnapshotNotebookId(file)
+      if (composed) {
+        return composed
+      }
       throw new ScheduleExpressionError(
         `This file has ${notebooks.length} notebooks. Choose one with --notebook <name>.`
       )
