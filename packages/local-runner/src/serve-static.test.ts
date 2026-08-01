@@ -44,6 +44,32 @@ function rawStatus(port: number, path: string): Promise<number> {
   })
 }
 
+/**
+ * POST with fully caller-chosen `Host` and `Origin` headers.
+ *
+ * `fetch` refuses to set `Host`, which is the one header a DNS-rebinding attacker controls and the
+ * reason this goes through `http.request` instead.
+ */
+function rawPost(port: number, path: string, headers: Record<string, string>, body: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        host: '127.0.0.1',
+        port,
+        path,
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), ...headers },
+      },
+      res => {
+        res.resume()
+        resolve(res.statusCode ?? 0)
+      }
+    )
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+
 let dir: string
 let handle: ServeStaticHandle
 let base: string
@@ -267,6 +293,73 @@ describe('serveStatic', () => {
       expect(cloudScheduler).not.toHaveBeenCalled()
     } finally {
       await protectedServer.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud rejects a rebound hostname whose Origin and Host agree', async () => {
+    const cloudScheduler = vi.fn(async () => {
+      throw new Error('scheduler must not be called')
+    })
+    const protectedServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      // What a DNS-rebinding page sends once its own hostname resolves to 127.0.0.1: the browser
+      // fills in a matching Origin and Host, so comparing the two to each other proves nothing.
+      const status = await rawPost(
+        protectedServer.port,
+        '/api/schedule-cloud',
+        { host: `attacker.example:${protectedServer.port}`, origin: `http://attacker.example:${protectedServer.port}` },
+        JSON.stringify({ cron: '0 9 * * *' })
+      )
+
+      expect(status).toBe(403)
+      expect(cloudScheduler).not.toHaveBeenCalled()
+    } finally {
+      await protectedServer.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud rejects a loopback origin on another port', async () => {
+    const cloudScheduler = vi.fn(async () => {
+      throw new Error('scheduler must not be called')
+    })
+    const protectedServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      // Another local dev server is still another origin, and on a shared machine it is not
+      // necessarily one this notebook's token should answer to.
+      const status = await rawPost(
+        protectedServer.port,
+        '/api/schedule-cloud',
+        { origin: `http://127.0.0.1:${protectedServer.port + 1}` },
+        JSON.stringify({ cron: '0 9 * * *' })
+      )
+
+      expect(status).toBe(403)
+      expect(cloudScheduler).not.toHaveBeenCalled()
+    } finally {
+      await protectedServer.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud allows localhost and 127.0.0.1 spellings of its own port', async () => {
+    for (const hostname of ['localhost', '127.0.0.1']) {
+      const status = await rawPost(
+        handle.port,
+        '/api/schedule-cloud',
+        { origin: `http://${hostname}:${handle.port}` },
+        JSON.stringify({ cron: '0 9 * * *' })
+      )
+
+      expect(status).toBe(200)
     }
   })
 

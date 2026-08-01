@@ -254,17 +254,46 @@ function readInputMap(parsed: unknown): { ok: true; inputs: Record<string, unkno
   return { ok: true, inputs: raw as Record<string, unknown> }
 }
 
+/** Hostnames a browser treats as this loopback server. Anything else is somebody else's name. */
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+
 /**
  * Reject browser requests from another origin before a token-backed mutation reads its body.
  * Requests without Origin remain available to scripts and CLI clients.
+ *
+ * The Origin is checked against the socket this request actually arrived on, never against `Host`.
+ * `Host` is client-controlled, so matching the two only proves the caller sent itself a matching
+ * pair — which is exactly what a DNS-rebinding page does once its hostname resolves to 127.0.0.1,
+ * and it would have carried this server's token off the back of it. The port comes from
+ * `req.socket.localPort` for the same reason: it is the port we are listening on, not a claim.
  */
 function rejectCrossOriginRequest(req: IncomingMessage, res: ServerResponse): boolean {
-  const origin = req.headers.origin
-  if (origin === undefined || origin === `http://${req.headers.host}`) {
+  if (req.headers.origin === undefined) {
+    return false
+  }
+  if (isOwnOrigin(req.headers.origin, req.socket.localPort)) {
     return false
   }
   sendJson(res, 403, { error: 'Cross-origin requests are not allowed' })
   return true
+}
+
+/** True only for `http://<loopback>:<the port this socket is bound to>`. */
+function isOwnOrigin(origin: string, localPort: number | undefined): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(origin)
+  } catch {
+    // Includes the literal `null` sent by sandboxed iframes and some redirects — not a loopback
+    // origin, so it falls through to the 403 rather than being read as "no Origin at all".
+    return false
+  }
+  if (parsed.protocol !== 'http:' || !LOOPBACK_HOSTNAMES.has(parsed.hostname)) {
+    return false
+  }
+  // The server binds to 127.0.0.1, so `localPort` is always present on a real request; treating an
+  // absent one as a match would reopen the hole on whatever produced it.
+  return localPort !== undefined && parsed.port === String(localPort)
 }
 
 interface ScheduleRequest {
