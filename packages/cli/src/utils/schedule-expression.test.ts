@@ -3,6 +3,8 @@ import { resolveScheduleExpression, ScheduleExpressionError } from './schedule-e
 
 describe('resolveScheduleExpression', () => {
   it.each([
+    [{ hourly: true, at: ':00' }, '0 * * * *', 'hourly at :00'],
+    [{ hourly: true, at: ':59' }, '59 * * * *', 'hourly at :59'],
     [{ hourly: true, at: ':15' }, '15 * * * *', 'hourly at :15'],
     [{ hourly: true, at: '7' }, '7 * * * *', 'hourly at :07'],
     [{ hourly: true, at: '00:45' }, '45 * * * *', 'hourly at :45'],

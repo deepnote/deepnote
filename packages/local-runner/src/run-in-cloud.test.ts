@@ -628,6 +628,58 @@ version: '1.0.0'`
     expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
+  it('refuses to create a new project for an init-backed file, and adds to an existing one', async () => {
+    // The public API has no init field at all — not on the create body, not on the project it
+    // returns — so a new project would silently drop the designation and every run of the created
+    // notebook would start without its setup.
+    const INIT_FILE = FUNCTION_NOTEBOOK.replace('  name: Test', '  name: Test\n  initNotebookId: nb2')
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+
+    await expect(runInCloud(INIT_FILE, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
+      /init notebook "Second" cannot be preserved/
+    )
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+
+    // …but adding to a project Deepnote already holds leaves its designation alone, so it proceeds.
+    vi.clearAllMocks()
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.findProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-second', name: 'Second' }],
+    })
+    cloudMock.addNotebooksToProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-first', name: 'First', blockIds: ['cloud-function'] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    await runInCloud(INIT_FILE, {}, { token: 't', notebookId: 'nb1' })
+
+    expect(cloudMock.addNotebooksToProject).toHaveBeenCalledOnce()
+  })
+
+  it('builds a spec only for the notebook being added to an existing project', async () => {
+    // toBlockSpec warns as it goes, so building the siblings' specs would report problems in
+    // notebooks this operation never touches.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-second', name: 'Second' }],
+    })
+    cloudMock.addNotebooksToProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-first', name: 'First', blockIds: ['cloud-function'] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    await runInCloud(FUNCTION_NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })
+
+    const [, , , notebooks] = cloudMock.addNotebooksToProject.mock.calls[0]
+    expect(notebooks).toHaveLength(1)
+    expect(notebooks[0]).toMatchObject({ sourceId: 'nb1', name: 'First' })
+  })
+
   it('does not create anything when the notebook lookup itself fails', async () => {
     // A transient /v2/projects failure is not evidence of absence. Treating it as "not found" would
     // create a duplicate project every time the network hiccuped.

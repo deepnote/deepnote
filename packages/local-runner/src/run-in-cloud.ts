@@ -336,18 +336,17 @@ export async function createFromFile(
     throw new Error(`runInCloud: notebook "${target.notebookId}" is not in this file, so there is nothing to create.`)
   }
   assertBlocksAreInTarget(options.blockIds, sortedBlocks[index])
-
-  const allNotebookSpecs: ProjectSpec['notebooks'] = toCreate.project.notebooks.map((notebook, i) => ({
-    // The file's own id for this notebook, so `rewriteBlock` below can turn a block's reference to
-    // it into the id Deepnote assigns.
-    sourceId: notebook.id,
-    name: notebook.name,
-    blocks: sortedBlocks[i].map(block => toBlockSpec(block, options.onWarning)),
-  }))
-  const spec: ProjectSpec = {
-    name: toCreate.project.name,
-    notebooks: allNotebookSpecs,
+  if (!destination) {
+    assertInitNotebookSurvivesCreation(toCreate)
   }
+
+  // The file's own id for each notebook, so `rewriteBlock` below can turn a block's reference to it
+  // into the id Deepnote assigns.
+  const specFor = (i: number): ProjectSpec['notebooks'][number] => ({
+    sourceId: toCreate.project.notebooks[i].id,
+    name: toCreate.project.notebooks[i].name,
+    blocks: sortedBlocks[i].map(block => toBlockSpec(block, options.onWarning)),
+  })
 
   const createOptions = {
     onProgress: options.onCreateProgress,
@@ -355,11 +354,19 @@ export async function createFromFile(
     rewriteBlock: rewriteNotebookFunctionId,
   }
 
+  // Only the target's spec is built when extending an existing project — the siblings' specs would
+  // be discarded, and `toBlockSpec` warns as it goes, so building them would report problems in
+  // notebooks this operation is not touching.
   const result = destination
-    ? await addNotebookToExistingProject(baseUrl, token, destination, toCreate, index, allNotebookSpecs[index], {
+    ? await addNotebookToExistingProject(baseUrl, token, destination, toCreate, index, specFor(index), {
         ...createOptions,
       })
-    : await createProject(baseUrl, token, spec, createOptions)
+    : await createProject(
+        baseUrl,
+        token,
+        { name: toCreate.project.name, notebooks: toCreate.project.notebooks.map((_, i) => specFor(i)) },
+        createOptions
+      )
 
   const match = result.notebooks[destination ? 0 : index]
   if (!match) {
@@ -427,6 +434,38 @@ async function addNotebookToExistingProject(
     ...options,
     existingNotebookIds,
   })
+}
+
+/**
+ * Refuse to create a *new* project for a file whose init notebook it would silently drop.
+ *
+ * Deepnote prepends the project's init notebook only when `init_notebook_id` is set, and the public
+ * API has no field for it anywhere — not on `CreateProjectBody`, not on the project it returns. So
+ * a new project is created without the designation, and every later run of the notebook starts
+ * without its setup: immediately for a run, and at whatever hour the cron names for a schedule,
+ * which is the least visible place to find out.
+ *
+ * Scoped to the create-a-new-project path on purpose. Adding a notebook to a project already in
+ * Deepnote leaves that project's designation alone, so there is nothing to lose and nothing to
+ * refuse — the way through this error is to import the project once and come back.
+ */
+function assertInitNotebookSurvivesCreation(file: DeepnoteFile): void {
+  const { initNotebookId } = file.project
+  if (initNotebookId === undefined) {
+    return
+  }
+  const init = file.project.notebooks.find(notebook => notebook.id === initNotebookId)
+  if (!init) {
+    // The designation names nothing in this file, so there is no setup to lose by creating it.
+    return
+  }
+  throw new Error(
+    `Cannot create "${file.project.name}" in Deepnote: its init notebook "${init.name}" cannot be ` +
+      'preserved, because the Deepnote API creates projects without an init designation — runs of ' +
+      'the created notebook would start without their setup. Import the project into Deepnote ' +
+      'first, which keeps the init notebook, then retry. To create it anyway, remove ' +
+      '`initNotebookId` from the file.'
+  )
 }
 
 /** The blocks of one local notebook, for checks that must run before anything is created. */

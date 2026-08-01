@@ -151,6 +151,10 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
     }
 
     if (req.method === 'POST' && pathname === '/api/run-cloud') {
+      // Same guard as the schedule route below, and for the same reason: this one spends the cloud
+      // token too, and creates project content as a side effect of running a notebook that is not
+      // in Deepnote yet.
+      if (rejectCrossOriginRequest(req, res)) return
       const body = await readJsonBody(req, res)
       if (!body.ok) return
       const inputs = readInputMap(body.value)

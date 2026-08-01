@@ -296,6 +296,19 @@ describe('serveStatic', () => {
     }
   })
 
+  it('POST /api/run-cloud rejects a foreign origin too', async () => {
+    // It spends the same cloud token, and creates project content when the notebook is not in
+    // Deepnote yet — so guarding only the schedule route left the same door open.
+    const status = await rawPost(
+      handle.port,
+      '/api/run-cloud',
+      { origin: 'https://attacker.example' },
+      JSON.stringify({ inputs: {} })
+    )
+
+    expect(status).toBe(403)
+  })
+
   it('POST /api/schedule-cloud rejects a rebound hostname whose Origin and Host agree', async () => {
     const cloudScheduler = vi.fn(async () => {
       throw new Error('scheduler must not be called')

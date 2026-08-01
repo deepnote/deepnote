@@ -269,6 +269,25 @@ describe('scheduleInCloud', () => {
     expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
+  it('adds an init-backed notebook to an existing project rather than refusing it', async () => {
+    // The project is in Deepnote and keeps its own init designation; only the notebook is missing.
+    // Refusing here would name an action ("import the project first") the user has already taken.
+    cloudMock.upsertNotebookSchedule.mockReset()
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+    cloudMock.upsertNotebookSchedule.mockResolvedValueOnce(schedule('notebook-created'))
+    cloudMock.findProject.mockResolvedValue({ projectId: 'project-existing', projectType: 'standard', notebooks: [] })
+    cloudMock.addNotebooksToProject.mockResolvedValue({
+      projectId: 'project-existing',
+      notebooks: [{ id: 'notebook-created', name: 'Daily report', blockIds: ['block-created'] }],
+    })
+
+    const result = await scheduleInCloud(INIT_NOTEBOOK, '0 9 * * *', { token: 'token', notebookId: 'notebook-local' })
+
+    expect(result).toMatchObject({ notebookId: 'notebook-created', created: true })
+    expect(cloudMock.addNotebooksToProject).toHaveBeenCalledOnce()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
   it('requires a token before making any API call', async () => {
     const original = process.env.DEEPNOTE_TOKEN
     delete process.env.DEEPNOTE_TOKEN
