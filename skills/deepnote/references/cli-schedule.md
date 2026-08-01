@@ -55,6 +55,15 @@ Deepnote has one scheduled notebook per project. Calling the command again updat
 project schedule; selecting another notebook re-points it. Scheduling availability depends on the
 workspace plan.
 
+The public schedule contract (`POST /v2/notebooks/{id}/schedule`) accepts `cron` and `timezone` and
+nothing else — it is declared `additionalProperties: false`. Settings the product UI exposes, such
+as republishing the app after a run or auto-pausing a repeatedly failing schedule, cannot be set
+through the API, so a CLI-created schedule takes whatever the server defaults them to.
+
+When the project has to be created, only a `standard` project can take a new notebook; Deepnote
+rejects notebook creation in `notebook` (single-notebook) and `agent` projects, so the lookup skips
+those and creates a fresh project instead of failing with HTTP 409.
+
 ## Output and Exit Codes
 
 Text output includes the frequency, timezone, next run, and cloud URL when available. JSON output

@@ -9,6 +9,10 @@ const projectSchema = z
     id: z.string(),
     name: z.string().optional(),
     createdAt: z.string().optional(),
+    // `standard` | `notebook` | `agent` per the public spec, kept as a plain string so a type this
+    // client has not heard of parses instead of failing the whole lookup. Optional for the same
+    // reason, though the spec marks it required.
+    projectType: z.string().optional(),
     notebooks: z.array(notebookSchema).optional(),
   })
   .passthrough()
@@ -45,6 +49,8 @@ export interface FoundProjectNotebook {
 
 export interface FoundProject {
   projectId: string
+  /** `standard`, `notebook`, or `agent`; absent if the workspace did not report one. */
+  projectType?: string
   notebooks: FoundProjectNotebook[]
 }
 
@@ -127,11 +133,31 @@ async function findProjectsByExactName(
   return matches.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
 }
 
+/** Project types Deepnote refuses to create additional notebooks in. */
+const CLOSED_PROJECT_TYPES = new Set(['notebook', 'agent'])
+
 /**
- * Look up the newest exact-name project in the workspace via `GET {baseUrl}/v2/projects`.
+ * True unless this project is one Deepnote will not accept another notebook into.
+ *
+ * An unreported type is treated as usable: this lookup exists to avoid creating duplicate projects,
+ * and refusing every project whose type we could not read would bring those duplicates straight
+ * back. Only a type known to be closed disqualifies one.
+ */
+function acceptsNewNotebooks(project: z.infer<typeof projectSchema>): boolean {
+  return project.projectType === undefined || !CLOSED_PROJECT_TYPES.has(project.projectType)
+}
+
+/**
+ * Look up the newest exact-name project that can take another notebook, via
+ * `GET {baseUrl}/v2/projects`.
  *
  * Returns its current notebooks so callers can add missing content without creating a duplicate
- * project. Returns `undefined` only after every matching page has been read.
+ * project. Single-notebook and Agent projects are skipped rather than returned: Deepnote rejects
+ * notebook creation in both, so returning one would let a newer project of that kind shadow an
+ * older usable project and turn `createIfMissing` into an HTTP 409. Skipping means the caller
+ * creates a fresh standard project, which is the outcome that actually works.
+ *
+ * Returns `undefined` only after every matching page has been read.
  */
 export async function findProject(
   baseUrl: string,
@@ -139,10 +165,11 @@ export async function findProject(
   projectName: string,
   options: RequestOptions = {}
 ): Promise<FoundProject | undefined> {
-  const project = (await findProjectsByExactName(baseUrl, token, projectName, options))[0]
+  const project = (await findProjectsByExactName(baseUrl, token, projectName, options)).find(acceptsNewNotebooks)
   return project
     ? {
         projectId: project.id,
+        ...(project.projectType !== undefined ? { projectType: project.projectType } : {}),
         notebooks: (project.notebooks ?? []).map(notebook => ({ id: notebook.id, name: notebook.name })),
       }
     : undefined

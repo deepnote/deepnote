@@ -199,6 +199,50 @@ describe('findProject', () => {
 
     expect(await findProject(BASE_URL, TOKEN, 'P')).toBeUndefined()
   })
+
+  it('skips newer single-notebook and Agent projects that cannot take another notebook', async () => {
+    // Deepnote rejects notebook creation in both, so returning the newest match would let one of
+    // them shadow the usable standard project below it and fail the create with HTTP 409.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([
+        { id: 'agent', name: 'P', projectType: 'agent', createdAt: '2026-04-01', notebooks: [] },
+        { id: 'single', name: 'P', projectType: 'notebook', createdAt: '2026-03-01', notebooks: [] },
+        {
+          id: 'standard',
+          name: 'P',
+          projectType: 'standard',
+          createdAt: '2026-02-01',
+          notebooks: [{ id: 'nb', name: 'Existing' }],
+        },
+      ])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({
+      projectId: 'standard',
+      projectType: 'standard',
+      notebooks: [{ id: 'nb', name: 'Existing' }],
+    })
+  })
+
+  it('reports no destination when every exact-name project is closed to new notebooks', async () => {
+    // Better than handing back a project the create would 409 on: the caller makes a fresh
+    // standard project, which is the outcome that actually works.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([{ id: 'agent', name: 'P', projectType: 'agent', createdAt: '2026-04-01', notebooks: [] }])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toBeUndefined()
+  })
+
+  it('treats an unreported project type as usable', async () => {
+    // Fail-safe direction: refusing every project whose type could not be read would bring back the
+    // duplicate projects this lookup exists to prevent.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([{ id: 'untyped', name: 'P', createdAt: '2026-04-01', notebooks: [] }])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({ projectId: 'untyped', notebooks: [] })
+  })
 })
 
 describe('getWorkspace', () => {
