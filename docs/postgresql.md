@@ -15,7 +15,7 @@ Don't forget to connect the newly created "PostgreSQL" integration in the Integr
 ### Authorizing Deepnote's IP addresses for security reasons
 
 <Callout status="info">
-If your connection is protected, you might need to add Deepnote's IP addresses to your allowlist. [Read more here](/docs/authorize-deepnote-ip-addresses)
+If your connection is protected, you might need to add Deepnote's IP addresses to your allowlist. [Read more here](/docs/securing-connections#authorizing-deepnotes-ip-addresses)
 </Callout>
 
 ## Usage
