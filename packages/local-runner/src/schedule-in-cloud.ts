@@ -96,6 +96,8 @@ export async function scheduleInCloud(
           throw error
         }
 
+        assertInitNotebookSurvivesCreation(file)
+
         // A matching project can exist without this notebook. Add to it rather than creating a
         // duplicate project; the coordinator serializes this check with cloud runs and schedules.
         const project = await findProject(baseUrl, token, file.project.name)
@@ -103,7 +105,7 @@ export async function scheduleInCloud(
           baseUrl,
           token,
           file,
-          { notebookId: localId, inputs: {} },
+          { notebookId: localId },
           {
             onCreateProgress: options.onCreateProgress,
             onWarning: options.onWarning,
@@ -123,6 +125,37 @@ export async function scheduleInCloud(
       ...(viewUrl ? { viewUrl } : {}),
     }
   }
+}
+
+/**
+ * Refuse to create content for a schedule that would lose its init notebook.
+ *
+ * A scheduled run prepends the project's init notebook only when Deepnote has `init_notebook_id`
+ * set, and the public creation API has no way to set it — it creates the notebooks and leaves the
+ * designation null. So a file that declares one would schedule successfully here and then run
+ * without its setup at whatever hour the cron names, which is both the least visible place to find
+ * out and the hardest to attribute.
+ *
+ * Only the create path is affected: a project already in Deepnote keeps whatever designation it has
+ * there, so importing the file once and scheduling it again is the way through.
+ */
+function assertInitNotebookSurvivesCreation(file: DeepnoteFile): void {
+  const initNotebookId = file.project.initNotebookId
+  if (initNotebookId === undefined) {
+    return
+  }
+  const init = file.project.notebooks.find(notebook => notebook.id === initNotebookId)
+  if (!init) {
+    // The designation names nothing in this file, so there is no setup to lose by creating it.
+    return
+  }
+  throw new Error(
+    `scheduleInCloud: "${file.project.name}" is not in Deepnote yet, and its init notebook ` +
+      `"${init.name}" cannot be preserved when creating it — the Deepnote API creates notebooks ` +
+      'without an init designation, so the scheduled run would start without its setup. Import the ' +
+      'project into Deepnote first (which keeps the init notebook), then schedule it. To schedule ' +
+      'anyway, remove `initNotebookId` from the file.'
+  )
 }
 
 /** Read the public status-code contract without depending on a cross-bundle class identity. */

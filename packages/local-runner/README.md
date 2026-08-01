@@ -107,6 +107,12 @@ immediately. If the project is missing, it is created first; pass `createIfMissi
 an existing cloud notebook. Deepnote has one schedule per project, so scheduling another notebook
 from the same project re-points that schedule.
 
+One file shape cannot be created this way: a project that declares an `initNotebookId`. The public
+creation API has no field for the init designation, so the notebooks would be created without it and
+the scheduled run would start without its setup — at whatever hour the cron names. `scheduleInCloud`
+refuses instead. Import such a project into Deepnote once (which keeps the designation), then
+schedule it; the create path is the only one affected.
+
 ### Serve it to a static page
 
 ```ts
@@ -145,6 +151,10 @@ Cloud scheduling and execution may run concurrently. If the notebook does not ex
 `runInCloud` and `scheduleInCloud` coordinate creation inside the library: same-notebook calls share
 one creation, while different notebooks in the same project serialize creation to avoid duplicate
 projects. Frontends do not need their own creation lock.
+
+What that shared creation writes is the file as it stands. A `runInCloud` call's input overrides are
+sent with the run, not baked into the notebook it creates — otherwise a schedule that joined the
+same creation would inherit that run's one-off arguments as its recurring defaults.
 
 The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. Bring your own page
 — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no

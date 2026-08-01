@@ -49,6 +49,18 @@ const MULTI_NOTEBOOK = NOTEBOOK.replace(
 version: '1.0.0'`
 )
 
+/** A composed `[init, main]` file: the shape whose init designation creation cannot carry over. */
+const INIT_NOTEBOOK = NOTEBOOK.replace(
+  '  name: Scheduled report',
+  '  name: Scheduled report\n  initNotebookId: notebook-init'
+).replace(
+  "version: '1.0.0'",
+  `    - id: notebook-init
+      name: Setup
+      blocks: []
+version: '1.0.0'`
+)
+
 function schedule(notebookId: string) {
   return {
     notebookId,
@@ -227,6 +239,33 @@ describe('scheduleInCloud', () => {
     await expect(
       scheduleInCloud(MULTI_NOTEBOOK, '0 9 * * *', { token: 'token', notebookId: 'unknown-cloud-id' })
     ).rejects.toThrow(/cannot be matched to local content/)
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('refuses to create content for a file whose init notebook would be lost', async () => {
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+
+    await expect(
+      scheduleInCloud(INIT_NOTEBOOK, '0 9 * * *', { token: 'token', notebookId: 'notebook-local' })
+    ).rejects.toThrow(/init notebook "Setup" cannot be preserved/)
+    // Refused before anything is written, so there is no half-built project to clean up.
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
+    expect(cloudMock.upsertNotebookSchedule).toHaveBeenCalledOnce()
+  })
+
+  it('still schedules an init-backed file that is already in Deepnote', async () => {
+    // Nothing is created, so Deepnote keeps whatever init designation the project already has —
+    // the refusal above is about the create path only.
+    cloudMock.upsertNotebookSchedule.mockReset()
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+    cloudMock.upsertNotebookSchedule.mockResolvedValueOnce(schedule('notebook-cloud'))
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'notebook-cloud', projectId: 'project-cloud' })
+
+    const result = await scheduleInCloud(INIT_NOTEBOOK, '0 9 * * *', { token: 'token', notebookId: 'notebook-local' })
+
+    expect(result.notebookId).toBe('notebook-cloud')
+    expect(result.created).toBeUndefined()
     expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
