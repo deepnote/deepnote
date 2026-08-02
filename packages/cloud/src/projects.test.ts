@@ -243,6 +243,21 @@ describe('findProject', () => {
 
     expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({ projectId: 'untyped', notebooks: [] })
   })
+
+  it('treats a project type this client has not heard of as usable', async () => {
+    // Deliberate: only the types known to reject notebook creation disqualify a project, so a type
+    // Deepnote adds later stays eligible instead of silently becoming a duplicate-project bug. The
+    // value is carried through rather than dropped.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([{ id: 'future', name: 'P', projectType: 'future-type', createdAt: '2026-04-01', notebooks: [] }])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({
+      projectId: 'future',
+      projectType: 'future-type',
+      notebooks: [],
+    })
+  })
 })
 
 describe('getWorkspace', () => {

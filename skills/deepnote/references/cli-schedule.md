@@ -60,9 +60,11 @@ nothing else — it is declared `additionalProperties: false`. Settings the prod
 as republishing the app after a run or auto-pausing a repeatedly failing schedule, cannot be set
 through the API, so a CLI-created schedule takes whatever the server defaults them to.
 
-When the project has to be created, only a `standard` project can take a new notebook; Deepnote
-rejects notebook creation in `notebook` (single-notebook) and `agent` projects, so the lookup skips
-those and creates a fresh project instead of failing with HTTP 409.
+When an existing project has to take the new notebook, Deepnote rejects notebook creation in
+`notebook` (single-notebook) and `agent` projects, so the lookup skips those two and creates a fresh
+project instead of failing with HTTP 409. A project of any other type — `standard`, a type this CLI
+has not heard of, or one the workspace did not report — stays eligible, since refusing what cannot
+be read would reintroduce the duplicate projects the lookup exists to prevent.
 
 ## Output and Exit Codes
 

@@ -286,6 +286,15 @@ describe('scheduleInCloud', () => {
     expect(result).toMatchObject({ notebookId: 'notebook-created', created: true })
     expect(cloudMock.addNotebooksToProject).toHaveBeenCalledOnce()
     expect(cloudMock.createProject).not.toHaveBeenCalled()
+    // The retry has to name the notebook that was just created, not the file's own id — the point
+    // of the fallback is that Deepnote assigned a different one.
+    expect(cloudMock.upsertNotebookSchedule).toHaveBeenLastCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      'notebook-created',
+      { cron: '0 9 * * *' },
+      { requestTimeoutMs: undefined }
+    )
   })
 
   it('requires a token before making any API call', async () => {
