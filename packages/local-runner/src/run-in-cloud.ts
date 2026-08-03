@@ -336,9 +336,9 @@ export async function createFromFile(
     throw new Error(`runInCloud: notebook "${target.notebookId}" is not in this file, so there is nothing to create.`)
   }
   assertBlocksAreInTarget(options.blockIds, sortedBlocks[index])
-  if (!destination) {
-    assertInitNotebookSurvivesCreation(toCreate)
-  }
+  // Not gated on `destination`: an existing exact-name project is not evidence that the setup is
+  // there, and the API will not tell us either way. See the assertion's own notes.
+  assertInitNotebookSurvivesCreation(toCreate)
 
   // The file's own id for each notebook, so `rewriteBlock` below can turn a block's reference to it
   // into the id Deepnote assigns.
@@ -437,17 +437,28 @@ async function addNotebookToExistingProject(
 }
 
 /**
- * Refuse to create a *new* project for a file whose init notebook it would silently drop.
+ * Refuse to create content for a file that declares an init notebook. Fails closed, always.
  *
- * Deepnote prepends the project's init notebook only when `init_notebook_id` is set, and the public
- * API has no field for it anywhere — not on `CreateProjectBody`, not on the project it returns. So
- * a new project is created without the designation, and every later run of the notebook starts
- * without its setup: immediately for a run, and at whatever hour the cron names for a schedule,
- * which is the least visible place to find out.
+ * Deepnote prepends a project's init notebook only when `init_notebook_id` is set on the project,
+ * and the public API has no field for it anywhere — not on `CreateProjectBody`, not on the project
+ * it returns. So the designation can be neither established nor read from here, and there is no
+ * state of the world this code can observe that makes creating such a file safe:
  *
- * Scoped to the create-a-new-project path on purpose. Adding a notebook to a project already in
- * Deepnote leaves that project's designation alone, so there is nothing to lose and nothing to
- * refuse — the way through this error is to import the project once and come back.
+ * - **A new project** is created without the designation, so every later run of the notebook starts
+ *   without its setup — immediately for a run, and at whatever hour the cron names for a schedule,
+ *   which is the least visible place to find out.
+ * - **An existing exact-name project** proves nothing. Only the target notebook is uploaded into it,
+ *   and the API will not say whether that project carries an init designation, so an unrelated
+ *   project that happens to share the name — or one whose designation was removed — runs the
+ *   notebook without setup just the same.
+ * - **An init id that resolves to nothing in this file** is not an absent init. `splitByNotebooks`
+ *   deliberately keeps `initNotebookId` in every main file so the sibling resolver can find the
+ *   standalone init file, so this is the ordinary split-file shape with its setup one file over —
+ *   and composing it would not help, since the composed `[init, main]` still needs the designation
+ *   this API cannot set.
+ *
+ * The way through is to import the project into Deepnote once, which keeps the init notebook, and
+ * then run or schedule it — that path creates nothing and so never reaches here.
  */
 function assertInitNotebookSurvivesCreation(file: DeepnoteFile): void {
   const { initNotebookId } = file.project
@@ -455,16 +466,16 @@ function assertInitNotebookSurvivesCreation(file: DeepnoteFile): void {
     return
   }
   const init = file.project.notebooks.find(notebook => notebook.id === initNotebookId)
-  if (!init) {
-    // The designation names nothing in this file, so there is no setup to lose by creating it.
-    return
-  }
+  const which = init
+    ? `its init notebook "${init.name}"`
+    : `its init notebook (id "${initNotebookId}", which is not in this file — split files keep the ` +
+      'id so a sibling `.deepnote` can supply it)'
   throw new Error(
-    `Cannot create "${file.project.name}" in Deepnote: its init notebook "${init.name}" cannot be ` +
-      'preserved, because the Deepnote API creates projects without an init designation — runs of ' +
-      'the created notebook would start without their setup. Import the project into Deepnote ' +
-      'first, which keeps the init notebook, then retry. To create it anyway, remove ' +
-      '`initNotebookId` from the file.'
+    `Cannot create "${file.project.name}" in Deepnote: ${which} cannot be preserved, because the ` +
+      "Deepnote API cannot set or read a project's init designation — runs of the created notebook " +
+      'would start without their setup. Import the project into Deepnote first, which keeps the ' +
+      'init notebook, then run or schedule it. To create it anyway, remove `initNotebookId` from ' +
+      'the file.'
   )
 }
 

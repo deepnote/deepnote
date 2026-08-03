@@ -504,7 +504,7 @@ Choose exactly one frequency:
 | `--weekly <day>`        | Run weekly on Monday-Sunday                     |                            |
 | `--monthly <day>`       | Run monthly on day 1-31                         |                            |
 | `--cron <expression>`   | Use a custom five-field cron expression         |                            |
-| `--at <HH:mm>`          | Time for daily/weekly/monthly; minute if hourly | `09:00`                    |
+| `--at <HH:mm>`          | Time for daily/weekly/monthly; minute if hourly | the creation time          |
 | `--timezone <timezone>` | IANA timezone                                   | local system timezone      |
 | `--notebook <name>`     | Target a notebook in a multi-notebook file      | single notebook            |
 | `--token <token>`       | Deepnote API token                              | `DEEPNOTE_TOKEN` or `.env` |
@@ -517,8 +517,10 @@ Deepnote supports one scheduled notebook per project. Re-running this command up
 schedule, including when a different notebook is selected. Scheduling availability depends on the
 workspace plan.
 
-`--hourly` fires at the minute the schedule was created rather than at `:00`, so hourly schedules
-spread across the hour instead of piling onto the same execution spike. Pass `--at :15` to pin one.
+Without `--at`, a schedule fires at the time it was created — hour and minute for daily, weekly and
+monthly, the minute alone for `--hourly`. Deepnote's scheduling UI defaults new schedules the same
+way, so runs spread out instead of piling onto the same execution spike. Pass `--at 09:00` (or
+`--at :15` for `--hourly`) to pin a specific time.
 
 **Examples:**
 

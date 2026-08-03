@@ -21,12 +21,14 @@ deepnote schedule report.deepnote --monthly 1 --at 06:00
 deepnote schedule report.deepnote --cron "0 8 * * 1-5"
 ```
 
-Friendly daily, weekly, and monthly schedules default to `09:00`. `--timezone` accepts an IANA name
-such as `Europe/London`; otherwise the CLI uses the system timezone.
+Without `--at`, every generated schedule fires at the time it was created — the hour and minute for
+daily, weekly, and monthly, and the minute for `--hourly`. This matches Deepnote's own scheduling
+UI, which defaults new schedules the same way so that runs spread out instead of piling onto the
+same execution spike; a fixed default such as `09:00` would be that spike. Pass `--at 09:00` (or
+`--at :15` for `--hourly`) to pin a specific time.
 
-`--hourly` runs at the minute the schedule was created, not at `:00`, so schedules created at
-different times spread across the hour instead of all firing on the same execution spike. Pass
-`--at :15` (or `--at 15`) to pin a specific minute.
+`--timezone` accepts an IANA name such as `Europe/London`; otherwise the CLI uses the system
+timezone.
 
 ## Options
 

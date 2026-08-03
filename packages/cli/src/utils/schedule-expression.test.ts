@@ -10,7 +10,7 @@ describe('resolveScheduleExpression', () => {
     [{ hourly: true, at: '00:45' }, '45 * * * *', 'hourly at :45'],
     [{ daily: true, at: '9:05' }, '5 9 * * *', 'daily at 09:05'],
     [{ weekly: 'Monday', at: '17:30' }, '30 17 * * 1', 'weekly on Mon at 17:30'],
-    [{ weekly: 'fri' }, '0 9 * * 5', 'weekly on Fri at 09:00'],
+    [{ weekly: 'fri', at: '09:00' }, '0 9 * * 5', 'weekly on Fri at 09:00'],
     [{ monthly: '15', at: '00:00' }, '0 0 15 * *', 'monthly on day 15 at 00:00'],
     [{ cron: ' 0 6 * * 1-5 ' }, '0 6 * * 1-5', 'cron 0 6 * * 1-5'],
   ] as const)('converts %j into cron', (options, cron, description) => {
@@ -21,11 +21,31 @@ describe('resolveScheduleExpression', () => {
     })
   })
 
-  it('defaults friendly schedules to 09:00 and the system timezone', () => {
+  it('defaults to the system timezone', () => {
     const result = resolveScheduleExpression({ daily: true })
 
-    expect(result.cron).toBe('0 9 * * *')
     expect(result.timezone).toBeTruthy()
+  })
+
+  // Deepnote's scheduling UI defaults every new schedule to the current hour and minute so runs do
+  // not pile onto the same execution spike. A CLI defaulting to 09:00 would be the spike.
+  it.each([
+    [{ daily: true } as const, '37 14 * * *', 'daily at 14:37'],
+    [{ weekly: 'Monday' } as const, '37 14 * * 1', 'weekly on Mon at 14:37'],
+    [{ monthly: '15' } as const, '37 14 15 * *', 'monthly on day 15 at 14:37'],
+  ])('defaults %# to the creation time rather than a fixed hour', (options, cron, description) => {
+    const result = resolveScheduleExpression({ ...options, timezone: 'UTC' }, new Date(2026, 2, 4, 14, 37))
+
+    expect(result.cron).toBe(cron)
+    expect(result.description).toBe(description)
+  })
+
+  it('spreads same-cadence schedules created at different times', () => {
+    const first = resolveScheduleExpression({ daily: true }, new Date(2026, 2, 4, 6, 8))
+    const second = resolveScheduleExpression({ daily: true }, new Date(2026, 2, 4, 21, 52))
+
+    expect(first.cron).toBe('8 6 * * *')
+    expect(second.cron).toBe('52 21 * * *')
   })
 
   // Local-time constructors, not `Z` timestamps: the minute is read off the local clock, and a

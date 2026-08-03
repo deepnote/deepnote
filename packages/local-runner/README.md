@@ -108,10 +108,20 @@ an existing cloud notebook. Deepnote has one schedule per project, so scheduling
 from the same project re-points that schedule.
 
 One file shape cannot be created this way: a project that declares an `initNotebookId`. The public
-creation API has no field for the init designation, so the notebooks would be created without it and
-the scheduled run would start without its setup — at whatever hour the cron names. `scheduleInCloud`
-refuses instead. Import such a project into Deepnote once (which keeps the designation), then
-schedule it; the create path is the only one affected.
+API can neither set nor read a project's init designation, so a created notebook would run without
+its setup — at whatever hour the cron names, which is the least visible place to find out. Both
+`scheduleInCloud` and `runInCloud` refuse rather than create it, in every case:
+
+- a **new project** would be created without the designation;
+- an **existing exact-name project** proves nothing, since only the target notebook is uploaded into
+  it and the API will not say whether that project carries a designation — an unrelated project
+  sharing the name would run the notebook without setup just the same;
+- an **id that matches no notebook in the file** is the ordinary split-file shape, not an absent
+  init: `splitByNotebooks` keeps `initNotebookId` in every main file so the sibling resolver can find
+  the standalone init file.
+
+Import such a project into Deepnote once, which keeps the designation, then run or schedule it —
+that path creates nothing and so never refuses.
 
 ### Serve it to a static page
 

@@ -430,10 +430,7 @@ ${c.bold('Exit Codes:')}
     .option('--weekly <day>', 'Run weekly on a weekday, for example Monday')
     .option('--monthly <day>', 'Run monthly on a day from 1 to 31')
     .option('--cron <expression>', 'Use a custom five-field cron expression')
-    .option(
-      '--at <time>',
-      'Time for daily, weekly, or monthly schedules (defaults to 09:00), or the minute for --hourly'
-    )
+    .option('--at <time>', 'Time for daily, weekly, or monthly schedules, or the minute for --hourly (defaults to now)')
     .option('--timezone <timezone>', 'IANA timezone (defaults to the local system timezone)')
     .option('--notebook <name>', 'Schedule a specific notebook in a multi-notebook file')
     .option('--token <token>', `Deepnote API token (defaults to ${DEEPNOTE_TOKEN_ENV})`)

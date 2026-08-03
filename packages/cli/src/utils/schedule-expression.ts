@@ -82,10 +82,6 @@ export function resolveScheduleExpression(
     return { cron, timezone, description: `cron ${cron}` }
   }
   if (options.hourly) {
-    // Not minute zero. Deepnote spreads hourly schedules across the hour on purpose, and a CLI that
-    // pinned every one of them to :00 would pile its users' runs onto the same execution spike. The
-    // creation minute is the cheapest well-distributed choice available here, and `--at` overrides
-    // it for anyone who wants a specific minute.
     const minute = options.at === undefined ? now.getMinutes() : parseHourlyMinute(options.at)
     return {
       cron: `${minute} * * * *`,
@@ -94,7 +90,10 @@ export function resolveScheduleExpression(
     }
   }
 
-  const { hour, minute, display } = parseTime(options.at ?? '09:00')
+  // The creation time, not a round number. Deepnote's own scheduling UI defaults every new schedule
+  // to the current hour and minute for exactly this reason — a fixed default piles everyone's runs
+  // onto the same execution spike, and 09:00 is a worse offender than most. `--at` still pins one.
+  const { hour, minute, display } = parseTime(options.at ?? formatTime(now))
   if (options.daily) {
     return { cron: `${minute} ${hour} * * *`, timezone, description: `daily at ${display}` }
   }
@@ -123,6 +122,11 @@ export function resolveScheduleExpression(
     timezone,
     description: `monthly on day ${day} at ${display}`,
   }
+}
+
+/** A clock's `HH:mm`, in the form `--at` accepts, so the default flows through the same parser. */
+function formatTime(now: Date): string {
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 }
 
 /**

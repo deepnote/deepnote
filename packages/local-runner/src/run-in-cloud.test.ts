@@ -628,10 +628,10 @@ version: '1.0.0'`
     expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
-  it('refuses to create a new project for an init-backed file, and adds to an existing one', async () => {
+  it('refuses to create content for an init-backed file, new project or existing', async () => {
     // The public API has no init field at all — not on the create body, not on the project it
-    // returns — so a new project would silently drop the designation and every run of the created
-    // notebook would start without its setup.
+    // returns — so neither path can establish or verify the designation, and the created notebook
+    // would run without its setup either way.
     const INIT_FILE = FUNCTION_NOTEBOOK.replace('  name: Test', '  name: Test\n  initNotebookId: nb2')
     cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
 
@@ -640,7 +640,7 @@ version: '1.0.0'`
     )
     expect(cloudMock.createProject).not.toHaveBeenCalled()
 
-    // …but adding to a project Deepnote already holds leaves its designation alone, so it proceeds.
+    // An exact-name project already in Deepnote is not evidence that its setup is there.
     vi.clearAllMocks()
     cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
     cloudMock.findNotebook.mockResolvedValue(undefined)
@@ -648,15 +648,11 @@ version: '1.0.0'`
       projectId: 'existing-proj',
       notebooks: [{ id: 'cloud-second', name: 'Second' }],
     })
-    cloudMock.addNotebooksToProject.mockResolvedValue({
-      projectId: 'existing-proj',
-      notebooks: [{ id: 'cloud-first', name: 'First', blockIds: ['cloud-function'] }],
-    })
-    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
 
-    await runInCloud(INIT_FILE, {}, { token: 't', notebookId: 'nb1' })
-
-    expect(cloudMock.addNotebooksToProject).toHaveBeenCalledOnce()
+    await expect(runInCloud(INIT_FILE, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
+      /init notebook "Second" cannot be preserved/
+    )
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
   })
 
   it('builds a spec only for the notebook being added to an existing project', async () => {

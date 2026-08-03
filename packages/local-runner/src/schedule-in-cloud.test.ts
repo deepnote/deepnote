@@ -269,32 +269,36 @@ describe('scheduleInCloud', () => {
     expect(cloudMock.createProject).not.toHaveBeenCalled()
   })
 
-  it('adds an init-backed notebook to an existing project rather than refusing it', async () => {
-    // The project is in Deepnote and keeps its own init designation; only the notebook is missing.
-    // Refusing here would name an action ("import the project first") the user has already taken.
-    cloudMock.upsertNotebookSchedule.mockReset()
+  it('refuses an init-backed file even when an exact-name project already exists', async () => {
+    // A same-name project is not evidence that the setup is there: only the target notebook is
+    // uploaded into it, and the API will not say whether that project carries an init designation.
+    // An unrelated project sharing the name, or one whose designation was removed, would run the
+    // schedule without setup.
     cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
-    cloudMock.upsertNotebookSchedule.mockResolvedValueOnce(schedule('notebook-created'))
     cloudMock.findProject.mockResolvedValue({ projectId: 'project-existing', projectType: 'standard', notebooks: [] })
-    cloudMock.addNotebooksToProject.mockResolvedValue({
-      projectId: 'project-existing',
-      notebooks: [{ id: 'notebook-created', name: 'Daily report', blockIds: ['block-created'] }],
-    })
 
-    const result = await scheduleInCloud(INIT_NOTEBOOK, '0 9 * * *', { token: 'token', notebookId: 'notebook-local' })
-
-    expect(result).toMatchObject({ notebookId: 'notebook-created', created: true })
-    expect(cloudMock.addNotebooksToProject).toHaveBeenCalledOnce()
+    await expect(
+      scheduleInCloud(INIT_NOTEBOOK, '0 9 * * *', { token: 'token', notebookId: 'notebook-local' })
+    ).rejects.toThrow(/init notebook "Setup" cannot be preserved/)
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
     expect(cloudMock.createProject).not.toHaveBeenCalled()
-    // The retry has to name the notebook that was just created, not the file's own id — the point
-    // of the fallback is that Deepnote assigned a different one.
-    expect(cloudMock.upsertNotebookSchedule).toHaveBeenLastCalledWith(
-      'https://api.deepnote.com',
-      'token',
-      'notebook-created',
-      { cron: '0 9 * * *' },
-      { requestTimeoutMs: undefined }
+  })
+
+  it('refuses a split main file whose init notebook lives in a sibling file', async () => {
+    // `splitByNotebooks` keeps `initNotebookId` in each main file so the sibling resolver can find
+    // the standalone init file. An id that resolves to nothing here is that shape — setup one file
+    // over — not an absent init, and scheduling it would drop the setup silently.
+    const SPLIT_MAIN = NOTEBOOK.replace(
+      '  name: Scheduled report',
+      '  name: Scheduled report\n  initNotebookId: nb-init'
     )
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+
+    await expect(scheduleInCloud(SPLIT_MAIN, '0 9 * * *', { token: 'token' })).rejects.toThrow(
+      /not in this file — split files keep the id/
+    )
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
   })
 
   it('requires a token before making any API call', async () => {
