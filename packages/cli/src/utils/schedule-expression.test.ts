@@ -22,9 +22,14 @@ describe('resolveScheduleExpression', () => {
   })
 
   it('defaults to the system timezone', () => {
+    // The resolved zone itself, not merely "something non-empty" — that would pass just as well if
+    // the function ignored the system clock and hardcoded a fallback. `|| 'UTC'` mirrors the one
+    // case `resolveTimezone` has to cover, an environment that reports no zone at all.
+    const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+
     const result = resolveScheduleExpression({ daily: true })
 
-    expect(result.timezone).toBeTruthy()
+    expect(result.timezone).toBe(systemTimezone)
   })
 
   // Deepnote's scheduling UI defaults every new schedule to the current hour and minute so runs do
