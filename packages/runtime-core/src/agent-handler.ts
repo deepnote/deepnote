@@ -22,6 +22,7 @@ export interface AgentBlockContext {
   /** Optional sink for non-fatal warnings (e.g. MCP client cleanup failures). The host decides how to surface them. */
   onWarning?: (message: string) => void
   integrations?: Array<{ id: string; name: string; type: string }>
+  signal?: AbortSignal
 }
 
 export interface AgentBlockResult {
@@ -146,6 +147,9 @@ ${integrations.map(i => `- "${i.name}" (${i.type}, id: ${i.id})`).join('\n')}`
 }
 
 export async function executeAgentBlock(block: AgentBlock, context: AgentBlockContext): Promise<AgentBlockResult> {
+  // Before any resource acquisition — a pre-aborted call must not spawn MCP subprocesses
+  context.signal?.throwIfAborted()
+
   const openai = createOpenAI({
     apiKey: context.openAiToken,
     baseURL: process.env.OPENAI_BASE_URL,
@@ -185,7 +189,10 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     inputSchema: z.object({
       code: z.string().describe('Python code to execute'),
     }),
-    execute: context.addAndExecuteCodeBlock,
+    execute: async args => {
+      context.signal?.throwIfAborted()
+      return context.addAndExecuteCodeBlock(args)
+    },
   })
 
   const addMarkdownBlockTool = tool({
@@ -193,7 +200,10 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     inputSchema: z.object({
       content: z.string().describe('Markdown content'),
     }),
-    execute: context.addMarkdownBlock,
+    execute: async args => {
+      context.signal?.throwIfAborted()
+      return context.addMarkdownBlock(args)
+    },
   })
 
   const mcpToolSets = await Promise.all(mcpClients.map(client => client.tools()))
@@ -212,7 +222,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   })
 
   try {
-    const streamResult = await agent.stream({ prompt: block.content ?? '' })
+    const streamResult = await agent.stream({ prompt: block.content ?? '', abortSignal: context.signal })
 
     for await (const part of streamResult.fullStream) {
       if (part.type === 'text-delta') {
@@ -229,6 +239,9 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     }
 
     const finalText = await streamResult.text
+
+    // A late abort leaves .text resolving with the *previous* step's text — never return that as a result
+    context.signal?.throwIfAborted()
 
     return {
       finalOutput: finalText ?? '',
