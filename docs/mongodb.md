@@ -8,7 +8,7 @@ noContent: false
 Available on Team and Enterprise plans
 </Callout>
 
-To add a connection to MongoDB, go to **Integrations** via the left sidebar, create a new MongoDB integration and enter your credentials:
+To add a connection to MongoDB, open the **Settings** panel from the top-right of your project, go to the **Integrations** section, create a new MongoDB integration and enter your credentials:
 
 ![mongo.png](../assets/docs/xJmtNalsRLKv245XcPkD.webp)
 
