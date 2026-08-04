@@ -35,6 +35,8 @@ In addition to the formatting toolbar, keyboard shortcuts are also available for
 You can reference an integration or a project directly from a text block. Type `@` inside a paragraph, list, or callout and a picker opens with typeahead, so you can find the resource by name. Selecting a result inserts a chip:
 
 - Project chips link straight to that project.
+- If the referenced resource is later removed, its chip turns red so the broken reference is easy to spot.
+- Each chip carries the resource's ID, so AI agents know exactly which integration or project you mean.
 
 ### Text block operations
 
