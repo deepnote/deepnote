@@ -73,6 +73,9 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `list_integration_project_usages`: List projects connected to an integration.
 - `list_integration_notebook_usages`: List notebooks that contain SQL blocks using an integration.
 - `list_integration_block_usages`: List SQL blocks that use an integration.
+- `create_integration`: Create a new workspace integration.
+- `attach_integration`: Attach an existing integration to a project.
+- `detach_integration`: Detach an integration from a project.
 
 ### Documentation
 
