@@ -30,6 +30,12 @@ In addition to the formatting toolbar, keyboard shortcuts are also available for
 
 💡 Pro tip: The quickest way to add a hyperlink is by copying a URL and then simply pasting it on the highlighted text (Cmd+V).
 
+### Mentions
+
+You can reference an integration or a project directly from a text block. Type `@` inside a paragraph, list, or callout and a picker opens with typeahead, so you can find the resource by name. Selecting a result inserts a chip:
+
+- Project chips link straight to that project.
+
 ### Text block operations
 
 Besides formatting, you can also perform standard block operations available in the block sidebar, such as reordering, commenting, duplication, deletion, and so on. Reordering can also be done by drag-and-dropping the handle on the left-hand side of the block.
