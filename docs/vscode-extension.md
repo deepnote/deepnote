@@ -13,7 +13,7 @@ A powerful extension for [VS Code](https://code.visualstudio.com/), [Cursor](htt
 
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)
 - [Open VSX Registry](https://open-vsx.org/extension/Deepnote/vscode-deepnote) (for Cursor, Windsurf, and other VS Code compatible editors)
-- [GitHub Repository](https://github.com/deepnote/deepnote-vscode)
+- [GitHub Repository](https://github.com/deepnote/vscode-deepnote)
 
 The Deepnote extension provides:
 
@@ -255,6 +255,6 @@ The Deepnote extension brings powerful notebook capabilities to your local devel
 
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)
 - [Open VSX Registry](https://open-vsx.org/extension/Deepnote/vscode-deepnote)
-- [GitHub Repository](https://github.com/deepnote/deepnote-vscode)
+- [GitHub Repository](https://github.com/deepnote/vscode-deepnote)
 - [Documentation](https://deepnote.com/docs)
-- [Report Issues](https://github.com/deepnote/deepnote-vscode/issues)
+- [Report Issues](https://github.com/deepnote/vscode-deepnote/issues)

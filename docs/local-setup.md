@@ -97,7 +97,7 @@ Open the Command Palette and type `Deepnote` to see all available commands:
 ### Learn more
 
 - [GitHub repository](https://github.com/deepnote/vscode-deepnote)
-- [Architecture documentation](https://github.com/deepnote/vscode-deepnote/blob/main/architecture.md)
+- [Architecture documentation](https://github.com/deepnote/vscode-deepnote/blob/main/specs/architecture.md)
 - [Contributing guide](https://github.com/deepnote/vscode-deepnote/blob/main/CONTRIBUTING.md)
 
 ## Deepnote Toolkit (advanced)

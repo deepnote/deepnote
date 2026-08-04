@@ -111,7 +111,7 @@ RUN raco setup && \
 ENV DEFAULT_KERNEL_NAME "racket"
 ```
 
-Thanks, [@dkvasnickajr](https://twitter.com/dkvasnickajr/status/1321901316411711490?s=20) for [sharing this](https://gist.github.com/dkvasnicka/9e7f5c516e997d3f3f00b0256755b906)!
+Thanks to dkvasnicka for [sharing this setup](https://gist.github.com/dkvasnicka/9e7f5c516e997d3f3f00b0256755b906)!
 
 You can [clone this project from Deepnote](https://deepnote.com/project/ead07c75-5f57-49c3-b2a9-3b1b62bd5c59#%2Fnotebook.ipynb).
 
