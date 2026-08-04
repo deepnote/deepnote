@@ -57,6 +57,8 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `create_block`: Create a new block (SQL, Python, text, etc.) in a notebook.
 - `update_block`: Update the contents of an existing block.
 - `reorder_notebook_blocks`: Move one or more blocks to a new position within a notebook.
+- `duplicate_notebook`: Duplicate an existing notebook within a project.
+- `generate_project_url`: Generate a link to a Deepnote project or notebook, so an agent can hand you a URL to what it built.
 
 ### Running notebooks
 
