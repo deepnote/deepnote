@@ -2,12 +2,12 @@
 
 Reference apps for running, viewing, and composing `.deepnote` notebooks.
 
-| Example                                                | What it is                                                                                                                            | Run it                                |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| [**run-app**](./run-app)                               | An interactive page for single local/cloud runs **and** a live fan-out → quality gate → GPT/Claude review → final arbiter.            | `pnpm example:local-runner`           |
-| [**snapshot-viewer**](./snapshot-viewer)               | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.                   | `pnpm example:snapshot-viewer`        |
-| [**orchestration**](./orchestration)                   | A one-shot local-or-cloud pipeline using plain TypeScript control flow, normalized results, and output helpers.                       | `pnpm example:orchestration`          |
-| [**workflow-orchestration**](./workflow-orchestration) | An end-to-end durable decision pipeline: regional fan-out, contained failure, quality-gated recovery, aggregation, and an agent memo. | `pnpm example:workflow-orchestration` |
+| Example                                                | What it is                                                                                                                                                                                      | Needs a server?       | Run it                                |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------- |
+| [**run-app**](./run-app)                               | A page that **runs or schedules** the notebook locally or in Deepnote Cloud, with editable inputs and cloud history, **and** a live fan-out → quality gate → GPT/Claude review → final arbiter. | Yes — `serveStatic`   | `pnpm example:local-runner`           |
+| [**snapshot-viewer**](./snapshot-viewer)               | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.                                                                             | No                    | `pnpm example:snapshot-viewer`        |
+| [**orchestration**](./orchestration)                   | A one-shot local-or-cloud pipeline using plain TypeScript control flow, normalized results, and output helpers.                                                                                 | No — a Node script    | `pnpm example:orchestration`          |
+| [**workflow-orchestration**](./workflow-orchestration) | An end-to-end durable decision pipeline: regional fan-out, contained failure, quality-gated recovery, aggregation, and an agent memo.                                                           | Yes — Vite dev server | `pnpm example:workflow-orchestration` |
 
 The rule of thumb: **run notebooks when you have a server; view snapshots when you only have static
 hosting; orchestrate when several runs form one result.** The root scripts build the packages they
@@ -31,3 +31,13 @@ The run app and snapshot viewer draw on two committed artifacts at the `examples
 - [`snapshot-showcase.snapshot.deepnote`](../snapshot-showcase.snapshot.deepnote) — that dashboard,
   already run, plus an **agent block with precomputed output**. The snapshot viewer renders it with
   zero setup, showing agent-block support without anyone needing an API key.
+
+There is also a small, copyable scheduling smoke test:
+
+```bash
+DEEPNOTE_TOKEN=... pnpm example:schedule-cloud
+```
+
+It schedules [`scheduled-cloud-run.deepnote`](../scheduled-cloud-run.deepnote) for weekdays at
+09:00 in the system timezone. Override `DEEPNOTE_SCHEDULE_CRON` or
+`DEEPNOTE_SCHEDULE_TIMEZONE` to test another cadence.

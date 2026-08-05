@@ -30,7 +30,7 @@ To create the integration, you'll need a few things:
 - **Database**: The name of the database you would like to connect to.
 
 <Callout status="info">
-If your connection is protected, you might need to allowlist Deepnote's IP addresses. [Read more here](/docs/authorize-deepnote-ip-addresses).
+If your connection is protected, you might need to allowlist Deepnote's IP addresses. [Read more here](/docs/securing-connections#authorizing-deepnotes-ip-addresses).
 </Callout>
 
 ### How to use

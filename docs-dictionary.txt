@@ -303,6 +303,9 @@ lstrip
 explor
 analys
 
+# Usernames
+dkvasnicka
+
 # Company names (Deepnote customers)
 Slido
 Homa

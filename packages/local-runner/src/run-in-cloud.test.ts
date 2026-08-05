@@ -8,7 +8,9 @@ const cloudMock = vi.hoisted(() => ({
   fetchSnapshotContent: vi.fn(),
   getRun: vi.fn(),
   createProject: vi.fn(),
+  addNotebooksToProject: vi.fn(),
   findNotebook: vi.fn(),
+  findProject: vi.fn(),
   getWorkspace: vi.fn(),
 }))
 
@@ -18,7 +20,9 @@ vi.mock('@deepnote/cloud', () => ({
   fetchSnapshotContent: cloudMock.fetchSnapshotContent,
   getRun: cloudMock.getRun,
   createProject: cloudMock.createProject,
+  addNotebooksToProject: cloudMock.addNotebooksToProject,
   findNotebook: cloudMock.findNotebook,
+  findProject: cloudMock.findProject,
   getWorkspace: cloudMock.getWorkspace,
   isSuccessStatus: (s: string) => s === 'success',
   describeRunError: (run: { error?: unknown }) => (typeof run.error === 'string' ? run.error : undefined),
@@ -281,6 +285,7 @@ beforeEach(() => {
   cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' })
   cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_YAML)
   cloudMock.findNotebook.mockResolvedValue(undefined)
+  cloudMock.findProject.mockResolvedValue(undefined)
   cloudMock.getWorkspace.mockResolvedValue({ id: 'ws1', slug: 'deepnote' })
   cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: { snapshotContent: SNAPSHOT_YAML } })
 })
@@ -515,7 +520,7 @@ describe('runInCloud', () => {
     expect(result.runId).toBe('r1')
   })
 
-  it('creates blocks in sortingKey order, with the input overrides baked in', async () => {
+  it('creates blocks in sortingKey order, holding the file’s values rather than the run’s', async () => {
     cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
     cloudMock.findNotebook.mockResolvedValue(undefined)
     cloudMock.createProject.mockResolvedValue({
@@ -529,8 +534,146 @@ describe('runInCloud', () => {
     const spec = cloudMock.createProject.mock.calls[0][2]
     expect(spec.name).toBe('Test')
     expect(spec.notebooks[0].blocks.map((b: { type: string }) => b.type)).toEqual(['input-slider', 'code'])
-    // The override is baked into the created block, coerced to the slider's schema shape.
-    expect(spec.notebooks[0].blocks[0].metadata).toMatchObject({ deepnote_variable_value: '7' })
+    // The file's own value, not the run's `7`. This create is shared with any schedule racing for
+    // the same notebook, so a value baked in here would become that schedule's recurring default.
+    expect(spec.notebooks[0].blocks[0].metadata).toMatchObject({ deepnote_variable_value: '3' })
+    // The run still runs with 7 — it travels with the run, not with the notebook.
+    expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith(
+      'https://api.deepnote.com',
+      't',
+      expect.objectContaining({ inputs: { count: '7' } })
+    )
+  })
+
+  it('adds a missing notebook to an existing project and runs the new notebook', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findProject.mockResolvedValue({ projectId: 'existing-proj', notebooks: [] })
+    cloudMock.addNotebooksToProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'new-nb', name: 'NB', blockIds: ['cloud-slider', 'cloud-code'] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
+
+    expect(cloudMock.addNotebooksToProject).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      't',
+      'existing-proj',
+      [expect.objectContaining({ sourceId: 'nb1', name: 'NB' })],
+      expect.objectContaining({ existingNotebookIds: new Map() })
+    )
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+    expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith(
+      'https://api.deepnote.com',
+      't',
+      expect.objectContaining({ notebookId: 'new-nb' })
+    )
+    expect(result.created).toBe(true)
+  })
+
+  it('remaps notebook-function calls to siblings already in the existing project', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-second', name: 'Second' }],
+    })
+    cloudMock.addNotebooksToProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-first', name: 'First', blockIds: ['cloud-function'] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    await runInCloud(FUNCTION_NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })
+
+    const [, , , notebooks, createOptions] = cloudMock.addNotebooksToProject.mock.calls[0]
+    expect(createOptions.existingNotebookIds).toEqual(new Map([['nb2', 'cloud-second']]))
+    expect(createOptions.rewriteBlock(notebooks[0].blocks[0], createOptions.existingNotebookIds).metadata).toEqual({
+      function_notebook_id: 'cloud-second',
+    })
+  })
+
+  it('refuses to add a notebook whose in-file function target is absent from the existing project', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findProject.mockResolvedValue({ projectId: 'existing-proj', notebooks: [] })
+
+    await expect(runInCloud(FUNCTION_NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
+      /calls "Second", which is not in that project/
+    )
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('refuses to add a notebook whose function target shares its name with another local sibling', async () => {
+    // Two local notebooks both called "Second", and the cloud project has one notebook by that
+    // name. Matching by name would map both onto it and run whichever the call did not mean, so
+    // there is no answer here worth guessing at.
+    const AMBIGUOUS = FUNCTION_NOTEBOOK.replace(
+      "version: '1.0.0'",
+      `    - id: nb3
+      name: Second
+      blocks: []
+version: '1.0.0'`
+    )
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-second', name: 'Second' }],
+    })
+
+    await expect(runInCloud(AMBIGUOUS, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
+      /more than one notebook by that name/
+    )
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('refuses to create content for an init-backed file, new project or existing', async () => {
+    // The public API has no init field at all — not on the create body, not on the project it
+    // returns — so neither path can establish or verify the designation, and the created notebook
+    // would run without its setup either way.
+    const INIT_FILE = FUNCTION_NOTEBOOK.replace('  name: Test', '  name: Test\n  initNotebookId: nb2')
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+
+    await expect(runInCloud(INIT_FILE, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
+      /init notebook "Second" cannot be preserved/
+    )
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+
+    // An exact-name project already in Deepnote is not evidence that its setup is there.
+    vi.clearAllMocks()
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.findProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-second', name: 'Second' }],
+    })
+
+    await expect(runInCloud(INIT_FILE, {}, { token: 't', notebookId: 'nb1' })).rejects.toThrow(
+      /init notebook "Second" cannot be preserved/
+    )
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
+  })
+
+  it('builds a spec only for the notebook being added to an existing project', async () => {
+    // toBlockSpec warns as it goes, so building the siblings' specs would report problems in
+    // notebooks this operation never touches.
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-second', name: 'Second' }],
+    })
+    cloudMock.addNotebooksToProject.mockResolvedValue({
+      projectId: 'existing-proj',
+      notebooks: [{ id: 'cloud-first', name: 'First', blockIds: ['cloud-function'] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+
+    await runInCloud(FUNCTION_NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })
+
+    const [, , , notebooks] = cloudMock.addNotebooksToProject.mock.calls[0]
+    expect(notebooks).toHaveLength(1)
+    expect(notebooks[0]).toMatchObject({ sourceId: 'nb1', name: 'First' })
   })
 
   it('does not create anything when the notebook lookup itself fails', async () => {
@@ -683,9 +826,10 @@ describe('runInCloud', () => {
     })
   })
 
-  it('scopes inputs to the target notebook when creating a not-found multi-notebook file', async () => {
-    // `flag` is a slider in nb1 and a checkbox in nb2. Creating for nb2 must bake `true` into nb2's
-    // checkbox only; an unscoped create would coerce `true` against nb1's slider and throw.
+  it('creates a not-found multi-notebook file from its own values and types the run against the target', async () => {
+    // `flag` is a slider in nb1 and a checkbox in nb2. Creating for nb2 writes neither notebook's
+    // value — the create is shared, so it stays the file as it stands. The run's `true` is still
+    // typed against nb2's checkbox: coercing it against nb1's slider would throw.
     cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
     cloudMock.findNotebook.mockResolvedValue(undefined)
     cloudMock.createProject.mockResolvedValue({
@@ -707,14 +851,15 @@ describe('runInCloud', () => {
           unknown
         >
       )?.deepnote_variable_value
-    expect(value('Second')).toBe(true) // nb2's checkbox got the value
+    expect(value('Second')).toBe(false) // nb2's checkbox keeps the file's value
     expect(value('First')).toBe('1') // nb1's slider is untouched
 
-    // …and the run targets the created id of the notebook that was asked for, not the first one.
+    // …the run targets the created id of the notebook that was asked for, not the first one, and
+    // carries `true` typed as nb2's checkbox rather than coerced against nb1's slider.
     expect(cloudMock.triggerNotebookRun).toHaveBeenLastCalledWith(
       'https://api.deepnote.com',
       't',
-      expect.objectContaining({ notebookId: 'new-nb2' })
+      expect.objectContaining({ notebookId: 'new-nb2', inputs: { flag: true } })
     )
   })
 

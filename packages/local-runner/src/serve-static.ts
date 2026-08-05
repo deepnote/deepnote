@@ -7,10 +7,14 @@ import { getCloudRun, listCloudRuns } from './cloud-runs'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import type { OrchestrationEvent } from './orchestrate'
+import type { RecurringSchedule } from './recurring-schedule'
+import { resolveRecurringSchedule } from './recurring-schedule'
 import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 import { runInCloud } from './run-in-cloud'
 import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 import { runWithInputs } from './run-with-inputs'
+import type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
+import { scheduleInCloud } from './schedule-in-cloud'
 
 export type RunnerFn = (
   input: DeepnoteInput,
@@ -27,6 +31,12 @@ export type CloudRunnerFn = (
 export type CloudRunListerFn = (input: DeepnoteInput, options?: ListCloudRunsOptions) => Promise<ListCloudRunsResult>
 
 export type CloudRunGetterFn = (runId: string, options?: GetCloudRunOptions) => Promise<CloudRun>
+
+export type CloudSchedulerFn = (
+  input: DeepnoteInput,
+  cron: string,
+  options?: ScheduleInCloudOptions
+) => Promise<ScheduleInCloudResult>
 
 /**
  * An application-owned notebook pipeline exposed by {@link serveStatic}.
@@ -60,6 +70,8 @@ export interface ServeStaticOptions {
   cloudRunLister?: CloudRunListerFn
   /** Override the single cloud-run fetch (advanced; mainly for testing). Defaults to `getCloudRun`. */
   cloudRunGetter?: CloudRunGetterFn
+  /** Override the cloud scheduler (advanced; mainly for testing). Defaults to `scheduleInCloud`. */
+  cloudScheduler?: CloudSchedulerFn
   /**
    * Optional application-owned pipeline exposed at `POST /api/orchestrate`.
    *
@@ -106,6 +118,9 @@ const CONTENT_TYPES: Record<string, string> = {
  *   `{ runs: [] }` rather than an error when there's no token or the notebook isn't in Deepnote.
  * - `GET  /api/cloud-runs/{runId}` → `{ status, success, outputs, snapshotYaml }` — one past run's
  *   outputs, read from its snapshot without re-running it.
+ * - `POST /api/schedule-cloud` → `{ schedule: { frequency, time, ... }, timezone?,
+ *   createIfMissing? }` (or raw `{ cron, ... }`) → the created or updated recurring Deepnote Cloud
+ *   schedule. This does not execute the notebook immediately.
  * - `POST /api/orchestrate` → NDJSON progress + result when `orchestrationRunner` is provided.
  * - any other GET → a file from `dir` (path-traversal + symlink guarded)
  *
@@ -121,6 +136,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   const cloudRunner = options.cloudRunner ?? runInCloud
   const cloudRunLister = options.cloudRunLister ?? listCloudRuns
   const cloudRunGetter = options.cloudRunGetter ?? getCloudRun
+  const cloudScheduler = options.cloudScheduler ?? scheduleInCloud
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -155,6 +171,10 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
     }
 
     if (req.method === 'POST' && pathname === '/api/run-cloud') {
+      // Same guard as the schedule route below, and for the same reason: this one spends the cloud
+      // token too, and creates project content as a side effect of running a notebook that is not
+      // in Deepnote yet.
+      if (rejectCrossOriginRequest(req, res)) return
       const body = await readJsonBody(req, res)
       if (!body.ok) return
       const inputs = readInputMap(body.value)
@@ -172,6 +192,30 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         created: result.created,
         viewUrl: result.viewUrl,
         error: result.error,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && pathname === '/api/schedule-cloud') {
+      if (rejectCrossOriginRequest(req, res)) return
+      const body = await readJsonBody(req, res)
+      if (!body.ok) return
+      const request = readScheduleRequest(body.value)
+      if (!request.ok) {
+        sendJson(res, 400, { error: request.error })
+        return
+      }
+      const result = await cloudScheduler(notebookPath, request.cron, {
+        token: options.cloudToken,
+        timezone: request.timezone,
+        createIfMissing: request.createIfMissing,
+      })
+      sendJson(res, 200, {
+        notebookId: result.notebookId,
+        schedule: result.schedule,
+        description: request.description,
+        created: result.created,
+        viewUrl: result.viewUrl,
       })
       return
     }
@@ -265,6 +309,98 @@ function readInputMap(parsed: unknown): { ok: true; inputs: Record<string, unkno
   if (raw === undefined || raw === null) return { ok: true, inputs: {} }
   if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false }
   return { ok: true, inputs: raw as Record<string, unknown> }
+}
+
+/** Hostnames a browser treats as this loopback server. Anything else is somebody else's name. */
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+
+/**
+ * Reject browser requests from another origin before a token-backed mutation reads its body.
+ * Requests without Origin remain available to scripts and CLI clients.
+ *
+ * The Origin is checked against the socket this request actually arrived on, never against `Host`.
+ * `Host` is client-controlled, so matching the two only proves the caller sent itself a matching
+ * pair — which is exactly what a DNS-rebinding page does once its hostname resolves to 127.0.0.1,
+ * and it would have carried this server's token off the back of it. The port comes from
+ * `req.socket.localPort` for the same reason: it is the port we are listening on, not a claim.
+ */
+function rejectCrossOriginRequest(req: IncomingMessage, res: ServerResponse): boolean {
+  if (req.headers.origin === undefined) {
+    return false
+  }
+  if (isOwnOrigin(req.headers.origin, req.socket.localPort)) {
+    return false
+  }
+  sendJson(res, 403, { error: 'Cross-origin requests are not allowed' })
+  return true
+}
+
+/** True only for `http://<loopback>:<the port this socket is bound to>`. */
+function isOwnOrigin(origin: string, localPort: number | undefined): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(origin)
+  } catch {
+    // Includes the literal `null` sent by sandboxed iframes and some redirects — not a loopback
+    // origin, so it falls through to the 403 rather than being read as "no Origin at all".
+    return false
+  }
+  if (parsed.protocol !== 'http:' || !LOOPBACK_HOSTNAMES.has(parsed.hostname)) {
+    return false
+  }
+  // The server binds to 127.0.0.1, so `localPort` is always present on a real request; treating an
+  // absent one as a match would reopen the hole on whatever produced it.
+  return localPort !== undefined && parsed.port === String(localPort)
+}
+
+interface ScheduleRequest {
+  cron: string
+  description?: string
+  timezone?: string
+  createIfMissing?: boolean
+}
+
+/** Validate the small JSON contract exposed by `POST /api/schedule-cloud`. */
+function readScheduleRequest(parsed: unknown): ({ ok: true } & ScheduleRequest) | { ok: false; error: string } {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: 'Request body must be an object' }
+  }
+  const body = parsed as Record<string, unknown>
+  const hasCron = body.cron !== undefined
+  const hasSchedule = body.schedule !== undefined
+  if (hasCron === hasSchedule) {
+    return { ok: false, error: 'Provide exactly one of request "cron" or "schedule"' }
+  }
+
+  let cron: string
+  let description: string | undefined
+  if (hasCron) {
+    if (typeof body.cron !== 'string' || !body.cron.trim()) {
+      return { ok: false, error: 'Request "cron" must be a non-empty string' }
+    }
+    cron = body.cron.trim()
+  } else {
+    try {
+      const resolved = resolveRecurringSchedule(body.schedule as RecurringSchedule)
+      cron = resolved.cron
+      description = resolved.description
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+  if (body.timezone !== undefined && (typeof body.timezone !== 'string' || !body.timezone.trim())) {
+    return { ok: false, error: 'Request "timezone" must be a non-empty string when provided' }
+  }
+  if (body.createIfMissing !== undefined && typeof body.createIfMissing !== 'boolean') {
+    return { ok: false, error: 'Request "createIfMissing" must be a boolean when provided' }
+  }
+  return {
+    ok: true,
+    cron,
+    ...(description !== undefined ? { description } : {}),
+    ...(body.timezone !== undefined ? { timezone: body.timezone.trim() } : {}),
+    ...(body.createIfMissing !== undefined ? { createIfMissing: body.createIfMissing } : {}),
+  }
 }
 
 /** Read + JSON-parse the body, sending the right error status on failure (`400`/`413`). */

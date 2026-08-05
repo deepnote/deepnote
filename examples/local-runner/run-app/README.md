@@ -1,21 +1,23 @@
 # run-app
 
-A page that shows all three ways to compose [`@deepnote/local-runner`](../../../packages/local-runner):
+A page that shows every way to compose [`@deepnote/local-runner`](../../../packages/local-runner):
 
 - **Run** one notebook in a local Python kernel.
 - **Run in cloud** runs that notebook in Deepnote Cloud.
+- **Schedule** sets up a recurring Deepnote Cloud run of that notebook.
 - **Run orchestrated pipeline** fans out three regional notebooks, quality-gates their structured
   results, conditionally reruns incomplete data, aggregates the validated portfolio, asks GPT and
   Claude for independent reviews, and fans those reviews into a final arbiter notebook.
 
-The same edited inputs drive all three paths. Single runs use
+The same edited inputs drive all these paths. Single runs use
 [`../../local-runner-showcase.deepnote`](../../local-runner-showcase.deepnote), returning a KPI, a
 table, a chart, and an agent-written readout.
 
-It's an app shell, not a document: an inputs panel on the left, a results canvas on the right.
-[`serve.mjs`](./serve.mjs) supplies `serveStatic` with an application-owned `orchestrationRunner`;
-[`index.html`](./index.html) streams its NDJSON progress and renders the live fork/join graph and decision. No
-framework, no frontend build step.
+It's an app shell, not a document: an inputs panel on the left, a results canvas on the right. Two
+files do the work — [`serve.mjs`](./serve.mjs) (`serveStatic({ dir, notebookPath })`, plus an
+application-owned `orchestrationRunner`) and [`index.html`](./index.html) (`GET /api/info` to build
+the controls, then the run, schedule, and history APIs to drive the page, and the pipeline's NDJSON
+progress to render the live fork/join graph and decision). No framework, no frontend build step.
 
 ## Run it
 
@@ -92,6 +94,23 @@ The GPT-5.5 and Claude Sonnet 5 reviews and the final Deepnote Auto arbiter run 
 Cloud, so they require `DEEPNOTE_TOKEN`. Without it, the regional fan-out, quality gate, recovery,
 aggregation, and rule-based proposal still complete locally; the page marks the provider and
 arbiter nodes as cloud-only.
+
+## Schedule recurring cloud runs
+
+The **Schedule** control is a thin frontend over `POST /api/schedule-cloud`. It sends a structured
+Daily, Weekly (choose weekday), or Monthly (choose calendar day) cadence plus time and timezone.
+`serveStatic` validates and converts that cadence to cron before calling `scheduleInCloud`, so custom
+frontends can reuse the scheduling behavior without implementing cron conversion. Advanced
+frontends can still send raw cron.
+
+Scheduling creates the cloud notebook if necessary but does not run it immediately. Recurring runs
+use the input values stored in Deepnote; when scheduling creates the notebook, those are the
+defaults committed in the `.deepnote` file. Deepnote allows one scheduled notebook per project, so
+saving again updates that project schedule.
+
+The scheduler remains available while a cloud run is active. The local-runner library coordinates
+the first create-if-missing operation, so custom frontends can safely offer the same concurrency
+without implementing their own lock.
 
 ## Notes
 

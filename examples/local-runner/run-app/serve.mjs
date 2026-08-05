@@ -26,8 +26,8 @@ const arbiterNotebook = join(here, 'decision-arbiter.deepnote')
 
 // Read `.env` from the working directory, like `deepnote run` does, so the keys the notebook's
 // agent block needs can live in a file rather than your shell: OPENAI_API_KEY for `Run` (local
-// kernel), DEEPNOTE_TOKEN for `Run in cloud`. Absent `.env` is fine — the environment may carry
-// them already, and the dashboard blocks need neither.
+// kernel), DEEPNOTE_TOKEN for `Run in cloud` and `Schedule`. Absent `.env` is fine — the
+// environment may carry them already, and the dashboard blocks need neither.
 try {
   process.loadEnvFile()
 } catch {}
@@ -264,7 +264,9 @@ const { port } = await serveStatic({
 
 const has = k => (process.env[k] ? '✓' : '—')
 console.log(`\n  Deepnote local-runner · run app → http://127.0.0.1:${port}`)
-console.log(`  Run: OPENAI_API_KEY ${has('OPENAI_API_KEY')}   Run in cloud: DEEPNOTE_TOKEN ${has('DEEPNOTE_TOKEN')}\n`)
+console.log(
+  `  Run: OPENAI_API_KEY ${has('OPENAI_API_KEY')}   Cloud run + schedule: DEEPNOTE_TOKEN ${has('DEEPNOTE_TOKEN')}\n`
+)
 console.log(`  Pipeline target: ${target} (orchestration always stays in this Node process)\n`)
 
 function numberInput(value, fallback) {

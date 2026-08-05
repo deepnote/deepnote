@@ -315,4 +315,4 @@ project:
 
 - [Deepnote GitHub repository](https://github.com/deepnote/deepnote)
 - [@deepnote/convert package](https://www.npmjs.com/package/@deepnote/convert)
-- [Deepnote file schema](https://github.com/deepnote/deepnote/blob/main/packages/blocks/src/deserialize-file/deepnote-file-schema.ts)
+- [Deepnote file schema](https://github.com/deepnote/deepnote/blob/main/packages/blocks/src/deepnote-file/deepnote-file-schema.ts)

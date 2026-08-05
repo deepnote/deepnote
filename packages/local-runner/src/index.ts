@@ -51,11 +51,16 @@ export {
   outputText,
 } from './orchestrate'
 export { readSnapshot } from './read-snapshot'
+export type { RecurringSchedule, ResolvedRecurringSchedule } from './recurring-schedule'
+export { RecurringScheduleError, resolveRecurringSchedule } from './recurring-schedule'
 export type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 export { runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 export { runWithInputs } from './run-with-inputs'
+export type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
+export { scheduleInCloud } from './schedule-in-cloud'
 export type {
+  CloudSchedulerFn,
   OrchestrationRunnerFn,
   RunnerFn,
   ServeStaticHandle,
