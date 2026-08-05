@@ -1,6 +1,3 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import type { AgentStreamEvent, IOutput } from '@deepnote/runtime-core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -495,67 +492,6 @@ describe('orchestrate', () => {
     ])
   })
 
-  it('resumes policy attempts without repeating their notebook runs', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'deepnote-orchestration-'))
-    const stateFile = join(directory, 'run.json')
-    const policy = defineRunPolicy({ idempotent: true, retry: { maxAttempts: 2 } })
-    const pipeline = async ({ run, runWithPolicy }: Parameters<Parameters<typeof orchestrate>[0]>[0]) => {
-      const prepared = await runWithPolicy({ id: 'prepare', notebook: 'prepare.deepnote' }, policy)
-      return run({
-        id: 'publish',
-        notebook: 'publish.deepnote',
-        dependsOn: [prepared.policyNodeId ?? prepared.id],
-      })
-    }
-
-    try {
-      runnerMock.runWithInputs.mockResolvedValueOnce(localResult()).mockRejectedValueOnce(new Error('process lost'))
-      await expect(orchestrate(pipeline, { persistence: { file: stateFile } })).rejects.toThrow(/process lost/)
-
-      runnerMock.runWithInputs.mockResolvedValueOnce(localResult())
-      const resumed = await orchestrate(pipeline, { persistence: { file: stateFile } })
-
-      expect(runnerMock.runWithInputs).toHaveBeenCalledTimes(3)
-      expect(resumed.steps).toEqual([
-        expect.objectContaining({ id: 'prepare-attempt-1', cached: true }),
-        expect.objectContaining({ id: 'publish', success: true }),
-      ])
-      expect(resumed.graph.edges).toContainEqual({ from: 'prepare', to: 'publish', label: undefined })
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('includes sub-pipeline inputs in persisted child fingerprints', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'deepnote-orchestration-'))
-    const stateFile = join(directory, 'run.json')
-    const selectRegion = definePipeline<string, string>({
-      name: 'Select region',
-      run: ({ control }, region) => control({ id: 'selection' }, () => region),
-    })
-
-    try {
-      runnerMock.runWithInputs.mockRejectedValueOnce(new Error('stop after pipeline'))
-      await expect(
-        orchestrate(
-          async ({ invoke, run }) => {
-            await invoke({ id: 'regional', pipeline: selectRegion, input: 'Europe' })
-            await run({ id: 'stop', notebook: 'stop.deepnote' })
-          },
-          { persistence: { file: stateFile } }
-        )
-      ).rejects.toThrow(/stop after pipeline/)
-
-      await expect(
-        orchestrate(({ invoke }) => invoke({ id: 'regional', pipeline: selectRegion, input: 'Asia Pacific' }), {
-          persistence: { file: stateFile },
-        })
-      ).rejects.toThrow(/definition or inputs changed/)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
   it('validates reusable pipeline and retry definitions eagerly', () => {
     expect(() => definePipeline({ name: ' ', run: () => undefined })).toThrow(/name cannot be empty/)
     expect(() => defineRunPolicy({ idempotent: true, retry: { maxAttempts: 0 } })).toThrow(
@@ -634,107 +570,6 @@ describe('orchestrate', () => {
     ).rejects.toThrow(/both marked as concluding/)
   })
 
-  it('checkpoints completed nodes and resumes an interrupted one-shot orchestration', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'deepnote-orchestration-'))
-    const stateFile = join(directory, 'run.json')
-    const pipeline = ({ run, control }: Parameters<Parameters<typeof orchestrate>[0]>[0]) =>
-      (async () => {
-        const prepared = await run({ id: 'prepare', notebook: 'prepare.deepnote' })
-        await control({ id: 'gate', kind: 'gate', dependsOn: [prepared.id] }, () => ({ passed: true }))
-        return run({ id: 'report', notebook: 'report.deepnote', dependsOn: ['gate'], concluding: true })
-      })()
-
-    try {
-      runnerMock.runWithInputs.mockResolvedValueOnce(localResult()).mockRejectedValueOnce(new Error('process lost'))
-      await expect(orchestrate(pipeline, { persistence: { file: stateFile } })).rejects.toThrow(/process lost/)
-
-      const failedState = JSON.parse(await readFile(stateFile, 'utf8')) as {
-        status: string
-        checkpoints: Record<string, unknown>
-      }
-      expect(failedState.status).toBe('failed')
-      expect(Object.keys(failedState.checkpoints)).toEqual(['prepare', 'gate'])
-
-      const resumedEvents: OrchestrationEvent[] = []
-      runnerMock.runWithInputs.mockResolvedValueOnce(localResult())
-      const resumed = await orchestrate(pipeline, {
-        persistence: { file: stateFile },
-        onEvent: event => resumedEvents.push(event),
-      })
-
-      expect(runnerMock.runWithInputs).toHaveBeenCalledTimes(3)
-      expect(resumed.steps[0]).toMatchObject({ id: 'prepare', cached: true })
-      expect(resumed.graph.nodes).toEqual([
-        expect.objectContaining({ id: 'prepare', cached: true, durationMs: 0 }),
-        expect.objectContaining({ id: 'gate', cached: true, durationMs: 0 }),
-        expect.objectContaining({ id: 'report', status: 'success', concluding: true }),
-      ])
-      expect(resumedEvents).toContainEqual({
-        type: 'control_completed',
-        node: expect.objectContaining({ id: 'gate', cached: true }),
-      })
-      const completedState = JSON.parse(await readFile(stateFile, 'utf8')) as {
-        status: string
-        result: { graph: { concludingNodeId?: string } }
-      }
-      expect(completedState).toMatchObject({
-        status: 'completed',
-        result: { graph: { concludingNodeId: 'report' } },
-      })
-
-      const completedCallback = vi.fn(pipeline)
-      const completed = await orchestrate(completedCallback, { persistence: { file: stateFile } })
-      expect(completedCallback).not.toHaveBeenCalled()
-      expect(completed.value).toMatchObject({ id: 'report', success: true })
-      expect(runnerMock.runWithInputs).toHaveBeenCalledTimes(3)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('refuses to combine persisted checkpoints with changed node inputs', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'deepnote-orchestration-'))
-    const stateFile = join(directory, 'run.json')
-
-    try {
-      runnerMock.runWithInputs.mockResolvedValueOnce(localResult()).mockRejectedValueOnce(new Error('stop'))
-      await expect(
-        orchestrate(
-          async ({ run }) => {
-            await run({ id: 'prepare', notebook: 'prepare.deepnote', inputs: { region: 'Europe' } })
-            await run({ id: 'report', notebook: 'report.deepnote' })
-          },
-          { persistence: { file: stateFile } }
-        )
-      ).rejects.toThrow(/stop/)
-
-      await expect(
-        orchestrate(({ run }) => run({ id: 'prepare', notebook: 'prepare.deepnote', inputs: { region: 'Asia' } }), {
-          persistence: { file: stateFile },
-        })
-      ).rejects.toThrow(/definition or inputs changed/)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('requires persisted control values to be JSON-serializable', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'deepnote-orchestration-'))
-    const stateFile = join(directory, 'run.json')
-
-    try {
-      await expect(
-        orchestrate(({ control }) => control({ id: 'bad-value' }, () => ({ count: 1n })), {
-          persistence: { file: stateFile },
-        })
-      ).rejects.toThrow(/must be JSON-serializable/)
-      const state = JSON.parse(await readFile(stateFile, 'utf8')) as { status: string }
-      expect(state.status).toBe('failed')
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
   it('rejects duplicate and empty step ids before starting another notebook', async () => {
     await expect(
       orchestrate(async ({ run }) => {
@@ -747,12 +582,6 @@ describe('orchestrate', () => {
       /cannot be empty/
     )
     expect(runnerMock.runWithInputs).toHaveBeenCalledTimes(1)
-  })
-
-  it('rejects an empty persistence file path', async () => {
-    await expect(orchestrate(() => undefined, { persistence: { file: '  ' } })).rejects.toThrow(
-      /persistence file cannot be empty/
-    )
   })
 })
 

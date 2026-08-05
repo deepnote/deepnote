@@ -28,7 +28,6 @@ export type {
   OrchestrationGraphNodeKind,
   OrchestrationGraphNodeStatus,
   OrchestrationOutputHelpers,
-  OrchestrationPersistenceOptions,
   OrchestrationPipelineDefinition,
   OrchestrationPipelineInvocation,
   OrchestrationResult,

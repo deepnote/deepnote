@@ -1,15 +1,5 @@
 import type { AgentStreamEvent, ExecutionSummary, IOutput } from '@deepnote/runtime-core'
 import type { DeepnoteInput } from './load-file'
-import { loadDeepnoteFile } from './load-file'
-import {
-  assertJsonSerializable,
-  newPersistedState,
-  type OrchestrationCheckpoint,
-  orchestrationFingerprint,
-  type PersistedOrchestrationState,
-  readPersistedState,
-  writePersistedState,
-} from './orchestration-state'
 import type { RunInCloudOptions } from './run-in-cloud'
 import { runInCloud } from './run-in-cloud'
 import type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
@@ -139,8 +129,6 @@ export interface OrchestrationStepResult {
   startedAt: string
   finishedAt: string
   durationMs: number
-  /** True when this result was restored from an opt-in persistence checkpoint. */
-  cached?: boolean
   /** Logical policy node that resolved retry attempts or a fallback. */
   policyNodeId?: string
   /** One-based attempt number for policy-managed notebook runs. */
@@ -162,7 +150,6 @@ export interface OrchestrationGraphNode {
   startedAt: string
   finishedAt?: string
   durationMs?: number
-  cached?: boolean
   runId?: string
   viewUrl?: string
   snapshotPath?: string
@@ -249,16 +236,6 @@ export type OrchestrationEvent =
       error: string
     }
 
-export interface OrchestrationPersistenceOptions {
-  /**
-   * JSON checkpoint file. It contains notebook outputs and snapshots, so protect it like any other
-   * local run artifact.
-   */
-  file: string
-  /** Resume matching checkpoints when the file exists. Defaults to true; false starts a fresh run. */
-  resume?: boolean
-}
-
 export interface OrchestrateOptions {
   /** Used when a step does not choose a target. Defaults to `local`. */
   defaultTarget?: OrchestrationTarget
@@ -268,13 +245,6 @@ export interface OrchestrateOptions {
   cloud?: RunInCloudOptions
   /** Synchronous event sink for logging, UIs, and telemetry. */
   onEvent?: (event: OrchestrationEvent) => void
-  /**
-   * Optional local checkpoints for process-restart recovery.
-   *
-   * Replay is at-least-once: a process exit during a notebook invocation reruns that invocation.
-   * Use Workflow SDK when stronger durable execution and deployment semantics are required.
-   */
-  persistence?: OrchestrationPersistenceOptions
 }
 
 export interface OrchestrationOutputHelpers {
@@ -369,43 +339,15 @@ export async function orchestrate<T>(
   workflow: (context: OrchestrationContext) => T | Promise<T>,
   options: OrchestrateOptions = {}
 ): Promise<OrchestrationResult<T>> {
-  const configuredPersistenceFile = options.persistence?.file
-  if (configuredPersistenceFile !== undefined && !configuredPersistenceFile.trim()) {
-    throw new Error('Orchestration persistence file cannot be empty.')
-  }
-  const persistenceFile = configuredPersistenceFile?.trim()
-  const resumedState =
-    persistenceFile && options.persistence?.resume !== false ? await readPersistedState(persistenceFile) : null
-  if (resumedState?.status === 'completed' && resumedState.result) {
-    return resumedState.result as OrchestrationResult<T>
-  }
-
-  const orchestrationStartedMs = resumedState ? Date.parse(resumedState.startedAt) : Date.now()
-  const orchestrationStartedAt = resumedState?.startedAt ?? new Date(orchestrationStartedMs).toISOString()
+  const orchestrationStartedMs = Date.now()
+  const orchestrationStartedAt = new Date(orchestrationStartedMs).toISOString()
   const usedIds = new Set<string>()
   const resultOrder = new Map<string, number>()
   const results: OrchestrationStepResult[] = []
   const graph: OrchestrationGraph = { nodes: [], edges: [] }
-  const persistedState: PersistedOrchestrationState = resumedState ?? newPersistedState(orchestrationStartedAt, graph)
-  persistedState.status = 'running'
-  persistedState.error = undefined
-  persistedState.result = undefined
-  persistedState.graph = graph
-  let persistenceWrites = Promise.resolve()
 
   const emit = (event: OrchestrationEvent): void => {
     options.onEvent?.(event)
-  }
-
-  const saveState = async (): Promise<void> => {
-    if (!persistenceFile) {
-      return
-    }
-    persistedState.updatedAt = new Date().toISOString()
-    persistedState.graph = graph
-    const snapshot = structuredClone(persistedState)
-    persistenceWrites = persistenceWrites.then(() => writePersistedState(persistenceFile, snapshot))
-    await persistenceWrites
   }
 
   const registerNode = (
@@ -452,7 +394,6 @@ export async function orchestrate<T>(
     status: Exclude<OrchestrationGraphNodeStatus, 'running'>,
     startedMs: number,
     details: {
-      cached?: boolean
       runId?: string
       viewUrl?: string
       snapshotPath?: string
@@ -461,26 +402,11 @@ export async function orchestrate<T>(
   ): void => {
     node.status = status
     node.finishedAt = new Date().toISOString()
-    node.durationMs = details.cached ? 0 : Date.now() - startedMs
-    node.cached = details.cached || undefined
+    node.durationMs = Date.now() - startedMs
     node.runId = details.runId
     node.viewUrl = details.viewUrl
     node.snapshotPath = details.snapshotPath
     node.error = details.error
-  }
-
-  const checkpoint = (id: string, expectedKind: OrchestrationCheckpoint['kind'], fingerprint: string) => {
-    const existing = resumedState?.checkpoints[id]
-    if (!existing) {
-      return undefined
-    }
-    if (existing.kind !== expectedKind || existing.fingerprint !== fingerprint) {
-      throw new Error(
-        `Cannot resume orchestration node "${id}" because its definition or inputs changed. ` +
-          `Start fresh with persistence.resume set to false or use a different state file.`
-      )
-    }
-    return existing
   }
 
   const runNode = async (step: OrchestrationStep, parentId?: string): Promise<OrchestrationStepResult> => {
@@ -489,44 +415,9 @@ export async function orchestrate<T>(
     const startedMs = Date.now()
     const startedAt = new Date(startedMs).toISOString()
     validateNodeId(id, usedIds)
-    const fingerprint = persistenceFile
-      ? orchestrationFingerprint({
-          kind: 'notebook',
-          id,
-          target,
-          notebook: fingerprintNotebook(step.notebook),
-          inputs: step.inputs ?? {},
-          allowFailure: step.allowFailure ?? false,
-          label: step.label,
-          dependsOn: normalizeDependencies(step.dependsOn),
-          concluding: step.concluding ?? false,
-          version: step.version,
-          metadata: step.metadata,
-        })
-      : null
-    const saved = fingerprint ? checkpoint(id, 'notebook', fingerprint) : undefined
     const node = registerNode(id, 'notebook', step, startedAt, target, parentId)
     resultOrder.set(id, resultOrder.size)
     emit({ type: 'step_started', stepId: id, target, startedAt })
-
-    if (saved?.kind === 'notebook') {
-      const result = { ...saved.result, cached: true }
-      results.push(result)
-      finishNode(node, result.success ? 'success' : 'failed', startedMs, {
-        cached: true,
-        runId: result.runId,
-        viewUrl: result.viewUrl,
-        snapshotPath: result.snapshotPath,
-        error: result.error,
-      })
-      if (result.success) {
-        emit({ type: 'step_completed', stepId: id, target, result })
-      } else {
-        emit({ type: 'step_failed', stepId: id, target, error: result.error ?? result.status, result })
-      }
-      await saveState()
-      return result
-    }
 
     try {
       const result =
@@ -545,13 +436,8 @@ export async function orchestrate<T>(
         })
         emit({ type: 'step_failed', stepId: id, target, error, result })
         if (!step.allowFailure) {
-          await saveState()
           throw new OrchestrationStepError(id, target, error, { result })
         }
-        if (fingerprint) {
-          persistedState.checkpoints[id] = { kind: 'notebook', fingerprint, result }
-        }
-        await saveState()
         return result
       }
 
@@ -561,10 +447,6 @@ export async function orchestrate<T>(
         snapshotPath: result.snapshotPath,
       })
       emit({ type: 'step_completed', stepId: id, target, result })
-      if (fingerprint) {
-        persistedState.checkpoints[id] = { kind: 'notebook', fingerprint, result }
-      }
-      await saveState()
       return result
     } catch (error) {
       if (error instanceof OrchestrationStepError) {
@@ -573,7 +455,6 @@ export async function orchestrate<T>(
       const message = error instanceof Error ? error.message : String(error)
       finishNode(node, 'failed', startedMs, { error: message })
       emit({ type: 'step_failed', stepId: id, target, error: message })
-      await saveState()
       throw new OrchestrationStepError(id, target, message, { cause: error })
     }
   }
@@ -588,49 +469,18 @@ export async function orchestrate<T>(
     const startedMs = Date.now()
     const startedAt = new Date(startedMs).toISOString()
     validateNodeId(id, usedIds)
-    const fingerprint = persistenceFile
-      ? orchestrationFingerprint({
-          kind: 'control',
-          id,
-          controlKind: kind,
-          label: definition.label,
-          dependsOn: normalizeDependencies(definition.dependsOn),
-          concluding: definition.concluding ?? false,
-          version: definition.version,
-          metadata: definition.metadata,
-        })
-      : null
-    const saved = fingerprint ? checkpoint(id, 'control', fingerprint) : undefined
     const node = registerNode(id, kind, definition, startedAt, undefined, parentId)
     emit({ type: 'control_started', node: { ...node } })
 
-    if (saved?.kind === 'control') {
-      finishNode(node, 'success', startedMs, { cached: true })
-      emit({ type: 'control_completed', node: { ...node } })
-      await saveState()
-      return (saved.valueIsUndefined ? undefined : saved.value) as T
-    }
-
     try {
       const value = await operation()
-      if (fingerprint) {
-        assertJsonSerializable(value, `Control node "${id}" result`)
-        persistedState.checkpoints[id] = {
-          kind: 'control',
-          fingerprint,
-          value: value === undefined ? undefined : value,
-          valueIsUndefined: value === undefined || undefined,
-        }
-      }
       finishNode(node, 'success', startedMs)
       emit({ type: 'control_completed', node: { ...node } })
-      await saveState()
       return value
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       finishNode(node, 'failed', startedMs, { error: message })
       emit({ type: 'control_failed', node: { ...node }, error: message })
-      await saveState()
       throw error
     }
   }
@@ -778,7 +628,6 @@ export async function orchestrate<T>(
     if (lastResult?.success) {
       finishNode(policyNode, 'success', startedMs)
       emit({ type: 'control_completed', node: { ...policyNode } })
-      await saveState()
       return { ...lastResult, policyNodeId: id, attempt: usedFallback ? undefined : attempts }
     }
 
@@ -788,7 +637,6 @@ export async function orchestrate<T>(
         : (lastResult?.error ?? `the recovery policy for "${id}" exhausted all available runs`)
     finishNode(policyNode, 'failed', startedMs, { error: message })
     emit({ type: 'control_failed', node: { ...policyNode }, error: message })
-    await saveState()
 
     if (step.allowFailure && lastResult) {
       return { ...lastResult, policyNodeId: id, attempt: usedFallback ? undefined : attempts }
@@ -834,27 +682,19 @@ export async function orchestrate<T>(
       parentId
     )
     emit({ type: 'pipeline_started', node: { ...node } })
-    const invocationVersion = persistenceFile
-      ? orchestrationFingerprint({
-          parent: inheritedVersion,
-          pipeline: invocation.pipeline.name,
-          version: invocation.pipeline.version,
-          invocationVersion: invocation.version,
-          input: invocation.input,
-        })
-      : undefined
 
     try {
-      const value = await invocation.pipeline.run(contextFor(id, invocationVersion), invocation.input)
+      const value = await invocation.pipeline.run(
+        contextFor(id, combineVersions(inheritedVersion, invocation.pipeline.version, invocation.version)),
+        invocation.input
+      )
       finishNode(node, 'success', startedMs)
       emit({ type: 'pipeline_completed', node: { ...node } })
-      await saveState()
       return value
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       finishNode(node, 'failed', startedMs, { error: message })
       emit({ type: 'pipeline_failed', node: { ...node }, error: message })
-      await saveState()
       throw error
     }
   }
@@ -892,39 +732,15 @@ export async function orchestrate<T>(
     }
   }
 
-  await saveState()
-  try {
-    const value = await workflow(contextFor())
-    const unvisitedCheckpoints = Object.keys(persistedState.checkpoints).filter(id => !usedIds.has(id))
-    if (unvisitedCheckpoints.length > 0) {
-      throw new Error(
-        `Cannot resume orchestration because saved ${pluralize(unvisitedCheckpoints.length, 'node')} ` +
-          `${formatList(unvisitedCheckpoints)} were not visited. Start fresh with persistence.resume set to false.`
-      )
-    }
-    const finishedMs = Date.now()
-    const result: OrchestrationResult<T> = {
-      value,
-      steps: results.sort((a, b) => (resultOrder.get(a.id) ?? 0) - (resultOrder.get(b.id) ?? 0)),
-      graph,
-      startedAt: orchestrationStartedAt,
-      finishedAt: new Date(finishedMs).toISOString(),
-      durationMs: finishedMs - orchestrationStartedMs,
-    }
-    if (persistenceFile) {
-      assertJsonSerializable(result, 'Orchestration result')
-      persistedState.status = 'completed'
-      persistedState.result = result as OrchestrationResult<unknown>
-      await saveState()
-    }
-    return result
-  } catch (error) {
-    if (persistenceFile) {
-      persistedState.status = 'failed'
-      persistedState.error = error instanceof Error ? error.message : String(error)
-      await saveState()
-    }
-    throw error
+  const value = await workflow(contextFor())
+  const finishedMs = Date.now()
+  return {
+    value,
+    steps: results.sort((a, b) => (resultOrder.get(a.id) ?? 0) - (resultOrder.get(b.id) ?? 0)),
+    graph,
+    startedAt: orchestrationStartedAt,
+    finishedAt: new Date(finishedMs).toISOString(),
+    durationMs: finishedMs - orchestrationStartedMs,
   }
 }
 
@@ -935,24 +751,6 @@ function validateNodeId(id: string, usedIds: Set<string>): void {
   if (usedIds.has(id)) {
     throw new Error(`Orchestration node id "${id}" was used more than once.`)
   }
-}
-
-function fingerprintNotebook(input: DeepnoteInput): unknown {
-  try {
-    return loadDeepnoteFile(input).file
-  } catch {
-    // Execution will report an invalid input itself. Keeping the raw value here also lets callers
-    // provide runner-specific virtual paths when runWithInputs/runInCloud are replaced in tests.
-    return input
-  }
-}
-
-function pluralize(count: number, singular: string): string {
-  return count === 1 ? singular : `${singular}s`
-}
-
-function formatList(values: string[]): string {
-  return values.map(value => `"${value}"`).join(', ')
 }
 
 function validateRunPolicy(policy: OrchestrationRunPolicy): void {
