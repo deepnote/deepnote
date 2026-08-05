@@ -499,6 +499,28 @@ async function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
+/** Reject a caller-provided async wait promptly when its signal aborts. */
+async function waitWithSignal(wait: Promise<void>, signal?: AbortSignal): Promise<void> {
+  if (!signal) {
+    return wait
+  }
+  if (signal.aborted) {
+    throw signal.reason
+  }
+  let rejectOnAbort: (() => void) | undefined
+  try {
+    await new Promise<void>((resolve, reject) => {
+      rejectOnAbort = () => reject(signal.reason)
+      signal.addEventListener('abort', rejectOnAbort, { once: true })
+      void wait.then(resolve, reject)
+    })
+  } finally {
+    if (rejectOnAbort) {
+      signal.removeEventListener('abort', rejectOnAbort)
+    }
+  }
+}
+
 /**
  * Wait briefly for a terminal run's snapshot to be attached.
  *
@@ -514,7 +536,6 @@ export async function waitForRunSnapshot(
 ): Promise<SettledRunSnapshot> {
   const attempts = options.attempts ?? DEFAULT_SNAPSHOT_SETTLE_ATTEMPTS
   const intervalMs = options.intervalMs ?? DEFAULT_SNAPSHOT_SETTLE_INTERVAL_MS
-  const sleep = options.sleep ?? ((ms: number) => abortableSleep(ms, options.signal))
   let current = run
   let lastReadError: unknown
 
@@ -543,7 +564,11 @@ export async function waitForRunSnapshot(
     }
 
     if (attempt > 0) {
-      await sleep(intervalMs)
+      if (options.sleep) {
+        await waitWithSignal(options.sleep(intervalMs), options.signal)
+      } else {
+        await abortableSleep(intervalMs, options.signal)
+      }
     }
     try {
       current = await getRun(baseUrl, token, current.runId, {

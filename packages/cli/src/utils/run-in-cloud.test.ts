@@ -1,7 +1,12 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { join } from 'node:path'
-import { type DeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
+import {
+  type DeepnoteFile,
+  deserializeDeepnoteFile,
+  serializeDeepnoteFile,
+  serializeDeepnoteSnapshot,
+} from '@deepnote/blocks'
 import { splitDeepnoteFile } from '@deepnote/convert'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
@@ -61,6 +66,8 @@ interface MockConfig {
   downloadBody?: string
   runError?: unknown
   runId?: string
+  createdAt?: string
+  completedAt?: string
 }
 
 interface InstalledFetch {
@@ -94,6 +101,8 @@ function installFetch(cfg: MockConfig): InstalledFetch {
       run: {
         id: runId,
         status: cfg.terminalStatus ?? 'success',
+        ...(cfg.createdAt ? { createdAt: cfg.createdAt } : {}),
+        ...(cfg.completedAt ? { completedAt: cfg.completedAt } : {}),
         ...(cfg.runError !== undefined ? { error: cfg.runError } : {}),
         ...(snapshot ? { snapshot } : {}),
       },
@@ -414,16 +423,56 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
   })
 
   it('synthesizes an output-free snapshot for a known no-op run', async () => {
-    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
-    installFetch({ terminalStatus: 'success' }) // no snapshotContent, no downloadUrl
-    const path = await writeFixture('single.deepnote', file)
+    const file = makeFile([
+      { id: 'nb-empty', name: 'No-op' },
+      { id: 'nb-stale', name: 'Prior run' },
+    ])
+    file.project.notebooks[0].blocks = [
+      {
+        ...inputBlock('text-1', '0', 'markdown', {}),
+        content: 'Keep this source block.',
+      } as unknown as DeepnoteFile['project']['notebooks'][number]['blocks'][number],
+    ]
+    file.project.notebooks[1].blocks = [
+      {
+        ...inputBlock('code-1', '0', 'code', {}),
+        content: 'print("old")',
+        executionCount: 7,
+        outputs: [{ output_type: 'stream', name: 'stdout', text: 'stale output\n' }],
+      } as unknown as DeepnoteFile['project']['notebooks'][number]['blocks'][number],
+    ]
+    const createdAt = '2026-08-05T10:00:00.000Z'
+    const completedAt = '2026-08-05T10:00:02.000Z'
+    installFetch({ terminalStatus: 'success', createdAt, completedAt }) // no snapshotContent or downloadUrl
+    const path = await writeFixture('no-op.deepnote', file)
 
-    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, output: 'json' })
+    await runInDeepnoteCloud(path, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      output: 'json',
+      notebook: 'No-op',
+    })
 
     const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
     const result = JSON.parse(logged)
     expect(result).toMatchObject({ success: true, status: 'success', artifactStatus: 'saved' })
     expect(result.snapshotPath).toBeTruthy()
+    const content = await fs.readFile(result.snapshotPath, 'utf-8')
+    const source = splitDeepnoteFile(file).source
+    const expected = splitDeepnoteFile({
+      ...source,
+      execution: { startedAt: createdAt, finishedAt: completedAt, triggeredBy: 'api' },
+    }).snapshot
+    expect(content).toBe(serializeDeepnoteSnapshot(expected))
+
+    const snapshot = deserializeDeepnoteFile(content)
+    const canonicalExpected = deserializeDeepnoteFile(serializeDeepnoteSnapshot(expected))
+    expect(snapshot.execution).toEqual({ startedAt: createdAt, finishedAt: completedAt, triggeredBy: 'api' })
+    expect(snapshot.project.notebooks).toEqual(canonicalExpected.project.notebooks)
+    expect(snapshot.project.notebooks[0].blocks[0]).toMatchObject({ id: 'text-1', content: 'Keep this source block.' })
+    expect(snapshot.project.notebooks[1].blocks[0]).not.toHaveProperty('outputs')
+    expect(snapshot.project.notebooks[1].blocks[0]).not.toHaveProperty('executionCount')
     expect(process.exitCode).toBe(ExitCode.Success)
   }, 10_000)
 

@@ -325,6 +325,22 @@ describe('waitForRunSnapshot', () => {
       })
     ).rejects.toMatchObject({ statusCode: 503 })
   })
+
+  it('aborts promptly while a caller-provided sleep remains pending', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'success' } }))
+    const sleep = vi.fn(() => new Promise<void>(() => {}))
+    const controller = new AbortController()
+
+    const pending = waitForRunSnapshot(BASE_URL, TOKEN, run(), {
+      attempts: 2,
+      sleep,
+      signal: controller.signal,
+    })
+    await vi.waitFor(() => expect(sleep).toHaveBeenCalledOnce())
+    controller.abort(new Error('stop settling'))
+
+    await expect(pending).rejects.toThrow('stop settling')
+  })
 })
 
 describe('describeRunError', () => {
