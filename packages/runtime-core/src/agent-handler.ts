@@ -1,4 +1,4 @@
-import { createMCPClient } from '@ai-sdk/mcp'
+import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
 import { createOpenAI } from '@ai-sdk/openai'
 import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
@@ -170,58 +170,59 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   const blockMcpServers = block.metadata.deepnote_mcp_servers ?? []
   const mergedMcpConfig = mergeMcpConfigs(context.mcpServers, blockMcpServers)
 
-  const mcpClients = await Promise.all(
-    mergedMcpConfig.map(s =>
-      createMCPClient({
-        transport: new Experimental_StdioMCPTransport({
-          command: s.command,
-          args: s.args,
-          env: resolveEnvVars(s.env),
-          stderr: 'pipe',
-        }),
-      })
-    )
-  )
-
-  const addCodeBlockTool = tool({
-    description:
-      'Add a Python code block to the notebook and execute it. Returns the combined output text or an error message.',
-    inputSchema: z.object({
-      code: z.string().describe('Python code to execute'),
-    }),
-    execute: async args => {
-      context.signal?.throwIfAborted()
-      return context.addAndExecuteCodeBlock(args)
-    },
-  })
-
-  const addMarkdownBlockTool = tool({
-    description: 'Add a markdown block to the notebook for explanations, section headers, or documentation.',
-    inputSchema: z.object({
-      content: z.string().describe('Markdown content'),
-    }),
-    execute: async args => {
-      context.signal?.throwIfAborted()
-      return context.addMarkdownBlock(args)
-    },
-  })
-
-  const mcpToolSets = await Promise.all(mcpClients.map(client => client.tools()))
-  const mcpTools: Record<string, unknown> = Object.assign({}, ...mcpToolSets)
-
-  const agent = new ToolLoopAgent({
-    model,
-    instructions: buildSystemPrompt(context.notebookContext, context.integrations),
-    tools: {
-      add_code_block: addCodeBlockTool,
-      add_markdown_block: addMarkdownBlockTool,
-      ...mcpTools,
-    },
-    stopWhen: stepCountIs(maxTurns),
-    ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
-  })
-
+  let mcpClients: MCPClient[] = []
   try {
+    mcpClients = await Promise.all(
+      mergedMcpConfig.map(s =>
+        createMCPClient({
+          transport: new Experimental_StdioMCPTransport({
+            command: s.command,
+            args: s.args,
+            env: resolveEnvVars(s.env),
+            stderr: 'pipe',
+          }),
+        })
+      )
+    )
+
+    const addCodeBlockTool = tool({
+      description:
+        'Add a Python code block to the notebook and execute it. Returns the combined output text or an error message.',
+      inputSchema: z.object({
+        code: z.string().describe('Python code to execute'),
+      }),
+      execute: async args => {
+        context.signal?.throwIfAborted()
+        return context.addAndExecuteCodeBlock(args)
+      },
+    })
+
+    const addMarkdownBlockTool = tool({
+      description: 'Add a markdown block to the notebook for explanations, section headers, or documentation.',
+      inputSchema: z.object({
+        content: z.string().describe('Markdown content'),
+      }),
+      execute: async args => {
+        context.signal?.throwIfAborted()
+        return context.addMarkdownBlock(args)
+      },
+    })
+
+    const mcpToolSets = await Promise.all(mcpClients.map(client => client.tools()))
+    const mcpTools: Record<string, unknown> = Object.assign({}, ...mcpToolSets)
+
+    const agent = new ToolLoopAgent({
+      model,
+      instructions: buildSystemPrompt(context.notebookContext, context.integrations),
+      tools: {
+        add_code_block: addCodeBlockTool,
+        add_markdown_block: addMarkdownBlockTool,
+        ...mcpTools,
+      },
+      stopWhen: stepCountIs(maxTurns),
+      ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
+    })
+
     const streamResult = await agent.stream({ prompt: block.content ?? '', abortSignal: context.signal })
 
     for await (const part of streamResult.fullStream) {
