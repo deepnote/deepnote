@@ -22,11 +22,6 @@ export interface AgentBlockContext {
   /** Optional sink for non-fatal warnings (e.g. MCP client cleanup failures). The host decides how to surface them. */
   onWarning?: (message: string) => void
   integrations?: Array<{ id: string; name: string; type: string }>
-  /**
-   * Aborts the run. Caveat: an in-flight MCP tool call cannot be cancelled — ai core only observes the
-   * abort while pulling from the stream, so a pending tools/call parks the loop and this promise stays
-   * unsettled until the MCP transport dies on its own.
-   */
   signal?: AbortSignal
 }
 
