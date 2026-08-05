@@ -154,6 +154,9 @@ describe('runInDeepnoteCloud — usage guards', () => {
     expect(() => assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb' })).toThrow(/--notebook-id requires --cloud/)
     expect(() => assertCloudOnlyFlagsRequireCloud({ out: 'snap.deepnote' })).toThrow(/--out requires --cloud/)
     expect(() => assertCloudOnlyFlagsRequireCloud({ timeout: 30 })).toThrow(/--timeout requires --cloud/)
+    expect(() => assertCloudOnlyFlagsRequireCloud({ storageMode: 'readonly' })).toThrow(
+      /--storage-mode requires --cloud/
+    )
     expect(() => assertCloudOnlyFlagsRequireCloud({ push: true })).toThrow(/--push requires --cloud/)
     expect(() =>
       assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb', out: 'snap.deepnote', timeout: 30, push: true })
@@ -164,6 +167,21 @@ describe('runInDeepnoteCloud — usage guards', () => {
     expect(() =>
       assertCloudOnlyFlagsRequireCloud({ cloud: true, notebookId: 'nb', out: 'snap.deepnote', timeout: 30, push: true })
     ).not.toThrow()
+  })
+
+  it('rejects read-only storage for a block run before making a request', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+
+    await expect(
+      runInDeepnoteCloud(undefined, {
+        cloud: true,
+        notebookId: 'nb',
+        block: 'blk-1',
+        storageMode: 'readonly',
+        token: 't',
+      })
+    ).rejects.toThrow(/selected blocks in live mode/i)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('requires a token (missing)', async () => {
@@ -236,6 +254,39 @@ describe('runInDeepnoteCloud — notebook id resolution', () => {
 })
 
 describe('runInDeepnoteCloud — inputs and blocks', () => {
+  it('requests read-only project storage for a detached full-notebook run', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      storageMode: 'readonly',
+    })
+
+    expect(postBodies[0]).toMatchObject({
+      notebookId: 'nb-single',
+      detachedRunStorageMode: 'readonly',
+    })
+  })
+
+  it('maps the CLI read-write spelling to the API value', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      storageMode: 'read-write',
+    })
+
+    expect(postBodies[0].detachedRunStorageMode).toBe('read_write')
+  })
+
   it('types inputs against their input blocks, exactly as a local run does', async () => {
     const file = makeFileWithInputs()
     const { postBodies } = installFetch({ snapshotContent: serializeDeepnoteFile(file) })

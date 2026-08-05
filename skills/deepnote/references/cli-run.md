@@ -24,6 +24,7 @@ Execute notebooks (.deepnote, .ipynb, .py, .qmd).
 | `--cloud`                 | Run in Deepnote Cloud, then download the snapshot locally         |
 | `--notebook-id <uuid>`    | Cloud notebook id to run (with `--cloud`)                         |
 | `--out <path>`            | Write the downloaded cloud snapshot to this exact path            |
+| `--storage-mode <mode>`   | Detached-run project storage: `read-write` or `readonly`          |
 | `--timeout <seconds>`     | Max seconds to wait for a cloud run (with `--cloud`, default 600) |
 | `--url <url>`             | API base URL (default `https://api.deepnote.com`)                 |
 | `--token <token>`         | Bearer token (or `DEEPNOTE_TOKEN` env var)                        |
@@ -88,8 +89,15 @@ The notebook to run is resolved in this order:
 The notebook must already exist in Deepnote; `--cloud` does not upload local content, and
 non-`.deepnote` inputs are rejected. Snapshots are written as a timestamped file plus a `latest`
 copy, unless `--out <path>` is given (single file). `--input`, `--block`, `--notebook`, `--url`,
-and `--token` are honored; local-only flags (`--python`, `--cwd`, `--top`, `--profile`, `--open`,
-`--prompt`, `--dry-run`, `--list-inputs`, `--context`) are not.
+`--token`, and `--storage-mode` are honored; local-only flags (`--python`, `--cwd`, `--top`,
+`--profile`, `--open`, `--prompt`, `--dry-run`, `--list-inputs`, `--context`) are not.
+
+Full-notebook cloud runs are detached, so Deepnote executes a copy without changing outputs in the
+live editor. This does not isolate anything the notebook accesses: project files remain shared and
+writable by default, and databases, integrations, external APIs, and other systems remain live.
+Use `--storage-mode readonly` to make persistent project storage read-only for that detached run;
+reads and temporary files still work. Block-scoped cloud runs are different: the API runs them in
+live mode, they update live-editor outputs, and they cannot be combined with `--storage-mode`.
 
 `--input` follows the same rules as a local run: each value is typed by the input block it names,
 and unknown names or invalid values are rejected before the run is triggered. Typing a value
@@ -108,6 +116,9 @@ DEEPNOTE_TOKEN=... deepnote run --cloud --notebook-id 0f1e2d3c-4b5a-6789-abcd-ef
 
 # Run a .deepnote (notebook id read from the file) in the cloud, with inputs
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --input name="Alice"
+
+# Run the whole notebook without allowing writes to persistent project storage
+DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --storage-mode readonly
 
 # Machine-readable result
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json

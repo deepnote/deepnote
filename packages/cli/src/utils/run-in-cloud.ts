@@ -86,6 +86,7 @@ function assertNoIncompatibleFlags(options: RunCloudOptions): void {
 const CLOUD_ONLY_FLAGS: ReadonlyArray<readonly [keyof RunCloudOptions, string]> = [
   ['notebookId', '--notebook-id'],
   ['out', '--out'],
+  ['storageMode', '--storage-mode'],
   ['timeout', '--timeout'],
   ['push', '--push'],
 ]
@@ -280,6 +281,13 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   }
 
   assertNoIncompatibleFlags(options)
+  if (options.block && options.storageMode) {
+    throw new CloudRunUsageError(
+      '--storage-mode cannot be combined with --block: the API runs selected blocks in live mode, ' +
+        'which does not support detached-run storage settings. Run the whole notebook read-only, or omit ' +
+        '--storage-mode to run the block in the live editor session.'
+    )
+  }
 
   // Resolve a local .deepnote file when we need one to derive the notebook id (no --notebook-id),
   // or when a path was explicitly given (used for snapshot naming). `resolvePathToDeepnoteFile`
@@ -306,10 +314,12 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   const notebookId = resolveTargetNotebookId(options, localFile)
   const inputs = parseCloudInputs(options, localFile, notebookId)
   const blockIds = options.block ? [options.block] : undefined
+  const detachedRunStorageMode = options.storageMode === 'read-write' ? 'read_write' : options.storageMode
 
   const body: TriggerRunBody = {
     notebookId,
     ...(Object.keys(inputs).length > 0 ? { inputs } : {}),
+    ...(detachedRunStorageMode ? { detachedRunStorageMode } : {}),
     ...(blockIds ? { blockIds } : {}),
   }
 
