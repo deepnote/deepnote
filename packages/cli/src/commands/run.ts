@@ -115,6 +115,7 @@ export interface RunOptions {
   notebookId?: string
   out?: string
   timeout?: number
+  storageMode?: 'read-write' | 'readonly'
   push?: boolean
 }
 

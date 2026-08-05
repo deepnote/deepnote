@@ -26,7 +26,7 @@ import {
 const started = await triggerNotebookRun(baseUrl, token, {
   notebookId,
   inputs,
-  blockIds,
+  detachedRunStorageMode: "readonly",
 });
 const run = await pollRunUntilComplete(baseUrl, token, started.runId, {
   snapshotDelivery: "inline",
@@ -38,6 +38,12 @@ Auth is `Authorization: Bearer <token>`. Endpoints: `POST {baseUrl}/v2/runs` and
 `GET {baseUrl}/v2/runs/{runId}`. Response schemas are permissive (`.passthrough()`) because the API
 is in preview and its exact shape may drift. Failures throw `ApiError`
 (from `@deepnote/database-integrations`).
+
+Full-notebook runs are detached by default and do not update outputs in the live editor.
+`detachedRunStorageMode: "readonly"` additionally prevents writes to persistent project storage;
+it does not isolate databases, integrations, external APIs, or other systems the notebook accesses.
+Block-scoped runs use live mode because the API does not support `blockIds` on detached runs, and
+therefore cannot use `detachedRunStorageMode`.
 
 ## API reference
 

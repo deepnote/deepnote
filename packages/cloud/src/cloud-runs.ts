@@ -97,10 +97,18 @@ export interface NormalizedRun {
  */
 export type RunInputValue = string | boolean | string[]
 
+/** Project-storage access for a detached run. */
+export type DetachedRunStorageMode = 'read_write' | 'readonly'
+
 /** Request body for {@link triggerNotebookRun}. Deliberately minimal (see plan point 13). */
 export interface TriggerRunBody {
   notebookId: string
   inputs?: Record<string, RunInputValue>
+  /**
+   * Project-storage access for a detached run. Omit for the API default (`read_write`).
+   * Has no effect on live runs, so it cannot be combined with `blockIds`.
+   */
+  detachedRunStorageMode?: DetachedRunStorageMode
   /** Run only these blocks. Omitted from the request when empty — see {@link toRequestBody}. */
   blockIds?: string[]
 }
@@ -192,16 +200,19 @@ export function describeRunError(run: NormalizedRun): string | undefined {
  * A {@link TriggerRunBody} as `POST /v2/runs` wants it. Two rules of that endpoint live here, so no
  * caller has to know them:
  *
- * - A run is `detached` unless it says otherwise — a background run that leaves the live editor
- *   session alone — and a detached run refuses `blockIds` outright (`blockIds is not supported for
- *   detached runs`, a 400). Deepnote only runs selected blocks in live mode, so asking for blocks is
- *   asking for a live run, and the body says so rather than being sent to fail.
+ * - Full-notebook runs explicitly ask for `detached: true`: a background run that leaves the live
+ *   editor session alone. A detached run refuses `blockIds` outright (`blockIds is not supported
+ *   for detached runs`, a 400). Deepnote only runs selected blocks in live mode, so asking for
+ *   blocks is asking for a live run, and the body says so rather than being sent to fail.
  * - `blockIds` must name at least one block. An empty array is not "no blocks in particular" to the
  *   API, it is a validation error — and it is exactly what a caller means by omitting it, so it is
  *   dropped.
  */
 function toRequestBody({ blockIds, ...rest }: TriggerRunBody): Record<string, unknown> {
-  return blockIds?.length ? { ...rest, blockIds, detached: false } : rest
+  if (blockIds?.length && rest.detachedRunStorageMode) {
+    throw new TypeError('detachedRunStorageMode cannot be used with blockIds because block runs are live.')
+  }
+  return blockIds?.length ? { ...rest, blockIds, detached: false } : { ...rest, detached: true }
 }
 
 /** Start a cloud run of an existing notebook. Returns the initial run (usually `pending`/`running`). */

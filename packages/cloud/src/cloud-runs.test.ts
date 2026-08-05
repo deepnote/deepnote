@@ -60,7 +60,7 @@ describe('triggerNotebookRun', () => {
     expect(url).toBe(`${BASE_URL}/v2/runs`)
     expect(init?.method).toBe('POST')
     expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
-    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: '1' } })
+    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: '1' }, detached: true })
   })
 
   it('asks for a live run when blocks are targeted, since a detached run refuses them', async () => {
@@ -85,7 +85,46 @@ describe('triggerNotebookRun', () => {
 
     await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', blockIds: [] })
 
-    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({ notebookId: 'nb-1' })
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({ notebookId: 'nb-1', detached: true })
+  })
+
+  it('passes the detached-run storage mode through', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ runId: 'run-1', status: 'pending' }))
+
+    await triggerNotebookRun(BASE_URL, TOKEN, {
+      notebookId: 'nb-1',
+      detachedRunStorageMode: 'readonly',
+    })
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({
+      notebookId: 'nb-1',
+      detachedRunStorageMode: 'readonly',
+      detached: true,
+    })
+  })
+
+  it('accepts the API read_write storage mode', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ runId: 'run-1', status: 'pending' }))
+
+    await triggerNotebookRun(BASE_URL, TOKEN, {
+      notebookId: 'nb-1',
+      detachedRunStorageMode: 'read_write',
+    })
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string).detachedRunStorageMode).toBe('read_write')
+  })
+
+  it('rejects a storage mode with blockIds because block runs are live', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+
+    await expect(
+      triggerNotebookRun(BASE_URL, TOKEN, {
+        notebookId: 'nb-1',
+        blockIds: ['blk-1'],
+        detachedRunStorageMode: 'readonly',
+      })
+    ).rejects.toThrow(/cannot be used with blockIds/i)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('normalizes a top-level {runId,status} response', async () => {

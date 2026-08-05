@@ -141,27 +141,28 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option                  | Description                                                              | Default                    |
-| ----------------------- | ------------------------------------------------------------------------ | -------------------------- |
-| `--python <path>`       | Path to Python interpreter or virtual environment                        | auto-detected              |
-| `--cwd <path>`          | Working directory for execution                                          | file directory             |
-| `--notebook <name>`     | Run only the specified notebook                                          | all notebooks              |
-| `--block <id>`          | Run only the specified block                                             | all blocks                 |
-| `-i, --input <key=val>` | Set input variable value (can be repeated)                               |                            |
-| `--list-inputs`         | List input variables without running                                     | `false`                    |
-| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`) |                            |
-| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                  | text                       |
-| `--dry-run`             | Show execution plan without running                                      | `false`                    |
-| `--top`                 | Display resource usage (CPU/memory) during execution                     | `false`                    |
-| `--profile`             | Show per-block timing and memory summary                                 | `false`                    |
-| `--open`                | Open project in Deepnote Cloud after successful execution                | `false`                    |
-| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)         | `false`                    |
-| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                | `false`                    |
-| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                |                            |
-| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                   |                            |
-| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                     | `600`                      |
-| `--url <url>`           | API base URL                                                             | `https://api.deepnote.com` |
-| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                               |                            |
+| Option                  | Description                                                               | Default                    |
+| ----------------------- | ------------------------------------------------------------------------- | -------------------------- |
+| `--python <path>`       | Path to Python interpreter or virtual environment                         | auto-detected              |
+| `--cwd <path>`          | Working directory for execution                                           | file directory             |
+| `--notebook <name>`     | Run only the specified notebook                                           | all notebooks              |
+| `--block <id>`          | Run only the specified block                                              | all blocks                 |
+| `-i, --input <key=val>` | Set input variable value (can be repeated)                                |                            |
+| `--list-inputs`         | List input variables without running                                      | `false`                    |
+| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`)  |                            |
+| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                   | text                       |
+| `--dry-run`             | Show execution plan without running                                       | `false`                    |
+| `--top`                 | Display resource usage (CPU/memory) during execution                      | `false`                    |
+| `--profile`             | Show per-block timing and memory summary                                  | `false`                    |
+| `--open`                | Open project in Deepnote Cloud after successful execution                 | `false`                    |
+| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)          | `false`                    |
+| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                 | `false`                    |
+| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                 |                            |
+| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                    |                            |
+| `--storage-mode <mode>` | Project-storage access for a detached cloud run: `read-write`, `readonly` | `read-write`               |
+| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                      | `600`                      |
+| `--url <url>`           | API base URL                                                              | `https://api.deepnote.com` |
+| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                                |                            |
 
 **Examples:**
 
@@ -196,6 +197,9 @@ DEEPNOTE_TOKEN=... deepnote run --cloud --notebook-id 0f1e2d3c-4b5a-6789-abcd-ef
 # Run a .deepnote (notebook id read from the file) in the cloud, with inputs
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --input name="Alice"
 
+# Keep project storage read-only during a detached full-notebook run
+DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --storage-mode readonly
+
 # Run an agent with a prompt (appends an agent block to the file)
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
 
@@ -209,6 +213,13 @@ JSON arrays of strings for multi-select inputs and absolute date ranges, for exa
 
 These rules are the same for `--cloud` runs. Typing a value needs the notebook's input blocks, so
 `--input` requires the local `.deepnote` file — pass the file rather than only `--notebook-id`.
+
+Full-notebook cloud runs are detached: Deepnote executes a copy without updating outputs in the
+live editor. Project files remain shared and writable by default. `--storage-mode readonly` makes
+persistent project storage read-only for that run; temporary files and reads still work, and
+databases, integrations, external APIs, and other systems remain live. Block-scoped cloud runs are
+the exception: the API runs them in live mode, so they update live-editor outputs and cannot be
+combined with `--storage-mode`.
 
 Cloud execution status and snapshot delivery are reported separately. The CLI briefly polls after
 terminal status because snapshot attachment can lag. If an empty or markdown-only local notebook

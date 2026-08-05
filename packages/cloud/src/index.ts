@@ -1,4 +1,5 @@
 export {
+  type DetachedRunStorageMode,
   describeRunError,
   type FetchSnapshotOptions,
   fetchSnapshotContent,

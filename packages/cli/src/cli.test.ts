@@ -66,6 +66,7 @@ describe('CLI', () => {
       expect(optionFlags).toContain('--cloud')
       expect(optionFlags).toContain('--notebook-id <uuid>')
       expect(optionFlags).toContain('--out <path>')
+      expect(optionFlags).toContain('--storage-mode <mode>')
       expect(optionFlags).toContain('--timeout <seconds>')
       // --push is registered but hidden until the push-to-cloud flow ships
       const pushOption = runCmd?.options.find(o => o.flags === '--push')
