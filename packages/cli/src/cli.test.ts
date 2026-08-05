@@ -169,6 +169,11 @@ describe('CLI', () => {
       expect(output).toContain('COMPREPLY')
       expect(output).toContain('schedule')
       expect(output).toContain('--timezone')
+      expect(output).toContain(`    # Handle --storage-mode option completion for detached cloud runs
+    if [[ "\${prev}" == "--storage-mode" && "\${subcommand}" == "run" ]]; then
+        COMPREPLY=( $(compgen -W "read-write readonly" -- "\${cur}") )
+        return 0
+    fi`)
       consoleSpy.mockRestore()
     })
 
