@@ -17,7 +17,11 @@ The important part is [`run.mjs`](./run.mjs): standard `await`, `Promise.all`, l
 compose `ctx.run(...)` calls. `ctx.control(...)` records local joins and decisions, while
 `dependsOn` records their actual edges. The returned graph therefore describes the pipeline that
 really ran—including timing and cloud links—without a separately maintained diagram or pipeline
-DSL.
+DSL. Its regional fan-out and join are packaged with `definePipeline` and invoked as
+`regional-preparation`; child IDs such as `regional-preparation/north-inputs` are scoped
+automatically, so the component can be reused without collisions. Each regional notebook also uses
+one reusable, explicitly idempotent retry policy. Attempt nodes remain visible, while downstream
+dependencies use the stable policy node rather than whichever attempt succeeded.
 
 To checkpoint the run locally, provide a state file:
 
