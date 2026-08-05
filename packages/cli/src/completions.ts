@@ -89,6 +89,12 @@ _deepnote_completions() {
         fi
     fi
 
+    # Handle --storage-mode option completion for detached cloud runs
+    if [[ "\${prev}" == "--storage-mode" && "\${subcommand}" == "run" ]]; then
+        COMPREPLY=( $(compgen -W "read-write readonly" -- "\${cur}") )
+        return 0
+    fi
+
     case "\${prev}" in
         deepnote)
             COMPREPLY=( $(compgen -W "\${commands} --help --version --no-color --debug --quiet" -- "\${cur}") )
