@@ -54,8 +54,8 @@ async function runWithRetry(run, step, { attempts = 2, delayMs = 250 } = {}) {
 /**
  * A reusable sub-pipeline is just a function that takes the orchestration context.
  *
- * Callers scope child IDs by passing a prefix, which is all the old `definePipeline`/`invoke` pair
- * bought — with the advantage that this is ordinary code you can read, test, and call directly.
+ * Callers scope child IDs by passing a prefix, so the component composes without collisions — and
+ * it stays ordinary code you can read, test, and call directly.
  */
 async function prepareRegions({ run, control, outputs }, { sourceSteps, target, prefix }) {
   const id = suffix => `${prefix}/${suffix}`

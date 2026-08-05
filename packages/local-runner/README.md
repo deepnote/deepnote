@@ -203,108 +203,14 @@ const region = outputs.lastJson<RegionalResult>(regionalRun);
 See [`examples/local-runner/orchestration`](../../examples/local-runner/orchestration) for a
 complete local-or-cloud pipeline.
 
-### Resume a local one-shot run
-
-Add an opt-in JSON checkpoint file when a script should survive a local process restart:
-
-```ts
-await orchestrate(buildPipeline, {
-  persistence: { file: ".deepnote-runs/sales-review.json" },
-});
-```
-
-Successful notebook and control nodes are restored when the same callback runs again. Node
-definitions and inputs are fingerprinted; changed or removed nodes fail clearly instead of mixing
-in stale outputs while resuming an interrupted run. A completed file returns its immutable recorded
-result immediately. Set `resume: false` or choose a new file whenever code or inputs should start a
-fresh run. The file contains the completed result and generated graph as well as notebook outputs
-and snapshots, so it can also feed a static run viewer. Keep it out of source control and protect it
-like any other data artifact.
-
-This recovery is deliberately **at-least-once**: if the process exits while a notebook is running,
-that invocation runs again because no completed checkpoint exists. Use Workflow SDK for durable
-deployment, scheduling, and stronger workflow lifecycle semantics.
-
-### Reuse retry and recovery policies
-
-`runWithPolicy` records each attempt, fallback, and final policy outcome as separate graph nodes.
-Retries require an explicit idempotency assertion because notebook and agent blocks may have
-external side effects:
-
-```ts
-import { defineRunPolicy } from "@deepnote/local-runner";
-
-const warehouseRecovery = defineRunPolicy({
-  idempotent: true,
-  retry: {
-    maxAttempts: 3,
-    initialDelayMs: 500,
-    backoffMultiplier: 2,
-    maxDelayMs: 5_000,
-  },
-  fallback: {
-    notebook: "backfilled-source.deepnote",
-  },
-});
-
-const source = await runWithPolicy(
-  {
-    id: "warehouse-source",
-    notebook: "live-source.deepnote",
-    inputs: { region },
-  },
-  warehouseRecovery,
-);
-```
-
-The fallback inherits the original target, inputs, and runner options unless it overrides them.
-Notebook execution failures and infrastructure errors are both retried by default; `retryOn` can
-limit the policy to either category. Downstream graph dependencies should use the stable policy
-node ID (`source.policyNodeId`, or the original `"warehouse-source"`) rather than an individual
-attempt ID.
-
-### Compose reusable sub-pipelines
-
-`definePipeline` packages ordinary orchestration code with typed inputs and outputs. Every
-invocation scopes its child IDs and records `parentId`, so the same pipeline can run repeatedly or
-nest without collisions:
-
-```ts
-import { definePipeline } from "@deepnote/local-runner";
-
-const analyzeRegion = definePipeline<{ region: string }, RegionalResult>({
-  name: "Analyze region",
-  async run({ run, control, outputs }, { region }) {
-    const analysis = await run({
-      id: "analysis",
-      notebook: "regional-analysis.deepnote",
-      inputs: { region },
-    });
-    return control(
-      {
-        id: "quality-gate",
-        kind: "gate",
-        dependsOn: [analysis.id],
-      },
-      () => outputs.lastJson<RegionalResult>(analysis),
-    );
-  },
-});
-
-const europe = await invoke({
-  id: "europe",
-  pipeline: analyzeRegion,
-  input: { region: "Europe" },
-});
-// Child graph IDs: europe/analysis, europe/quality-gate
-```
-
-Sub-pipeline inputs participate in persistence fingerprints. Resuming with different inputs fails
-instead of restoring child values from another invocation.
+`orchestrate` is deliberately **not durable**. It runs in one process, holds its state in memory, and
+returns when the callback returns; if the process exits, the run is gone. That is the right trade for
+a script or a dev server, and the wrong one for anything scheduled or long-lived — for those, keep
+the same code and run it under Workflow SDK.
 
 ### Make notebook steps durable with Workflow SDK
 
-Workflow SDK remains the full durable layer rather than being embedded in the lightweight API. Install
+Workflow SDK is the durable layer, rather than a second one embedded here. Install
 [`workflow`](https://www.npmjs.com/package/workflow) and your supported framework integration, then
 import the serializable Deepnote step:
 
@@ -329,6 +235,40 @@ The application must re-export `runNotebookStep` from its own workflow directory
 consumer-side compiler assigns it a stable step ID. Credentials are deliberately excluded from the
 serializable step arguments; cloud steps read `DEEPNOTE_TOKEN` inside the step. Automatic retries
 are disabled because notebooks and agent blocks may have non-idempotent side effects or model cost.
+
+Retries, fallbacks, and reusable sub-pipelines are ordinary TypeScript here, not configuration. A
+loop is a retry policy, `try`/`catch` is a fallback, and a nested `"use workflow"` function is a
+sub-pipeline — each already durable, resumable, and visible in the run history:
+
+```ts
+export async function regionalReport(region: string) {
+  "use workflow";
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const result = await runNotebookStep({
+        id: "analyze",
+        notebook: ANALYSIS,
+        inputs: { region },
+      });
+      if (result.success) return result;
+    } catch (error) {
+      // A notebook that ran and failed returns `success: false`. Infrastructure that never got it
+      // running throws instead, whatever `allowFailure` says — so cover both.
+      if (attempt === 3) throw error;
+    }
+    await sleep(`${250 * attempt}ms`);
+  }
+  return runNotebookStep({
+    id: "backfill",
+    notebook: FALLBACK,
+    inputs: { region },
+  });
+}
+```
+
+Retry only what is safe to repeat. A notebook that writes to a warehouse or spends an agent budget
+is not, which is why this is a decision at the call site rather than a flag.
 
 See
 [`examples/local-runner/workflow-orchestration`](../../examples/local-runner/workflow-orchestration)

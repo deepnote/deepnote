@@ -13,23 +13,26 @@ Cloud, including the final agent block. Otherwise it runs locally, which needs a
 with `deepnote-toolkit[server]` and a model key for the agent. A failed agent report remains
 available for inspection, so it does not discard the successful preparation steps.
 
+Set `ORCHESTRATION_TARGET=local` to force local execution on a machine that has a token in `.env`:
+
+```bash
+ORCHESTRATION_TARGET=local pnpm example:orchestration
+```
+
 The important part is [`run.mjs`](./run.mjs): standard `await`, `Promise.all`, loops, and conditions
 compose `ctx.run(...)` calls. `ctx.control(...)` records local joins and decisions, while
 `dependsOn` records their actual edges. The returned graph therefore describes the pipeline that
 really ran—including timing and cloud links—without a separately maintained diagram or pipeline
-DSL. Its regional fan-out and join are packaged with `definePipeline` and invoked as
-`regional-preparation`; child IDs such as `regional-preparation/north-inputs` are scoped
-automatically, so the component can be reused without collisions. Each regional notebook also uses
-one reusable, explicitly idempotent retry policy. Attempt nodes remain visible, while downstream
-dependencies use the stable policy node rather than whichever attempt succeeded.
+DSL.
 
-To checkpoint the run locally, provide a state file:
+Retry and reuse are ordinary code rather than library configuration. `runWithRetry` is a loop, and
+the regional fan-out and join are a plain function that takes the orchestration context and an ID
+prefix, so its child nodes appear as `regional-preparation/north-inputs` without a registry. Both
+handle two different failures: a notebook that ran and failed returns `success: false`, while
+infrastructure that never got the notebook running throws regardless of `allowFailure`. The local
+fan-out depends on that second case — two kernels can race for a toolkit port, and the loop retries
+the loser.
 
-```bash
-ORCHESTRATION_STATE_FILE=.deepnote-runs/one-shot.json pnpm example:orchestration
-```
-
-If the process exits, run the same command again. Completed matching nodes are restored and only
-unfinished work runs again. Delete the state file or choose another path for a fresh run. Recovery
-is at-least-once for a notebook interrupted before its checkpoint; the Workflow SDK example is the
-full durable option.
+This example is not durable: it holds its state in memory and a process exit loses the run. See
+[`../workflow-orchestration`](../workflow-orchestration) for the same shape under Workflow SDK,
+where the identical loop resumes at the attempt it reached.
