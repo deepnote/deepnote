@@ -20,7 +20,7 @@ npm install @deepnote/cloud
 import {
   triggerNotebookRun,
   pollRunUntilComplete,
-  fetchSnapshotContent,
+  waitForRunSnapshot,
 } from "@deepnote/cloud";
 
 const started = await triggerNotebookRun(baseUrl, token, {
@@ -31,7 +31,7 @@ const started = await triggerNotebookRun(baseUrl, token, {
 const run = await pollRunUntilComplete(baseUrl, token, started.runId, {
   snapshotDelivery: "inline",
 });
-const snapshotYaml = await fetchSnapshotContent(run, { baseUrl, token });
+const { content: snapshotYaml } = await waitForRunSnapshot(baseUrl, token, run);
 ```
 
 Auth is `Authorization: Bearer <token>`. Endpoints: `POST {baseUrl}/v2/runs` and
@@ -48,6 +48,7 @@ is in preview and its exact shape may drift. Failures throw `ApiError`
 | `getRun(baseUrl, token, runId, options?)`                                                 | `GET /v2/runs/{runId}` — fetch a run's current state.                                                                                                        |
 | `pollRunUntilComplete(baseUrl, token, runId, opts?)`                                      | Poll until the run reaches a terminal status. Retries transient failures; enforces a deadline.                                                               |
 | `fetchSnapshotContent(run, options)`                                                      | Return the run's snapshot YAML, from inline content or a `downloadUrl`. `null` if it has none.                                                               |
+| `waitForRunSnapshot(baseUrl, token, run, opts?)`                                          | Bounded settling for a terminal run's snapshot. Returns `null` if none is produced; throws if one is unreadable.                                             |
 | `describeRunError(run)`                                                                   | A human-readable message for a failed run, if the API supplied one.                                                                                          |
 | `isTerminalStatus` / `isSuccessStatus` / `isFailedStatus`                                 | Status classifiers. Unknown statuses are treated as non-terminal, so a drifting API cannot hang.                                                             |
 | `RUN_STATUSES`, `RunStatus`                                                               | The known run statuses.                                                                                                                                      |
@@ -79,9 +80,17 @@ attachments. The shared name is applied, and a present `project.integrations` li
 project's attachments (`[]` detaches all; an absent field leaves them unchanged). Integration
 credentials and `settings.requirements` are never imported.
 
-**Note on `fetchSnapshotContent`:** the bearer token is sent only when the download URL is
+Terminal status can arrive before its snapshot is attached. Prefer `waitForRunSnapshot` after
+polling: it retries attachment briefly, returns `content: null` when no artifact is ever produced,
+and preserves download/read failures as errors rather than mistaking them for an empty run.
+
+**Note on snapshot downloads:** the bearer token is sent only when the download URL is
 same-origin with `baseUrl`. A cross-origin URL (e.g. a presigned S3 link) is fetched without auth,
 so the token is never leaked to a third-party host.
+
+Cloud-run and content-creation requests keep their deadline active even when the caller supplies a
+cancellation signal. The deadline includes consuming the response body, and timeout/caller-abort
+errors remain distinguishable from `ApiError` responses.
 
 **Note on `createProject`:** this is the headless counterpart to `uploadNotebook`, which uses the
 unauthenticated `/v1/import` endpoint and therefore has to be finished in a browser. With a token,

@@ -18,8 +18,11 @@ export {
   type RunSummary,
   type RunsPage,
   RunTimeoutError,
+  type SettledRunSnapshot,
   type TriggerRunBody,
   triggerNotebookRun,
+  type WaitForRunSnapshotOptions,
+  waitForRunSnapshot,
 } from './cloud-runs'
 export {
   type AddNotebooksOptions,

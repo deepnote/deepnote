@@ -97,10 +97,17 @@ requires the notebook's blocks, so `--input` needs the local `.deepnote` file â€
 rather than only `--notebook-id`.
 
 **Machine output** (`-o json` / `-o toon`; `-o llm` resolves to `toon`):
-`{ success, runId, status, snapshotPath?, timestampedSnapshotPath?, error? }`.
+`{ success, runId, status, artifactStatus, snapshotPath?, timestampedSnapshotPath?, artifactError?, error? }`.
 A completed run with status `error`/`internal_error`/`stopped` exits `1` but still reports the
-`runId`, `status`, and any `snapshotPath`. A successful run whose snapshot cannot be downloaded or
-saved also exits `1` (with `success: false` and an `error`).
+`runId`, `status`, and any `snapshotPath`. `success` describes notebook execution;
+`artifactStatus` separately reports `saved`, `not_produced`, or `unavailable`.
+
+After terminal status, the CLI polls briefly for snapshot attachment. A successful empty or
+markdown-only notebook can legitimately produce none: with a local file, the CLI synthesizes a
+valid output-free snapshot from that source; with only `--notebook-id`, it exits `0` with
+`artifactStatus: not_produced`. An advertised snapshot that cannot be downloaded or saved reports
+`artifactStatus: unavailable`, includes `artifactError`, and exits `1`. `--out` also exits `1` when
+no artifact was produced because the explicitly requested path cannot be written.
 
 ```bash
 # Run an existing cloud notebook by id and download its snapshot

@@ -286,7 +286,9 @@ describe('runInDeepnoteCloud — inputs and blocks', () => {
   })
 
   it('requires the .deepnote file to type inputs when only --notebook-id is given', async () => {
-    const { postBodies } = installFetch({})
+    const { postBodies } = installFetch({
+      snapshotContent: serializeDeepnoteFile(makeFile([{ id: 'nb-remote', name: 'Remote' }])),
+    })
 
     // Without the file there are no input blocks to type against, so we ask for it rather than
     // send an unchecked payload.
@@ -302,7 +304,13 @@ describe('runInDeepnoteCloud — inputs and blocks', () => {
     expect(postBodies).toHaveLength(0)
 
     // ...but a run with no inputs at all still works from just the id.
-    await runInDeepnoteCloud(undefined, { cloud: true, token: 't', url: API_URL, notebookId: 'nb-remote' })
+    await runInDeepnoteCloud(undefined, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      notebookId: 'nb-remote',
+      out: join(tmpDir, 'remote.snapshot.deepnote'),
+    })
     expect(postBodies[0]).toMatchObject({ notebookId: 'nb-remote' })
   })
 })
@@ -405,7 +413,7 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
     expect(process.exitCode).toBe(ExitCode.Success)
   })
 
-  it('fails a successful run that returns no snapshot content (exit 1, success=false)', async () => {
+  it('synthesizes an output-free snapshot for a known no-op run', async () => {
     const file = makeFile([{ id: 'nb-single', name: 'Main' }])
     installFetch({ terminalStatus: 'success' }) // no snapshotContent, no downloadUrl
     const path = await writeFixture('single.deepnote', file)
@@ -414,14 +422,12 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
 
     const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
     const result = JSON.parse(logged)
-    expect(result.success).toBe(false)
-    expect(result.status).toBe('success')
-    expect(result.error).toMatch(/no snapshot content/i)
-    expect(result.snapshotPath).toBeUndefined()
-    expect(process.exitCode).toBe(ExitCode.Error)
-  })
+    expect(result).toMatchObject({ success: true, status: 'success', artifactStatus: 'saved' })
+    expect(result.snapshotPath).toBeTruthy()
+    expect(process.exitCode).toBe(ExitCode.Success)
+  }, 10_000)
 
-  it('reports runId and status when the defensive snapshot re-fetch fails', async () => {
+  it('keeps a known no-op successful when snapshot status re-fetches fail', async () => {
     const file = makeFile([{ id: 'nb-single', name: 'Main' }])
     const path = await writeFixture('single.deepnote', file)
 
@@ -444,10 +450,69 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
 
     const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
     const result = JSON.parse(logged)
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
     expect(result.runId).toBe('run-x')
     expect(result.status).toBe('success')
-    expect(result.error).toMatch(/no snapshot content/i)
+    expect(result.artifactStatus).toBe('saved')
+    expect(process.exitCode).toBe(ExitCode.Success)
+  }, 10_000)
+
+  it('reports a successful remote run separately when no snapshot is produced', async () => {
+    installFetch({ terminalStatus: 'success' })
+
+    await runInDeepnoteCloud(undefined, {
+      cloud: true,
+      notebookId: 'remote-nb',
+      token: 't',
+      url: API_URL,
+      output: 'json',
+    })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result = JSON.parse(logged)
+    expect(result).toMatchObject({ success: true, status: 'success', artifactStatus: 'not_produced' })
+    expect(result.snapshotPath).toBeUndefined()
+    expect(process.exitCode).toBe(ExitCode.Success)
+  }, 10_000)
+
+  it('fails artifact delivery when --out was explicit but the run produced no snapshot', async () => {
+    installFetch({ terminalStatus: 'success' })
+
+    await runInDeepnoteCloud(undefined, {
+      cloud: true,
+      notebookId: 'remote-nb',
+      token: 't',
+      url: API_URL,
+      output: 'json',
+      out: join(tmpDir, 'requested.snapshot.deepnote'),
+    })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result = JSON.parse(logged)
+    expect(result).toMatchObject({ success: true, artifactStatus: 'not_produced' })
+    expect(result.artifactError).toMatch(/produced no snapshot for --out/i)
+    expect(process.exitCode).toBe(ExitCode.Error)
+  }, 10_000)
+
+  it('keeps execution success separate from a snapshot write failure', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'success', snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+    const blockingFile = join(tmpDir, 'not-a-directory')
+    await fs.writeFile(blockingFile, 'block')
+
+    await runInDeepnoteCloud(path, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      output: 'json',
+      out: join(blockingFile, 'snapshot.deepnote'),
+    })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result = JSON.parse(logged)
+    expect(result).toMatchObject({ success: true, artifactStatus: 'unavailable' })
+    expect(result.artifactError).toMatch(/failed to retrieve or save snapshot/i)
     expect(process.exitCode).toBe(ExitCode.Error)
   })
 

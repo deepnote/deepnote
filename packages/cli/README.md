@@ -210,6 +210,13 @@ JSON arrays of strings for multi-select inputs and absolute date ranges, for exa
 These rules are the same for `--cloud` runs. Typing a value needs the notebook's input blocks, so
 `--input` requires the local `.deepnote` file — pass the file rather than only `--notebook-id`.
 
+Cloud execution status and snapshot delivery are reported separately. The CLI briefly polls after
+terminal status because snapshot attachment can lag. If an empty or markdown-only local notebook
+successfully produces no snapshot, the CLI writes a valid output-free snapshot from the local
+source. A remote-only no-op can succeed without a file and reports `artifactStatus: not_produced`.
+An advertised snapshot that cannot be downloaded or saved reports `artifactStatus: unavailable`
+and exits `1`; `success` still describes the notebook run itself.
+
 #### Agent Block (`--prompt` and agent blocks)
 
 The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.

@@ -4,16 +4,14 @@ import {
   type BlockSpec,
   createProject,
   type FoundProject,
-  fetchSnapshotContent,
   findNotebook,
   findProject,
-  getRun,
   isSuccessStatus,
-  type NormalizedRun,
   type PollOptions,
   type ProjectSpec,
   pollRunUntilComplete,
   triggerNotebookRun,
+  waitForRunSnapshot,
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import {
@@ -29,11 +27,6 @@ import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from '
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import type { RunBlockOutput } from './run-with-inputs'
-
-/** How many times to re-fetch a terminal run whose snapshot has not landed yet, and how long to wait
- * between tries. Small on purpose: the run has finished, so this only ever waits on a write. */
-const SNAPSHOT_SETTLE_ATTEMPTS = 3
-const SNAPSHOT_SETTLE_INTERVAL_MS = 1_500
 
 /** Deepnote constrains a block's `integrationId` to a UUID, so anything else cannot be sent at all. */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -211,7 +204,10 @@ export async function runInCloud(
   // Whatever the status. The snapshot holds the outputs, and on a failure it is usually the only
   // account of what went wrong — a failed run is exactly when you need it, not when you can spare
   // it. It can also lag the run's terminal status by a moment, hence the retry.
-  const snapshotYaml = await fetchSnapshotSettling(baseUrl, token, run, options)
+  const { content: snapshotYaml } = await waitForRunSnapshot(baseUrl, token, run, {
+    requestTimeoutMs: options.poll?.requestTimeoutMs,
+    sleep: options.poll?.sleep,
+  })
 
   const success = isSuccessStatus(run.status)
   // Built for failures too: "open it in Deepnote" is the most useful thing to say to someone whose
@@ -227,63 +223,6 @@ export async function runInCloud(
     viewUrl,
     ...(created ? { created } : {}),
     error: success ? undefined : describeFailure(run, snapshotYaml),
-  }
-}
-
-/**
- * The run's snapshot, retried briefly while it is still being attached.
- *
- * A run can report a terminal status a moment before its snapshot lands, so a single immediate
- * re-fetch loses that race and reports a successful run with no outputs. Retries are short and
- * bounded: the run has already finished, so this is only ever waiting on a write, and giving up on
- * a snapshot that never arrives costs the outputs rather than the run.
- *
- * A snapshot that exists but cannot be read is a different matter, and throws — see below.
- */
-async function fetchSnapshotSettling(
-  baseUrl: string,
-  token: string,
-  run: NormalizedRun,
-  options: RunInCloudOptions
-): Promise<string | null> {
-  const sleep = options.poll?.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
-  let current = run
-
-  for (let attempt = 0; ; attempt++) {
-    // Two different nothings, and only one of them is worth waiting on: `fetchSnapshotContent`
-    // returns null when the run has no snapshot *yet*, and throws when there is one it could not
-    // read. The first settles; the second is a fact about the world.
-    let yaml: string | null = null
-    let unreadable: unknown
-    if (current.snapshot) {
-      try {
-        yaml = await fetchSnapshotContent(current, { baseUrl, token })
-      } catch (error) {
-        unreadable = error
-      }
-    }
-    if (yaml) {
-      return yaml
-    }
-
-    if (attempt === SNAPSHOT_SETTLE_ATTEMPTS) {
-      // Out of tries. "Never attached" is reportable as no outputs; a download that kept failing is
-      // not — calling that an empty run would be inventing an answer, and `getCloudRun` throws on
-      // the same failure, so staying quiet here would make the two disagree about the same run.
-      if (unreadable) {
-        throw unreadable
-      }
-      return null
-    }
-
-    // The first re-fetch is immediate: usually the snapshot is simply attached a beat after the
-    // status, and asking again is enough. Only wait once that has already failed.
-    if (attempt > 0) {
-      await sleep(SNAPSHOT_SETTLE_INTERVAL_MS)
-    }
-    // A failure here is not fatal: the run itself already finished, so keep what we have and let the
-    // loop give up on its own terms rather than throwing away a known status.
-    current = await getRun(baseUrl, token, current.runId, { snapshotDelivery: 'inline' }).catch(() => current)
   }
 }
 

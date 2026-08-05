@@ -11,6 +11,7 @@ import {
   pollRunUntilComplete,
   RunTimeoutError,
   triggerNotebookRun,
+  waitForRunSnapshot,
 } from './cloud-runs'
 
 const BASE_URL = 'https://api.example.com'
@@ -268,6 +269,61 @@ describe('fetchSnapshotContent', () => {
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toBe(`${BASE_URL}/v2/runs/r/snapshot`)
     expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
+  })
+})
+
+describe('waitForRunSnapshot', () => {
+  const run = (snapshot?: NormalizedRun['snapshot']): NormalizedRun => ({
+    runId: 'r',
+    status: 'success',
+    snapshot,
+    raw: {},
+  })
+
+  it('re-fetches a terminal run until its snapshot is attached', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ run: { id: 'r', status: 'success' } }))
+      .mockResolvedValueOnce(
+        response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: 'version: 1.0.0' } } })
+      )
+    const sleep = vi.fn(async () => {})
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 3, sleep })
+
+    expect(settled.content).toBe('version: 1.0.0')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(sleep).toHaveBeenCalledOnce()
+  })
+
+  it('returns null only when no snapshot is attached within the bounded window', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'success' } }))
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), {
+      attempts: 2,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBeNull()
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws a persistent snapshot download failure instead of calling it no output', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async url => {
+      if (String(url).startsWith('https://storage.example.com/')) {
+        return response('unavailable', { ok: false, status: 503, statusText: 'Service Unavailable' })
+      }
+      return response({
+        run: { id: 'r', status: 'success', snapshot: { downloadUrl: 'https://storage.example.com/snapshot' } },
+      })
+    })
+
+    await expect(
+      waitForRunSnapshot(BASE_URL, TOKEN, run({ downloadUrl: 'https://storage.example.com/snapshot' }), {
+        attempts: 1,
+        sleep: async () => {},
+      })
+    ).rejects.toMatchObject({ statusCode: 503 })
   })
 })
 
