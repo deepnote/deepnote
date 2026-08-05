@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 // In an installed app, import this from '@deepnote/local-runner'.
-import { definePipeline, defineRunPolicy, orchestrate } from '../../../packages/local-runner/dist/index.js'
+import { orchestrate } from '../../../packages/local-runner/dist/index.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const examples = join(here, '..', '..')
@@ -12,63 +12,98 @@ try {
   if (error?.code !== 'ENOENT') throw error
 }
 
-const target = process.env.DEEPNOTE_TOKEN ? 'cloud' : 'local'
-const persistenceFile = process.env.ORCHESTRATION_STATE_FILE
+// Cloud when a token is present, unless ORCHESTRATION_TARGET says otherwise. The override keeps a
+// local run reachable on a machine that has a token in `.env`.
+const target = process.env.ORCHESTRATION_TARGET || (process.env.DEEPNOTE_TOKEN ? 'cloud' : 'local')
 
-const regionalRunPolicy = defineRunPolicy({
-  idempotent: true,
-  retry: { maxAttempts: 2, initialDelayMs: 250, backoffMultiplier: 2 },
-})
-
-const prepareRegions = definePipeline({
-  name: 'Regional preparation',
-  async run({ runWithPolicy, control, outputs }, { sourceSteps, target }) {
-    const execute = step => runWithPolicy(step, regionalRunPolicy)
-    // Ordinary JavaScript is the pipeline language. Local kernels can fan out freely. The first
-    // cloud run is sequential so create-if-missing cannot race to create the same notebook twice.
-    const [north, europe] =
-      target === 'local'
-        ? await Promise.all(sourceSteps.map(execute))
-        : [await execute(sourceSteps[0]), await execute(sourceSteps[1])]
-
-    const notes = await control(
-      {
-        id: 'combine-notes',
-        kind: 'join',
-        label: 'Combine regional notes',
-        dependsOn: [north.policyNodeId ?? north.id, europe.policyNodeId ?? europe.id],
-      },
-      () => [outputs.allText(north).trim(), outputs.allText(europe).trim()].join('; ')
-    )
-    return {
-      notes,
-      preparation: [north.policyNodeId ?? north.id, europe.policyNodeId ?? europe.id],
+/**
+ * Retry a notebook step, as ordinary control flow.
+ *
+ * Only worth doing for a step you know is safe to repeat — these notebooks just compute, so a second
+ * attempt costs nothing. A notebook that writes to a warehouse or spends an agent budget is not
+ * safe to retry blindly, which is why this is a decision at the call site rather than a flag.
+ *
+ * Under Workflow SDK the identical loop is durable: each attempt is a recorded step, so a crash
+ * resumes at the attempt it reached instead of starting the notebook again.
+ */
+async function runWithRetry(run, step, { attempts = 2, delayMs = 250 } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    const last = attempt === attempts
+    try {
+      const result = await run({
+        ...step,
+        id: attempts > 1 ? `${step.id}-attempt-${attempt}` : step.id,
+        label: attempts > 1 ? `${step.label ?? step.id} · attempt ${attempt}/${attempts}` : step.label,
+        dependsOn: attempt === 1 ? step.dependsOn : [{ id: `${step.id}-attempt-${attempt - 1}`, label: 'retry' }],
+        // Hold a failure so this loop can decide, except on the final attempt, where the caller's
+        // own `allowFailure` applies.
+        allowFailure: last ? step.allowFailure : true,
+      })
+      if (result.success || last) return result
+    } catch (error) {
+      // Two distinct failures reach this loop, and both are worth retrying here. A notebook that
+      // ran and failed comes back as `success: false` above. Infrastructure that never got the
+      // notebook running — no Python environment, a dead toolkit server, an unreadable API
+      // response — throws instead, and always throws, whatever `allowFailure` says.
+      if (last) throw error
     }
-  },
-})
+    await new Promise(resolve => setTimeout(resolve, delayMs * attempt))
+  }
+}
+
+/**
+ * A reusable sub-pipeline is just a function that takes the orchestration context.
+ *
+ * Callers scope child IDs by passing a prefix, which is all the old `definePipeline`/`invoke` pair
+ * bought — with the advantage that this is ordinary code you can read, test, and call directly.
+ */
+async function prepareRegions({ run, control, outputs }, { sourceSteps, target, prefix }) {
+  const id = suffix => `${prefix}/${suffix}`
+  // Local kernels each start their own toolkit server and can race for a port, so one retry keeps
+  // the fan-out reliable. The first cloud run stays sequential so create-if-missing cannot race to
+  // create the same notebook twice.
+  const execute = step => runWithRetry(run, { ...step, id: id(step.id) })
+  const [north, europe] =
+    target === 'local'
+      ? await Promise.all(sourceSteps.map(execute))
+      : [await execute(sourceSteps[0]), await execute(sourceSteps[1])]
+
+  const notes = await control(
+    {
+      id: id('combine-notes'),
+      kind: 'join',
+      label: 'Combine regional notes',
+      dependsOn: [north.id, europe.id],
+    },
+    () => [outputs.allText(north).trim(), outputs.allText(europe).trim()].join('; ')
+  )
+  return { notes, preparation: [north.id, europe.id] }
+}
 
 const result = await orchestrate(
-  async ({ run, control, invoke, outputs }) => {
+  async context => {
+    const { run, outputs, control } = context
     await control({ id: 'inputs', label: 'Pipeline inputs' }, () => ({ regions: 2 }))
     const sourceSteps = [
       {
         id: 'north-inputs',
         label: 'North America inputs',
         notebook: join(examples, '6_with_inputs.deepnote'),
+        dependsOn: ['inputs'],
         inputs: { greeting: 'North America ready', count: 6, enabled: true },
       },
       {
         id: 'europe-inputs',
         label: 'Europe inputs',
         notebook: join(examples, '6_with_inputs.deepnote'),
+        dependsOn: ['inputs'],
         inputs: { greeting: 'Europe ready', count: 9, enabled: true },
       },
     ]
-    const preparation = await invoke({
-      id: 'regional-preparation',
-      pipeline: prepareRegions,
-      input: { sourceSteps, target },
-      dependsOn: ['inputs'],
+    const preparation = await prepareRegions(context, {
+      sourceSteps,
+      target,
+      prefix: 'regional-preparation',
     })
 
     // This notebook ends in an agent block. A missing model key becomes a failed step we can inspect
@@ -77,7 +112,7 @@ const result = await orchestrate(
       id: 'executive-report',
       label: 'Executive report',
       notebook: join(examples, 'local-runner-showcase.deepnote'),
-      dependsOn: ['regional-preparation'],
+      dependsOn: preparation.preparation,
       concluding: true,
       inputs: {
         report_title: 'Orchestrated sales review',
@@ -99,7 +134,6 @@ const result = await orchestrate(
   {
     defaultTarget: target,
     local: { persistSnapshot: false },
-    ...(persistenceFile ? { persistence: { file: persistenceFile } } : {}),
     onEvent(event) {
       if (event.type === 'step_started') {
         process.stdout.write(`→ ${event.stepId} (${event.target})\n`)
@@ -111,8 +145,6 @@ const result = await orchestrate(
         process.stdout.write(event.event.text)
       } else if (event.type === 'control_completed') {
         process.stdout.write(`◆ ${event.node.label} in ${event.node.durationMs}ms\n`)
-      } else if (event.type === 'pipeline_completed') {
-        process.stdout.write(`◇ ${event.node.label} in ${event.node.durationMs}ms\n`)
       }
     },
   }
