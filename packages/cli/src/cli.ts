@@ -482,7 +482,7 @@ ${c.bold('Exit Codes:')}
     .argument('[dir]', 'Directory to sync into (defaults to current directory)')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .option('--all-files', "Also download each project's working-directory files")
+    .option('--all-files', "Also sync each project's working-directory files (download on pull, upload on push)")
     .addOption(
       new Option(
         '--on-conflict <mode>',

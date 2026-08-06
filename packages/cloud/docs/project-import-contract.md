@@ -11,7 +11,7 @@ error), so it is safe to ship the client ahead of the server.
 each a full project envelope with a single notebook in `project.notebooks`, all sharing one
 `metadata.modifiedAt` (see the export endpoint). Import takes **the same ZIP back**:
 
-```
+```text
 export:  project  ──►  ZIP{ notebook-a.deepnote, notebook-b.deepnote, … }
 import:  ZIP{ notebook-a.deepnote (edited), … }  ──►  project
 ```
@@ -26,7 +26,7 @@ the ambiguity a single-merged-document import would have introduced.
 
 ## Request
 
-```
+```http
 POST /v2/projects/{projectId}/import
 Authorization: Bearer <api-key>
 Content-Type: application/zip
@@ -71,7 +71,7 @@ Apply the union of all documents' notebooks in one transaction:
 compression, ordering, timestamps — is not part of the determinism contract). Both the CLI and the
 server MUST compute it identically:
 
-```
+```text
 canonicalProjectHash(files):
   entries = files
     .map(f => sha256(f.content) is the hex sha256 of the document's UTF-8 bytes;
