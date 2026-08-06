@@ -7,6 +7,10 @@ import { resetOutputConfig, setOutputConfig } from '../output'
 import { loadSyncManifest, SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 import { canonicalProjectHash, classifySyncStep, readExportModifiedAt, syncWorkspace } from './sync'
 
+// `select` is mocked so a conflict prompt can be driven (e.g. simulate a Ctrl+C rejection). Tests
+// that resolve conflicts non-interactively (`--on-conflict skip|override`, or no TTY) never call it.
+vi.mock('@inquirer/prompts', () => ({ select: vi.fn() }))
+
 const API_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
 
@@ -64,6 +68,8 @@ interface ImportCall {
   projectId: string
   url: URL
   filenames: string[]
+  /** Decoded `.deepnote` documents from the uploaded ZIP, by filename. */
+  documents: Record<string, string>
 }
 
 interface InstalledCloud {
@@ -128,7 +134,12 @@ function installCloud(projects: CloudProject[]): InstalledCloud {
         return respond({ message: 'Project not found' }, { status: 404 })
       }
       const entries = unzipSync(init?.body as Uint8Array)
-      importCalls.push({ projectId: project.id, url, filenames: Object.keys(entries).sort() })
+      const decoder = new TextDecoder()
+      const documents: Record<string, string> = {}
+      for (const [name, content] of Object.entries(entries)) {
+        documents[name] = decoder.decode(content)
+      }
+      importCalls.push({ projectId: project.id, url, filenames: Object.keys(entries).sort(), documents })
       if (project.importUnavailable) {
         return respond({ message: 'Not implemented' }, { status: 404 })
       }
@@ -325,6 +336,8 @@ describe('syncWorkspace', () => {
     // fingerprints for lost-update protection.
     expect(cloud.importCalls).toHaveLength(1)
     expect(cloud.importCalls[0].filenames).toEqual(['main.deepnote'])
+    // The uploaded document carries the actual local edit, not stale or empty content.
+    expect(cloud.importCalls[0].documents['main.deepnote']).toBe(localEdit)
     expect(cloud.importCalls[0].url.searchParams.get('baseModifiedAt')).toBe('2026-01-02T00:00:00.000Z')
     expect(cloud.importCalls[0].url.searchParams.get('baseContentHash')).toBe(
       canonicalProjectHash(singleNotebook('p1', '2026-01-02T00:00:00.000Z'))
@@ -434,6 +447,35 @@ describe('syncWorkspace', () => {
     consoleErrorSpy.mockRestore()
   })
 
+  it('re-uploads a same-size local file edit on push (change detected by content hash, not size)', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [{ path: 'data/input.csv', size: 3, updatedAt: '2026-01-01T00:00:00.000Z', content: 'a,b' }],
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, { ...baseOptions, allFiles: true }) // downloads input.csv, records its hash
+
+    // Edit the notebook (to trigger the push) and the file to different 3-byte content (same size).
+    await fs.writeFile(
+      path.join(tempDir, 'Alpha', 'main.deepnote'),
+      notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+      'utf-8'
+    )
+    await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'x,y', 'utf-8')
+
+    const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'pushed', filesUploaded: 1 })])
+    expect(cloud.uploadedPaths).toEqual(['p1:data/input.csv'])
+    consoleErrorSpy.mockRestore()
+  })
+
   it('treats "changed locally AND in the cloud" as a conflict: override takes the cloud version', async () => {
     const projects: CloudProject[] = [
       { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
@@ -470,6 +512,39 @@ describe('syncWorkspace', () => {
 
     expect(result.projects).toEqual([expect.objectContaining({ action: 'skipped-conflict' })])
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
+  })
+
+  it('re-throws ExitPromptError so Ctrl+C on a conflict prompt aborts the whole sync', async () => {
+    const { select } = await import('@inquirer/prompts')
+    const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+    vi.mocked(select).mockRejectedValueOnce(exitError)
+    const priorStdin = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
+    const priorStdout = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+    try {
+      const projects: CloudProject[] = [
+        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+
+      // Force a both-sides conflict so the (mocked) prompt fires, then have it reject like Ctrl+C.
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+
+      await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
+      expect(select).toHaveBeenCalled()
+    } finally {
+      if (priorStdin) Object.defineProperty(process.stdin, 'isTTY', priorStdin)
+      else Reflect.deleteProperty(process.stdin, 'isTTY')
+      if (priorStdout) Object.defineProperty(process.stdout, 'isTTY', priorStdout)
+      else Reflect.deleteProperty(process.stdout, 'isTTY')
+    }
   })
 
   it('downloads working-directory files incrementally with --all-files', async () => {

@@ -31,6 +31,9 @@ export const SYNC_MANIFEST_FILENAME = '.deepnote-sync.json'
 const manifestFileRecordSchema = z.object({
   size: z.number(),
   updatedAt: z.string().optional(),
+  /** SHA-256 of the file's bytes at the last sync. Lets push detect a local edit that preserves the
+   * size, which `size` alone would miss. Absent for files synced before this was tracked. */
+  hash: z.string().optional(),
 })
 
 const manifestProjectRecordSchema = z.object({

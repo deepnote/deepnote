@@ -341,21 +341,27 @@ async function syncProjectFiles(
       warn(`Skipping file with unsafe path in "${project.name}": ${entry.path}`)
       continue
     }
-    next[entry.path] = { size: entry.size, ...(entry.updatedAt ? { updatedAt: entry.updatedAt } : {}) }
 
     const absolutePath = path.join(toAbsolute(ctx, plan.filesDir), ...entry.path.split('/'))
+    const prev = previous[entry.path]
     const unchanged =
-      previous[entry.path] !== undefined &&
-      previous[entry.path].size === entry.size &&
-      previous[entry.path].updatedAt === entry.updatedAt &&
+      prev !== undefined &&
+      prev.size === entry.size &&
+      prev.updatedAt === entry.updatedAt &&
       (await pathExists(absolutePath))
     if (unchanged) {
+      // Preserve the record (including its `hash`, which push relies on to spot same-size edits).
+      next[entry.path] = prev
       continue
     }
 
+    const base = { size: entry.size, ...(entry.updatedAt ? { updatedAt: entry.updatedAt } : {}) }
     if (!ctx.dryRun) {
       const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path)
       await writeFileEnsuringDir(absolutePath, bytes)
+      next[entry.path] = { ...base, hash: sha256(bytes) }
+    } else {
+      next[entry.path] = base
     }
     downloaded++
     debug(`Downloaded ${project.name}: ${entry.path} (${entry.size} bytes)`)
@@ -497,23 +503,29 @@ async function uploadProjectFiles(
       continue
     }
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
-    const stat = await fs.stat(absolute)
+    // Read and hash up front: `size` alone misses a same-size content edit, so the content hash is
+    // the change signal. The file is read anyway to upload it.
+    const bytes = await fs.readFile(absolute)
+    const hash = sha256(bytes)
     const prev = previous[relPath]
-    if (prev && prev.size === stat.size) {
+    if (prev && prev.size === bytes.length && prev.hash === hash) {
       next[relPath] = prev
       continue
     }
 
     if (!ctx.dryRun) {
-      const bytes = await fs.readFile(absolute)
       await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
       const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
-      next[relPath] = { size: stored.size ?? stat.size, ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}) }
+      next[relPath] = {
+        size: stored.size ?? bytes.length,
+        hash,
+        ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}),
+      }
     } else {
-      next[relPath] = { size: stat.size }
+      next[relPath] = { size: bytes.length, hash }
     }
     uploaded++
-    debug(`Uploaded ${project.name}: ${relPath} (${stat.size} bytes)`)
+    debug(`Uploaded ${project.name}: ${relPath} (${bytes.length} bytes)`)
   }
 
   record.files = next
@@ -638,6 +650,12 @@ async function syncOneProject(
 
     return outcome
   } catch (error) {
+    // A Ctrl+C on a conflict prompt rejects with `@inquirer/prompts`' ExitPromptError. That is the
+    // user aborting the whole run, not this project failing — let it stop the sync instead of
+    // becoming a per-project `error` outcome the loop swallows.
+    if (error instanceof Error && error.name === 'ExitPromptError') {
+      throw error
+    }
     const message = error instanceof Error ? error.message : String(error)
     return { ...base, action: 'error', detail: message }
   }
