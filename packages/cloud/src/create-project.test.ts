@@ -1,6 +1,6 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { type BlockSpec, createProject, type ProjectSpec } from './create-project'
+import { addNotebooksToProject, type BlockSpec, createProject, type ProjectSpec } from './create-project'
 
 const BASE = 'https://api.deepnote.com'
 const TOKEN = 't'
@@ -258,5 +258,53 @@ describe('createProject', () => {
 
     await expect(createProject(BASE, TOKEN, SPEC)).rejects.toThrow(ApiError)
     await expect(createProject(BASE, TOKEN, SPEC)).rejects.toThrow(/Authentication failed/)
+  })
+})
+
+describe('addNotebooksToProject', () => {
+  it('adds notebooks and blocks without creating a duplicate project or deleting content', async () => {
+    const calls = mockApi()
+
+    const result = await addNotebooksToProject(BASE, TOKEN, 'proj-existing', SPEC.notebooks)
+
+    expect(result).toEqual({
+      projectId: 'proj-existing',
+      notebooks: [{ id: 'nb-1', name: 'Dashboard', blockIds: ['blk-2', 'blk-3'] }],
+    })
+    expect(calls.map(call => `${call.method} ${call.path}`)).toEqual([
+      'POST /v2/notebooks',
+      'POST /v2/blocks',
+      'POST /v2/blocks',
+    ])
+    expect(calls[0].body).toEqual({ projectId: 'proj-existing', name: 'Dashboard' })
+  })
+
+  it('makes existing sibling ids available while rewriting new notebook blocks', async () => {
+    const calls = mockApi()
+    const rewriteBlock = vi.fn((block: BlockSpec, notebookIds: ReadonlyMap<string, string>) => ({
+      ...block,
+      metadata: { calls: notebookIds.get('local-existing') },
+    }))
+
+    await addNotebooksToProject(
+      BASE,
+      TOKEN,
+      'proj-existing',
+      [{ sourceId: 'local-new', name: 'New', blocks: [{ type: 'notebook-function' }] }],
+      {
+        existingNotebookIds: new Map([['local-existing', 'cloud-existing']]),
+        rewriteBlock,
+      }
+    )
+
+    expect(rewriteBlock.mock.calls[0][1]).toEqual(
+      new Map([
+        ['local-existing', 'cloud-existing'],
+        ['local-new', 'nb-1'],
+      ])
+    )
+    expect(calls.find(call => call.path === '/v2/blocks')?.body).toMatchObject({
+      metadata: { calls: 'cloud-existing' },
+    })
   })
 })

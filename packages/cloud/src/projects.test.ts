@@ -1,6 +1,6 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { findNotebook, getWorkspace, notebookUrl } from './projects'
+import { findNotebook, findProject, getWorkspace, notebookUrl } from './projects'
 
 const BASE_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
@@ -170,6 +170,93 @@ describe('findNotebook', () => {
     const err = await findNotebook(BASE_URL, TOKEN, { projectName: 'P' }).catch(e => e)
     expect(err).toBeInstanceOf(ApiError)
     expect(err.statusCode).toBe(401)
+  })
+})
+
+describe('findProject', () => {
+  it('returns the newest exact-name project and its notebooks', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([
+        { id: 'old', name: 'P', createdAt: '2026-01-01', notebooks: [{ id: 'old-nb', name: 'Old' }] },
+        {
+          id: 'new',
+          name: 'P',
+          createdAt: '2026-02-01',
+          notebooks: [{ id: 'new-nb', name: 'Existing' }],
+        },
+        { id: 'substring', name: 'P copy', createdAt: '2026-03-01', notebooks: [] },
+      ])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({
+      projectId: 'new',
+      notebooks: [{ id: 'new-nb', name: 'Existing' }],
+    })
+  })
+
+  it('returns undefined when no exact-name project exists', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(projectsPage([{ id: 'p1', name: 'P copy', notebooks: [] }]))
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toBeUndefined()
+  })
+
+  it('skips newer single-notebook and Agent projects that cannot take another notebook', async () => {
+    // Deepnote rejects notebook creation in both, so returning the newest match would let one of
+    // them shadow the usable standard project below it and fail the create with HTTP 409.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([
+        { id: 'agent', name: 'P', projectType: 'agent', createdAt: '2026-04-01', notebooks: [] },
+        { id: 'single', name: 'P', projectType: 'notebook', createdAt: '2026-03-01', notebooks: [] },
+        {
+          id: 'standard',
+          name: 'P',
+          projectType: 'standard',
+          createdAt: '2026-02-01',
+          notebooks: [{ id: 'nb', name: 'Existing' }],
+        },
+      ])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({
+      projectId: 'standard',
+      projectType: 'standard',
+      notebooks: [{ id: 'nb', name: 'Existing' }],
+    })
+  })
+
+  it('reports no destination when every exact-name project is closed to new notebooks', async () => {
+    // Better than handing back a project the create would 409 on: the caller makes a fresh
+    // standard project, which is the outcome that actually works.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([{ id: 'agent', name: 'P', projectType: 'agent', createdAt: '2026-04-01', notebooks: [] }])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toBeUndefined()
+  })
+
+  it('treats an unreported project type as usable', async () => {
+    // Fail-safe direction: refusing every project whose type could not be read would bring back the
+    // duplicate projects this lookup exists to prevent.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([{ id: 'untyped', name: 'P', createdAt: '2026-04-01', notebooks: [] }])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({ projectId: 'untyped', notebooks: [] })
+  })
+
+  it('treats a project type this client has not heard of as usable', async () => {
+    // Deliberate: only the types known to reject notebook creation disqualify a project, so a type
+    // Deepnote adds later stays eligible instead of silently becoming a duplicate-project bug. The
+    // value is carried through rather than dropped.
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([{ id: 'future', name: 'P', projectType: 'future-type', createdAt: '2026-04-01', notebooks: [] }])
+    )
+
+    expect(await findProject(BASE_URL, TOKEN, 'P')).toEqual({
+      projectId: 'future',
+      projectType: 'future-type',
+      notebooks: [],
+    })
   })
 })
 
