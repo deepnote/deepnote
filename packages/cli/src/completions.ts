@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|validate|convert|split|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull)
+            inspect|cat|run|open|schedule|validate|convert|split|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull)
                 subcommand="\${word}"
                 break
                 ;;
@@ -52,6 +52,10 @@ _deepnote_completions() {
                 ;;
             cat|open|validate|stats|lint|diff)
                 COMPREPLY=( $(compgen -W "json llm" -- "\${cur}") )
+                return 0
+                ;;
+            schedule)
+                COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
                 return 0
                 ;;
             show)
@@ -126,6 +130,15 @@ _deepnote_completions() {
             # Complete .deepnote files and flags
             if [[ "\${cur}" == -* ]]; then
                 COMPREPLY=( $(compgen -W "--domain -o --output" -- "\${cur}") )
+            else
+                COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
+            fi
+            return 0
+            ;;
+        schedule)
+            # Complete .deepnote files and scheduling flags
+            if [[ "\${cur}" == -* ]]; then
+                COMPREPLY=( $(compgen -W "--hourly --daily --weekly --monthly --cron --at --timezone --notebook --token --url --no-create --open -o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
@@ -259,6 +272,7 @@ const zshCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   open: 'Open a .deepnote file in Deepnote',
+  schedule: 'Schedule recurring notebook runs in Deepnote Cloud',
   validate: 'Validate a .deepnote file against the schema',
   dag: 'Analyze block dependencies and variable flow',
   stats: 'Show statistics about a .deepnote file',
@@ -352,6 +366,23 @@ ${commandEntries}
                     _arguments \\
                         '--domain[Deepnote domain]:domain:' \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json llm)' \\
+                        '*:deepnote file:_files -g "*.deepnote"'
+                    ;;
+                schedule)
+                    _arguments \\
+                        '--hourly[Run every hour]' \\
+                        '--daily[Run every day]' \\
+                        '--weekly[Run weekly on a weekday]:weekday:(Monday Tuesday Wednesday Thursday Friday Saturday Sunday)' \\
+                        '--monthly[Run monthly on a day]:day:' \\
+                        '--cron[Use a custom five-field cron expression]:cron expression:' \\
+                        '--at[Time for daily, weekly, or monthly schedules]:time:' \\
+                        '--timezone[IANA timezone]:timezone:' \\
+                        '--notebook[Schedule a specific notebook]:notebook name:' \\
+                        '--token[Bearer token for the Deepnote API]:token:' \\
+                        '--url[API base URL]:url:' \\
+                        '--no-create[Do not create a missing cloud project]' \\
+                        '--open[Open the scheduled notebook in a browser]' \\
+                        '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
                 validate)
@@ -486,6 +517,7 @@ const fishCommandDescriptions: Record<string, string> = {
   inspect: 'Inspect and display metadata from a .deepnote file',
   run: 'Run a .deepnote file',
   open: 'Open a .deepnote file in Deepnote',
+  schedule: 'Schedule recurring notebook runs in Deepnote Cloud',
   validate: 'Validate a .deepnote file against the schema',
   dag: 'Analyze block dependencies and variable flow',
   stats: 'Show statistics about a .deepnote file',
@@ -559,6 +591,22 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote' -a 
 complete -c deepnote -n '__fish_seen_subcommand_from open' -l domain -d 'Deepnote domain'
 complete -c deepnote -n '__fish_seen_subcommand_from open' -s o -l output -d 'Output format' -xa 'json llm'
 complete -c deepnote -n '__fish_seen_subcommand_from open' -F -a '*.deepnote'
+
+# schedule subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l hourly -d 'Run every hour'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l daily -d 'Run every day'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l weekly -d 'Run weekly on a weekday' -xa 'Monday Tuesday Wednesday Thursday Friday Saturday Sunday'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l monthly -d 'Run monthly on a day'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l cron -d 'Use a custom five-field cron expression'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l at -d 'Time for daily, weekly, or monthly schedules'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l timezone -d 'IANA timezone'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l notebook -d 'Schedule a specific notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l token -d 'Bearer token for the Deepnote API'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l url -d 'API base URL'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l no-create -d 'Do not create a missing cloud project'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l open -d 'Open the scheduled notebook in a browser'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -s o -l output -d 'Output format' -xa 'json'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -F -a '*.deepnote'
 
 # validate subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from validate' -s o -l output -d 'Output format' -xa 'json llm'

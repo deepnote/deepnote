@@ -46,6 +46,7 @@
     "@deepnote/cloud": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/database-integrations": "workspace:*",
+    "@deepnote/local-runner": "workspace:*",
     "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
     "@inquirer/prompts": "^8.2.1",

@@ -7,8 +7,8 @@ agent-written readout — comes back, powered entirely by
 
 It's an app shell, not a document: an inputs panel on the left, a results canvas on the right. Two
 files do the work — [`serve.mjs`](./serve.mjs) (`serveStatic({ dir, notebookPath })`) and
-[`index.html`](./index.html) (`GET /api/info` to build the controls, `POST /api/run` to execute and
-render). No framework, no build step.
+[`index.html`](./index.html) (`GET /api/info` to build the controls, then the run, schedule, and
+history APIs to drive the page). No framework, no build step.
 
 ## Run it
 
@@ -56,6 +56,23 @@ session. Without a token the button degrades gracefully and the status line says
 
 The first cloud run is the slow one — blocks are created one API request each, so a 16-block notebook
 is 16 round-trips before the run even starts. Later runs reuse the notebook and skip straight to it.
+
+## Schedule recurring cloud runs
+
+The **Schedule** control is a thin frontend over `POST /api/schedule-cloud`. It sends a structured
+Daily, Weekly (choose weekday), or Monthly (choose calendar day) cadence plus time and timezone.
+`serveStatic` validates and converts that cadence to cron before calling `scheduleInCloud`, so custom
+frontends can reuse the scheduling behavior without implementing cron conversion. Advanced
+frontends can still send raw cron.
+
+Scheduling creates the cloud notebook if necessary but does not run it immediately. Recurring runs
+use the input values stored in Deepnote; when scheduling creates the notebook, those are the
+defaults committed in the `.deepnote` file. Deepnote allows one scheduled notebook per project, so
+saving again updates that project schedule.
+
+The scheduler remains available while a cloud run is active. The local-runner library coordinates
+the first create-if-missing operation, so custom frontends can safely offer the same concurrency
+without implementing their own lock.
 
 ## Notes
 
