@@ -26,7 +26,9 @@ project:
             The dashboard needs no API keys and no network. The **agent block** at the
             end does: **Run** reads `OPENAI_API_KEY` from the environment, while **Run
             in cloud** needs only `DEEPNOTE_TOKEN` — Deepnote supplies the model there.
-            With no key the dashboard still renders and only the agent block errors.
+            **Schedule** uses that same Deepnote token to create or update a recurring
+            cloud run without executing immediately. With no key the dashboard still
+            renders and only the agent block errors.
           metadata: {}
         - blockGroup: g0000000-0000-0000-0000-000000000003
           id: b0000000000000000000000000000003

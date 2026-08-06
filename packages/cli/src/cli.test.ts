@@ -29,6 +29,7 @@ describe('CLI', () => {
 
       expect(commandNames).toContain('inspect')
       expect(commandNames).toContain('run')
+      expect(commandNames).toContain('schedule')
       expect(commandNames).toContain('convert')
       expect(commandNames).toContain('validate')
       expect(commandNames).toContain('completion')
@@ -78,6 +79,33 @@ describe('CLI', () => {
 
       expect(completionCmd).toBeDefined()
       expect(completionCmd?.description()).toBe('Generate shell completion scripts')
+    })
+
+    it('schedule command is properly configured', () => {
+      const program = createProgram()
+      const scheduleCmd = program.commands.find(cmd => cmd.name() === 'schedule')
+
+      expect(scheduleCmd).toBeDefined()
+      expect(scheduleCmd?.description()).toBe('Schedule recurring notebook runs in Deepnote Cloud')
+
+      const optionFlags = scheduleCmd?.options.map(option => option.flags)
+      expect(optionFlags).toEqual(
+        expect.arrayContaining([
+          '--hourly',
+          '--daily',
+          '--weekly <day>',
+          '--monthly <day>',
+          '--cron <expression>',
+          '--at <time>',
+          '--timezone <timezone>',
+          '--notebook <name>',
+          '--token <token>',
+          '--url <url>',
+          '--no-create',
+          '--open',
+          '-o, --output <format>',
+        ])
+      )
     })
 
     it('convert command is properly configured', () => {
@@ -138,6 +166,8 @@ describe('CLI', () => {
       const output = consoleSpy.mock.calls[0][0]
       expect(output).toContain('_deepnote_completions()')
       expect(output).toContain('COMPREPLY')
+      expect(output).toContain('schedule')
+      expect(output).toContain('--timezone')
       consoleSpy.mockRestore()
     })
 
@@ -152,6 +182,7 @@ describe('CLI', () => {
       const output = consoleSpy.mock.calls[0][0]
       expect(output).toContain('#compdef deepnote')
       expect(output).toContain('_deepnote()')
+      expect(output).toContain('Schedule recurring notebook runs in Deepnote Cloud')
       consoleSpy.mockRestore()
     })
 
@@ -165,6 +196,7 @@ describe('CLI', () => {
       expect(consoleSpy).toHaveBeenCalled()
       const output = consoleSpy.mock.calls[0][0]
       expect(output).toContain('complete -c deepnote')
+      expect(output).toContain('__fish_seen_subcommand_from schedule')
       consoleSpy.mockRestore()
     })
 
