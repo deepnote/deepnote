@@ -475,10 +475,10 @@ ${c.bold('Exit Codes:')}
     })
     .action(createScheduleAction(program))
 
-  // Sync command - mirror workspace projects to the local filesystem and push edits back
+  // Sync command - mirror workspace projects to the local filesystem (pull; push deferred)
   program
     .command('sync')
-    .description('Sync Deepnote projects with a local directory (pull + push .deepnote files)')
+    .description('Mirror Deepnote projects into a local directory (pull .deepnote files)')
     .argument('[dir]', 'Directory to sync into (defaults to current directory)')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
@@ -497,11 +497,15 @@ ${c.bold('Exit Codes:')}
       const c = getChalk()
       return `
 ${c.bold('Description:')}
-  Mirrors your workspace to a local directory: every project becomes
-  <folder path>/<project name>.deepnote, following the workspace folder tree.
-  Local edits to tracked .deepnote files are pushed back to Deepnote on the
-  next sync. Sync state lives in .deepnote-sync.json next to the files —
-  projects are tracked by id, so renames are handled as file moves.
+  Mirrors your workspace to a local directory: every project becomes a
+  directory <folder path>/<project name>/ holding one .deepnote file per
+  notebook, following the workspace folder tree. Sync state lives in
+  .deepnote-sync.json next to the files — projects are tracked by id, so
+  renames are handled as directory moves.
+
+  Pull is supported. Pushing local edits back to Deepnote is detected but
+  deferred (pending the project import endpoint): a project changed only
+  locally is reported as "to push" and left untouched, never overwritten.
 
 ${c.bold('Conflicts:')}
   A project edited both locally and in the cloud is a conflict. By default
@@ -513,9 +517,8 @@ ${c.bold('What sync does not do:')}
   - It never creates or deletes cloud projects; local-only .deepnote files
     are reported and left alone.
   - It never deletes local files unless you pass --prune.
+  - It does not push local edits yet, and never modifies a cloud project.
   - It does not run git. Commit, branch, and push yourself.
-  - Project name, integrations, and settings.requirements are never applied
-    from a pushed document (requirements.txt is the source of truth).
 
 ${c.bold('Examples:')}
   ${c.dim('# Mirror the whole workspace into ./workspace')}

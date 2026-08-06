@@ -8,14 +8,18 @@ import { isErrnoENOENT } from './file-resolver'
  * directory.
  *
  * It exists because names cannot carry identity — neither project nor folder names are unique in
- * Deepnote — so the manifest maps project ids to local paths, plus the two fingerprints sync
+ * Deepnote — so the manifest maps project ids to local directories, plus the fingerprints sync
  * decides with:
  *
+ * - `dir`: the project's local directory (root-relative). A project is a directory of `.deepnote`
+ *   files, one per notebook, because the export is a ZIP of one document per notebook.
+ * - `notebooks`: the notebook filenames last synced into `dir`, so a notebook deleted in the cloud
+ *   has its stale local file removed on the next pull.
  * - `modifiedAt`: the export's `metadata.modifiedAt` at last sync — sent back as `baseModifiedAt`
  *   on push so the server can detect a concurrent cloud edit (lost-update protection).
- * - `contentHash`: SHA-256 of the last-synced `.deepnote` bytes. The export is deterministic, so
- *   comparing hashes of the local file and a fresh export against it separates "local edit",
- *   "cloud edit", and "both" without any clocks.
+ * - `contentHash`: a canonical hash over the last-synced `.deepnote` documents (not the ZIP
+ *   container — only the documents are deterministic). Comparing hashes of the local files and a
+ *   fresh export against it separates "local edit", "cloud edit", and "both" without any clocks.
  * - `files`: per-path `size`/`updatedAt` from the last `--all-files` sync, for incremental
  *   downloads.
  *
@@ -30,7 +34,8 @@ const manifestFileRecordSchema = z.object({
 })
 
 const manifestProjectRecordSchema = z.object({
-  path: z.string(),
+  dir: z.string(),
+  notebooks: z.array(z.string()),
   modifiedAt: z.string().optional(),
   contentHash: z.string(),
   files: z.record(z.string(), manifestFileRecordSchema).optional(),
@@ -98,6 +103,7 @@ export async function saveSyncManifest(rootDir: string, manifest: SyncManifest):
         id,
         {
           ...record,
+          notebooks: [...record.notebooks].sort((a, b) => a.localeCompare(b)),
           ...(record.files
             ? { files: Object.fromEntries(Object.entries(record.files).sort(([a], [b]) => a.localeCompare(b))) }
             : {}),

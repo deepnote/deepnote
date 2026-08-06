@@ -1,9 +1,20 @@
 import { ApiError } from '@deepnote/database-integrations'
+import { zipSync } from 'fflate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { downloadProjectFile, exportProject, getProjectDetail, importProject, listAllProjects } from './sync'
 
 const BASE_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
+
+/** Build a ZIP archive of `{ filename: content }`, matching the export endpoint's shape. */
+function zipArchive(files: Record<string, string>): Uint8Array {
+  const encoder = new TextEncoder()
+  const entries: Record<string, Uint8Array> = {}
+  for (const [name, content] of Object.entries(files)) {
+    entries[name] = encoder.encode(content)
+  }
+  return zipSync(entries)
+}
 
 function response(
   body: unknown,
@@ -51,7 +62,7 @@ describe('listAllProjects', () => {
       )
       .mockResolvedValueOnce(
         response({
-          projects: [{ id: 'p2', name: 'Two', folder: { id: 'f1', name: 'Docs', path: ['Docs'] } }],
+          projects: [{ id: 'p2', name: 'Two', folder: { id: 'f1', name: 'Docs', path: [{ id: 'f1', name: 'Docs' }] } }],
           pagination: { nextPageToken: null },
         })
       )
@@ -125,12 +136,41 @@ describe('getProjectDetail', () => {
 })
 
 describe('exportProject', () => {
-  it('returns the YAML body verbatim', async () => {
-    const yaml = 'version: 1.0.0\nproject:\n  id: p1\n'
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response(yaml))
+  it('explodes the ZIP into one document per notebook, sorted by filename', async () => {
+    const main = 'version: 1.0.0\nproject:\n  id: p1\n  notebooks:\n    - id: nb-main\n'
+    const setup = 'version: 1.0.0\nproject:\n  id: p1\n  notebooks:\n    - id: nb-setup\n'
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response('', { bytes: zipArchive({ 'main.deepnote': main, 'a-setup.deepnote': setup }) }))
 
-    expect(await exportProject(BASE_URL, TOKEN, 'p1')).toBe(yaml)
+    const files = await exportProject(BASE_URL, TOKEN, 'p1')
+
+    expect(files).toEqual([
+      { filename: 'a-setup.deepnote', content: setup },
+      { filename: 'main.deepnote', content: main },
+    ])
     expect(String(fetchSpy.mock.calls[0][0])).toBe(`${BASE_URL}/v2/projects/p1/export`)
+  })
+
+  it('ignores non-.deepnote and empty entries', async () => {
+    const doc = 'version: 1.0.0\nproject:\n  id: p1\n'
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response('', { bytes: zipArchive({ 'main.deepnote': doc, 'README.txt': 'ignore me', 'empty.deepnote': '' }) })
+    )
+
+    expect(await exportProject(BASE_URL, TOKEN, 'p1')).toEqual([{ filename: 'main.deepnote', content: doc }])
+  })
+
+  it('returns an empty list for a project with no notebooks', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response('', { bytes: zipArchive({}) }))
+
+    expect(await exportProject(BASE_URL, TOKEN, 'p1')).toEqual([])
+  })
+
+  it('reports a non-ZIP body as ApiError rather than throwing raw', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response('', { bytes: new Uint8Array([1, 2, 3, 4]) }))
+
+    await expect(exportProject(BASE_URL, TOKEN, 'p1')).rejects.toBeInstanceOf(ApiError)
   })
 
   it('surfaces the server message on failure', async () => {

@@ -28,17 +28,17 @@ describe('sanitizePathSegment', () => {
 })
 
 describe('planProjectPaths', () => {
-  it('mirrors the workspace folder tree as sanitized path segments', () => {
+  it('mirrors the workspace folder tree as a sanitized directory per project', () => {
     const plans = planProjectPaths([
-      { id: 'p1', name: 'Sales report', folder: { path: ['Team A', 'Q1: Reports'] } },
+      { id: 'p1', name: 'Sales report', folder: { path: [{ name: 'Team A' }, { name: 'Q1: Reports' }] } },
       { id: 'p2', name: 'Rootless', folder: null },
     ])
 
     expect(plans.get('p1')).toEqual({
-      deepnotePath: 'Team A/Q1_ Reports/Sales report.deepnote',
-      filesDir: 'Team A/Q1_ Reports/Sales report.files',
+      projectDir: 'Team A/Q1_ Reports/Sales report',
+      filesDir: 'Team A/Q1_ Reports/Sales report/.files',
     })
-    expect(plans.get('p2')).toEqual({ deepnotePath: 'Rootless.deepnote', filesDir: 'Rootless.files' })
+    expect(plans.get('p2')).toEqual({ projectDir: 'Rootless', filesDir: 'Rootless/.files' })
   })
 
   it('suffixes every member of a collision group with its short id, so no project silently owns the clean name', () => {
@@ -49,9 +49,9 @@ describe('planProjectPaths', () => {
       { id: 'cccc3333-0000-0000-0000-000000000000', name: 'Unrelated' },
     ])
 
-    expect(plans.get('aaaa1111-0000-0000-0000-000000000000')?.deepnotePath).toBe('Report (aaaa1111).deepnote')
-    expect(plans.get('bbbb2222-0000-0000-0000-000000000000')?.deepnotePath).toBe('REPORT (bbbb2222).deepnote')
-    expect(plans.get('cccc3333-0000-0000-0000-000000000000')?.deepnotePath).toBe('Unrelated.deepnote')
+    expect(plans.get('aaaa1111-0000-0000-0000-000000000000')?.projectDir).toBe('Report (aaaa1111)')
+    expect(plans.get('bbbb2222-0000-0000-0000-000000000000')?.projectDir).toBe('REPORT (bbbb2222)')
+    expect(plans.get('cccc3333-0000-0000-0000-000000000000')?.projectDir).toBe('Unrelated')
   })
 
   it('falls back to the full id when even short ids collide', () => {
@@ -60,11 +60,11 @@ describe('planProjectPaths', () => {
       { id: 'aaaa1111-0000-0000-0000-000000000002', name: 'Report' },
     ])
 
-    expect(plans.get('aaaa1111-0000-0000-0000-000000000001')?.deepnotePath).toBe(
-      'Report (aaaa1111-0000-0000-0000-000000000001).deepnote'
+    expect(plans.get('aaaa1111-0000-0000-0000-000000000001')?.projectDir).toBe(
+      'Report (aaaa1111-0000-0000-0000-000000000001)'
     )
-    expect(plans.get('aaaa1111-0000-0000-0000-000000000002')?.deepnotePath).toBe(
-      'Report (aaaa1111-0000-0000-0000-000000000002).deepnote'
+    expect(plans.get('aaaa1111-0000-0000-0000-000000000002')?.projectDir).toBe(
+      'Report (aaaa1111-0000-0000-0000-000000000002)'
     )
   })
 
@@ -84,12 +84,12 @@ describe('planProjectPaths', () => {
   it('merges distinct cloud folders that share a name, and disambiguates projects that then collide', () => {
     // Two different folders both named "Reports" — their contents share one local directory.
     const plans = planProjectPaths([
-      { id: 'p1', name: 'Weekly', folder: { path: ['Reports'] } },
-      { id: 'p2', name: 'Weekly', folder: { path: ['Reports'] } },
+      { id: 'p1', name: 'Weekly', folder: { path: [{ name: 'Reports' }] } },
+      { id: 'p2', name: 'Weekly', folder: { path: [{ name: 'Reports' }] } },
     ])
 
-    expect(plans.get('p1')?.deepnotePath).toBe('Reports/Weekly (p1).deepnote')
-    expect(plans.get('p2')?.deepnotePath).toBe('Reports/Weekly (p2).deepnote')
+    expect(plans.get('p1')?.projectDir).toBe('Reports/Weekly (p1)')
+    expect(plans.get('p2')?.projectDir).toBe('Reports/Weekly (p2)')
   })
 })
 

@@ -1,12 +1,14 @@
 /**
- * Path planning for `deepnote sync`: maps every cloud project to a deterministic local path,
- * mirroring the workspace folder tree as `<folder path>/<project name>.deepnote`.
+ * Path planning for `deepnote sync`: maps every cloud project to a deterministic local directory,
+ * mirroring the workspace folder tree as `<folder path>/<project name>/`. The project export is a
+ * ZIP of one `.deepnote` document per notebook, so a project is a directory of notebook files (the
+ * filenames come from the export), not a single file.
  *
  * Names are hostile inputs here. Neither project nor folder names are unique in Deepnote, and both
  * may contain characters no filesystem accepts — so identity always comes from project ids (the
- * sync manifest maps ids to paths), and names are only material for the paths themselves:
+ * sync manifest maps ids to directories), and names are only material for the paths themselves:
  * sanitized per segment, compared case-insensitively (macOS/Windows filesystems are), and
- * disambiguated deterministically when two projects still land on the same file.
+ * disambiguated deterministically when two projects still land on the same directory.
  */
 
 /** Windows device names that shadow real files regardless of extension. */
@@ -40,42 +42,48 @@ export function sanitizePathSegment(name: string): string {
   return cleaned
 }
 
+/** One segment of a folder's root-to-leaf path, as the projects API reports it. Only `name` is used
+ * for paths; `id` is the folder's stable identity (names are not unique). */
+export interface FolderPathSegment {
+  name: string
+}
+
 /** The slice of a cloud project that path planning reads. */
 export interface PlannableProject {
   id: string
   name: string
-  folder?: { path: string[] } | null
+  folder?: { path: FolderPathSegment[] } | null
 }
 
 export interface PlannedProjectPaths {
-  /** Root-relative POSIX path of the project's `.deepnote` file, e.g. `Analytics/Sales.deepnote`. */
-  deepnotePath: string
-  /** Root-relative POSIX path of the directory for `--all-files` downloads. Derived from
-   * `deepnotePath` (`.files` instead of `.deepnote`) so the pair can never diverge or collide
-   * with a mirrored folder name. */
+  /** Root-relative POSIX path of the project's directory, e.g. `Analytics/Sales report`. Holds one
+   * `.deepnote` file per notebook (filenames come from the export) plus the `.files` directory. */
+  projectDir: string
+  /** Root-relative POSIX path of the directory for `--all-files` downloads — always
+   * `<projectDir>/.files`, so it lives beside the notebook files and moves with the project. */
   filesDir: string
 }
 
-function buildPath(project: PlannableProject, fileName: string): string {
-  const folderSegments = (project.folder?.path ?? []).map(sanitizePathSegment)
-  return [...folderSegments, fileName].join('/')
+function buildDir(project: PlannableProject, dirName: string): string {
+  const folderSegments = (project.folder?.path ?? []).map(segment => sanitizePathSegment(segment.name))
+  return [...folderSegments, dirName].join('/')
 }
 
 /**
- * Plan a local path for every project, resolving collisions deterministically.
+ * Plan a local directory for every project, resolving collisions deterministically.
  *
  * Collisions are real: project names are not unique, folder names are not unique (two distinct
  * cloud folders with equal names merge into one local directory), and sanitizing can conflate
- * names that differed only in illegal characters. Any group of projects whose planned paths match
- * case-insensitively gets ` (<first 8 chars of id>)` appended to each file name — every member,
- * so a newly created project can never silently steal an existing project's clean path. In the
- * astronomically unlikely case that short ids collide too, the full id is used.
+ * names that differed only in illegal characters. Any group of projects whose planned directories
+ * match case-insensitively gets ` (<first 8 chars of id>)` appended to each directory name — every
+ * member, so a newly created project can never silently steal an existing project's clean path. In
+ * the astronomically unlikely case that short ids collide too, the full id is used.
  *
  * The same input always produces the same plan, so repeated syncs are stable.
  */
 export function planProjectPaths(projects: readonly PlannableProject[]): Map<string, PlannedProjectPaths> {
   const withSuffix = (project: PlannableProject, suffix: string | null): string =>
-    buildPath(project, `${sanitizePathSegment(suffix ? `${project.name} (${suffix})` : project.name)}.deepnote`)
+    buildDir(project, sanitizePathSegment(suffix ? `${project.name} (${suffix})` : project.name))
 
   const attempts: Array<(project: PlannableProject) => string> = [
     project => withSuffix(project, null),
@@ -93,7 +101,7 @@ export function planProjectPaths(projects: readonly PlannableProject[]): Map<str
       byKey.set(key, [...(byKey.get(key) ?? []), project])
     }
 
-    // Paths already fixed in an earlier round are taken; colliding with one forces the next round.
+    // Directories already fixed in an earlier round are taken; colliding with one forces the next.
     const taken = new Set([...planned.values()].map(p => p.toLowerCase()))
     const unresolved: PlannableProject[] = []
     for (const [key, group] of byKey) {
@@ -115,10 +123,7 @@ export function planProjectPaths(projects: readonly PlannableProject[]): Map<str
   }
 
   return new Map(
-    [...planned.entries()].map(([id, deepnotePath]) => [
-      id,
-      { deepnotePath, filesDir: deepnotePath.replace(/\.deepnote$/, '.files') },
-    ])
+    [...planned.entries()].map(([id, projectDir]) => [id, { projectDir, filesDir: `${projectDir}/.files` }])
   )
 }
 

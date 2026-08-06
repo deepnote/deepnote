@@ -540,28 +540,28 @@ deepnote schedule report.deepnote --hourly -o json
 
 ### `sync [dir]`
 
-Sync Deepnote projects with a local directory: every project in your workspace becomes
-`<folder path>/<project name>.deepnote`, mirroring the workspace folder tree. Local edits to
-tracked files are pushed back to Deepnote on the next sync.
+Mirror Deepnote projects into a local directory: every project in your workspace becomes a directory
+`<folder path>/<project name>/` holding one `.deepnote` file per notebook, mirroring the workspace
+folder tree.
 
 ```bash
 deepnote sync workspace
 ```
 
 Sync state lives in `.deepnote-sync.json` in the synced directory. Projects are tracked by id
-(names are not unique in Deepnote), so cloud renames become local file moves, and name collisions
-are disambiguated deterministically with a short id suffix. The server's export is deterministic,
-so unchanged projects are detected by byte comparison and skipped.
+(names are not unique in Deepnote), so cloud renames become local directory moves, and name
+collisions are disambiguated deterministically with a short id suffix. A project export is a ZIP of
+one deterministic document per notebook, so unchanged projects are detected by a content-hash
+comparison (over the documents, not the archive) and skipped.
 
-A project edited both locally and in the cloud is a conflict: by default sync asks per project
-whether to keep the cloud version or skip (without a terminal, conflicts are skipped). Pushes send
-the last-synced `modifiedAt`, so a concurrent cloud edit is rejected by the server instead of being
-overwritten, and you get the same override-or-skip choice.
+Pull is fully supported. **Pushing local edits back to Deepnote is detected but deferred** — it
+depends on the project import endpoint, which is not yet available; a project changed only locally is
+reported as "to push" and left untouched (never overwritten). A project edited both locally and in
+the cloud is a conflict: by default sync asks per project whether to keep the cloud version or skip
+(without a terminal, conflicts are skipped).
 
 Sync never creates or deletes cloud projects, never deletes local files unless you pass `--prune`,
-and does not run git — commit and push yourself. A pushed document never applies the project name,
-integrations, or `settings.requirements` (`requirements.txt` in the project files is the source of
-truth for requirements).
+never modifies a cloud project, and does not run git — commit and push yourself.
 
 **Options:**
 
@@ -571,7 +571,7 @@ truth for requirements).
 | `--token <token>`            | Bearer token (or use `DEEPNOTE_TOKEN` env var)                          |              |
 | `--all-files`                | Also download each project's working-directory files (incremental)      | off          |
 | `--on-conflict <mode>`       | Conflict handling: `ask`, `skip`, or `override`                         | `ask`        |
-| `--delete-missing-notebooks` | When pushing, delete cloud notebooks removed from the local file        | off          |
+| `--delete-missing-notebooks` | Reserved for push (currently inert while push is deferred)              | off          |
 | `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
 | `--dry-run`                  | Show what would be synced without writing anything                      | off          |
 | `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |

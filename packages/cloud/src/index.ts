@@ -55,6 +55,7 @@ export {
 } from './schedules'
 export {
   downloadProjectFile,
+  type ExportedNotebookFile,
   exportProject,
   getProjectDetail,
   type ImportedNotebook,
@@ -65,5 +66,6 @@ export {
   type ProjectDetail,
   type ProjectFileEntry,
   type ProjectFolder,
+  type ProjectFolderPathSegment,
   type SyncProject,
 } from './sync'

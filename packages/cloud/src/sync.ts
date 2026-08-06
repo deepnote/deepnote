@@ -1,4 +1,5 @@
 import { ApiError } from '@deepnote/database-integrations'
+import { unzipSync } from 'fflate'
 import { z } from 'zod'
 import { parseApiErrorMessage } from './parse-api-error'
 import type { RequestOptions } from './projects'
@@ -14,7 +15,8 @@ import type { RequestOptions } from './projects'
  * Endpoints:
  * - `GET  {baseUrl}/v2/projects`                — list projects, paginated via `pageToken`
  * - `GET  {baseUrl}/v2/projects/{id}`           — project detail, including its file inventory
- * - `GET  {baseUrl}/v2/projects/{id}/export`    — the whole project as one `.deepnote` YAML document
+ * - `GET  {baseUrl}/v2/projects/{id}/export`    — the whole project as a ZIP of `.deepnote` documents,
+ *                                                 one per notebook
  * - `POST {baseUrl}/v2/projects/{id}/import`    — reconcile a `.deepnote` YAML document into the project
  * - `GET  {baseUrl}/v2/files/download`          — raw bytes of one working-directory file
  */
@@ -38,12 +40,18 @@ const MAX_PROJECT_PAGES = 500
 /** The API's maximum `pageSize`; fewer round-trips for a full-workspace walk. */
 const LIST_PAGE_SIZE = 100
 
+const folderPathSegmentSchema = z.object({ id: z.string(), name: z.string() }).passthrough()
+
 const folderSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    /** Folder names from the workspace root to this folder, inclusive. Names are NOT unique. */
-    path: z.array(z.string()),
+    /** Folders from the workspace root to this folder, inclusive, as `{ id, name }` segments.
+     * Folder names are NOT unique — identify a folder by segment `id`, not by `name`. */
+    path: z.array(folderPathSegmentSchema),
+    /** Whether `path` reaches the workspace root. False when an ancestor is not visible to the
+     * caller (or the hierarchy is inconsistent): the path is then a suffix, not the full chain. */
+    isPathComplete: z.boolean().optional(),
   })
   .passthrough()
 
@@ -97,12 +105,21 @@ const importProjectResponseSchema = z
   })
   .passthrough()
 
+/** One segment of a folder's root-to-leaf path. Names are not unique; `id` is the stable identity. */
+export interface ProjectFolderPathSegment {
+  id: string
+  name: string
+}
+
 /** A workspace folder as the projects list reports it. Folder names are not unique — use `id` (and
  * `path` for display); never treat a name as identity. */
 export interface ProjectFolder {
   id: string
   name: string
-  path: string[]
+  /** Root-first `{ id, name }` segments, inclusive of this folder. */
+  path: ProjectFolderPathSegment[]
+  /** Whether `path` reaches the workspace root (see the schema). Absent on older servers. */
+  isPathComplete?: boolean
 }
 
 /** A project as the list/detail endpoints report it, reduced to what syncing needs. */
@@ -125,6 +142,19 @@ export interface ProjectFileEntry {
 export interface ProjectDetail extends SyncProject {
   /** Recursive file inventory (files only, no directories, no contents). */
   files: ProjectFileEntry[]
+}
+
+/**
+ * One `.deepnote` document from a project export — a single notebook wrapped in the full project
+ * envelope (project id/name, integrations, requirements, and the project-wide `metadata.modifiedAt`
+ * shared by every document in the export).
+ */
+export interface ExportedNotebookFile {
+  /** Archive-relative filename the server allocated, e.g. `sales-report.deepnote`. Deterministic
+   * and unique within one export; safe to use verbatim as a local filename. */
+  filename: string
+  /** The serialized `.deepnote` YAML for this notebook. */
+  content: string
 }
 
 export interface ImportedNotebook {
@@ -270,27 +300,47 @@ export async function getProjectDetail(
 }
 
 /**
- * Export a project as a `.deepnote` YAML document (`GET {baseUrl}/v2/projects/{id}/export`).
+ * Export a project (`GET {baseUrl}/v2/projects/{id}/export`) and explode the returned ZIP into its
+ * `.deepnote` documents — **one per notebook**, each carrying the full project envelope.
  *
- * The export is deterministic: an unchanged project yields a byte-identical document (no outputs,
- * no per-run execution metadata), so callers can use plain byte comparison to skip unchanged
- * projects. Two fingerprints to save for the next push: the document's `metadata.modifiedAt`
- * (send back as {@link ImportProjectOptions.baseModifiedAt}) and the SHA-256 of the exact bytes
- * (send back as {@link ImportProjectOptions.baseContentHash}).
+ * The documents are deterministic: an unchanged project exports byte-identical documents (no
+ * outputs, no per-run execution metadata) with deterministically allocated filenames, so a caller
+ * can detect "nothing changed" by hashing the exploded documents. **Hash the documents, not the ZIP
+ * container** — archive framing (compression, headers) is not part of the determinism contract.
+ *
+ * Two fingerprints to save for the next push, both read off any document (they all share them): the
+ * `metadata.modifiedAt` (send back as {@link ImportProjectOptions.baseModifiedAt}) and a content
+ * hash over the documents (send back as {@link ImportProjectOptions.baseContentHash}).
+ *
+ * Returns the documents sorted by filename. An empty project (no notebooks) yields `[]`.
  */
 export async function exportProject(
   baseUrl: string,
   token: string,
   projectId: string,
   options: RequestOptions = {}
-): Promise<string> {
+): Promise<ExportedNotebookFile[]> {
   const response = await requestOk(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}/export`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
     'Failed to export Deepnote project'
   )
-  return response.text()
+
+  const archive = new Uint8Array(await response.arrayBuffer())
+  let entries: Record<string, Uint8Array>
+  try {
+    entries = unzipSync(archive)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    throw new ApiError(502, `Invalid Deepnote project export: the response was not a readable ZIP archive (${detail}).`)
+  }
+
+  const decoder = new TextDecoder('utf-8')
+  return Object.entries(entries)
+    .filter(([filename, bytes]) => filename.endsWith('.deepnote') && !filename.endsWith('/') && bytes.length > 0)
+    .map(([filename, bytes]) => ({ filename, content: decoder.decode(bytes) }))
+    .sort((a, b) => a.filename.localeCompare(b.filename))
 }
 
 /**

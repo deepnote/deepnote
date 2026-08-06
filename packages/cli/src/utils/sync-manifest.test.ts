@@ -30,7 +30,8 @@ describe('loadSyncManifest', () => {
       version: 1,
       projects: {
         'p-1': {
-          path: 'Reports/Weekly.deepnote',
+          dir: 'Reports/Weekly',
+          notebooks: ['main.deepnote', 'setup.deepnote'],
           modifiedAt: '2026-01-02T00:00:00.000Z',
           contentHash: 'abc123',
           files: { 'data/input.csv': { size: 42, updatedAt: '2026-01-01T00:00:00.000Z' } },
@@ -58,8 +59,8 @@ describe('loadSyncManifest', () => {
 
 describe('saveSyncManifest', () => {
   it('writes identical bytes for the same content regardless of insertion order, so git diffs stay clean', async () => {
-    const recordA = { path: 'A.deepnote', contentHash: 'a' }
-    const recordB = { path: 'B.deepnote', contentHash: 'b' }
+    const recordA = { dir: 'A', notebooks: ['main.deepnote'], contentHash: 'a' }
+    const recordB = { dir: 'B', notebooks: ['main.deepnote'], contentHash: 'b' }
 
     await saveSyncManifest(tempDir, { version: 1, projects: { 'p-b': recordB, 'p-a': recordA } })
     const firstBytes = await fs.readFile(path.join(tempDir, SYNC_MANIFEST_FILENAME), 'utf-8')
