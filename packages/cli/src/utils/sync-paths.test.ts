@@ -25,6 +25,16 @@ describe('sanitizePathSegment', () => {
   it('replaces control characters', () => {
     expect(sanitizePathSegment('a\tb\nc')).toBe('a_b_c')
   })
+
+  it('truncates to the maximum segment length', () => {
+    expect(sanitizePathSegment('a'.repeat(130))).toBe('a'.repeat(120))
+  })
+
+  it('strips a trailing dot or space exposed by truncation, which Windows would silently drop', () => {
+    // The 120th character is the separator, so truncating to 120 would leave it trailing.
+    expect(sanitizePathSegment(`${'a'.repeat(119)}.${'b'.repeat(10)}`)).toBe('a'.repeat(119))
+    expect(sanitizePathSegment(`${'a'.repeat(119)} ${'b'.repeat(10)}`)).toBe('a'.repeat(119))
+  })
 })
 
 describe('planProjectPaths', () => {

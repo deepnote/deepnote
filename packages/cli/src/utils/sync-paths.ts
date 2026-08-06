@@ -29,10 +29,10 @@ export function sanitizePathSegment(name: string): string {
     .normalize('NFC')
     .replace(ILLEGAL_CHARACTERS, '_')
     .trim()
-    // Windows silently strips trailing dots and spaces, which would desync the manifest's idea of
-    // the path from what the filesystem actually created.
-    .replace(/[. ]+$/, '')
+    // Truncate first, then strip: slicing last could re-expose a trailing dot or space, which
+    // Windows silently drops — desyncing the manifest's idea of the path from what was created.
     .slice(0, MAX_SEGMENT_LENGTH)
+    .replace(/[. ]+$/, '')
   if (!cleaned || cleaned === '.' || cleaned === '..') {
     return '_'
   }
