@@ -4,25 +4,29 @@ Install: `npm install -g @deepnote/cli`
 
 ## `deepnote sync [dir]`
 
-Mirror Deepnote Cloud projects into a local directory. Every project in the workspace becomes a
-directory `<folder path>/<project name>/` holding one `.deepnote` file per notebook, mirroring the
-workspace folder tree. Requires an API token (`--token` or `DEEPNOTE_TOKEN`); the token determines
-the workspace.
+Sync Deepnote Cloud projects with a local directory, both directions. Every project in the workspace
+becomes a directory `<folder path>/<project name>/` holding one `.deepnote` file per notebook,
+mirroring the workspace folder tree. Requires an API token (`--token` or `DEEPNOTE_TOKEN`); the token
+determines the workspace.
 
-Pull is fully supported. Pushing local edits back to Deepnote is **detected but deferred** — it
-depends on the project import endpoint, which is not yet available. A project edited only locally is
-reported as `push-deferred` and left untouched (never silently overwritten).
+Pull writes the exported documents down. Push is the exact inverse: a project edited only locally is
+re-uploaded as the same ZIP of `.deepnote` documents to the project import endpoint, with
+lost-update protection. `--all-files` also uploads changed working-directory files on push.
 
-| Option                       | Description                                                        |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `--url <url>`                | API base URL (default `https://api.deepnote.com`)                  |
-| `--token <token>`            | Bearer token (or `DEEPNOTE_TOKEN` env var)                         |
-| `--all-files`                | Also download each project's working-directory files (incremental) |
-| `--on-conflict <mode>`       | Conflict handling: `ask` (default), `skip`, `override`             |
-| `--delete-missing-notebooks` | Reserved for push (currently inert while push is deferred)         |
-| `--prune`                    | Delete local directories/files for projects that no longer exist   |
-| `--dry-run`                  | Show what would be synced without writing anything                 |
-| `-o, --output <format>`      | Output format: `json`, `llm`                                       |
+> The import endpoint is new and may not be deployed in every workspace yet. Where it is missing the
+> CLI **defers** the push (reports it as "to push" and keeps the local edit) instead of failing —
+> nothing is lost, and it will push once the endpoint is available.
+
+| Option                       | Description                                                                         |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| `--url <url>`                | API base URL (default `https://api.deepnote.com`)                                   |
+| `--token <token>`            | Bearer token (or `DEEPNOTE_TOKEN` env var)                                          |
+| `--all-files`                | Also sync each project's working-directory files (download on pull, upload on push) |
+| `--on-conflict <mode>`       | Conflict handling: `ask` (default), `skip`, `override`                              |
+| `--delete-missing-notebooks` | On push, delete cloud notebooks that were removed from the local project            |
+| `--prune`                    | Delete local directories/files for projects that no longer exist                    |
+| `--dry-run`                  | Show what would be synced without writing or uploading anything                     |
+| `-o, --output <format>`      | Output format: `json`, `llm`                                                        |
 
 **Examples:**
 
@@ -30,7 +34,7 @@ reported as `push-deferred` and left untouched (never silently overwritten).
 # Mirror the whole workspace into ./workspace
 deepnote sync workspace
 
-# Also download working-directory files (data, requirements.txt, …)
+# Also sync working-directory files (data, requirements.txt, …)
 deepnote sync workspace --all-files
 
 # Non-interactive (cron/CI): skip anything conflicting
@@ -52,28 +56,35 @@ cloud renames become local directory moves, and path collisions get a determinis
 suffix.
 
 A project export is a ZIP of one `.deepnote` document per notebook; the documents are deterministic
-(the ZIP container is not), so the content hash is computed over the documents, not the archive.
-Comparing the local files and a fresh export against the last-synced hash yields:
+(the ZIP container is not), so the content hash is computed over the documents. Comparing the local
+files and a fresh export against the last-synced hash yields:
 
 - both match → unchanged
 - only cloud changed → pull (write the notebook files; delete files for notebooks removed in the
   cloud)
-- only local changed → `push-deferred` (local edits are kept, not sent; pushing is not yet
-  available)
+- only local changed → push (upload the same documents to `POST /v2/projects/{id}/import` with
+  `baseModifiedAt` + `baseContentHash`; a concurrent cloud edit is rejected with 409 → override or
+  skip, per `--on-conflict`). After a push the local files are refreshed from a fresh export, since
+  the import may assign ids to new notebooks and never applies the project name, integrations, or
+  `settings.requirements`.
 - both changed → conflict → keep the cloud version or skip (per `--on-conflict`; `ask` degrades to
   skip when there is no terminal)
 
-With `--all-files`, each project's working-directory files are downloaded into a `.files/`
-subdirectory of the project directory, incrementally (by inventory `size`/`updatedAt`). Files are
-download-only; sync does not upload working-directory files.
+Push is the **exact inverse** of export — the same ZIP of documents, no re-merge — so the round-trip
+does not churn. The server contract this defines is in
+`packages/cloud/docs/project-import-contract.md`.
+
+With `--all-files`, working-directory files sync in the notebook's direction: pulled projects
+download changed files into a `.files/` subdirectory (incremental, by inventory `size`/`updatedAt`);
+pushed projects upload changed local files (delete-then-upload, since `POST /v2/files` will not
+overwrite). Files removed locally are not deleted in the cloud.
 
 ## Boundaries
 
-- Sync never creates or deletes cloud projects. Local-only `.deepnote` files are reported and left
-  alone (use `deepnote open` to import one).
-- Local files are never deleted unless `--prune` is passed.
-- Push is deferred: `deepnote sync` will not modify a cloud project's notebooks. Edit in Deepnote,
-  or re-pull to discard local changes.
+- Sync never creates or deletes cloud **projects**. Local-only `.deepnote` files are reported and
+  left alone (use `deepnote open` to import one).
+- Local files are never deleted unless `--prune` is passed; cloud notebooks are deleted on push only
+  with `--delete-missing-notebooks` (an empty local project is confirmed first).
 - Git is not involved: sync writes ordinary files; commit/branch/push yourself.
 
 **Exit codes:** `0` success (skipped conflicts and deferred pushes included), `1` one or more

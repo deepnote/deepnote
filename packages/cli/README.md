@@ -554,14 +554,19 @@ collisions are disambiguated deterministically with a short id suffix. A project
 one deterministic document per notebook, so unchanged projects are detected by a content-hash
 comparison (over the documents, not the archive) and skipped.
 
-Pull is fully supported. **Pushing local edits back to Deepnote is detected but deferred** — it
-depends on the project import endpoint, which is not yet available; a project changed only locally is
-reported as "to push" and left untouched (never overwritten). A project edited both locally and in
-the cloud is a conflict: by default sync asks per project whether to keep the cloud version or skip
-(without a terminal, conflicts are skipped).
+Both directions work. Pull writes the exported documents down. Push is the **exact inverse** — a
+project edited only locally is re-uploaded as the same ZIP of documents to the project import
+endpoint, with `baseModifiedAt` + `baseContentHash` so a concurrent cloud edit is rejected (409) and
+resolved as override-or-skip rather than a silent overwrite. A project edited both locally and in the
+cloud is a conflict, resolved the same way. `--all-files` uploads changed working-directory files on
+push.
+
+> The import endpoint is new; where it is not deployed yet, sync **defers** the push (reports it as
+> "to push" and keeps the local edit) instead of failing. The contract it targets is
+> `packages/cloud/docs/project-import-contract.md`.
 
 Sync never creates or deletes cloud projects, never deletes local files unless you pass `--prune`,
-never modifies a cloud project, and does not run git — commit and push yourself.
+and does not run git — commit and push yourself.
 
 **Options:**
 
@@ -569,9 +574,9 @@ never modifies a cloud project, and does not run git — commit and push yoursel
 | ---------------------------- | ----------------------------------------------------------------------- | ------------ |
 | `--url <url>`                | API base URL                                                            | Deepnote API |
 | `--token <token>`            | Bearer token (or use `DEEPNOTE_TOKEN` env var)                          |              |
-| `--all-files`                | Also download each project's working-directory files (incremental)      | off          |
+| `--all-files`                | Also sync working-directory files (download on pull, upload on push)    | off          |
 | `--on-conflict <mode>`       | Conflict handling: `ask`, `skip`, or `override`                         | `ask`        |
-| `--delete-missing-notebooks` | Reserved for push (currently inert while push is deferred)              | off          |
+| `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
 | `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
 | `--dry-run`                  | Show what would be synced without writing anything                      | off          |
 | `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |

@@ -54,6 +54,7 @@ export {
   upsertNotebookSchedule,
 } from './schedules'
 export {
+  deleteProjectFile,
   downloadProjectFile,
   type ExportedNotebookFile,
   exportProject,
@@ -68,4 +69,6 @@ export {
   type ProjectFolder,
   type ProjectFolderPathSegment,
   type SyncProject,
+  type UploadedFile,
+  uploadProjectFile,
 } from './sync'

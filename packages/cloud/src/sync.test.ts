@@ -1,7 +1,15 @@
 import { ApiError } from '@deepnote/database-integrations'
-import { zipSync } from 'fflate'
+import { unzipSync, zipSync } from 'fflate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { downloadProjectFile, exportProject, getProjectDetail, importProject, listAllProjects } from './sync'
+import {
+  deleteProjectFile,
+  downloadProjectFile,
+  exportProject,
+  getProjectDetail,
+  importProject,
+  listAllProjects,
+  uploadProjectFile,
+} from './sync'
 
 const BASE_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
@@ -183,16 +191,20 @@ describe('exportProject', () => {
 })
 
 describe('importProject', () => {
-  it('POSTs the document as YAML with every provided reconciliation flag', async () => {
+  it('POSTs the notebook documents as a ZIP (the inverse of export) with every reconciliation flag', async () => {
     const baseContentHash = 'c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2'
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
       response({
-        project: { id: 'p1', modifiedAt: '2026-01-03T00:00:00.000Z' },
+        project: { id: 'p1', modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: 'hash-after' },
         notebooks: [{ id: 'nb1', name: 'Main', action: 'overwritten' }],
       })
     )
 
-    const result = await importProject(BASE_URL, TOKEN, 'p1', 'version: 1.0.0\n', {
+    const files = [
+      { filename: 'main.deepnote', content: 'version: 1.0.0\n# main\n' },
+      { filename: 'setup.deepnote', content: 'version: 1.0.0\n# setup\n' },
+    ]
+    const result = await importProject(BASE_URL, TOKEN, 'p1', files, {
       baseModifiedAt: '2026-01-02T00:00:00.000Z',
       baseContentHash,
       deleteMissingNotebooks: true,
@@ -207,20 +219,25 @@ describe('importProject', () => {
     )
     expect(init).toMatchObject({
       method: 'POST',
-      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/yaml' },
-      body: 'version: 1.0.0\n',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/zip' },
     })
+    // The body round-trips through unzip to exactly the documents we sent.
+    const sent = unzipSync(init?.body as Uint8Array)
+    const decoder = new TextDecoder()
+    expect(decoder.decode(sent['main.deepnote'])).toBe('version: 1.0.0\n# main\n')
+    expect(decoder.decode(sent['setup.deepnote'])).toBe('version: 1.0.0\n# setup\n')
     expect(result).toEqual({
       projectId: 'p1',
       notebooks: [{ id: 'nb1', name: 'Main', action: 'overwritten' }],
       modifiedAt: '2026-01-03T00:00:00.000Z',
+      contentHash: 'hash-after',
     })
   })
 
   it('omits the false/absent flags so the server defaults stay in charge', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ project: { id: 'p1' }, notebooks: [] }))
 
-    await importProject(BASE_URL, TOKEN, 'p1', 'version: 1.0.0\n')
+    await importProject(BASE_URL, TOKEN, 'p1', [{ filename: 'main.deepnote', content: 'version: 1.0.0\n' }])
 
     expect(String(fetchSpy.mock.calls[0][0])).toBe(`${BASE_URL}/v2/projects/p1/import`)
   })
@@ -234,9 +251,51 @@ describe('importProject', () => {
       })
     )
 
-    await expect(importProject(BASE_URL, TOKEN, 'p1', 'version: 1.0.0\n')).rejects.toEqual(
+    await expect(importProject(BASE_URL, TOKEN, 'p1', [{ filename: 'main.deepnote', content: 'x' }])).rejects.toEqual(
       new ApiError(409, 'Project changed after baseModifiedAt')
     )
+  })
+})
+
+describe('uploadProjectFile', () => {
+  it('POSTs multipart form-data to /v2/files and returns the stored file', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        response({ file: { path: 'data/input.csv', size: 3, updatedAt: '2026-01-02T00:00:00.000Z' } })
+      )
+
+    const stored = await uploadProjectFile(BASE_URL, TOKEN, 'p1', 'data/input.csv', new TextEncoder().encode('a,b'))
+
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(String(url)).toBe(`${BASE_URL}/v2/files`)
+    expect(init?.method).toBe('POST')
+    const form = init?.body as FormData
+    expect(form).toBeInstanceOf(FormData)
+    expect(form.get('projectId')).toBe('p1')
+    expect(form.get('path')).toBe('data/input.csv')
+    expect(form.get('file')).toBeInstanceOf(Blob)
+    expect(stored).toEqual({ path: 'data/input.csv', size: 3, updatedAt: '2026-01-02T00:00:00.000Z' })
+  })
+})
+
+describe('deleteProjectFile', () => {
+  it('DELETEs /v2/files and returns true on success', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response('', { status: 204 }))
+
+    const deleted = await deleteProjectFile(BASE_URL, TOKEN, 'p1', 'report.csv')
+
+    expect(deleted).toBe(true)
+    expect(fetchSpy.mock.calls[0][0]).toEqual(
+      expect.urlWithQueryParams(`${BASE_URL}/v2/files?projectId=p1&path=report.csv`)
+    )
+    expect(fetchSpy.mock.calls[0][1]?.method).toBe('DELETE')
+  })
+
+  it('returns false when the file does not exist (404), so overwrite-by-delete is safe', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ message: 'File not found' }, { ok: false, status: 404 }))
+
+    expect(await deleteProjectFile(BASE_URL, TOKEN, 'p1', 'missing.csv')).toBe(false)
   })
 })
 

@@ -3,14 +3,18 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseYaml } from '@deepnote/blocks'
 import {
+  deleteProjectFile,
   downloadProjectFile,
   type ExportedNotebookFile,
   exportProject,
   getProjectDetail,
+  type ImportedNotebook,
+  importProject,
   listAllProjects,
   type SyncProject,
+  uploadProjectFile,
 } from '@deepnote/cloud'
-import { DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
+import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
@@ -36,11 +40,15 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, planProjectPaths } fr
  * ZIP container) are byte-identical for an unchanged project, so "did anything change" is a hash
  * comparison against the manifest, not a timestamp heuristic.
  *
- * Direction: pull is fully implemented. Push (importing local edits back) is detected and reported
- * but deferred — it depends on `POST /v2/projects/{id}/import`, which is not yet deployed, and on a
- * settled answer for what content hash the server compares against a multi-notebook document. Until
- * then a project edited only locally is reported as `push-deferred` and left untouched, never
- * silently overwritten in either direction.
+ * Both directions are implemented. Pull writes the exported documents down. Push is the exact
+ * inverse: a project edited only locally is re-uploaded as the same ZIP of `.deepnote` documents to
+ * `POST /v2/projects/{id}/import` (see `@deepnote/cloud` and the project-import contract doc), with
+ * `baseModifiedAt` + `baseContentHash` for lost-update protection — a concurrent cloud edit is
+ * rejected (409) and resolved as override-or-skip, never a silent overwrite. `--all-files` also
+ * uploads changed working-directory files on push.
+ *
+ * The import endpoint is new and may not be deployed everywhere yet; a 404/501 degrades gracefully
+ * to `push-deferred` (the local edit is kept, nothing is lost) rather than erroring the project.
  *
  * Git is deliberately out of scope: sync writes ordinary files and the user runs git themselves.
  */
@@ -65,11 +73,23 @@ export interface ProjectSyncOutcome {
   name: string
   /** The project's local directory, root-relative. */
   path: string
-  action: 'pulled' | 'push-deferred' | 'unchanged' | 'skipped-conflict' | 'error' | 'pruned' | 'missing-in-cloud'
+  action:
+    | 'pulled'
+    | 'pushed'
+    | 'push-deferred'
+    | 'unchanged'
+    | 'skipped-conflict'
+    | 'error'
+    | 'pruned'
+    | 'missing-in-cloud'
   /** Human-readable elaboration (conflict direction, error message, rename note). */
   detail?: string
-  /** Number of working-directory files downloaded (`--all-files` only). */
+  /** Per-notebook reconciliation reported by the import endpoint (push only). */
+  notebooks?: ImportedNotebook[]
+  /** Number of working-directory files downloaded (`--all-files` pull only). */
   filesDownloaded?: number
+  /** Number of working-directory files uploaded (`--all-files` push only). */
+  filesUploaded?: number
 }
 
 export interface SyncResult {
@@ -356,6 +376,150 @@ async function syncProjectFiles(
   return downloaded
 }
 
+/** The result of attempting to push one project. */
+type PushOutcome =
+  | { kind: 'pushed'; files: ExportedNotebookFile[]; notebooks: ImportedNotebook[] }
+  | { kind: 'skipped'; reason: string }
+  | { kind: 'deferred'; reason: string }
+
+/**
+ * Push a project's local edits: import the local notebook documents (the exact inverse of export —
+ * the same set of `.deepnote` files, zipped by the client), then re-export so the local copy and
+ * manifest reflect the canonical post-import state (imports may assign ids to new notebooks and
+ * never apply the project name, integrations, or `settings.requirements`).
+ *
+ * `baseModifiedAt` + `baseContentHash` guard against lost updates: a cloud change since the last
+ * sync makes the import 409, which becomes an override-or-skip choice. A 404/501 means the import
+ * endpoint is not deployed yet — the push is deferred, not failed, so the local edit is never lost.
+ */
+async function pushProject(
+  ctx: SyncContext,
+  project: SyncProject,
+  localFiles: readonly ExportedNotebookFile[],
+  record: ManifestProjectRecord
+): Promise<PushOutcome> {
+  const deleteMissingNotebooks = ctx.options.deleteMissingNotebooks ?? false
+
+  // An empty local directory pushed with --delete-missing-notebooks would wipe every cloud
+  // notebook. Locally an empty directory is more often an accident than intent, so confirm it like
+  // a conflict instead of carrying it out silently.
+  if (deleteMissingNotebooks && localFiles.length === 0) {
+    const choice = await resolveConflict(
+      ctx,
+      `The local directory for "${project.name}" has no notebooks. Pushing it with --delete-missing-notebooks deletes every notebook in the cloud project. Push anyway?`,
+      'Push and delete every notebook in the cloud project'
+    )
+    if (choice === 'skip') {
+      return { kind: 'skipped', reason: 'local directory has no notebooks; refusing to delete every cloud notebook' }
+    }
+  }
+
+  const importOptions = {
+    baseModifiedAt: record.modifiedAt,
+    baseContentHash: record.contentHash,
+    deleteMissingNotebooks,
+    force: false,
+  }
+
+  let notebooks: ImportedNotebook[]
+  try {
+    notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, importOptions)).notebooks
+  } catch (error) {
+    if (error instanceof ApiError && (error.statusCode === 404 || error.statusCode === 501)) {
+      return { kind: 'deferred', reason: 'the project import endpoint is not available yet' }
+    }
+    if (!(error instanceof ApiError) || error.statusCode !== 409) {
+      throw error
+    }
+    const choice = await resolveConflict(
+      ctx,
+      `"${project.name}" changed in Deepnote after your local edit. Overwrite the cloud version with your local files?`,
+      'Overwrite the cloud version with the local files'
+    )
+    if (choice === 'skip') {
+      return { kind: 'skipped', reason: 'cloud changed after the local edit' }
+    }
+    notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, { ...importOptions, force: true }))
+      .notebooks
+  }
+
+  const files = await exportProject(ctx.baseUrl, ctx.token, project.id)
+  return { kind: 'pushed', files, notebooks }
+}
+
+/** Every file under `dirAbsolute`, as root-of-dir-relative POSIX paths. `[]` when the directory
+ * does not exist. */
+async function listLocalFilesRecursive(dirAbsolute: string): Promise<string[]> {
+  const found: string[] = []
+  const walk = async (absolute: string, relative: string): Promise<void> => {
+    const entries = await fs.readdir(absolute, { withFileTypes: true }).catch((error: unknown) => {
+      if (isErrnoENOENT(error)) {
+        return null
+      }
+      throw error
+    })
+    if (entries === null) {
+      return
+    }
+    for (const entry of entries) {
+      const childRelative = relative ? `${relative}/${entry.name}` : entry.name
+      if (entry.isDirectory()) {
+        await walk(path.join(absolute, entry.name), childRelative)
+      } else if (entry.isFile()) {
+        found.push(childRelative)
+      }
+    }
+  }
+  await walk(dirAbsolute, '')
+  return found.sort()
+}
+
+/**
+ * Upload changed working-directory files on push (`--all-files`). A file that is new locally, or
+ * whose size differs from the manifest, is uploaded (delete-then-upload, since `POST /v2/files`
+ * refuses to overwrite). Last-write-wins, no staleness check — matching the server's file surface.
+ * Files removed locally are deliberately not deleted in the cloud (too destructive to infer).
+ */
+async function uploadProjectFiles(
+  ctx: SyncContext,
+  project: SyncProject,
+  plan: PlannedProjectPaths,
+  record: ManifestProjectRecord
+): Promise<number> {
+  const filesDirAbsolute = toAbsolute(ctx, plan.filesDir)
+  const previous = record.files ?? {}
+  const next: Record<string, ManifestFileRecord> = { ...previous }
+  let uploaded = 0
+
+  for (const relPath of await listLocalFilesRecursive(filesDirAbsolute)) {
+    if (!isSafeRelativeFilePath(relPath)) {
+      warn(`Skipping local file with unsafe path in "${project.name}": ${relPath}`)
+      continue
+    }
+    const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
+    const stat = await fs.stat(absolute)
+    const prev = previous[relPath]
+    if (prev && prev.size === stat.size) {
+      next[relPath] = prev
+      continue
+    }
+
+    if (!ctx.dryRun) {
+      const bytes = await fs.readFile(absolute)
+      await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
+      const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
+      next[relPath] = { size: stored.size ?? stat.size, ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}) }
+    } else {
+      next[relPath] = { size: stat.size }
+    }
+    uploaded++
+    debug(`Uploaded ${project.name}: ${relPath} (${stat.size} bytes)`)
+  }
+
+  record.files = next
+  return uploaded
+}
+
 /** Sync one project end to end. Never throws for per-project problems — an error becomes an
  * `error` outcome so one broken project cannot abort the rest of the workspace. */
 async function syncOneProject(
@@ -411,13 +575,24 @@ async function syncOneProject(
     } else if (step === 'pull') {
       outcome = await applyPull()
     } else if (step === 'push') {
-      // Local edits are detected but not pushed: the import endpoint is not yet available (see the
-      // module doc). Report it and leave the local files untouched so the edit is not lost — the
-      // manifest baseline is kept, so the next sync re-detects the pending push.
-      outcome = {
-        ...base,
-        action: 'push-deferred',
-        detail: 'local edits detected; pushing is not yet available (pending the project import endpoint)',
+      if (ctx.dryRun) {
+        outcome = { ...base, action: 'pushed', detail: 'dry run: local edits would be imported' }
+      } else if (!record) {
+        // classifySyncStep only returns 'push' for tracked directories, so this is unreachable.
+        outcome = { ...base, action: 'skipped-conflict', detail: 'no manifest record for a push' }
+      } else {
+        const pushed = await pushProject(ctx, project, localFiles ?? [], record)
+        if (pushed.kind === 'skipped') {
+          outcome = { ...base, action: 'skipped-conflict', detail: pushed.reason }
+        } else if (pushed.kind === 'deferred') {
+          // The import endpoint is not deployed yet: keep the local edit and the manifest baseline
+          // so the next sync re-detects the pending push, rather than failing the project.
+          outcome = { ...base, action: 'push-deferred', detail: pushed.reason }
+        } else {
+          await writeProjectNotebooks(ctx, plan.projectDir, pushed.files)
+          commitRecord(pushed.files, record.files)
+          outcome = { ...base, action: 'pushed', notebooks: pushed.notebooks }
+        }
       }
     } else {
       const choice = ctx.dryRun
@@ -447,11 +622,16 @@ async function syncOneProject(
     }
 
     // File sync runs for projects that synced cleanly; a skipped conflict skips files too, so a
-    // "skip" answer really does leave the project's local footprint untouched.
+    // "skip" answer really does leave the project's local footprint untouched. Files follow the
+    // notebook direction: a pushed project uploads its local files, everything else downloads.
     if (ctx.options.allFiles && outcome.action !== 'skipped-conflict') {
       const currentRecord = manifestProjects[project.id] ?? record
       if (currentRecord) {
-        outcome.filesDownloaded = await syncProjectFiles(ctx, project, plan, currentRecord)
+        if (outcome.action === 'pushed') {
+          outcome.filesUploaded = await uploadProjectFiles(ctx, project, plan, currentRecord)
+        } else {
+          outcome.filesDownloaded = await syncProjectFiles(ctx, project, plan, currentRecord)
+        }
         manifestProjects[project.id] = currentRecord
       }
     }
@@ -597,6 +777,10 @@ function renderOutcomeLine(outcome: ProjectSyncOutcome): string {
   switch (outcome.action) {
     case 'pulled':
       return `${c.green('↓ pulled')}    ${outcome.path}${detail}`
+    case 'pushed': {
+      const actions = outcome.notebooks?.map(notebook => `${notebook.name}: ${notebook.action}`).join(', ')
+      return `${c.cyan('↑ pushed')}    ${outcome.path}${actions ? c.dim(` — ${actions}`) : ''}${detail}`
+    }
     case 'push-deferred':
       return `${c.yellow('↑ deferred')} ${outcome.path}${detail}`
     case 'unchanged':
@@ -617,14 +801,19 @@ function renderHumanSummary(result: SyncResult): void {
   const count = (action: ProjectSyncOutcome['action']) =>
     result.projects.filter(outcome => outcome.action === action).length
 
-  const filesDownloaded = result.projects.reduce((total, outcome) => total + (outcome.filesDownloaded ?? 0), 0)
+  const sum = (pick: (outcome: ProjectSyncOutcome) => number | undefined) =>
+    result.projects.reduce((total, outcome) => total + (pick(outcome) ?? 0), 0)
+  const filesDownloaded = sum(outcome => outcome.filesDownloaded)
+  const filesUploaded = sum(outcome => outcome.filesUploaded)
   const parts = [
     `${count('pulled')} pulled`,
+    ...(count('pushed') > 0 ? [`${count('pushed')} pushed`] : []),
     `${count('unchanged')} unchanged`,
     ...(count('push-deferred') > 0 ? [`${count('push-deferred')} to push`] : []),
     ...(count('skipped-conflict') > 0 ? [`${count('skipped-conflict')} skipped`] : []),
     ...(count('error') > 0 ? [`${count('error')} failed`] : []),
     ...(filesDownloaded > 0 ? [`${filesDownloaded} file(s) downloaded`] : []),
+    ...(filesUploaded > 0 ? [`${filesUploaded} file(s) uploaded`] : []),
   ]
   log('')
   log(`${result.dryRun ? `${c.yellow('Dry run')} — ` : ''}${parts.join(', ')}`)
@@ -632,8 +821,8 @@ function renderHumanSummary(result: SyncResult): void {
   if (count('push-deferred') > 0) {
     log(
       c.dim(
-        'Projects marked "to push" have local edits. Pushing local changes back to Deepnote is not ' +
-          'yet available; for now, edit in Deepnote or re-pull to discard local changes.'
+        'Projects marked "to push" have local edits, but the project import endpoint is not ' +
+          'available in this workspace yet. The edits are kept locally and will push once it is.'
       )
     )
   }

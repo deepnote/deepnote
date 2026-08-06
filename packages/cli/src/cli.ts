@@ -475,10 +475,10 @@ ${c.bold('Exit Codes:')}
     })
     .action(createScheduleAction(program))
 
-  // Sync command - mirror workspace projects to the local filesystem (pull; push deferred)
+  // Sync command - mirror workspace projects to the local filesystem, both directions
   program
     .command('sync')
-    .description('Mirror Deepnote projects into a local directory (pull .deepnote files)')
+    .description('Sync Deepnote projects with a local directory (pull and push .deepnote files)')
     .argument('[dir]', 'Directory to sync into (defaults to current directory)')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
@@ -503,9 +503,11 @@ ${c.bold('Description:')}
   .deepnote-sync.json next to the files — projects are tracked by id, so
   renames are handled as directory moves.
 
-  Pull is supported. Pushing local edits back to Deepnote is detected but
-  deferred (pending the project import endpoint): a project changed only
-  locally is reported as "to push" and left untouched, never overwritten.
+  Both directions work. Pull writes the exported documents down; push is the
+  exact inverse — a project changed only locally is re-uploaded as the same
+  documents, with lost-update protection. Where the import endpoint is not
+  deployed yet, the push is deferred (reported "to push", edit kept), never
+  failed.
 
 ${c.bold('Conflicts:')}
   A project edited both locally and in the cloud is a conflict. By default
@@ -516,8 +518,8 @@ ${c.bold('Conflicts:')}
 ${c.bold('What sync does not do:')}
   - It never creates or deletes cloud projects; local-only .deepnote files
     are reported and left alone.
-  - It never deletes local files unless you pass --prune.
-  - It does not push local edits yet, and never modifies a cloud project.
+  - It never deletes local files unless you pass --prune, and deletes cloud
+    notebooks on push only with --delete-missing-notebooks.
   - It does not run git. Commit, branch, and push yourself.
 
 ${c.bold('Examples:')}

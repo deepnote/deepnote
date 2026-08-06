@@ -1,5 +1,5 @@
 import { ApiError } from '@deepnote/database-integrations'
-import { unzipSync } from 'fflate'
+import { unzipSync, zipSync } from 'fflate'
 import { z } from 'zod'
 import { parseApiErrorMessage } from './parse-api-error'
 import type { RequestOptions } from './projects'
@@ -17,8 +17,11 @@ import type { RequestOptions } from './projects'
  * - `GET  {baseUrl}/v2/projects/{id}`           — project detail, including its file inventory
  * - `GET  {baseUrl}/v2/projects/{id}/export`    — the whole project as a ZIP of `.deepnote` documents,
  *                                                 one per notebook
- * - `POST {baseUrl}/v2/projects/{id}/import`    — reconcile a `.deepnote` YAML document into the project
+ * - `POST {baseUrl}/v2/projects/{id}/import`    — reconcile a ZIP of `.deepnote` documents (the exact
+ *                                                 inverse of export) back into the project
  * - `GET  {baseUrl}/v2/files/download`          — raw bytes of one working-directory file
+ * - `POST {baseUrl}/v2/files`                   — upload one working-directory file (multipart)
+ * - `DELETE {baseUrl}/v2/files`                 — delete one working-directory file
  */
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
@@ -100,8 +103,19 @@ const importedNotebookSchema = z
 
 const importProjectResponseSchema = z
   .object({
-    project: z.object({ id: z.string(), modifiedAt: z.string().optional() }).passthrough(),
+    project: z
+      .object({ id: z.string(), modifiedAt: z.string().optional(), contentHash: z.string().optional() })
+      .passthrough(),
     notebooks: z.array(importedNotebookSchema),
+  })
+  .passthrough()
+
+/** `POST /v2/files` echoes the stored file; only the inventory fields matter to sync. */
+const uploadFileResponseSchema = z
+  .object({
+    file: z
+      .object({ path: z.string().optional(), size: z.number().optional(), updatedAt: z.string().optional() })
+      .passthrough(),
   })
   .passthrough()
 
@@ -166,10 +180,12 @@ export interface ImportedNotebook {
 export interface ImportProjectResult {
   projectId: string
   notebooks: ImportedNotebook[]
-  /** The project's content fingerprint after the import — what a fresh export's
-   * `metadata.modifiedAt` would say. Usable as the next push's `baseModifiedAt` without an
-   * intermediate export. */
+  /** The project's `metadata.modifiedAt` after the import — what a fresh export would carry. Usable
+   * as the next push's `baseModifiedAt` without an intermediate export. */
   modifiedAt?: string
+  /** The canonical content hash of the post-import export (see {@link ImportProjectOptions.baseContentHash}),
+   * if the server returns it — usable as the next push's `baseContentHash` without re-exporting. */
+  contentHash?: string
 }
 
 export interface ImportProjectOptions extends RequestOptions {
@@ -181,10 +197,11 @@ export interface ImportProjectOptions extends RequestOptions {
    */
   baseModifiedAt?: string
   /**
-   * Hex SHA-256 of the exact `.deepnote` bytes this import was edited from. When set, the server
-   * rejects the import with a 409 if the project would currently export different bytes. Exports
-   * are byte-deterministic, so this catches every concurrent change — including the editor
-   * block-content edits `baseModifiedAt` cannot see. Always pass it when you have one.
+   * The canonical content hash of the export this import was edited from — a hash over the exploded
+   * `.deepnote` documents, computed identically on both sides (see the project-import contract doc).
+   * When set, the server re-exports the project, hashes it the same way, and rejects the import with
+   * a 409 if the hash differs — catching every concurrent change, including the editor block-content
+   * edits `baseModifiedAt` cannot see. Always pass it when you have one.
    */
   baseContentHash?: string
   /** Delete notebooks that exist in the project but are absent from the document. Default false. */
@@ -344,27 +361,31 @@ export async function exportProject(
 }
 
 /**
- * Import a `.deepnote` YAML document into an existing project
- * (`POST {baseUrl}/v2/projects/{id}/import`).
+ * Import a project's notebooks (`POST {baseUrl}/v2/projects/{id}/import`) — the **exact inverse of
+ * {@link exportProject}**. The body is a ZIP of `.deepnote` documents, one per notebook, in the same
+ * shape the export returns; this function builds it from the (edited) documents. There is no
+ * re-merge step and no re-serialization, so a document the server has never seen round-trips
+ * unchanged.
  *
  * The server reconciles rather than replaces: notebooks matched by id are overwritten (block
  * identity and comments preserved), unmatched ones are created, and missing ones are deleted only
- * with {@link ImportProjectOptions.deleteMissingNotebooks}. A document with no notebooks is
- * accepted: a no-op by default, a delete-every-notebook under `deleteMissingNotebooks`. Project
- * name, integrations, and `settings.requirements` are never applied from the document
- * (`requirements.txt` in the project's files is the source of truth for requirements;
- * `settings.requirements` is a lossy projection).
+ * with {@link ImportProjectOptions.deleteMissingNotebooks}. An empty ZIP (no notebooks) is a no-op
+ * by default, a delete-every-notebook under `deleteMissingNotebooks`. Project name, integrations,
+ * and `settings.requirements` are never applied from the documents (`requirements.txt` in the
+ * project's files is the source of truth for requirements).
+ *
+ * See `packages/cloud/docs/project-import-contract.md` for the full server contract this defines.
  *
  * Notable failures, all thrown as {@link ApiError}: 409 when the project changed after
- * `baseModifiedAt`/`baseContentHash` (or is suspended), 413 for a document over the server's size
- * limit, 422 for a malformed document or one that violates naming or structure rules, 403 for
- * permissions or the notebook limit.
+ * `baseModifiedAt`/`baseContentHash` (or is suspended), 413 over the server's size limit, 422 for a
+ * malformed document or one that violates naming or structure rules, 403 for permissions or the
+ * notebook limit. A 404/501 means the endpoint is not deployed yet (callers may degrade gracefully).
  */
 export async function importProject(
   baseUrl: string,
   token: string,
   projectId: string,
-  deepnoteYaml: string,
+  files: readonly ExportedNotebookFile[],
   options: ImportProjectOptions = {}
 ): Promise<ImportProjectResult> {
   const url = new URL(`${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}/import`)
@@ -381,18 +402,30 @@ export async function importProject(
     url.searchParams.set('force', 'true')
   }
 
+  const encoder = new TextEncoder()
+  const entries: Record<string, Uint8Array> = {}
+  for (const file of [...files].sort((a, b) => a.filename.localeCompare(b.filename))) {
+    entries[file.filename] = encoder.encode(file.content)
+  }
+  const archive = zipSync(entries)
+
   const response = await requestOk(
     url.toString(),
     {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/yaml' },
-      body: deepnoteYaml,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/zip' },
+      body: archive,
     },
     options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
     'Failed to import Deepnote project'
   )
   const parsed = await parseJsonResponse(response, importProjectResponseSchema, 'import project')
-  return { projectId: parsed.project.id, notebooks: parsed.notebooks, modifiedAt: parsed.project.modifiedAt }
+  return {
+    projectId: parsed.project.id,
+    notebooks: parsed.notebooks,
+    modifiedAt: parsed.project.modifiedAt,
+    contentHash: parsed.project.contentHash,
+  }
 }
 
 /**
@@ -421,4 +454,77 @@ export async function downloadProjectFile(
     `Failed to download "${filePath}"`
   )
   return new Uint8Array(await response.arrayBuffer())
+}
+
+/** A working-directory file after an upload, as the inventory reports it. */
+export interface UploadedFile {
+  path?: string
+  size?: number
+  updatedAt?: string
+}
+
+/**
+ * Upload a working-directory file (`POST {baseUrl}/v2/files`, multipart).
+ *
+ * **The server generates a *unique* path when `path` already exists — it does not overwrite.** To
+ * replace a file, {@link deleteProjectFile} it first (last-write-wins; there is no content-hash or
+ * staleness check on the files surface). Returns the stored file's inventory fields.
+ */
+export async function uploadProjectFile(
+  baseUrl: string,
+  token: string,
+  projectId: string,
+  filePath: string,
+  bytes: Uint8Array,
+  options: RequestOptions = {}
+): Promise<UploadedFile> {
+  const form = new FormData()
+  form.set('projectId', projectId)
+  form.set('path', filePath)
+  // A basename is enough; the destination is `path`. Copy into a fresh ArrayBuffer so the Blob is
+  // backed by exactly these bytes regardless of the view's offset into a larger buffer.
+  const buffer = bytes.slice().buffer
+  form.set('file', new Blob([buffer]), filePath.split('/').pop() || 'file')
+
+  const response = await requestOk(
+    `${trimTrailingSlash(baseUrl)}/v2/files`,
+    { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form },
+    options.requestTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS,
+    `Failed to upload "${filePath}"`
+  )
+  const parsed = await parseJsonResponse(response, uploadFileResponseSchema, 'upload file')
+  return parsed.file
+}
+
+/**
+ * Delete a working-directory file (`DELETE {baseUrl}/v2/files?projectId=&path=`).
+ *
+ * Returns `true` when the file was deleted, `false` when it did not exist (a 404 is not an error for
+ * the overwrite-by-delete-then-upload pattern). Other non-2xx responses throw {@link ApiError}.
+ */
+export async function deleteProjectFile(
+  baseUrl: string,
+  token: string,
+  projectId: string,
+  filePath: string,
+  options: RequestOptions = {}
+): Promise<boolean> {
+  const url = new URL(`${trimTrailingSlash(baseUrl)}/v2/files`)
+  url.searchParams.set('projectId', projectId)
+  url.searchParams.set('path', filePath)
+
+  try {
+    await requestOk(
+      url.toString(),
+      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+      options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      `Failed to delete "${filePath}"`
+    )
+    return true
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 404) {
+      return false
+    }
+    throw error
+  }
 }
