@@ -287,10 +287,12 @@ deepnote run project.deepnote -o json                  # JSON output
 | `deepnote dag show\|vars\|downstream` | Dependency analysis                                                                                                                                                                                                                 |
 | `deepnote split <path>`               | Split a multi-notebook file into one `.deepnote` per notebook. The init notebook (if any) becomes its own standalone file; each main file keeps `initNotebookId` so `deepnote run` resolves and runs the sibling init as a prelude. |
 | `deepnote open <path>`                | Open in Deepnote Cloud                                                                                                                                                                                                              |
+| `deepnote schedule <path>`            | Create or update recurring Deepnote Cloud runs                                                                                                                                                                                      |
 
 ### CLI Command References
 
 - [Run command](references/cli-run.md)
+- [Schedule command](references/cli-schedule.md)
 - [Convert command](references/cli-convert.md)
 - [Analysis commands](references/cli-analysis.md)
 - [Utility commands](references/cli-utility.md)
