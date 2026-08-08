@@ -172,7 +172,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
 
   let mcpClients: MCPClient[] = []
   try {
-    mcpClients = await Promise.all(
+    const clientResults = await Promise.allSettled(
       mergedMcpConfig.map(s =>
         createMCPClient({
           transport: new Experimental_StdioMCPTransport({
@@ -184,6 +184,11 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         })
       )
     )
+    mcpClients = clientResults.filter(r => r.status === 'fulfilled').map(r => r.value)
+    const failed = clientResults.find(r => r.status === 'rejected')
+    if (failed != null) {
+      throw failed.reason
+    }
 
     const addCodeBlockTool = tool({
       description:

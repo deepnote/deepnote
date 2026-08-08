@@ -82,20 +82,20 @@ const makeContext = (overrides: Partial<AgentBlockContext> = {}): AgentBlockCont
   ...overrides,
 })
 
+beforeEach(() => {
+  // Pins the Responses API path regardless of the developer's environment.
+  vi.stubEnv('OPENAI_BASE_URL', undefined)
+  createMCPClientMock.mockReset()
+  createMCPClientMock.mockImplementation(() => {
+    throw new Error('unexpected createMCPClient call')
+  })
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
 describe('executeAgentBlock abort', () => {
-  beforeEach(() => {
-    // Pins the Responses API path regardless of the developer's environment.
-    vi.stubEnv('OPENAI_BASE_URL', undefined)
-    createMCPClientMock.mockReset()
-    createMCPClientMock.mockImplementation(() => {
-      throw new Error('unexpected createMCPClient call')
-    })
-  })
-
-  afterEach(() => {
-    vi.unstubAllEnvs()
-  })
-
   it('runs tools and returns the final text', async () => {
     const codeSpy = vi.fn(async () => 'code ok')
     modelRef.current = stepModel(
@@ -194,5 +194,29 @@ describe('executeAgentBlock abort', () => {
     })
 
     await expect(executeAgentBlock(AGENT_BLOCK, makeContext({ signal: controller.signal }))).rejects.toBe(reason)
+  })
+})
+
+describe('executeAgentBlock MCP client cleanup', () => {
+  it('closes the successfully created client when another client fails to start', async () => {
+    const startupFailure = new Error('spawn failed')
+    const goodClient = { tools: vi.fn(async () => ({})), close: vi.fn(async () => {}) }
+    createMCPClientMock.mockResolvedValueOnce(goodClient).mockRejectedValueOnce(startupFailure)
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    await expect(
+      executeAgentBlock(
+        AGENT_BLOCK,
+        makeContext({
+          mcpServers: [
+            { name: 'good', command: 'ok', args: [] },
+            { name: 'bad', command: 'boom', args: [] },
+          ],
+        })
+      )
+    ).rejects.toBe(startupFailure)
+
+    expect(goodClient.close).toHaveBeenCalledTimes(1)
+    expect(modelRef.current.doStreamCalls).toHaveLength(0)
   })
 })
