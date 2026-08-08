@@ -1,0 +1,102 @@
+metadata:
+  createdAt: '2026-07-27T00:00:00.000Z'
+project:
+  id: workflow-regional-sales-analysis
+  name: Workflow demo - regional sales analysis
+  notebooks:
+    - id: workflow-regional-sales-notebook
+      name: Regional sales analysis
+      blocks:
+        - blockGroup: input-region-group
+          id: input-region
+          sortingKey: a0
+          type: input-text
+          content: ''
+          metadata:
+            deepnote_variable_name: region
+            deepnote_input_label: Region
+            deepnote_variable_value: North America
+            deepnote_variable_default_value: null
+        - blockGroup: input-target-group
+          id: input-target
+          sortingKey: a1
+          type: input-slider
+          content: ''
+          metadata:
+            deepnote_variable_name: target_revenue_k
+            deepnote_input_label: Revenue target ($k)
+            deepnote_variable_value: '2100'
+            deepnote_slider_min_value: 500
+            deepnote_slider_max_value: 3000
+            deepnote_slider_step: 50
+            deepnote_variable_default_value: null
+        - blockGroup: input-shock-group
+          id: input-shock
+          sortingKey: a2
+          type: input-slider
+          content: ''
+          metadata:
+            deepnote_variable_name: demand_shock_pct
+            deepnote_input_label: Demand scenario (%)
+            deepnote_variable_value: '-10'
+            deepnote_slider_min_value: -25
+            deepnote_slider_max_value: 25
+            deepnote_slider_step: 1
+            deepnote_variable_default_value: null
+        - blockGroup: input-failure-group
+          id: input-failure
+          sortingKey: a3
+          type: input-checkbox
+          content: ''
+          metadata:
+            deepnote_variable_name: simulate_failure
+            deepnote_input_label: Simulate source failure
+            deepnote_variable_value: false
+            deepnote_variable_default_value: null
+        - blockGroup: input-backfill-group
+          id: input-backfill
+          sortingKey: a4
+          type: input-checkbox
+          content: ''
+          metadata:
+            deepnote_variable_name: backfill_missing
+            deepnote_input_label: Backfill missing data
+            deepnote_variable_value: false
+            deepnote_variable_default_value: null
+        - blockGroup: analysis-group
+          id: regional-analysis
+          sortingKey: b0
+          type: code
+          content: |-
+            import json
+
+            CATALOG = {
+                "North America": {"revenue_k": 2200, "growth_pct": 8, "missing_months": 0},
+                "Europe": {"revenue_k": 1850, "growth_pct": 6, "missing_months": 1},
+                "Asia Pacific": {"revenue_k": 1420, "growth_pct": 13, "missing_months": 0},
+            }
+
+            if region not in CATALOG:
+                raise ValueError(f"Unknown region: {region}")
+            if simulate_failure:
+                raise RuntimeError(f"Source warehouse for {region} is temporarily unavailable")
+
+            source = CATALOG[region]
+            missing_months = 0 if backfill_missing else source["missing_months"]
+            quality_score = round((12 - missing_months) / 12, 3)
+            revenue_k = round(source["revenue_k"] * (1 + demand_shock_pct / 100), 1)
+            forecast_k = round(revenue_k * (1 + source["growth_pct"] / 100), 1)
+
+            result = {
+                "region": region,
+                "revenueK": revenue_k,
+                "targetK": target_revenue_k,
+                "forecastK": forecast_k,
+                "growthPct": source["growth_pct"],
+                "qualityScore": quality_score,
+                "backfilled": bool(backfill_missing),
+                "onTrack": forecast_k >= target_revenue_k,
+            }
+            print("DEEPNOTE_PIPELINE_RESULT=" + json.dumps(result, separators=(",", ":")))
+          metadata: {}
+version: 1.0.0

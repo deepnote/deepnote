@@ -1,5 +1,6 @@
 .DS_Store
 .env
+.deepnote-runs/
 .npmrc
 .pnpm-store
 .qlty/cache

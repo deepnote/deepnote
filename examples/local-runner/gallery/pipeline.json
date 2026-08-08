@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "title": "Multi-model regional sales decision",
+  "subtitle": "A real seven-notebook Deepnote Cloud run, orchestrated from one local Node process.",
+  "capturedAt": "2026-07-29T11:01:22.044Z",
+  "startedAt": "2026-07-29T10:59:37.066Z",
+  "finishedAt": "2026-07-29T11:01:22.044Z",
+  "durationMs": 104978,
+  "concludingStepId": "final-arbiter",
+  "summary": {
+    "status": "success",
+    "notebookRuns": 7,
+    "qualityGate": "Europe recovered",
+    "providerConsensus": "Both providers independently recommend proceed",
+    "finalDecision": "proceed"
+  },
+  "nodes": [
+    {
+      "id": "inputs",
+      "label": "Pipeline inputs",
+      "kind": "local",
+      "column": 0,
+      "lane": 1,
+      "detail": "4 values · local control"
+    },
+    {
+      "id": "analyze-north-america",
+      "label": "North America",
+      "kind": "notebook",
+      "column": 1,
+      "lane": 0,
+      "detail": "Regional analysis",
+      "status": "success",
+      "durationMs": 10921,
+      "runId": "606ed36a-c536-4833-88e7-9e2fc10f57a1",
+      "viewUrl": "https://deepnote.com/workspace/deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/-aebe7a31-8b80-406c-91df-34ec277a9912/notebook/c74e74f08c46488db3ce2a92596c453d?secondary-sidebar=runs",
+      "snapshot": "./pipeline-snapshots/analyze-north-america.snapshot.deepnote"
+    },
+    {
+      "id": "analyze-europe",
+      "label": "Europe",
+      "kind": "notebook",
+      "column": 1,
+      "lane": 1,
+      "detail": "Regional analysis · quality 83%",
+      "status": "success",
+      "durationMs": 12757,
+      "runId": "28f4bd35-86af-439d-8b4e-3ae178607cb4",
+      "viewUrl": "https://deepnote.com/workspace/deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/-aebe7a31-8b80-406c-91df-34ec277a9912/notebook/c74e74f08c46488db3ce2a92596c453d?secondary-sidebar=runs",
+      "snapshot": "./pipeline-snapshots/analyze-europe.snapshot.deepnote"
+    },
+    {
+      "id": "analyze-asia-pacific",
+      "label": "Asia Pacific",
+      "kind": "notebook",
+      "column": 1,
+      "lane": 2,
+      "detail": "Regional analysis",
+      "status": "success",
+      "durationMs": 10734,
+      "runId": "65fa4589-b1b5-4391-9f7f-df2e33c071e2",
+      "viewUrl": "https://deepnote.com/workspace/deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/-aebe7a31-8b80-406c-91df-34ec277a9912/notebook/c74e74f08c46488db3ce2a92596c453d?secondary-sidebar=runs",
+      "snapshot": "./pipeline-snapshots/analyze-asia-pacific.snapshot.deepnote"
+    },
+    {
+      "id": "quality-gate",
+      "label": "Quality gate",
+      "kind": "local",
+      "column": 2,
+      "lane": 1,
+      "detail": "Europe below 95%"
+    },
+    {
+      "id": "recover-europe",
+      "label": "Recover Europe",
+      "kind": "notebook",
+      "column": 3,
+      "lane": 2,
+      "detail": "Conditional backfill",
+      "status": "success",
+      "durationMs": 12778,
+      "runId": "c1f3124d-e2bc-42fe-81e2-f9ca246028c7",
+      "viewUrl": "https://deepnote.com/workspace/deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/-aebe7a31-8b80-406c-91df-34ec277a9912/notebook/c74e74f08c46488db3ce2a92596c453d?secondary-sidebar=runs",
+      "snapshot": "./pipeline-snapshots/recover-europe.snapshot.deepnote"
+    },
+    {
+      "id": "aggregate",
+      "label": "Portfolio",
+      "kind": "local",
+      "column": 4,
+      "lane": 1,
+      "detail": "3 validated regions"
+    },
+    {
+      "id": "decision-gpt",
+      "label": "GPT-5.5",
+      "kind": "notebook",
+      "column": 5,
+      "lane": 0,
+      "detail": "OpenAI decision review",
+      "status": "success",
+      "durationMs": 42498,
+      "runId": "42927049-ede7-426a-b59d-b9d32c4b4ca0",
+      "viewUrl": "https://deepnote.com/workspace/deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/-44229409-9a0f-448b-b0e7-a5e26ea879e5/notebook/105633aebe864b55bad6d2f89359612b?secondary-sidebar=runs",
+      "snapshot": "./pipeline-snapshots/decision-gpt.snapshot.deepnote"
+    },
+    {
+      "id": "decision-claude",
+      "label": "Claude Sonnet 5",
+      "kind": "notebook",
+      "column": 5,
+      "lane": 2,
+      "detail": "Anthropic decision review",
+      "status": "success",
+      "durationMs": 41075,
+      "runId": "a8a5fdf4-c6bc-4f32-aa41-909c30e96418",
+      "viewUrl": "https://deepnote.com/workspace/deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/-c8a3392c-198d-45c6-b202-e8e0dcc98a7f/notebook/c1ad80fc0e204b3c846d698b3998aedd?secondary-sidebar=runs",
+      "snapshot": "./pipeline-snapshots/decision-claude.snapshot.deepnote"
+    },
+    {
+      "id": "final-arbiter",
+      "label": "Final decision",
+      "kind": "notebook",
+      "column": 6,
+      "lane": 1,
+      "detail": "Deepnote arbiter · proceed",
+      "status": "success",
+      "durationMs": 26020,
+      "runId": "414b27f9-4812-495a-bf0f-f3b6f8e54903",
+      "viewUrl": "https://deepnote.com/workspace/deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/-8b7a0951-e5b2-477d-b17b-84c8d9e7d3a8/notebook/0c072e8211234c139f7a6734f8f39493?secondary-sidebar=runs",
+      "snapshot": "./pipeline-snapshots/final-arbiter.snapshot.deepnote"
+    }
+  ],
+  "edges": [
+    {
+      "from": "inputs",
+      "to": "analyze-north-america"
+    },
+    {
+      "from": "inputs",
+      "to": "analyze-europe"
+    },
+    {
+      "from": "inputs",
+      "to": "analyze-asia-pacific"
+    },
+    {
+      "from": "analyze-north-america",
+      "to": "quality-gate"
+    },
+    {
+      "from": "analyze-europe",
+      "to": "quality-gate"
+    },
+    {
+      "from": "analyze-asia-pacific",
+      "to": "quality-gate"
+    },
+    {
+      "from": "quality-gate",
+      "to": "recover-europe",
+      "label": "below 95%"
+    },
+    {
+      "from": "recover-europe",
+      "to": "aggregate"
+    },
+    {
+      "from": "quality-gate",
+      "to": "aggregate",
+      "label": "passed regions"
+    },
+    {
+      "from": "aggregate",
+      "to": "decision-gpt"
+    },
+    {
+      "from": "aggregate",
+      "to": "decision-claude"
+    },
+    {
+      "from": "decision-gpt",
+      "to": "final-arbiter"
+    },
+    {
+      "from": "decision-claude",
+      "to": "final-arbiter"
+    }
+  ]
+}

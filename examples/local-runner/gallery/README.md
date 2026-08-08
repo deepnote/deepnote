@@ -1,12 +1,12 @@
-# gallery — one snapshot, four frontends
+# gallery — static notebook outputs, five frontends
 
 ```bash
 pnpm example:gallery
 # open the printed http://127.0.0.1:<port>
 ```
 
-Four static pages over the same `snapshot-showcase.snapshot.deepnote`. Each calls the same two
-library functions and then disagrees completely about what a notebook run looks like.
+Four static pages reinterpret the same `snapshot-showcase.snapshot.deepnote`. A fifth replays a
+real, seven-notebook cloud pipeline from the immutable snapshot captured at every step.
 
 |                                   | argues                                                                                    |
 | --------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -14,6 +14,35 @@ library functions and then disagrees completely about what a notebook run looks 
 | [**explorer**](./explorer.html)   | the snapshot as a **structured dataset** — sortable columns, dtypes, distributions        |
 | [**deck**](./deck.html)           | the snapshot as **presentation data** — one idea per slide, click or arrow keys           |
 | [**terminal**](./terminal.html)   | the snapshot as a **plain-text log** — ASCII bars instead of the PNG                      |
+| [**pipeline**](./pipeline.html)   | snapshots as an **execution graph** — inspect each step or open its Deepnote run          |
+
+## Pipeline replay
+
+The pipeline page is a fully static record of the orchestration demo in
+[`../run-app`](../run-app). It renders a completed execution left to right:
+
+```text
+inputs ─┬─ North America ─┐
+        ├─ Europe ────────┼─ quality gate ─┬─ Europe recovery ─┐
+        └─ Asia Pacific ──┘                └───────────────────┴─ portfolio ─┬─ GPT-5.5 ─────────┐
+                                                                            └─ Claude Sonnet 5 ─┴─ final arbiter
+```
+
+This is not mocked workflow state. [`pipeline.json`](./pipeline.json) records the real topology,
+timings, run IDs and Deepnote URLs from one cloud execution. `pipeline-snapshots/` contains the
+seven exact `.deepnote` snapshots returned by that execution. The concluding arbiter is selected by
+default; selecting any notebook node renders that step's snapshot below the graph, while its `↗`
+link opens the corresponding notebook's run history in Deepnote. Local control-flow stages remain
+visible but are deliberately not links because they are JavaScript decisions, not notebook runs.
+
+The page also accepts an `orchestrate()` persistence journal directly as `pipeline.json`. It derives
+the layout from `result.graph` and reads the snapshots embedded in the completed step results, so
+new static pipeline replays require no hand-authored nodes, edges, columns, or separate snapshot
+files. Include `pipeline-data.js` alongside the page when deploying it.
+
+The static capture demonstrates the separation the orchestration API is built around: local code
+owns branching and joins; Deepnote Cloud executes the notebook and agent steps. Replaying the result
+needs no token, server, kernel or AI provider key.
 
 ## The point
 
@@ -49,7 +78,7 @@ held in memory.
 ## No iframes here
 
 `snapshot-viewer` injects the notebook's `text/html` into an iframe sandboxed at null origin, because
-that HTML is untrusted and must not touch the page. These four never inject it, so that surface
+that HTML is untrusted and must not touch the page. These pages never inject it, so that surface
 doesn't exist. Every snapshot-derived string — agent output, stream text, dataframe cells, input
 values — reaches the DOM through `textContent`. `innerHTML` appears only for static markup written in
 this repo.
@@ -59,11 +88,11 @@ drew. These pages are asking the data questions instead, and get to skip the pro
 
 ## The gap this exposed — and closed
 
-Building these four found one real hole, which is the other half of why they exist.
+Building the original four views found one real hole, which is the other half of why they exist.
 
 `SnapshotBlock.input` used to carry `{ name, value }`, and `toSnapshotView` dropped block `metadata`.
 So a page could say `trailing_months = 6` but not "Trailing months · 6 of 3–12" — and a value without
-its bounds is a variable dump, not a UI. Every one of these pages wanted the same thing; the
+its bounds is a variable dump, not a UI. Every one of those four pages wanted the same thing; the
 dashboard's filter bar and the terminal's `[3–12]` are what it looked like when they couldn't have it.
 
 The information was never missing from the library. `listInputBlocks` already returned exactly the
@@ -88,15 +117,18 @@ view is for, and one demo isn't enough to answer it.
 - `gallery.js` — the shared bit, deliberately small: _finding_ things in a snapshot (which output
   holds the dataframe, what did the agent say, what were the inputs). Fiddly enough to be worth
   sharing — nbformat values are `string | string[]`, base64 arrives folded across YAML lines — and
-  the sort of thing four pages would otherwise get subtly different.
+  the sort of thing multiple pages would otherwise get subtly different.
 - Each page owns its _showing_. They share CSS idioms and some markup shape; that duplication is
   deliberate, so each page reads standalone. Only the parsing is centralized.
-- `serve.mjs` — a hardcoded route table, no directory serving. Convenience only: the pages are
-  static and work opened straight off disk, where a browser blocks `fetch` of a sibling file and
-  they fall back to a file picker.
+- `serve.mjs` — a hardcoded route table, no directory serving. Convenience only: every page remains
+  deployable as static files. The four single-snapshot pages also work opened straight off disk,
+  where a browser blocks `fetch` of a sibling file and they fall back to a file picker.
 
 ## Deploying one
 
-Any static host. Copy three files into a directory: the page (renamed `index.html`), `gallery.js`,
-and `snapshot-reader.js` from `packages/local-runner/dist/snapshot-reader.iife.js` (~70 kB gzipped,
-everything inlined), plus a `snapshot.deepnote`. No server, no build, no Python.
+Any static host. For a single-snapshot view, copy the page (renamed `index.html`), `gallery.js`,
+`snapshot-reader.js` from `packages/local-runner/dist/snapshot-reader.iife.js` (~70 kB gzipped,
+everything inlined), and a `snapshot.deepnote`. For the pipeline view, copy `pipeline.html`,
+`pipeline.json`, `gallery.js`, the reader, and `pipeline-snapshots/`. No application server, build,
+Python or credentials are required. Link to `pipeline.html` directly on an ordinary static host;
+the shorter `/pipeline` URL is only available when the host supplies a rewrite, as `serve.mjs` does.

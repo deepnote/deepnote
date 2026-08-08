@@ -1,0 +1,182 @@
+version: 1.0.0
+metadata:
+  snapshotHash: sha256:d49378549fcf87c6e1cb90ca9073fede4569fba3ac4b88dbbd25a2ca50411dd9
+  createdAt: 2026-07-29T10:59:48.587Z
+  modifiedAt: 2026-07-29T10:59:58.527Z
+environment:
+  customImage: deepnote/python:3.13-datascience
+  packages: {}
+  platform: linux/amd64
+  python:
+    version: "3.13"
+    environment: venv
+project:
+  id: cc769147-e5ec-4824-ae7b-710f2b9ff2fb
+  name: Local runner demo - regional analysis (detached 8becc349)
+  notebooks:
+    - id: 2c0ce4fc0b034c6f877e9ee1a0424d84
+      name: Regional analysis
+      executionMode: block
+      blocks:
+        - id: 249925b657df48b0bec29c638de0d518
+          blockGroup: 83cfff760f484cf395d0a65ca8d2fdc5
+          sortingKey: a0
+          contentHash: 83052a9b
+          executionCount: 1
+          executionFinishedAt: 2026-07-29T10:59:58.164Z
+          executionStartedAt: 2026-07-29T10:59:58.163Z
+          outputs: []
+          type: input-text
+          content: ""
+          metadata:
+            execution_start: 1785322798163
+            execution_millis: 1
+            execution_context_id: 56722899-a896-464d-bf39-f7bf3b704f84
+            deepnote_variable_name: region
+            deepnote_input_label: Region
+            deepnote_variable_value: Europe
+            source_block_id: 663f361c5acf43cd9a58ef55c39eb0d4
+        - id: a122a8e6c5e548049bdf84bbf12adfed
+          blockGroup: fdde23a68df4471484699880d8e42417
+          sortingKey: m
+          contentHash: cc8d4d78
+          executionCount: 2
+          executionFinishedAt: 2026-07-29T10:59:58.213Z
+          executionStartedAt: 2026-07-29T10:59:58.213Z
+          outputs: []
+          type: input-slider
+          content: ""
+          metadata:
+            execution_start: 1785322798213
+            execution_millis: 0
+            execution_context_id: 56722899-a896-464d-bf39-f7bf3b704f84
+            deepnote_variable_name: trailing_months
+            deepnote_input_label: Trailing months
+            deepnote_variable_value: "6"
+            deepnote_slider_min_value: 3
+            deepnote_slider_max_value: 12
+            deepnote_slider_step: 1
+            source_block_id: ebe709d85d1d439bb73d1fca7296a53f
+        - id: af49855e097848c88aca1c5ae2b81dfe
+          blockGroup: 898b27f842d54b0eb572dd5d50303b66
+          sortingKey: s
+          contentHash: 2870ab38
+          executionCount: 3
+          executionFinishedAt: 2026-07-29T10:59:58.263Z
+          executionStartedAt: 2026-07-29T10:59:58.263Z
+          outputs: []
+          type: input-slider
+          content: ""
+          metadata:
+            execution_start: 1785322798263
+            execution_millis: 0
+            execution_context_id: 56722899-a896-464d-bf39-f7bf3b704f84
+            deepnote_variable_name: monthly_target_k
+            deepnote_input_label: Monthly target ($k)
+            deepnote_variable_value: "340"
+            deepnote_slider_min_value: 50
+            deepnote_slider_max_value: 1000
+            deepnote_slider_step: 10
+            source_block_id: e07e0fa5edd74d7196e3d303b224a146
+        - id: 586267ac763745c8819d1a2bedf9f300
+          blockGroup: 7064eb8567cd49b288101e6f5d441d6b
+          sortingKey: v
+          contentHash: 2709a94c
+          executionCount: 4
+          executionFinishedAt: 2026-07-29T10:59:58.323Z
+          executionStartedAt: 2026-07-29T10:59:58.323Z
+          outputs: []
+          type: input-checkbox
+          content: ""
+          metadata:
+            execution_start: 1785322798323
+            execution_millis: 0
+            execution_context_id: 56722899-a896-464d-bf39-f7bf3b704f84
+            deepnote_variable_name: backfill_missing
+            deepnote_input_label: Backfill missing data
+            deepnote_variable_value: false
+            source_block_id: fd5387518a404c1186e7f30cd65cf527
+        - id: e55f18e4c91b4d8cbceb95728294ba3c
+          blockGroup: 73c8830876614947b3d2fea6bd6a6d84
+          sortingKey: x
+          contentHash: sha256:030ee1f2beff3752108e727cbd208db2e7dc84dd8b5ac3e35cd2ad9bac2977f5
+          executionCount: 5
+          executionFinishedAt: 2026-07-29T10:59:58.375Z
+          executionStartedAt: 2026-07-29T10:59:58.373Z
+          type: code
+          content: >-
+            import json
+
+
+            CATALOG = {
+                "North America": {"monthly_k": 440, "growth_pct": 2.0, "missing_months": 0},
+                "Europe": {"monthly_k": 325, "growth_pct": 2.8, "missing_months": 1},
+                "Asia Pacific": {"monthly_k": 255, "growth_pct": 4.2, "missing_months": 0},
+            }
+
+
+            if region not in CATALOG:
+                raise ValueError(f"Unknown region: {region}")
+
+            months = int(trailing_months)
+
+            source = CATALOG[region]
+
+            missing_months = 0 if backfill_missing else source["missing_months"]
+
+            observed_months = months - min(months, missing_months)
+
+            growth = source["growth_pct"] / 100
+
+            revenue_k = round(
+                sum(source["monthly_k"] * (1 + growth) ** index for index in range(observed_months)),
+                1,
+            )
+
+            forecast_k = round(
+                sum(
+                    source["monthly_k"] * (1 + growth) ** (months + index)
+                    for index in range(months)
+                ),
+                1,
+            )
+
+            target_k = round(float(monthly_target_k) * months, 1)
+
+
+            result = {
+                "region": region,
+                "revenueK": revenue_k,
+                "forecastK": forecast_k,
+                "targetK": target_k,
+                "growthPct": source["growth_pct"],
+                "qualityScore": round(observed_months / months, 3),
+                "backfilled": bool(backfill_missing),
+                "onTrack": forecast_k >= target_k,
+            }
+
+            print(json.dumps(result, separators=(",", ":")))
+          metadata:
+            execution_start: 1785322798373
+            execution_millis: 2
+            execution_context_id: 56722899-a896-464d-bf39-f7bf3b704f84
+            source_block_id: f41cce1779674acab92055ec46e35af5
+          outputs: [{"name":"stdout","text":"{\"region\":\"Europe\",\"revenueK\":1718.6,\"forecastK\":2468.6,\"targetK\":2040.0,\"growthPct\":2.8,\"qualityScore\":0.833,\"backfilled\":false,\"onTrack\":true}\n","output_type":"stream"}]
+  settings:
+    environment:
+      customImage: deepnote/python:3.13-datascience
+execution:
+  finishedAt: 2026-07-29T10:59:58.501Z
+  startedAt: 2026-07-29T10:59:48.636Z
+  triggeredBy: api
+  inputs:
+    region: Europe
+    trailing_months: "6"
+    backfill_missing: false
+    monthly_target_k: "340"
+  agentRuns: []
+  summary:
+    blocksExecuted: 5
+    blocksFailed: 0
+    blocksSucceeded: 5
+    totalDurationMs: 9865

@@ -2,10 +2,13 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig([
   {
-    entry: ['src/index.ts'],
+    entry: {
+      index: 'src/index.ts',
+      workflows: 'src/workflows/index.ts',
+    },
     format: ['esm', 'cjs'],
     dts: true,
-    external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/convert', '@deepnote/runtime-core'],
+    external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/convert', '@deepnote/runtime-core', 'workflow'],
   },
   {
     // The snapshot reader ships as one self-contained file that a static page can <script> in, so

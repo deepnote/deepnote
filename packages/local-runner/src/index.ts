@@ -12,6 +12,36 @@ export type { DeepnoteInput, LoadedDeepnoteFile } from './load-file'
 export { loadDeepnoteFile } from './load-file'
 export type { OpenInCloudOptions } from './open-in-cloud'
 export { openInCloud } from './open-in-cloud'
+export type {
+  LocalOrchestrationOptions,
+  OrchestrateOptions,
+  OrchestrationContext,
+  OrchestrationControlKind,
+  OrchestrationControlNode,
+  OrchestrationDependency,
+  OrchestrationDependencyInput,
+  OrchestrationEvent,
+  OrchestrationGraph,
+  OrchestrationGraphEdge,
+  OrchestrationGraphNode,
+  OrchestrationGraphNodeKind,
+  OrchestrationGraphNodeStatus,
+  OrchestrationOutputHelpers,
+  OrchestrationResult,
+  OrchestrationStep,
+  OrchestrationStepResult,
+  OrchestrationTarget,
+} from './orchestrate'
+export {
+  allOutputText,
+  lastAgentText,
+  lastOutputJson,
+  OrchestrationStepError,
+  orchestrate,
+  orchestrationOutputs,
+  outputJson,
+  outputText,
+} from './orchestrate'
 export { readSnapshot } from './read-snapshot'
 export type { RecurringSchedule, ResolvedRecurringSchedule } from './recurring-schedule'
 export { RecurringScheduleError, resolveRecurringSchedule } from './recurring-schedule'
@@ -21,7 +51,13 @@ export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from '
 export { runWithInputs } from './run-with-inputs'
 export type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
 export { scheduleInCloud } from './schedule-in-cloud'
-export type { CloudSchedulerFn, RunnerFn, ServeStaticHandle, ServeStaticOptions } from './serve-static'
+export type {
+  CloudSchedulerFn,
+  OrchestrationRunnerFn,
+  RunnerFn,
+  ServeStaticHandle,
+  ServeStaticOptions,
+} from './serve-static'
 export { serveStatic } from './serve-static'
 export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'

@@ -1,0 +1,13 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {},
+    "plugins": [
+      {
+        "name": "workflow"
+      }
+    ]
+  },
+  "include": ["**/*.ts"]
+}

@@ -1,14 +1,23 @@
 # run-app
 
-A page that runs [`../../local-runner-showcase.deepnote`](../../local-runner-showcase.deepnote)
-locally: edit the inputs, click **Run**, and real Python output — a KPI, a table, a chart, and an
-agent-written readout — comes back, powered entirely by
-[`@deepnote/local-runner`](../../../packages/local-runner)'s `serveStatic`.
+A page that shows every way to compose [`@deepnote/local-runner`](../../../packages/local-runner):
+
+- **Run** one notebook in a local Python kernel.
+- **Run in cloud** runs that notebook in Deepnote Cloud.
+- **Schedule** sets up a recurring Deepnote Cloud run of that notebook.
+- **Run orchestrated pipeline** fans out three regional notebooks, quality-gates their structured
+  results, conditionally reruns incomplete data, aggregates the validated portfolio, asks GPT and
+  Claude for independent reviews, and fans those reviews into a final arbiter notebook.
+
+The same edited inputs drive all these paths. Single runs use
+[`../../local-runner-showcase.deepnote`](../../local-runner-showcase.deepnote), returning a KPI, a
+table, a chart, and an agent-written readout.
 
 It's an app shell, not a document: an inputs panel on the left, a results canvas on the right. Two
-files do the work — [`serve.mjs`](./serve.mjs) (`serveStatic({ dir, notebookPath })`) and
-[`index.html`](./index.html) (`GET /api/info` to build the controls, then the run, schedule, and
-history APIs to drive the page). No framework, no build step.
+files do the work — [`serve.mjs`](./serve.mjs) (`serveStatic({ dir, notebookPath })`, plus an
+application-owned `orchestrationRunner`) and [`index.html`](./index.html) (`GET /api/info` to build
+the controls, then the run, schedule, and history APIs to drive the page, and the pipeline's NDJSON
+progress to render the live fork/join graph and decision). No framework, no frontend build step.
 
 ## Run it
 
@@ -56,6 +65,35 @@ session. Without a token the button degrades gracefully and the status line says
 
 The first cloud run is the slow one — blocks are created one API request each, so a 16-block notebook
 is 16 round-trips before the run even starts. Later runs reuse the notebook and skip straight to it.
+
+## Run the pipeline
+
+Click **Run orchestrated pipeline** in the same page. The orchestration always runs in the local Node
+process; each notebook step runs in Deepnote Cloud when `DEEPNOTE_TOKEN` is present, otherwise in
+local Python kernels. This is one-shot orchestration, so it needs no Workflow SDK server.
+
+The live graph makes the control flow visible instead of flattening concurrent work into a list:
+
+```text
+North America ─┐
+Europe ────────┼─ quality gate ─ Europe recovery ─ aggregate ─┬─ GPT-5.5 ───────┐
+Asia Pacific ──┘                                              └─ Claude Sonnet 5 ┴─ Auto arbiter
+```
+
+Europe deliberately starts with one missing month. Its quality score falls below 95%, so only that
+region reruns with backfilling. The page then shows the validated regional table, forecast-versus-
+target decision, number of notebook runs, recovery count, both provider reviews, and the arbiter's
+final decision. The backend uses `outputs.lastJson(step)`, so it does not depend on source block IDs
+surviving cloud creation.
+
+When the pipeline targets Deepnote Cloud, every notebook node becomes a keyboard-focusable link to
+that exact run as soon as its `viewUrl` arrives. The quality gate and aggregation stay non-clickable
+because they are local orchestration decisions, not notebook executions.
+
+The GPT-5.5 and Claude Sonnet 5 reviews and the final Deepnote Auto arbiter run only in Deepnote
+Cloud, so they require `DEEPNOTE_TOKEN`. Without it, the regional fan-out, quality gate, recovery,
+aggregation, and rule-based proposal still complete locally; the page marks the provider and
+arbiter nodes as cloud-only.
 
 ## Schedule recurring cloud runs
 

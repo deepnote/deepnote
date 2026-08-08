@@ -123,19 +123,173 @@ its setup — at whatever hour the cron names, which is the least visible place 
 Import such a project into Deepnote once, which keeps the designation, then run or schedule it —
 that path creates nothing and so never refuses.
 
+### Orchestrate notebook pipelines
+
+`orchestrate` turns the existing local and cloud runners into a small imperative pipeline API.
+Ordinary TypeScript supplies sequencing, fan-out, loops, and branching. Explicit `control` nodes
+make local gates, joins, and decisions visible in the generated runtime graph:
+
+```ts
+import { orchestrate } from "@deepnote/local-runner";
+
+const pipeline = await orchestrate(
+  async ({ run, control, outputs }) => {
+    await control({ id: "inputs", label: "Pipeline inputs" }, () => ({
+      regions: ["North America", "Europe"],
+    }));
+
+    const [north, europe] = await Promise.all([
+      run({
+        id: "north",
+        notebook: "inputs.deepnote",
+        dependsOn: ["inputs"],
+        inputs: { region: "North America" },
+      }),
+      run({
+        id: "europe",
+        notebook: "inputs.deepnote",
+        dependsOn: ["inputs"],
+        inputs: { region: "Europe" },
+      }),
+    ]);
+
+    const notes = await control(
+      {
+        id: "combine",
+        kind: "join",
+        dependsOn: [north.id, europe.id],
+      },
+      () => [outputs.allText(north), outputs.allText(europe)].join("\n"),
+    );
+
+    const report = await run({
+      id: "report",
+      notebook: "report-with-agent.deepnote",
+      dependsOn: ["combine"],
+      concluding: true,
+      inputs: { analyst_notes: notes },
+    });
+
+    return outputs.lastAgentText(report);
+  },
+  {
+    defaultTarget: process.env.DEEPNOTE_TOKEN ? "cloud" : "local",
+    onEvent: (event) => console.log(event),
+  },
+);
+```
+
+Each result has the same normalized shape regardless of target: status, outputs, parsed snapshot,
+timing, and cloud metadata when applicable. Failed notebook blocks throw by default; set
+`allowFailure: true` on a step when failure is data the pipeline should inspect. Step IDs are unique
+within a run and every progress event carries its step ID.
+
+`pipeline.graph` contains every notebook and explicit local control node, their runtime statuses,
+dependency edges, timing, snapshots, and cloud links. `dependsOn` is intentionally explicit:
+JavaScript cannot infer which returned values a later callback used, and explicit edges avoid
+inventing false dependencies between sequential scheduling work. Mark one node `concluding: true`
+to tell renderers which result to select first.
+
+The output helpers read text or JSON from the resulting snapshot. `allText` is useful for cloud runs
+because a newly created cloud notebook can have different block IDs from its source file, while
+`lastAgentText` handles both local agent output and cloud agent runs that append their answer as a
+generated markdown block. `lastJson` reads the final structured JSON value without a block ID, so
+fan-out steps remain portable when cloud creation remaps those IDs:
+
+```ts
+const region = outputs.lastJson<RegionalResult>(regionalRun);
+```
+
+See [`examples/local-runner/orchestration`](../../examples/local-runner/orchestration) for a
+complete local-or-cloud pipeline.
+
+`orchestrate` is deliberately **not durable**. It runs in one process, holds its state in memory, and
+returns when the callback returns; if the process exits, the run is gone. That is the right trade for
+a script or a dev server, and the wrong one for anything scheduled or long-lived — for those, keep
+the same code and run it under Workflow SDK.
+
+### Make notebook steps durable with Workflow SDK
+
+Workflow SDK is the durable layer, rather than a second one embedded here. Install
+[`workflow`](https://www.npmjs.com/package/workflow) and your supported framework integration, then
+import the serializable Deepnote step:
+
+```ts
+import { runNotebookStep } from "@deepnote/local-runner/workflows";
+
+export async function reportWorkflow(region: string) {
+  "use workflow";
+
+  const result = await runNotebookStep({
+    id: "report",
+    notebook: "./report-with-agent.deepnote",
+    target: "cloud",
+    inputs: { region },
+  });
+
+  return result.success;
+}
+```
+
+The application must re-export `runNotebookStep` from its own workflow directory so the
+consumer-side compiler assigns it a stable step ID. Credentials are deliberately excluded from the
+serializable step arguments; cloud steps read `DEEPNOTE_TOKEN` inside the step. Automatic retries
+are disabled because notebooks and agent blocks may have non-idempotent side effects or model cost.
+
+Retries, fallbacks, and reusable sub-pipelines are ordinary TypeScript here, not configuration. A
+loop is a retry policy, `try`/`catch` is a fallback, and a nested `"use workflow"` function is a
+sub-pipeline — each already durable, resumable, and visible in the run history:
+
+```ts
+export async function regionalReport(region: string) {
+  "use workflow";
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const result = await runNotebookStep({
+        id: "analyze",
+        notebook: ANALYSIS,
+        inputs: { region },
+      });
+      if (result.success) return result;
+    } catch (error) {
+      // A notebook that ran and failed returns `success: false`. Infrastructure that never got it
+      // running throws instead, whatever `allowFailure` says — so cover both.
+      if (attempt === 3) throw error;
+    }
+    await sleep(`${250 * attempt}ms`);
+  }
+  return runNotebookStep({
+    id: "backfill",
+    notebook: FALLBACK,
+    inputs: { region },
+  });
+}
+```
+
+Retry only what is safe to repeat. A notebook that writes to a warehouse or spends an agent budget
+is not, which is why this is a decision at the call site rather than a flag.
+
+See
+[`examples/local-runner/workflow-orchestration`](../../examples/local-runner/workflow-orchestration)
+for a complete Nitro/Vite example using Workflow SDK's local development world.
+
 ### Serve it to a static page
 
 ```ts
-import { serveStatic } from "@deepnote/local-runner";
+import { orchestrate, serveStatic } from "@deepnote/local-runner";
 
 const { port, close } = await serveStatic({
   dir: "./public", // your index.html + assets
   notebookPath: "examples/6_with_inputs.deepnote",
+  orchestrationRunner: (inputs, emit) =>
+    orchestrate((context) => buildPipeline(context, inputs), { onEvent: emit }),
 });
 // GET  /api/info       -> { notebook, inputs }    (input blocks, to build controls)
 // POST /api/run        -> { inputs } -> { outputs, summary, snapshotYaml }
 // POST /api/run-cloud   -> { inputs } -> runs it in Deepnote Cloud (needs DEEPNOTE_TOKEN)
 // POST /api/schedule-cloud -> { schedule: { frequency, time, ... }, timezone? } -> cloud schedule
+// POST /api/orchestrate -> NDJSON progress events, then the application-owned pipeline result
 // GET  /api/cloud-runs  -> { runs, viewUrl }       (for history/navigation)
 // any other GET         -> a file from `dir` (path-traversal guarded)
 await close();
@@ -165,6 +319,11 @@ projects. Frontends do not need their own creation lock.
 What that shared creation writes is the file as it stands. A `runInCloud` call's input overrides are
 sent with the run, not baked into the notebook it creates — otherwise a schedule that joined the
 same creation would inherit that run's one-off arguments as its recurring defaults.
+
+`orchestrationRunner` is optional. It receives the same input map as the single-run routes and an
+`emit` callback intended for `orchestrate`'s `onEvent`. `POST /api/orchestrate` streams
+newline-delimited JSON frames (`event`, then `result`, or `error`), which a plain page can consume
+incrementally without WebSockets.
 
 The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. Bring your own page
 — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no
