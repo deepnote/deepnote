@@ -170,7 +170,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   const blockMcpServers = block.metadata.deepnote_mcp_servers ?? []
   const mergedMcpConfig = mergeMcpConfigs(context.mcpServers, blockMcpServers)
 
-  let mcpClients: MCPClient[] = []
+  let mcpClients: Array<{ client: MCPClient; name: string }> = []
   try {
     const clientResults = await Promise.allSettled(
       mergedMcpConfig.map(s =>
@@ -184,7 +184,11 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         })
       )
     )
-    mcpClients = clientResults.filter(r => r.status === 'fulfilled').map(r => r.value)
+    mcpClients = clientResults.flatMap((result, index) =>
+      result.status === 'fulfilled'
+        ? [{ client: result.value, name: mergedMcpConfig[index]?.name ?? `server-${index + 1}` }]
+        : []
+    )
     const failed = clientResults.find(r => r.status === 'rejected')
     if (failed != null) {
       throw failed.reason
@@ -213,7 +217,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       },
     })
 
-    const mcpToolSets = await Promise.all(mcpClients.map(client => client.tools()))
+    const mcpToolSets = await Promise.all(mcpClients.map(({ client }) => client.tools()))
     const mcpTools: Record<string, unknown> = Object.assign({}, ...mcpToolSets)
 
     const agent = new ToolLoopAgent({
@@ -253,13 +257,12 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
       finalOutput: finalText ?? '',
     }
   } finally {
-    for (const [index, client] of mcpClients.entries()) {
+    for (const { client, name } of mcpClients) {
       try {
         await client.close()
       } catch (error) {
-        const serverName = mergedMcpConfig[index]?.name ?? `server-${index + 1}`
         const message = error instanceof Error ? error.message : String(error)
-        context.onWarning?.(`[agent] Failed to close MCP client "${serverName}": ${message}`)
+        context.onWarning?.(`[agent] Failed to close MCP client "${name}": ${message}`)
       }
     }
   }

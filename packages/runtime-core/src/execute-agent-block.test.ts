@@ -219,4 +219,31 @@ describe('executeAgentBlock MCP client cleanup', () => {
     expect(goodClient.close).toHaveBeenCalledTimes(1)
     expect(modelRef.current.doStreamCalls).toHaveLength(0)
   })
+
+  it('attributes close-failure warnings to the correct server when a failed startup precedes a successful one', async () => {
+    // Catches: close-failure warnings misattributed to the wrong MCP server when a failed startup precedes a successful one.
+    const startupFailure = new Error('spawn failed')
+    const goodClient = { tools: vi.fn(async () => ({})), close: vi.fn().mockRejectedValue(new Error('close boom')) }
+    createMCPClientMock.mockRejectedValueOnce(startupFailure).mockResolvedValueOnce(goodClient)
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+    const onWarning = vi.fn()
+
+    await expect(
+      executeAgentBlock(
+        AGENT_BLOCK,
+        makeContext({
+          onWarning,
+          mcpServers: [
+            { name: 'bad', command: 'boom', args: [] },
+            { name: 'good', command: 'ok', args: [] },
+          ],
+        })
+      )
+    ).rejects.toBe(startupFailure)
+
+    expect(onWarning).toHaveBeenCalledTimes(1)
+    expect(onWarning.mock.calls[0][0]).toContain('"good"')
+    expect(onWarning.mock.calls[0][0]).toContain('close boom')
+    expect(onWarning.mock.calls[0][0]).not.toContain('"bad"')
+  })
 })
