@@ -71,7 +71,7 @@ const syncProjectSchema = z
 const listProjectsPageSchema = z
   .object({
     projects: z.array(syncProjectSchema),
-    pagination: z.object({ nextPageToken: z.string().nullish() }).passthrough().optional(),
+    pagination: z.object({ nextPageToken: z.string().nullable() }).passthrough(),
   })
   .passthrough()
 
@@ -282,7 +282,7 @@ export async function listAllProjects(
     const parsed = await parseJsonResponse(response, listProjectsPageSchema, 'list projects')
 
     projects.push(...parsed.projects)
-    pageToken = parsed.pagination?.nextPageToken ?? undefined
+    pageToken = parsed.pagination.nextPageToken ?? undefined
     if (!pageToken) {
       return projects
     }

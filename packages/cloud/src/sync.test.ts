@@ -112,6 +112,15 @@ describe('listAllProjects', () => {
     await expect(listAllProjects(BASE_URL, TOKEN)).rejects.toThrow(/kept returning project pages/)
   })
 
+  it('rejects a response without pagination rather than treating it as complete', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ projects: [{ id: 'p1', name: 'One' }] }))
+
+    await expect(listAllProjects(BASE_URL, TOKEN)).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for list projects'),
+    })
+  })
+
   it('reports a non-JSON body as ApiError, not a SyntaxError', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce({
       ok: true,
