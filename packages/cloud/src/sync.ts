@@ -355,10 +355,17 @@ export async function exportProject(
   }
 
   const decoder = new TextDecoder('utf-8')
-  return Object.entries(entries)
-    .filter(([filename, bytes]) => filename.endsWith('.deepnote') && !filename.endsWith('/') && bytes.length > 0)
-    .map(([filename, bytes]) => ({ filename, content: decoder.decode(bytes) }))
-    .sort((a, b) => a.filename.localeCompare(b.filename))
+  const files: ExportedNotebookFile[] = []
+  for (const [filename, bytes] of Object.entries(entries)) {
+    if (!filename.endsWith('.deepnote') || filename.includes('/') || filename.includes('\\')) {
+      throw new ApiError(502, `Invalid Deepnote project export: unexpected ZIP entry "${filename}".`)
+    }
+    if (bytes.length === 0) {
+      throw new ApiError(502, `Invalid Deepnote project export: ZIP entry "${filename}" is empty.`)
+    }
+    files.push({ filename, content: decoder.decode(bytes) })
+  }
+  return files.sort((a, b) => a.filename.localeCompare(b.filename))
 }
 
 /**

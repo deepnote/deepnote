@@ -194,13 +194,17 @@ describe('exportProject', () => {
     expect(String(fetchSpy.mock.calls[0][0])).toBe(`${BASE_URL}/v2/projects/p1/export`)
   })
 
-  it('ignores non-.deepnote and empty entries', async () => {
-    const doc = 'version: 1.0.0\nproject:\n  id: p1\n'
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      response('', { bytes: zipArchive({ 'main.deepnote': doc, 'README.txt': 'ignore me', 'empty.deepnote': '' }) })
-    )
+  it.each([
+    ['non-.deepnote', { 'main.deepnote': 'valid', 'README.txt': 'unexpected' }, 'README.txt'],
+    ['nested', { 'folder/main.deepnote': 'unexpected' }, 'folder/main.deepnote'],
+    ['empty', { 'empty.deepnote': '' }, 'empty.deepnote'],
+  ])('rejects a ZIP containing a %s entry', async (_case, entries, invalidFilename) => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response('', { bytes: zipArchive(entries) }))
 
-    expect(await exportProject(BASE_URL, TOKEN, 'p1')).toEqual([{ filename: 'main.deepnote', content: doc }])
+    await expect(exportProject(BASE_URL, TOKEN, 'p1')).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining(invalidFilename),
+    })
   })
 
   it('returns an empty list for a project with no notebooks', async () => {
