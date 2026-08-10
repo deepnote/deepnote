@@ -175,6 +175,17 @@ describe('getProjectDetail', () => {
       message: expect.stringContaining('Invalid Deepnote response for fetch project'),
     })
   })
+
+  it('rejects a file inventory entry without updatedAt', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ project: { id: 'p1', name: 'One', files: [{ path: 'data/input.csv', size: 42 }] } })
+    )
+
+    await expect(getProjectDetail(BASE_URL, TOKEN, 'p1')).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for fetch project'),
+    })
+  })
 })
 
 describe('exportProject', () => {

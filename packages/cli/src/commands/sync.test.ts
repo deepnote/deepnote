@@ -72,7 +72,7 @@ function singleNotebook(projectId: string, modifiedAt: string, marker = 'v1'): N
 interface CloudFile {
   path: string
   size: number
-  updatedAt?: string
+  updatedAt: string
   content: string
 }
 
@@ -1014,7 +1014,14 @@ describe('syncWorkspace', () => {
         id: 'p1',
         name: 'Alpha',
         notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
-        files: [{ path: 'large.bin', size: MAX_BUFFERED_PROJECT_FILE_BYTES + 1, content: 'small fixture' }],
+        files: [
+          {
+            path: 'large.bin',
+            size: MAX_BUFFERED_PROJECT_FILE_BYTES + 1,
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            content: 'small fixture',
+          },
+        ],
       },
     ]
     const cloud = installCloud(projects)

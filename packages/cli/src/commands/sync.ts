@@ -372,7 +372,7 @@ async function syncProjectFiles(
 
     assertBufferedProjectFileSize(entry.path, entry.size)
 
-    const base = { size: entry.size, ...(entry.updatedAt ? { updatedAt: entry.updatedAt } : {}) }
+    const base = { size: entry.size, updatedAt: entry.updatedAt }
     if (!ctx.dryRun) {
       const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path)
       await writeFileEnsuringDir(absolutePath, bytes)

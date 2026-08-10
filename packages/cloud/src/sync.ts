@@ -80,12 +80,12 @@ const listProjectsPageSchema = z
   .passthrough()
 
 /** `size` and `updatedAt` are the inventory's change fingerprint for incremental file sync, so a
- * response without a size is treated as invalid rather than guessed at. */
+ * response missing either field is treated as invalid rather than guessed at. */
 const projectFileEntrySchema = z
   .object({
     path: z.string(),
     size: z.number(),
-    updatedAt: z.string().optional(),
+    updatedAt: z.string(),
   })
   .passthrough()
 
@@ -152,7 +152,7 @@ export interface SyncProject {
 export interface ProjectFileEntry {
   path: string
   size: number
-  updatedAt?: string
+  updatedAt: string
 }
 
 export interface ProjectDetail extends SyncProject {
