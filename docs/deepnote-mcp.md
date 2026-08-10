@@ -57,6 +57,8 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `create_block`: Create a new block (SQL, Python, text, etc.) in a notebook.
 - `update_block`: Update the contents of an existing block.
 - `reorder_notebook_blocks`: Move one or more blocks to a new position within a notebook.
+- `duplicate_notebook`: Duplicate an existing notebook within a project.
+- `generate_project_url`: Generate a link to a Deepnote project or notebook, so an agent can hand you a URL to what it built.
 
 ### Running notebooks
 
@@ -71,6 +73,9 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `list_integration_project_usages`: List projects connected to an integration.
 - `list_integration_notebook_usages`: List notebooks that contain SQL blocks using an integration.
 - `list_integration_block_usages`: List SQL blocks that use an integration.
+- `create_integration`: Create a new workspace integration.
+- `attach_integration`: Attach an existing integration to a project.
+- `detach_integration`: Detach an integration from a project.
 
 ### Documentation
 
