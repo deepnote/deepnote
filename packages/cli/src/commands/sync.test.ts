@@ -802,7 +802,7 @@ describe('syncWorkspace', () => {
     expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
   })
 
-  it('rejects and cleans up a file replacement stored under a uniquified path', async () => {
+  it('rejects and cleans up a file replacement stored under a different path', async () => {
     const projects: CloudProject[] = [
       {
         id: 'p1',
