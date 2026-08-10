@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { isErrnoENOENT } from './file-resolver'
+import { isSafeRelativeFilePath } from './sync-paths'
 
 /**
  * The sync manifest: `deepnote sync`'s local state file, written to the root of the synced
@@ -37,7 +38,7 @@ const manifestFileRecordSchema = z.object({
 })
 
 const manifestProjectRecordSchema = z.object({
-  dir: z.string(),
+  dir: z.string().refine(isSafeRelativeFilePath, 'must be a safe root-relative path'),
   notebooks: z.array(z.string()),
   modifiedAt: z.string().optional(),
   contentHash: z.string(),
@@ -92,6 +93,27 @@ export async function loadSyncManifest(rootDir: string): Promise<SyncManifest> {
         `${parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')}. ` +
         'Fix or delete it (deleting re-syncs everything from scratch).'
     )
+  }
+
+  // A lexically safe path can still escape through a symlink below the sync root.
+  for (const record of Object.values(parsed.data.projects)) {
+    let currentPath = rootDir
+    for (const segment of record.dir.split('/')) {
+      currentPath = path.join(currentPath, segment)
+      try {
+        if ((await fs.lstat(currentPath)).isSymbolicLink()) {
+          throw new Error(
+            `The sync manifest at ${manifestPath} contains a project directory with a symbolic-link ancestor: ${record.dir}. ` +
+              'Fix or delete it (deleting re-syncs everything from scratch).'
+          )
+        }
+      } catch (error) {
+        if (isErrnoENOENT(error)) {
+          break
+        }
+        throw error
+      }
+    }
   }
   return parsed.data
 }

@@ -55,6 +55,29 @@ describe('loadSyncManifest', () => {
 
     await expect(loadSyncManifest(tempDir)).rejects.toThrow(/unexpected shape/)
   })
+
+  it('rejects a project directory that escapes the sync root', async () => {
+    const manifest = { version: 1, projects: { p1: { dir: '..', notebooks: [], contentHash: 'hash' } } }
+    await fs.writeFile(path.join(tempDir, SYNC_MANIFEST_FILENAME), JSON.stringify(manifest), 'utf-8')
+
+    await expect(loadSyncManifest(tempDir)).rejects.toThrow(/must be a safe root-relative path/)
+  })
+
+  it('rejects a project directory with a symbolic-link ancestor', async () => {
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-manifest-outside-'))
+    await fs.symlink(outsideDir, path.join(tempDir, 'linked'))
+    const manifest = {
+      version: 1,
+      projects: { p1: { dir: 'linked/Project', notebooks: [], contentHash: 'hash' } },
+    }
+    await fs.writeFile(path.join(tempDir, SYNC_MANIFEST_FILENAME), JSON.stringify(manifest), 'utf-8')
+
+    try {
+      await expect(loadSyncManifest(tempDir)).rejects.toThrow(/symbolic-link ancestor/)
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('saveSyncManifest', () => {
