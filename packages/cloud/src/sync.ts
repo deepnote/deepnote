@@ -87,7 +87,7 @@ const projectFileEntrySchema = z
 
 const projectDetailSchema = z
   .object({
-    project: syncProjectSchema.extend({ files: z.array(projectFileEntrySchema).optional() }),
+    project: syncProjectSchema.extend({ files: z.array(projectFileEntrySchema) }),
   })
   .passthrough()
 
@@ -310,8 +310,7 @@ export async function getProjectDetail(
     'Failed to fetch Deepnote project'
   )
   const parsed = await parseJsonResponse(response, projectDetailSchema, 'fetch project')
-  const { files, ...project } = parsed.project
-  return { ...project, files: files ?? [] }
+  return parsed.project
 }
 
 /**
