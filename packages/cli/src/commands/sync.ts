@@ -700,6 +700,14 @@ async function syncOneProject(
  * never touched. Sync does not create cloud projects, and never deletes content without --prune. */
 async function findUntrackedDeepnoteFiles(ctx: SyncContext, trackedDirs: Set<string>): Promise<string[]> {
   const untracked: string[] = []
+  try {
+    await fs.access(ctx.rootDir)
+  } catch (error) {
+    if (isErrnoENOENT(error)) {
+      return untracked
+    }
+    throw error
+  }
   const isInsideTrackedProject = (relative: string): boolean => {
     for (const dir of trackedDirs) {
       if (relative === dir || relative.startsWith(`${dir}/`)) {
@@ -731,7 +739,10 @@ async function findUntrackedDeepnoteFiles(ctx: SyncContext, trackedDirs: Set<str
 /** The sync itself, exported for tests; `createSyncAction` adds CLI error/output handling. */
 export async function syncWorkspace(dir: string | undefined, options: SyncOptions): Promise<SyncResult> {
   const rootDir = path.resolve(process.cwd(), dir ?? '.')
-  await fs.mkdir(rootDir, { recursive: true })
+  const dryRun = options.dryRun ?? false
+  if (!dryRun) {
+    await fs.mkdir(rootDir, { recursive: true })
+  }
 
   // Load .env from the sync root before reading the token — mirrors `run --cloud`.
   dotenv.config({ path: path.join(rootDir, DEFAULT_ENV_FILE), quiet: true })
@@ -754,7 +765,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     token,
     options,
     conflictMode,
-    dryRun: options.dryRun ?? false,
+    dryRun,
   }
   const progress = (message: string) => {
     if (!isMachineOutput) {

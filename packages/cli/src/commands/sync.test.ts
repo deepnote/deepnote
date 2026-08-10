@@ -5,7 +5,7 @@ import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
-import { loadSyncManifest, SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
+import { loadSyncManifest } from '../utils/sync-manifest'
 import { canonicalProjectHash, classifySyncStep, readExportModifiedAt, syncWorkspace } from './sync'
 
 // `select` is mocked so a conflict prompt can be driven (e.g. simulate a Ctrl+C rejection). Tests
@@ -1049,13 +1049,13 @@ describe('syncWorkspace', () => {
 
   it('writes nothing at all in a dry run', async () => {
     installCloud([{ id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') }])
+    const missingRoot = path.join(tempDir, 'missing')
 
-    const result = await syncWorkspace(tempDir, { ...baseOptions, dryRun: true })
+    const result = await syncWorkspace(missingRoot, { ...baseOptions, dryRun: true })
 
     expect(result.dryRun).toBe(true)
     expect(result.projects).toEqual([expect.objectContaining({ action: 'pulled' })])
-    await expect(fs.stat(path.join(tempDir, 'Alpha'))).rejects.toThrow()
-    await expect(fs.stat(path.join(tempDir, SYNC_MANIFEST_FILENAME))).rejects.toThrow()
+    await expect(fs.stat(missingRoot)).rejects.toThrow()
   })
 
   it('isolates a failing project so the rest of the workspace still syncs', async () => {
