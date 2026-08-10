@@ -1002,6 +1002,7 @@ describe('syncWorkspace', () => {
       ])
       expect(cloud.downloadedPaths).toEqual([])
       expect(cloud.uploadedPaths).toEqual([])
+      expect(cloud.deletedPaths).toEqual([])
       expect(await fs.readFile(path.join(outsideDir, 'private.txt'), 'utf-8')).toBe('private')
     } finally {
       await fs.rm(outsideDir, { recursive: true, force: true })
