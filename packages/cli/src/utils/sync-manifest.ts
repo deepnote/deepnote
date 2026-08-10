@@ -31,6 +31,15 @@ import { isSafeRelativeFilePath } from './sync-paths'
 
 export const SYNC_MANIFEST_FILENAME = '.deepnote-sync.json'
 
+const RESERVED_PROJECT_DIR_SEGMENTS = new Set(['.git', '.files', SYNC_MANIFEST_FILENAME])
+
+function isSafeProjectDirectory(dir: string): boolean {
+  return (
+    isSafeRelativeFilePath(dir) &&
+    dir.split('/').every(segment => !RESERVED_PROJECT_DIR_SEGMENTS.has(segment.toLowerCase()))
+  )
+}
+
 const manifestFileRecordSchema = z.object({
   size: z.number(),
   updatedAt: z.string().optional(),
@@ -40,7 +49,7 @@ const manifestFileRecordSchema = z.object({
 })
 
 const manifestProjectRecordSchema = z.object({
-  dir: z.string().refine(isSafeRelativeFilePath, 'must be a safe root-relative path'),
+  dir: z.string().refine(isSafeProjectDirectory, 'must be a safe root-relative path without reserved segments'),
   notebooks: z.array(z.string()),
   modifiedAt: z.string().optional(),
   contentHash: z.string(),
@@ -63,6 +72,40 @@ export function emptySyncManifest(): SyncManifest {
   return { version: 1, projects: {} }
 }
 
+/** Reject an existing symbolic link anywhere in a root-relative path. This protects against static
+ * links in a checked-out sync directory; concurrent filesystem mutation is outside sync's scope. */
+export async function assertNoSymbolicLinkAncestors(rootDir: string, relativePath: string): Promise<void> {
+  let currentPath = rootDir
+  for (const segment of relativePath.split('/')) {
+    currentPath = path.join(currentPath, segment)
+    try {
+      if ((await fs.lstat(currentPath)).isSymbolicLink()) {
+        throw new Error(`Path "${relativePath}" contains a symbolic-link ancestor`)
+      }
+    } catch (error) {
+      if (isErrnoENOENT(error)) {
+        return
+      }
+      throw error
+    }
+  }
+}
+
+/** Return whether the manifest exists, rejecting both valid and broken symbolic links. */
+async function manifestExistsWithoutSymbolicLink(manifestPath: string): Promise<boolean> {
+  try {
+    if ((await fs.lstat(manifestPath)).isSymbolicLink()) {
+      throw new Error(`The sync manifest at ${manifestPath} must not be a symbolic link.`)
+    }
+    return true
+  } catch (error) {
+    if (isErrnoENOENT(error)) {
+      return false
+    }
+    throw error
+  }
+}
+
 /**
  * Load the manifest from `rootDir`, or an empty one when none exists (a first sync).
  *
@@ -72,6 +115,9 @@ export function emptySyncManifest(): SyncManifest {
  */
 export async function loadSyncManifest(rootDir: string): Promise<SyncManifest> {
   const manifestPath = path.join(rootDir, SYNC_MANIFEST_FILENAME)
+  if (!(await manifestExistsWithoutSymbolicLink(manifestPath))) {
+    return emptySyncManifest()
+  }
   let content: string
   try {
     content = await fs.readFile(manifestPath, 'utf-8')
@@ -100,25 +146,8 @@ export async function loadSyncManifest(rootDir: string): Promise<SyncManifest> {
     )
   }
 
-  // A lexically safe path can still escape through a symlink below the sync root.
   for (const record of Object.values(parsed.data.projects)) {
-    let currentPath = rootDir
-    for (const segment of record.dir.split('/')) {
-      currentPath = path.join(currentPath, segment)
-      try {
-        if ((await fs.lstat(currentPath)).isSymbolicLink()) {
-          throw new Error(
-            `The sync manifest at ${manifestPath} contains a project directory with a symbolic-link ancestor: ${record.dir}. ` +
-              'Fix or delete it (deleting re-syncs everything from scratch).'
-          )
-        }
-      } catch (error) {
-        if (isErrnoENOENT(error)) {
-          break
-        }
-        throw error
-      }
-    }
+    await assertNoSymbolicLinkAncestors(rootDir, record.dir)
   }
   return parsed.data
 }
@@ -126,6 +155,8 @@ export async function loadSyncManifest(rootDir: string): Promise<SyncManifest> {
 /** Write the manifest with sorted project ids and file paths, so repeated syncs produce stable,
  * git-diffable output. */
 export async function saveSyncManifest(rootDir: string, manifest: SyncManifest): Promise<void> {
+  const manifestPath = path.join(rootDir, SYNC_MANIFEST_FILENAME)
+  await manifestExistsWithoutSymbolicLink(manifestPath)
   const sortedProjects = Object.fromEntries(
     Object.entries(manifest.projects)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -144,5 +175,5 @@ export async function saveSyncManifest(rootDir: string, manifest: SyncManifest):
       ])
   )
   const content = `${JSON.stringify({ version: manifest.version, projects: sortedProjects }, null, 2)}\n`
-  await fs.writeFile(path.join(rootDir, SYNC_MANIFEST_FILENAME), content, 'utf-8')
+  await fs.writeFile(manifestPath, content, 'utf-8')
 }

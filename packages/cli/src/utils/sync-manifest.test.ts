@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  assertNoSymbolicLinkAncestors,
   emptySyncManifest,
   loadSyncManifest,
   SYNC_MANIFEST_FILENAME,
@@ -64,6 +65,16 @@ describe('loadSyncManifest', () => {
     await expect(loadSyncManifest(tempDir)).rejects.toThrow(/must be a safe root-relative path/)
   })
 
+  it.each(['.git', 'Project/.files', SYNC_MANIFEST_FILENAME])(
+    'rejects the reserved project directory %s',
+    async dir => {
+      const manifest = { version: 1, projects: { p1: { dir, notebooks: [], contentHash: 'hash' } } }
+      await fs.writeFile(path.join(tempDir, SYNC_MANIFEST_FILENAME), JSON.stringify(manifest), 'utf-8')
+
+      await expect(loadSyncManifest(tempDir)).rejects.toThrow(/without reserved segments/)
+    }
+  )
+
   it('rejects a project directory with a symbolic-link ancestor', async () => {
     const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-manifest-outside-'))
     await fs.symlink(outsideDir, path.join(tempDir, 'linked'))
@@ -90,6 +101,36 @@ describe('loadSyncManifest', () => {
     await fs.writeFile(path.join(tempDir, SYNC_MANIFEST_FILENAME), JSON.stringify(manifest), 'utf-8')
 
     await expect(loadSyncManifest(tempDir)).rejects.toThrow(/must be a safe project-relative path/)
+  })
+
+  it('rejects a symbolic link in a nested filesystem target', async () => {
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-manifest-outside-'))
+    await fs.mkdir(path.join(tempDir, 'Project', '.files'), { recursive: true })
+    await fs.symlink(outsideDir, path.join(tempDir, 'Project', '.files', 'data'))
+
+    try {
+      await expect(assertNoSymbolicLinkAncestors(tempDir, 'Project/.files/data/input.csv')).rejects.toThrow(
+        /symbolic-link ancestor/
+      )
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not read or write through a symbolic-link manifest', async () => {
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-manifest-outside-'))
+    const outsideManifest = path.join(outsideDir, 'manifest.json')
+    await fs.writeFile(outsideManifest, JSON.stringify(emptySyncManifest()), 'utf-8')
+    await fs.symlink(outsideManifest, path.join(tempDir, SYNC_MANIFEST_FILENAME))
+
+    try {
+      await expect(loadSyncManifest(tempDir)).rejects.toThrow(/must not be a symbolic link/)
+      await fs.rm(outsideManifest)
+      await expect(saveSyncManifest(tempDir, emptySyncManifest())).rejects.toThrow(/must not be a symbolic link/)
+      await expect(fs.stat(outsideManifest)).rejects.toThrow()
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true })
+    }
   })
 })
 

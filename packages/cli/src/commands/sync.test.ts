@@ -975,6 +975,39 @@ describe('syncWorkspace', () => {
     consoleErrorSpy.mockRestore()
   })
 
+  it('rejects a symbolic-link working-files directory before reading or writing through it', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        files: [{ path: 'report.csv', size: 5, updatedAt: '2026-01-01T00:00:00.000Z', content: 'cloud' }],
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-files-outside-'))
+    await fs.writeFile(path.join(outsideDir, 'private.txt'), 'private', 'utf-8')
+    await fs.symlink(outsideDir, path.join(tempDir, 'Alpha', '.files'))
+
+    try {
+      const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      expect(result.projects).toEqual([
+        expect.objectContaining({
+          action: 'error',
+          detail: 'Path "Alpha/.files" contains a symbolic-link ancestor',
+        }),
+      ])
+      expect(cloud.downloadedPaths).toEqual([])
+      expect(cloud.uploadedPaths).toEqual([])
+      expect(await fs.readFile(path.join(outsideDir, 'private.txt'), 'utf-8')).toBe('private')
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true })
+    }
+  })
+
   it('rejects an oversized working-directory file before downloading it', async () => {
     const projects: CloudProject[] = [
       {

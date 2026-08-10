@@ -25,6 +25,7 @@ import { debug, getChalk, log, outputJson, warn } from '../output'
 import { MissingTokenError } from '../utils/auth'
 import { isErrnoENOENT } from '../utils/file-resolver'
 import {
+  assertNoSymbolicLinkAncestors,
   loadSyncManifest,
   type ManifestFileRecord,
   type ManifestProjectRecord,
@@ -297,6 +298,7 @@ async function writeProjectNotebooks(
     }
     existingNotebookNames.add(file.filename)
     kept.add(file.filename)
+    await assertNoSymbolicLinkAncestors(ctx.rootDir, `${projectDir}/${file.filename}`)
     await writeFileEnsuringDir(path.join(dirAbsolute, ...file.filename.split('/')), file.content)
   }
 
@@ -342,6 +344,7 @@ async function syncProjectFiles(
   plan: PlannedProjectPaths,
   record: ManifestProjectRecord
 ): Promise<number> {
+  await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.filesDir)
   const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
   const previous = record.files ?? {}
   const next: Record<string, ManifestFileRecord> = {}
@@ -353,6 +356,7 @@ async function syncProjectFiles(
       continue
     }
 
+    await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${entry.path}`)
     const absolutePath = path.join(toAbsolute(ctx, plan.filesDir), ...entry.path.split('/'))
     const prev = previous[entry.path]
     const unchanged =
@@ -387,6 +391,7 @@ async function syncProjectFiles(
       continue
     }
     if (ctx.options.prune && !ctx.dryRun && isSafeRelativeFilePath(stalePath)) {
+      await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
       await fs.rm(path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/')), { force: true })
     }
   }
@@ -506,6 +511,7 @@ async function uploadProjectFiles(
   persistManifest: () => Promise<void>
 ): Promise<number> {
   const filesDirAbsolute = toAbsolute(ctx, plan.filesDir)
+  await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.filesDir)
   const previous = record.files ?? {}
   const next: Record<string, ManifestFileRecord> = { ...previous }
   const pending = new Set(record.pendingFileUploads ?? [])
@@ -526,6 +532,7 @@ async function uploadProjectFiles(
       warn(`Skipping local file with unsafe path in "${project.name}": ${relPath}`)
       continue
     }
+    await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${relPath}`)
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
     const stats = await fs.stat(absolute)
     assertBufferedProjectFileSize(relPath, stats.size)
@@ -590,6 +597,7 @@ async function syncOneProject(
   }
 
   try {
+    await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.projectDir)
     const moveNote = record ? await moveTrackedProjectDir(ctx, record, plan) : undefined
 
     // In a dry run the move above did not happen, so the directory is still at its manifest path.
