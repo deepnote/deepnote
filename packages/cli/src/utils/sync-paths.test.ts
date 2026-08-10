@@ -70,6 +70,17 @@ describe('planProjectPaths', () => {
     expect(plans.get('cccc3333-0000-0000-0000-000000000000')?.projectDir).toBe('Unrelated')
   })
 
+  it('reserves space for collision suffixes on maximum-length names', () => {
+    const name = 'a'.repeat(120)
+    const plans = planProjectPaths([
+      { id: 'aaaaaaaa-project', name },
+      { id: 'bbbbbbbb-project', name },
+    ])
+
+    expect(plans.get('aaaaaaaa-project')?.projectDir).toBe(`${'a'.repeat(109)} (aaaaaaaa)`)
+    expect(plans.get('bbbbbbbb-project')?.projectDir).toBe(`${'a'.repeat(109)} (bbbbbbbb)`)
+  })
+
   it('falls back to the full id when even short ids collide', () => {
     const plans = planProjectPaths([
       { id: 'aaaa1111-0000-0000-0000-000000000001', name: 'Report' },

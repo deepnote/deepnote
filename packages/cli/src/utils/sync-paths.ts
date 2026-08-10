@@ -37,7 +37,7 @@ export function sanitizePathSegment(name: string): string {
     return '_'
   }
   if (cleaned.startsWith('.')) {
-    return `_${cleaned}`
+    return `_${cleaned.slice(0, MAX_SEGMENT_LENGTH - 1)}`
   }
   if (RESERVED_SEGMENT.test(cleaned)) {
     return `_${cleaned}`
@@ -78,6 +78,15 @@ function pathsOverlap(left: string, right: string): boolean {
   return leftKey === rightKey || leftKey.startsWith(`${rightKey}/`) || rightKey.startsWith(`${leftKey}/`)
 }
 
+function appendPathSuffix(name: string, suffix: string): string {
+  const safeSuffix = sanitizePathSegment(suffix).slice(0, MAX_SEGMENT_LENGTH - 4)
+  const suffixText = ` (${safeSuffix})`
+  const base = sanitizePathSegment(name)
+    .slice(0, MAX_SEGMENT_LENGTH - suffixText.length)
+    .replace(/[. ]+$/, '')
+  return `${base || '_'}${suffixText}`
+}
+
 /**
  * Plan a local directory for every project, resolving collisions deterministically.
  *
@@ -92,7 +101,7 @@ function pathsOverlap(left: string, right: string): boolean {
  */
 export function planProjectPaths(projects: readonly PlannableProject[]): Map<string, PlannedProjectPaths> {
   const withSuffix = (project: PlannableProject, suffix: string | null): string =>
-    buildDir(project, sanitizePathSegment(suffix ? `${project.name} (${suffix})` : project.name))
+    buildDir(project, suffix ? appendPathSuffix(project.name, suffix) : sanitizePathSegment(project.name))
 
   const attempts: Array<(project: PlannableProject) => string> = [
     project => withSuffix(project, null),
