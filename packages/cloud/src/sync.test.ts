@@ -351,6 +351,17 @@ describe('uploadProjectFile', () => {
     expect(form.get('file')).toBeInstanceOf(Blob)
     expect(stored).toEqual({ path: 'data/input.csv', size: 3, updatedAt: '2026-01-02T00:00:00.000Z' })
   })
+
+  it('rejects a response without the actual stored path', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ file: { size: 3 } }))
+
+    await expect(
+      uploadProjectFile(BASE_URL, TOKEN, 'p1', 'data/input.csv', new TextEncoder().encode('a,b'))
+    ).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for upload file'),
+    })
+  })
 })
 
 describe('deleteProjectFile', () => {

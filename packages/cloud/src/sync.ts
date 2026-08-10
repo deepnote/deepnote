@@ -112,7 +112,7 @@ const importProjectResponseSchema = z
 const uploadFileResponseSchema = z
   .object({
     file: z
-      .object({ path: z.string().optional(), size: z.number().optional(), updatedAt: z.string().optional() })
+      .object({ path: z.string().min(1), size: z.number().optional(), updatedAt: z.string().optional() })
       .passthrough(),
   })
   .passthrough()
@@ -460,7 +460,7 @@ export async function downloadProjectFile(
 
 /** A working-directory file after an upload, as the inventory reports it. */
 export interface UploadedFile {
-  path?: string
+  path: string
   size?: number
   updatedAt?: string
 }

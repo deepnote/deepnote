@@ -90,6 +90,8 @@ interface CloudProject {
   importError?: { status: number; message: string }
   /** A file-upload error to surface after the replacement delete. */
   fileUploadError?: { status: number; message: string }
+  /** The actual path returned by a successful file upload. */
+  fileUploadPath?: string
   /** The canonical export the cloud holds after a successful import. */
   notebooksAfterImport?: NotebookFile[]
   /** The canonical project name after a successful document-driven rename. */
@@ -204,7 +206,16 @@ function installCloud(projects: CloudProject[]): InstalledCloud {
       if (uploadError) {
         return respond({ message: uploadError.message }, { status: uploadError.status })
       }
-      return respond({ file: { path: uploadPath, size: 7, updatedAt: '2026-01-09T00:00:00.000Z' } }, { status: 201 })
+      return respond(
+        {
+          file: {
+            path: byId(projectId)?.fileUploadPath ?? uploadPath,
+            size: 7,
+            updatedAt: '2026-01-09T00:00:00.000Z',
+          },
+        },
+        { status: 201 }
+      )
     }
 
     const detailMatch = url.pathname.match(/^\/v2\/projects\/([^/]+)$/)
@@ -732,6 +743,40 @@ describe('syncWorkspace', () => {
     expect(cloud.uploadedPaths).toEqual(['p1:data/input.csv', 'p1:data/input.csv'])
     expect(await fs.readFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'utf-8')).toBe('x,y')
     expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
+  })
+
+  it('rejects and cleans up a file replacement stored under a uniquified path', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [],
+        fileUploadPath: 'data/input-20260810-120000.csv',
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    await fs.writeFile(
+      path.join(tempDir, 'Alpha', 'main.deepnote'),
+      notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+      'utf-8'
+    )
+    await fs.mkdir(path.join(tempDir, 'Alpha', '.files', 'data'), { recursive: true })
+    await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'a,b', 'utf-8')
+
+    const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    expect(result.projects).toEqual([
+      expect.objectContaining({
+        action: 'error',
+        detail: 'Deepnote stored "data/input.csv" at unexpected path "data/input-20260810-120000.csv"',
+      }),
+    ])
+    expect(cloud.deletedPaths).toEqual(['p1:data/input.csv', 'p1:data/input-20260810-120000.csv'])
+    expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['data/input.csv'])
   })
 
   it('treats "changed locally AND in the cloud" as a conflict: override takes the cloud version', async () => {

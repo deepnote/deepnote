@@ -516,6 +516,10 @@ async function uploadProjectFiles(
       }
       await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
       const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
+      if (stored.path !== relPath) {
+        await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, stored.path)
+        throw new Error(`Deepnote stored "${relPath}" at unexpected path "${stored.path}"`)
+      }
       next[relPath] = {
         size: stored.size ?? bytes.length,
         hash,
