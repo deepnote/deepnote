@@ -739,6 +739,7 @@ describe('syncWorkspace', () => {
       ]
       installCloud(projects)
       await syncWorkspace(tempDir, baseOptions)
+      projects.push({ id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') })
 
       // Force a both-sides conflict so the (mocked) prompt fires, then have it reject like Ctrl+C.
       await fs.writeFile(
@@ -750,6 +751,7 @@ describe('syncWorkspace', () => {
 
       await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
       expect(select).toHaveBeenCalled()
+      await expect(fs.access(path.join(tempDir, 'Beta'))).rejects.toThrow()
     } finally {
       if (priorStdin) Object.defineProperty(process.stdin, 'isTTY', priorStdin)
       else Reflect.deleteProperty(process.stdin, 'isTTY')
