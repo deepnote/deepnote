@@ -79,7 +79,9 @@ cloud-rename path. Renaming the local directory itself does not rename the cloud
 With `--all-files`, working-directory files sync in the notebook's direction: pulled projects
 download changed files into a `.files/` subdirectory (incremental, by inventory `size`/`updatedAt`);
 pushed projects upload changed local files (delete-then-upload, since `POST /v2/files` will not
-overwrite). Files removed locally are not deleted in the cloud.
+overwrite). Replacement paths are persisted before deletion, so an interrupted upload is retried on
+the next `--all-files` sync instead of being treated as a cloud deletion. Files removed locally are
+not deleted in the cloud.
 
 ## Boundaries
 

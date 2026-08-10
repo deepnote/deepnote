@@ -23,6 +23,8 @@ import { isSafeRelativeFilePath } from './sync-paths'
  *   fresh export against it separates "local edit", "cloud edit", and "both" without any clocks.
  * - `files`: per-path `size`/`updatedAt` from the last `--all-files` sync, for incremental
  *   downloads.
+ * - `pendingFileUploads`: replacements persisted before deleting the cloud copy, so an interrupted
+ *   delete-then-upload is retried instead of being mistaken for a cloud deletion.
  *
  * The file is plain JSON with sorted keys, so it diffs cleanly if the user commits it to git.
  */
@@ -43,6 +45,9 @@ const manifestProjectRecordSchema = z.object({
   modifiedAt: z.string().optional(),
   contentHash: z.string(),
   files: z.record(z.string(), manifestFileRecordSchema).optional(),
+  pendingFileUploads: z
+    .array(z.string().refine(isSafeRelativeFilePath, 'must be a safe project-relative path'))
+    .optional(),
 })
 
 const syncManifestSchema = z.object({
@@ -131,6 +136,9 @@ export async function saveSyncManifest(rootDir: string, manifest: SyncManifest):
           notebooks: [...record.notebooks].sort((a, b) => a.localeCompare(b)),
           ...(record.files
             ? { files: Object.fromEntries(Object.entries(record.files).sort(([a], [b]) => a.localeCompare(b))) }
+            : {}),
+          ...(record.pendingFileUploads
+            ? { pendingFileUploads: [...record.pendingFileUploads].sort((a, b) => a.localeCompare(b)) }
             : {}),
         },
       ])

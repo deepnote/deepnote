@@ -77,7 +77,7 @@ export interface ProjectSyncOutcome {
   notebooks?: ImportedNotebook[]
   /** Number of working-directory files downloaded (`--all-files` pull only). */
   filesDownloaded?: number
-  /** Number of working-directory files uploaded (`--all-files` push only). */
+  /** Number of working-directory files uploaded (`--all-files` push or replacement retry). */
   filesUploaded?: number
 }
 
@@ -467,23 +467,32 @@ async function listLocalFilesRecursive(dirAbsolute: string): Promise<string[]> {
 }
 
 /**
- * Upload changed working-directory files on push (`--all-files`). A file that is new locally, or
- * whose size differs from the manifest, is uploaded (delete-then-upload, since `POST /v2/files`
- * refuses to overwrite). Last-write-wins, no staleness check — matching the server's file surface.
- * Files removed locally are deliberately not deleted in the cloud (too destructive to infer).
+ * Upload changed working-directory files on push (`--all-files`). A file that is new locally, whose
+ * content hash differs from the manifest, or whose previous replacement is pending gets uploaded.
+ * Replacement paths are persisted before delete-then-upload because `POST /v2/files` refuses to
+ * overwrite. Last-write-wins, no staleness check — matching the server's file surface. Files removed
+ * locally are deliberately not deleted in the cloud (too destructive to infer).
  */
 async function uploadProjectFiles(
   ctx: SyncContext,
   project: SyncProject,
   plan: PlannedProjectPaths,
-  record: ManifestProjectRecord
+  record: ManifestProjectRecord,
+  persistManifest: () => Promise<void>
 ): Promise<number> {
   const filesDirAbsolute = toAbsolute(ctx, plan.filesDir)
   const previous = record.files ?? {}
   const next: Record<string, ManifestFileRecord> = { ...previous }
+  const pending = new Set(record.pendingFileUploads ?? [])
   let uploaded = 0
 
-  for (const relPath of await listLocalFilesRecursive(filesDirAbsolute)) {
+  const localPaths = await listLocalFilesRecursive(filesDirAbsolute)
+  const missingPendingPaths = [...pending].filter(relPath => !localPaths.includes(relPath))
+  if (missingPendingPaths.length > 0) {
+    throw new Error(`Cannot retry file upload because the local file is missing: ${missingPendingPaths.join(', ')}`)
+  }
+
+  for (const relPath of localPaths) {
     if (!isSafeRelativeFilePath(relPath)) {
       warn(`Skipping local file with unsafe path in "${project.name}": ${relPath}`)
       continue
@@ -494,18 +503,29 @@ async function uploadProjectFiles(
     const bytes = await fs.readFile(absolute)
     const hash = sha256(bytes)
     const prev = previous[relPath]
-    if (prev && prev.size === bytes.length && prev.hash === hash) {
+    if (!pending.has(relPath) && prev && prev.size === bytes.length && prev.hash === hash) {
       next[relPath] = prev
       continue
     }
 
     if (!ctx.dryRun) {
+      if (!pending.has(relPath)) {
+        pending.add(relPath)
+        record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
+        await persistManifest()
+      }
       await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
       const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
       next[relPath] = {
         size: stored.size ?? bytes.length,
         hash,
         ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}),
+      }
+      pending.delete(relPath)
+      if (pending.size > 0) {
+        record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
+      } else {
+        delete record.pendingFileUploads
       }
     } else {
       next[relPath] = { size: bytes.length, hash }
@@ -525,7 +545,8 @@ async function syncOneProject(
   project: SyncProject,
   plan: PlannedProjectPaths,
   record: ManifestProjectRecord | undefined,
-  manifestProjects: Record<string, ManifestProjectRecord>
+  manifestProjects: Record<string, ManifestProjectRecord>,
+  persistManifest: () => Promise<void>
 ): Promise<ProjectSyncOutcome> {
   const base: Pick<ProjectSyncOutcome, 'projectId' | 'name' | 'path'> = {
     projectId: project.id,
@@ -555,6 +576,7 @@ async function syncOneProject(
         modifiedAt: readExportModifiedAt(files[0]?.content),
         contentHash: canonicalProjectHash(files),
         ...(fileRecords ? { files: fileRecords } : {}),
+        ...(record?.pendingFileUploads?.length ? { pendingFileUploads: record.pendingFileUploads } : {}),
       }
     }
 
@@ -617,12 +639,12 @@ async function syncOneProject(
 
     // File sync runs for projects that synced cleanly; a skipped conflict skips files too, so a
     // "skip" answer really does leave the project's local footprint untouched. Files follow the
-    // notebook direction: a pushed project uploads its local files, everything else downloads.
+    // notebook direction, except a replacement persisted before deletion is always retried first.
     if (ctx.options.allFiles && outcome.action !== 'skipped-conflict') {
       const currentRecord = manifestProjects[project.id] ?? record
       if (currentRecord) {
-        if (outcome.action === 'pushed') {
-          outcome.filesUploaded = await uploadProjectFiles(ctx, project, plan, currentRecord)
+        if (outcome.action === 'pushed' || currentRecord.pendingFileUploads?.length) {
+          outcome.filesUploaded = await uploadProjectFiles(ctx, project, plan, currentRecord, persistManifest)
         } else {
           outcome.filesDownloaded = await syncProjectFiles(ctx, project, plan, currentRecord)
         }
@@ -726,7 +748,9 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     if (!plan) {
       continue
     }
-    const outcome = await syncOneProject(ctx, project, plan, manifest.projects[project.id], manifest.projects)
+    const outcome = await syncOneProject(ctx, project, plan, manifest.projects[project.id], manifest.projects, () =>
+      saveSyncManifest(rootDir, manifest)
+    )
     outcomes.push(outcome)
     progress(renderOutcomeLine(outcome))
   }

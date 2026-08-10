@@ -88,6 +88,8 @@ interface CloudProject {
   importConflict?: 'always' | 'unless-forced'
   /** A final-contract import error to surface to sync unchanged. */
   importError?: { status: number; message: string }
+  /** A file-upload error to surface after the replacement delete. */
+  fileUploadError?: { status: number; message: string }
   /** The canonical export the cloud holds after a successful import. */
   notebooksAfterImport?: NotebookFile[]
   /** The canonical project name after a successful document-driven rename. */
@@ -196,7 +198,12 @@ function installCloud(projects: CloudProject[]): InstalledCloud {
       }
       const form = init?.body as FormData
       const uploadPath = String(form.get('path'))
-      uploadedPaths.push(`${String(form.get('projectId'))}:${uploadPath}`)
+      const projectId = String(form.get('projectId'))
+      uploadedPaths.push(`${projectId}:${uploadPath}`)
+      const uploadError = byId(projectId)?.fileUploadError
+      if (uploadError) {
+        return respond({ message: uploadError.message }, { status: uploadError.status })
+      }
       return respond({ file: { path: uploadPath, size: 7, updatedAt: '2026-01-09T00:00:00.000Z' } }, { status: 201 })
     }
 
@@ -685,6 +692,46 @@ describe('syncWorkspace', () => {
     expect(result.projects).toEqual([expect.objectContaining({ action: 'pushed', filesUploaded: 1 })])
     expect(cloud.uploadedPaths).toEqual(['p1:data/input.csv'])
     consoleErrorSpy.mockRestore()
+  })
+
+  it('retries a failed file replacement without pruning the local copy', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [{ path: 'data/input.csv', size: 3, updatedAt: '2026-01-01T00:00:00.000Z', content: 'a,b' }],
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    await fs.writeFile(
+      path.join(tempDir, 'Alpha', 'main.deepnote'),
+      notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+      'utf-8'
+    )
+    await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'x,y', 'utf-8')
+    projects[0].fileUploadError = { status: 500, message: 'Upload failed' }
+
+    const failed = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, prune: true })
+
+    expect(failed.success).toBe(false)
+    expect(failed.projects).toEqual([expect.objectContaining({ action: 'error', detail: 'Upload failed' })])
+    expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['data/input.csv'])
+    expect(await fs.readFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'utf-8')).toBe('x,y')
+
+    // The delete succeeded before the failed upload, so the next detail response omits the file.
+    projects[0].files = []
+    projects[0].fileUploadError = undefined
+    const retried = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, prune: true })
+
+    expect(retried.projects).toEqual([expect.objectContaining({ action: 'unchanged', filesUploaded: 1 })])
+    expect(cloud.deletedPaths).toEqual(['p1:data/input.csv', 'p1:data/input.csv'])
+    expect(cloud.uploadedPaths).toEqual(['p1:data/input.csv', 'p1:data/input.csv'])
+    expect(await fs.readFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'utf-8')).toBe('x,y')
+    expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
   })
 
   it('treats "changed locally AND in the cloud" as a conflict: override takes the cloud version', async () => {

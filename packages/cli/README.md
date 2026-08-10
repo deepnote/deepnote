@@ -560,7 +560,8 @@ endpoint, with `baseModifiedAt` + `baseContentHash` so a concurrent cloud edit i
 resolved as override-or-skip rather than a silent overwrite. A project edited both locally and in the
 cloud is a conflict, resolved the same way. Project name and integration attachment edits are also
 applied from the documents; every document in a multi-notebook project must carry the same values.
-`--all-files` uploads changed working-directory files on push.
+`--all-files` uploads changed working-directory files on push. File replacements are recorded before
+the cloud copy is deleted, so an interrupted upload is retried on the next `--all-files` sync.
 
 If a push changes `project.name`, the current run finishes in the existing local directory. The next
 sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.

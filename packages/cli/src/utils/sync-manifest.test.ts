@@ -35,6 +35,7 @@ describe('loadSyncManifest', () => {
           modifiedAt: '2026-01-02T00:00:00.000Z',
           contentHash: 'abc123',
           files: { 'data/input.csv': { size: 42, updatedAt: '2026-01-01T00:00:00.000Z' } },
+          pendingFileUploads: ['data/input.csv'],
         },
       },
     }
@@ -77,6 +78,18 @@ describe('loadSyncManifest', () => {
     } finally {
       await fs.rm(outsideDir, { recursive: true, force: true })
     }
+  })
+
+  it('rejects a pending upload path that escapes the project files directory', async () => {
+    const manifest = {
+      version: 1,
+      projects: {
+        p1: { dir: 'Project', notebooks: [], contentHash: 'hash', pendingFileUploads: ['../escape.txt'] },
+      },
+    }
+    await fs.writeFile(path.join(tempDir, SYNC_MANIFEST_FILENAME), JSON.stringify(manifest), 'utf-8')
+
+    await expect(loadSyncManifest(tempDir)).rejects.toThrow(/must be a safe project-relative path/)
   })
 })
 
