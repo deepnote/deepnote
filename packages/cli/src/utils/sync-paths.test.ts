@@ -22,6 +22,12 @@ describe('sanitizePathSegment', () => {
     expect(sanitizePathSegment('console')).toBe('console')
   })
 
+  it('prefixes dot-paths reserved by sync and common tooling', () => {
+    expect(sanitizePathSegment('.deepnote-sync.json')).toBe('_.deepnote-sync.json')
+    expect(sanitizePathSegment('.files')).toBe('_.files')
+    expect(sanitizePathSegment('.git')).toBe('_.git')
+  })
+
   it('replaces control characters', () => {
     expect(sanitizePathSegment('a\tb\nc')).toBe('a_b_c')
   })
@@ -100,6 +106,36 @@ describe('planProjectPaths', () => {
 
     expect(plans.get('p1')?.projectDir).toBe('Reports/Weekly (p1)')
     expect(plans.get('p2')?.projectDir).toBe('Reports/Weekly (p2)')
+  })
+
+  it('disambiguates nested project directories', () => {
+    const plans = planProjectPaths([
+      { id: 'root0001-project', name: 'Team' },
+      { id: 'child001-project', name: 'Report', folder: { path: [{ name: 'Team' }] } },
+    ])
+
+    expect(plans.get('root0001-project')?.projectDir).toBe('Team (root0001)')
+    expect(plans.get('child001-project')?.projectDir).toBe('Team/Report (child001)')
+  })
+
+  it("keeps projects out of another project's .files subtree", () => {
+    const plans = planProjectPaths([
+      { id: 'root0001-project', name: 'Team' },
+      { id: 'child001-project', name: '.files', folder: { path: [{ name: 'Team' }] } },
+    ])
+
+    expect(plans.get('root0001-project')?.projectDir).toBe('Team (root0001)')
+    expect(plans.get('child001-project')?.projectDir).toBe('Team/_.files (child001)')
+  })
+
+  it('fails safely if hostile names exhaust the suffix fallbacks', () => {
+    expect(() =>
+      planProjectPaths([
+        { id: 'aaaa1111-project-a', name: 'Report' },
+        { id: 'aaaa1111-project-b', name: 'Report' },
+        { id: 'occupier', name: 'Report (aaaa1111-project-a)' },
+      ])
+    ).toThrow(/disjoint local directories/)
   })
 })
 

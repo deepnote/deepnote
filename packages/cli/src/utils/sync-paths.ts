@@ -8,7 +8,7 @@
  * may contain characters no filesystem accepts — so identity always comes from project ids (the
  * sync manifest maps ids to directories), and names are only material for the paths themselves:
  * sanitized per segment, compared case-insensitively (macOS/Windows filesystems are), and
- * disambiguated deterministically when two projects still land on the same directory.
+ * disambiguated deterministically when project directories overlap.
  */
 
 /** Windows device names that shadow real files regardless of extension. */
@@ -35,6 +35,9 @@ export function sanitizePathSegment(name: string): string {
     .replace(/[. ]+$/, '')
   if (!cleaned || cleaned === '.' || cleaned === '..') {
     return '_'
+  }
+  if (cleaned.startsWith('.')) {
+    return `_${cleaned}`
   }
   if (RESERVED_SEGMENT.test(cleaned)) {
     return `_${cleaned}`
@@ -69,15 +72,21 @@ function buildDir(project: PlannableProject, dirName: string): string {
   return [...folderSegments, dirName].join('/')
 }
 
+function pathsOverlap(left: string, right: string): boolean {
+  const leftKey = left.toLowerCase()
+  const rightKey = right.toLowerCase()
+  return leftKey === rightKey || leftKey.startsWith(`${rightKey}/`) || rightKey.startsWith(`${leftKey}/`)
+}
+
 /**
  * Plan a local directory for every project, resolving collisions deterministically.
  *
  * Collisions are real: project names are not unique, folder names are not unique (two distinct
  * cloud folders with equal names merge into one local directory), and sanitizing can conflate
  * names that differed only in illegal characters. Any group of projects whose planned directories
- * match case-insensitively gets ` (<first 8 chars of id>)` appended to each directory name — every
- * member, so a newly created project can never silently steal an existing project's clean path. In
- * the astronomically unlikely case that short ids collide too, the full id is used.
+ * match or contain one another case-insensitively gets ` (<first 8 chars of id>)` appended to each
+ * directory name — every member, so recursive moves and deletes can never affect another project.
+ * In the astronomically unlikely case that short ids collide too, the full id is used.
  *
  * The same input always produces the same plan, so repeated syncs are stable.
  */
@@ -95,23 +104,30 @@ export function planProjectPaths(projects: readonly PlannableProject[]): Map<str
   let remaining = [...projects].sort((a, b) => a.id.localeCompare(b.id))
 
   for (const attempt of attempts) {
-    const byKey = new Map<string, PlannableProject[]>()
-    for (const project of remaining) {
-      const key = attempt(project).toLowerCase()
-      byKey.set(key, [...(byKey.get(key) ?? []), project])
-    }
-
-    // Directories already fixed in an earlier round are taken; colliding with one forces the next.
-    const taken = new Set([...planned.values()].map(p => p.toLowerCase()))
-    const unresolved: PlannableProject[] = []
-    for (const [key, group] of byKey) {
-      if (group.length === 1 && !taken.has(key)) {
-        planned.set(group[0].id, attempt(group[0]))
-      } else {
-        unresolved.push(...group)
+    const candidates = remaining.map(project => ({ project, path: attempt(project) }))
+    const conflicting = new Set<string>()
+    for (let index = 0; index < candidates.length; index++) {
+      const candidate = candidates[index]
+      if ([...planned.values()].some(existing => pathsOverlap(candidate.path, existing))) {
+        conflicting.add(candidate.project.id)
+      }
+      for (let otherIndex = index + 1; otherIndex < candidates.length; otherIndex++) {
+        const other = candidates[otherIndex]
+        if (pathsOverlap(candidate.path, other.path)) {
+          conflicting.add(candidate.project.id)
+          conflicting.add(other.project.id)
+        }
       }
     }
-    remaining = unresolved
+
+    remaining = []
+    for (const candidate of candidates) {
+      if (conflicting.has(candidate.project.id)) {
+        remaining.push(candidate.project)
+      } else {
+        planned.set(candidate.project.id, candidate.path)
+      }
+    }
     if (remaining.length === 0) {
       break
     }
@@ -120,6 +136,16 @@ export function planProjectPaths(projects: readonly PlannableProject[]): Map<str
   // Project ids are unique, so the full-id round always resolves; this is unreachable in practice.
   for (const project of remaining) {
     planned.set(project.id, withSuffix(project, project.id))
+  }
+
+  // Fail safely if hostile names somehow exhaust every suffix round.
+  const plannedEntries = [...planned.entries()]
+  for (let index = 0; index < plannedEntries.length; index++) {
+    for (let otherIndex = index + 1; otherIndex < plannedEntries.length; otherIndex++) {
+      if (pathsOverlap(plannedEntries[index][1], plannedEntries[otherIndex][1])) {
+        throw new Error('Unable to plan disjoint local directories for every project')
+      }
+    }
   }
 
   return new Map(
