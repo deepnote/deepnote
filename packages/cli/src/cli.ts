@@ -505,9 +505,7 @@ ${c.bold('Description:')}
 
   Both directions work. Pull writes the exported documents down; push is the
   exact inverse — a project changed only locally is re-uploaded as the same
-  documents, with lost-update protection. Where the import endpoint is not
-  deployed yet, the push is deferred (reported "to push", edit kept), never
-  failed.
+  documents, with lost-update protection.
 
 ${c.bold('Conflicts:')}
   A project edited both locally and in the cloud is a conflict. By default
