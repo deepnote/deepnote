@@ -266,6 +266,11 @@ async function writeProjectNotebooks(
   const dirAbsolute = toAbsolute(ctx, projectDir)
   await fs.mkdir(dirAbsolute, { recursive: true })
 
+  const existingNotebookNames = new Set(
+    (await fs.readdir(dirAbsolute, { withFileTypes: true }))
+      .filter(entry => entry.isFile() && entry.name.endsWith('.deepnote'))
+      .map(entry => entry.name)
+  )
   const kept = new Set<string>()
   for (const file of files) {
     // Filenames come from the server export and are already slug-safe, but a hostile archive path
@@ -274,6 +279,16 @@ async function writeProjectNotebooks(
       warn(`Skipping notebook with unsafe filename in ${projectDir}: ${file.filename}`)
       continue
     }
+    const caseVariant = [...existingNotebookNames].find(
+      name => name !== file.filename && name.toLowerCase() === file.filename.toLowerCase()
+    )
+    if (caseVariant && !existingNotebookNames.has(file.filename)) {
+      const temporaryPath = path.join(dirAbsolute, `.deepnote-sync-case-${crypto.randomUUID()}`)
+      await fs.rename(path.join(dirAbsolute, caseVariant), temporaryPath)
+      await fs.rename(temporaryPath, path.join(dirAbsolute, file.filename))
+      existingNotebookNames.delete(caseVariant)
+    }
+    existingNotebookNames.add(file.filename)
     kept.add(file.filename)
     await writeFileEnsuringDir(path.join(dirAbsolute, ...file.filename.split('/')), file.content)
   }

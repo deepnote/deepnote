@@ -335,6 +335,38 @@ describe('syncWorkspace', () => {
     expect((await loadSyncManifest(tempDir)).projects.p1?.notebooks).toEqual(['main.deepnote'])
   })
 
+  it('uses a temporary rename when a notebook filename changes only by case', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: [
+          { filename: 'report.deepnote', content: notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z') },
+        ],
+      },
+    ]
+    installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+
+    projects[0].notebooks = [
+      {
+        filename: 'Report.deepnote',
+        content: notebookYaml('p1', 'nb-main', '2026-01-05T00:00:00.000Z', 'cloud-edit'),
+      },
+    ]
+    const renameSpy = vi.spyOn(fs, 'rename')
+    const result = await syncWorkspace(tempDir, baseOptions)
+
+    const projectDir = path.join(tempDir, 'Alpha')
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'pulled' })])
+    expect(renameSpy).toHaveBeenCalledTimes(2)
+    expect(renameSpy.mock.calls[0][0]).toBe(path.join(projectDir, 'report.deepnote'))
+    expect(renameSpy.mock.calls[0][1]).toBe(renameSpy.mock.calls[1][0])
+    expect(renameSpy.mock.calls[1][1]).toBe(path.join(projectDir, 'Report.deepnote'))
+    expect(await fs.readdir(projectDir)).toEqual(['Report.deepnote'])
+    expect(await fs.readFile(path.join(projectDir, 'Report.deepnote'), 'utf-8')).toContain('cloud-edit')
+  })
+
   it('is a no-op when nothing changed — the deterministic export makes this a hash comparison', async () => {
     installCloud([{ id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') }])
     await syncWorkspace(tempDir, baseOptions)
