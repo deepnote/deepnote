@@ -11,6 +11,7 @@ import {
   type ImportedNotebook,
   importProject,
   listAllProjects,
+  MAX_BUFFERED_PROJECT_FILE_BYTES,
   type SyncProject,
   uploadProjectFile,
 } from '@deepnote/cloud'
@@ -102,6 +103,12 @@ interface SyncContext {
 
 function sha256(content: string | Uint8Array): string {
   return crypto.createHash('sha256').update(content).digest('hex')
+}
+
+function assertBufferedProjectFileSize(filePath: string, size: number): void {
+  if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
+    throw new Error(`Project file "${filePath}" exceeds the 100 MiB --all-files limit.`)
+  }
 }
 
 /**
@@ -359,6 +366,8 @@ async function syncProjectFiles(
       continue
     }
 
+    assertBufferedProjectFileSize(entry.path, entry.size)
+
     const base = { size: entry.size, ...(entry.updatedAt ? { updatedAt: entry.updatedAt } : {}) }
     if (!ctx.dryRun) {
       const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path)
@@ -513,6 +522,8 @@ async function uploadProjectFiles(
       continue
     }
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
+    const stats = await fs.stat(absolute)
+    assertBufferedProjectFileSize(relPath, stats.size)
     // Read and hash up front: `size` alone misses a same-size content edit, so the content hash is
     // the change signal. The file is read anyway to upload it.
     const bytes = await fs.readFile(absolute)

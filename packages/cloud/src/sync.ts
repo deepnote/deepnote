@@ -32,6 +32,10 @@ const DEFAULT_TRANSFER_TIMEOUT_MS = 120_000
  * covers the full body read, not just the first byte. */
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 600_000
 
+/** Working-directory file helpers return/accept in-memory bytes, so keep their default below the
+ * public API's multi-gigabyte storage limit. Callers that need larger files should stream them. */
+export const MAX_BUFFERED_PROJECT_FILE_BYTES = 100 * 1024 * 1024
+
 /**
  * A runaway guard, not a real limit: at the API's maximum page size of 100 this is 50,000 projects.
  * Unlike `findNotebook`'s name-narrowed walk this one is unfiltered, so the guard is generous — but
@@ -435,15 +439,15 @@ export async function importProject(
  * (`GET {baseUrl}/v2/files/download?projectId=&path=`).
  *
  * The response is chunked with no Content-Length — sizes come from the inventory
- * ({@link getProjectDetail}), not from this call. The whole body is buffered in memory, which is
- * fine for the notebook-adjacent files sync moves; truly huge data files deserve a streaming path.
+ * ({@link getProjectDetail}), not from this call. The returned bytes are buffered, but the response
+ * is consumed incrementally and cancelled if it exceeds the 100 MiB limit.
  */
 export async function downloadProjectFile(
   baseUrl: string,
   token: string,
   projectId: string,
   filePath: string,
-  options: RequestOptions = {}
+  options: ProjectFileTransferOptions = {}
 ): Promise<Uint8Array> {
   const url = new URL(`${trimTrailingSlash(baseUrl)}/v2/files/download`)
   url.searchParams.set('projectId', projectId)
@@ -455,7 +459,7 @@ export async function downloadProjectFile(
     options.requestTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS,
     `Failed to download "${filePath}"`
   )
-  return new Uint8Array(await response.arrayBuffer())
+  return readProjectFileBytes(response, filePath, projectFileTransferLimit(options))
 }
 
 /** A working-directory file after an upload, as the inventory reports it. */
@@ -465,12 +469,72 @@ export interface UploadedFile {
   updatedAt?: string
 }
 
+export interface ProjectFileTransferOptions extends RequestOptions {
+  /** Optional lower buffered-byte ceiling for this transfer. The hard limit is 100 MiB. */
+  maxBytes?: number
+}
+
+function projectFileTooLarge(filePath: string, maxBytes: number): ApiError {
+  const limit =
+    maxBytes >= 1024 * 1024 ? `${maxBytes / (1024 * 1024)} MiB` : `${maxBytes.toLocaleString('en-US')} bytes`
+  return new ApiError(413, `Project file "${filePath}" exceeds the ${limit} buffered limit.`)
+}
+
+function projectFileTransferLimit(options: ProjectFileTransferOptions): number {
+  if (options.maxBytes === undefined) {
+    return MAX_BUFFERED_PROJECT_FILE_BYTES
+  }
+  if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 0) {
+    throw new RangeError('maxBytes must be a non-negative safe integer')
+  }
+  return Math.min(options.maxBytes, MAX_BUFFERED_PROJECT_FILE_BYTES)
+}
+
+async function readProjectFileBytes(response: Response, filePath: string, maxBytes: number): Promise<Uint8Array> {
+  if (!response.body) {
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength > maxBytes) {
+      throw projectFileTooLarge(filePath, maxBytes)
+    }
+    return bytes
+  }
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      size += value.byteLength
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => undefined)
+        throw projectFileTooLarge(filePath, maxBytes)
+      }
+      chunks.push(value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  const bytes = new Uint8Array(size)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return bytes
+}
+
 /**
  * Upload a working-directory file (`POST {baseUrl}/v2/files`, multipart).
  *
  * **The server generates a *unique* path when `path` already exists — it does not overwrite.** To
  * replace a file, {@link deleteProjectFile} it first (last-write-wins; there is no content-hash or
- * staleness check on the files surface). Returns the stored file's inventory fields.
+ * staleness check on the files surface). Buffered uploads are limited to 100 MiB. Returns the stored
+ * file's inventory fields.
  */
 export async function uploadProjectFile(
   baseUrl: string,
@@ -478,8 +542,12 @@ export async function uploadProjectFile(
   projectId: string,
   filePath: string,
   bytes: Uint8Array,
-  options: RequestOptions = {}
+  options: ProjectFileTransferOptions = {}
 ): Promise<UploadedFile> {
+  const maxBytes = projectFileTransferLimit(options)
+  if (bytes.byteLength > maxBytes) {
+    throw projectFileTooLarge(filePath, maxBytes)
+  }
   const form = new FormData()
   form.set('projectId', projectId)
   form.set('path', filePath)

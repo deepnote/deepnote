@@ -57,9 +57,9 @@ is in preview and its exact shape may drift. Failures throw `ApiError`
 | `getProjectDetail(baseUrl, token, projectId, opts?)`                                      | `GET /v2/projects/{id}` — one project, including its working-directory file inventory.                                                                       |
 | `exportProject(baseUrl, token, projectId, opts?)`                                         | `GET /v2/projects/{id}/export` — the project's notebooks as deterministic `.deepnote` documents (unzipped from the export ZIP, one per notebook). See below. |
 | `importProject(baseUrl, token, projectId, files, opts?)`                                  | `POST /v2/projects/{id}/import` — reconcile a ZIP of `.deepnote` documents (the exact inverse of export) into the project. See below.                        |
-| `uploadProjectFile(baseUrl, token, projectId, path, bytes, opts?)`                        | `POST /v2/files` — upload one working-directory file (multipart). Does not overwrite; delete first.                                                          |
+| `uploadProjectFile(baseUrl, token, projectId, path, bytes, opts?)`                        | `POST /v2/files` — upload one working-directory file (multipart). Does not overwrite; delete first. Buffered transfers are limited to 100 MiB.               |
 | `deleteProjectFile(baseUrl, token, projectId, path, opts?)`                               | `DELETE /v2/files` — delete one working-directory file; `false` if it did not exist.                                                                         |
-| `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                             | `GET /v2/files/download` — raw bytes of one working-directory file.                                                                                          |
+| `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                             | `GET /v2/files/download` — raw bytes of one working-directory file. Buffered transfers are limited to 100 MiB.                                               |
 
 **Note on `exportProject`:** the export is a ZIP with one `.deepnote` document per notebook, each
 carrying the full project envelope and a shared `metadata.modifiedAt`. `exportProject` unzips it and

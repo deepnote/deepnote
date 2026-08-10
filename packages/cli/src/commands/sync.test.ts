@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
@@ -916,6 +917,65 @@ describe('syncWorkspace', () => {
     expect(await fs.readFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'utf-8')).toBe('a,b,c')
 
     consoleErrorSpy.mockRestore()
+  })
+
+  it('rejects an oversized working-directory file before downloading it', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        files: [{ path: 'large.bin', size: MAX_BUFFERED_PROJECT_FILE_BYTES + 1, content: 'small fixture' }],
+      },
+    ]
+    const cloud = installCloud(projects)
+
+    const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    expect(result.success).toBe(false)
+    expect(result.projects).toEqual([
+      expect.objectContaining({
+        action: 'error',
+        detail: 'Project file "large.bin" exceeds the 100 MiB --all-files limit.',
+      }),
+    ])
+    expect(cloud.downloadedPaths).toEqual([])
+  })
+
+  it('rejects an oversized local working-directory file before uploading it', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [],
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    await fs.writeFile(
+      path.join(tempDir, 'Alpha', 'main.deepnote'),
+      notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+      'utf-8'
+    )
+    const largeFile = path.join(tempDir, 'Alpha', '.files', 'large.bin')
+    await fs.mkdir(path.dirname(largeFile), { recursive: true })
+    await fs.writeFile(largeFile, '')
+    await fs.truncate(largeFile, MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+
+    const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    expect(result.success).toBe(false)
+    expect(result.projects).toEqual([
+      expect.objectContaining({
+        action: 'error',
+        detail: 'Project file "large.bin" exceeds the 100 MiB --all-files limit.',
+      }),
+    ])
+    expect(cloud.deletedPaths).toEqual([])
+    expect(cloud.uploadedPaths).toEqual([])
   })
 
   it('keeps local directories for projects that left the cloud, unless --prune opts into deletion', async () => {

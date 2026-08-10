@@ -8,6 +8,7 @@ import {
   getProjectDetail,
   importProject,
   listAllProjects,
+  MAX_BUFFERED_PROJECT_FILE_BYTES,
   uploadProjectFile,
 } from './sync'
 
@@ -362,6 +363,15 @@ describe('uploadProjectFile', () => {
       message: expect.stringContaining('Invalid Deepnote response for upload file'),
     })
   })
+
+  it('rejects an oversized buffered upload before making a request', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+
+    await expect(
+      uploadProjectFile(BASE_URL, TOKEN, 'p1', 'large.bin', new Uint8Array(2), { maxBytes: 1 })
+    ).rejects.toMatchObject({ statusCode: 413 })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
 })
 
 describe('deleteProjectFile', () => {
@@ -395,5 +405,18 @@ describe('downloadProjectFile', () => {
       expect.urlWithQueryParams(`${BASE_URL}/v2/files/download?projectId=p1&path=data%2Fin+put.csv`)
     )
     expect(downloaded).toEqual(bytes)
+  })
+
+  it('stops reading a chunked download at the buffered file limit', async () => {
+    const chunk = new Uint8Array(1024 * 1024)
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(new Blob([chunk, new Uint8Array([1])])))
+
+    await expect(
+      downloadProjectFile(BASE_URL, TOKEN, 'p1', 'large.bin', { maxBytes: chunk.byteLength })
+    ).rejects.toMatchObject({ statusCode: 413 })
+  })
+
+  it('defaults buffered working-directory transfers to 100 MiB', () => {
+    expect(MAX_BUFFERED_PROJECT_FILE_BYTES).toBe(100 * 1024 * 1024)
   })
 })
