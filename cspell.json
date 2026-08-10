@@ -22,17 +22,7 @@
   "overrides": [
     {
       "filename": "**/*.md",
-      "words": [
-        "deepnote",
-        "jupyter",
-        "ipynb",
-        "pnpm",
-        "monorepo",
-        "dockerised",
-        "vscode",
-        "windsurf",
-        "oss"
-      ]
+      "words": ["deepnote", "jupyter", "ipynb", "pnpm", "monorepo", "dockerised", "vscode", "windsurf", "oss"]
     }
   ],
   "useGitignore": true,
@@ -58,6 +48,7 @@
     "deepnote",
     "defu",
     "desync",
+    "desyncing",
     "diffable",
     "dntk",
     "dockerfiles",

@@ -14,20 +14,48 @@ vi.mock('@inquirer/prompts', () => ({ select: vi.fn() }))
 const API_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
 
+interface DocumentIntegration {
+  id: string
+  name: string
+  type: string
+}
+
 /** A minimal but real single-notebook `.deepnote` document — `readExportModifiedAt` parses it. */
-function notebookYaml(projectId: string, notebookId: string, modifiedAt: string, marker = 'v1'): string {
-  return [
+function notebookYaml(
+  projectId: string,
+  notebookId: string,
+  modifiedAt: string,
+  marker = 'v1',
+  options: { projectName?: string; notebookName?: string; integrations?: DocumentIntegration[] } = {}
+): string {
+  const lines = [
     'version: 1.0.0',
     'metadata:',
     "  createdAt: '2026-01-01T00:00:00.000Z'",
     `  modifiedAt: '${modifiedAt}'`,
     'project:',
     `  id: ${projectId}`,
+    `  name: ${options.projectName ?? 'Alpha'}`,
+  ]
+  if (options.integrations !== undefined) {
+    if (options.integrations.length === 0) {
+      lines.push('  integrations: []')
+    } else {
+      lines.push('  integrations:')
+      for (const integration of options.integrations) {
+        lines.push(`    - id: ${integration.id}`, `      name: ${integration.name}`, `      type: ${integration.type}`)
+      }
+    }
+  }
+  lines.push(
     '  notebooks:',
     `    - id: ${notebookId}`,
+    `      name: ${options.notebookName ?? 'Main'}`,
+    '      blocks: []',
     `# ${marker}`,
-    '',
-  ].join('\n')
+    ''
+  )
+  return lines.join('\n')
 }
 
 interface NotebookFile {
@@ -58,10 +86,12 @@ interface CloudProject {
   exportFails?: boolean
   /** `unless-forced` 409s the import until `force=true`; `always` 409s regardless. */
   importConflict?: 'always' | 'unless-forced'
-  /** The import endpoint 404s (not deployed) — the CLI should defer, not error. */
-  importUnavailable?: boolean
+  /** A final-contract import error to surface to sync unchanged. */
+  importError?: { status: number; message: string }
   /** The canonical export the cloud holds after a successful import. */
   notebooksAfterImport?: NotebookFile[]
+  /** The canonical project name after a successful document-driven rename. */
+  nameAfterImport?: string
 }
 
 interface ImportCall {
@@ -140,8 +170,8 @@ function installCloud(projects: CloudProject[]): InstalledCloud {
         documents[name] = decoder.decode(content)
       }
       importCalls.push({ projectId: project.id, url, filenames: Object.keys(entries).sort(), documents })
-      if (project.importUnavailable) {
-        return respond({ message: 'Not implemented' }, { status: 404 })
+      if (project.importError) {
+        return respond({ message: project.importError.message }, { status: project.importError.status })
       }
       const forced = url.searchParams.get('force') === 'true'
       if (project.importConflict === 'always' || (project.importConflict === 'unless-forced' && !forced)) {
@@ -150,8 +180,11 @@ function installCloud(projects: CloudProject[]): InstalledCloud {
       if (project.notebooksAfterImport) {
         project.notebooks = project.notebooksAfterImport
       }
+      if (project.nameAfterImport) {
+        project.name = project.nameAfterImport
+      }
       return respond({
-        project: { id: project.id, modifiedAt: '2026-01-09T00:00:00.000Z', contentHash: 'hash-after-import' },
+        project: { id: project.id, modifiedAt: '2026-01-09T00:00:00.000Z', contentHash: '0'.repeat(64) },
         notebooks: [{ id: 'nb-main', name: 'Main', action: 'overwritten' }],
       })
     }
@@ -348,6 +381,96 @@ describe('syncWorkspace', () => {
     expect((await loadSyncManifest(tempDir)).projects.p1?.modifiedAt).toBe('2026-01-09T00:00:00.000Z')
   })
 
+  it('pushes a shared project name and integration update, then moves the directory on the next sync', async () => {
+    const integrations: DocumentIntegration[] = [{ id: 'integration-new', name: 'Warehouse', type: 'pgsql' }]
+    const initial = [
+      {
+        filename: 'main.deepnote',
+        content: notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'initial-main', {
+          notebookName: 'Main',
+        }),
+      },
+      {
+        filename: 'setup.deepnote',
+        content: notebookYaml('p1', 'nb-setup', '2026-01-02T00:00:00.000Z', 'initial-setup', {
+          notebookName: 'Setup',
+        }),
+      },
+    ]
+    const canonical = [
+      {
+        filename: 'main.deepnote',
+        content: notebookYaml('p1', 'nb-main', '2026-01-09T00:00:00.000Z', 'canonical-main', {
+          projectName: 'Renamed project',
+          notebookName: 'Main',
+          integrations,
+        }),
+      },
+      {
+        filename: 'setup.deepnote',
+        content: notebookYaml('p1', 'nb-setup', '2026-01-09T00:00:00.000Z', 'canonical-setup', {
+          projectName: 'Renamed project',
+          notebookName: 'Setup',
+          integrations,
+        }),
+      },
+    ]
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: initial,
+        notebooksAfterImport: canonical,
+        nameAfterImport: 'Renamed project',
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+
+    const edited = [
+      {
+        filename: 'main.deepnote',
+        content: notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-main', {
+          projectName: 'Renamed project',
+          notebookName: 'Main',
+          integrations,
+        }),
+      },
+      {
+        filename: 'setup.deepnote',
+        content: notebookYaml('p1', 'nb-setup', '2026-01-02T00:00:00.000Z', 'local-setup', {
+          projectName: 'Renamed project',
+          notebookName: 'Setup',
+          integrations,
+        }),
+      },
+    ]
+    for (const file of edited) {
+      await fs.writeFile(path.join(tempDir, 'Alpha', file.filename), file.content, 'utf-8')
+    }
+
+    const pushed = await syncWorkspace(tempDir, baseOptions)
+
+    expect(pushed.projects).toEqual([expect.objectContaining({ action: 'pushed', path: 'Alpha' })])
+    expect(cloud.importCalls).toHaveLength(1)
+    expect(cloud.importCalls[0].documents).toEqual(
+      Object.fromEntries(edited.map(file => [file.filename, file.content]))
+    )
+    expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(canonical[0].content)
+    await expect(fs.stat(path.join(tempDir, 'Renamed project'))).rejects.toThrow()
+
+    const moved = await syncWorkspace(tempDir, baseOptions)
+
+    expect(moved.projects).toEqual([
+      expect.objectContaining({ action: 'unchanged', path: 'Renamed project', detail: 'moved from Alpha' }),
+    ])
+    expect(await fs.readFile(path.join(tempDir, 'Renamed project', 'setup.deepnote'), 'utf-8')).toBe(
+      canonical[1].content
+    )
+    await expect(fs.stat(path.join(tempDir, 'Alpha'))).rejects.toThrow()
+    expect(cloud.importCalls).toHaveLength(1)
+  })
+
   it('skips a push 409 under --on-conflict skip, leaving both sides untouched', async () => {
     const projects: CloudProject[] = [
       {
@@ -398,9 +521,14 @@ describe('syncWorkspace', () => {
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(canonical[0].content)
   })
 
-  it('defers the push (keeping the local edit) when the import endpoint is not deployed (404)', async () => {
+  it('reports a project-not-found import as an error while preserving the local edit and manifest baseline', async () => {
     const projects: CloudProject[] = [
-      { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'), importUnavailable: true },
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        importError: { status: 404, message: 'Project not found' },
+      },
     ]
     const cloud = installCloud(projects)
     await syncWorkspace(tempDir, baseOptions)
@@ -410,9 +538,92 @@ describe('syncWorkspace', () => {
     await fs.writeFile(path.join(tempDir, 'Alpha', 'main.deepnote'), localEdit, 'utf-8')
     const result = await syncWorkspace(tempDir, baseOptions)
 
-    expect(result.projects).toEqual([expect.objectContaining({ action: 'push-deferred' })])
-    expect(cloud.importCalls).toHaveLength(1) // it attempted the import, then degraded
+    expect(result.success).toBe(false)
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'error', detail: 'Project not found' })])
+    expect(cloud.importCalls).toHaveLength(1)
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
+    expect((await loadSyncManifest(tempDir)).projects.p1?.contentHash).toBe(baselineHash)
+  })
+
+  it.each([
+    {
+      caseName: 'documents with inconsistent project names',
+      message: 'Project import documents contain different project names: setup.deepnote',
+      edited: [
+        {
+          filename: 'main.deepnote',
+          content: notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-main', {
+            projectName: 'First name',
+            notebookName: 'Main',
+          }),
+        },
+        {
+          filename: 'setup.deepnote',
+          content: notebookYaml('p1', 'nb-setup', '2026-01-02T00:00:00.000Z', 'local-setup', {
+            projectName: 'Second name',
+            notebookName: 'Setup',
+          }),
+        },
+      ],
+    },
+    {
+      caseName: 'an unavailable integration',
+      message: 'Integration Missing warehouse not found',
+      edited: [
+        {
+          filename: 'main.deepnote',
+          content: notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-main', {
+            notebookName: 'Main',
+            integrations: [{ id: 'missing-integration', name: 'Missing warehouse', type: 'pgsql' }],
+          }),
+        },
+        {
+          filename: 'setup.deepnote',
+          content: notebookYaml('p1', 'nb-setup', '2026-01-02T00:00:00.000Z', 'local-setup', {
+            notebookName: 'Setup',
+            integrations: [{ id: 'missing-integration', name: 'Missing warehouse', type: 'pgsql' }],
+          }),
+        },
+      ],
+    },
+  ])('reports $caseName as an import error without changing local state', async ({ message, edited }) => {
+    const initial = [
+      {
+        filename: 'main.deepnote',
+        content: notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'initial-main', {
+          notebookName: 'Main',
+        }),
+      },
+      {
+        filename: 'setup.deepnote',
+        content: notebookYaml('p1', 'nb-setup', '2026-01-02T00:00:00.000Z', 'initial-setup', {
+          notebookName: 'Setup',
+        }),
+      },
+    ]
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: initial,
+        importError: { status: 422, message },
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+    const baselineHash = (await loadSyncManifest(tempDir)).projects.p1?.contentHash
+    for (const file of edited) {
+      await fs.writeFile(path.join(tempDir, 'Alpha', file.filename), file.content, 'utf-8')
+    }
+
+    const result = await syncWorkspace(tempDir, baseOptions)
+
+    expect(result.success).toBe(false)
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'error', detail: message })])
+    expect(cloud.importCalls).toHaveLength(1)
+    for (const file of edited) {
+      expect(await fs.readFile(path.join(tempDir, 'Alpha', file.filename), 'utf-8')).toBe(file.content)
+    }
     expect((await loadSyncManifest(tempDir)).projects.p1?.contentHash).toBe(baselineHash)
   })
 

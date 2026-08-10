@@ -103,9 +103,7 @@ const importedNotebookSchema = z
 
 const importProjectResponseSchema = z
   .object({
-    project: z
-      .object({ id: z.string(), modifiedAt: z.string().optional(), contentHash: z.string().optional() })
-      .passthrough(),
+    project: z.object({ id: z.string(), modifiedAt: z.string(), contentHash: z.string() }).passthrough(),
     notebooks: z.array(importedNotebookSchema),
   })
   .passthrough()
@@ -182,10 +180,10 @@ export interface ImportProjectResult {
   notebooks: ImportedNotebook[]
   /** The project's `metadata.modifiedAt` after the import — what a fresh export would carry. Usable
    * as the next push's `baseModifiedAt` without an intermediate export. */
-  modifiedAt?: string
+  modifiedAt: string
   /** The canonical content hash of the post-import export (see {@link ImportProjectOptions.baseContentHash}),
-   * if the server returns it — usable as the next push's `baseContentHash` without re-exporting. */
-  contentHash?: string
+   * usable as the next push's `baseContentHash` without re-exporting. */
+  contentHash: string
 }
 
 export interface ImportProjectOptions extends RequestOptions {
@@ -204,7 +202,7 @@ export interface ImportProjectOptions extends RequestOptions {
    * edits `baseModifiedAt` cannot see. Always pass it when you have one.
    */
   baseContentHash?: string
-  /** Delete notebooks that exist in the project but are absent from the document. Default false. */
+  /** Delete notebooks that exist in the project but are absent from the archive. Default false. */
   deleteMissingNotebooks?: boolean
   /** Skip the `baseModifiedAt`/`baseContentHash` conflict checks and overwrite regardless of
    * concurrent cloud edits. */
@@ -370,16 +368,21 @@ export async function exportProject(
  * The server reconciles rather than replaces: notebooks matched by id are overwritten (block
  * identity and comments preserved), unmatched ones are created, and missing ones are deleted only
  * with {@link ImportProjectOptions.deleteMissingNotebooks}. An empty ZIP (no notebooks) is a no-op
- * by default, a delete-every-notebook under `deleteMissingNotebooks`. Project name, integrations,
- * and `settings.requirements` are never applied from the documents (`requirements.txt` in the
- * project's files is the source of truth for requirements).
+ * by default and deletes every notebook under `deleteMissingNotebooks`.
+ *
+ * Every document must belong to the target project and carry the same project name and integration
+ * attachments. The shared project name is applied (and therefore may require rename permission).
+ * When `project.integrations` is present, the server reconciles the project's attachments to that
+ * list; when absent, attachments are left unchanged. Integration credentials and
+ * `settings.requirements` are never imported (`requirements.txt` in the project's files is the
+ * source of truth for requirements).
  *
  * See `packages/cloud/docs/project-import-contract.md` for the full server contract this defines.
  *
  * Notable failures, all thrown as {@link ApiError}: 409 when the project changed after
  * `baseModifiedAt`/`baseContentHash` (or is suspended), 413 over the server's size limit, 422 for a
  * malformed document or one that violates naming or structure rules, 403 for permissions or the
- * notebook limit. A 404/501 means the endpoint is not deployed yet (callers may degrade gracefully).
+ * notebook limit, and 404 when the target project does not exist.
  */
 export async function importProject(
   baseUrl: string,

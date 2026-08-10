@@ -13,6 +13,7 @@ import {
 
 const BASE_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
+const PROJECT_ID = '10000000-0000-4000-8000-000000000001'
 
 /** Build a ZIP archive of `{ filename: content }`, matching the export endpoint's shape. */
 function zipArchive(files: Record<string, string>): Uint8Array {
@@ -22,6 +23,26 @@ function zipArchive(files: Record<string, string>): Uint8Array {
     entries[name] = encoder.encode(content)
   }
   return zipSync(entries)
+}
+
+function projectDocument(notebook: { id: string; name: string }): string {
+  return [
+    'version: 1.0.0',
+    'metadata:',
+    "  createdAt: '2026-01-01T00:00:00.000Z'",
+    'project:',
+    `  id: ${PROJECT_ID}`,
+    '  name: Sales analytics',
+    '  integrations:',
+    '    - id: 20000000-0000-4000-8000-000000000001',
+    '      name: Warehouse',
+    '      type: pgsql',
+    '  notebooks:',
+    `    - id: ${notebook.id}`,
+    `      name: ${notebook.name}`,
+    '      blocks: []',
+    '',
+  ].join('\n')
 }
 
 function response(
@@ -193,18 +214,21 @@ describe('exportProject', () => {
 describe('importProject', () => {
   it('POSTs the notebook documents as a ZIP (the inverse of export) with every reconciliation flag', async () => {
     const baseContentHash = 'c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2'
+    const postImportContentHash = 'd4ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f3'
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
       response({
-        project: { id: 'p1', modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: 'hash-after' },
+        project: { id: PROJECT_ID, modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: postImportContentHash },
         notebooks: [{ id: 'nb1', name: 'Main', action: 'overwritten' }],
       })
     )
 
+    const main = projectDocument({ id: '30000000-0000-4000-8000-000000000001', name: 'Main' })
+    const setup = projectDocument({ id: '30000000-0000-4000-8000-000000000002', name: 'Setup' })
     const files = [
-      { filename: 'main.deepnote', content: 'version: 1.0.0\n# main\n' },
-      { filename: 'setup.deepnote', content: 'version: 1.0.0\n# setup\n' },
+      { filename: 'main.deepnote', content: main },
+      { filename: 'setup.deepnote', content: setup },
     ]
-    const result = await importProject(BASE_URL, TOKEN, 'p1', files, {
+    const result = await importProject(BASE_URL, TOKEN, PROJECT_ID, files, {
       baseModifiedAt: '2026-01-02T00:00:00.000Z',
       baseContentHash,
       deleteMissingNotebooks: true,
@@ -214,7 +238,7 @@ describe('importProject', () => {
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toEqual(
       expect.urlWithQueryParams(
-        `${BASE_URL}/v2/projects/p1/import?baseModifiedAt=2026-01-02T00%3A00%3A00.000Z&baseContentHash=${baseContentHash}&deleteMissingNotebooks=true&force=true`
+        `${BASE_URL}/v2/projects/${PROJECT_ID}/import?baseModifiedAt=2026-01-02T00%3A00%3A00.000Z&baseContentHash=${baseContentHash}&deleteMissingNotebooks=true&force=true`
       )
     )
     expect(init).toMatchObject({
@@ -224,22 +248,55 @@ describe('importProject', () => {
     // The body round-trips through unzip to exactly the documents we sent.
     const sent = unzipSync(init?.body as Uint8Array)
     const decoder = new TextDecoder()
-    expect(decoder.decode(sent['main.deepnote'])).toBe('version: 1.0.0\n# main\n')
-    expect(decoder.decode(sent['setup.deepnote'])).toBe('version: 1.0.0\n# setup\n')
+    expect(decoder.decode(sent['main.deepnote'])).toBe(main)
+    expect(decoder.decode(sent['setup.deepnote'])).toBe(setup)
     expect(result).toEqual({
-      projectId: 'p1',
+      projectId: PROJECT_ID,
       notebooks: [{ id: 'nb1', name: 'Main', action: 'overwritten' }],
       modifiedAt: '2026-01-03T00:00:00.000Z',
-      contentHash: 'hash-after',
+      contentHash: postImportContentHash,
     })
   })
 
   it('omits the false/absent flags so the server defaults stay in charge', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ project: { id: 'p1' }, notebooks: [] }))
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({
+        project: { id: PROJECT_ID, modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: '0'.repeat(64) },
+        notebooks: [],
+      })
+    )
 
-    await importProject(BASE_URL, TOKEN, 'p1', [{ filename: 'main.deepnote', content: 'version: 1.0.0\n' }])
+    await importProject(BASE_URL, TOKEN, PROJECT_ID, [
+      {
+        filename: 'main.deepnote',
+        content: projectDocument({ id: '30000000-0000-4000-8000-000000000001', name: 'Main' }),
+      },
+    ])
 
-    expect(String(fetchSpy.mock.calls[0][0])).toBe(`${BASE_URL}/v2/projects/p1/import`)
+    expect(String(fetchSpy.mock.calls[0][0])).toBe(`${BASE_URL}/v2/projects/${PROJECT_ID}/import`)
+  })
+
+  it('rejects responses missing either required post-import fingerprint', async () => {
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ project: { id: PROJECT_ID, contentHash: '0'.repeat(64) }, notebooks: [] }))
+      .mockResolvedValueOnce(
+        response({ project: { id: PROJECT_ID, modifiedAt: '2026-01-03T00:00:00.000Z' }, notebooks: [] })
+      )
+    const files = [
+      {
+        filename: 'main.deepnote',
+        content: projectDocument({ id: '30000000-0000-4000-8000-000000000001', name: 'Main' }),
+      },
+    ]
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await expect(importProject(BASE_URL, TOKEN, PROJECT_ID, files)).rejects.toEqual(
+        expect.objectContaining({
+          statusCode: 502,
+          message: expect.stringContaining('Invalid Deepnote response for import project'),
+        })
+      )
+    }
   })
 
   it('throws an ApiError carrying the 409 conflict status for callers to branch on', async () => {
@@ -251,9 +308,14 @@ describe('importProject', () => {
       })
     )
 
-    await expect(importProject(BASE_URL, TOKEN, 'p1', [{ filename: 'main.deepnote', content: 'x' }])).rejects.toEqual(
-      new ApiError(409, 'Project changed after baseModifiedAt')
-    )
+    await expect(
+      importProject(BASE_URL, TOKEN, PROJECT_ID, [
+        {
+          filename: 'main.deepnote',
+          content: projectDocument({ id: '30000000-0000-4000-8000-000000000001', name: 'Main' }),
+        },
+      ])
+    ).rejects.toEqual(new ApiError(409, 'Project changed after baseModifiedAt'))
   })
 })
 

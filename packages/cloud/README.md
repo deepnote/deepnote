@@ -67,16 +67,17 @@ returns the documents (`{ filename, content }[]`, sorted by filename). The **doc
 byte-deterministic for an unchanged project — the ZIP container is not — so compute change
 fingerprints over the documents, not the archive.
 
-**Note on `importProject`:** reconciles a single multi-notebook `.deepnote` document into the
-project. Pass the export's `metadata.modifiedAt` as `baseModifiedAt` to detect structural changes
-(notebooks created/deleted/renamed, other imports), and a content hash as `baseContentHash` to also
-detect editor block edits, which never advance the timestamp; on either mismatch the server rejects
-the import with a 409 (lost-update protection), and `force` skips both checks. Imports reconcile by
-notebook id (unmatched notebooks are created, missing ones deleted only with
-`deleteMissingNotebooks`; a document with no notebooks is a no-op, or a delete-every-notebook under
-that flag) and never apply the project name, integrations, or `settings.requirements` from the
-document. **Note:** this endpoint is not yet deployed; `deepnote sync` detects local edits but
-defers pushing until it lands.
+**Note on `importProject`:** sends a ZIP with one `.deepnote` document per notebook, matching the
+export shape. Pass the export's `metadata.modifiedAt` as `baseModifiedAt` to detect structural
+changes (notebooks created/deleted/renamed, other imports), and a content hash as `baseContentHash`
+to also detect editor block edits, which never advance the timestamp; on either mismatch the server
+rejects the import with a 409 (lost-update protection), and `force` skips both checks. Imports
+reconcile by notebook id (unmatched notebooks are created, missing ones are deleted only with
+`deleteMissingNotebooks`; an empty ZIP imports no notebooks, or deletes every notebook under that
+flag). Every document must belong to the target project and agree on project name and integration
+attachments. The shared name is applied, and a present `project.integrations` list reconciles the
+project's attachments (`[]` detaches all; an absent field leaves them unchanged). Integration
+credentials and `settings.requirements` are never imported.
 
 **Note on `fetchSnapshotContent`:** the bearer token is sent only when the download URL is
 same-origin with `baseUrl`. A cross-origin URL (e.g. a presigned S3 link) is fetched without auth,

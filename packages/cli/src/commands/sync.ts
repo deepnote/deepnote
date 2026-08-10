@@ -47,9 +47,6 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, planProjectPaths } fr
  * rejected (409) and resolved as override-or-skip, never a silent overwrite. `--all-files` also
  * uploads changed working-directory files on push.
  *
- * The import endpoint is new and may not be deployed everywhere yet; a 404/501 degrades gracefully
- * to `push-deferred` (the local edit is kept, nothing is lost) rather than erroring the project.
- *
  * Git is deliberately out of scope: sync writes ordinary files and the user runs git themselves.
  */
 
@@ -73,15 +70,7 @@ export interface ProjectSyncOutcome {
   name: string
   /** The project's local directory, root-relative. */
   path: string
-  action:
-    | 'pulled'
-    | 'pushed'
-    | 'push-deferred'
-    | 'unchanged'
-    | 'skipped-conflict'
-    | 'error'
-    | 'pruned'
-    | 'missing-in-cloud'
+  action: 'pulled' | 'pushed' | 'unchanged' | 'skipped-conflict' | 'error' | 'pruned' | 'missing-in-cloud'
   /** Human-readable elaboration (conflict direction, error message, rename note). */
   detail?: string
   /** Per-notebook reconciliation reported by the import endpoint (push only). */
@@ -386,17 +375,17 @@ async function syncProjectFiles(
 type PushOutcome =
   | { kind: 'pushed'; files: ExportedNotebookFile[]; notebooks: ImportedNotebook[] }
   | { kind: 'skipped'; reason: string }
-  | { kind: 'deferred'; reason: string }
 
 /**
  * Push a project's local edits: import the local notebook documents (the exact inverse of export —
  * the same set of `.deepnote` files, zipped by the client), then re-export so the local copy and
  * manifest reflect the canonical post-import state (imports may assign ids to new notebooks and
- * never apply the project name, integrations, or `settings.requirements`).
+ * clear imported execution state). The shared project name and integration attachments in the
+ * documents are applied; `settings.requirements` is not.
  *
  * `baseModifiedAt` + `baseContentHash` guard against lost updates: a cloud change since the last
- * sync makes the import 409, which becomes an override-or-skip choice. A 404/501 means the import
- * endpoint is not deployed yet — the push is deferred, not failed, so the local edit is never lost.
+ * sync makes the import 409, which becomes an override-or-skip choice. Other endpoint failures are
+ * reported as project errors without changing the local files or manifest baseline.
  */
 async function pushProject(
   ctx: SyncContext,
@@ -431,9 +420,6 @@ async function pushProject(
   try {
     notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, importOptions)).notebooks
   } catch (error) {
-    if (error instanceof ApiError && (error.statusCode === 404 || error.statusCode === 501)) {
-      return { kind: 'deferred', reason: 'the project import endpoint is not available yet' }
-    }
     if (!(error instanceof ApiError) || error.statusCode !== 409) {
       throw error
     }
@@ -596,10 +582,6 @@ async function syncOneProject(
         const pushed = await pushProject(ctx, project, localFiles ?? [], record)
         if (pushed.kind === 'skipped') {
           outcome = { ...base, action: 'skipped-conflict', detail: pushed.reason }
-        } else if (pushed.kind === 'deferred') {
-          // The import endpoint is not deployed yet: keep the local edit and the manifest baseline
-          // so the next sync re-detects the pending push, rather than failing the project.
-          outcome = { ...base, action: 'push-deferred', detail: pushed.reason }
         } else {
           await writeProjectNotebooks(ctx, plan.projectDir, pushed.files)
           commitRecord(pushed.files, record.files)
@@ -799,8 +781,6 @@ function renderOutcomeLine(outcome: ProjectSyncOutcome): string {
       const actions = outcome.notebooks?.map(notebook => `${notebook.name}: ${notebook.action}`).join(', ')
       return `${c.cyan('↑ pushed')}    ${outcome.path}${actions ? c.dim(` — ${actions}`) : ''}${detail}`
     }
-    case 'push-deferred':
-      return `${c.yellow('↑ deferred')} ${outcome.path}${detail}`
     case 'unchanged':
       return `${c.dim('· unchanged')} ${outcome.path}${detail}`
     case 'skipped-conflict':
@@ -827,7 +807,6 @@ function renderHumanSummary(result: SyncResult): void {
     `${count('pulled')} pulled`,
     ...(count('pushed') > 0 ? [`${count('pushed')} pushed`] : []),
     `${count('unchanged')} unchanged`,
-    ...(count('push-deferred') > 0 ? [`${count('push-deferred')} to push`] : []),
     ...(count('skipped-conflict') > 0 ? [`${count('skipped-conflict')} skipped`] : []),
     ...(count('error') > 0 ? [`${count('error')} failed`] : []),
     ...(filesDownloaded > 0 ? [`${filesDownloaded} file(s) downloaded`] : []),
@@ -835,15 +814,6 @@ function renderHumanSummary(result: SyncResult): void {
   ]
   log('')
   log(`${result.dryRun ? `${c.yellow('Dry run')} — ` : ''}${parts.join(', ')}`)
-
-  if (count('push-deferred') > 0) {
-    log(
-      c.dim(
-        'Projects marked "to push" have local edits, but the project import endpoint is not ' +
-          'available in this workspace yet. The edits are kept locally and will push once it is.'
-      )
-    )
-  }
 
   if (result.untrackedFiles.length > 0) {
     log(

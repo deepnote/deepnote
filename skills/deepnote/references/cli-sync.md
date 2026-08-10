@@ -11,11 +11,8 @@ determines the workspace.
 
 Pull writes the exported documents down. Push is the exact inverse: a project edited only locally is
 re-uploaded as the same ZIP of `.deepnote` documents to the project import endpoint, with
-lost-update protection. `--all-files` also uploads changed working-directory files on push.
-
-> The import endpoint is new and may not be deployed in every workspace yet. Where it is missing the
-> CLI **defers** the push (reports it as "to push" and keeps the local edit) instead of failing —
-> nothing is lost, and it will push once the endpoint is available.
+lost-update protection. Project name and integration attachment edits are applied from the shared
+document metadata. `--all-files` also uploads changed working-directory files on push.
 
 | Option                       | Description                                                                         |
 | ---------------------------- | ----------------------------------------------------------------------------------- |
@@ -65,14 +62,19 @@ files and a fresh export against the last-synced hash yields:
 - only local changed → push (upload the same documents to `POST /v2/projects/{id}/import` with
   `baseModifiedAt` + `baseContentHash`; a concurrent cloud edit is rejected with 409 → override or
   skip, per `--on-conflict`). After a push the local files are refreshed from a fresh export, since
-  the import may assign ids to new notebooks and never applies the project name, integrations, or
-  `settings.requirements`.
+  the import may assign ids to new notebooks and clears their execution state. The shared
+  `project.name` and integration attachments are applied; `settings.requirements` is not. Every
+  document in a multi-notebook project must carry the same project name and integration ids.
 - both changed → conflict → keep the cloud version or skip (per `--on-conflict`; `ask` degrades to
   skip when there is no terminal)
 
 Push is the **exact inverse** of export — the same ZIP of documents, no re-merge — so the round-trip
 does not churn. The server contract this defines is in
 `packages/cloud/docs/project-import-contract.md`.
+
+A document-driven project rename leaves the files in their current directory for that run. The next
+sync sees the new name in the project listing and moves the tracked directory through the normal
+cloud-rename path. Renaming the local directory itself does not rename the cloud project.
 
 With `--all-files`, working-directory files sync in the notebook's direction: pulled projects
 download changed files into a `.files/` subdirectory (incremental, by inventory `size`/`updatedAt`);
@@ -87,5 +89,5 @@ overwrite). Files removed locally are not deleted in the cloud.
   with `--delete-missing-notebooks` (an empty local project is confirmed first).
 - Git is not involved: sync writes ordinary files; commit/branch/push yourself.
 
-**Exit codes:** `0` success (skipped conflicts and deferred pushes included), `1` one or more
-projects failed, `2` invalid usage (missing token, bad arguments).
+**Exit codes:** `0` success (skipped conflicts included), `1` one or more projects failed, `2`
+invalid usage (missing token, bad arguments).

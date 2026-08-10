@@ -558,12 +558,14 @@ Both directions work. Pull writes the exported documents down. Push is the **exa
 project edited only locally is re-uploaded as the same ZIP of documents to the project import
 endpoint, with `baseModifiedAt` + `baseContentHash` so a concurrent cloud edit is rejected (409) and
 resolved as override-or-skip rather than a silent overwrite. A project edited both locally and in the
-cloud is a conflict, resolved the same way. `--all-files` uploads changed working-directory files on
-push.
+cloud is a conflict, resolved the same way. Project name and integration attachment edits are also
+applied from the documents; every document in a multi-notebook project must carry the same values.
+`--all-files` uploads changed working-directory files on push.
 
-> The import endpoint is new; where it is not deployed yet, sync **defers** the push (reports it as
-> "to push" and keeps the local edit) instead of failing. The contract it targets is
-> `packages/cloud/docs/project-import-contract.md`.
+If a push changes `project.name`, the current run finishes in the existing local directory. The next
+sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.
+Renaming the local directory itself does not rename the cloud project. The full import contract is in
+`packages/cloud/docs/project-import-contract.md`.
 
 Sync never creates or deletes cloud projects, never deletes local files unless you pass `--prune`,
 and does not run git — commit and push yourself.
