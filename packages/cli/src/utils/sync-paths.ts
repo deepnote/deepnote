@@ -20,6 +20,9 @@ const ILLEGAL_CHARACTERS = /[<>:"/\\|?*\u0000-\u001f]/g
 
 const MAX_SEGMENT_LENGTH = 120
 
+/** User-provided names cannot sanitize to this leading-dot segment. */
+const INCOMPLETE_FOLDER_NAMESPACE = '.deepnote-incomplete'
+
 /**
  * Make one folder or project name safe to use as a single path segment on macOS, Linux, and
  * Windows. Deterministic: the same name always yields the same segment.
@@ -55,7 +58,7 @@ export interface FolderPathSegment {
 export interface PlannableProject {
   id: string
   name: string
-  folder?: { path: FolderPathSegment[] } | null
+  folder?: { id: string; path: FolderPathSegment[]; isPathComplete?: boolean } | null
 }
 
 export interface PlannedProjectPaths {
@@ -69,7 +72,11 @@ export interface PlannedProjectPaths {
 
 function buildDir(project: PlannableProject, dirName: string): string {
   const folderSegments = (project.folder?.path ?? []).map(segment => sanitizePathSegment(segment.name))
-  return [...folderSegments, dirName].join('/')
+  const incompletePrefix =
+    project.folder?.isPathComplete === false
+      ? [INCOMPLETE_FOLDER_NAMESPACE, sanitizePathSegment(project.folder.id)]
+      : []
+  return [...incompletePrefix, ...folderSegments, dirName].join('/')
 }
 
 function pathsOverlap(left: string, right: string): boolean {

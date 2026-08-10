@@ -50,7 +50,8 @@ State lives in `.deepnote-sync.json` in the synced directory: a map of project i
 the notebook filenames last synced, the last-synced `metadata.modifiedAt`, and a content hash.
 Projects are tracked by id because names (projects and folders) are **not unique** in Deepnote —
 cloud renames become local directory moves, and path collisions get a deterministic ` (<short id>)`
-suffix.
+suffix. Folder paths reported as incomplete are placed under `.deepnote-incomplete/<folder-id>/`
+rather than treated as complete workspace-root paths.
 
 A project export is a ZIP of one `.deepnote` document per notebook; the documents are deterministic
 (the ZIP container is not), so the content hash is computed over the documents. Comparing the local

@@ -46,7 +46,11 @@ describe('sanitizePathSegment', () => {
 describe('planProjectPaths', () => {
   it('mirrors the workspace folder tree as a sanitized directory per project', () => {
     const plans = planProjectPaths([
-      { id: 'p1', name: 'Sales report', folder: { path: [{ name: 'Team A' }, { name: 'Q1: Reports' }] } },
+      {
+        id: 'p1',
+        name: 'Sales report',
+        folder: { id: 'f-q1', path: [{ name: 'Team A' }, { name: 'Q1: Reports' }] },
+      },
       { id: 'p2', name: 'Rootless', folder: null },
     ])
 
@@ -55,6 +59,24 @@ describe('planProjectPaths', () => {
       filesDir: 'Team A/Q1_ Reports/Sales report/.files',
     })
     expect(plans.get('p2')).toEqual({ projectDir: 'Rootless', filesDir: 'Rootless/.files' })
+  })
+
+  it('namespaces an explicitly incomplete folder path by its stable folder id', () => {
+    const plans = planProjectPaths([
+      {
+        id: 'p-incomplete',
+        name: 'Weekly',
+        folder: { id: 'hidden-reports', path: [{ name: 'Reports' }], isPathComplete: false },
+      },
+      {
+        id: 'p-complete',
+        name: 'Daily',
+        folder: { id: 'root-reports', path: [{ name: 'Reports' }], isPathComplete: true },
+      },
+    ])
+
+    expect(plans.get('p-incomplete')?.projectDir).toBe('.deepnote-incomplete/hidden-reports/Reports/Weekly')
+    expect(plans.get('p-complete')?.projectDir).toBe('Reports/Daily')
   })
 
   it('suffixes every member of a collision group with its short id, so no project silently owns the clean name', () => {
@@ -111,8 +133,8 @@ describe('planProjectPaths', () => {
   it('merges distinct cloud folders that share a name, and disambiguates projects that then collide', () => {
     // Two different folders both named "Reports" — their contents share one local directory.
     const plans = planProjectPaths([
-      { id: 'p1', name: 'Weekly', folder: { path: [{ name: 'Reports' }] } },
-      { id: 'p2', name: 'Weekly', folder: { path: [{ name: 'Reports' }] } },
+      { id: 'p1', name: 'Weekly', folder: { id: 'f1', path: [{ name: 'Reports' }] } },
+      { id: 'p2', name: 'Weekly', folder: { id: 'f2', path: [{ name: 'Reports' }] } },
     ])
 
     expect(plans.get('p1')?.projectDir).toBe('Reports/Weekly (p1)')
@@ -122,7 +144,7 @@ describe('planProjectPaths', () => {
   it('disambiguates nested project directories', () => {
     const plans = planProjectPaths([
       { id: 'root0001-project', name: 'Team' },
-      { id: 'child001-project', name: 'Report', folder: { path: [{ name: 'Team' }] } },
+      { id: 'child001-project', name: 'Report', folder: { id: 'f-team', path: [{ name: 'Team' }] } },
     ])
 
     expect(plans.get('root0001-project')?.projectDir).toBe('Team (root0001)')
@@ -132,7 +154,7 @@ describe('planProjectPaths', () => {
   it("keeps projects out of another project's .files subtree", () => {
     const plans = planProjectPaths([
       { id: 'root0001-project', name: 'Team' },
-      { id: 'child001-project', name: '.files', folder: { path: [{ name: 'Team' }] } },
+      { id: 'child001-project', name: '.files', folder: { id: 'f-team', path: [{ name: 'Team' }] } },
     ])
 
     expect(plans.get('root0001-project')?.projectDir).toBe('Team (root0001)')

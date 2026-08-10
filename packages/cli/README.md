@@ -553,6 +553,8 @@ Sync state lives in `.deepnote-sync.json` in the synced directory. Projects are 
 collisions are disambiguated deterministically with a short id suffix. A project export is a ZIP of
 one deterministic document per notebook, so unchanged projects are detected by a content-hash
 comparison (over the documents, not the archive) and skipped.
+When the API reports only a visible suffix of a folder path, sync places it under
+`.deepnote-incomplete/<folder-id>/` instead of treating that suffix as the workspace-root hierarchy.
 
 Both directions work. Pull writes the exported documents down. Push is the **exact inverse** — a
 project edited only locally is re-uploaded as the same ZIP of documents to the project import
