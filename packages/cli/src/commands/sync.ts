@@ -512,6 +512,10 @@ async function uploadProjectFiles(
   let uploaded = 0
 
   const localPaths = await listLocalFilesRecursive(filesDirAbsolute)
+  const nonCanonicalPath = localPaths.find(relPath => relPath !== relPath.trim())
+  if (nonCanonicalPath) {
+    throw new Error(`Cannot upload local file with leading or trailing whitespace: "${nonCanonicalPath}"`)
+  }
   const missingPendingPaths = [...pending].filter(relPath => !localPaths.includes(relPath))
   if (missingPendingPaths.length > 0) {
     throw new Error(`Cannot retry file upload because the local file is missing: ${missingPendingPaths.join(', ')}`)

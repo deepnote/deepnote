@@ -762,6 +762,38 @@ describe('syncWorkspace', () => {
     consoleErrorSpy.mockRestore()
   })
 
+  it('rejects a non-canonical local file path before deleting its normalized cloud path', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [{ path: 'report.csv', size: 5, updatedAt: '2026-01-01T00:00:00.000Z', content: 'cloud' }],
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    await fs.writeFile(
+      path.join(tempDir, 'Alpha', 'main.deepnote'),
+      notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+      'utf-8'
+    )
+    await fs.writeFile(path.join(tempDir, 'Alpha', '.files', ' report.csv'), 'local', 'utf-8')
+
+    const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+    expect(result.projects).toEqual([
+      expect.objectContaining({
+        action: 'error',
+        detail: 'Cannot upload local file with leading or trailing whitespace: " report.csv"',
+      }),
+    ])
+    expect(cloud.deletedPaths).toEqual([])
+    expect(cloud.uploadedPaths).toEqual([])
+  })
+
   it('retries a failed file replacement without pruning the local copy', async () => {
     const projects: CloudProject[] = [
       {
