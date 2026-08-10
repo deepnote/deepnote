@@ -408,8 +408,9 @@ type PushOutcome =
  * documents are applied; `settings.requirements` is not.
  *
  * `baseModifiedAt` + `baseContentHash` guard against lost updates: a cloud change since the last
- * sync makes the import 409, which becomes an override-or-skip choice. Other endpoint failures are
- * reported as project errors without changing the local files or manifest baseline.
+ * sync makes the import 409, which becomes an override-or-skip choice. The endpoint also uses 409
+ * for suspended projects; those and other failures remain project errors without changing local
+ * files or the manifest baseline.
  */
 async function pushProject(
   ctx: SyncContext,
@@ -444,7 +445,7 @@ async function pushProject(
   try {
     notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, importOptions)).notebooks
   } catch (error) {
-    if (!(error instanceof ApiError) || error.statusCode !== 409) {
+    if (!(error instanceof ApiError) || error.statusCode !== 409 || error.message === 'Project is suspended') {
       throw error
     }
     const choice = await resolveConflict(

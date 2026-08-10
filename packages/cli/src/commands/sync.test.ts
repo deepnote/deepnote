@@ -543,6 +543,30 @@ describe('syncWorkspace', () => {
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
   })
 
+  it('reports a suspended-project import 409 as an error instead of a conflict', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        importError: { status: 409, message: 'Project is suspended' },
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+    const baselineHash = (await loadSyncManifest(tempDir)).projects.p1?.contentHash
+
+    const localEdit = notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+    await fs.writeFile(path.join(tempDir, 'Alpha', 'main.deepnote'), localEdit, 'utf-8')
+    const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'skip' })
+
+    expect(result.success).toBe(false)
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'error', detail: 'Project is suspended' })])
+    expect(cloud.importCalls).toHaveLength(1)
+    expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
+    expect((await loadSyncManifest(tempDir)).projects.p1?.contentHash).toBe(baselineHash)
+  })
+
   it('retries a push 409 with force under --on-conflict override', async () => {
     const canonical = [
       { filename: 'main.deepnote', content: notebookYaml('p1', 'nb-main', '2026-01-09T00:00:00.000Z', 'forced') },
