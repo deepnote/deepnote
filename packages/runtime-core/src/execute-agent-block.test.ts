@@ -221,7 +221,6 @@ describe('executeAgentBlock MCP client cleanup', () => {
   })
 
   it('attributes close-failure warnings to the correct server when a failed startup precedes a successful one', async () => {
-    // Catches: close-failure warnings misattributed to the wrong MCP server when a failed startup precedes a successful one.
     const startupFailure = new Error('spawn failed')
     const goodClient = { tools: vi.fn(async () => ({})), close: vi.fn().mockRejectedValue(new Error('close boom')) }
     createMCPClientMock.mockRejectedValueOnce(startupFailure).mockResolvedValueOnce(goodClient)
