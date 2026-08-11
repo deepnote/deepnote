@@ -522,6 +522,58 @@ describe('syncWorkspace', () => {
     expect(cloud.importCalls).toHaveLength(1)
   })
 
+  it('does not delete every cloud notebook from an empty local project when conflict handling skips', async () => {
+    const projects: CloudProject[] = [
+      { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+    const baselineHash = (await loadSyncManifest(tempDir)).projects.p1?.contentHash
+
+    await fs.rm(path.join(tempDir, 'Alpha', 'main.deepnote'))
+    const result = await syncWorkspace(tempDir, {
+      ...baseOptions,
+      deleteMissingNotebooks: true,
+      onConflict: 'skip',
+    })
+
+    expect(result.projects).toEqual([
+      expect.objectContaining({
+        action: 'skipped-conflict',
+        detail: 'local directory has no notebooks; refusing to delete every cloud notebook',
+      }),
+    ])
+    expect(cloud.importCalls).toEqual([])
+    expect(projects[0].notebooks).toHaveLength(1)
+    expect((await loadSyncManifest(tempDir)).projects.p1?.contentHash).toBe(baselineHash)
+  })
+
+  it('deletes every cloud notebook from an empty local project only after explicit override', async () => {
+    const projects: CloudProject[] = [
+      {
+        id: 'p1',
+        name: 'Alpha',
+        notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+        notebooksAfterImport: [],
+      },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+
+    await fs.rm(path.join(tempDir, 'Alpha', 'main.deepnote'))
+    const result = await syncWorkspace(tempDir, {
+      ...baseOptions,
+      deleteMissingNotebooks: true,
+      onConflict: 'override',
+    })
+
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'pushed' })])
+    expect(cloud.importCalls).toHaveLength(1)
+    expect(cloud.importCalls[0].filenames).toEqual([])
+    expect(cloud.importCalls[0].url.searchParams.get('deleteMissingNotebooks')).toBe('true')
+    expect(projects[0].notebooks).toEqual([])
+  })
+
   it('skips a push 409 under --on-conflict skip, leaving both sides untouched', async () => {
     const projects: CloudProject[] = [
       {
