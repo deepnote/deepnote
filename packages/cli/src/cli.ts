@@ -518,6 +518,8 @@ ${c.bold('What sync does not do:')}
     are reported and left alone.
   - It never deletes local files unless you pass --prune, and deletes cloud
     notebooks on push only with --delete-missing-notebooks.
+  - --prune refuses to run when none of the tracked project ids match the
+    listed workspace; verify the API token and --url before retrying.
   - It does not run git. Commit, branch, and push yourself.
 
 ${c.bold('Examples:')}

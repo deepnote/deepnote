@@ -29,6 +29,7 @@ import {
   loadSyncManifest,
   type ManifestFileRecord,
   type ManifestProjectRecord,
+  SYNC_MANIFEST_FILENAME,
   saveSyncManifest,
 } from '../utils/sync-manifest'
 import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planProjectPaths } from '../utils/sync-paths'
@@ -796,6 +797,18 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   const manifest = await loadSyncManifest(rootDir)
   progress(getChalk().dim(`Listing projects from ${ctx.baseUrl}…`))
   const cloudProjects = await listAllProjects(ctx.baseUrl, token)
+  const cloudIds = new Set(cloudProjects.map(project => project.id))
+  const trackedProjectIds = Object.keys(manifest.projects)
+  if (
+    ctx.options.prune &&
+    trackedProjectIds.length > 0 &&
+    trackedProjectIds.every(projectId => !cloudIds.has(projectId))
+  ) {
+    throw new Error(
+      `Refusing to prune because no project IDs in ${SYNC_MANIFEST_FILENAME} match the workspace returned by ${ctx.baseUrl}. ` +
+        'The API token or --url may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+    )
+  }
   const plans = planProjectPaths(cloudProjects)
 
   const outcomes: ProjectSyncOutcome[] = []
@@ -820,7 +833,6 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   // Projects the manifest knows but the cloud no longer lists: deleted (or access lost). Local
   // copies are kept unless the user opted into --prune. A stale record may share its path with a
   // newly created cloud project, in which case only the stale tracking is removed.
-  const cloudIds = new Set(cloudProjects.map(project => project.id))
   const liveProjectDirs = [...plans.values()].map(plan => plan.projectDir)
   for (const [projectId, record] of Object.entries(manifest.projects)) {
     if (cloudIds.has(projectId)) {

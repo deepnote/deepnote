@@ -1075,27 +1075,61 @@ describe('syncWorkspace', () => {
     expect(cloud.uploadedPaths).toEqual([])
   })
 
+  it('refuses to prune when no tracked project IDs match the current workspace', async () => {
+    const projects: CloudProject[] = [
+      { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+
+    const localEdit = notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+    await fs.writeFile(path.join(tempDir, 'Alpha', 'main.deepnote'), localEdit, 'utf-8')
+    projects.splice(0, 1, {
+      id: 'p2',
+      name: 'Beta',
+      notebooks: singleNotebook('p2', '2026-01-03T00:00:00.000Z'),
+    })
+
+    await expect(syncWorkspace(tempDir, { ...baseOptions, prune: true })).rejects.toThrow(
+      'Refusing to prune because no project IDs in .deepnote-sync.json match the workspace returned by https://api.example.com. ' +
+        'The API token or --url may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+    )
+
+    expect(cloud.importCalls).toEqual([])
+    expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
+    await expect(fs.stat(path.join(tempDir, 'Beta'))).rejects.toThrow()
+    expect((await loadSyncManifest(tempDir)).projects.p1?.dir).toBe('Alpha')
+  })
+
   it('keeps local directories for projects that left the cloud, unless --prune opts into deletion', async () => {
     const projects: CloudProject[] = [
       { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+      { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
     ]
     installCloud(projects)
     await syncWorkspace(tempDir, baseOptions)
 
-    projects.length = 0
+    projects.splice(0, 1)
     const kept = await syncWorkspace(tempDir, baseOptions)
-    expect(kept.projects).toEqual([expect.objectContaining({ action: 'missing-in-cloud' })])
+    expect(kept.projects).toEqual([
+      expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
+      expect.objectContaining({ projectId: 'p1', action: 'missing-in-cloud' }),
+    ])
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('p1')
 
     const pruned = await syncWorkspace(tempDir, { ...baseOptions, prune: true })
-    expect(pruned.projects).toEqual([expect.objectContaining({ action: 'pruned' })])
+    expect(pruned.projects).toEqual([
+      expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
+      expect.objectContaining({ projectId: 'p1', action: 'pruned' }),
+    ])
     await expect(fs.stat(path.join(tempDir, 'Alpha'))).rejects.toThrow()
-    expect((await loadSyncManifest(tempDir)).projects).toEqual({})
+    expect(Object.keys((await loadSyncManifest(tempDir)).projects)).toEqual(['p2'])
   })
 
   it('does not prune a directory reused by a recreated cloud project', async () => {
     const projects: CloudProject[] = [
       { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+      { id: 'p3', name: 'Beta', notebooks: singleNotebook('p3', '2026-01-02T00:00:00.000Z') },
     ]
     installCloud(projects)
     await syncWorkspace(tempDir, baseOptions)
@@ -1112,10 +1146,11 @@ describe('syncWorkspace', () => {
 
     expect(result.projects).toEqual([
       expect.objectContaining({ projectId: 'p2', action: 'skipped-conflict' }),
+      expect.objectContaining({ projectId: 'p3', action: 'unchanged' }),
       expect.objectContaining({ projectId: 'p1', action: 'missing-in-cloud' }),
     ])
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
-    expect((await loadSyncManifest(tempDir)).projects).toEqual({})
+    expect(Object.keys((await loadSyncManifest(tempDir)).projects)).toEqual(['p3'])
   })
 
   it('moves the local directory when the project was renamed in the cloud', async () => {

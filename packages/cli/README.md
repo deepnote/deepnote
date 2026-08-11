@@ -574,7 +574,9 @@ Renaming the local directory itself does not rename the cloud project. The full 
 
 Sync never creates or deletes cloud projects, never deletes local files unless you pass `--prune`,
 and does not run git — commit and push yourself. Even with `--prune`, a stale manifest entry cannot
-delete a directory whose path is now used by a current cloud project.
+delete a directory whose path is now used by a current cloud project. Sync also refuses to prune when
+none of the tracked project IDs match the listed workspace; verify the API token and `--url` before
+retrying.
 
 **Options:**
 
