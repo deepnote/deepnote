@@ -87,13 +87,15 @@ transfers are buffered in memory; use another transfer method for larger data fi
 
 ## Boundaries
 
-- Sync never creates or deletes cloud **projects**. Local-only `.deepnote` files are reported and
-  left alone (use `deepnote open` to import one).
-- Local files are never deleted unless `--prune` is passed. A stale manifest entry is untracked
-  without deleting its directory when that path is now used by a current cloud project. Cloud
-  notebooks are deleted on push only with `--delete-missing-notebooks` (an empty local project is
-  confirmed first). Pruning is refused when none of the manifest's tracked project IDs match the
-  listed workspace; verify the API token and `--url` before retrying.
+- Sync never creates or deletes cloud **projects**. Local-only `.deepnote` files outside tracked
+  project directories are reported and left alone (use `deepnote open` to import one).
+- Pulls reconcile tracked `.deepnote` files and remove local notebook files absent from the cloud
+  export. Deleting directories for projects missing from the cloud or stale working-directory files
+  requires `--prune`. A stale manifest entry is untracked without deleting its directory when that
+  path is now used by a current cloud project. Cloud notebooks are deleted on push only with
+  `--delete-missing-notebooks` (an empty local project is confirmed first). Pruning is refused when
+  none of the manifest's tracked project IDs match the listed workspace; verify the API token and
+  `--url` before retrying.
 - Git is not involved: sync writes ordinary files; commit/branch/push yourself.
 
 **Exit codes:** `0` success (skipped conflicts included), `1` one or more projects failed, `2`

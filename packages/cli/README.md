@@ -572,11 +572,12 @@ sync sees the new cloud name and moves the tracked directory through the normal 
 Renaming the local directory itself does not rename the cloud project. The full import contract is in
 `packages/cloud/docs/project-import-contract.md`.
 
-Sync never creates or deletes cloud projects, never deletes local files unless you pass `--prune`,
-and does not run git — commit and push yourself. Even with `--prune`, a stale manifest entry cannot
-delete a directory whose path is now used by a current cloud project. Sync also refuses to prune when
-none of the tracked project IDs match the listed workspace; verify the API token and `--url` before
-retrying.
+Sync never creates or deletes cloud projects. Pulls reconcile a tracked project's `.deepnote` files,
+removing local notebook files absent from the cloud export. Deleting directories for projects missing
+from the cloud or stale working-directory files requires `--prune`. Sync does not run git — commit and
+push yourself. Even with `--prune`, a stale manifest entry cannot delete a directory whose path is now
+used by a current cloud project. Sync also refuses to prune when none of the tracked project IDs match
+the listed workspace; verify the API token and `--url` before retrying.
 
 **Options:**
 

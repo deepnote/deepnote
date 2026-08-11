@@ -514,10 +514,11 @@ ${c.bold('Conflicts:')}
   terminal (CI, piped output), conflicts are skipped.
 
 ${c.bold('What sync does not do:')}
-  - It never creates or deletes cloud projects; local-only .deepnote files
-    are reported and left alone.
-  - It never deletes local files unless you pass --prune, and deletes cloud
-    notebooks on push only with --delete-missing-notebooks.
+  - It never creates or deletes cloud projects; .deepnote files outside
+    tracked project directories are reported and left alone.
+  - Pulls remove tracked .deepnote files absent from the cloud export. Missing
+    project directories and working files are deleted only with --prune.
+  - Cloud notebooks are deleted on push only with --delete-missing-notebooks.
   - --prune refuses to run when none of the tracked project ids match the
     listed workspace; verify the API token and --url before retrying.
   - It does not run git. Commit, branch, and push yourself.
