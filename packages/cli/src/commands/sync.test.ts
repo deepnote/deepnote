@@ -1256,6 +1256,17 @@ describe('classifySyncStep', () => {
 })
 
 describe('canonicalProjectHash', () => {
+  it('matches the cross-side ordinal filename-order digest', () => {
+    const files = [
+      { filename: 'y.deepnote', content: 'y' },
+      { filename: 'j.deepnote', content: 'j' },
+      { filename: 'Z.deepnote', content: 'upper' },
+      { filename: 'a.deepnote', content: 'lower' },
+    ]
+
+    expect(canonicalProjectHash(files)).toBe('56fb700fb72af7c378984c5112600be3b77a56770eaae6691f36662039955778')
+  })
+
   it('is independent of archive entry order', () => {
     const a = { filename: 'a.deepnote', content: 'aaa' }
     const b = { filename: 'b.deepnote', content: 'bbb' }

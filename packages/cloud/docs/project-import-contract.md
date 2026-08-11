@@ -84,9 +84,12 @@ canonicalProjectHash(files):
   entries = files
     .map(f => sha256(f.content) is the hex sha256 of the document's UTF-8 bytes;
               line = f.filename + "\n" + sha256(f.content))
-    .sort()                       # by the full line, i.e. by filename
+    .sort(compareCodeUnits)       # by filename, using ordinal UTF-16 code-unit order
   return sha256( entries.join("\n") )   # hex
 ```
+
+`compareCodeUnits(a, b)` returns `-1`, `0`, or `1` from JavaScript's locale-independent `a < b` /
+`a > b` string comparison. Locale-sensitive collation such as `localeCompare` must not be used.
 
 `filename` is the export-allocated document filename (`slugify(notebook name) || notebook id`, deduped
 within the export). The reference implementation is `canonicalProjectHash` in
