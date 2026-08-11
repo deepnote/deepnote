@@ -20,6 +20,7 @@ import { createRunAction } from './commands/run'
 import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStatsAction } from './commands/stats'
+import { CONFLICT_MODES, createSyncAction } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
@@ -473,6 +474,78 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createScheduleAction(program))
+
+  // Sync command - mirror workspace projects to the local filesystem, both directions
+  program
+    .command('sync')
+    .description('Sync Deepnote projects with a local directory (pull and push .deepnote files)')
+    .argument('[dir]', 'Directory to sync into (defaults to current directory)')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--all-files', "Also sync each project's working-directory files (download on pull, upload on push)")
+    .addOption(
+      new Option(
+        '--on-conflict <mode>',
+        'What to do when a project changed both locally and in the cloud: ask (default), skip, or override'
+      ).choices(CONFLICT_MODES)
+    )
+    .option('--delete-missing-notebooks', 'When pushing, delete cloud notebooks that were removed from the local file')
+    .option('--prune', 'Delete local files for projects (and files) that no longer exist in the cloud')
+    .option('--dry-run', 'Show what would be synced without writing anything')
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Mirrors your workspace to a local directory: every project becomes a
+  directory <folder path>/<project name>/ holding one .deepnote file per
+  notebook, following the workspace folder tree. Sync state lives in
+  .deepnote-sync.json next to the files — projects are tracked by id, so
+  renames are handled as directory moves.
+
+  Both directions work. Pull writes the exported documents down; push is the
+  exact inverse — a project changed only locally is re-uploaded as the same
+  documents, with lost-update protection.
+
+${c.bold('Conflicts:')}
+  A project edited both locally and in the cloud is a conflict. By default
+  sync asks per project whether to keep the cloud version (overwriting local
+  changes) or skip; --on-conflict skip/override answers up front. Without a
+  terminal (CI, piped output), conflicts are skipped.
+
+${c.bold('What sync does not do:')}
+  - It never creates or deletes cloud projects; .deepnote files outside
+    tracked project directories are reported and left alone.
+  - Pulls remove tracked .deepnote files absent from the cloud export. Missing
+    project directories and working files are deleted only with --prune.
+  - Cloud notebooks are deleted on push only with --delete-missing-notebooks.
+  - --prune refuses to run when none of the tracked project ids match the
+    listed workspace; verify the API token and --url before retrying.
+  - It does not run git. Commit, branch, and push yourself.
+
+${c.bold('Examples:')}
+  ${c.dim('# Mirror the whole workspace into ./workspace')}
+  $ deepnote sync workspace
+
+  ${c.dim('# Also download working-directory files (data, requirements.txt, …)')}
+  $ deepnote sync workspace --all-files
+
+  ${c.dim('# Non-interactive: skip anything conflicting (good for cron/CI)')}
+  $ deepnote sync workspace --on-conflict skip
+
+  ${c.dim('# Preview without writing')}
+  $ deepnote sync workspace --dry-run
+
+  ${c.dim('# Machine-readable summary')}
+  $ deepnote sync workspace -o json
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success (skipped conflicts are reported but do not fail the sync)
+  ${c.dim('1')}  One or more projects failed to sync
+  ${c.dim('2')}  Invalid usage (missing token, bad arguments)
+`
+    })
+    .action(createSyncAction(program))
 
   // Convert command - convert between notebook formats
   program
