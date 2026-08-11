@@ -10,10 +10,10 @@ export const apiIntegrationSchema = z
     name: z.string(),
     type: z.string(),
     metadata: z.unknown(),
-    is_public: z.boolean(),
-    created_at: z.string(),
-    updated_at: z.string(),
-    federated_auth_method: z.string().nullable(),
+    is_public: z.boolean().nullish(),
+    created_at: z.string().nullish(),
+    updated_at: z.string().nullish(),
+    federated_auth_method: z.string().nullish(),
   })
   .passthrough()
 
