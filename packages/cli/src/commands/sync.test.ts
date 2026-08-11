@@ -1135,6 +1135,32 @@ describe('syncWorkspace', () => {
     expect(await fs.readFile(path.join(tempDir, 'Gamma', 'main.deepnote'), 'utf-8')).toContain('p1')
   })
 
+  it('does not retarget a missing tracked directory onto an occupied destination', async () => {
+    const projects: CloudProject[] = [
+      { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+    ]
+    const cloud = installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+
+    await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true })
+    projects[0].folder = { id: 'f1', name: 'Team', path: [{ id: 'f1', name: 'Team' }] }
+    const unrelated = notebookYaml('other-project', 'other-notebook', '2026-01-03T00:00:00.000Z', 'unrelated')
+    await fs.mkdir(path.join(tempDir, 'Team', 'Alpha'), { recursive: true })
+    await fs.writeFile(path.join(tempDir, 'Team', 'Alpha', 'main.deepnote'), unrelated, 'utf-8')
+
+    const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'skip' })
+
+    expect(result.projects).toEqual([
+      expect.objectContaining({
+        action: 'skipped-conflict',
+        detail: 'untracked local directory differs from the cloud',
+      }),
+    ])
+    expect(cloud.importCalls).toEqual([])
+    expect(await fs.readFile(path.join(tempDir, 'Team', 'Alpha', 'main.deepnote'), 'utf-8')).toBe(unrelated)
+    expect((await loadSyncManifest(tempDir)).projects.p1?.dir).toBe('Alpha')
+  })
+
   it('reports untracked local .deepnote files without touching them', async () => {
     installCloud([{ id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') }])
     await fs.writeFile(path.join(tempDir, 'stray.deepnote'), 'version: 1.0.0\n', 'utf-8')

@@ -598,16 +598,24 @@ async function syncOneProject(
 
   try {
     await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.projectDir)
-    const moveNote = record ? await moveTrackedProjectDir(ctx, record, plan) : undefined
+    // A missing tracked source does not make an occupied destination part of this project. Treat
+    // it as untracked so unrelated local files cannot be pushed through the old manifest record.
+    const destinationIsUntracked =
+      record !== undefined &&
+      record.dir !== plan.projectDir &&
+      !(await pathExists(toAbsolute(ctx, record.dir))) &&
+      (await pathExists(toAbsolute(ctx, plan.projectDir)))
+    const syncRecord = destinationIsUntracked ? undefined : record
+    const moveNote = syncRecord ? await moveTrackedProjectDir(ctx, syncRecord, plan) : undefined
 
     // In a dry run the move above did not happen, so the directory is still at its manifest path.
-    const localReadDir = ctx.dryRun && record ? record.dir : plan.projectDir
+    const localReadDir = ctx.dryRun && syncRecord ? syncRecord.dir : plan.projectDir
     const localFiles = await readLocalNotebookFiles(toAbsolute(ctx, localReadDir))
     const exportFiles = await exportProject(ctx.baseUrl, ctx.token, project.id)
     const exportHash = canonicalProjectHash(exportFiles)
     const localHash = localFiles ? canonicalProjectHash(localFiles) : null
 
-    const step = classifySyncStep({ localHash, exportHash, record })
+    const step = classifySyncStep({ localHash, exportHash, record: syncRecord })
 
     const commitRecord = (
       files: readonly ExportedNotebookFile[],
@@ -619,37 +627,37 @@ async function syncOneProject(
         modifiedAt: readExportModifiedAt(files[0]?.content),
         contentHash: canonicalProjectHash(files),
         ...(fileRecords ? { files: fileRecords } : {}),
-        ...(record?.pendingFileUploads?.length ? { pendingFileUploads: record.pendingFileUploads } : {}),
+        ...(syncRecord?.pendingFileUploads?.length ? { pendingFileUploads: syncRecord.pendingFileUploads } : {}),
       }
     }
 
     const applyPull = async (detail?: string): Promise<ProjectSyncOutcome> => {
       if (!ctx.dryRun) {
         await writeProjectNotebooks(ctx, plan.projectDir, exportFiles)
-        commitRecord(exportFiles, record?.files)
+        commitRecord(exportFiles, syncRecord?.files)
       }
       return { ...base, action: 'pulled', ...(detail ? { detail } : moveNote ? { detail: moveNote } : {}) }
     }
 
     let outcome: ProjectSyncOutcome
     if (step === 'noop') {
-      commitRecord(exportFiles, record?.files)
+      commitRecord(exportFiles, syncRecord?.files)
       outcome = { ...base, action: 'unchanged', ...(moveNote ? { detail: moveNote } : {}) }
     } else if (step === 'pull') {
       outcome = await applyPull()
     } else if (step === 'push') {
       if (ctx.dryRun) {
         outcome = { ...base, action: 'pushed', detail: 'dry run: local edits would be imported' }
-      } else if (!record) {
+      } else if (!syncRecord) {
         // classifySyncStep only returns 'push' for tracked directories, so this is unreachable.
         outcome = { ...base, action: 'skipped-conflict', detail: 'no manifest record for a push' }
       } else {
-        const pushed = await pushProject(ctx, project, localFiles ?? [], record)
+        const pushed = await pushProject(ctx, project, localFiles ?? [], syncRecord)
         if (pushed.kind === 'skipped') {
           outcome = { ...base, action: 'skipped-conflict', detail: pushed.reason }
         } else {
           await writeProjectNotebooks(ctx, plan.projectDir, pushed.files)
-          commitRecord(pushed.files, record.files)
+          commitRecord(pushed.files, syncRecord.files)
           outcome = { ...base, action: 'pushed', notebooks: pushed.notebooks }
         }
       }
@@ -658,14 +666,14 @@ async function syncOneProject(
         ? 'skip'
         : await resolveConflict(
             ctx,
-            record
+            syncRecord
               ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
               : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
             'Overwrite the local files with the cloud version (discards local changes)'
           )
       if (choice === 'override') {
         outcome = await applyPull(
-          record
+          syncRecord
             ? 'conflict resolved: local changes overwritten'
             : 'untracked local files overwritten with the cloud version'
         )
@@ -673,7 +681,7 @@ async function syncOneProject(
         outcome = {
           ...base,
           action: 'skipped-conflict',
-          detail: record
+          detail: syncRecord
             ? 'modified both locally and in the cloud'
             : 'untracked local directory differs from the cloud',
         }
@@ -684,7 +692,7 @@ async function syncOneProject(
     // "skip" answer really does leave the project's local footprint untouched. Files follow the
     // notebook direction, except a replacement persisted before deletion is always retried first.
     if (ctx.options.allFiles && outcome.action !== 'skipped-conflict') {
-      const currentRecord = manifestProjects[project.id] ?? record
+      const currentRecord = manifestProjects[project.id] ?? syncRecord
       if (currentRecord) {
         if (outcome.action === 'pushed' || currentRecord.pendingFileUploads?.length) {
           outcome.filesUploaded = await uploadProjectFiles(ctx, project, plan, currentRecord, persistManifest)
