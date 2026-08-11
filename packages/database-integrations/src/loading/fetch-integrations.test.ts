@@ -49,7 +49,22 @@ describe('fetchIntegrations', () => {
         Authorization: `Bearer ${mockToken}`,
         'Content-Type': 'application/json',
       },
+      signal: expect.any(AbortSignal),
     })
+  })
+
+  it('should not double up the path separator when the base URL has a trailing slash', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ integrations: [] }),
+    } as Response)
+
+    await fetchIntegrations(`${mockBaseUrl}/`, mockToken)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${mockBaseUrl}/v2/integrations?includeMetadata=true`,
+      expect.anything()
+    )
   })
 
   it('should throw ApiError with 401 for authentication failure', async () => {
