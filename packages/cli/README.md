@@ -573,7 +573,8 @@ Renaming the local directory itself does not rename the cloud project. The full 
 `packages/cloud/docs/project-import-contract.md`.
 
 Sync never creates or deletes cloud projects, never deletes local files unless you pass `--prune`,
-and does not run git — commit and push yourself.
+and does not run git — commit and push yourself. Even with `--prune`, a stale manifest entry cannot
+delete a directory whose path is now used by a current cloud project.
 
 **Options:**
 

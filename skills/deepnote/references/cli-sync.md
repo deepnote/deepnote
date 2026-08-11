@@ -89,8 +89,10 @@ transfers are buffered in memory; use another transfer method for larger data fi
 
 - Sync never creates or deletes cloud **projects**. Local-only `.deepnote` files are reported and
   left alone (use `deepnote open` to import one).
-- Local files are never deleted unless `--prune` is passed; cloud notebooks are deleted on push only
-  with `--delete-missing-notebooks` (an empty local project is confirmed first).
+- Local files are never deleted unless `--prune` is passed. A stale manifest entry is untracked
+  without deleting its directory when that path is now used by a current cloud project. Cloud
+  notebooks are deleted on push only with `--delete-missing-notebooks` (an empty local project is
+  confirmed first).
 - Git is not involved: sync writes ordinary files; commit/branch/push yourself.
 
 **Exit codes:** `0` success (skipped conflicts included), `1` one or more projects failed, `2`

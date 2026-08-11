@@ -1093,6 +1093,31 @@ describe('syncWorkspace', () => {
     expect((await loadSyncManifest(tempDir)).projects).toEqual({})
   })
 
+  it('does not prune a directory reused by a recreated cloud project', async () => {
+    const projects: CloudProject[] = [
+      { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+    ]
+    installCloud(projects)
+    await syncWorkspace(tempDir, baseOptions)
+
+    const localEdit = notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+    await fs.writeFile(path.join(tempDir, 'Alpha', 'main.deepnote'), localEdit, 'utf-8')
+    projects.splice(0, 1, {
+      id: 'p2',
+      name: 'Alpha',
+      notebooks: singleNotebook('p2', '2026-01-03T00:00:00.000Z'),
+    })
+
+    const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'skip', prune: true })
+
+    expect(result.projects).toEqual([
+      expect.objectContaining({ projectId: 'p2', action: 'skipped-conflict' }),
+      expect.objectContaining({ projectId: 'p1', action: 'missing-in-cloud' }),
+    ])
+    expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
+    expect((await loadSyncManifest(tempDir)).projects).toEqual({})
+  })
+
   it('moves the local directory when the project was renamed in the cloud', async () => {
     const projects: CloudProject[] = [
       { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },

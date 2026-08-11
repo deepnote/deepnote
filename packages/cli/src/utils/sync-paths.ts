@@ -79,7 +79,7 @@ function buildDir(project: PlannableProject, dirName: string): string {
   return [...incompletePrefix, ...folderSegments, dirName].join('/')
 }
 
-function pathsOverlap(left: string, right: string): boolean {
+export function pathsOverlap(left: string, right: string): boolean {
   const leftKey = left.toLowerCase()
   const rightKey = right.toLowerCase()
   return leftKey === rightKey || leftKey.startsWith(`${rightKey}/`) || rightKey.startsWith(`${leftKey}/`)

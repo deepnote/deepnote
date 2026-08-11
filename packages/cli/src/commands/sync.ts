@@ -31,7 +31,7 @@ import {
   type ManifestProjectRecord,
   saveSyncManifest,
 } from '../utils/sync-manifest'
-import { isSafeRelativeFilePath, type PlannedProjectPaths, planProjectPaths } from '../utils/sync-paths'
+import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planProjectPaths } from '../utils/sync-paths'
 
 /**
  * `deepnote sync` — mirror the workspace's projects into a local directory and pull cloud edits down.
@@ -810,14 +810,26 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   }
 
   // Projects the manifest knows but the cloud no longer lists: deleted (or access lost). Local
-  // copies are kept unless the user opted into --prune.
+  // copies are kept unless the user opted into --prune. A stale record may share its path with a
+  // newly created cloud project, in which case only the stale tracking is removed.
   const cloudIds = new Set(cloudProjects.map(project => project.id))
+  const liveProjectDirs = [...plans.values()].map(plan => plan.projectDir)
   for (const [projectId, record] of Object.entries(manifest.projects)) {
     if (cloudIds.has(projectId)) {
       continue
     }
     const base = { projectId, name: record.dir, path: record.dir }
-    if (ctx.options.prune) {
+    const pathUsedByLiveProject = liveProjectDirs.some(projectDir => pathsOverlap(record.dir, projectDir))
+    if (ctx.options.prune && pathUsedByLiveProject) {
+      if (!ctx.dryRun) {
+        delete manifest.projects[projectId]
+      }
+      outcomes.push({
+        ...base,
+        action: 'missing-in-cloud',
+        detail: 'no longer in the cloud; kept local path used by a current cloud project',
+      })
+    } else if (ctx.options.prune) {
       if (!ctx.dryRun) {
         await fs.rm(toAbsolute(ctx, record.dir), { recursive: true, force: true })
         delete manifest.projects[projectId]
