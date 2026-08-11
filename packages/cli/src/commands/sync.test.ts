@@ -1170,7 +1170,7 @@ describe('syncWorkspace', () => {
     expect(await fs.readFile(path.join(tempDir, 'Gamma', 'main.deepnote'), 'utf-8')).toContain('p1')
   })
 
-  it('does not retarget a missing tracked directory onto an occupied destination', async () => {
+  it('does not adopt an occupied destination when the tracked directory is missing', async () => {
     const projects: CloudProject[] = [
       { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
     ]
