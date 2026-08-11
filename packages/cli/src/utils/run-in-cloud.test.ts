@@ -134,6 +134,16 @@ async function listSnapshots(dir = join(tmpDir, 'snapshots')): Promise<string[]>
   return fs.readdir(dir).catch(() => [])
 }
 
+async function withCurrentDirectory<T>(directory: string, callback: () => Promise<T>): Promise<T> {
+  const previousDirectory = process.cwd()
+  process.chdir(directory)
+  try {
+    return await callback()
+  } finally {
+    process.chdir(previousDirectory)
+  }
+}
+
 describe('runInDeepnoteCloud — usage guards', () => {
   it('rejects --push as not yet implemented', async () => {
     await expect(
@@ -167,15 +177,19 @@ describe('runInDeepnoteCloud — usage guards', () => {
   })
 
   it('requires a token (missing)', async () => {
-    await expect(runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb' })).rejects.toBeInstanceOf(
-      MissingTokenError
-    )
+    await withCurrentDirectory(tmpDir, async () => {
+      await expect(runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb' })).rejects.toBeInstanceOf(
+        MissingTokenError
+      )
+    })
   })
 
   it('treats a blank token as missing', async () => {
-    await expect(runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb', token: '   ' })).rejects.toBeInstanceOf(
-      MissingTokenError
-    )
+    await withCurrentDirectory(tmpDir, async () => {
+      await expect(
+        runInDeepnoteCloud(undefined, { cloud: true, notebookId: 'nb', token: '   ' })
+      ).rejects.toBeInstanceOf(MissingTokenError)
+    })
   })
 
   it('rejects a non-.deepnote file', async () => {

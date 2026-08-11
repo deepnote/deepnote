@@ -162,6 +162,9 @@ importers:
       '@inquirer/testing':
         specifier: ^3.1.1
         version: 3.1.1(patch_hash=1bb511b5888b39b10f59d61819f8635a4b99efc60a55f5b6cebb4f3fcd53f440)(@inquirer/checkbox@5.0.6(@types/node@22.18.12))(@inquirer/confirm@6.0.6(@types/node@22.18.12))(@inquirer/editor@5.0.6(@types/node@22.18.12))(@inquirer/expand@5.0.6(@types/node@22.18.12))(@inquirer/external-editor@2.0.3(@types/node@22.18.12))(@inquirer/input@5.0.6(@types/node@22.18.12))(@inquirer/number@4.0.6(@types/node@22.18.12))(@inquirer/password@5.0.6(@types/node@22.18.12))(@inquirer/prompts@8.2.1(@types/node@22.18.12))(@inquirer/rawlist@5.2.2(@types/node@22.18.12))(@inquirer/search@4.1.2(@types/node@22.18.12))(@inquirer/select@5.0.6(@types/node@22.18.12))(@types/node@22.18.12)(vitest@4.1.8)
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.3
       json-schema-to-typescript:
         specifier: ^15.0.4
         version: 15.0.4
@@ -177,6 +180,9 @@ importers:
       '@deepnote/database-integrations':
         specifier: workspace:*
         version: link:../database-integrations
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.3
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -1960,6 +1966,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
@@ -4736,6 +4745,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  fflate@0.8.3: {}
 
   fill-range@7.1.1:
     dependencies:
