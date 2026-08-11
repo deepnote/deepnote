@@ -560,7 +560,7 @@ export async function uploadProjectFile(
   form.set('path', filePath)
   // A basename is enough; the destination is `path`. Copy into a fresh ArrayBuffer so the Blob is
   // backed by exactly these bytes regardless of the view's offset into a larger buffer.
-  const buffer = bytes.slice().buffer
+  const buffer = new Uint8Array(bytes).buffer
   form.set('file', new Blob([buffer]), filePath.split('/').pop() || 'file')
 
   const response = await requestOk(

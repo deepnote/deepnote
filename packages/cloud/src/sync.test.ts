@@ -368,6 +368,21 @@ describe('uploadProjectFile', () => {
     expect(stored).toEqual({ path: 'data/input.csv', size: 3, updatedAt: '2026-01-02T00:00:00.000Z' })
   })
 
+  it('uploads only the bytes in a Buffer view', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ file: { path: 'data/input.csv', size: 3 } }))
+    const bytes = Buffer.allocUnsafe(8_192).subarray(100, 103)
+    bytes.set([97, 44, 98])
+
+    await uploadProjectFile(BASE_URL, TOKEN, 'p1', 'data/input.csv', bytes)
+
+    const form = fetchSpy.mock.calls[0][1]?.body as FormData
+    const file = form.get('file') as Blob
+    expect(file.size).toBe(3)
+    expect(await file.text()).toBe('a,b')
+  })
+
   it('rejects a response without the actual stored path', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ file: { size: 3 } }))
 
