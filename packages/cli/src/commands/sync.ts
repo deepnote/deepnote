@@ -107,11 +107,6 @@ function sha256(content: string | Uint8Array): string {
   return crypto.createHash('sha256').update(content).digest('hex')
 }
 
-/** Locale-independent UTF-16 code-unit ordering, identical in every JavaScript runtime. */
-function compareCodeUnits(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0
-}
-
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
   if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
     throw new Error(`Project file "${filePath}" exceeds the 100 MiB --all-files limit.`)
@@ -125,9 +120,7 @@ function assertBufferedProjectFileSize(filePath: string, size: number): void {
  * always hashes the same.
  */
 export function canonicalProjectHash(files: readonly ExportedNotebookFile[]): string {
-  const parts = [...files]
-    .sort((a, b) => compareCodeUnits(a.filename, b.filename))
-    .map(file => `${file.filename}\n${sha256(file.content)}`)
+  const parts = files.map(file => `${file.filename}\n${sha256(file.content)}`).sort()
   return sha256(parts.join('\n'))
 }
 
