@@ -121,16 +121,16 @@ exports will emit), so a client can correlate the response with what it sent.
 
 ### Errors
 
-| Status | When                                                                                                                                                                |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 400    | Malformed request (bad query params or a content type other than `application/zip`).                                                                                |
-| 401    | Missing/invalid API key.                                                                                                                                            |
-| 403    | No write access, missing rename permission for a changed project name, or the plan's notebook limit would be exceeded.                                              |
-| 404    | Project not found.                                                                                                                                                  |
-| 409    | Project changed since `baseModifiedAt`/`baseContentHash` (unless `force`), or is suspended.                                                                         |
-| 413    | ZIP (or a document) over the server's size limit. Keep symmetric with the export ceiling so a project that exports cannot fail to import.                           |
-| 422    | The archive/document is malformed, targets another project, contains inconsistent project metadata or unavailable integrations, or violates naming/structure rules. |
-| 429    | Rate limited (`Retry-After`).                                                                                                                                       |
+| Status | When                                                                                                                                                                     |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 400    | Malformed request (bad query params or a content type other than `application/zip`).                                                                                     |
+| 401    | Missing/invalid API key.                                                                                                                                                 |
+| 403    | No write access, missing rename permission for a changed project name, or the plan's notebook limit would be exceeded.                                                   |
+| 404    | Project not found.                                                                                                                                                       |
+| 409    | Project changed since `baseModifiedAt`/`baseContentHash` (unless `force`), or is suspended. A suspended project returns exactly `{ "message": "Project is suspended" }`. |
+| 413    | ZIP (or a document) over the server's size limit. Keep symmetric with the export ceiling so a project that exports cannot fail to import.                                |
+| 422    | The archive/document is malformed, targets another project, contains inconsistent project metadata or unavailable integrations, or violates naming/structure rules.      |
+| 429    | Rate limited (`Retry-After`).                                                                                                                                            |
 
 ## Working-directory files (already available)
 
