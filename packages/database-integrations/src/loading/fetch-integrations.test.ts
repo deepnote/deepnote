@@ -61,10 +61,7 @@ describe('fetchIntegrations', () => {
 
     await fetchIntegrations(`${mockBaseUrl}/`, mockToken)
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      `${mockBaseUrl}/v2/integrations?includeMetadata=true`,
-      expect.anything()
-    )
+    expect(global.fetch).toHaveBeenCalledWith(`${mockBaseUrl}/v2/integrations?includeMetadata=true`, expect.anything())
   })
 
   it('should throw ApiError with 401 for authentication failure', async () => {
