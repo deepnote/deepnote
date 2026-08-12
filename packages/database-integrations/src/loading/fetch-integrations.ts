@@ -10,10 +10,10 @@ export const apiIntegrationSchema = z
     name: z.string(),
     type: z.string(),
     metadata: z.unknown(),
-    is_public: z.boolean(),
-    created_at: z.string(),
-    updated_at: z.string(),
-    federated_auth_method: z.string().nullable(),
+    is_public: z.boolean().nullish(),
+    created_at: z.string().nullish(),
+    updated_at: z.string().nullish(),
+    federated_auth_method: z.string().nullish(),
   })
   .passthrough()
 
@@ -29,6 +29,12 @@ export const apiResponseSchema = z
   .passthrough()
 
 export type ApiResponse = z.infer<typeof apiResponseSchema>
+
+const REQUEST_TIMEOUT_MS = 30_000
+
+function trimTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, '')
+}
 
 /**
  * Fetch integrations from the Deepnote API.
@@ -46,7 +52,7 @@ export async function fetchIntegrations(
   token: string,
   integrationIds?: string[]
 ): Promise<ApiIntegration[]> {
-  const endpoint = new URL(`${baseUrl}/v2/integrations`)
+  const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/integrations`)
   endpoint.searchParams.set('includeMetadata', 'true')
   if (integrationIds && integrationIds.length > 0) {
     endpoint.searchParams.set('integrationIds', integrationIds.join(','))
@@ -59,6 +65,7 @@ export async function fetchIntegrations(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 
   if (!response.ok) {
