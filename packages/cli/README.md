@@ -538,6 +538,76 @@ deepnote schedule report.deepnote --daily --open
 deepnote schedule report.deepnote --hourly -o json
 ```
 
+### `sync [dir]`
+
+Mirror Deepnote projects into a local directory: every project in your workspace becomes a directory
+`<folder path>/<project name>/` holding one `.deepnote` file per notebook, mirroring the workspace
+folder tree.
+
+```bash
+deepnote sync workspace
+```
+
+Sync state lives in `.deepnote-sync.json` in the synced directory. Projects are tracked by id
+(names are not unique in Deepnote), so cloud renames become local directory moves, and name
+collisions are disambiguated deterministically with a short id suffix. A project export is a ZIP of
+one deterministic document per notebook, so unchanged projects are detected by a content-hash
+comparison (over the documents, not the archive) and skipped.
+When the API reports only a visible suffix of a folder path, sync places it under
+`.deepnote-incomplete/<folder-id>/` instead of treating that suffix as the workspace-root hierarchy.
+
+Both directions work. Pull writes the exported documents down. Push is the **exact inverse** — a
+project edited only locally is re-uploaded as the same ZIP of documents to the project import
+endpoint, with `baseModifiedAt` + `baseContentHash` so a concurrent cloud edit is rejected (409) and
+resolved as override-or-skip rather than a silent overwrite. A project edited both locally and in the
+cloud is a conflict, resolved the same way. Project name and integration attachment edits are also
+applied from the documents; every document in a multi-notebook project must carry the same values.
+`--all-files` uploads changed working-directory files on push. File replacements are recorded before
+the cloud copy is deleted, so an interrupted upload is retried on the next `--all-files` sync.
+Working-directory files larger than 100 MiB are rejected because these transfers are buffered in
+memory; use another transfer method for larger data files.
+
+If a push changes `project.name`, the current run finishes in the existing local directory. The next
+sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.
+Renaming the local directory itself does not rename the cloud project. The full import contract is in
+`packages/cloud/docs/project-import-contract.md`.
+
+Sync never creates or deletes cloud projects. Pulls reconcile a tracked project's `.deepnote` files,
+removing local notebook files absent from the cloud export. Deleting directories for projects missing
+from the cloud or stale working-directory files requires `--prune`. Sync does not run git — commit and
+push yourself. Even with `--prune`, a stale manifest entry cannot delete a directory whose path is now
+used by a current cloud project. Sync also refuses to prune when none of the tracked project IDs match
+the listed workspace; verify the API token and `--url` before retrying.
+
+**Options:**
+
+| Option                       | Description                                                             | Default      |
+| ---------------------------- | ----------------------------------------------------------------------- | ------------ |
+| `--url <url>`                | API base URL                                                            | Deepnote API |
+| `--token <token>`            | Bearer token (or use `DEEPNOTE_TOKEN` env var)                          |              |
+| `--all-files`                | Also sync working-directory files (download on pull, upload on push)    | off          |
+| `--on-conflict <mode>`       | Conflict handling: `ask`, `skip`, or `override`                         | `ask`        |
+| `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
+| `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
+| `--dry-run`                  | Show what would be synced without writing anything                      | off          |
+| `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
+
+**Examples:**
+
+```bash
+# Mirror the whole workspace into ./workspace
+deepnote sync workspace
+
+# Also download working-directory files (data, requirements.txt, …)
+deepnote sync workspace --all-files
+
+# Non-interactive: skip anything conflicting (good for cron/CI)
+deepnote sync workspace --on-conflict skip
+
+# Preview without writing
+deepnote sync workspace --dry-run
+```
+
 ### `validate <path>`
 
 Validate a `.deepnote` file against the schema.
