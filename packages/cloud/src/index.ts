@@ -22,6 +22,8 @@ export {
   triggerNotebookRun,
 } from './cloud-runs'
 export {
+  type AddNotebooksOptions,
+  addNotebooksToProject,
   type BlockSpec,
   type CreatedNotebook,
   type CreatedProject,
@@ -35,10 +37,40 @@ export { parseApiErrorMessage } from './parse-api-error'
 export {
   type FindNotebookQuery,
   type FoundNotebook,
+  type FoundProject,
+  type FoundProjectNotebook,
   findNotebook,
+  findProject,
   getWorkspace,
   type NotebookUrlParams,
   notebookUrl,
   type RequestOptions,
   type Workspace,
 } from './projects'
+export {
+  type NotebookSchedule,
+  type ScheduleRequestOptions,
+  type UpsertNotebookScheduleBody,
+  upsertNotebookSchedule,
+} from './schedules'
+export {
+  deleteProjectFile,
+  downloadProjectFile,
+  type ExportedNotebookFile,
+  exportProject,
+  getProjectDetail,
+  type ImportedNotebook,
+  type ImportProjectOptions,
+  type ImportProjectResult,
+  importProject,
+  listAllProjects,
+  MAX_BUFFERED_PROJECT_FILE_BYTES,
+  type ProjectDetail,
+  type ProjectFileEntry,
+  type ProjectFileTransferOptions,
+  type ProjectFolder,
+  type ProjectFolderPathSegment,
+  type SyncProject,
+  type UploadedFile,
+  uploadProjectFile,
+} from './sync'
