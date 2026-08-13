@@ -35,7 +35,7 @@ When this setting is disabled, projects in the workspace cannot enable incoming 
 Once incoming connections are enabled at the workspace level, you can turn them on for specific projects:
 
 1. Open the project where you want to enable incoming connections
-2. In the left sidebar, click on the **More options** button next to **Start machine**.
+2. Open the **Settings** panel from the top-right, and in the **Machine** section click the **More options** button next to **Start machine**.
 
 3. Toggle on **Incoming connections**.
 
