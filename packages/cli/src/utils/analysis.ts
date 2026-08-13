@@ -508,10 +508,6 @@ interface IntegrationCheckResult {
  */
 function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string, BlockInfo>): IntegrationCheckResult {
   const issues: LintIssue[] = []
-  // Collections are keyed by lowercased integration id so that two casings of the
-  // same external integration collapse to one entry (the env-var derivation that
-  // follows is case-insensitive). The first-seen original casing is kept for display.
-  const displayCasing = new Map<string, string>()
   const configuredIntegrations = new Set<string>()
   const missingIntegrations = new Set<string>()
   const integrationUsage = new Map<string, { blockId: string; info: BlockInfo }[]>()
@@ -520,18 +516,10 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     if (block.type !== 'sql') continue
 
     const metadata = block.metadata as Record<string, unknown>
-    const rawId = metadata.sql_integration_id
-    // sql_integration_id is untrusted metadata; ignore non-string values rather
-    // than casting, so a malformed value never reaches .toLowerCase().
-    const integrationId = typeof rawId === 'string' ? rawId : undefined
+    const integrationId = metadata.sql_integration_id as string | undefined
 
     if (!integrationId || isBuiltinIntegration(integrationId)) {
       continue
-    }
-
-    const key = integrationId.toLowerCase()
-    if (!displayCasing.has(key)) {
-      displayCasing.set(key, integrationId)
     }
 
     const info = blockMap.get(block.id)
@@ -541,39 +529,36 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     const isConfigured = !!process.env[envVarName]
 
     if (isConfigured) {
-      configuredIntegrations.add(key)
+      configuredIntegrations.add(integrationId)
     } else {
-      missingIntegrations.add(key)
-      const usage = integrationUsage.get(key) ?? []
+      missingIntegrations.add(integrationId)
+      const usage = integrationUsage.get(integrationId) ?? []
       usage.push({ blockId: block.id, info })
-      integrationUsage.set(key, usage)
+      integrationUsage.set(integrationId, usage)
     }
   }
 
-  for (const [key, usages] of integrationUsage) {
-    const displayId = displayCasing.get(key) ?? key
-    const envVarName = getSqlEnvVarName(displayId)
+  for (const [integrationId, usages] of integrationUsage) {
+    const envVarName = getSqlEnvVarName(integrationId)
 
     for (const { blockId, info } of usages) {
       issues.push({
         severity: 'error',
         code: 'missing-integration',
-        message: `SQL integration "${displayId}" is not configured (set ${envVarName})`,
+        message: `SQL integration "${integrationId}" is not configured (set ${envVarName})`,
         blockId,
         blockLabel: info.label,
         notebookName: info.notebookName,
-        details: { integrationId: displayId, envVar: envVarName },
+        details: { integrationId, envVar: envVarName },
       })
     }
   }
 
-  const toDisplay = (key: string) => displayCasing.get(key) ?? key
-
   return {
     issues,
     summary: {
-      configured: Array.from(configuredIntegrations, toDisplay).sort(),
-      missing: Array.from(missingIntegrations, toDisplay).sort(),
+      configured: Array.from(configuredIntegrations).sort(),
+      missing: Array.from(missingIntegrations).sort(),
     },
   }
 }

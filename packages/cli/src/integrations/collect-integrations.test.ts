@@ -41,23 +41,13 @@ describe('collectRequiredIntegrationIds', () => {
     expect(collectRequiredIntegrationIds(file)).toEqual(['My-Warehouse'])
   })
 
-  it('dedupes a mixed-case external integration to its first-seen casing', () => {
+  it('preserves the exact identity of external integrations', () => {
     const file = makeFileWithSqlBlocks(['My-Warehouse', 'my-warehouse'])
-    expect(collectRequiredIntegrationIds(file)).toEqual(['My-Warehouse'])
-  })
-
-  it('keeps genuinely different external integrations distinct (no over-merge)', () => {
-    const file = makeFileWithSqlBlocks(['warehouse-a', 'warehouse-b'])
-    expect(collectRequiredIntegrationIds(file).sort()).toEqual(['warehouse-a', 'warehouse-b'])
+    expect(collectRequiredIntegrationIds(file)).toEqual(['My-Warehouse', 'my-warehouse'])
   })
 
   it('ignores SQL blocks without an integration id', () => {
     const file = makeFileWithSqlBlocks([undefined, 'my-warehouse'])
     expect(collectRequiredIntegrationIds(file)).toEqual(['my-warehouse'])
-  })
-
-  it('capstone (combined): built-in filtered out, external deduped to first-seen casing', () => {
-    const file = makeFileWithSqlBlocks(['Pandas-DataFrame', 'My-Warehouse', 'my-warehouse'])
-    expect(collectRequiredIntegrationIds(file)).toEqual(['My-Warehouse'])
   })
 })

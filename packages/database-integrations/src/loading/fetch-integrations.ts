@@ -43,7 +43,7 @@ function trimTrailingSlash(url: string): string {
  *
  * @param baseUrl - The base URL of the Deepnote API
  * @param token - The authentication token
- * @param integrationIds - Optional list of integration IDs to fetch. When provided, only these integrations are returned.
+ * @param integrationIds - Optional list of integration UUIDs to fetch. When provided, only these integrations are returned.
  * @returns Array of integrations from the API
  * @throws ApiError if the request fails
  */
@@ -55,7 +55,7 @@ export async function fetchIntegrations(
   const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/integrations`)
   endpoint.searchParams.set('includeMetadata', 'true')
   if (integrationIds && integrationIds.length > 0) {
-    endpoint.searchParams.set('integrationIds', integrationIds.join(','))
+    endpoint.searchParams.set('integrationIds', integrationIds.map(id => id.toLowerCase()).join(','))
   }
   const url = endpoint.toString()
 
