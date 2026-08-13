@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sales performance — Deepnote gallery</title>
+    <style>
+      /* Palette from the dataviz reference: sequential blue for magnitude, status green for the
+         target, validated against both surfaces (blue-450 on light, blue-400 on dark — the dark
+         step is chosen, not a flipped light one). */
+      :root {
+        color-scheme: light dark;
+        --surface: #fcfcfb;
+        --raised: #ffffff;
+        --line: #e6e5e1;
+        --ink: #1a1a19;
+        --ink-2: #55544e;
+        --ink-3: #86847c;
+        --bar: #2a78d6;
+        --bar-soft: #cde2fb;
+        --good: #0ca30c;
+        --shadow: 0 1px 2px rgba(20, 20, 18, 0.04), 0 12px 32px -18px rgba(20, 20, 18, 0.2);
+        --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --r: 10px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --surface: #1a1a19;
+          --raised: #232322;
+          --line: #34342f;
+          --ink: #f2f1ec;
+          --ink-2: #a8a69c;
+          --ink-3: #78766d;
+          --bar: #3987e5;
+          --bar-soft: #184f95;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 34px -18px rgba(0, 0, 0, 0.8);
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--surface); color: var(--ink); font-family: var(--sans);
+        line-height: 1.5; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
+      }
+      a { color: inherit; }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 28px clamp(16px, 4vw, 32px) 72px; }
+
+      /* Header */
+      .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      h1 { font-size: 1.5rem; letter-spacing: -0.02em; margin: 0; font-weight: 650; }
+      .sub { color: var(--ink-3); font-size: 0.84rem; margin-top: 3px; }
+      .home { font-size: 0.78rem; color: var(--ink-3); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
+      .home:hover { color: var(--ink); }
+
+      /* Parameters — the values this run executed with */
+      .params { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+      .chip { display: inline-flex; align-items: baseline; gap: 6px; border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 4px 11px; font-size: 0.76rem; }
+      .chip b { font-weight: 600; color: var(--ink); }
+      .chip span { color: var(--ink-3); font-family: var(--mono); font-size: 0.72rem; }
+
+      /* KPI row — stat tiles, no plot: the number IS the chart */
+      .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 20px; }
+      .kpi { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow); }
+      .kpi .cap { font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+      .kpi .val { font-size: 1.95rem; font-weight: 660; letter-spacing: -0.03em; margin-top: 6px; line-height: 1.1; }
+      .kpi .val.sm { font-size: 1.3rem; }
+      .kpi .note { font-size: 0.78rem; color: var(--ink-3); margin-top: 4px; }
+      .kpi .note.good { color: var(--good); font-weight: 560; }
+
+      /* Meter — attainment vs target. 4px rounded end, anchored to the baseline. */
+      .meter { height: 6px; border-radius: 4px; background: var(--bar-soft); margin-top: 10px; overflow: hidden; }
+      .meter i { display: block; height: 100%; border-radius: 4px; background: var(--good); }
+
+      .card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); margin-top: 16px; overflow: hidden; }
+      .card h2 { font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); margin: 0; padding: 14px 18px 0; font-weight: 650; }
+      .chart { padding: 8px 18px 18px; }
+      .chart img { width: 100%; height: auto; display: block; border-radius: 6px; }
+
+      /* Table — magnitude bars, one hue. Identity is the row label, so colour is free to mean size. */
+      .scroll { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 520px; }
+      th { text-align: left; font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); font-weight: 650; padding: 10px 18px; border-bottom: 1px solid var(--line); }
+      th.num, td.num { text-align: right; }
+      td { padding: 11px 18px; border-bottom: 1px solid var(--line); }
+      tr:last-child td { border-bottom: 0; }
+      td.region { font-weight: 560; }
+      .barcell { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+      .barcell .track { flex: 1; max-width: 180px; height: 8px; background: var(--bar-soft); border-radius: 4px; overflow: hidden; }
+      .barcell .fill { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
+      .barcell .n { min-width: 8ch; }
+
+      /* Column distribution, straight from the dataframe's precomputed stats */
+      .dist { display: flex; align-items: flex-end; gap: 1px; height: 22px; }
+      .dist i { flex: 1; background: var(--bar); border-radius: 2px 2px 0 0; min-height: 1px; opacity: 0.85; }
+      .dist i[data-empty="1"] { background: var(--line); }
+      .stat { font-size: 0.68rem; color: var(--ink-3); font-family: var(--mono); margin-top: 4px; }
+
+      /* Agent readout */
+      .readout { padding: 4px 18px 18px; }
+      .readout p { margin: 0; white-space: pre-wrap; font-size: 0.9rem; color: var(--ink-2); }
+      .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; color: var(--bar); }
+
+      .foot { margin-top: 22px; font-size: 0.76rem; color: var(--ink-3); }
+      .foot code { font-family: var(--mono); font-size: 0.72rem; }
+      .picker { padding: 40px; text-align: center; color: var(--ink-3); }
+      .empty { padding: 18px; color: var(--ink-3); font-size: 0.86rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="root"></div>
+
+    <script src="./snapshot-reader.js"></script>
+    <script type="module">
+      // The snapshot as product-ready metrics: a dashboard, not a notebook.
+      //
+      // Every number here is COMPUTED from the snapshot's dataframe and the values the run executed
+      // with — none of it is the notebook's own rendered HTML. That is the whole argument: a
+      // snapshot is data, so a page can ask its own questions of it rather than replaying pictures.
+      //
+      // Safety: every string below reaches the DOM via textContent. Nothing a notebook produced is
+      // ever interpolated into markup, so unlike the snapshot-viewer there is no iframe and no
+      // sandbox here — the untrusted-HTML surface simply doesn't exist.
+      import { agentText, dataColumns, filePicker, findDataframe, findImage, inputs, inputValue, loadSnapshot, rowLabel } from './gallery.js'
+
+      const $ = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
+      const root = document.getElementById('root')
+      const money = n => '$' + Math.round(n).toLocaleString('en-US')
+
+      loadSnapshot(render, (msg, show) => filePicker(root, msg, show))
+
+      function render(view) {
+        root.replaceChildren()
+        header(view)
+        params(view)
+
+        const df = findDataframe(view)
+        // A snapshot need not contain a dataframe. Say so plainly rather than white-screening.
+        if (!df) {
+          root.append(card('Metrics', el => { const p = $('div', 'empty'); p.textContent = 'This snapshot has no dataframe output, so there are no metrics to compute.'; el.append(p) }))
+        } else {
+          kpis(view, df)
+          chart(view)
+          table(df)
+        }
+        readout(view)
+        footer()
+      }
+
+      function header(view) {
+        const top = $('div', 'top')
+        const left = $('div')
+        const h = $('h1')
+        h.textContent = view.projectName
+        const sub = $('div', 'sub')
+        const when = view.finishedAt ? new Date(view.finishedAt) : null
+        sub.textContent = when ? `Last run ${when.toLocaleString()}` : 'Read-only snapshot'
+        left.append(h, sub)
+        const home = $('a', 'home')
+        home.href = './'
+        home.textContent = '← gallery'
+        top.append(left, home)
+        root.append(top)
+      }
+
+      // The parameters the run executed with, read as a filter bar.
+      //
+      // These chips are why the library changed on this branch: `input` used to carry { name, value }
+      // and nothing else, so the best this could say was `trailing_months = 6`. It now carries the
+      // label and bounds too, so a slider reads "Trailing months · 6 of 3–12" — the value in the
+      // terms the notebook's author chose, which is the difference between a variable dump and a UI.
+      function params(view) {
+        const list = inputs(view)
+        if (!list.length) return
+        const wrap = $('div', 'params')
+        for (const i of list) {
+          const chip = $('span', 'chip')
+          const n = $('span')
+          n.textContent = i.label ?? i.name
+          const b = $('b')
+          b.textContent = fmt(i.value)
+          chip.append(n, b)
+          const range = bounds(i)
+          if (range) { const r = $('span'); r.textContent = range; chip.append(r) }
+          wrap.append(chip)
+        }
+        root.append(wrap)
+      }
+
+      /** What a value was chosen from — meaningless to show for a free-text input. */
+      function bounds(i) {
+        if (i.min != null && i.max != null) return `of ${i.min}–${i.max}`
+        if (Array.isArray(i.options) && i.options.length > 1) return `of ${i.options.length}`
+        return ''
+      }
+
+      const fmt = v => (Array.isArray(v) ? v.join(' → ') : typeof v === 'boolean' ? (v ? 'yes' : 'no') : String(v ?? ''))
+
+      function kpis(view, df) {
+        const col = 'Revenue ($k)'
+        const rows = df.rows.filter(r => typeof r[col] === 'number')
+        if (!rows.length) return
+
+        const revenue = rows.reduce((sum, r) => sum + r[col], 0) * 1000
+        const top = rows.reduce((a, b) => (b[col] > a[col] ? b : a))
+
+        // Target is the monthly target times the window — both are inputs of this run, which is why
+        // a static page can recompute attainment at all.
+        const perMonth = Number(inputValue(view, 'target_revenue_k'))
+        const months = Number(inputValue(view, 'trailing_months'))
+        const target = Number.isFinite(perMonth) && Number.isFinite(months) ? perMonth * months * 1000 : null
+        const pct = target ? (revenue / target) * 100 : null
+
+        const grid = $('div', 'kpis')
+        grid.append(
+          tile('Revenue', money(revenue), months ? `over ${months} months` : ''),
+          target
+            ? tile('To target', `${pct.toFixed(1)}%`, `target ${money(target)}`, pct >= 100, Math.min(pct, 100))
+            : tile('To target', '—', 'no target input in this run'),
+          tile('Top region', rowLabel(top), `${money(top[col] * 1000)} in window`, false, null, true)
+        )
+        root.append(grid)
+        // Deliberately absent: "vs prior period". The card the notebook baked shows ▲13.7%, but the
+        // dataframe holds only this window's rows — the prior window was never materialised into an
+        // output, so recomputing it here would mean inventing it.
+      }
+
+      function tile(cap, value, note, good = false, meterPct = null, small = false) {
+        const box = $('div', 'kpi')
+        const c = $('div', 'cap'); c.textContent = cap
+        const v = $('div', small ? 'val sm' : 'val'); v.textContent = value
+        box.append(c, v)
+        if (note) { const n = $('div', good ? 'note good' : 'note'); n.textContent = good ? `▲ ${note}` : note; box.append(n) }
+        if (meterPct !== null) {
+          const m = $('div', 'meter'); const i = $('i'); i.style.width = `${meterPct}%`; m.append(i); box.append(m)
+        }
+        return box
+      }
+
+      function card(title, fill) {
+        const c = $('div', 'card')
+        const h = $('h2'); h.textContent = title
+        c.append(h)
+        fill(c)
+        return c
+      }
+
+      function chart(view) {
+        const src = findImage(view)
+        if (!src) return
+        root.append(card('Revenue vs target', c => {
+          const box = $('div', 'chart')
+          const img = $('img')
+          img.src = src
+          img.alt = 'Monthly revenue against target, as plotted by the notebook'
+          box.append(img)
+          c.append(box)
+        }))
+      }
+
+      function table(df) {
+        const cols = dataColumns(df)
+        const numeric = cols.filter(c => df.rows.some(r => typeof r[c.name] === 'number'))
+        const barCol = numeric[0]
+        const max = barCol ? Math.max(...df.rows.map(r => Number(r[barCol.name]) || 0)) : 0
+
+        root.append(card(`By region · ${df.rows.length} rows`, c => {
+          const scroll = $('div', 'scroll')
+          const t = $('table')
+          const thead = $('thead')
+          const hr = $('tr')
+          hr.append(th('Region'))
+          for (const col of cols) hr.append(th(col.name, true, col))
+          thead.append(hr)
+
+          const tb = $('tbody')
+          for (const row of df.rows) {
+            const tr = $('tr')
+            const label = $('td', 'region')
+            label.textContent = rowLabel(row)
+            tr.append(label)
+            for (const col of cols) {
+              const td = $('td', 'num')
+              const v = row[col.name]
+              if (col === barCol && typeof v === 'number' && max > 0) {
+                const cell = $('div', 'barcell')
+                const n = $('span', 'n'); n.textContent = v.toLocaleString('en-US')
+                const track = $('div', 'track'); const fill = $('i', 'fill')
+                fill.style.width = `${(v / max) * 100}%`
+                track.append(fill)
+                cell.append(n, track)
+                td.append(cell)
+              } else {
+                td.textContent = typeof v === 'number' ? v.toLocaleString('en-US') : String(v ?? '')
+              }
+              tr.append(td)
+            }
+            tb.append(tr)
+          }
+          t.append(thead, tb)
+          scroll.append(t)
+          c.append(scroll)
+        }))
+      }
+
+      // A column header carries its own distribution — the snapshot precomputed the bins, so this
+      // is a read, not a calculation. `stats` is optional: no stats, no chart, still a header.
+      function th(name, withStats = false, col = null) {
+        const cell = $('th', withStats ? 'num' : '')
+        const label = $('div')
+        label.textContent = name
+        cell.append(label)
+        const stats = col?.stats
+        if (!withStats || !stats) return cell
+
+        if (Array.isArray(stats.histogram) && stats.histogram.length) {
+          const peak = Math.max(...stats.histogram.map(b => b.count))
+          const d = $('div', 'dist')
+          for (const bin of stats.histogram) {
+            const bar = $('i')
+            bar.style.height = peak ? `${Math.max(6, (bin.count / peak) * 100)}%` : '1px'
+            if (!bin.count) bar.dataset.empty = '1'
+            bar.title = `${bin.bin_start.toFixed(1)}–${bin.bin_end.toFixed(1)}: ${bin.count}`
+            d.append(bar)
+          }
+          cell.append(d)
+        }
+        const s = $('div', 'stat')
+        s.textContent = stats.min != null && stats.max != null
+          ? `${stats.min} – ${stats.max}`
+          : Array.isArray(stats.categories)
+            ? `${stats.unique_count} unique`
+            : ''
+        if (s.textContent) cell.append(s)
+        return cell
+      }
+
+      function readout(view) {
+        const text = agentText(view)
+        if (!text) return
+        root.append(card('', c => {
+          c.querySelector('h2').remove()
+          const head = $('div', 'readout')
+          const badge = $('span', 'badge')
+          badge.textContent = '✦ AI readout'
+          const p = $('p')
+          p.textContent = text
+          head.append(badge, p)
+          c.append(head)
+        }))
+      }
+
+      function footer() {
+        const f = $('div', 'foot')
+        f.textContent = 'Every figure above is computed in this page from the snapshot’s dataframe and the run’s input values — none of the notebook’s rendered HTML is used.'
+        root.append(f)
+      }
+    </script>
+  </body>
+</html>

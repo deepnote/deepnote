@@ -15,3 +15,8 @@ dist
 examples/report.md
 examples/snapshots/*_T*.snapshot.deepnote
 node_modules
+
+# Copied in by the steps in README.md — build output and your own snapshot, not source.
+snapshot-reader.js
+snapshot-viewer.js
+snapshot.deepnote

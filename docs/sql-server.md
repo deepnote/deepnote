@@ -29,7 +29,7 @@ To create the integration, you'll need a few things:
 
 <Callout status="info">
 
-If your connection is protected, you might need to add Deepnote's IP addresses to your allowlist. [Read more here](/docs/authorize-deepnote-ip-addresses).
+If your connection is protected, you might need to add Deepnote's IP addresses to your allowlist. [Read more here](/docs/securing-connections#authorizing-deepnotes-ip-addresses).
 
 </Callout>
 

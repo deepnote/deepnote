@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deck — Deepnote gallery</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --surface: #fcfcfb; --ink: #1a1a19; --ink-2: #55544e; --ink-3: #86847c;
+        --line: #e6e5e1; --bar: #2a78d6; --bar-soft: #cde2fb; --good: #0ca30c;
+        --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --surface: #1a1a19; --ink: #f2f1ec; --ink-2: #a8a69c; --ink-3: #78766d; --line: #34342f; --bar: #3987e5; --bar-soft: #184f95; }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body { margin: 0; background: var(--surface); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; overflow: hidden; }
+
+      .stage { height: 100%; display: grid; place-items: center; padding: clamp(20px, 5vw, 64px); }
+      .slide { width: min(100%, 900px); animation: in 0.35s ease both; }
+      @keyframes in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+      .eyebrow { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); font-weight: 650; margin-bottom: 14px; }
+      h1 { font-size: clamp(2rem, 6vw, 3.6rem); letter-spacing: -0.035em; margin: 0; font-weight: 680; line-height: 1.05; }
+      .deck-sub { color: var(--ink-3); margin-top: 14px; font-size: clamp(0.9rem, 2vw, 1.05rem); }
+      .hero { font-size: clamp(3rem, 11vw, 6.5rem); font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
+      .hero-note { font-size: clamp(1rem, 2.4vw, 1.4rem); color: var(--ink-3); margin-top: 12px; }
+      .hero-note b { color: var(--good); font-weight: 620; }
+      .slide img { width: 100%; height: auto; border-radius: 10px; display: block; }
+      .prose { font-size: clamp(0.95rem, 2vw, 1.15rem); color: var(--ink-2); white-space: pre-wrap; line-height: 1.65; }
+
+      table { width: 100%; border-collapse: collapse; font-size: clamp(0.85rem, 1.8vw, 1.05rem); }
+      th { text-align: left; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 0 0 10px; font-weight: 650; }
+      th.num { text-align: right; }
+      td { padding: 10px 0; border-top: 1px solid var(--line); }
+      td.num { text-align: right; }
+      .rowbar { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+      .rowbar .track { flex: 1; max-width: 260px; height: 10px; background: var(--bar-soft); border-radius: 4px; overflow: hidden; }
+      .rowbar .fill { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
+
+      .chrome { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px clamp(14px, 3vw, 24px); font-size: 0.76rem; color: var(--ink-3); }
+      .chrome a { color: inherit; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; }
+      .chrome a:hover { color: var(--ink); }
+      .dots { display: flex; gap: 6px; }
+      .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); cursor: pointer; }
+      .dots i.on { background: var(--bar); }
+      .count { font-family: var(--mono); }
+      .picker { padding: 40px; text-align: center; color: var(--ink-3); }
+    </style>
+  </head>
+  <body>
+    <div class="stage"><div id="root" class="slide"></div></div>
+    <div class="chrome">
+      <a href="./">← gallery</a>
+      <div class="dots" id="dots"></div>
+      <span class="count" id="count"></span>
+    </div>
+
+    <script src="./snapshot-reader.js"></script>
+    <script type="module">
+      // The snapshot as presentation data. The same run, read as a story: one idea per slide, sized
+      // for a projector. Nothing here is a notebook — the blocks are just where the facts came from.
+      import { agentText, dataColumns, filePicker, findDataframe, findImage, inputValue, loadSnapshot, rowLabel } from './gallery.js'
+
+      const $ = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
+      const root = document.getElementById('root')
+      const money = n => '$' + Math.round(n).toLocaleString('en-US')
+      let slides = []
+      let at = 0
+
+      loadSnapshot(build, (msg, show) => filePicker(root, msg, show))
+
+      function build(view) {
+        const df = findDataframe(view)
+        const rows = df ? df.rows.filter(r => typeof r['Revenue ($k)'] === 'number') : []
+        const revenue = rows.reduce((s, r) => s + r['Revenue ($k)'], 0) * 1000
+        const months = Number(inputValue(view, 'trailing_months'))
+        const target = Number(inputValue(view, 'target_revenue_k')) * months * 1000
+
+        slides = [() => title(view, months)]
+        if (rows.length) slides.push(() => headline(revenue, target))
+        if (findImage(view)) slides.push(() => picture(view))
+        if (rows.length) slides.push(() => breakdown(df, rows))
+        if (agentText(view)) slides.push(() => readout(view))
+
+        addEventListener('keydown', e => {
+          if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') go(at + 1)
+          if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(at - 1)
+          if (e.key === 'Home') go(0)
+          if (e.key === 'End') go(slides.length - 1)
+        })
+
+        // Click anywhere on the slide to advance, as every projector deck does. Bound to the stage
+        // rather than the document so the chrome needs no exceptions: the gallery link and the dots
+        // are fixed siblings, not descendants, so their clicks never reach here.
+        document.querySelector('.stage').addEventListener('click', () => {
+          // A click that ends a text selection is the user copying the AI readout, not asking for
+          // the next slide. The click that clears the selection advances, as it should.
+          if (!getSelection().isCollapsed) return
+          go(at + 1)
+        })
+        go(0)
+      }
+
+      function go(i) {
+        at = Math.max(0, Math.min(slides.length - 1, i))
+        root.replaceChildren()
+        slides[at]()
+        document.getElementById('count').textContent = `${at + 1} / ${slides.length}`
+        const dots = document.getElementById('dots')
+        dots.replaceChildren()
+        slides.forEach((_, n) => { const d = $('i', n === at ? 'on' : ''); d.onclick = () => go(n); dots.append(d) })
+      }
+
+      function eyebrow(text) { const e = $('div', 'eyebrow'); e.textContent = text; return e }
+
+      function title(view, months) {
+        const h = $('h1'); h.textContent = view.projectName
+        const s = $('div', 'deck-sub')
+        const when = view.finishedAt ? new Date(view.finishedAt).toLocaleDateString() : ''
+        s.textContent = [months ? `Trailing ${months} months` : '', when].filter(Boolean).join(' · ')
+        root.append(eyebrow('Deepnote snapshot'), h, s)
+      }
+
+      function headline(revenue, target) {
+        const hero = $('div', 'hero'); hero.textContent = money(revenue)
+        root.append(eyebrow('Revenue'), hero)
+        if (target) {
+          const note = $('div', 'hero-note')
+          const pct = (revenue / target) * 100
+          const b = document.createElement('b'); b.textContent = `${pct.toFixed(1)}% of target`
+          note.append(b, document.createTextNode(` · ${money(target)}`))
+          root.append(note)
+        }
+      }
+
+      function picture(view) {
+        const img = document.createElement('img')
+        img.src = findImage(view)
+        img.alt = 'Monthly revenue against target, as plotted by the notebook'
+        root.append(eyebrow('Revenue vs target'), img)
+      }
+
+      function breakdown(df, rows) {
+        const col = 'Revenue ($k)'
+        const max = Math.max(...rows.map(r => r[col]))
+        const share = dataColumns(df).find(c => c.name === 'Share')
+        const t = document.createElement('table')
+        const hr = $('tr')
+        const h1 = $('th'); h1.textContent = 'Region'
+        const h2 = $('th', 'num'); h2.textContent = col
+        hr.append(h1, h2)
+        if (share) { const h3 = $('th', 'num'); h3.textContent = 'Share'; hr.append(h3) }
+        const head = document.createElement('thead'); head.append(hr)
+        const body = document.createElement('tbody')
+        for (const r of [...rows].sort((a, b) => b[col] - a[col])) {
+          const tr = $('tr')
+          const name = document.createElement('td'); name.textContent = rowLabel(r)
+          const val = $('td', 'num')
+          const bar = $('div', 'rowbar')
+          const n = document.createElement('span'); n.textContent = r[col].toLocaleString('en-US')
+          const track = $('div', 'track'); const fill = $('i', 'fill')
+          fill.style.width = `${(r[col] / max) * 100}%`
+          track.append(fill); bar.append(n, track); val.append(bar)
+          tr.append(name, val)
+          if (share) { const s = $('td', 'num'); s.textContent = String(r.Share ?? ''); tr.append(s) }
+          body.append(tr)
+        }
+        t.append(head, body)
+        root.append(eyebrow('By region'), t)
+      }
+
+      function readout(view) {
+        const p = $('div', 'prose')
+        p.textContent = agentText(view)
+        root.append(eyebrow('✦ AI readout'), p)
+      }
+    </script>
+  </body>
+</html>

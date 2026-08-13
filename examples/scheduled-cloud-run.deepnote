@@ -1,0 +1,82 @@
+metadata:
+  createdAt: '2026-07-30T09:00:00.000Z'
+  modifiedAt: '2026-07-30T09:00:00.000Z'
+project:
+  id: ca4d5a1e-8527-4c93-8ae4-2674cbe8a381
+  name: Scheduled cloud run demo
+  notebooks:
+    - executionMode: block
+      id: b81f342a-f18a-4ee2-b530-414c9c3a8bf9
+      name: Scheduled heartbeat
+      blocks:
+        - blockGroup: d4876eb3-d80d-42a8-b4e1-da4e6e688843
+          id: 34a2874b-d525-4d18-81d6-b5bfd4fb8470
+          sortingKey: a0
+          type: text-cell-h1
+          content: Scheduled cloud run
+          metadata: {}
+        - blockGroup: 80172c47-8800-4467-994d-74dd9aaf634a
+          id: 393afc76-c8e9-42c4-95b0-9d6cbf55bfc4
+          sortingKey: a1
+          type: markdown
+          content: |-
+            A deliberately small notebook for testing recurring Deepnote Cloud runs.
+
+            Schedule it from the CLI, the local-runner web API, or your own frontend. Each run
+            records when it executed and the configured audience and message.
+          metadata: {}
+        - blockGroup: 9222ad29-a7f5-4914-82de-2fb670545c4f
+          id: e994e59d-cd09-4e3d-8cb7-7a77377e4dcf
+          sortingKey: a2
+          type: input-select
+          content: ''
+          metadata:
+            deepnote_variable_name: audience
+            deepnote_input_label: Audience
+            deepnote_variable_value: Operations
+            deepnote_variable_default_value: null
+            deepnote_variable_options:
+              - Operations
+              - Finance
+              - Leadership
+            deepnote_variable_custom_options:
+              - Operations
+              - Finance
+              - Leadership
+            deepnote_variable_selected_variable: ''
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+            deepnote_allow_empty_values: false
+        - blockGroup: d637c9f1-62b5-4be9-bca4-cd1d9ac5406b
+          id: 9eb3fb07-ab70-460f-bc42-d355f8c78976
+          sortingKey: a3
+          type: input-text
+          content: ''
+          metadata:
+            deepnote_variable_name: message
+            deepnote_input_label: Message
+            deepnote_variable_value: Automated notebook heartbeat
+            deepnote_variable_default_value: null
+        - blockGroup: b8e160b2-efcf-43b6-a580-cb85b89a5bea
+          id: 0f5f7891-6367-4f87-ac6b-f0abae448657
+          sortingKey: b0
+          type: code
+          content: |-
+            from datetime import datetime, timezone
+
+            executed_at = datetime.now(timezone.utc)
+            print(f"[{executed_at.isoformat()}] {message} → {audience}")
+          metadata: {}
+        - blockGroup: 8a0e85c0-d2f3-482b-bbe3-e1fb66d49545
+          id: d64fbc0d-8b25-4f15-a979-2cac826f4a5e
+          sortingKey: b1
+          type: code
+          content: |-
+            {
+                "status": "healthy",
+                "audience": audience,
+                "message": message,
+                "executed_at": executed_at.isoformat(),
+            }
+          metadata: {}
+version: 1.0.0
