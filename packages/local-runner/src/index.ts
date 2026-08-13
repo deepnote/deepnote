@@ -1,6 +1,7 @@
 export type { AgentStreamEvent } from '@deepnote/runtime-core'
 export type { InputBlockInfo } from './apply-input-overrides'
 export { applyInputOverrides, listInputBlocks } from './apply-input-overrides'
+export { mapBlockIds, toBlockSpec } from './block-spec'
 export type {
   CloudRun,
   GetCloudRunOptions,
@@ -25,3 +26,12 @@ export type { CloudSchedulerFn, RunnerFn, ServeStaticHandle, ServeStaticOptions 
 export { serveStatic } from './serve-static'
 export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'
+export type {
+  BlockMove,
+  DetailedSyncPlan,
+  SyncChange,
+  SyncOptions,
+  SyncPlan,
+  SyncResult,
+} from './sync-notebook-content'
+export { planMoves, planNotebookSync, syncNotebookContent } from './sync-notebook-content'
