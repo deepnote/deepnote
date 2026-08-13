@@ -12,7 +12,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExitCode } from '../exit-codes'
 import { MissingTokenError } from './auth'
 import { InvalidInputError } from './parse-inputs'
-import { assertCloudOnlyFlagsRequireCloud, CloudRunUsageError, runInDeepnoteCloud } from './run-in-cloud'
+import {
+  assertCloudOnlyFlagsRequireCloud,
+  type CloudRunResult,
+  CloudRunUsageError,
+  runInDeepnoteCloud,
+} from './run-in-cloud'
 
 const API_URL = 'https://api.example.com'
 
@@ -467,7 +472,7 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
     await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, output: 'json' })
 
     const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
-    const result = JSON.parse(logged)
+    const result: CloudRunResult = JSON.parse(logged)
     expect(result).toMatchObject({ success: true, runId: 'run-x', status: 'success' })
     expect(result.snapshotPath).toBeTruthy()
     expect(process.exitCode).toBe(ExitCode.Success)
@@ -506,7 +511,7 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
     })
 
     const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
-    const result = JSON.parse(logged)
+    const result: CloudRunResult = JSON.parse(logged)
     expect(result).toMatchObject({ success: true, status: 'success', artifactStatus: 'saved' })
     expect(result.snapshotPath).toBeTruthy()
     const content = await fs.readFile(result.snapshotPath, 'utf-8')
