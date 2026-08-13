@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Deepnote cloud app</title>
+    <title>Deepnote app</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -107,8 +107,6 @@
       .btn:disabled { opacity: 0.5; cursor: default; }
       .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 1px 2px rgba(91,61,245,.3); flex: 1; justify-content: center; }
       .btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
-      .btn.ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
-      .btn.ghost:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
       .status { font-size: 0.8rem; color: var(--ink-3); margin-top: 13px; min-height: 1.2em; display: flex; align-items: center; gap: 7px; }
       .status.ok { color: var(--pos); } .status.err { color: var(--neg); } .status a { color: var(--accent); }
       .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp 0.7s linear infinite; }
@@ -117,8 +115,6 @@
       .runs { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
       .runs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
       .runs-head h2 { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin: 0; font-weight: 650; }
-      .runs-head a { font-size: 0.72rem; color: var(--accent); text-decoration: none; }
-      .runs-head a:hover { text-decoration: underline; }
       .runs ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
       .run { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; font-size: 0.78rem; color: var(--ink-2); width: 100%; font-family: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
       .run:hover { background: var(--surface-2); }
@@ -152,8 +148,8 @@
   </head>
   <body>
     <div class="topbar">
-      <div class="brand"><span class="mark"></span>Deepnote <span class="dim">cloud app</span></div>
-      <div class="badge" id="env-badge"><span class="dot"></span><span id="env-label">Connecting…</span></div>
+      <div class="brand"><span class="mark"></span>Deepnote <span class="dim">app</span></div>
+      <div class="badge"><span class="dot"></span><span id="env-label">Connecting…</span></div>
     </div>
 
     <div class="layout">
@@ -164,14 +160,13 @@
         </div>
         <div id="inputs"></div>
         <div class="actions">
-          <button id="run-cloud" class="btn primary"><span id="spin-cloud"></span>Run in cloud</button>
-          <button id="run-local" class="btn ghost" hidden><span id="spin-local"></span>Run locally</button>
+          <button id="run-btn" class="btn primary" disabled><span id="spin"></span>Run</button>
         </div>
         <div class="status" id="status"></div>
 
         <div class="runs" id="runs-panel" hidden>
           <div class="runs-head">
-            <h2>Cloud runs</h2>
+            <h2>Runs</h2>
           </div>
           <ul id="runs-list"></ul>
         </div>
@@ -185,27 +180,31 @@
         <div id="output">
           <div class="empty">
             <div class="glyph">▷</div>
-            <b>Edit the inputs, then Run in cloud.</b>
-            <div>The notebook executes in Deepnote Cloud and its output appears here.</div>
+            <b>Edit the inputs, then press Run.</b>
+            <div>The notebook executes via the Deepnote API and its output appears here.</div>
           </div>
         </div>
       </section>
     </div>
 
     <!--
-      The snapshot reader bundles a YAML parser and the Deepnote block schema so cloud-run snapshots
-      can be parsed client-side. Loaded from the built package; `serve.mjs` wires the path for local
-      development. For publishing, copy the file into this directory or inline it.
+      The snapshot reader bundles a YAML parser and the Deepnote block schema so run snapshots
+      can be parsed client-side. Loaded from the built package; `serve.mjs` wires the path for
+      local development. For publishing, copy the file into this directory.
     -->
     <script src="./snapshot-reader.js"></script>
     <script type="module">
       // ── App config ─────────────────────────────────────────────────────────────
-      // When published to deepnote.com these are baked in. For local development
-      // the optional serve.mjs fills them from the .deepnote file via /api/info.
+      // The single `baseUrl` determines where runs execute. Point it at
+      // api.deepnote.com for cloud execution, or at a local Deepnote server
+      // (e.g. localhost:8080) for local kernel execution. One API surface either
+      // way — /v2/runs, /v2/runs/{id}, /v2/notebooks/{id}/runs.
+      //
+      // Query-param overrides: ?baseUrl=…  ?token=…  ?notebookId=…
       const APP_CONFIG = {
         notebookId: null,
         notebookName: 'Dashboard',
-        apiUrl: 'https://api.deepnote.com',
+        baseUrl: 'https://api.deepnote.com',
         inputs: [],
       }
 
@@ -215,18 +214,21 @@
       const state = {}
 
       // ── Environment detection ──────────────────────────────────────────────────
-      // Three modes:
-      //   1. deepnote.com — inside an iframe, token via postMessage
-      //   2. localhost with server — /api/info available, token from server
-      //   3. standalone — token from ?token= query param or prompt
       const isDeepnote = window !== window.parent && location.hostname.includes('deepnoteworkspace.com')
-      const isLocalhost = location.hostname === '127.0.0.1' || location.hostname === 'localhost'
+      const params = new URLSearchParams(location.search)
+
+      // Query params override baked-in config
+      if (params.get('baseUrl')) APP_CONFIG.baseUrl = params.get('baseUrl')
+      if (params.get('notebookId')) APP_CONFIG.notebookId = params.get('notebookId')
 
       let apiToken = null
-      let localServerAvailable = false
       let lastRuns = null
       let shownRunId = null
       let displayGen = 0
+
+      function isLocal() {
+        try { return new URL(APP_CONFIG.baseUrl).hostname === 'localhost' || new URL(APP_CONFIG.baseUrl).hostname === '127.0.0.1' } catch { return false }
+      }
 
       // ── Token acquisition ──────────────────────────────────────────────────────
       function requestDeepnoteToken() {
@@ -247,11 +249,13 @@
 
       // ── API helpers ────────────────────────────────────────────────────────────
       function apiHeaders() {
-        return { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }
+        const h = { 'Content-Type': 'application/json' }
+        if (apiToken) h.Authorization = `Bearer ${apiToken}`
+        return h
       }
 
-      async function triggerCloudRun(notebookId, inputs) {
-        const res = await fetch(`${APP_CONFIG.apiUrl}/v2/runs`, {
+      async function triggerRun(notebookId, inputs) {
+        const res = await fetch(`${APP_CONFIG.baseUrl}/v2/runs`, {
           method: 'POST',
           headers: apiHeaders(),
           body: JSON.stringify({ notebookId, inputs }),
@@ -267,14 +271,13 @@
 
       async function pollRun(runId) {
         const terminal = new Set(['success', 'error', 'internal_error', 'stopped'])
-        const failed = new Set(['error', 'internal_error', 'stopped'])
         const maxPolls = 300
         let interval = 2000
 
         for (let i = 0; i < maxPolls; i++) {
           await sleep(interval)
           const res = await fetch(
-            `${APP_CONFIG.apiUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
+            `${APP_CONFIG.baseUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
             { headers: apiHeaders() }
           )
           if (!res.ok) {
@@ -288,13 +291,12 @@
 
           if (terminal.has(run.status)) {
             const snapshot = run.snapshot ?? {}
-            const snapshotContent = snapshot.snapshotContent ?? run.snapshotContent ?? null
             return {
               runId: run.runId ?? run.id,
               status: run.status,
               success: run.status === 'success',
               error: describeError(run),
-              snapshotContent,
+              snapshotContent: snapshot.snapshotContent ?? run.snapshotContent ?? null,
             }
           }
           interval = Math.min(interval * 1.2, 10000)
@@ -302,39 +304,9 @@
         throw new Error('Timed out waiting for run to complete')
       }
 
-      function describeError(run) {
-        if (run.error == null) return undefined
-        if (typeof run.error === 'string') return run.error
-        if (typeof run.error === 'object' && run.error.message) return run.error.message
-        return JSON.stringify(run.error)
-      }
-
-      function extractApiMessage(body, fallback) {
-        try {
-          const json = JSON.parse(body)
-          return json.message || json.error || json.detail || fallback
-        } catch {
-          return fallback
-        }
-      }
-
-      async function listCloudRuns(notebookId) {
-        try {
-          const res = await fetch(
-            `${APP_CONFIG.apiUrl}/v2/notebooks/${encodeURIComponent(notebookId)}/runs`,
-            { headers: apiHeaders() }
-          )
-          if (!res.ok) return { runs: [] }
-          const json = await res.json()
-          return { runs: json.runs ?? [] }
-        } catch {
-          return { runs: [] }
-        }
-      }
-
-      async function getCloudRun(runId) {
+      async function fetchRun(runId) {
         const res = await fetch(
-          `${APP_CONFIG.apiUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
+          `${APP_CONFIG.baseUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
           { headers: apiHeaders() }
         )
         if (!res.ok) {
@@ -350,6 +322,36 @@
           success: run.status === 'success',
           error: describeError(run),
           snapshotContent: snapshot.snapshotContent ?? run.snapshotContent ?? null,
+        }
+      }
+
+      async function listRuns(notebookId) {
+        try {
+          const res = await fetch(
+            `${APP_CONFIG.baseUrl}/v2/notebooks/${encodeURIComponent(notebookId)}/runs`,
+            { headers: apiHeaders() }
+          )
+          if (!res.ok) return { runs: [] }
+          const json = await res.json()
+          return { runs: json.runs ?? [] }
+        } catch {
+          return { runs: [] }
+        }
+      }
+
+      function describeError(run) {
+        if (run.error == null) return undefined
+        if (typeof run.error === 'string') return run.error
+        if (typeof run.error === 'object' && run.error.message) return run.error.message
+        return JSON.stringify(run.error)
+      }
+
+      function extractApiMessage(body, fallback) {
+        try {
+          const json = JSON.parse(body)
+          return json.message || json.error || json.detail || fallback
+        } catch {
+          return fallback
         }
       }
 
@@ -376,62 +378,45 @@
 
       // ── Initialize ─────────────────────────────────────────────────────────────
       async function init() {
-        // 1. Try local server first (provides config + local run capability)
-        if (isLocalhost) {
-          try {
-            const res = await fetch('/api/info')
-            if (res.ok) {
-              const info = await res.json()
-              localServerAvailable = true
-              APP_CONFIG.notebookName = info.notebook
-              APP_CONFIG.inputs = info.inputs ?? []
-              $('#run-local').hidden = false
-              $('#env-label').textContent = 'Local + Cloud'
-            }
-          } catch {}
-        }
-
-        // 2. Acquire token
+        // Acquire token
         if (isDeepnote) {
           apiToken = await requestDeepnoteToken()
-          $('#env-label').textContent = apiToken ? 'Deepnote' : 'No token'
         } else {
-          const params = new URLSearchParams(location.search)
           apiToken = params.get('token') || null
-          if (!apiToken && !localServerAvailable) {
-            // Read from /api/info is already attempted above
-            $('#env-label').textContent = 'No token'
-          } else if (!apiToken && localServerAvailable) {
-            $('#env-label').textContent = 'Local only'
-          } else if (!localServerAvailable) {
-            $('#env-label').textContent = 'Cloud'
-          }
         }
 
-        // 3. Render UI
+        // Badge shows where runs go
+        const host = (() => {
+          try { return new URL(APP_CONFIG.baseUrl).host } catch { return APP_CONFIG.baseUrl }
+        })()
+        if (isLocal()) {
+          $('#env-label').textContent = `Local · ${host}`
+        } else if (isDeepnote) {
+          $('#env-label').textContent = apiToken ? 'Deepnote' : 'No token'
+        } else {
+          $('#env-label').textContent = apiToken ? host : 'No token'
+        }
+
+        // Render UI
         $('#nb-name').textContent = APP_CONFIG.notebookName
         $('#r-title').textContent = APP_CONFIG.notebookName
         renderInputs(APP_CONFIG.inputs)
 
-        // 4. Cloud run button — only enabled with a token and notebook id
-        const canCloud = apiToken && APP_CONFIG.notebookId
-        if (!canCloud) {
-          $('#run-cloud').disabled = true
-          if (!apiToken) {
-            setStatus('No API token — pass ?token=… or run on deepnote.com', 'err')
-          } else if (!APP_CONFIG.notebookId) {
-            setStatus('No notebook id configured — set APP_CONFIG.notebookId', 'err')
-          }
+        // Enable run button if we have what we need
+        const ready = APP_CONFIG.notebookId && (apiToken || isLocal())
+        const btn = $('#run-btn')
+        if (ready) {
+          btn.disabled = false
+        } else if (!APP_CONFIG.notebookId) {
+          setStatus('No notebook id — set APP_CONFIG.notebookId or pass ?notebookId=…', 'err')
+        } else if (!apiToken && !isLocal()) {
+          setStatus('No API token — pass ?token=… or run on deepnote.com', 'err')
         }
 
-        // 5. Wire up buttons
-        $('#run-cloud').onclick = () => runInCloud()
-        if (localServerAvailable) {
-          $('#run-local').onclick = () => runLocally()
-        }
+        btn.onclick = () => doRun()
 
-        // 6. Load run history
-        if (canCloud) loadCloudRuns()
+        // Load run history
+        if (ready) loadRuns()
       }
 
       // ── Input rendering ────────────────────────────────────────────────────────
@@ -499,21 +484,20 @@
         text.oninput = () => { state[inp.variableName] = text.value }; return text
       }
 
-      // ── Run in cloud (direct API) ──────────────────────────────────────────────
-      async function runInCloud() {
+      // ── Run ────────────────────────────────────────────────────────────────────
+      async function doRun() {
         const gen = ++displayGen
-        disableButtons(true)
-        $('#spin-cloud').className = 'spin'
-        setStatus('Starting cloud run…')
+        $('#run-btn').disabled = true
+        $('#spin').className = 'spin'
+        setStatus('Starting run…')
 
         try {
-          // On deepnote.com, the postMessage token expires after 15 minutes. Refresh it per run.
           if (isDeepnote) {
             apiToken = await requestDeepnoteToken()
             if (!apiToken) throw new Error('Could not acquire API token from Deepnote')
           }
 
-          const started = await triggerCloudRun(APP_CONFIG.notebookId, state)
+          const started = await triggerRun(APP_CONFIG.notebookId, state)
           setStatus(`Running… (${started.status})`)
 
           const result = await pollRun(started.runId)
@@ -526,48 +510,23 @@
           if (!result.success) {
             setStatus(cap(result.error || `The run failed (${result.status})`), 'err')
           } else {
-            setStatus(`Ran ${outputs.length} block${outputs.length === 1 ? '' : 's'} in cloud`, 'ok')
+            const where = isLocal() ? 'locally' : 'in cloud'
+            setStatus(`Ran ${outputs.length} block${outputs.length === 1 ? '' : 's'} ${where}`, 'ok')
           }
         } catch (e) {
           if (gen === displayGen) setStatus(cap(e.message), 'err')
         } finally {
-          disableButtons(false)
-          $('#spin-cloud').className = ''
-          loadCloudRuns()
+          $('#run-btn').disabled = false
+          $('#spin').className = ''
+          loadRuns()
         }
       }
 
-      // ── Run locally (via serveStatic server) ───────────────────────────────────
-      async function runLocally() {
-        const gen = ++displayGen
-        disableButtons(true)
-        $('#spin-local').className = 'spin'
-        setStatus('Running in a local kernel…')
-
-        try {
-          const res = await fetch('/api/run', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ inputs: state }),
-          })
-          const data = await res.json()
-          if (gen !== displayGen) return
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-          render(data)
-          shownRunId = null
-          setStatus(`Ran ${data.summary?.executedBlocks ?? ''} blocks locally`.replace(/\s+/g, ' ').trim(), 'ok')
-        } catch (e) {
-          if (gen === displayGen) setStatus(cap(e.message), 'err')
-        } finally {
-          disableButtons(false)
-          $('#spin-local').className = ''
-        }
-      }
-
-      // ── Cloud run history ──────────────────────────────────────────────────────
-      async function loadCloudRuns() {
-        if (!apiToken || !APP_CONFIG.notebookId) return
-        const data = await listCloudRuns(APP_CONFIG.notebookId)
+      // ── Run history ────────────────────────────────────────────────────────────
+      async function loadRuns() {
+        if (!apiToken && !isLocal()) return
+        if (!APP_CONFIG.notebookId) return
+        const data = await listRuns(APP_CONFIG.notebookId)
         renderRuns(data)
       }
 
@@ -603,7 +562,7 @@
       async function showRun(runId) {
         const gen = ++displayGen
         try {
-          const result = await getCloudRun(runId)
+          const result = await fetchRun(runId)
           if (gen !== displayGen) return
           shownRunId = runId
           const outputs = parseOutputsFromSnapshot(result.snapshotContent)
@@ -613,7 +572,7 @@
           if (!result.success) {
             setStatus(`That run ${label(result.status).toLowerCase()} ${when}${result.error ? ': ' + result.error : ''}`, 'err')
           } else {
-            setStatus(`Showing a cloud run from ${when}`, 'ok')
+            setStatus(`Showing a run from ${when}`, 'ok')
           }
         } catch (e) {
           if (gen === displayGen) setStatus(cap(e.message), 'err')
@@ -663,8 +622,6 @@
         return frame
       }
       window.addEventListener('message', (e) => {
-        // Accept height reports from sandboxed iframes (null origin), and also from the Deepnote
-        // shell's token response (different origin). Only the height reports touch the DOM.
         if (e.data?.type === 'deepnote-static-files-api-token-response') return
         if (e.origin !== 'null' || !e.data || typeof e.data.h !== 'number') return
         const f = document.querySelector(`iframe[data-id=${JSON.stringify(e.data.id)}]`)
@@ -694,12 +651,6 @@
       }
 
       function setStatus(text, cls = '') { const s = $('#status'); s.textContent = text; s.className = 'status ' + cls }
-
-      function disableButtons(disabled) {
-        $('#run-cloud').disabled = disabled
-        const local = $('#run-local')
-        if (!local.hidden) local.disabled = disabled
-      }
 
       // ── Boot ────────────────────────────────────────────────────────────────────
       init()
