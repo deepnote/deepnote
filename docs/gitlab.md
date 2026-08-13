@@ -59,7 +59,7 @@ Once a repository is added to the workspace, it can be used to:
 
 To connect a GitLab repository to a project, you first need to create an integration. An integration is a reusable preset that specifies which repository and branch to use:
 
-1. Go to **Integrations** page in left sidebar
+1. Open the **Settings** panel from the top-right of your project and go to the **Integrations** section
 2. Click **Add integration** and select **GitLab** under **Version control** section
 3. Choose a repository from the list of repositories added in Step 2
 4. Select the default branch and folder name you want to use and click **Create integration**
