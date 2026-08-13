@@ -24,7 +24,7 @@ You will need the connections details for the database: host, database, port, us
 
 ![ Create a Postgres integration in Deepnote](../assets/docs/GtjwnTvWTlVWEXTZwtCr.webp)
 
-Open Integrations in the left side bar, and select the Postgres integration. You will be prompted for the credentials from the previous step.
+Open the **Settings** panel from the top-right of your project, go to **Integrations**, and select the Postgres integration. You will be prompted for the credentials from the previous step.
 
 ### Step 4: Create a new project, and start querying your data
 
