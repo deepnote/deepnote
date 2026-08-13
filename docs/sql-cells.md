@@ -28,7 +28,7 @@ SQL blocks work in Python notebooks, as well as in R notebooks (where they run v
 ### Dataframe SQL
 
 Apart from querying a database, you can also use SQL blocks to query your DataFrames or even tabular files like CSV or Excel. To do that, create a SQL block and select the "DataFrame SQL" option as the data source.
-DataFrame SQL blocks can also be created by drag and dropping a CSV file from your filesystem (this also works for already uploaded files in the left sidebar). By executing that SQL block, the contents of the CSV file will be loaded into a DataFrame variable.
+DataFrame SQL blocks can also be created by drag and dropping a CSV file from your filesystem (this also works for files you've already uploaded to the project's **Files** section). By executing that SQL block, the contents of the CSV file will be loaded into a DataFrame variable.
 
 <VideoLoop src="../assets/docs/qQ3uTPjHSydkFQUvUlb9.mp4" />
 
