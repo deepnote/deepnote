@@ -55,7 +55,8 @@ export async function fetchIntegrations(
   const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/integrations`)
   endpoint.searchParams.set('includeMetadata', 'true')
   if (integrationIds && integrationIds.length > 0) {
-    endpoint.searchParams.set('integrationIds', integrationIds.map(id => id.toLowerCase()).join(','))
+    const normalizedIntegrationIds = new Set(integrationIds.map(id => id.toLowerCase()))
+    endpoint.searchParams.set('integrationIds', Array.from(normalizedIntegrationIds).join(','))
   }
   const url = endpoint.toString()
 

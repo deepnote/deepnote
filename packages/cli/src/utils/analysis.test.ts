@@ -302,5 +302,15 @@ describe('analysis utilities', () => {
       expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
       expect(lint.integrations?.missing).toEqual([])
     })
+
+    it('ignores a non-string integration id', async () => {
+      const file = createTestFile([
+        { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 123 } },
+      ])
+      const { lint } = await checkForIssues(file)
+
+      expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
+      expect(lint.integrations?.missing).toEqual([])
+    })
   })
 })

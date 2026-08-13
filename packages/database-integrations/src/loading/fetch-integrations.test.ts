@@ -70,7 +70,10 @@ describe('fetchIntegrations', () => {
       json: () => Promise.resolve({ integrations: [] }),
     } as Response)
 
-    await fetchIntegrations(mockBaseUrl, mockToken, ['100EEF5B-8AD8-4D35-8E5E-3DFEEB387D4D'])
+    await fetchIntegrations(mockBaseUrl, mockToken, [
+      '100EEF5B-8AD8-4D35-8E5E-3DFEEB387D4D',
+      '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
+    ])
 
     expect(global.fetch).toHaveBeenCalledWith(
       `${mockBaseUrl}/v2/integrations?includeMetadata=true&integrationIds=100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d`,
