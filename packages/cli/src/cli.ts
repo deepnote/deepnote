@@ -16,6 +16,7 @@ import { createIntegrationsAddAction } from './commands/integrations/add-integra
 import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
+import { createPublishAction } from './commands/publish'
 import { createRunAction } from './commands/run'
 import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
@@ -552,6 +553,49 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createSyncAction(program))
+
+  // Publish command - publish a local app directory to Deepnote
+  program
+    .command('publish')
+    .description('Publish a local app directory to a Deepnote project')
+    .argument('<dir>', 'Directory containing the app files to publish')
+    .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--path <prefix>', 'Target path prefix in the project', '_deepnote_static')
+    .option('--yes', 'Skip confirmation prompts')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Uploads all files from a local directory to a Deepnote project, making them
+  available as a static or dynamic app. Files are placed under ${c.dim('_deepnote_static/')}
+  by default and served on the project's isolated origin.
+
+  Works for both static apps (plain HTML/CSS/JS) and dynamic apps (apps with
+  server-side rendering). The upload mechanism is the same; the server handles
+  rendering.
+
+${c.bold('Examples:')}
+  ${c.dim('# Publish a build directory to a project')}
+  $ deepnote publish ./dist --project-id 0f1e2d3c-4b5a-6789-abcd-ef0123456789
+
+  ${c.dim('# Publish with an explicit token')}
+  $ deepnote publish ./build --project-id <uuid> --token <token>
+
+  ${c.dim('# Publish to a custom path prefix')}
+  $ deepnote publish ./out --project-id <uuid> --path _deepnote_static/v2
+
+  ${c.dim('# Quiet mode (no progress output)')}
+  $ deepnote publish ./dist --project-id <uuid> -q
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  All files uploaded successfully
+  ${c.dim('1')}  One or more files failed to upload
+  ${c.dim('2')}  Invalid usage (directory not found, missing token)
+`
+    })
+    .action(createPublishAction(program))
 
   // Convert command - convert between notebook formats
   program
