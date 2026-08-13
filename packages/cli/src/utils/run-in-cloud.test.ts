@@ -514,6 +514,7 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
     const result: CloudRunResult = JSON.parse(logged)
     expect(result).toMatchObject({ success: true, status: 'success', artifactStatus: 'saved' })
     expect(result.snapshotPath).toBeTruthy()
+    if (!result.snapshotPath) throw new Error('expected snapshotPath')
     const content = await fs.readFile(result.snapshotPath, 'utf-8')
     const source = splitDeepnoteFile(file).source
     const expected = splitDeepnoteFile({
