@@ -64,6 +64,7 @@ try {
 - Notebook / block filtering: `notebookName`, `blockId`, `blockIds`
 - Input injection before execution: `inputs`
 - Database integration metadata for agent block awareness: `integrations`
+- Optional abort signal for agent blocks only: `signal` — forwarded to `executeAgentBlock` / `AgentBlockContext.signal`; does not interrupt code, SQL, or other kernel blocks. When the agent aborts, `runProject` / `runFile` still resolve with the agent recorded as a failed block (`success: false`, `failedBlocks` incremented) rather than rejecting with `signal.reason`
 - Callbacks: `onBlockStart`, `onBlockDone`, `onOutput`, `onAgentEvent`, `onServerStarting`, `onServerReady`
 
 ## Result shape
