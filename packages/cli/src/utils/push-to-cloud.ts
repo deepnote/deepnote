@@ -152,6 +152,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     result = await syncNotebookContent(file, localNotebookId, notebookId, {
       token,
       baseUrl,
+      plan: planned,
       onProgress: (done, count) => {
         if (spinner) {
           spinner.text = `Pushing change ${done + 1} of ${count}…`

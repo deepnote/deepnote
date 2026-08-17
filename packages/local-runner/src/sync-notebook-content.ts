@@ -105,6 +105,9 @@ export interface SyncOptions {
   onWarning?: (message: string) => void
   /** How many metadata reads to run at once. Small on purpose — this is someone's workspace. */
   metadataConcurrency?: number
+  /** Pre-computed plan to apply instead of re-planning. Avoids duplicate reads and ensures the
+   *  applied plan matches what the caller approved. */
+  plan?: DetailedSyncPlan
 }
 
 const DEFAULT_METADATA_CONCURRENCY = 6
@@ -351,7 +354,8 @@ export async function planNotebookSync(
     }
 
     const contentChanged = (spec.content ?? '') !== found.content
-    const integrationChanged = detail !== undefined && (spec.integrationId ?? undefined) !== detail.integrationId
+    const integrationChanged =
+      detail !== undefined && spec.integrationId !== undefined && spec.integrationId !== detail.integrationId
     if (contentChanged || integrationChanged) {
       changes.push({
         action: 'update',
@@ -404,7 +408,7 @@ export async function syncNotebookContent(
   const token = requireToken('syncNotebookContent', options.token)
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
 
-  const plan = await planNotebookSync(file, localNotebookId, notebookId, options)
+  const plan = options.plan ?? (await planNotebookSync(file, localNotebookId, notebookId, options))
   const { changes, moves, specs, targetOrder } = plan
 
   const idRemap = new Map<string, string>()
