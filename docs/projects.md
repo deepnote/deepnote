@@ -26,7 +26,7 @@ Let's move to the newly created Project panel now. Notice that the left panel ha
 
 ### Learning the most important bits
 
-The Project sidebar on the left contains sections for your notebooks, integrations, files, the environment, and more. Let's learn about each of these in detail.
+The project interface includes a **Notebooks** section in the left sidebar. Integrations, files, and machine settings are available in the right sidebar. Let's learn about each of these in detail.
 
 ![Important Bits.jpg](../assets/docs/h9lkwiibTeSNaquQx2If.jpg)
 <br></br><br></br>
@@ -53,7 +53,7 @@ Got a `requirements.txt` file? We create one for you when you `pip` install a pa
 
 Time to get serious. You probably want to know how to configure your environment. Let's dive into what you can do in the **Environment** section.
 
-First, click on the ⚙️ icon. You should now see your environment configuration options (shown below). Follow me.
+In the right sidebar, click the current Python environment to view the available environment configuration options.
 
 ![Environment.jpg](../assets/docs/PSMiDJAtRlFgQrhOIsVA.jpg)
 
