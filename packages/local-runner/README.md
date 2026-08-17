@@ -141,12 +141,18 @@ const { port, close } = await serveStatic({
 await close();
 ```
 
-One run endpoint, wherever the run happens. `runTarget` decides — `"cloud"` unless you say
-otherwise, so a page needs one Run button rather than one per destination, and an app runs on
-Deepnote without being configured for it. `"local"` runs in a local Python kernel instead and
-writes a snapshot next to `notebookPath` (like `deepnote run`) unless `persistSnapshot: false`. The
-response says which one ran, and `GET /api/info` reports it up front so a page can label the button
-without being told separately.
+One run endpoint, one runner, wherever the run happens. `runTarget` decides — `"cloud"` unless you
+say otherwise, so a page needs one Run button rather than one per destination, and an app runs on
+the Deepnote API without being configured for it. Set `"local"` only when there is a local Deepnote
+kernel to run against instead; that path writes a snapshot next to `notebookPath` (like
+`deepnote run`) unless `persistSnapshot: false`.
+
+Both ends are adapted to a single `RunnerFn` — `(input, inputs, options) => Promise<RunResult>` —
+so the route never branches and one `RunResult` describes either run. `outputs` and `success` are
+the two fields every run has; `runId`, `status`, `created`, and `viewUrl` describe a cloud run and
+are simply absent from a local one. The response says which one ran via `target`, and
+`GET /api/info` reports `runTarget` up front so a page can label its button without being told
+separately.
 
 `POST /api/schedule-cloud` accepts a reusable friendly cadence: `{ frequency: "daily", time }`,
 `{ frequency: "weekly", dayOfWeek, time }` (Sunday = `0`), or

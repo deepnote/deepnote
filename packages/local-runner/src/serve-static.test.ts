@@ -2,7 +2,6 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { DeepnoteSnapshot } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeepnoteInput } from './load-file'
 import type { ScheduleInCloudOptions } from './schedule-in-cloud'
@@ -83,13 +82,8 @@ beforeEach(async () => {
     dir,
     notebookPath: join(dir, 'notebook.deepnote'),
     cloudToken: 'cloud-token',
+    // No `runTarget`, so this is the default: the Deepnote API.
     runner: async (_input, inputs) => ({
-      outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
-      summary: { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 1 },
-      snapshot: {} as unknown as DeepnoteSnapshot,
-      snapshotYaml: `ran ${JSON.stringify(inputs)}`,
-    }),
-    cloudRunner: async (_input, inputs) => ({
       runId: 'r1',
       status: 'success',
       success: true,
@@ -157,7 +151,7 @@ describe('serveStatic', () => {
     expect(body.snapshotYaml).toContain('"count":3')
   })
 
-  it('POST /api/run forwards inputs to the local runner when runTarget is "local"', async () => {
+  it('POST /api/run forwards inputs to a local kernel when runTarget is "local"', async () => {
     const localServer = await serveStatic({
       dir,
       notebookPath: join(dir, 'notebook.deepnote'),
@@ -165,7 +159,6 @@ describe('serveStatic', () => {
       runner: async (_input, inputs) => ({
         outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
         summary: { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 1 },
-        snapshot: {} as unknown as DeepnoteSnapshot,
         snapshotYaml: `ran ${JSON.stringify(inputs)}`,
       }),
     })
@@ -361,7 +354,6 @@ describe('serveStatic', () => {
       runner: async () => ({
         outputs: [],
         summary: { totalBlocks: 0, executedBlocks: 0, failedBlocks: 0, totalDurationMs: 0 },
-        snapshot: {} as unknown as DeepnoteSnapshot,
         snapshotYaml: 'ran',
       }),
     })

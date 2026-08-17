@@ -1,6 +1,7 @@
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { extname, resolve, sep } from 'node:path'
+import type { ExecutionSummary } from '@deepnote/runtime-core'
 import { listInputBlocks } from './apply-input-overrides'
 import type { CloudRun, GetCloudRunOptions, ListCloudRunsOptions, ListCloudRunsResult } from './cloud-runs'
 import { getCloudRun, listCloudRuns } from './cloud-runs'
@@ -8,24 +9,44 @@ import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import type { RecurringSchedule } from './recurring-schedule'
 import { resolveRecurringSchedule } from './recurring-schedule'
-import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 import { runInCloud } from './run-in-cloud'
-import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
+import type { RunBlockOutput } from './run-with-inputs'
 import { runWithInputs } from './run-with-inputs'
 import type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
 import { scheduleInCloud } from './schedule-in-cloud'
 
+/** Everything a run might need, whichever end of the wire it happens on. */
+export interface RunOptions {
+  /** Python venv/executable, for a local kernel. */
+  pythonEnv?: string
+  /** Whether a local kernel writes its snapshot to disk. */
+  persistSnapshot?: boolean
+  /** Bearer token, for Deepnote Cloud. */
+  token?: string
+}
+
+/**
+ * What a run reports back, whichever end of the wire it happened on. `outputs` and `success` are
+ * the two every run has; the rest describe a cloud run and are absent from a local one.
+ */
+export interface RunResult {
+  outputs: RunBlockOutput[]
+  success?: boolean
+  summary?: ExecutionSummary
+  snapshotYaml?: string | null
+  runId?: string
+  status?: string
+  created?: boolean
+  viewUrl?: string
+  error?: string
+}
+
+/** Runs a notebook. One shape for both a local Deepnote kernel and Deepnote Cloud. */
 export type RunnerFn = (
   input: DeepnoteInput,
   inputs: Record<string, unknown>,
-  options?: RunWithInputsOptions
-) => Promise<RunWithInputsResult>
-
-export type CloudRunnerFn = (
-  input: DeepnoteInput,
-  inputs: Record<string, unknown>,
-  options?: RunInCloudOptions
-) => Promise<RunInCloudResult>
+  options?: RunOptions
+) => Promise<RunResult>
 
 export type CloudRunListerFn = (input: DeepnoteInput, options?: ListCloudRunsOptions) => Promise<ListCloudRunsResult>
 
@@ -52,16 +73,18 @@ export interface ServeStaticOptions {
   /** Forwarded to the runner. Runs persist a snapshot next to `notebookPath` by default; pass `false` to skip. */
   persistSnapshot?: boolean
   /**
-   * Where `POST /api/run` executes. Defaults to `'cloud'`, so an app runs on Deepnote without
-   * being configured for it. Set `'local'` to run in a local Python kernel instead.
+   * Where `POST /api/run` executes. Defaults to `'cloud'` — the Deepnote API — so an app runs on
+   * Deepnote without being configured for it. Set `'local'` only when there is a local Deepnote
+   * kernel to run against instead.
    */
   runTarget?: RunTarget
   /** Bearer token for cloud runs. Defaults to `DEEPNOTE_TOKEN` in the environment. */
   cloudToken?: string
-  /** Override the local runner (advanced; mainly for testing). Defaults to `runWithInputs`. */
+  /**
+   * Override the runner behind `POST /api/run` (advanced; mainly for testing). Defaults to
+   * `runInCloud`, or to `runWithInputs` when `runTarget` names a local kernel.
+   */
   runner?: RunnerFn
-  /** Override the cloud runner (advanced; mainly for testing). Defaults to `runInCloud`. */
-  cloudRunner?: CloudRunnerFn
   /** Override the cloud-run lister (advanced; mainly for testing). Defaults to `listCloudRuns`. */
   cloudRunLister?: CloudRunListerFn
   /** Override the single cloud-run fetch (advanced; mainly for testing). Defaults to `getCloudRun`. */
@@ -122,12 +145,21 @@ const CONTENT_TYPES: Record<string, string> = {
 export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHandle> {
   const { notebookPath, pythonEnv } = options
   const rootDir = resolve(options.dir)
-  const runner = options.runner ?? runWithInputs
-  const cloudRunner = options.cloudRunner ?? runInCloud
   const cloudRunLister = options.cloudRunLister ?? listCloudRuns
   const cloudRunGetter = options.cloudRunGetter ?? getCloudRun
   const cloudScheduler = options.cloudScheduler ?? scheduleInCloud
   const runTarget: RunTarget = options.runTarget ?? 'cloud'
+  // The default is the Deepnote API. A local kernel is the override, and the only reason to have
+  // one: both ends are adapted to the same signature here, so the route below never branches.
+  const runner: RunnerFn =
+    options.runner ??
+    (runTarget === 'local'
+      ? (input, inputs, runOptions) =>
+          runWithInputs(input, inputs, {
+            pythonEnv: runOptions?.pythonEnv,
+            persistSnapshot: runOptions?.persistSnapshot,
+          })
+      : (input, inputs, runOptions) => runInCloud(input, inputs, { token: runOptions?.token }))
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -158,31 +190,23 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         return
       }
 
-      if (runTarget === 'local') {
-        const result = await runner(notebookPath, inputs.inputs, {
-          pythonEnv,
-          persistSnapshot: options.persistSnapshot,
-        })
-        // `success` is stated rather than implied, so a page can read one field for both targets
-        // instead of inferring "no news is good news" from a local run's shorter response.
-        sendJson(res, 200, {
-          target: 'local',
-          success: true,
-          outputs: result.outputs,
-          summary: result.summary,
-          snapshotYaml: result.snapshotYaml,
-        })
-        return
-      }
-
-      const result = await cloudRunner(notebookPath, inputs.inputs, { token: options.cloudToken })
+      const result = await runner(notebookPath, inputs.inputs, {
+        pythonEnv,
+        persistSnapshot: options.persistSnapshot,
+        token: options.cloudToken,
+      })
+      // One response for both ends. A local kernel reports no `runId`/`viewUrl`/`created`, and
+      // those drop out of the JSON rather than being sent as nulls. `success` is stated rather
+      // than implied, so a page reads one field instead of inferring "no news is good news" from
+      // the shorter local response.
       sendJson(res, 200, {
-        target: 'cloud',
+        target: runTarget,
+        success: result.success ?? true,
+        outputs: result.outputs,
+        summary: result.summary,
+        snapshotYaml: result.snapshotYaml,
         runId: result.runId,
         status: result.status,
-        success: result.success,
-        outputs: result.outputs,
-        snapshotYaml: result.snapshotYaml,
         created: result.created,
         viewUrl: result.viewUrl,
         error: result.error,
