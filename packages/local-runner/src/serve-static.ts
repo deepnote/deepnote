@@ -198,10 +198,12 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
       // One response for both ends. A local kernel reports no `runId`/`viewUrl`/`created`, and
       // those drop out of the JSON rather than being sent as nulls. `success` is stated rather
       // than implied, so a page reads one field instead of inferring "no news is good news" from
-      // the shorter local response.
+      // the shorter local response — which means deriving it where it isn't given: a cloud run
+      // states it outright, while a local kernel says the same thing through `failedBlocks`,
+      // since a failing block is reported in the summary rather than thrown.
       sendJson(res, 200, {
         target: runTarget,
-        success: result.success ?? true,
+        success: result.success ?? (result.summary ? result.summary.failedBlocks === 0 : true),
         outputs: result.outputs,
         summary: result.summary,
         snapshotYaml: result.snapshotYaml,

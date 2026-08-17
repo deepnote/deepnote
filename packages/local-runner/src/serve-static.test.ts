@@ -184,6 +184,35 @@ describe('serveStatic', () => {
     }
   })
 
+  it('POST /api/run reports a local run with a failed block as unsuccessful', async () => {
+    // A local kernel does not throw on a failing block — it returns with `failedBlocks > 0`. If
+    // the response assumed success whenever the runner resolved, a page would present a broken
+    // run as a good one.
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+      runner: async () => ({
+        outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
+        summary: { totalBlocks: 2, executedBlocks: 2, failedBlocks: 1, totalDurationMs: 1 },
+        snapshotYaml: 'ran',
+      }),
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${localServer.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: {} }),
+      })
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { target: string; success: boolean }
+      expect(body.target).toBe('local')
+      expect(body.success).toBe(false)
+    } finally {
+      await localServer.close()
+    }
+  })
+
   it('GET /api/info reports a configured local run target', async () => {
     const localServer = await serveStatic({
       dir,
