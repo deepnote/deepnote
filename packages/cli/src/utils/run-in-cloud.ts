@@ -43,7 +43,7 @@ export type RunCloudOptions = RunOptions
 export type CloudArtifactStatus = 'saved' | 'not_produced' | 'unavailable'
 
 export interface CloudRunResult {
-  /** Whether notebook execution succeeded; artifact delivery is reported independently. */
+  /** Whether the command succeeded — execution passed and artifact delivery did not fail. */
   success: boolean
   runId: string
   status: string
@@ -392,12 +392,18 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   let artifactStatus: CloudArtifactStatus = 'not_produced'
   let artifactError: string | undefined
   try {
+    let lastRetryError: unknown
     const settled = await waitForRunSnapshot(baseUrl, token, finalRun, {
-      onRetryError: error =>
+      onRetryError: error => {
+        lastRetryError = error
         debug(
           `Re-fetching run ${finalRun.runId} for its snapshot failed: ${error instanceof Error ? error.message : error}`
-        ),
+        )
+      },
     })
+    if (settled.content === null && lastRetryError !== undefined) {
+      throw lastRetryError
+    }
     finalRun = settled.run
     const content =
       settled.content ??
@@ -426,14 +432,16 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
     artifactError = `Failed to retrieve or save snapshot: ${message}`
   }
 
-  if (success && options.out && artifactStatus === 'not_produced') {
-    artifactError = `Run ${finalRun.runId} completed successfully but produced no snapshot for --out.`
+  if (success && artifactStatus === 'not_produced') {
+    artifactError = options.out
+      ? `Run ${finalRun.runId} completed successfully but produced no snapshot for --out.`
+      : `Run ${finalRun.runId} completed successfully but produced no snapshot.`
   }
 
   const commandSucceeded = success && artifactStatus !== 'unavailable' && artifactError === undefined
 
   const result: CloudRunResult = {
-    success,
+    success: commandSucceeded,
     runId: finalRun.runId,
     status,
     artifactStatus,
