@@ -15,7 +15,7 @@ A `.deepnote` file is a YAML-formatted document that holds a single notebook tog
 
 - **Project metadata** (creation date, modification date, version)
 - **The notebook** with its blocks and execution state
-- **Project settings** (dependencies, integrations, and project-level configuration)
+- **Project settings** (dependencies and project-level configuration)
 - **Execution modes** and working directories
 
 Unlike Jupyter's JSON-based `.ipynb` format, Deepnote's YAML format prioritizes human readability and git-friendly diffs, making collaboration and version control significantly easier.
