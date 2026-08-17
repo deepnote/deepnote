@@ -56,7 +56,7 @@ export {
 export {
   STATIC_ROOT,
   staticPath,
-  type UploadedFile,
+  type UploadedFileReference,
   type UploadFileOptions,
   uploadFile,
 } from './files'

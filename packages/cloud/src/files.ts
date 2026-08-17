@@ -18,7 +18,8 @@ export interface UploadFileOptions {
   signal?: AbortSignal
 }
 
-export interface UploadedFile {
+/** The file reference `POST /v2/files` echoes back for a stored file. */
+export interface UploadedFileReference {
   projectId: string
   path: string
 }
@@ -42,7 +43,7 @@ export async function uploadFile(
   content: Uint8Array | Buffer,
   fileName: string,
   options: UploadFileOptions = {}
-): Promise<UploadedFile> {
+): Promise<UploadedFileReference> {
   const timeout = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
   const signal = combineSignals(options.signal, timeout)
 
@@ -59,7 +60,8 @@ export async function uploadFile(
   })
 
   if (!response.ok) {
-    await throwForResponse(response, `upload file "${path}"`)
+    const text = await response.text().catch(() => '')
+    throwForResponse(response, text, `upload file "${path}"`)
   }
 
   let json: unknown
