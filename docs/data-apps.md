@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-![Apps 2.png](../assets/docs/6ecwQuqREaUWb33uWO8g.webp)
+![Data app editor](../assets/docs/data-apps/app-editor.webp)
 
 ### How to create an app
 
@@ -25,7 +25,7 @@ Note there can be only **one**  app per project. In order to create more apps sp
 
 Just like you can set the [sharing settings for projects](/docs/share-projects), you can set the access controls for your app. For example, it is possible to have a private project with a public app. In this case, no one will be able to open and edit your project; however, the app will be visible to anyone.
 
-Visibility of the app can be set through the **Permissions** dropdown in the _App settings._
+Visibility of the app can be set through the **Sharing** dropdown in the _App settings._
 
 The following access levels are available:
 
@@ -55,7 +55,7 @@ You can change the width of a block or column by dragging the border between the
 
 Complex layouts work best when combined with the "full-width" setting - see an example of an app on the picture below:
 
-<ImageBorder variant="blue">![Screenshot 2024-05-03 at 13.56.00.png](../assets/docs/RnGEydvTmKDP405EsMZk.webp)</ImageBorder>
+<ImageBorder variant="blue">![Data app layout](../assets/docs/data-apps/app-layout.webp)</ImageBorder>
 
 ### Show notebook outputs in app
 
@@ -73,11 +73,11 @@ Once your app is embedded, you can parameterize it the same way as a normal app 
 
 To embed an app, click on the "Embed" button in the Sharing section of App settings.
 
-<ImageBorder variant="blue">![embed-app-settings.png](../assets/docs/yI96GF5SzO1WvGIUQawl.webp)</ImageBorder>
+<ImageBorder variant="blue">![App embedding settings](../assets/docs/data-apps/app-settings.webp)</ImageBorder>
 
 In the modal window, turn on embedding. Once the setting is enabled, Deepnote will allow the app to be rendered in an iframe, and the preview of the embedded app will render on the left side of the modal.
 
-<ImageBorder variant="colorful">![embed-app-modal.png](../assets/docs/Qd7LB2LiRcSgBuCi5rcI.webp)</ImageBorder>
+<ImageBorder variant="colorful">![Embedded app preview](../assets/docs/data-apps/embed-preview.webp)</ImageBorder>
 
 To embed the app within tools like Notion, Confluence, or Medium, use the **Embed url**. These tools will automatically use the link to render an iframe. If you want to embed your app directly within a website where you have control over the HTML markup, you can use the Embed code link. You can adjust the width and height attributes of the iframe to get the desired size of the app.
 

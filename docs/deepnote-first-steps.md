@@ -13,11 +13,11 @@ Deepnote integrates with all major data warehouses and databases, as well as com
 
 To work with a CSV, simply drag it onto the notebook.
 
-![Import_CSV_Squared.jpg](../assets/docs/N5sICTLi0cSODwkEXkwe.jpg)
+![Import_CSV_Squared.jpg](../assets/docs/deepnote-first-steps/csv-hover-sql-block.webp)
 
 An SQL block with a sample query will be created for you and the file will be uploaded to Deepnote's file system. The results are saved to a Pandas DataFrame.
 
-![Query_it_with_SQL.jpg](../assets/docs/UVu8NCRzREm1LUKLk8dy.jpg)
+![Query_it_with_SQL.jpg](../assets/docs/deepnote-first-steps/csv-hover-sql-block.webp)
 
 Pandas can also be used to read the uploaded CSV into the notebook's memory.
 
@@ -29,11 +29,11 @@ Click "Create new" from the **Integrations** section in the Project sidebar on t
 
 Choose the database integration you want (e.g., Snowflake, BigQuery, PostgreSQL). You'll be asked to add your credentials.
 
-![Connect_database_From_project.jpg](../assets/docs/ghICx4WQgqqhiMrLDIUq.jpg)
+![Connect_database_From_project.jpg](../assets/docs/deepnote-first-steps/integration-chooser.webp)
 
 Once you've connected the database to a project (It'll appear in your sidebar), you can click it to preview its schema and use SQL blocks to query your data. The results are saved to a Pandas DataFrame.
 
-![Preview_Schema and Query.jpg](../assets/docs/Aw5nXRIZTmo2DXhUGYhg.jpg)
+![Preview_Schema and Query.jpg](../assets/docs/deepnote-first-steps/database-schema-query.webp)
 
 ## Inviting your team members
 
@@ -43,15 +43,15 @@ It's dangerous to go alone. Take this link.
 
 From the **Settings & members** section in the left-hand panel, you'll find links that you can send to your team in order to invite them to the workspace.
 
-![Members_Page.jpg](../assets/docs/GTEICRTtGtfHZareqjnA.jpg)
+![Members_Page.jpg](../assets/docs/deepnote-first-steps/email-invite-roles.webp)
 
 Different links provide different access controls.
 
-![Invite_Link.jpg](../assets/docs/RZeTuVcnTwiOHJbJWGul.jpg)
+![Invite_Link.jpg](../assets/docs/deepnote-first-steps/invite-links.webp)
 
 Alternatively, you may enter email addresses and assign access controls that way (note the toggle switch that allows anyone with your business domain to join the workspace).
 
-![Alternatively_Invite.jpg](../assets/docs/R151o7DRta8abJfIn7W1.jpg)
+![Alternatively_Invite.jpg](../assets/docs/deepnote-first-steps/email-invite-roles.webp)
 
 ## Analyzing your data
 
