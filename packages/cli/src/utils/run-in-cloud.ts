@@ -401,9 +401,6 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
         )
       },
     })
-    if (settled.content === null && lastRetryError !== undefined) {
-      throw lastRetryError
-    }
     finalRun = settled.run
     const content =
       settled.content ??
@@ -423,6 +420,8 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       snapshotPath = written.snapshotPath
       timestampedSnapshotPath = written.timestampedSnapshotPath
       artifactStatus = 'saved'
+    } else if (lastRetryError !== undefined) {
+      throw lastRetryError
     } else {
       debug(`Run ${finalRun.runId} returned no snapshot content.`)
     }
