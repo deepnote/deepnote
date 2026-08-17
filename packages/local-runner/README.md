@@ -81,7 +81,7 @@ Runs the notebook in Deepnote via the runs API — trigger → poll → fetch sn
 `@deepnote/cloud` client that also powers `deepnote run --cloud`. Needs a `DEEPNOTE_TOKEN`, and
 nothing else: if the notebook isn't in Deepnote yet, this creates it there (project, notebook, blocks)
 and runs it in the same call, reporting `created: true`. No browser step. Pass `createIfMissing: false`
-to fail instead. `serveStatic` exposes it at `POST /api/run-cloud`.
+to fail instead. `serveStatic` exposes it at `POST /api/run`, which is where runs go by default.
 
 The first run of a new notebook is the slow one — blocks are created one API request each — and
 `onCreateProgress` reports that. Later runs find the notebook by name and skip straight to running.
@@ -131,15 +131,22 @@ import { serveStatic } from "@deepnote/local-runner";
 const { port, close } = await serveStatic({
   dir: "./public", // your index.html + assets
   notebookPath: "examples/6_with_inputs.deepnote",
+  // runTarget: "local",  // omit for Deepnote Cloud
 });
-// GET  /api/info       -> { notebook, inputs }    (input blocks, to build controls)
-// POST /api/run        -> { inputs } -> { outputs, summary, snapshotYaml }
-// POST /api/run-cloud   -> { inputs } -> runs it in Deepnote Cloud (needs DEEPNOTE_TOKEN)
+// GET  /api/info       -> { notebook, inputs, runTarget }  (input blocks, to build controls)
+// POST /api/run        -> { inputs } -> { target, success, outputs, snapshotYaml, ... }
 // POST /api/schedule-cloud -> { schedule: { frequency, time, ... }, timezone? } -> cloud schedule
 // GET  /api/cloud-runs  -> { runs, viewUrl }       (for history/navigation)
 // any other GET         -> a file from `dir` (path-traversal guarded)
 await close();
 ```
+
+One run endpoint, wherever the run happens. `runTarget` decides — `"cloud"` unless you say
+otherwise, so a page needs one Run button rather than one per destination, and an app runs on
+Deepnote without being configured for it. `"local"` runs in a local Python kernel instead and
+writes a snapshot next to `notebookPath` (like `deepnote run`) unless `persistSnapshot: false`. The
+response says which one ran, and `GET /api/info` reports it up front so a page can label the button
+without being told separately.
 
 `POST /api/schedule-cloud` accepts a reusable friendly cadence: `{ frequency: "daily", time }`,
 `{ frequency: "weekly", dayOfWeek, time }` (Sunday = `0`), or

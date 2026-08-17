@@ -37,6 +37,9 @@ export type CloudSchedulerFn = (
   options?: ScheduleInCloudOptions
 ) => Promise<ScheduleInCloudResult>
 
+/** Where `POST /api/run` executes the notebook. */
+export type RunTarget = 'cloud' | 'local'
+
 export interface ServeStaticOptions {
   /** Directory of static files to serve (e.g. an `index.html` that drives the API). */
   dir: string
@@ -48,7 +51,12 @@ export interface ServeStaticOptions {
   pythonEnv?: string
   /** Forwarded to the runner. Runs persist a snapshot next to `notebookPath` by default; pass `false` to skip. */
   persistSnapshot?: boolean
-  /** Bearer token for cloud runs (`POST /api/run-cloud`). Defaults to `DEEPNOTE_TOKEN` in the environment. */
+  /**
+   * Where `POST /api/run` executes. Defaults to `'cloud'`, so an app runs on Deepnote without
+   * being configured for it. Set `'local'` to run in a local Python kernel instead.
+   */
+  runTarget?: RunTarget
+  /** Bearer token for cloud runs. Defaults to `DEEPNOTE_TOKEN` in the environment. */
   cloudToken?: string
   /** Override the local runner (advanced; mainly for testing). Defaults to `runWithInputs`. */
   runner?: RunnerFn
@@ -89,12 +97,14 @@ const CONTENT_TYPES: Record<string, string> = {
 /**
  * Serve a static directory and expose a minimal local-run API, so a plain web page can run a
  * `.deepnote` file with edited inputs:
- * - `GET /api/info` → `{ notebook, inputs }` (input blocks for building controls)
- * - `POST /api/run` → `{ inputs }` → `{ outputs, summary, snapshotYaml }`; writes a snapshot next
- *   to `notebookPath` by default (like `deepnote run`), unless `persistSnapshot: false`
- * - `POST /api/run-cloud` → `{ inputs }` → `{ status, success, outputs, snapshotYaml, created }` via
- *   Deepnote Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`). Creates the notebook there
- *   first if it doesn't exist, so one call is always enough.
+ * - `GET /api/info` → `{ notebook, inputs, runTarget }` (input blocks for building controls, plus
+ *   where runs go, so a page can label its Run button without being told separately)
+ * - `POST /api/run` → `{ inputs }` → `{ target, success, outputs, snapshotYaml, ... }`. One run
+ *   endpoint wherever the run happens, so a page needs one button and one response shape.
+ *   Defaults to Deepnote Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`), creating the
+ *   notebook there first if it doesn't exist, so one call is always enough. With
+ *   `runTarget: 'local'` it runs in a local Python kernel instead and writes a snapshot next to
+ *   `notebookPath` (like `deepnote run`) unless `persistSnapshot: false`.
  * - `GET  /api/cloud-runs` → `{ runs, viewUrl }` — the notebook's run history in Deepnote. Answers
  *   `{ runs: [] }` rather than an error when there's no token or the notebook isn't in Deepnote.
  * - `GET  /api/cloud-runs/{runId}` → `{ status, success, outputs, snapshotYaml }` — one past run's
@@ -117,6 +127,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   const cloudRunLister = options.cloudRunLister ?? listCloudRuns
   const cloudRunGetter = options.cloudRunGetter ?? getCloudRun
   const cloudScheduler = options.cloudScheduler ?? scheduleInCloud
+  const runTarget: RunTarget = options.runTarget ?? 'cloud'
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -129,11 +140,16 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
 
     if (req.method === 'GET' && pathname === '/api/info') {
       const { file } = loadDeepnoteFile(notebookPath)
-      sendJson(res, 200, { notebook: file.project.name, inputs: listInputBlocks(file) })
+      sendJson(res, 200, { notebook: file.project.name, inputs: listInputBlocks(file), runTarget })
       return
     }
 
     if (req.method === 'POST' && pathname === '/api/run') {
+      // Only a cloud run needs the guard the schedule route uses, and for the same reason: it
+      // spends the cloud token, and creates project content as a side effect of running a notebook
+      // that is not in Deepnote yet. A local run does neither, so it keeps the looser rule it had
+      // when it lived on its own route.
+      if (runTarget === 'cloud' && rejectCrossOriginRequest(req, res)) return
       const body = await readJsonBody(req, res)
       if (!body.ok) return
       const inputs = readInputMap(body.value)
@@ -141,29 +157,27 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         sendJson(res, 400, { error: 'Request "inputs" must be an object' })
         return
       }
-      const result = await runner(notebookPath, inputs.inputs, { pythonEnv, persistSnapshot: options.persistSnapshot })
-      sendJson(res, 200, {
-        outputs: result.outputs,
-        summary: result.summary,
-        snapshotYaml: result.snapshotYaml,
-      })
-      return
-    }
 
-    if (req.method === 'POST' && pathname === '/api/run-cloud') {
-      // Same guard as the schedule route below, and for the same reason: this one spends the cloud
-      // token too, and creates project content as a side effect of running a notebook that is not
-      // in Deepnote yet.
-      if (rejectCrossOriginRequest(req, res)) return
-      const body = await readJsonBody(req, res)
-      if (!body.ok) return
-      const inputs = readInputMap(body.value)
-      if (!inputs.ok) {
-        sendJson(res, 400, { error: 'Request "inputs" must be an object' })
+      if (runTarget === 'local') {
+        const result = await runner(notebookPath, inputs.inputs, {
+          pythonEnv,
+          persistSnapshot: options.persistSnapshot,
+        })
+        // `success` is stated rather than implied, so a page can read one field for both targets
+        // instead of inferring "no news is good news" from a local run's shorter response.
+        sendJson(res, 200, {
+          target: 'local',
+          success: true,
+          outputs: result.outputs,
+          summary: result.summary,
+          snapshotYaml: result.snapshotYaml,
+        })
         return
       }
+
       const result = await cloudRunner(notebookPath, inputs.inputs, { token: options.cloudToken })
       sendJson(res, 200, {
+        target: 'cloud',
         runId: result.runId,
         status: result.status,
         success: result.success,

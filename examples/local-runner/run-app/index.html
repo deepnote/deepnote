@@ -181,7 +181,6 @@
         <div id="inputs"></div>
         <div class="actions">
           <button id="run" class="btn primary"><span id="spin"></span>Run</button>
-          <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
           <button id="schedule-toggle" class="btn ghost">Schedule</button>
           <div class="scheduler" id="scheduler" hidden>
             <div class="scheduler-grid" id="scheduler-grid">
@@ -264,11 +263,15 @@
       // whatever order they like, so each checks it still owns the canvas before painting. Zero also
       // means "nothing has claimed it yet", which is what gates opening on the latest run.
       let displayGen = 0
+      // Where the server runs things. It decides; the page only reports it, so there is nothing to
+      // keep in sync between the two.
+      let runTarget = 'cloud'
 
       try {
         const res = await fetch('/api/info')
         if (!res.ok) throw new Error('HTTP ' + res.status)
         const info = await res.json()
+        runTarget = info.runTarget ?? 'cloud'
         $('#nb-name').textContent = info.notebook
         $('#r-title').textContent = info.notebook
         info.inputs.forEach((inp, i) => {
@@ -335,8 +338,8 @@
         text.oninput = () => { state[inp.variableName] = text.value }; return text
       }
 
-      $('#run').onclick = () => go('/api/run', '#spin', 'Running in a local kernel…')
-      $('#run-cloud').onclick = () => go('/api/run-cloud', '#spin-cloud', 'Running in Deepnote Cloud…')
+      $('#run').onclick = () =>
+        go('/api/run', '#spin', runTarget === 'local' ? 'Running in a local kernel…' : 'Running in Deepnote Cloud…')
       const scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       $('#schedule-timezone').textContent = scheduleTimezone
       $('#schedule-toggle').onclick = () => { $('#scheduler').hidden = !$('#scheduler').hidden }
@@ -405,7 +408,6 @@
 
       function setRunControlsDisabled(disabled) {
         $('#run').disabled = disabled
-        $('#run-cloud').disabled = disabled
       }
 
       function setScheduleControlsDisabled(disabled) {
@@ -521,7 +523,9 @@
           render(data)
           // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
           shownRunId = null
-          const where = endpoint.includes('cloud') ? 'cloud' : 'local'
+          // The response says where it ran, so this no longer reads the destination back out of the
+          // URL it was posted to.
+          const where = data.target ?? runTarget
 
           // A failed run is still worth rendering: the blocks that ran before it broke produced real
           // output, and throwing that away to show a bare error string loses the half of the story

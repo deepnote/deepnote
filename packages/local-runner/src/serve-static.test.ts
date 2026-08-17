@@ -130,37 +130,79 @@ afterEach(async () => {
 })
 
 describe('serveStatic', () => {
-  it('GET /api/info returns the notebook name and input blocks as JSON', async () => {
+  it('GET /api/info returns the notebook name, input blocks, and run target as JSON', async () => {
     const res = await fetch(`${base}/api/info`)
     expect(res.headers.get('content-type')).toContain('application/json')
-    const body = (await res.json()) as { notebook: string; inputs: Array<{ variableName: string }> }
+    const body = (await res.json()) as {
+      notebook: string
+      inputs: Array<{ variableName: string }>
+      runTarget: string
+    }
     expect(body.notebook).toBe('Test')
     expect(body.inputs[0].variableName).toBe('count')
+    expect(body.runTarget).toBe('cloud')
   })
 
-  it('POST /api/run forwards inputs to the runner and returns JSON', async () => {
+  it('POST /api/run goes to the cloud runner by default, without being configured for it', async () => {
     const res = await fetch(`${base}/api/run`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ inputs: { count: 9 } }),
-    })
-    expect(res.status).toBe(200)
-    const body = (await res.json()) as { summary: { failedBlocks: number }; snapshotYaml: string }
-    expect(body.summary.failedBlocks).toBe(0)
-    expect(body.snapshotYaml).toContain('"count":9')
-  })
-
-  it('POST /api/run-cloud forwards inputs to the cloud runner and returns JSON', async () => {
-    const res = await fetch(`${base}/api/run-cloud`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ inputs: { count: 3 } }),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { status: string; success: boolean; snapshotYaml: string }
+    const body = (await res.json()) as { target: string; status: string; success: boolean; snapshotYaml: string }
+    expect(body.target).toBe('cloud')
     expect(body.success).toBe(true)
     expect(body.status).toBe('success')
     expect(body.snapshotYaml).toContain('"count":3')
+  })
+
+  it('POST /api/run forwards inputs to the local runner when runTarget is "local"', async () => {
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+      runner: async (_input, inputs) => ({
+        outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
+        summary: { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 1 },
+        snapshot: {} as unknown as DeepnoteSnapshot,
+        snapshotYaml: `ran ${JSON.stringify(inputs)}`,
+      }),
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${localServer.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: { count: 9 } }),
+      })
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as {
+        target: string
+        success: boolean
+        summary: { failedBlocks: number }
+        snapshotYaml: string
+      }
+      expect(body.target).toBe('local')
+      expect(body.success).toBe(true)
+      expect(body.summary.failedBlocks).toBe(0)
+      expect(body.snapshotYaml).toContain('"count":9')
+    } finally {
+      await localServer.close()
+    }
+  })
+
+  it('GET /api/info reports a configured local run target', async () => {
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${localServer.port}/api/info`)
+      expect(((await res.json()) as { runTarget: string }).runTarget).toBe('local')
+    } finally {
+      await localServer.close()
+    }
   })
 
   it('POST /api/schedule-cloud forwards a reusable cron request and returns the cloud schedule', async () => {
@@ -296,17 +338,45 @@ describe('serveStatic', () => {
     }
   })
 
-  it('POST /api/run-cloud rejects a foreign origin too', async () => {
+  it('POST /api/run rejects a foreign origin when it targets the cloud', async () => {
     // It spends the same cloud token, and creates project content when the notebook is not in
     // Deepnote yet — so guarding only the schedule route left the same door open.
     const status = await rawPost(
       handle.port,
-      '/api/run-cloud',
+      '/api/run',
       { origin: 'https://attacker.example' },
       JSON.stringify({ inputs: {} })
     )
 
     expect(status).toBe(403)
+  })
+
+  it('POST /api/run allows a foreign origin when it targets a local kernel', async () => {
+    // The guard exists to protect the cloud token and the project content it can create. A local
+    // run spends neither, so folding the two routes together must not tighten it by accident.
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+      runner: async () => ({
+        outputs: [],
+        summary: { totalBlocks: 0, executedBlocks: 0, failedBlocks: 0, totalDurationMs: 0 },
+        snapshot: {} as unknown as DeepnoteSnapshot,
+        snapshotYaml: 'ran',
+      }),
+    })
+    try {
+      const status = await rawPost(
+        localServer.port,
+        '/api/run',
+        { origin: 'https://attacker.example' },
+        JSON.stringify({ inputs: {} })
+      )
+
+      expect(status).toBe(200)
+    } finally {
+      await localServer.close()
+    }
   })
 
   it('POST /api/schedule-cloud rejects a rebound hostname whose Origin and Host agree', async () => {
