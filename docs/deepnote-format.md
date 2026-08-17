@@ -15,7 +15,7 @@ A `.deepnote` file is a YAML-formatted document that holds a single notebook tog
 
 - **Project metadata** (creation date, modification date, version)
 - **The notebook** with its blocks and execution state
-- **Project settings** (environment configuration, dependencies, integrations)
+- **Project settings** (dependencies, integrations, and project-level configuration)
 - **Execution modes** and working directories
 
 Unlike Jupyter's JSON-based `.ipynb` format, Deepnote's YAML format prioritizes human readability and git-friendly diffs, making collaboration and version control significantly easier.
@@ -32,6 +32,11 @@ metadata:
   checksum: "abc123..."
 
 version: "1.0.0"
+
+environment:
+  customImage: "my-custom-image:latest"
+  python:
+    version: "3.11"
 
 project:
   id: "project-uuid"
@@ -52,9 +57,6 @@ project:
       type: "snowflake"
 
   settings:
-    environment:
-      pythonVersion: "3.11"
-      customImage: "my-custom-image:latest"
     requirements:
       - "pandas>=2.0.0"
       - "numpy>=1.24.0"
@@ -109,9 +111,14 @@ Connected data sources and external services:
 
 Project-wide configuration:
 
-- **`environment`**: Python version and custom Docker images
 - **`requirements`**: Python package dependencies
 - **`sqlCacheMaxAge`**: SQL query cache duration in seconds
+
+Environment configuration is stored in the top-level `environment` object:
+
+- **`customImage`**: Custom Docker image
+- **`python.version`**: Python version
+- **`python.environment`**: Python environment type
 
 ### Block structure
 
@@ -119,7 +126,7 @@ Each block in a notebook has the following structure:
 
 ```yaml
 - id: "block-uuid"
-  type: "code" # or 'markdown', 'sql', 'chart', 'input', etc.
+  type: "code" # or 'markdown', 'sql', 'visualization', 'input-text', etc.
   sortingKey: "1"
   blockGroup: "group-uuid"
   content: |
@@ -139,7 +146,7 @@ Each block in a notebook has the following structure:
 **Block properties:**
 
 - **`id`**: Unique block identifier
-- **`type`**: Block type (`'code'`, `'markdown'`, `'sql'`, `'chart'`, `'input'`, etc.)
+- **`type`**: Block type (`'code'`, `'markdown'`, `'sql'`, `'visualization'`, or an input variant)
 - **`sortingKey`**: Base-36 encoded position for ordering blocks
 - **`blockGroup`**: Optional grouping identifier for related blocks
 - **`content`**: The actual code, markdown, or query content
@@ -227,11 +234,13 @@ While Deepnote maintains compatibility with Jupyter, there are important differe
 **Deepnote:**
 
 ```yaml
+environment:
+  python:
+    version: "3.11"
+  customImage: "custom-image:latest"
+
 project:
   settings:
-    environment:
-      pythonVersion: "3.11"
-      customImage: "custom-image:latest"
     requirements:
       - "pandas>=2.0.0"
     sqlCacheMaxAge: 3600
@@ -265,6 +274,10 @@ metadata:
   createdAt: "2025-01-27T12:00:00Z"
 
 version: "1.0.0"
+
+environment:
+  python:
+    version: "3.11"
 
 project:
   id: "abc-123-def-456"
@@ -305,8 +318,6 @@ project:
   integrations: []
 
   settings:
-    environment:
-      pythonVersion: "3.11"
     requirements:
       - "pandas>=2.0.0"
 ```
