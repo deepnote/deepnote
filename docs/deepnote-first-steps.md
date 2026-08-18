@@ -13,7 +13,7 @@ Deepnote integrates with all major data warehouses and databases, as well as com
 
 To work with a CSV, simply drag it onto the notebook.
 
-![Import_CSV_Squared.jpg](../assets/docs/deepnote-first-steps/csv-hover-sql-block.webp)
+![Import_CSV_Squared.jpg](../assets/docs/deepnote-first-steps/csv-drag-notebook.webp)
 
 An SQL block with a sample query will be created for you and the file will be uploaded to Deepnote's file system. The results are saved to a Pandas DataFrame.
 
