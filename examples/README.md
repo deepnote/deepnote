@@ -2,6 +2,8 @@
 
 This is a guide to get you started with **Deepnote Open Source**, it is just a glimpse of what is possible. To get started just clone this repository.
 
+We keep the example and template notebooks linked from the [Deepnote docs](https://deepnote.com/docs) in this folder so their links keep working when workspace projects change.
+
 ```bash
 git clone https://github.com/deepnote/deepnote.git
 cd deepnote
