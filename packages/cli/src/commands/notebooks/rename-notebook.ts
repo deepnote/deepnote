@@ -12,6 +12,8 @@ export interface NotebooksRenameOptions {
   output?: 'json'
 }
 
+class InvalidRenameInputError extends Error {}
+
 /** Build the Commander action while keeping command failures inside the CLI exit-code contract. */
 export function createNotebooksRenameAction(
   _program: Command
@@ -30,7 +32,8 @@ export function createNotebooksRenameAction(
           error.statusCode === 403 ||
           error.statusCode === 404 ||
           error.statusCode === 409)
-      const isUsageError = error instanceof MissingTokenError || error instanceof TypeError || isUsageApiError
+      const isUsageError =
+        error instanceof MissingTokenError || error instanceof InvalidRenameInputError || isUsageApiError
       const exitCode = isUsageError ? ExitCode.InvalidUsage : ExitCode.Error
       if (options.output === 'json') {
         outputJson({ success: false, error: message })
@@ -47,6 +50,13 @@ async function renameNotebookInCloud(
   newName: string,
   options: NotebooksRenameOptions
 ): Promise<void> {
+  if (!notebookId.trim()) {
+    throw new InvalidRenameInputError('Notebook ID cannot be empty.')
+  }
+  if (!newName.trim()) {
+    throw new InvalidRenameInputError('Notebook name cannot be empty.')
+  }
+
   const token = options.token?.trim() || process.env[DEEPNOTE_TOKEN_ENV]?.trim()
   if (!token) {
     throw new MissingTokenError()

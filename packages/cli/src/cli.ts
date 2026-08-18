@@ -1033,7 +1033,7 @@ ${c.bold('Examples:')}
     .argument('<new-name>', 'New notebook name')
     .option('--token <token>', `Deepnote API token (defaults to ${DEEPNOTE_TOKEN_ENV})`)
     .option('--url <url>', 'Deepnote API base URL', DEFAULT_API_URL)
-    .option('--output <format>', 'Output format: json')
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .action(createNotebooksRenameAction(program))
 }
 

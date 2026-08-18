@@ -105,6 +105,17 @@ describe('notebooks rename command', () => {
   })
 
   describe('errors', () => {
+    it.each([
+      { notebookId: ' ', newName: 'Renamed', message: 'Notebook ID cannot be empty.' },
+      { notebookId: NOTEBOOK_ID, newName: '  ', message: 'Notebook name cannot be empty.' },
+    ])('treats blank rename input as invalid usage', async ({ notebookId, newName, message }) => {
+      await createNotebooksRenameAction(new Command())(notebookId, newName, options())
+
+      expect(cloudMock.updateNotebook).not.toHaveBeenCalled()
+      expect(process.exitCode).toEqual(ExitCode.InvalidUsage)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(message)
+    })
+
     it('exits with invalid usage when no token is available', async () => {
       await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Renamed', options({ token: undefined }))
 
@@ -133,6 +144,15 @@ describe('notebooks rename command', () => {
 
       expect(process.exitCode).toEqual(ExitCode.Error)
       expect(errorSpy.mock.calls.flat().join('\n')).toContain('Internal server error')
+    })
+
+    it('treats transport TypeErrors as errors', async () => {
+      cloudMock.updateNotebook.mockRejectedValue(new TypeError('fetch failed'))
+
+      await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Renamed', options())
+
+      expect(process.exitCode).toEqual(ExitCode.Error)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('fetch failed')
     })
 
     it('emits the stable JSON contract on failure', async () => {
