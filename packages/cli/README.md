@@ -680,6 +680,34 @@ deepnote integrations pull --token <token>
 deepnote integrations pull --file my-integrations.yaml
 ```
 
+### `notebooks rename <notebook-id> <new-name>`
+
+Rename a notebook in Deepnote Cloud.
+
+```bash
+deepnote notebooks rename <notebook-id> "New name"
+```
+
+**Options:**
+
+| Option              | Description                                 | Default      |
+| ------------------- | ------------------------------------------- | ------------ |
+| `--url <url>`       | Deepnote API base URL                       | Deepnote API |
+| `--token <token>`   | API token (or use `DEEPNOTE_TOKEN` env var) |              |
+| `--output <format>` | Output format: `json`                       |              |
+
+**Examples:**
+
+```bash
+# Rename a notebook by its ID
+deepnote notebooks rename 7061f86dec6e4e11893288f295a82017 "Quarterly report"
+
+# Machine-readable output
+deepnote notebooks rename 7061f86dec6e4e11893288f295a82017 "Quarterly report" --output json
+```
+
+Renaming fails with a conflict when another notebook in the project already uses the name, when the project is suspended, and for single-notebook or Agent projects, where the project owns its notebook's name.
+
 ### `completion <shell>`
 
 Generate shell completion scripts for tab completion.
