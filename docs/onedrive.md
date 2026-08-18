@@ -7,7 +7,7 @@ coverImage: 2WgnsVCRS8esbCqGc2lO
 
 Deepnote can fetch files from OneDrive, for example, Excel files that you collaborate on with your team. Follow these docs to create your own notebook to pull files from OneDrive, query data, and visualize it.
 
-## 1. Download and import the OneDrive example
+### 1. Download and import the OneDrive example
 
 Download the [OneDrive example notebook](https://github.com/deepnote/deepnote/blob/main/examples/fetch-onedrive-files-in-deepnote.ipynb) and follow the [Jupyter notebook import steps](/docs/importing-and-exporting-jupyter-notebooks) to add it to your project.
 
