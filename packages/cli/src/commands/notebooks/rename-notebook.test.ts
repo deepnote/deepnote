@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { ApiError } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -94,6 +97,46 @@ describe('notebooks rename command', () => {
     )
   })
 
+  it('reads the token from a .env file in the working directory', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-rename-'))
+    try {
+      await fs.writeFile(path.join(dir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      vi.spyOn(process, 'cwd').mockReturnValue(dir)
+
+      await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Renamed', options({ token: undefined }))
+
+      expect(cloudMock.updateNotebook).toHaveBeenCalledWith(
+        expect.any(String),
+        'dotenv-token',
+        NOTEBOOK_ID,
+        expect.anything()
+      )
+      expect(process.exitCode).toBeUndefined()
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('prefers a real environment variable over the .env file', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-rename-'))
+    try {
+      await fs.writeFile(path.join(dir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      vi.spyOn(process, 'cwd').mockReturnValue(dir)
+      process.env.DEEPNOTE_TOKEN = 'env-token'
+
+      await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Renamed', options({ token: undefined }))
+
+      expect(cloudMock.updateNotebook).toHaveBeenCalledWith(
+        expect.any(String),
+        'env-token',
+        NOTEBOOK_ID,
+        expect.anything()
+      )
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true })
+    }
+  })
+
   it('emits the stable JSON contract on success', async () => {
     await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Renamed', options({ output: 'json' }))
 
@@ -117,11 +160,19 @@ describe('notebooks rename command', () => {
     })
 
     it('exits with invalid usage when no token is available', async () => {
-      await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Renamed', options({ token: undefined }))
+      // Run from an empty directory so a developer's own .env cannot supply a token.
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'deepnote-rename-'))
+      try {
+        vi.spyOn(process, 'cwd').mockReturnValue(dir)
 
-      expect(cloudMock.updateNotebook).not.toHaveBeenCalled()
-      expect(process.exitCode).toEqual(ExitCode.InvalidUsage)
-      expect(errorSpy.mock.calls.flat().join('\n')).not.toEqual('')
+        await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Renamed', options({ token: undefined }))
+
+        expect(cloudMock.updateNotebook).not.toHaveBeenCalled()
+        expect(process.exitCode).toEqual(ExitCode.InvalidUsage)
+        expect(errorSpy.mock.calls.flat().join('\n')).not.toEqual('')
+      } finally {
+        await fs.rm(dir, { recursive: true, force: true })
+      }
     })
 
     it('treats API conflicts as invalid usage and surfaces the server message', async () => {
