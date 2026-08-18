@@ -4,6 +4,8 @@ This is a guide to get you started with **Deepnote Open Source**, it is just a g
 
 We keep the example and template notebooks linked from the [Deepnote docs](https://deepnote.com/docs) in this folder so their links keep working when workspace projects change.
 
+You can download the [InfluxDB](./query-influxdb-from-deepnote.ipynb) and [OneDrive](./fetch-onedrive-files-in-deepnote.ipynb) example notebooks from this repository.
+
 ```bash
 git clone https://github.com/deepnote/deepnote.git
 cd deepnote
