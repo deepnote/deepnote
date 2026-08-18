@@ -27,7 +27,7 @@ Install the tool globally to use the `deepnote-convert` command from anywhere:
 npm install -g @deepnote/convert
 ```
 
-After converting your notebooks, you can open them either in Deepnote or directly in your IDE ([VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [Windsurf](https://open-vsx.org/extension/Deepnote/vscode-deepnote)).
+After converting your notebooks, you can open them either in Deepnote or directly in your IDE ([VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [Devin Desktop](https://open-vsx.org/extension/Deepnote/vscode-deepnote)).
 
 Option 1: Open directly in [Deepnote](https://deepnote.com)
 
@@ -37,10 +37,10 @@ Option 1: Open directly in [Deepnote](https://deepnote.com)
 
 Option 2: Open in your IDE
 
-1. Open the `.deepnote` file in VS Code, Cursor, or Windsurf.
+1. Open the `.deepnote` file in VS Code, Cursor, or Devin Desktop.
 2. Install the official Deepnote extension:
    - For VS Code: [Deepnote](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)
-   - For Cursor and Windsurf: [Deepnote](https://open-vsx.org/extension/Deepnote/vscode-deepnote)
+   - For Cursor and Devin Desktop: [Deepnote](https://open-vsx.org/extension/Deepnote/vscode-deepnote)
 3. To move your project to the cloud for collaboration or app creation:
    - Press Cmd+Shift+P (macOS) or Ctrl+Shift+P (Windows/Linux)
    - Type “Deepnote: Open in Deepnote”
@@ -210,7 +210,7 @@ In addition to the CLI (`deepnote-convert file.deepnote --outputFormat jupyter`,
 
 1. **Upload to Deepnote**: Go to [deepnote.com](https://deepnote.com) and upload your `.deepnote` file to create a new project
 2. **Open the project**: Once uploaded, open the project in Deepnote
-3. **Download as Jupyter notebook**: For each notebook in your project, click the notebook menu (three dots) and select **"Download as .ipynb"**
+3. **Download as Jupyter notebook**: For each notebook in your project, click the notebook menu (three dots), select **"Export as ..."**, then choose **".ipynb"**
 4. **Export the notebook**: The notebook will be downloaded as a standard Jupyter notebook file that you can use in any Jupyter-compatible environment
 
 This workflow allows you to work with Deepnote's enhanced features and collaboration tools, then export your work back to the standard Jupyter format when needed.
