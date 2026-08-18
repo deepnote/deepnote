@@ -690,11 +690,11 @@ deepnote notebooks rename <notebook-id> "New name"
 
 **Options:**
 
-| Option                  | Description                                 | Default      |
-| ----------------------- | ------------------------------------------- | ------------ |
-| `--url <url>`           | Deepnote API base URL                       | Deepnote API |
+| Option                  | Description                                                                     | Default      |
+| ----------------------- | ------------------------------------------------------------------------------- | ------------ |
+| `--url <url>`           | Deepnote API base URL                                                           | Deepnote API |
 | `--token <token>`       | API token (or use `DEEPNOTE_TOKEN` env var or `.env` file in current directory) |              |
-| `-o, --output <format>` | Output format: `json`                       |              |
+| `-o, --output <format>` | Output format: `json`                                                           |              |
 
 **Examples:**
 
