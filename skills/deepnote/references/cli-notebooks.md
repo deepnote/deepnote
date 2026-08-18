@@ -1,18 +1,18 @@
 # CLI: Notebook Commands
 
-Install: `npm install -g @deepnote/cli`
+Install: `pnpm add -g @deepnote/cli`
 
 ## `deepnote notebooks rename <notebook-id> <new-name>`
 
 Rename an existing notebook in Deepnote Cloud by its notebook id. This changes the cloud notebook
 directly; it does not rename a notebook in a local `.deepnote` file.
 
-An API token is required. Pass `--token`, or set `DEEPNOTE_TOKEN` in the environment.
+An API token is required. Pass `--token`, or set `DEEPNOTE_TOKEN` in the environment or in a `.env` file in the current directory.
 
 | Option                  | Description                                                         |
 | ----------------------- | ------------------------------------------------------------------- |
 | `--url <url>`           | API base URL (default `https://api.deepnote.com`)                   |
-| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` environment variable)             |
+| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` environment variable or `.env` file) |
 | `-o, --output <format>` | Output format; the only supported machine-readable format is `json` |
 
 ```bash

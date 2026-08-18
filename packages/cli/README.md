@@ -693,7 +693,7 @@ deepnote notebooks rename <notebook-id> "New name"
 | Option                  | Description                                 | Default      |
 | ----------------------- | ------------------------------------------- | ------------ |
 | `--url <url>`           | Deepnote API base URL                       | Deepnote API |
-| `--token <token>`       | API token (or use `DEEPNOTE_TOKEN` env var) |              |
+| `--token <token>`       | API token (or use `DEEPNOTE_TOKEN` env var or `.env` file in current directory) |              |
 | `-o, --output <format>` | Output format: `json`                       |              |
 
 **Examples:**
