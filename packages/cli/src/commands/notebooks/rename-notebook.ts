@@ -1,6 +1,8 @@
+import { join } from 'node:path'
 import { updateNotebook } from '@deepnote/cloud'
-import { ApiError, DEFAULT_API_URL } from '@deepnote/database-integrations'
+import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { DEEPNOTE_TOKEN_ENV } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { log, error as logError, outputJson } from '../../output'
@@ -56,6 +58,9 @@ async function renameNotebookInCloud(
   if (!newName.trim()) {
     throw new InvalidRenameInputError('Notebook name cannot be empty.')
   }
+
+  // Load .env from the working directory before reading the token — mirrors `sync` and `run --cloud`.
+  dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
 
   const token = options.token?.trim() || process.env[DEEPNOTE_TOKEN_ENV]?.trim()
   if (!token) {
