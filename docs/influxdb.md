@@ -8,7 +8,7 @@ coverImage: g890zy2wQGiGh2NahdVa
 
 Deepnote can query your time series data in InfluxDB v2. Follow these docs to create your own notebook to connect to your InfluxDB instance.
 
-### 1. Download and import the InfluxDB example
+## 1. Download and import the InfluxDB example
 
 Download the [InfluxDB example notebook](https://github.com/deepnote/deepnote/blob/main/examples/query-influxdb-from-deepnote.ipynb) and follow the [Jupyter notebook import steps](/docs/importing-and-exporting-jupyter-notebooks) to add it to your project. After importing it, connect the notebook to your InfluxDB instance.
 
