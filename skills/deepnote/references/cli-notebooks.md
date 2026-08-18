@@ -9,11 +9,11 @@ directly; it does not rename a notebook in a local `.deepnote` file.
 
 An API token is required. Pass `--token`, or set `DEEPNOTE_TOKEN` in the environment or in a `.env` file in the current directory.
 
-| Option                  | Description                                                         |
-| ----------------------- | ------------------------------------------------------------------- |
-| `--url <url>`           | API base URL (default `https://api.deepnote.com`)                   |
+| Option                  | Description                                                            |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `--url <url>`           | API base URL (default `https://api.deepnote.com`)                      |
 | `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` environment variable or `.env` file) |
-| `-o, --output <format>` | Output format; the only supported machine-readable format is `json` |
+| `-o, --output <format>` | Output format; the only supported machine-readable format is `json`    |
 
 ```bash
 # Human-readable output
