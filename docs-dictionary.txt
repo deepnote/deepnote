@@ -279,6 +279,8 @@ autoplay
 Infographics
 Pywidgets
 Pywidget
+pathlib
+selectbox
 parameterised
 pytudes
 Botfather
@@ -321,3 +323,4 @@ quarto
 reticulate
 dedent
 dedenting
+delenv
