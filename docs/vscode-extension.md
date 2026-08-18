@@ -30,7 +30,7 @@ The Deepnote extension provides:
 ### From marketplace
 
 1. **Open your editor**
-   - Launch VS Code, Cursor, Windsurf, or Antigravity
+   - Launch VS Code, Cursor, or another VS Code-compatible editor
 
 2. **Open Extensions View**
    - Click Extensions icon in sidebar (Ctrl/Cmd + Shift + X)
@@ -51,8 +51,6 @@ The Deepnote extension provides:
 # Install using CLI
 code --install-extension deepnote.vscode-deepnote  # VS Code
 cursor --install-extension deepnote.vscode-deepnote  # Cursor
-windsurf --install-extension deepnote.vscode-deepnote  # Windsurf
-antigravity --install-extension deepnote.vscode-deepnote  # Antigravity
 ```
 
 ### Verify installation
@@ -218,10 +216,10 @@ ORDER BY
 
 ### Exporting to different formats
 
-You can export entire projects or individual notebooks to the Jupyter notebook format. To export:
+You can export individual notebooks to the Jupyter notebook format. To export a notebook:
 
-1. Right-click on a project or notebook in the Explorer
-2. Select "Export"
+1. Right-click a notebook in the Explorer
+2. Select "Export Notebook..."
 
 This allows you to share your work in the widely-supported `.ipynb` format.
 
@@ -243,7 +241,7 @@ This opens the file in VS Code's standard text editor with YAML syntax highlight
 
 ### Extension settings
 
-Access the extension settings by navigating to File → Preferences → Settings (or pressing Ctrl/Cmd + ,) and searching for "Deepnote".
+On macOS, access the extension settings through Code → Preferences → Settings. On Windows or Linux, use File → Preferences → Settings. You can also press Ctrl/Cmd + , and search for "Deepnote".
 
 ### Python environment
 
