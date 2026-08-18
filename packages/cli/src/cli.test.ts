@@ -1,7 +1,21 @@
+import { execFileSync } from 'node:child_process'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createProgram, run } from './cli'
 import { resetOutputConfig } from './output'
 import { version } from './version'
+
+function runBashCompletion(script: string, words: string[]): string[] {
+  const invocation = [
+    script,
+    'COMP_WORDS=("$@")',
+    `COMP_CWORD=$((\${#COMP_WORDS[@]} - 1))`,
+    '_deepnote_completions',
+    `printf '%s\\n' "\${COMPREPLY[@]}"`,
+  ].join('\n')
+  const output = execFileSync('bash', ['-c', invocation, 'bash', ...words], { encoding: 'utf8' })
+
+  return output.trim().split('\n').filter(Boolean)
+}
 
 describe('CLI', () => {
   beforeEach(() => {
@@ -80,6 +94,16 @@ describe('CLI', () => {
 
       expect(completionCmd).toBeDefined()
       expect(completionCmd?.description()).toBe('Generate shell completion scripts')
+    })
+
+    it('notebooks rename command is properly configured', () => {
+      const program = createProgram()
+      const notebooksCmd = program.commands.find(cmd => cmd.name() === 'notebooks')
+      const renameCmd = notebooksCmd?.commands.find(cmd => cmd.name() === 'rename')
+
+      expect(renameCmd).toBeDefined()
+      expect(renameCmd?.description()).toBe('Rename a notebook in Deepnote Cloud')
+      expect(renameCmd?.options.map(option => option.flags)).toContain('-o, --output <format>')
     })
 
     it('schedule command is properly configured', () => {
@@ -174,6 +198,23 @@ describe('CLI', () => {
         COMPREPLY=( $(compgen -W "read-write readonly" -- "\${cur}") )
         return 0
     fi`)
+      expect(runBashCompletion(output, ['deepnote', 'notebooks', 'rename', 'notebook-id', 'New name', '--'])).toEqual([
+        '--url',
+        '--token',
+        '--output',
+      ])
+      expect(runBashCompletion(output, ['deepnote', 'notebooks', 'rename', 'notebook-id', 'New name', '-'])).toEqual([
+        '-o',
+        '--url',
+        '--token',
+        '--output',
+      ])
+      expect(
+        runBashCompletion(output, ['deepnote', 'notebooks', 'rename', 'notebook-id', 'New name', '--output', ''])
+      ).toEqual(['json'])
+      expect(
+        runBashCompletion(output, ['deepnote', 'notebooks', 'rename', 'notebook-id', 'New name', '-o', ''])
+      ).toEqual(['json'])
       consoleSpy.mockRestore()
     })
 
@@ -287,6 +328,15 @@ describe('CLI', () => {
       await expect(program.parseAsync(['validate', 'test.deepnote', '-o', 'toon'], { from: 'user' })).rejects.toThrow(
         'Invalid output format'
       )
+    })
+
+    it('errors when invalid output format is used with notebooks rename', async () => {
+      const program = createProgram()
+      program.exitOverride()
+
+      await expect(
+        program.parseAsync(['notebooks', 'rename', 'notebook-id', 'New name', '-o', 'yaml'], { from: 'user' })
+      ).rejects.toThrow('Invalid output format')
     })
   })
 

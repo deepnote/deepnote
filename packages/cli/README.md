@@ -690,11 +690,11 @@ deepnote notebooks rename <notebook-id> "New name"
 
 **Options:**
 
-| Option              | Description                                 | Default      |
-| ------------------- | ------------------------------------------- | ------------ |
-| `--url <url>`       | Deepnote API base URL                       | Deepnote API |
-| `--token <token>`   | API token (or use `DEEPNOTE_TOKEN` env var) |              |
-| `--output <format>` | Output format: `json`                       |              |
+| Option                  | Description                                 | Default      |
+| ----------------------- | ------------------------------------------- | ------------ |
+| `--url <url>`           | Deepnote API base URL                       | Deepnote API |
+| `--token <token>`       | API token (or use `DEEPNOTE_TOKEN` env var) |              |
+| `-o, --output <format>` | Output format: `json`                       |              |
 
 **Examples:**
 
@@ -707,6 +707,10 @@ deepnote notebooks rename 7061f86dec6e4e11893288f295a82017 "Quarterly report" --
 ```
 
 Renaming fails with a conflict when another notebook in the project already uses the name, when the project is suspended, and for single-notebook or Agent projects, where the project owns its notebook's name.
+
+Naming a notebook `Init` designates it as the project's init notebook in Deepnote. This is a
+functional change, not only a cosmetic rename: the init notebook can run as a prelude to other
+notebooks in the project.
 
 ### `completion <shell>`
 
