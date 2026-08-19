@@ -9,12 +9,12 @@ noContent: false
 
 There are two ways to import `.ipynb` files into a Deepnote project:
 
-1. Drag and drop `.ipynb` files into the **NOTEBOOKS** section in the left panel.
+1. Drag and drop `.ipynb` files into the project's **Notebooks** section.
 
 ![Drag_And_Drop notebooks.jpg](../assets/docs/Jlgt96IgRLejNtaNvkjA.jpg)
 <br></br><br></br>
 
-2.1 Click the **+** button in the **FILES** section and select the **Upload file** option.
+2.1 Open the **Settings** panel from the top-right of your project, go to **Files**, click the **+** button, and select **Upload file**.
 
 ![Upload Notebooks.jpg](../assets/docs/D2qW41uThSaTGWASHi8L.jpg)
 

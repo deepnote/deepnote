@@ -25,13 +25,13 @@ Pandas can also be used to read the uploaded CSV into the notebook's memory.
 
 ### Connecting to a database
 
-Click "Create new" from the **Integrations** section in the Project sidebar on the left.
+Open the **Settings** panel from the top-right of your project, go to **Integrations**, and click **Create new**.
 
 Choose the database integration you want (e.g., Snowflake, BigQuery, PostgreSQL). You'll be asked to add your credentials.
 
 ![Connect_database_From_project.jpg](../assets/docs/ghICx4WQgqqhiMrLDIUq.jpg)
 
-Once you've connected the database to a project (It'll appear in your sidebar), you can click it to preview its schema and use SQL blocks to query your data. The results are saved to a Pandas DataFrame.
+Once you've connected the database to a project, select it under **Settings** → **Integrations** to preview its schema and use SQL blocks to query your data. The results are saved to a Pandas DataFrame.
 
 ![Preview_Schema and Query.jpg](../assets/docs/Aw5nXRIZTmo2DXhUGYhg.jpg)
 
