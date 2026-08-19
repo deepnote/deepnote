@@ -396,10 +396,8 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   let artifactStatus: CloudArtifactStatus = 'not_produced'
   let artifactError: string | undefined
   try {
-    let lastRetryError: unknown
     const settled = await waitForRunSnapshot(baseUrl, token, finalRun, {
       onRetryError: error => {
-        lastRetryError = error
         debug(
           `Re-fetching run ${finalRun.runId} for its snapshot failed: ${error instanceof Error ? error.message : error}`
         )
@@ -425,8 +423,11 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       snapshotPath = written.snapshotPath
       timestampedSnapshotPath = written.timestampedSnapshotPath
       artifactStatus = synthesized ? 'synthesized' : 'saved'
-    } else if (lastRetryError !== undefined) {
-      throw lastRetryError
+    } else if (settled.retryError !== undefined) {
+      // The last status re-fetch failed, so "no snapshot" rests on stale data — an outage must not
+      // read as a valid empty run. A failure a *successful* re-fetch later superseded is not here:
+      // that null is a fresh, confirmed not_produced.
+      throw settled.retryError
     } else {
       debug(`Run ${finalRun.runId} returned no snapshot content.`)
     }

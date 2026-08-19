@@ -654,6 +654,39 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
     expect(process.exitCode).toBe(ExitCode.Error)
   })
 
+  it('reports not_produced when a later re-fetch confirms no snapshot after a transient failure', async () => {
+    // GET#1 is the poll (terminal, no snapshot); the first settle re-fetch (GET#2) fails
+    // transiently; the later re-fetches succeed and freshly confirm no snapshot was attached.
+    // The stale early error must not reclassify that confirmed no-snapshot as unavailable.
+    let getCount = 0
+    vi.spyOn(global, 'fetch').mockImplementation(async (_url, init) => {
+      const method = (init?.method as string) ?? 'GET'
+      if (method === 'POST') {
+        return response({ run: { id: 'run-x', status: 'pending' } })
+      }
+      getCount++
+      if (getCount === 2) {
+        throw new Error('503 Service Unavailable')
+      }
+      return response({ run: { id: 'run-x', status: 'success' } })
+    })
+
+    await runInDeepnoteCloud(undefined, {
+      cloud: true,
+      notebookId: 'remote-nb',
+      token: 't',
+      url: API_URL,
+      output: 'json',
+    })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result = JSON.parse(logged)
+    expect(result).toMatchObject({ success: false, status: 'success', artifactStatus: 'not_produced' })
+    expect(result.artifactError).toMatch(/produced no snapshot/i)
+    expect(result.artifactError).not.toMatch(/503/)
+    expect(process.exitCode).toBe(ExitCode.Error)
+  }, 10_000)
+
   it('treats all-failed snapshot re-fetches as unavailable, not not_produced', async () => {
     let getCount = 0
     vi.spyOn(global, 'fetch').mockImplementation(async (_url, init) => {
