@@ -21,7 +21,7 @@ Available on Team and Enterprise plans
 
 ### How to connect to Google BigQuery
 
-Open the **Settings** panel from the top-right. Under **Integrations**, click **Connect an integration**. Select **Google BigQuery** from the list of integrations.
+Open the **Settings** panel from the top-right. Under **Integrations**, click **Connect an integration**.
 ![create_integration.png](../assets/docs/pIr2x2wQtyVUUAv6spVZ.webp)
 <br></br>
 
