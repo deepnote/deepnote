@@ -169,7 +169,7 @@
   <body>
     <div class="topbar">
       <div class="brand"><span class="mark"></span>Deepnote <span class="dim">local-runner</span></div>
-      <div class="badge"><span class="dot"></span>Local kernel</div>
+      <div class="badge"><span class="dot"></span><span id="run-target-label">Deepnote Cloud</span></div>
     </div>
 
     <div class="layout">
@@ -245,7 +245,7 @@
           <div class="empty">
             <div class="glyph">▷</div>
             <b>Edit the inputs, then Run.</b>
-            <div>The notebook executes in a local Python kernel and its output appears here.</div>
+            <div id="run-target-description">The notebook executes in Deepnote Cloud and its output appears here.</div>
           </div>
         </div>
       </section>
@@ -272,6 +272,11 @@
         if (!res.ok) throw new Error('HTTP ' + res.status)
         const info = await res.json()
         runTarget = info.runTarget ?? 'cloud'
+        $('#run-target-label').textContent = runTarget === 'local' ? 'Local kernel' : 'Deepnote Cloud'
+        $('#run-target-description').textContent =
+          runTarget === 'local'
+            ? 'The notebook executes in a local Python kernel and its output appears here.'
+            : 'The notebook executes in Deepnote Cloud and its output appears here.'
         $('#nb-name').textContent = info.notebook
         $('#r-title').textContent = info.notebook
         info.inputs.forEach((inp, i) => {
@@ -548,7 +553,7 @@
           // The buttons re-enable either way — a superseded run still released them.
           setRunControlsDisabled(false); $(spinSel).className = ''
           // A cloud run adds to the history — including a failed one, which is worth seeing.
-          if (endpoint.includes('cloud')) loadCloudRuns()
+          if (runTarget === 'cloud') loadCloudRuns()
         }
       }
 
