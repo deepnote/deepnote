@@ -26,7 +26,10 @@ export function createPublishAction(program: Command) {
     const c = getChalk()
     const token = options.token || process.env[DEEPNOTE_TOKEN_ENV]
     if (!token) {
-      throw new MissingTokenError()
+      // `program.parse()` does not await this action, so a rejection here would surface as an
+      // unhandled rejection rather than the documented exit code.
+      program.error(c.red(new MissingTokenError().message), { exitCode: ExitCode.InvalidUsage })
+      return
     }
 
     let stat: Awaited<ReturnType<typeof fs.stat>>
@@ -41,7 +44,14 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    const files = await collectFiles(dir)
+    let files: string[]
+    try {
+      files = await collectFiles(dir)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      program.error(`Could not read ${dir}: ${message}`, { exitCode: ExitCode.Error })
+      return
+    }
     if (files.length === 0) {
       program.error(`No files found in ${dir}`, { exitCode: ExitCode.InvalidUsage })
       return
@@ -63,10 +73,11 @@ export function createPublishAction(program: Command) {
       const relativeTo = relative(dir, filePath)
       const remotePath =
         targetPrefix === STATIC_ROOT ? staticPath(relativeTo) : `${targetPrefix}/${relativeTo.replace(/\\/g, '/')}`
-      const content = await fs.readFile(filePath)
       const fileName = basename(filePath)
 
       try {
+        // Inside the try: an unreadable file is one failed file, not an aborted publish.
+        const content = await fs.readFile(filePath)
         await uploadFile(baseUrl, token, options.projectId, remotePath, content, fileName)
         uploaded++
         if (!options.quiet) {
@@ -90,16 +101,39 @@ export function createPublishAction(program: Command) {
         log(`${c.red('✗')} ${errors.length} file${errors.length === 1 ? '' : 's'} failed`)
       }
 
-      const domain = domainFromBaseUrl(baseUrl)
-      const siteUrl = `https://${domain}/static-files/${options.projectId}/`
-      log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
-      log(`${c.dim('(Ensure static file sharing is enabled in project settings)')}`)
+      // Only files under the static root are served as a site, and `--path` can nest them deeper
+      // than that root — so the URL has to carry that suffix, and a target outside the root has no
+      // static URL to advertise at all.
+      const staticSuffix = staticSiteSuffix(targetPrefix)
+      if (staticSuffix === null) {
+        log(`\n${c.dim(`Uploaded outside ${STATIC_ROOT}/ — not served as a static site.`)}`)
+      } else {
+        const domain = domainFromBaseUrl(baseUrl)
+        const siteUrl = `https://${domain}/static-files/${options.projectId}/${staticSuffix}`
+        log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
+        log(`${c.dim('(Ensure static file sharing is enabled in project settings)')}`)
+      }
     }
 
     if (errors.length > 0) {
       process.exitCode = ExitCode.Error
     }
   }
+}
+
+/**
+ * The path segment a static site is served under, relative to {@link STATIC_ROOT}, or `null` when
+ * the upload target lies outside that root and so is not served as a site at all.
+ */
+function staticSiteSuffix(targetPrefix: string): string | null {
+  const normalized = targetPrefix.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  if (normalized === STATIC_ROOT) {
+    return ''
+  }
+  if (!normalized.startsWith(`${STATIC_ROOT}/`)) {
+    return null
+  }
+  return `${normalized.slice(STATIC_ROOT.length + 1)}/`
 }
 
 function domainFromBaseUrl(baseUrl: string): string {
