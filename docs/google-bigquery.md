@@ -21,7 +21,7 @@ Available on Team and Enterprise plans
 
 ### How to connect to Google BigQuery
 
-From the right-hand panel, under **Integrations**, click the **+** button and choose **Create new integration**.
+From the right-hand panel, under **Integrations**, click **Connect an integration**. Select **Google BigQuery** from the list of integrations.
 ![create_integration.png](../assets/docs/pIr2x2wQtyVUUAv6spVZ.webp)
 <br></br>
 
@@ -34,7 +34,7 @@ Fill out the fields in the pop up form. Importantly, you will need to select the
 
 #### Authenticating with a service account
 
-A service account will provide a shared connection to Google BigQuery. That is, all collaborators with least **Editor** privileges will be able run queries against databases provisioned in the service account.
+A service account will provide a shared connection to Google BigQuery. That is, all collaborators with at least **Editor** privileges will be able to run queries against databases provisioned in the service account.
 
 To use the service account authentication, you will need to supply a JSON service account key. [Click here for a guide on creating a JSON service account key](https://cloud.google.com/docs/authentication/getting-started). Your service account key will be encrypted and stored in Deepnote's database.
 
@@ -56,7 +56,7 @@ With BigQuery's Google OAuth authentication you can give every member of your De
 
 ### Working with data from Google BigQuery
 
-Now that you are connected to your Google BigQuery can do the following actions in Deepnote:
+Now that you are connected to Google BigQuery, you can do the following in Deepnote:
 
 - Click the newly created integration in the **Integrations** section to open the schema browser. [Click here to learn more about the schema browser](schema-browser).
 
