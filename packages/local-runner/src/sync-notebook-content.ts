@@ -98,7 +98,7 @@ export interface SyncOptions {
    *
    * This also turns off integration-change detection, which is not obvious from the name: a changed
    * `integrationId` is only visible in the per-block detail this option stops fetching, so a SQL
-   * block repointed at a different integration produces no update.
+   * block moved to a different integration produces no update.
    */
   compareMetadata?: boolean
   /** Work out the changes but send none of them. Returns a plan with empty applied lists. */
