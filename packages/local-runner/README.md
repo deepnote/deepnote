@@ -8,9 +8,9 @@ Built on the committed primitives: `@deepnote/blocks` (parse + input-block schem
 
 ## Requirements
 
-Execution needs a Python environment with [`deepnote-toolkit[server]`](https://pypi.org/project/deepnote-toolkit/)
-installed. Parsing, input coercion, snapshot building, **reading and viewing snapshots**, and the
-static server all work without it.
+Local execution needs a Python environment with [`deepnote-toolkit[server]`](https://pypi.org/project/deepnote-toolkit/)
+installed. Cloud execution needs a `DEEPNOTE_TOKEN` instead. Parsing, input coercion, snapshot
+building, **reading and viewing snapshots**, and the static server all work without either.
 
 ## Usage
 
@@ -148,9 +148,9 @@ kernel to run against instead; that path writes a snapshot next to `notebookPath
 `deepnote run`) unless `persistSnapshot: false`.
 
 Both ends are adapted to a single `RunnerFn` — `(input, inputs, options) => Promise<RunResult>` —
-so the route never branches and one `RunResult` describes either run. `outputs` and `success` are
-the two fields every run has; `runId`, `status`, `created`, and `viewUrl` describe a cloud run and
-are simply absent from a local one. The response says which one ran via `target`, and
+so the route never branches and one `RunResult` describes either run. Every runner must include
+`success`, or a local `summary` from which the server derives it; `runId`, `status`, `created`, and
+`viewUrl` describe a cloud run and are simply absent from a local one. The response says which one ran via `target`, and
 `GET /api/info` reports `runTarget` up front so a page can label its button without being told
 separately.
 

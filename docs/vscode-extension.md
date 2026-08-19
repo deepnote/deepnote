@@ -92,23 +92,23 @@ Integrations allow you to connect to data sources and other tools. To manage int
 
 **Supported data sources:**
 
-- ClickHouse
-- Amazon Redshift
-- Amazon Athena
-- Google BigQuery
-- Snowflake
-- Databricks
-- Dremio
-- Trino
-- MongoDB
-- PostgreSQL
-- MySQL
-- MariaDB
-- Microsoft SQL Server
-- Google AlloyDB
-- Google Cloud Spanner
-- Materialize
-- MindsDB
+- [ClickHouse](/docs/clickhouse)
+- [Amazon Redshift](/docs/amazon-redshift)
+- [Amazon Athena](/docs/amazon-athena)
+- [Google BigQuery](/docs/google-bigquery)
+- [Snowflake](/docs/snowflake)
+- [Databricks](/docs/databricks)
+- [Dremio](/docs/dremio)
+- [Trino](/docs/trino)
+- [MongoDB](/docs/mongodb)
+- [PostgreSQL](/docs/postgresql)
+- [MySQL](/docs/mysql)
+- [MariaDB](/docs/mysql)
+- [Microsoft SQL Server](/docs/sql-server)
+- [Google AlloyDB](/docs/google-alloydb)
+- [Google Cloud Spanner](/docs/google-spanner)
+- [Materialize](/docs/materialize)
+- [MindsDB](/docs/mindsdb)
 
 Your credentials are stored encrypted. We also support enforcing SSL connections and SSH tunnels for secure access.
 
