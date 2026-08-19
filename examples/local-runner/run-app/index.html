@@ -536,7 +536,10 @@
           // output, and throwing that away to show a bare error string loses the half of the story
           // that says how far it got.
           if (data.success === false) {
-            const why = cap(data.error || `The run failed (${data.status})`)
+            const localFailure = data.summary?.failedBlocks
+              ? `The run failed (${data.summary.failedBlocks} block${data.summary.failedBlocks === 1 ? '' : 's'} failed)`
+              : 'The local run failed'
+            const why = cap(data.error || (where === 'local' ? localFailure : `The run failed (${data.status})`))
             if (data.viewUrl) statusLink(`${why} — `, data.viewUrl, 'open the run in Deepnote →', 'err')
             else setStatus(why, 'err')
             return

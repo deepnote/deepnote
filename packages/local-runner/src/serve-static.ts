@@ -26,12 +26,11 @@ export interface RunOptions {
 }
 
 /**
- * What a run reports back, whichever end of the wire it happened on. `outputs` and `success` are
- * the two every run has; the rest describe a cloud run and are absent from a local one.
+ * What a run reports back, whichever end of the wire it happened on. A runner must state its
+ * success explicitly, or provide a local execution summary from which it can be derived.
  */
-export interface RunResult {
+export type RunResult = {
   outputs: RunBlockOutput[]
-  success?: boolean
   summary?: ExecutionSummary
   snapshotYaml?: string | null
   runId?: string
@@ -39,7 +38,7 @@ export interface RunResult {
   created?: boolean
   viewUrl?: string
   error?: string
-}
+} & ({ success: boolean } | { success?: undefined; summary: ExecutionSummary })
 
 /** Runs a notebook. One shape for both a local Deepnote kernel and Deepnote Cloud. */
 export type RunnerFn = (
@@ -148,7 +147,10 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   const cloudRunLister = options.cloudRunLister ?? listCloudRuns
   const cloudRunGetter = options.cloudRunGetter ?? getCloudRun
   const cloudScheduler = options.cloudScheduler ?? scheduleInCloud
-  const runTarget: RunTarget = options.runTarget ?? 'cloud'
+  const runTarget = options.runTarget ?? 'cloud'
+  if (runTarget !== 'cloud' && runTarget !== 'local') {
+    throw new Error(`Unsupported runTarget: ${String(runTarget)}. Expected "cloud" or "local".`)
+  }
   // The default is the Deepnote API. A local kernel is the override, and the only reason to have
   // one: both ends are adapted to the same signature here, so the route below never branches.
   const runner: RunnerFn =
@@ -203,7 +205,7 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
       // since a failing block is reported in the summary rather than thrown.
       sendJson(res, 200, {
         target: runTarget,
-        success: result.success ?? (result.summary ? result.summary.failedBlocks === 0 : true),
+        success: getRunSuccess(result),
         outputs: result.outputs,
         summary: result.summary,
         snapshotYaml: result.snapshotYaml,
@@ -288,6 +290,13 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   }
 
   return listen(server, options.port ?? 0)
+}
+
+/** Gets a runner's explicit success state, or derives it from a local execution summary. */
+function getRunSuccess(result: RunResult): boolean {
+  if (typeof result.success === 'boolean') return result.success
+  if (result.summary) return result.summary.failedBlocks === 0
+  throw new Error('Runner result must include "success" or a local execution "summary"')
 }
 
 /** Extract a validated `inputs` map from a parsed body. `{ ok: false }` = present but not an object. */

@@ -296,6 +296,38 @@ describe('serveStatic', () => {
     }
   })
 
+  it('rejects an unsupported run target before it can select a cloud runner', () => {
+    expect(() =>
+      serveStatic({
+        dir,
+        notebookPath: join(dir, 'notebook.deepnote'),
+        runTarget: 'cluod' as never,
+      })
+    ).toThrow('Unsupported runTarget: cluod')
+  })
+
+  it('rejects a custom runner result that omits both success and a local summary', async () => {
+    const invalidRunner = async () => ({ outputs: [], status: 'error', error: 'boom' })
+    const server = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runner: invalidRunner as never,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: {} }),
+      })
+      expect(res.status).toBe(500)
+      expect((await res.json()) as { error: string }).toMatchObject({
+        error: 'Runner result must include "success" or a local execution "summary"',
+      })
+    } finally {
+      await server.close()
+    }
+  })
+
   it('POST /api/schedule-cloud forwards a reusable cron request and returns the cloud schedule', async () => {
     const cloudScheduler = vi.fn(async (_input: DeepnoteInput, cron: string, options?: ScheduleInCloudOptions) => ({
       notebookId: 'nb-scheduled',

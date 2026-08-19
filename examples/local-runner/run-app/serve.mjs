@@ -17,7 +17,10 @@ try {
 
 // One Run button, one `POST /api/run`, and this is the only thing that decides where it goes.
 // Omit it and runs go to Deepnote Cloud, which is what a published app wants.
-const runTarget = process.env.RUN_TARGET === 'local' ? 'local' : 'cloud'
+const runTarget = process.env.RUN_TARGET ?? 'cloud'
+if (runTarget !== 'cloud' && runTarget !== 'local') {
+  throw new Error(`RUN_TARGET must be "cloud" or "local", received ${JSON.stringify(runTarget)}`)
+}
 
 const { port } = await serveStatic({
   dir: here, // serve index.html from this folder
