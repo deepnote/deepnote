@@ -1,4 +1,6 @@
-import type { DeepnoteBlock } from '@deepnote/blocks'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { type DeepnoteBlock, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { mapBlockIds, toBlockSpec } from './block-spec'
 
@@ -25,6 +27,38 @@ describe('toBlockSpec', () => {
       metadata: { deepnote_app_block_visible: true },
     })
     expect(spec.integrationId).toBeUndefined()
+  })
+
+  it('strips volatile execution bookkeeping, so a create carries no run history', () => {
+    const spec = toBlockSpec(
+      block('code', {
+        deepnote_app_block_visible: true,
+        execution_start: 1754654000000,
+        execution_millis: 2500,
+        execution_context_id: 'ctx-1',
+        source_hash: 'abc123',
+      })
+    )
+
+    expect(spec.metadata).toEqual({ deepnote_app_block_visible: true })
+  })
+
+  it('strips the execution bookkeeping every executed block of a real exported file carries', async () => {
+    // The exact shape a push compares and creates from: without the strip, each of these blocks
+    // would plan a delete+create (new id, dropped comments) after any run.
+    const path = join(__dirname, '../../..', 'examples/housing_price_prediction.deepnote')
+    const file = deserializeDeepnoteFile(await readFile(path, 'utf-8'))
+    const executed = file.project.notebooks
+      .flatMap(nb => nb.blocks)
+      .filter(b => (b.metadata as Record<string, unknown> | undefined)?.execution_start !== undefined)
+    expect(executed.length).toBeGreaterThan(0)
+
+    for (const executedBlock of executed) {
+      const metadata = toBlockSpec(executedBlock).metadata
+      expect(metadata).not.toHaveProperty('execution_start')
+      expect(metadata).not.toHaveProperty('execution_millis')
+      expect(metadata).not.toHaveProperty('execution_context_id')
+    }
   })
 
   it('lifts a UUID sql_integration_id out of metadata into integrationId', () => {

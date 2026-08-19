@@ -102,7 +102,8 @@ describe('pushLocalNotebook', () => {
   })
 
   it('sends when the answer is yes', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan())
+    const planned = plan()
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
     promptMock.promptForBooleanField.mockResolvedValue(true)
 
     const outcome = await pushLocalNotebook({ ...BASE })
@@ -114,6 +115,8 @@ describe('pushLocalNotebook', () => {
       'nb-cloud',
       expect.objectContaining({ token: 'tok', baseUrl: 'https://api.example.com' })
     )
+    // The very plan the user approved is applied — not a re-plan that could differ from it.
+    expect(runnerMock.syncNotebookContent.mock.calls[0][3].plan).toBe(planned)
   })
 
   it('skips the question entirely with --yes', async () => {
