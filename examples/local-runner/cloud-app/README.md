@@ -1,32 +1,29 @@
-# Cloud app
+# Deepnote app
 
-A self-contained dynamic app that calls the Deepnote API directly from the browser — no server required for cloud execution.
+A self-contained dynamic app that runs notebooks via the Deepnote `/v2/runs` API directly from the browser — no server required.
 
 ## How it works
 
+One configurable `baseUrl` determines where runs execute. Point it at `api.deepnote.com` for cloud execution, or at a local Deepnote server (`localhost:8080`) for local kernel execution. Same API surface either way — `/v2/runs`, `/v2/runs/{id}`, `/v2/notebooks/{id}/runs`. It cannot be both; the app runs against one target at a time.
+
 The HTML page embeds all the JS needed to:
 
-1. **Trigger cloud runs** via `POST /v2/runs`
-2. **Poll for results** via `GET /v2/runs/{runId}?snapshotDelivery=inline`
+1. **Trigger runs** via `POST {baseUrl}/v2/runs`
+2. **Poll for results** via `GET {baseUrl}/v2/runs/{runId}?snapshotDelivery=inline`
 3. **Parse snapshot YAML** using the `snapshot-reader.iife.js` bundle
 4. **Render outputs** (tables, charts, text) in the browser
 
-### Token acquisition
+### Configuration
 
-| Environment                                         | How the token is obtained                                            |
-| --------------------------------------------------- | -------------------------------------------------------------------- |
-| **deepnote.com** (published via `deepnote publish`) | postMessage to the Deepnote shell — automatic, no user action needed |
-| **Localhost**                                       | `?token=<DEEPNOTE_TOKEN>` query parameter                            |
+Everything is configurable via query params or by editing `APP_CONFIG` in the HTML:
 
-### Optional local server
+| Parameter    | Default                    | Description                                                                      |
+| ------------ | -------------------------- | -------------------------------------------------------------------------------- |
+| `baseUrl`    | `https://api.deepnote.com` | API server — cloud or local                                                      |
+| `notebookId` | —                          | Notebook to run                                                                  |
+| `token`      | —                          | Bearer token (not needed on deepnote.com or against a local server without auth) |
 
-For local development, `serve.mjs` provides:
-
-- `/api/info` — notebook name + input metadata from the `.deepnote` file
-- `/api/run` — local Python execution (needs a Python env + `OPENAI_API_KEY` for the demo notebook)
-- `/snapshot-reader.js` — the built YAML parser, resolved from `packages/local-runner/dist`
-
-When the page detects a local server at `/api/info`, it shows the **Run locally** button alongside **Run in cloud**.
+On deepnote.com, the token is acquired automatically via postMessage — no configuration needed.
 
 ## Quick start
 
@@ -34,17 +31,20 @@ When the page detects a local server at `/api/info`, it shows the **Run locally*
 # Build the snapshot reader (once)
 pnpm --filter @deepnote/local-runner build
 
-# Start the local dev server
+# Start the dev server (just serves static files + snapshot-reader.js)
 node examples/local-runner/cloud-app/serve.mjs
 
-# Open in browser — pass a token for cloud runs
-# http://127.0.0.1:<port>?token=<your-deepnote-token>
+# Cloud execution
+# http://127.0.0.1:<port>?notebookId=<id>&token=<your-deepnote-token>
+
+# Local Deepnote server
+# http://127.0.0.1:<port>?notebookId=<id>&baseUrl=http://localhost:8080
 ```
 
 ## Publishing to deepnote.com
 
 ```bash
-# 1. Set your notebook id in APP_CONFIG inside index.html
+# 1. Set notebookId in APP_CONFIG inside index.html
 # 2. Copy the snapshot reader into this directory
 cp packages/local-runner/dist/snapshot-reader.iife.js examples/local-runner/cloud-app/snapshot-reader.js
 
