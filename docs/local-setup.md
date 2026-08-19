@@ -13,13 +13,13 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
-| **VS Code/Cursor/Devin Desktop extensions**   | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
+| **VS Code-compatible editor extensions**      | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
 | **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
 | **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
-## 🚀 VS Code, Cursor, and Devin Desktop extensions (recommended)
+## 🚀 VS Code-compatible editor extensions (recommended)
 
-The **Deepnote extension** is available for **VS Code**, **Cursor**, and **Devin Desktop**, providing the most complete local experience with full support for editing, execution, and Deepnote-specific features across all three AI-native code editors.
+The **Deepnote extension** is available from the **VS Code Marketplace** and the **Open VSX Registry**. It supports local notebook editing and execution in compatible editors.
 
 ### Features
 
@@ -33,7 +33,7 @@ The **Deepnote extension** is available for **VS Code**, **Cursor**, and **Devin
 
 ### Installation
 
-Choose your preferred editor and install the extension:
+Choose your editor and install the extension:
 
 #### VS Code
 
@@ -45,11 +45,6 @@ Choose your preferred editor and install the extension:
 
 - **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
 - Or search for "Deepnote" in Cursor's extension marketplace
-
-#### Devin Desktop
-
-- **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
-- Or search for "Deepnote" in Devin Desktop's extension marketplace
 
 **Additional requirement**: Python 3.10 or higher
 
@@ -217,18 +212,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code/Cursor/Devin Desktop Extensions | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | --------------------------------------- | ---------------- | -------------------- |
-| **View notebooks**          | ✅                                      | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                                      | ✅               | ✅                   |
-| **Execute code**            | ✅                                      | ✅               | ✅                   |
-| **SQL blocks**              | ✅                                      | ✅               | ✅                   |
-| **Database integrations**   | ✅                                      | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                                      | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                                      | ❌               | ✅                   |
-| **Offline mode**            | ✅                                      | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited                              | ✅               | ✅                   |
-| **AI features**             | ❌                                      | ❌               | ✅                   |
+| Feature                     | VS Code-compatible editor extensions | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ------------------------------------ | ---------------- | -------------------- |
+| **View notebooks**          | ✅                                   | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                                   | ✅               | ✅                   |
+| **Execute code**            | ✅                                   | ✅               | ✅                   |
+| **SQL blocks**              | ✅                                   | ✅               | ✅                   |
+| **Database integrations**   | ✅                                   | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                                   | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                                   | ❌               | ✅                   |
+| **Offline mode**            | ✅                                   | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                           | ✅               | ✅                   |
+| **AI features**             | ❌                                   | ❌               | ✅                   |
 
 \*Coming soon
 

@@ -125,7 +125,7 @@ Both environments support the same organizational patterns:
 **Local development** (`.deepnote` files)
 
 - Full control over project structure
-- Edit with VS Code, Cursor, or Devin Desktop
+- Edit with VS Code or Cursor
 - Version control with git
 - Execute code with local Python kernel
 

@@ -27,7 +27,7 @@ Install the tool globally to use the `deepnote-convert` command from anywhere:
 npm install -g @deepnote/convert
 ```
 
-After converting your notebooks, you can open them either in Deepnote or directly in your IDE ([VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote), [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote), or [Devin Desktop](https://open-vsx.org/extension/Deepnote/vscode-deepnote)).
+After converting your notebooks, you can open them either in Deepnote or directly in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote) or [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote).
 
 Option 1: Open directly in [Deepnote](https://deepnote.com)
 
@@ -37,10 +37,10 @@ Option 1: Open directly in [Deepnote](https://deepnote.com)
 
 Option 2: Open in your IDE
 
-1. Open the `.deepnote` file in VS Code, Cursor, or Devin Desktop.
+1. Open the `.deepnote` file in VS Code or Cursor.
 2. Install the official Deepnote extension:
    - For VS Code: [Deepnote](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)
-   - For Cursor and Devin Desktop: [Deepnote](https://open-vsx.org/extension/Deepnote/vscode-deepnote)
+   - For Cursor: [Deepnote](https://open-vsx.org/extension/Deepnote/vscode-deepnote)
 3. To move your project to the cloud for collaboration or app creation:
    - Press Cmd+Shift+P (macOS) or Ctrl+Shift+P (Windows/Linux)
    - Type “Deepnote: Open in Deepnote”
