@@ -309,6 +309,12 @@ ${c.bold('Examples:')}
     .option('--cloud', 'Run the notebook in Deepnote Cloud, then download the resulting snapshot locally')
     .option('--notebook-id <uuid>', 'Cloud notebook id to run (with --cloud); alternative to a local .deepnote file')
     .option('--out <path>', 'Write the downloaded cloud snapshot to this exact path (with --cloud)')
+    .addOption(
+      new Option('--storage-mode <mode>', 'Project-storage access for a detached cloud run').choices([
+        'read-write',
+        'readonly',
+      ])
+    )
     .option(
       '--timeout <seconds>',
       'Max seconds to wait for a cloud run to finish (with --cloud, default 600)',
