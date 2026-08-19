@@ -55,20 +55,24 @@ function dropVolatileExecutionKeys(
  * a SQL block that has lost its connection is a real difference from the file it came from.
  */
 export function toBlockSpec(block: DeepnoteBlock, onWarning?: (message: string) => void): BlockSpec {
-  // `typeof [] === 'object'`, so an array would otherwise be carried through as a metadata object and
-  // sent to an endpoint that wants one — a 400 partway through a push, after other blocks have
-  // already changed. The schema rules this out for a deserialized file, but not for the object form
-  // of `DeepnoteInput`: `loadDeepnoteFile` deep-clones an object without validating it, and
-  // `planNotebookSync` takes a `DeepnoteFile` directly. Drop it rather than send it.
-  if (Array.isArray(block.metadata)) {
+  // Anything but a plain object cannot be sent as metadata: an array (`typeof [] === 'object'`)
+  // would be carried through to an endpoint that wants an object — a 400 partway through a push,
+  // after other blocks have already changed — and a primitive would make the `in`-based key checks
+  // below throw before anything is sent at all. The schema rules both out for a deserialized file,
+  // but not for the object form of `DeepnoteInput`: `loadDeepnoteFile` deep-clones an object
+  // without validating it, and `planNotebookSync` takes a `DeepnoteFile` directly. Drop it rather
+  // than send it.
+  const rawMetadata = block.metadata
+  if (rawMetadata != null && (typeof rawMetadata !== 'object' || Array.isArray(rawMetadata))) {
+    const shape = Array.isArray(rawMetadata) ? 'an array' : `a ${typeof rawMetadata}`
     onWarning?.(
-      `The ${block.type} block's metadata is an array, which is not a shape Deepnote accepts, so the ` +
+      `The ${block.type} block's metadata is ${shape}, which is not a shape Deepnote accepts, so the ` +
         'block was created without it.'
     )
     return { type: block.type, content: block.content, metadata: undefined }
   }
 
-  const metadata = dropVolatileExecutionKeys(block.metadata as Record<string, unknown> | null | undefined)
+  const metadata = dropVolatileExecutionKeys(rawMetadata as Record<string, unknown> | null | undefined)
   const spec: BlockSpec = { type: block.type, content: block.content, metadata }
   const integrationId = metadata?.sql_integration_id
   if (typeof integrationId !== 'string') {

@@ -114,6 +114,23 @@ describe('toBlockSpec', () => {
     expect(warnings[0]).toContain('is an array')
   })
 
+  it.each([
+    ['a string', 'value'],
+    ['a number', 42],
+    ['a boolean', true],
+  ])('drops %s metadata and warns, rather than throwing on the key checks', (shape, metadata) => {
+    // Same public-API boundary as the array case: a primitive here would make the `in`-based
+    // volatile-key checks throw a TypeError before anything was sent.
+    const warnings: string[] = []
+
+    const spec = toBlockSpec(block('code', metadata), m => warnings.push(m))
+
+    expect(spec.metadata).toBeUndefined()
+    expect(spec.integrationId).toBeUndefined()
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain(`is ${shape}`)
+  })
+
   it('leaves a null metadata alone', () => {
     const spec = toBlockSpec(block('code', null))
 
