@@ -9,6 +9,10 @@ import {
 } from '@deepnote/blocks'
 import { splitDeepnoteFile } from '@deepnote/convert'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const pushMock = vi.hoisted(() => ({ pushLocalNotebook: vi.fn() }))
+vi.mock('./push-to-cloud', () => pushMock)
+
 import { ExitCode } from '../exit-codes'
 import { MissingTokenError } from './auth'
 import { InvalidInputError } from './parse-inputs'
@@ -123,6 +127,8 @@ beforeEach(async () => {
   tmpDir = await fs.mkdtemp(join(os.tmpdir(), 'run-cloud-'))
   delete process.env.DEEPNOTE_TOKEN
   process.exitCode = 0
+  // vi.restoreAllMocks() does not touch the hoisted module mock, so reset it here.
+  pushMock.pushLocalNotebook.mockReset()
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
@@ -159,10 +165,22 @@ async function withCurrentDirectory<T>(directory: string, callback: () => Promis
 }
 
 describe('runInDeepnoteCloud — usage guards', () => {
-  it('rejects --push as not yet implemented', async () => {
+  it('rejects --yes without --push, since there is nothing to confirm', async () => {
     await expect(
-      runInDeepnoteCloud(undefined, { cloud: true, push: true, notebookId: 'nb', token: 't' })
+      runInDeepnoteCloud(undefined, { cloud: true, yes: true, notebookId: 'nb', token: 't' })
     ).rejects.toBeInstanceOf(CloudRunUsageError)
+    await expect(
+      runInDeepnoteCloud(undefined, { cloud: true, yes: true, notebookId: 'nb', token: 't' })
+    ).rejects.toThrow(/--yes/)
+  })
+
+  it('rejects --dry-run with --cloud unless --push gives it a plan to preview', async () => {
+    await expect(
+      runInDeepnoteCloud(undefined, { cloud: true, dryRun: true, notebookId: 'nb', token: 't' })
+    ).rejects.toBeInstanceOf(CloudRunUsageError)
+    await expect(
+      runInDeepnoteCloud(undefined, { cloud: true, dryRun: true, notebookId: 'nb', token: 't' })
+    ).rejects.toThrow(/--push/)
   })
 
   it('rejects local-only flags in cloud mode', async () => {
@@ -182,6 +200,7 @@ describe('runInDeepnoteCloud — usage guards', () => {
       /--storage-mode requires --cloud/
     )
     expect(() => assertCloudOnlyFlagsRequireCloud({ push: true })).toThrow(/--push requires --cloud/)
+    expect(() => assertCloudOnlyFlagsRequireCloud({ yes: true })).toThrow(/--yes requires --cloud/)
     expect(() =>
       assertCloudOnlyFlagsRequireCloud({ notebookId: 'nb', out: 'snap.deepnote', timeout: 30, push: true })
     ).toThrow(/--notebook-id, --out, --timeout, --push require --cloud/)
@@ -460,6 +479,149 @@ describe('runInDeepnoteCloud — snapshot writing', () => {
     await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, out })
 
     await expect(fs.readFile(out, 'utf-8')).resolves.toBe('just some text')
+  })
+})
+
+describe('runInDeepnoteCloud — --push wiring', () => {
+  it('pushes the local notebook before triggering the run', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    const fetch = installFetch({ terminalStatus: 'success', snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+    pushMock.pushLocalNotebook.mockResolvedValue({ applied: true, declined: false, previewed: false })
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, push: true, yes: true, output: 'json' })
+
+    expect(pushMock.pushLocalNotebook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localNotebookId: 'nb-single',
+        notebookId: 'nb-single',
+        baseUrl: API_URL,
+        token: 't',
+        yes: true,
+        machineOutput: true,
+      })
+    )
+    // The push completed before the run was triggered.
+    expect(pushMock.pushLocalNotebook.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(global.fetch).mock.invocationCallOrder[0]
+    )
+    expect(fetch.postBodies).toHaveLength(1)
+    expect(process.exitCode).toBe(ExitCode.Success)
+  }, 10_000)
+
+  it('pushes the file notebook when --notebook-id names a remote-only notebook', async () => {
+    const file = makeFile([{ id: 'nb-local-1', name: 'Main' }])
+    installFetch({ terminalStatus: 'success', snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+    pushMock.pushLocalNotebook.mockResolvedValue({ applied: true, declined: false, previewed: false })
+
+    await runInDeepnoteCloud(path, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      push: true,
+      yes: true,
+      notebookId: 'remote-nb-9',
+      output: 'json',
+    })
+
+    expect(pushMock.pushLocalNotebook).toHaveBeenCalledWith(
+      expect.objectContaining({ localNotebookId: 'nb-local-1', notebookId: 'remote-nb-9' })
+    )
+  }, 10_000)
+
+  it('previews with --push --dry-run and does not trigger a run', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'success' })
+    const path = await writeFixture('single.deepnote', file)
+    pushMock.pushLocalNotebook.mockResolvedValue({
+      applied: false,
+      declined: false,
+      previewed: true,
+      plan: { changes: [], moves: [], warnings: [], isEmpty: false },
+    })
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, push: true, dryRun: true })
+
+    expect(pushMock.pushLocalNotebook).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }))
+    expect(vi.mocked(global.fetch)).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(ExitCode.Success)
+  })
+
+  it('emits the push plan as JSON for a machine-output preview', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'success' })
+    const path = await writeFixture('single.deepnote', file)
+    pushMock.pushLocalNotebook.mockResolvedValue({
+      applied: false,
+      declined: false,
+      previewed: true,
+      plan: {
+        changes: [{ action: 'update', blockId: 'b1', blockType: 'code', reason: 'content changed' }],
+        moves: [],
+        warnings: [],
+        isEmpty: false,
+      },
+    })
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, push: true, dryRun: true, output: 'json' })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    expect(JSON.parse(logged)).toMatchObject({
+      previewed: true,
+      plan: { changes: [{ action: 'update', blockId: 'b1' }], isEmpty: false },
+    })
+    expect(vi.mocked(global.fetch)).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(ExitCode.Success)
+  })
+
+  it('does not run when the push confirmation is declined', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'success' })
+    const path = await writeFixture('single.deepnote', file)
+    pushMock.pushLocalNotebook.mockResolvedValue({ applied: false, declined: true, previewed: false })
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL, push: true })
+
+    expect(vi.mocked(global.fetch)).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(ExitCode.Success)
+  })
+
+  it('runs the recreated cloud id when --block named a block the push rebuilt', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    const fetch = installFetch({ terminalStatus: 'success', snapshotContent: serializeDeepnoteFile(file) })
+    const path = await writeFixture('single.deepnote', file)
+    pushMock.pushLocalNotebook.mockResolvedValue({
+      applied: true,
+      declined: false,
+      previewed: false,
+      result: { idRemap: new Map([['local-b1', 'cloud-b9']]) },
+    })
+
+    await runInDeepnoteCloud(path, {
+      cloud: true,
+      token: 't',
+      url: API_URL,
+      push: true,
+      yes: true,
+      block: 'local-b1',
+      output: 'json',
+    })
+
+    expect(fetch.postBodies[0].blockIds).toEqual(['cloud-b9'])
+  }, 10_000)
+
+  it('fails with a usage error when --push has no local file to send', async () => {
+    // Only --notebook-id, and the cwd holds no .deepnote to fall back to.
+    const empty = join(tmpDir, 'empty')
+    await fs.mkdir(empty)
+
+    await withCurrentDirectory(empty, async () => {
+      await expect(
+        runInDeepnoteCloud(undefined, { cloud: true, token: 't', url: API_URL, push: true, notebookId: 'nb' })
+      ).rejects.toThrow(/\.deepnote/)
+    })
+    expect(pushMock.pushLocalNotebook).not.toHaveBeenCalled()
   })
 })
 

@@ -117,6 +117,8 @@ export interface RunOptions {
   timeout?: number
   storageMode?: 'read-write' | 'readonly'
   push?: boolean
+  /** Skip the `--push` confirmation prompt (for CI and scripts). */
+  yes?: boolean
 }
 
 /** Result of a single block execution for JSON output */
