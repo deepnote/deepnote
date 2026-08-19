@@ -69,22 +69,27 @@ beforeEach(() => {
 
 describe('pushLocalNotebook', () => {
   it('sends nothing when Deepnote already matches the file', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan({ isEmpty: true, changes: [] }))
+    const planned = plan({ isEmpty: true, changes: [] })
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
 
     const outcome = await pushLocalNotebook({ ...BASE })
 
-    expect(outcome).toEqual({ applied: false, declined: false, previewed: false })
+    expect(outcome).toMatchObject({ applied: false, declined: false, previewed: false })
+    expect(outcome.plan).toBe(planned)
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
     expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
   })
 
   it('previews without sending or prompting when dryRun is set', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan())
+    const planned = plan()
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
 
     const outcome = await pushLocalNotebook({ ...BASE, dryRun: true })
 
     expect(outcome.previewed).toBe(true)
     expect(outcome.applied).toBe(false)
+    // The caller renders machine-output previews itself, so the plan must ride along.
+    expect(outcome.plan).toBe(planned)
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
     expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
   })
