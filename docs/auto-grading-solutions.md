@@ -53,7 +53,7 @@ Doc tests are a way to embed test cases within the documentation for a piece of 
 Check out our [Deepnote notebook with doc tests](https://deepnote.com/workspace/Deepnote-classroom-template-ef3ec34d-be29-481f-a95d-9384fc1dd07e/project/4-Doc-tests-1e6f63a1-039d-493c-8d96-9b2ef1053a84) template to learn more. You can duplicate it and use it for your own purposes.
 </Callout>
 
-### 5.) Unit tests
+## 5. Unit tests
 
 ![Screenshot 2022-12-22 at 14.32.21.png](../assets/docs/BdWLwJfySTCH1ymnKQGJ.webp)
 
