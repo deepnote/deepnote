@@ -512,7 +512,7 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
 
     const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
     const result: CloudRunResult = JSON.parse(logged)
-    expect(result).toMatchObject({ success: true, status: 'success', artifactStatus: 'saved' })
+    expect(result).toMatchObject({ success: true, status: 'success', artifactStatus: 'synthesized' })
     expect(result.snapshotPath).toBeTruthy()
     if (!result.snapshotPath) throw new Error('expected snapshotPath')
     const content = await fs.readFile(result.snapshotPath, 'utf-8')
@@ -559,8 +559,39 @@ describe('runInDeepnoteCloud — output and exit codes', () => {
     expect(result.success).toBe(true)
     expect(result.runId).toBe('run-x')
     expect(result.status).toBe('success')
-    expect(result.artifactStatus).toBe('saved')
+    expect(result.artifactStatus).toBe('synthesized')
     expect(process.exitCode).toBe(ExitCode.Success)
+  }, 10_000)
+
+  it('discloses a synthesized snapshot in human output', async () => {
+    const file = makeFile([{ id: 'nb-single', name: 'Main' }])
+    installFetch({ terminalStatus: 'success' }) // success, no snapshot; the notebook is a known no-op
+    const path = await writeFixture('single.deepnote', file)
+
+    await runInDeepnoteCloud(path, { cloud: true, token: 't', url: API_URL })
+
+    const lines = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
+    expect(lines.some(line => /synthesized from the local source/i.test(line))).toBe(true)
+    expect(process.exitCode).toBe(ExitCode.Success)
+  }, 10_000)
+
+  it('treats empty snapshot content as not produced and fails the command', async () => {
+    installFetch({ terminalStatus: 'success', snapshotContent: '' })
+
+    await runInDeepnoteCloud(undefined, {
+      cloud: true,
+      notebookId: 'remote-nb',
+      token: 't',
+      url: API_URL,
+      output: 'json',
+    })
+
+    const logged = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as string
+    const result: CloudRunResult = JSON.parse(logged)
+    expect(result).toMatchObject({ success: false, status: 'success', artifactStatus: 'not_produced' })
+    expect(result.artifactError).toMatch(/produced no snapshot/i)
+    expect(result.snapshotPath).toBeUndefined()
+    expect(process.exitCode).toBe(ExitCode.Error)
   }, 10_000)
 
   it('fails command when a successful run produces no snapshot', async () => {

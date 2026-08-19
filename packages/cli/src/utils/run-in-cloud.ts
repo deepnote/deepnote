@@ -39,8 +39,12 @@ import { parseInputs } from './parse-inputs'
  */
 export type RunCloudOptions = RunOptions
 
-/** Machine-readable result of a cloud run (shape shared by `-o json` and `-o toon`). */
-export type CloudArtifactStatus = 'saved' | 'not_produced' | 'unavailable'
+/**
+ * Machine-readable result of a cloud run (shape shared by `-o json` and `-o toon`).
+ * `synthesized` means the API returned no artifact and the CLI wrote an output-free snapshot
+ * built from the local source instead — not a snapshot the run itself produced.
+ */
+export type CloudArtifactStatus = 'saved' | 'synthesized' | 'not_produced' | 'unavailable'
 
 export interface CloudRunResult {
   /** Whether the command succeeded — execution passed and artifact delivery did not fail. */
@@ -402,11 +406,12 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       },
     })
     finalRun = settled.run
-    const content =
-      settled.content ??
-      (success && localFile && isKnownNoOp(localFile, notebookId, options.block)
-        ? synthesizeNoOpSnapshot(localFile, finalRun)
-        : null)
+    let content = settled.content
+    let synthesized = false
+    if (content === null && success && localFile && isKnownNoOp(localFile, notebookId, options.block)) {
+      content = synthesizeNoOpSnapshot(localFile, finalRun)
+      synthesized = true
+    }
 
     if (content !== null) {
       const written = await writeCloudSnapshot({
@@ -419,7 +424,7 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       })
       snapshotPath = written.snapshotPath
       timestampedSnapshotPath = written.timestampedSnapshotPath
-      artifactStatus = 'saved'
+      artifactStatus = synthesized ? 'synthesized' : 'saved'
     } else if (lastRetryError !== undefined) {
       throw lastRetryError
     } else {
@@ -473,7 +478,13 @@ function renderHumanResult(result: CloudRunResult, spinner: ReturnType<typeof or
     } else {
       log(c.green(`✓ ${message}`))
     }
-    if (result.snapshotPath) {
+    if (result.snapshotPath && result.artifactStatus === 'synthesized') {
+      log(
+        c.yellow(
+          `The run produced no snapshot; saved an output-free snapshot synthesized from the local source to ${c.bold(result.snapshotPath)}`
+        )
+      )
+    } else if (result.snapshotPath) {
       log(`Snapshot saved to ${c.bold(result.snapshotPath)}`)
     } else {
       log(c.yellow('No snapshot was produced; the successful run had no local artifact.'))
