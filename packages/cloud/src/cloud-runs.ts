@@ -493,6 +493,12 @@ export interface SettledRunSnapshot {
    * read/download failures throw instead.
    */
   content: string | null
+  /**
+   * The status re-fetch failure that left `run` stale — set only when the *last* re-fetch failed.
+   * A failure followed by a successful re-fetch clears it: the final observation is fresh, so a
+   * null `content` is a confirmed "no snapshot", not a side effect of the outage.
+   */
+  retryError?: unknown
 }
 
 async function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -552,6 +558,7 @@ export async function waitForRunSnapshot(
   const intervalMs = options.intervalMs ?? DEFAULT_SNAPSHOT_SETTLE_INTERVAL_MS
   let current = run
   let lastReadError: unknown
+  let retryError: unknown
 
   for (let attempt = 0; ; attempt++) {
     if (current.snapshot) {
@@ -576,7 +583,7 @@ export async function waitForRunSnapshot(
       if (lastReadError !== undefined) {
         throw lastReadError
       }
-      return { run: current, content: null }
+      return { run: current, content: null, retryError }
     }
 
     if (attempt > 0) {
@@ -592,10 +599,12 @@ export async function waitForRunSnapshot(
         requestTimeoutMs: options.requestTimeoutMs,
         signal: options.signal,
       })
+      retryError = undefined
     } catch (error) {
       if (options.signal?.aborted) {
         throw options.signal.reason
       }
+      retryError = error
       options.onRetryError?.(error)
     }
   }

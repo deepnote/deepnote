@@ -114,7 +114,14 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     return { applied: false, declined: false, previewed: args.dryRun === true, plan: planned }
   }
 
-  if (!args.machineOutput) {
+  if (args.machineOutput) {
+    // printPlan is where warnings are shown, and machine output skips it — but a warning like a
+    // dropped SQL integration must not vanish just because the caller wanted JSON. stderr keeps
+    // stdout parseable. The dry-run preview additionally carries them in its JSON payload.
+    for (const warning of planned.warnings) {
+      debug(`push warning: ${warning}`)
+    }
+  } else {
     printPlan(planned, notebookId)
   }
 
