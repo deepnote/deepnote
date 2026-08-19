@@ -161,6 +161,8 @@ deepnote run my-project.deepnote
 | `--out <path>`          | Write the downloaded cloud snapshot to this exact path                    |                            |
 | `--storage-mode <mode>` | Project-storage access for a detached cloud run: `read-write`, `readonly` | `read-write`               |
 | `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                      | `600`                      |
+| `--push`                | Push the local `.deepnote` blocks to the Deepnote notebook before running | `false`                    |
+| `--yes`                 | Skip the `--push` confirmation prompt                                     | `false`                    |
 | `--url <url>`           | API base URL                                                              | `https://api.deepnote.com` |
 | `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                                |                            |
 
@@ -221,12 +223,22 @@ databases, integrations, external APIs, and other systems remain live. Block-sco
 the exception: the API runs them in live mode, so they update live-editor outputs and cannot be
 combined with `--storage-mode`.
 
+`--push` sends the local file's blocks to the Deepnote notebook before the run, so the run executes
+what is on disk rather than what was last saved in Deepnote. The sync is destructive — a cloud
+block the file does not have is deleted, and a block whose type or metadata changed is recreated
+under a new id (a `--block` selection is remapped automatically) — so the CLI prints the plan and
+asks first. `--yes` confirms non-interactively and is required when output is piped or
+machine-readable; `--dry-run` prints the plan and exits without sending or running anything (with
+`-o json`/`-o toon` the plan itself is emitted); a declined confirmation exits `0` without running.
+
 Cloud execution status and snapshot delivery are reported separately. The CLI briefly polls after
-terminal status because snapshot attachment can lag. If an empty or markdown-only local notebook
-successfully produces no snapshot, the CLI writes a valid output-free snapshot from the local
-source. A remote-only no-op can succeed without a file and reports `artifactStatus: not_produced`.
-An advertised snapshot that cannot be downloaded or saved reports `artifactStatus: unavailable`
-and exits `1`; `success` still describes the notebook run itself.
+terminal status because snapshot attachment can lag; empty snapshot content is treated as no
+snapshot. If an empty or markdown-only local notebook successfully produces no snapshot, the CLI
+writes a valid output-free snapshot from the local source and marks it `artifactStatus:
+synthesized`. Any other run that produces no snapshot — including a remote-only run by
+`--notebook-id` — exits `1` with `artifactStatus: not_produced`; an advertised snapshot that
+cannot be downloaded or saved reports `artifactStatus: unavailable` and exits `1`. `success` in
+machine output means the run succeeded and its snapshot was delivered (`saved` or `synthesized`).
 
 #### Agent Block (`--prompt` and agent blocks)
 

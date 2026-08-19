@@ -8,8 +8,8 @@ import {
 } from '@deepnote/local-runner'
 import ora from 'ora'
 import { debug, getChalk, getOutputConfig, log } from '../output'
+import { CloudRunUsageError } from './cloud-run-errors'
 import { promptForBooleanField } from './inquirer'
-import { CloudRunUsageError } from './run-in-cloud'
 
 /**
  * `deepnote run --cloud --push`: send the local file's blocks to the Deepnote notebook before
@@ -27,6 +27,8 @@ export interface PushOutcome {
   declined: boolean
   /** True when `--dry-run` stopped this before any request. The caller should stop without running. */
   previewed: boolean
+  /** The computed plan, for callers that render their own preview (e.g. machine output). */
+  plan?: SyncPlan
   result?: SyncResult
 }
 
@@ -108,7 +110,8 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     if (!args.machineOutput && !getOutputConfig().quiet) {
       log(chalk.dim('Deepnote already matches this file — nothing to push.'))
     }
-    return { applied: false, declined: false, previewed: false }
+    // Under --dry-run an empty plan still counts as previewed: the caller must not run either.
+    return { applied: false, declined: false, previewed: args.dryRun === true, plan: planned }
   }
 
   if (!args.machineOutput) {
@@ -119,7 +122,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     if (!args.machineOutput) {
       log(chalk.dim('\n--dry-run: nothing was sent, and the notebook was not run.'))
     }
-    return { applied: false, declined: false, previewed: true }
+    return { applied: false, declined: false, previewed: true, plan: planned }
   }
 
   if (!args.yes) {
@@ -139,7 +142,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     })
     if (!confirmed) {
       log(chalk.dim('Aborted; nothing was sent.'))
-      return { applied: false, declined: true, previewed: false }
+      return { applied: false, declined: true, previewed: false, plan: planned }
     }
   }
 
@@ -168,5 +171,5 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     `Pushed: ${result.created.length} created, ${result.updated.length} updated, ` +
       `${result.deleted.length} deleted, ${result.movesApplied} moved.`
   )
-  return { applied: true, declined: false, previewed: false, result }
+  return { applied: true, declined: false, previewed: false, plan: planned, result }
 }

@@ -14,9 +14,37 @@ import type { BlockSpec } from '@deepnote/cloud'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
+ * Execution bookkeeping that every run rewrites — an exported file carries these on each executed
+ * block. They are never user intent, so sending them on create is noise, and letting them into a
+ * metadata comparison would rebuild every executed block (new id, dropped comments) after any run.
+ */
+const VOLATILE_EXECUTION_METADATA_KEYS = [
+  'execution_start',
+  'execution_millis',
+  'execution_context_id',
+  'source_hash',
+  'last_executed_function_notebook_id',
+  'last_function_run_started_at',
+] as const
+
+function dropVolatileExecutionKeys(
+  metadata: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null | undefined {
+  if (!metadata || !VOLATILE_EXECUTION_METADATA_KEYS.some(key => key in metadata)) {
+    return metadata
+  }
+  const cleaned = { ...metadata }
+  for (const key of VOLATILE_EXECUTION_METADATA_KEYS) {
+    delete cleaned[key]
+  }
+  return cleaned
+}
+
+/**
  * A `.deepnote` block as `POST /v2/blocks` wants it.
  *
- * The two disagree about exactly one thing. A SQL block records its connection in
+ * Volatile execution bookkeeping is dropped first — it describes the block's last run, not the
+ * block. Beyond that, the two shapes disagree about exactly one thing. A SQL block records its connection in
  * `metadata.sql_integration_id`; Deepnote rejects that key outright — a 400, not a silent strip —
  * and takes the connection as a top-level `integrationId`, which it then writes into that very key
  * itself. So the value has to be lifted out of the metadata rather than sent inside it.
@@ -27,22 +55,25 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
  * a SQL block that has lost its connection is a real difference from the file it came from.
  */
 export function toBlockSpec(block: DeepnoteBlock, onWarning?: (message: string) => void): BlockSpec {
-  const spec: BlockSpec = { type: block.type, content: block.content, metadata: block.metadata }
-
-  // `typeof [] === 'object'`, so an array would otherwise be carried through as a metadata object and
-  // sent to an endpoint that wants one — a 400 partway through a push, after other blocks have
-  // already changed. The schema rules this out for a deserialized file, but not for the object form
-  // of `DeepnoteInput`: `loadDeepnoteFile` deep-clones an object without validating it, and
-  // `planNotebookSync` takes a `DeepnoteFile` directly. Drop it rather than send it.
-  if (Array.isArray(block.metadata)) {
+  // Anything but a plain object cannot be sent as metadata: an array (`typeof [] === 'object'`)
+  // would be carried through to an endpoint that wants an object — a 400 partway through a push,
+  // after other blocks have already changed — and a primitive would make the `in`-based key checks
+  // below throw before anything is sent at all. The schema rules both out for a deserialized file,
+  // but not for the object form of `DeepnoteInput`: `loadDeepnoteFile` deep-clones an object
+  // without validating it, and `planNotebookSync` takes a `DeepnoteFile` directly. Drop it rather
+  // than send it.
+  const rawMetadata = block.metadata
+  if (rawMetadata != null && (typeof rawMetadata !== 'object' || Array.isArray(rawMetadata))) {
+    const shape = Array.isArray(rawMetadata) ? 'an array' : `a ${typeof rawMetadata}`
     onWarning?.(
-      `The ${block.type} block's metadata is an array, which is not a shape Deepnote accepts, so the ` +
+      `The ${block.type} block's metadata is ${shape}, which is not a shape Deepnote accepts, so the ` +
         'block was created without it.'
     )
-    return { ...spec, metadata: undefined }
+    return { type: block.type, content: block.content, metadata: undefined }
   }
 
-  const metadata = block.metadata as Record<string, unknown> | undefined
+  const metadata = dropVolatileExecutionKeys(rawMetadata as Record<string, unknown> | null | undefined)
+  const spec: BlockSpec = { type: block.type, content: block.content, metadata }
   const integrationId = metadata?.sql_integration_id
   if (typeof integrationId !== 'string') {
     return spec

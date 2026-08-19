@@ -204,6 +204,68 @@ describe('planNotebookSync', () => {
     expect(plan.isEmpty).toBe(true)
   })
 
+  it('ignores volatile execution bookkeeping, so an executed file does not rebuild every block', async () => {
+    cloudMock.getNotebook.mockResolvedValue(remoteNotebook([{ id: 'b1', content: 'x = 1' }]))
+    // Deepnote's copy ran at a different time than the exported file recorded.
+    cloudMock.getBlock.mockResolvedValue({
+      id: 'b1',
+      type: 'code',
+      content: 'x = 1',
+      metadata: {
+        deepnote_app_block_visible: true,
+        execution_start: 999,
+        execution_millis: 1,
+        execution_context_id: 'remote-ctx',
+      },
+      integrationId: undefined,
+    })
+
+    const plan = await planNotebookSync(
+      // The shape every exported .deepnote file has on each executed block.
+      fileWith([
+        {
+          id: 'b1',
+          content: 'x = 1',
+          metadata: {
+            deepnote_app_block_visible: true,
+            execution_start: 1754654000000,
+            execution_millis: 2500,
+            execution_context_id: 'local-ctx',
+            source_hash: 'abc123',
+          },
+        },
+      ]),
+      'nb-local',
+      'nb-cloud',
+      { token: TOKEN }
+    )
+
+    expect(plan.isEmpty).toBe(true)
+    // The bookkeeping is not sent on a create either.
+    expect(plan.specs.get('b1')?.metadata).toEqual({ deepnote_app_block_visible: true })
+  })
+
+  it('does not plan an update when only Deepnote has an integration bound', async () => {
+    cloudMock.getNotebook.mockResolvedValue(remoteNotebook([{ id: 'b1', type: 'sql', content: 'select 1' }]))
+    cloudMock.getBlock.mockResolvedValue({
+      id: 'b1',
+      type: 'sql',
+      content: 'select 1',
+      metadata: {},
+      integrationId: 'e8b9c0d1-2233-4455-8677-8899aabbccdd',
+    })
+
+    // The file does not bind an integration, so there is nothing to change the remote one to.
+    const plan = await planNotebookSync(
+      fileWith([{ id: 'b1', type: 'sql', content: 'select 1' }]),
+      'nb-local',
+      'nb-cloud',
+      { token: TOKEN }
+    )
+
+    expect(plan.isEmpty).toBe(true)
+  })
+
   it('skips metadata reads entirely when compareMetadata is false', async () => {
     cloudMock.getNotebook.mockResolvedValue(remoteNotebook([{ id: 'b1' }]))
 

@@ -488,7 +488,10 @@ export interface WaitForRunSnapshotOptions {
 export interface SettledRunSnapshot {
   /** Latest run representation fetched while settling. */
   run: NormalizedRun
-  /** Null means no snapshot was ever attached; read/download failures throw instead. */
+  /**
+   * Null means no snapshot was ever attached (empty content counts as not attached);
+   * read/download failures throw instead.
+   */
   content: string | null
 }
 
@@ -559,7 +562,9 @@ export async function waitForRunSnapshot(
           requestTimeoutMs: options.requestTimeoutMs,
           signal: options.signal,
         })
-        if (content !== null) {
+        // Empty content is a snapshot that has not materialized yet, not a valid empty artifact —
+        // keep settling rather than handing callers an empty file to write.
+        if (content !== null && content.length > 0) {
           return { run: current, content }
         }
       } catch (error) {
