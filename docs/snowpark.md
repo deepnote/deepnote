@@ -15,9 +15,9 @@ With the new Snowpark integration in Deepnote you can perform database transform
 
 The Snowpark + Deepnote integration makes the warehouse feel like an in-memory object. Simply write your code in Deepnote and manipulate your tables as if you were using Pandas. All compute occurs directly in the warehouse so there’s no need to constantly move your data around.
 
-### How to connect
+## How to connect
 
-Begin by `pip` installing Snowpark inside of Deepnote. Note that **Snowpark requires Python 3.10 or later**. Select a compatible Python environment from the dropdown in the right sidebar. For more information, see [custom environments](/docs/custom-environments).
+Begin by `pip` installing Snowpark inside of Deepnote. Note that **Deepnote supports Python versions 3.10 through 3.13 for Snowpark**. Select a compatible Python environment from the dropdown in the right sidebar. For more information, see [custom environments](/docs/custom-environments).
 
 ```python
 !pip install snowflake-snowpark-python
