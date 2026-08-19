@@ -27,7 +27,7 @@ Install the tool globally to use the `deepnote-convert` command from anywhere:
 npm install -g @deepnote/convert
 ```
 
-After converting your notebooks, you can open them either in Deepnote or directly in [VS Code](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote) or [Cursor](https://open-vsx.org/extension/Deepnote/vscode-deepnote).
+After converting your notebooks, you can open them either in Deepnote or directly in [VS Code with the Deepnote extension](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote) or [Cursor with the Deepnote extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote).
 
 Option 1: Open directly in [Deepnote](https://deepnote.com)
 

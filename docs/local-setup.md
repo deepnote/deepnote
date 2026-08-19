@@ -13,13 +13,15 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
-| **VS Code-compatible editor extensions**      | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
+| **VS Code and Cursor extensions**             | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
 | **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
 | **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
-## 🚀 VS Code-compatible editor extensions (recommended)
+## 🚀 VS Code and Cursor extensions (recommended)
 
-The **Deepnote extension** is available from the **VS Code Marketplace** and the **Open VSX Registry**. It supports local notebook editing and execution in compatible editors.
+The **Deepnote extension** is available from the **VS Code Marketplace** and the **Open VSX Registry**. It supports local notebook editing and execution in VS Code and Cursor.
+
+The editor feature claims in this guide apply only to VS Code and Cursor.
 
 ### Features
 
@@ -212,18 +214,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code-compatible editor extensions | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | ------------------------------------ | ---------------- | -------------------- |
-| **View notebooks**          | ✅                                   | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                                   | ✅               | ✅                   |
-| **Execute code**            | ✅                                   | ✅               | ✅                   |
-| **SQL blocks**              | ✅                                   | ✅               | ✅                   |
-| **Database integrations**   | ✅                                   | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                                   | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                                   | ❌               | ✅                   |
-| **Offline mode**            | ✅                                   | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited                           | ✅               | ✅                   |
-| **AI features**             | ❌                                   | ❌               | ✅                   |
+| Feature                     | VS Code and Cursor extensions | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ----------------------------- | ---------------- | -------------------- |
+| **View notebooks**          | ✅                            | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                            | ✅               | ✅                   |
+| **Execute code**            | ✅                            | ✅               | ✅                   |
+| **SQL blocks**              | ✅                            | ✅               | ✅                   |
+| **Database integrations**   | ✅                            | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                            | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                            | ❌               | ✅                   |
+| **Offline mode**            | ✅                            | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                    | ✅               | ✅                   |
+| **AI features**             | ❌                            | ❌               | ✅                   |
 
 \*Coming soon
 
