@@ -45,7 +45,7 @@ This authentication method is straightforward and works well for individual use 
 
 For enhanced security, Deepnote supports [Snowflake's Key-pair authentication](/docs/snowflake-with-key-pair-authentication), allowing you to authenticate users with private keys instead of passwords.
 
-When creating a Snowflake integration, select "Key-pair" as the authentication type. After creating the integration and connecting it to your project, users will be prompted to provide their username and private key when they first access Snowflake resources through the schema browser or when running queries.
+When creating a Snowflake integration, select **Key-pair (individual credentials)** or **Key-pair (service account)** as the authentication method. After creating the integration and connecting it to your project, users will be prompted to provide their username and private key when they first access Snowflake resources through the schema browser or when running queries.
 
 Key-pair authentication provides a more secure alternative to password-based access while maintaining a seamless experience when working with Snowflake data in Deepnote.
 
