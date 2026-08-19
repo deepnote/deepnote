@@ -5,8 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const cloudMock = vi.hoisted(() => ({
   triggerNotebookRun: vi.fn(),
   pollRunUntilComplete: vi.fn(),
-  fetchSnapshotContent: vi.fn(),
-  getRun: vi.fn(),
+  waitForRunSnapshot: vi.fn(),
   createProject: vi.fn(),
   addNotebooksToProject: vi.fn(),
   findNotebook: vi.fn(),
@@ -17,8 +16,7 @@ const cloudMock = vi.hoisted(() => ({
 vi.mock('@deepnote/cloud', () => ({
   triggerNotebookRun: cloudMock.triggerNotebookRun,
   pollRunUntilComplete: cloudMock.pollRunUntilComplete,
-  fetchSnapshotContent: cloudMock.fetchSnapshotContent,
-  getRun: cloudMock.getRun,
+  waitForRunSnapshot: cloudMock.waitForRunSnapshot,
   createProject: cloudMock.createProject,
   addNotebooksToProject: cloudMock.addNotebooksToProject,
   findNotebook: cloudMock.findNotebook,
@@ -283,11 +281,13 @@ beforeEach(() => {
   vi.clearAllMocks()
   cloudMock.triggerNotebookRun.mockResolvedValue({ runId: 'r1', status: 'running' })
   cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' })
-  cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_YAML)
+  cloudMock.waitForRunSnapshot.mockImplementation(async (_baseUrl, _token, run) => ({
+    run,
+    content: SNAPSHOT_YAML,
+  }))
   cloudMock.findNotebook.mockResolvedValue(undefined)
   cloudMock.findProject.mockResolvedValue(undefined)
   cloudMock.getWorkspace.mockResolvedValue({ id: 'ws1', slug: 'deepnote' })
-  cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: { snapshotContent: SNAPSHOT_YAML } })
 })
 
 describe('runInCloud', () => {
@@ -307,31 +307,26 @@ describe('runInCloud', () => {
     expect(result.snapshotYaml).toContain('stdout')
   })
 
-  it('re-fetches a terminal run that came back without an inline snapshot', async () => {
-    // Some deployments only attach the snapshot once the run is terminal. Without the re-fetch this
-    // returned success with no outputs at all.
+  it('delegates terminal snapshot settling to the cloud client', async () => {
     cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' }) // no snapshot
-    cloudMock.fetchSnapshotContent.mockImplementation(async (run: { snapshot?: unknown }) =>
-      run.snapshot ? SNAPSHOT_YAML : null
-    )
 
     const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
 
-    expect(cloudMock.getRun).toHaveBeenCalledWith('https://api.deepnote.com', 't', 'r1', {
-      snapshotDelivery: 'inline',
-    })
+    expect(cloudMock.waitForRunSnapshot).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      't',
+      expect.objectContaining({ runId: 'r1', status: 'success' }),
+      { requestTimeoutMs: undefined, sleep: undefined }
+    )
     expect(result.success).toBe(true)
     expect(result.outputs).toHaveLength(1)
     expect(result.snapshotYaml).toContain('stdout')
   })
 
-  it('does not fail the run when the snapshot re-fetch itself fails', async () => {
+  it('does not fail the run when no snapshot is ever produced', async () => {
     cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success' })
-    cloudMock.getRun.mockRejectedValue(new Error('upstream exploded'))
-    cloudMock.fetchSnapshotContent.mockResolvedValue(null)
+    cloudMock.waitForRunSnapshot.mockResolvedValue({ run: { runId: 'r1', status: 'success' }, content: null })
 
-    // The run finished; only the snapshot is missing. Report that, do not throw.
-    // `sleep` is stubbed because the settling loop would otherwise wait for real here.
     const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })
 
     expect(result.runId).toBe('r1')
@@ -339,29 +334,12 @@ describe('runInCloud', () => {
     expect(result.snapshotYaml).toBeNull()
   })
 
-  it('throws when the snapshot exists but cannot be read, rather than calling the run empty', async () => {
-    // A download that keeps failing is not the same as a run with no outputs. Reporting
-    // `success: true` with nothing — or "Deepnote reported no reason" — would be inventing an answer.
-    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
-    cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
-    cloudMock.fetchSnapshotContent.mockRejectedValue(new ApiError(502, 'snapshot download failed'))
+  it('throws when an advertised snapshot cannot be read', async () => {
+    cloudMock.waitForRunSnapshot.mockRejectedValue(new Error('snapshot download failed'))
 
     await expect(runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })).rejects.toThrow(
       /snapshot download failed/i
     )
-  })
-
-  it('keeps retrying a snapshot download that fails once, then succeeds', async () => {
-    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
-    cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: {} })
-    cloudMock.fetchSnapshotContent
-      .mockRejectedValueOnce(new ApiError(503, 'try later'))
-      .mockResolvedValueOnce(SNAPSHOT_YAML)
-
-    const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })
-
-    expect(result.success).toBe(true)
-    expect(result.outputs).toHaveLength(1)
   })
 
   it('uses an explicit notebookId and baseUrl when provided', async () => {
@@ -441,7 +419,10 @@ describe('runInCloud', () => {
   it('explains a failure the API gives no reason for, using the failing block', async () => {
     // `run.error` is null on a real failed run more often than not.
     cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', snapshot: {}, error: null })
-    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_WITH_FAILED_BLOCK)
+    cloudMock.waitForRunSnapshot.mockResolvedValue({
+      run: { runId: 'r1', status: 'error' },
+      content: SNAPSHOT_WITH_FAILED_BLOCK,
+    })
 
     const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
 
@@ -451,7 +432,10 @@ describe('runInCloud', () => {
   it('reports a failed agent block, which reports itself in metadata and nowhere else', async () => {
     // No error output, no run.error — a failed agent is otherwise completely silent.
     cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', snapshot: {}, error: null })
-    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_WITH_FAILED_AGENT)
+    cloudMock.waitForRunSnapshot.mockResolvedValue({
+      run: { runId: 'r1', status: 'error' },
+      content: SNAPSHOT_WITH_FAILED_AGENT,
+    })
 
     const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
 
@@ -461,39 +445,11 @@ describe('runInCloud', () => {
 
   it('never reports a failure with no reason at all', async () => {
     cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'error', snapshot: {}, error: null })
-    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_YAML) // nothing in it failed
+    cloudMock.waitForRunSnapshot.mockResolvedValue({ run: { runId: 'r1', status: 'error' }, content: SNAPSHOT_YAML })
 
     const result = await runInCloud(NOTEBOOK, {}, { token: 't' })
 
     expect(result.error).toMatch(/status "error" and Deepnote reported no reason/i)
-  })
-
-  it('retries a terminal run whose snapshot has not landed yet', async () => {
-    // The snapshot can lag the status by a moment; one immediate re-fetch loses that race and
-    // reports a successful run with no outputs.
-    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: undefined })
-    cloudMock.getRun
-      .mockResolvedValueOnce({ runId: 'r1', status: 'success', snapshot: undefined }) // still not there
-      .mockResolvedValueOnce({ runId: 'r1', status: 'success', snapshot: {} }) // landed
-    const sleep = vi.fn(async () => {})
-
-    const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep } })
-
-    expect(result.success).toBe(true)
-    expect(result.outputs).toHaveLength(1)
-    // One immediate re-fetch, then one waited-for retry — not a wait before every try.
-    expect(sleep).toHaveBeenCalledTimes(1)
-  })
-
-  it('gives up on a snapshot that never lands, without failing the run', async () => {
-    cloudMock.pollRunUntilComplete.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: undefined })
-    cloudMock.getRun.mockResolvedValue({ runId: 'r1', status: 'success', snapshot: undefined })
-
-    const result = await runInCloud(NOTEBOOK, {}, { token: 't', poll: { sleep: async () => {} } })
-
-    expect(result.success).toBe(true)
-    expect(result.snapshotYaml).toBeNull()
-    expect(result.outputs).toEqual([])
   })
 
   it('creates the notebook in Deepnote and runs it when it is not found (one call, no browser)', async () => {
@@ -795,7 +751,10 @@ version: '1.0.0'`
   })
 
   it('includes outputs from non-code blocks (SQL/visualization), not just code', async () => {
-    cloudMock.fetchSnapshotContent.mockResolvedValue(SNAPSHOT_WITH_SQL)
+    cloudMock.waitForRunSnapshot.mockResolvedValue({
+      run: { runId: 'r1', status: 'success' },
+      content: SNAPSHOT_WITH_SQL,
+    })
 
     const result = await runInCloud(NOTEBOOK, {}, { token: 't', notebookId: 'nb1' })
 
