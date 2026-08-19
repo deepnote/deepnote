@@ -222,11 +222,13 @@ the exception: the API runs them in live mode, so they update live-editor output
 combined with `--storage-mode`.
 
 Cloud execution status and snapshot delivery are reported separately. The CLI briefly polls after
-terminal status because snapshot attachment can lag. If an empty or markdown-only local notebook
-successfully produces no snapshot, the CLI writes a valid output-free snapshot from the local
-source. A remote-only no-op can succeed without a file and reports `artifactStatus: not_produced`.
-An advertised snapshot that cannot be downloaded or saved reports `artifactStatus: unavailable`
-and exits `1`; `success` still describes the notebook run itself.
+terminal status because snapshot attachment can lag; empty snapshot content is treated as no
+snapshot. If an empty or markdown-only local notebook successfully produces no snapshot, the CLI
+writes a valid output-free snapshot from the local source and marks it `artifactStatus:
+synthesized`. Any other run that produces no snapshot — including a remote-only run by
+`--notebook-id` — exits `1` with `artifactStatus: not_produced`; an advertised snapshot that
+cannot be downloaded or saved reports `artifactStatus: unavailable` and exits `1`. `success` in
+machine output means the run succeeded and its snapshot was delivered (`saved` or `synthesized`).
 
 #### Agent Block (`--prompt` and agent blocks)
 

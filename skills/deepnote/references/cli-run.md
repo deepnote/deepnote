@@ -106,16 +106,19 @@ rather than only `--notebook-id`.
 
 **Machine output** (`-o json` / `-o toon`; `-o llm` resolves to `toon`):
 `{ success, runId, status, artifactStatus, snapshotPath?, timestampedSnapshotPath?, artifactError?, error? }`.
-A completed run with status `error`/`internal_error`/`stopped` exits `1` but still reports the
-`runId`, `status`, and any `snapshotPath`. `success` describes notebook execution;
-`artifactStatus` separately reports `saved`, `not_produced`, or `unavailable`.
+`success` is the overall command outcome: the run succeeded **and** its snapshot was delivered.
+`status` reports execution alone; `artifactStatus` reports artifact delivery: `saved`,
+`synthesized` (no API artifact; an output-free snapshot was written from the local source),
+`not_produced`, or `unavailable`. A completed run with status `error`/`internal_error`/`stopped`
+exits `1` but still reports the `runId`, `status`, and any `snapshotPath`.
 
-After terminal status, the CLI polls briefly for snapshot attachment. A successful empty or
-markdown-only notebook can legitimately produce none: with a local file, the CLI synthesizes a
-valid output-free snapshot from that source; with only `--notebook-id`, it exits `0` with
-`artifactStatus: not_produced`. An advertised snapshot that cannot be downloaded or saved reports
-`artifactStatus: unavailable`, includes `artifactError`, and exits `1`. `--out` also exits `1` when
-no artifact was produced because the explicitly requested path cannot be written.
+After terminal status, the CLI polls briefly for snapshot attachment; empty snapshot content is
+treated as no snapshot. A successful empty or markdown-only notebook can legitimately produce
+none: with a local file, the CLI synthesizes a valid output-free snapshot from that source, marks
+it `artifactStatus: synthesized`, notes the synthesis in human output, and exits `0`. Any other
+successful run that produces no snapshot — including with only `--notebook-id` — exits `1` with
+`artifactStatus: not_produced` and an `artifactError`. An advertised snapshot that cannot be
+downloaded or saved reports `artifactStatus: unavailable`, includes `artifactError`, and exits `1`.
 
 ```bash
 # Run an existing cloud notebook by id and download its snapshot
