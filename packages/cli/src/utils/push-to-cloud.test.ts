@@ -80,6 +80,16 @@ describe('pushLocalNotebook', () => {
     expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
   })
 
+  it('reports an empty plan as previewed under dryRun, so the caller does not run either', async () => {
+    runnerMock.planNotebookSync.mockResolvedValue(plan({ isEmpty: true, changes: [] }))
+
+    const outcome = await pushLocalNotebook({ ...BASE, dryRun: true })
+
+    expect(outcome.previewed).toBe(true)
+    expect(outcome.applied).toBe(false)
+    expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
+  })
+
   it('previews without sending or prompting when dryRun is set', async () => {
     const planned = plan()
     runnerMock.planNotebookSync.mockResolvedValue(planned)

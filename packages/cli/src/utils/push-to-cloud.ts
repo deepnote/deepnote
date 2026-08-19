@@ -110,7 +110,8 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     if (!args.machineOutput && !getOutputConfig().quiet) {
       log(chalk.dim('Deepnote already matches this file — nothing to push.'))
     }
-    return { applied: false, declined: false, previewed: false, plan: planned }
+    // Under --dry-run an empty plan still counts as previewed: the caller must not run either.
+    return { applied: false, declined: false, previewed: args.dryRun === true, plan: planned }
   }
 
   if (!args.machineOutput) {
