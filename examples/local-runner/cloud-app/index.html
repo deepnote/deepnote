@@ -218,7 +218,10 @@
       const state = {}
 
       // ── Environment detection ──────────────────────────────────────────────────
-      const isDeepnote = window !== window.parent && location.hostname.includes('deepnoteworkspace.com')
+      // Embedded is the whole condition: the shell answers the handshake for any page it embeds on
+      // the project's static origin. Matching on a `deepnoteworkspace.com` substring instead missed
+      // staging (`deepnoteworkspace-staging.com`), single-tenant output domains and `outputs.localhost`.
+      const isEmbedded = window !== window.parent
       const params = new URLSearchParams(location.search)
 
       // Query params override baked-in config
@@ -238,21 +241,32 @@
       // ── Token acquisition ──────────────────────────────────────────────────────
       function requestDeepnoteToken() {
         return new Promise((resolve) => {
+          let finish = null
           function onMessage(e) {
             // A bearer token is only believable from the frame we asked, on the origin we expect.
             // Without both checks any frame able to post to this window could inject one.
             if (e.source !== window.parent) return
             if (e.origin !== APP_CONFIG.shellOrigin) return
             if (e.data?.type !== 'deepnote-static-files-api-token-response') return
-            window.removeEventListener('message', onMessage)
-            resolve(e.data.token || null)
+            // The shell names the API origin for this deployment, so a review app or single-tenant
+            // install does not need the page rebuilt with a different baseUrl.
+            if (e.data.apiOrigin && !params.get('baseUrl')) APP_CONFIG.baseUrl = e.data.apiOrigin
+            finish(e.data.token || null)
           }
           window.addEventListener('message', onMessage)
-          window.parent.postMessage({ type: 'deepnote-static-files-api-token-request' }, APP_CONFIG.shellOrigin)
-          setTimeout(() => {
+
+          // Ask repeatedly. The shell registers its listener in an effect after mount, so a page
+          // that loads first would otherwise post into the void and neither side would retry.
+          const ask = () =>
+            window.parent.postMessage({ type: 'deepnote-static-files-api-token-request' }, APP_CONFIG.shellOrigin)
+          const retry = setInterval(ask, 400)
+          finish = (value) => {
+            clearInterval(retry)
             window.removeEventListener('message', onMessage)
-            resolve(null)
-          }, 5000)
+            resolve(value)
+          }
+          ask()
+          setTimeout(() => finish(null), 8000)
         })
       }
 
@@ -299,13 +313,33 @@
           setStatus(`Running… (${run.status})`)
 
           if (terminal.has(run.status)) {
-            const snapshot = run.snapshot ?? {}
+            const contentOf = (r) => (r.snapshot ?? {}).snapshotContent ?? r.snapshotContent ?? null
+            let settled = run
+            let content = contentOf(settled)
+
+            // A run reaches a terminal status before its snapshot is attached, so the first
+            // terminal response usually carries no outputs — reporting "0 blocks" for a run whose
+            // output appears moments later. `@deepnote/cloud` has `waitForRunSnapshot` for exactly
+            // this; the browser needs the same wait.
+            for (let waited = 0; content === null && waited < 15; waited++) {
+              setStatus('Run finished — waiting for outputs…')
+              await sleep(1000)
+              const again = await fetch(
+                `${APP_CONFIG.baseUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
+                { headers: apiHeaders() }
+              )
+              if (!again.ok) break
+              const againJson = await again.json()
+              settled = againJson.run ?? againJson
+              content = contentOf(settled)
+            }
+
             return {
-              runId: run.runId ?? run.id,
-              status: run.status,
-              success: run.status === 'success',
-              error: describeError(run),
-              snapshotContent: snapshot.snapshotContent ?? run.snapshotContent ?? null,
+              runId: settled.runId ?? settled.id,
+              status: settled.status,
+              success: settled.status === 'success',
+              error: describeError(settled),
+              snapshotContent: content,
             }
           }
           interval = Math.min(interval * 1.2, 10000)
@@ -385,6 +419,33 @@
         }
       }
 
+      // ── Project / notebook discovery ───────────────────────────────────────────
+      // A published app is served from `static-<projectId>.<outputs domain>`, so the host already
+      // says which project this is — the same derivation the Deepnote side makes. That means a
+      // published app needs no notebook id baked in before upload: it reads the project's notebooks
+      // and runs the one it was published alongside.
+      function projectIdFromHost() {
+        const match = location.hostname.match(
+          /^static-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\./i
+        )
+        return match ? match[1] : null
+      }
+
+      async function resolveNotebookId() {
+        const projectId = projectIdFromHost()
+        if (!projectId) return null
+        const res = await fetch(`${APP_CONFIG.baseUrl}/v2/projects/${encodeURIComponent(projectId)}`, {
+          headers: apiHeaders(),
+        })
+        if (!res.ok) return null
+        const project = (await res.json()).project ?? {}
+        const notebooks = project.notebooks ?? []
+        if (notebooks.length === 0) return null
+        // Prefer the configured name when it matches, so a multi-notebook project stays predictable.
+        const named = notebooks.find((n) => n.name === APP_CONFIG.notebookName)
+        return (named ?? notebooks[0]).id ?? null
+      }
+
       // ── Input discovery ────────────────────────────────────────────────────────
       // Without a server there is no /api/info to describe the notebook, so the app asks the API
       // directly. `notebook.inputs` carries name/label/value/type; a slider's bounds and a select's
@@ -434,8 +495,11 @@
 
       // ── Initialize ─────────────────────────────────────────────────────────────
       async function init() {
-        // Acquire token
-        if (isDeepnote) {
+        // Embedded, the shell's token is the only credential used: short-lived, scoped to this
+        // project and this viewer, and revoked with their access. `?token=` exists for running the
+        // page outside the shell (from disk, or a local server) and is never reached for here — a
+        // personal token does not belong in a published app's URL.
+        if (isEmbedded) {
           apiToken = await requestDeepnoteToken()
         } else {
           apiToken = params.get('token') || null
@@ -447,10 +511,20 @@
         })()
         if (isLocal()) {
           $('#env-label').textContent = `Local · ${host}`
-        } else if (isDeepnote) {
+        } else if (isEmbedded) {
           $('#env-label').textContent = apiToken ? 'Deepnote' : 'No token'
         } else {
           $('#env-label').textContent = apiToken ? host : 'No token'
+        }
+
+        // Nothing in the URL when embedded but the shell's own token, so fall back to the project
+        // named by the host before deciding there is no notebook to run.
+        if (!APP_CONFIG.notebookId && (apiToken || isLocal())) {
+          try {
+            APP_CONFIG.notebookId = await resolveNotebookId()
+          } catch {
+            // Leave it unset; the readiness check below reports it.
+          }
         }
 
         // Render UI. Anything baked into APP_CONFIG wins — that is the published-app case, where
@@ -482,7 +556,14 @@
         } else if (!APP_CONFIG.notebookId) {
           setStatus('No notebook id — set APP_CONFIG.notebookId or pass ?notebookId=…', 'err')
         } else if (!apiToken && !isLocal()) {
-          setStatus('No API token — pass ?token=… or run on deepnote.com', 'err')
+          setStatus(
+            isEmbedded
+              ? 'No API token — the Deepnote shell did not answer the token handshake. The project' +
+                  ' needs API access enabled for static apps, which is a separate setting from' +
+                  ' static file sharing.'
+              : 'No API token — pass ?token=… or open the app from Deepnote',
+            'err'
+          )
         }
 
         btn.onclick = () => doRun()
@@ -566,9 +647,12 @@
         setStatus('Starting run…')
 
         try {
-          if (isDeepnote) {
-            apiToken = await requestDeepnoteToken()
-            if (!apiToken) throw new Error('Could not acquire API token from Deepnote')
+          // The shell's token is short-lived, so refresh it before running. A refresh that goes
+          // unanswered must not throw away the token already in hand.
+          if (isEmbedded) {
+            const refreshed = await requestDeepnoteToken()
+            if (refreshed) apiToken = refreshed
+            if (!apiToken) throw new Error('Could not acquire an API token from the Deepnote shell')
           }
 
           const started = await triggerRun(APP_CONFIG.notebookId, state)

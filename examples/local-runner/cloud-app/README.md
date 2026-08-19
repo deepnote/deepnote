@@ -24,10 +24,23 @@ Everything is configurable via query params or by editing `APP_CONFIG` in the HT
 | `token`       | —                          | Bearer token (not needed on deepnote.com or against a local server without auth) |
 | `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token     |
 
-On deepnote.com, the token is acquired automatically via postMessage — no configuration needed. The
-handshake is pinned to `shellOrigin` in both directions: the request is addressed to that origin
+### Tokens
+
+The app takes its credential from wherever it is running, and never mixes the two:
+
+- **Embedded in Deepnote** (published, and opened from the project) it asks the shell over
+  postMessage and uses the short-lived, project- and viewer-scoped token it gets back. `?token=` is
+  not consulted — a personal token does not belong in a published app's URL. The shell also names
+  the API origin in its reply, so review apps and single-tenant installs need no rebuild.
+- **Anywhere else** — from disk, or a local server — it uses `?token=`.
+
+The handshake is pinned to `shellOrigin` in both directions: the request is addressed to that origin
 rather than `*`, and a reply is only believed when it comes from the parent frame on that same
 origin. Set `shellOrigin` if the app is embedded somewhere other than `deepnote.com`.
+
+Publishing the files is not enough for the embedded path. A project needs **API access for static
+apps** enabled, which is a separate opt-in from static file sharing. Without it the shell answers
+the handshake with nothing at all, and the app reports that it could not acquire a token.
 
 ## Quick start
 
