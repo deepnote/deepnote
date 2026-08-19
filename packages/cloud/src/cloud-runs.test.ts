@@ -377,6 +377,31 @@ describe('waitForRunSnapshot', () => {
     expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2)
   })
 
+  it('clears the retry error once a later re-fetch succeeds, so the null is a confirmed no-snapshot', async () => {
+    let gets = 0
+    vi.spyOn(global, 'fetch').mockImplementation(async () => {
+      gets++
+      if (gets === 1) {
+        throw new Error('503 transient')
+      }
+      return response({ run: { id: 'r', status: 'success' } })
+    })
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 2, sleep: async () => {} })
+
+    expect(settled.content).toBeNull()
+    expect(settled.retryError).toBeUndefined()
+  })
+
+  it('reports the retry error when the final re-fetch failed, since the null rests on stale data', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('503 down'))
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 2, sleep: async () => {} })
+
+    expect(settled.content).toBeNull()
+    expect((settled.retryError as Error).message).toBe('503 down')
+  })
+
   it('throws a persistent snapshot download failure instead of calling it no output', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async url => {
       if (String(url).startsWith('https://storage.example.com/')) {
