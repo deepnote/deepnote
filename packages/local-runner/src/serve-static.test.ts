@@ -301,9 +301,9 @@ describe('serveStatic', () => {
       serveStatic({
         dir,
         notebookPath: join(dir, 'notebook.deepnote'),
-        runTarget: 'cluod' as never,
+        runTarget: 'invalid-target' as never,
       })
-    ).toThrow('Unsupported runTarget: cluod')
+    ).toThrow('Unsupported runTarget: invalid-target')
   })
 
   it('rejects a custom runner result that omits both success and a local summary', async () => {
