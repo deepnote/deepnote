@@ -335,6 +335,36 @@ describe('waitForRunSnapshot', () => {
     expect(sleep).toHaveBeenCalledOnce()
   })
 
+  it('keeps settling past empty snapshot content until real content arrives', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: '' } } }))
+      .mockResolvedValueOnce(
+        response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: 'version: 1.0.0' } } })
+      )
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run({ snapshotContent: '' }), {
+      attempts: 3,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBe('version: 1.0.0')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats persistently empty snapshot content as no snapshot', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: '' } } })
+    )
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run({ snapshotContent: '' }), {
+      attempts: 2,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBeNull()
+  })
+
   it('returns null only when no snapshot is attached within the bounded window', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'success' } }))
 

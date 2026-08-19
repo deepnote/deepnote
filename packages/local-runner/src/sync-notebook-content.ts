@@ -149,6 +149,10 @@ function localBlocksOf(file: DeepnoteFile, notebookId: string): DeepnoteBlock[] 
  * appears without anyone asking — so requiring the two objects to be equal would find a difference
  * on every sync and recreate every block forever. Checking that the file's keys hold is the question
  * worth asking; a key the file has *stopped* setting is not synced, which is the price.
+ *
+ * The local side is a {@link toBlockSpec} spec, which has already dropped volatile execution
+ * bookkeeping (`execution_start` and friends) — otherwise an exported file, which carries those on
+ * every executed block, would plan a rebuild of all of them after any run.
  */
 function metadataMatches(local: unknown, remote: Record<string, unknown> | undefined): boolean {
   if (local == null || typeof local !== 'object') {

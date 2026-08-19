@@ -69,22 +69,37 @@ beforeEach(() => {
 
 describe('pushLocalNotebook', () => {
   it('sends nothing when Deepnote already matches the file', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan({ isEmpty: true, changes: [] }))
+    const planned = plan({ isEmpty: true, changes: [] })
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
 
     const outcome = await pushLocalNotebook({ ...BASE })
 
-    expect(outcome).toEqual({ applied: false, declined: false, previewed: false })
+    expect(outcome).toMatchObject({ applied: false, declined: false, previewed: false })
+    expect(outcome.plan).toBe(planned)
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
     expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
   })
 
-  it('previews without sending or prompting when dryRun is set', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan())
+  it('reports an empty plan as previewed under dryRun, so the caller does not run either', async () => {
+    runnerMock.planNotebookSync.mockResolvedValue(plan({ isEmpty: true, changes: [] }))
 
     const outcome = await pushLocalNotebook({ ...BASE, dryRun: true })
 
     expect(outcome.previewed).toBe(true)
     expect(outcome.applied).toBe(false)
+    expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
+  })
+
+  it('previews without sending or prompting when dryRun is set', async () => {
+    const planned = plan()
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
+
+    const outcome = await pushLocalNotebook({ ...BASE, dryRun: true })
+
+    expect(outcome.previewed).toBe(true)
+    expect(outcome.applied).toBe(false)
+    // The caller renders machine-output previews itself, so the plan must ride along.
+    expect(outcome.plan).toBe(planned)
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
     expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
   })
@@ -102,7 +117,8 @@ describe('pushLocalNotebook', () => {
   })
 
   it('sends when the answer is yes', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan())
+    const planned = plan()
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
     promptMock.promptForBooleanField.mockResolvedValue(true)
 
     const outcome = await pushLocalNotebook({ ...BASE })
@@ -114,6 +130,8 @@ describe('pushLocalNotebook', () => {
       'nb-cloud',
       expect.objectContaining({ token: 'tok', baseUrl: 'https://api.example.com' })
     )
+    // The very plan the user approved is applied — not a re-plan that could differ from it.
+    expect(runnerMock.syncNotebookContent.mock.calls[0][3].plan).toBe(planned)
   })
 
   it('skips the question entirely with --yes', async () => {

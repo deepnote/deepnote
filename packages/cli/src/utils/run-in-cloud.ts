@@ -22,6 +22,7 @@ import {
 } from '@deepnote/cloud'
 import { getSnapshotDir, getSnapshotPath, resolveSnapshotNotebookId, splitDeepnoteFile } from '@deepnote/convert'
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
+import { mapBlockIds } from '@deepnote/local-runner'
 import dotenv from 'dotenv'
 import ora from 'ora'
 import type { RunOptions } from '../commands/run'
@@ -29,8 +30,10 @@ import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, getOutputConfig, log, outputJson, outputToon } from '../output'
 import { MissingTokenError } from './auth'
+import { CloudRunUsageError } from './cloud-run-errors'
 import { resolvePathToDeepnoteFile } from './file-resolver'
 import { parseInputs } from './parse-inputs'
+import { pushLocalNotebook } from './push-to-cloud'
 
 /**
  * Options consumed by the cloud run path — the `run` command's options, since `--cloud` is a flag
@@ -39,11 +42,15 @@ import { parseInputs } from './parse-inputs'
  */
 export type RunCloudOptions = RunOptions
 
-/** Machine-readable result of a cloud run (shape shared by `-o json` and `-o toon`). */
-export type CloudArtifactStatus = 'saved' | 'not_produced' | 'unavailable'
+/**
+ * Machine-readable result of a cloud run (shape shared by `-o json` and `-o toon`).
+ * `synthesized` means the API returned no artifact and the CLI wrote an output-free snapshot
+ * built from the local source instead — not a snapshot the run itself produced.
+ */
+export type CloudArtifactStatus = 'saved' | 'synthesized' | 'not_produced' | 'unavailable'
 
 export interface CloudRunResult {
-  /** Whether notebook execution succeeded; artifact delivery is reported independently. */
+  /** Whether the command succeeded — execution passed and artifact delivery did not fail. */
   success: boolean
   runId: string
   status: string
@@ -54,18 +61,13 @@ export interface CloudRunResult {
   error?: string
 }
 
-/**
- * User error specific to the cloud run path (bad flag combination, ambiguous notebook, etc.).
- * `createRunAction` maps this to {@link ExitCode.InvalidUsage} (2).
- */
-export class CloudRunUsageError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'CloudRunUsageError'
-  }
-}
+export { CloudRunUsageError } from './cloud-run-errors'
 
-/** Local-only flags that make no sense against a cloud run; each rejected with a usage error. */
+/**
+ * Local-only flags that make no sense against a cloud run; each rejected with a usage error.
+ * `--dry-run` is not here: with `--push` it previews the push plan, and without `--push` it is
+ * rejected by an explicit guard in {@link runInDeepnoteCloud} with a message that says so.
+ */
 const INCOMPATIBLE_FLAGS: ReadonlyArray<readonly [keyof RunCloudOptions, string]> = [
   ['python', '--python'],
   ['cwd', '--cwd'],
@@ -73,7 +75,6 @@ const INCOMPATIBLE_FLAGS: ReadonlyArray<readonly [keyof RunCloudOptions, string]
   ['profile', '--profile'],
   ['open', '--open'],
   ['prompt', '--prompt'],
-  ['dryRun', '--dry-run'],
   ['listInputs', '--list-inputs'],
   ['context', '--context'],
 ]
@@ -94,6 +95,7 @@ const CLOUD_ONLY_FLAGS: ReadonlyArray<readonly [keyof RunCloudOptions, string]> 
   ['storageMode', '--storage-mode'],
   ['timeout', '--timeout'],
   ['push', '--push'],
+  ['yes', '--yes'],
 ]
 
 /**
@@ -304,15 +306,15 @@ async function writeCloudSnapshot(args: WriteSnapshotArgs): Promise<WrittenSnaps
  * notebook, network errors before we have a runId) are thrown for `createRunAction` to render.
  */
 export async function runInDeepnoteCloud(path: string | undefined, options: RunCloudOptions): Promise<void> {
-  if (options.push) {
+  assertNoIncompatibleFlags(options)
+  if (options.dryRun && !options.push) {
     throw new CloudRunUsageError(
-      'Pushing a local notebook to Deepnote is not yet implemented.\n' +
-        'Run a notebook that already exists in Deepnote with --notebook-id <uuid> ' +
-        '(or a .deepnote file whose notebook already exists in your workspace).'
+      '--dry-run is local-only with --cloud unless combined with --push, where it previews the push plan.'
     )
   }
-
-  assertNoIncompatibleFlags(options)
+  if (options.yes && !options.push) {
+    throw new CloudRunUsageError('--yes confirms a --push; pass --push too, or drop --yes.')
+  }
   if (options.block && options.storageMode) {
     throw new CloudRunUsageError(
       '--storage-mode cannot be combined with --block: the API runs selected blocks in live mode, ' +
@@ -322,11 +324,12 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   }
 
   // Resolve a local .deepnote file when we need one to derive the notebook id (no --notebook-id),
-  // or when a path was explicitly given (used for snapshot naming). `resolvePathToDeepnoteFile`
-  // rejects non-.deepnote files and directories without a .deepnote for us.
+  // when a path was explicitly given (used for snapshot naming), or when --push needs blocks to
+  // send. `resolvePathToDeepnoteFile` rejects non-.deepnote files and directories without a
+  // .deepnote for us.
   let sourcePath: string | undefined
   let localFile: DeepnoteFile | undefined
-  const needFile = path !== undefined || !options.notebookId
+  const needFile = path !== undefined || !options.notebookId || options.push === true
   if (needFile) {
     const resolved = await resolvePathToDeepnoteFile(path)
     sourcePath = resolved.absolutePath
@@ -345,8 +348,60 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   const baseUrl = options.url ?? DEFAULT_API_URL
   const notebookId = resolveTargetNotebookId(options, localFile)
   const inputs = parseCloudInputs(options, localFile, notebookId)
-  const blockIds = options.block ? [options.block] : undefined
   const detachedRunStorageMode = options.storageMode === 'read-write' ? 'read_write' : options.storageMode
+  const isMachineOutput = options.output !== undefined
+
+  // Push before running, so the run executes what is on disk. The push owns its own output (plan,
+  // confirmation, progress); a preview or a declined confirmation ends the command without a run.
+  let blockIds = options.block ? [options.block] : undefined
+  if (options.push) {
+    if (!localFile) {
+      throw new CloudRunUsageError(
+        '--push needs the local .deepnote file whose blocks should be sent. Pass the file ' +
+          '(e.g. `deepnote run my-project.deepnote --cloud --push`).'
+      )
+    }
+    // The file's notebook to push: the run target itself when the file contains it, otherwise
+    // resolved from the file alone (--notebook-id may name a remote notebook the file ids do not
+    // match; the file still says which local notebook holds the blocks).
+    const localNotebookId = localFile.project.notebooks.some(notebook => notebook.id === notebookId)
+      ? notebookId
+      : resolveTargetNotebookId({ ...options, notebookId: undefined }, localFile)
+
+    const outcome = await pushLocalNotebook({
+      file: localFile,
+      localNotebookId,
+      notebookId,
+      baseUrl,
+      token,
+      yes: options.yes,
+      dryRun: options.dryRun,
+      machineOutput: isMachineOutput,
+    })
+    if (outcome.previewed || outcome.declined) {
+      if (outcome.previewed && isMachineOutput && outcome.plan) {
+        const preview = {
+          previewed: true,
+          plan: {
+            changes: outcome.plan.changes,
+            moves: outcome.plan.moves,
+            warnings: outcome.plan.warnings,
+            isEmpty: outcome.plan.isEmpty,
+          },
+        }
+        if (options.output === 'json') {
+          outputJson(preview)
+        } else {
+          outputToon(preview)
+        }
+      }
+      return
+    }
+    if (blockIds && outcome.result) {
+      // A recreated block has a new cloud id; run the block the user actually named.
+      blockIds = mapBlockIds(blockIds, outcome.result.idRemap, '--push')
+    }
+  }
 
   const body: TriggerRunBody = {
     notebookId,
@@ -354,8 +409,6 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
     ...(detachedRunStorageMode ? { detachedRunStorageMode } : {}),
     ...(blockIds ? { blockIds } : {}),
   }
-
-  const isMachineOutput = options.output !== undefined
   const useSpinner = !isMachineOutput && !getOutputConfig().quiet && process.stderr.isTTY
   const spinner = useSpinner ? ora('Starting Deepnote run…').start() : null
 
@@ -392,18 +445,22 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   let artifactStatus: CloudArtifactStatus = 'not_produced'
   let artifactError: string | undefined
   try {
+    let lastRetryError: unknown
     const settled = await waitForRunSnapshot(baseUrl, token, finalRun, {
-      onRetryError: error =>
+      onRetryError: error => {
+        lastRetryError = error
         debug(
           `Re-fetching run ${finalRun.runId} for its snapshot failed: ${error instanceof Error ? error.message : error}`
-        ),
+        )
+      },
     })
     finalRun = settled.run
-    const content =
-      settled.content ??
-      (success && localFile && isKnownNoOp(localFile, notebookId, options.block)
-        ? synthesizeNoOpSnapshot(localFile, finalRun)
-        : null)
+    let content = settled.content
+    let synthesized = false
+    if (content === null && success && localFile && isKnownNoOp(localFile, notebookId, options.block)) {
+      content = synthesizeNoOpSnapshot(localFile, finalRun)
+      synthesized = true
+    }
 
     if (content !== null) {
       const written = await writeCloudSnapshot({
@@ -416,7 +473,9 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       })
       snapshotPath = written.snapshotPath
       timestampedSnapshotPath = written.timestampedSnapshotPath
-      artifactStatus = 'saved'
+      artifactStatus = synthesized ? 'synthesized' : 'saved'
+    } else if (lastRetryError !== undefined) {
+      throw lastRetryError
     } else {
       debug(`Run ${finalRun.runId} returned no snapshot content.`)
     }
@@ -426,14 +485,16 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
     artifactError = `Failed to retrieve or save snapshot: ${message}`
   }
 
-  if (success && options.out && artifactStatus === 'not_produced') {
-    artifactError = `Run ${finalRun.runId} completed successfully but produced no snapshot for --out.`
+  if (success && artifactStatus === 'not_produced') {
+    artifactError = options.out
+      ? `Run ${finalRun.runId} completed successfully but produced no snapshot for --out.`
+      : `Run ${finalRun.runId} completed successfully but produced no snapshot.`
   }
 
   const commandSucceeded = success && artifactStatus !== 'unavailable' && artifactError === undefined
 
   const result: CloudRunResult = {
-    success,
+    success: commandSucceeded,
     runId: finalRun.runId,
     status,
     artifactStatus,
@@ -466,7 +527,13 @@ function renderHumanResult(result: CloudRunResult, spinner: ReturnType<typeof or
     } else {
       log(c.green(`✓ ${message}`))
     }
-    if (result.snapshotPath) {
+    if (result.snapshotPath && result.artifactStatus === 'synthesized') {
+      log(
+        c.yellow(
+          `The run produced no snapshot; saved an output-free snapshot synthesized from the local source to ${c.bold(result.snapshotPath)}`
+        )
+      )
+    } else if (result.snapshotPath) {
       log(`Snapshot saved to ${c.bold(result.snapshotPath)}`)
     } else {
       log(c.yellow('No snapshot was produced; the successful run had no local artifact.'))
