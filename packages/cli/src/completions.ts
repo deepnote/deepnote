@@ -26,7 +26,7 @@ function generateBashCompletion(commands: string[]): string {
 # Add this to ~/.bashrc or ~/.bash_profile
 
 _deepnote_completions() {
-    local cur prev commands subcommand word
+    local cur prev commands subcommand nested_subcommand word
     COMPREPLY=()
     cur="\${COMP_WORDS[COMP_CWORD]}"
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
@@ -34,17 +34,26 @@ _deepnote_completions() {
 
     # Find the subcommand by scanning COMP_WORDS
     subcommand=""
+    nested_subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|schedule|validate|convert|split|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull)
-                subcommand="\${word}"
-                break
+            inspect|cat|run|open|schedule|validate|convert|split|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull|notebooks|rename)
+                if [[ -z "\${subcommand}" ]]; then
+                    subcommand="\${word}"
+                elif [[ "\${subcommand}" == "notebooks" && "\${word}" == "rename" ]]; then
+                    nested_subcommand="\${word}"
+                fi
                 ;;
         esac
     done
 
     # Handle -o/--output option completion based on the subcommand
     if [[ "\${prev}" == "-o" || "\${prev}" == "--output" ]]; then
+        if [[ "\${subcommand}" == "notebooks" && "\${nested_subcommand}" == "rename" ]]; then
+            COMPREPLY=( $(compgen -W "json" -- "\${cur}") )
+            return 0
+        fi
+
         case "\${subcommand}" in
             inspect|run|analyze)
                 COMPREPLY=( $(compgen -W "json toon llm" -- "\${cur}") )
@@ -92,6 +101,12 @@ _deepnote_completions() {
     # Handle --storage-mode option completion for detached cloud runs
     if [[ "\${prev}" == "--storage-mode" && "\${subcommand}" == "run" ]]; then
         COMPREPLY=( $(compgen -W "read-write readonly" -- "\${cur}") )
+        return 0
+    fi
+
+    # Complete nested notebooks rename flags after positional arguments
+    if [[ "\${subcommand}" == "notebooks" && "\${nested_subcommand}" == "rename" && "\${cur}" == -* ]]; then
+        COMPREPLY=( $(compgen -W "-o --url --token --output" -- "\${cur}") )
         return 0
     fi
 
@@ -241,6 +256,19 @@ _deepnote_completions() {
             COMPREPLY=( $(compgen -W "pull" -- "\${cur}") )
             return 0
             ;;
+        notebooks)
+            COMPREPLY=( $(compgen -W "rename" -- "\${cur}") )
+            return 0
+            ;;
+        rename)
+            # Complete notebooks rename options
+            if [[ "\${subcommand}" == "notebooks" || "\${subcommand}" == "rename" ]]; then
+                if [[ "\${cur}" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "-o --url --token --output" -- "\${cur}") )
+                fi
+                return 0
+            fi
+            ;;
         pull)
             # Complete integrations pull options
             if [[ "\${subcommand}" == "integrations" || "\${subcommand}" == "pull" ]]; then
@@ -287,6 +315,7 @@ const zshCommandDescriptions: Record<string, string> = {
   split: 'Split multi-notebook file into separate files',
   completion: 'Generate shell completion scripts',
   integrations: 'Manage database integrations',
+  notebooks: 'Manage notebooks in Deepnote Cloud',
 }
 
 function generateZshCompletion(commands: string[]): string {
@@ -501,6 +530,26 @@ ${commandEntries}
                             ;;
                     esac
                     ;;
+                notebooks)
+                    local -a subcommands
+                    subcommands=(
+                        'rename:Rename a notebook in Deepnote Cloud'
+                    )
+                    _arguments \\
+                        '2: :->subcommand' \\
+                        '*:: :->args'
+                    case $state in
+                        subcommand)
+                            _describe -t subcommands 'notebooks subcommands' subcommands
+                            ;;
+                        args)
+                            _arguments \\
+                                '--url[Deepnote API base URL]:url:' \\
+                                '--token[Deepnote API token]:token:' \\
+                                '(-o --output)'{-o,--output}'[Output format]:format:(json)'
+                            ;;
+                    esac
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -533,6 +582,7 @@ const fishCommandDescriptions: Record<string, string> = {
   split: 'Split multi-notebook file into separate files',
   completion: 'Generate shell completion scripts',
   integrations: 'Manage database integrations',
+  notebooks: 'Manage notebooks in Deepnote Cloud',
 }
 
 function generateFishCompletion(commands: string[]): string {
@@ -671,6 +721,12 @@ complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_se
 complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l token -d 'Bearer token for authentication'
 complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l file -d 'Path to integrations file' -F
 complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l env-file -d 'Path to .env file for storing secrets' -F
+
+# notebooks subcommand
+complete -c deepnote -n '__fish_seen_subcommand_from notebooks' -a rename -d 'Rename a notebook in Deepnote Cloud'
+complete -c deepnote -n '__fish_seen_subcommand_from notebooks; and __fish_seen_subcommand_from rename' -l url -d 'Deepnote API base URL'
+complete -c deepnote -n '__fish_seen_subcommand_from notebooks; and __fish_seen_subcommand_from rename' -l token -d 'Deepnote API token'
+complete -c deepnote -n '__fish_seen_subcommand_from notebooks; and __fish_seen_subcommand_from rename' -s o -l output -d 'Output format' -xa 'json'
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

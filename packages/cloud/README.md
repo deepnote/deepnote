@@ -1,7 +1,7 @@
 # @deepnote/cloud
 
-Client for the Deepnote Cloud API (preview): create notebooks, trigger a run, poll it to completion,
-and fetch its execution snapshot.
+Client for the Deepnote Cloud API (preview): create and rename notebooks, trigger a run, poll it to
+completion, and fetch its execution snapshot.
 
 Used by `deepnote run --cloud` (`@deepnote/cli`) and by `@deepnote/local-runner`.
 
@@ -50,6 +50,7 @@ therefore cannot use `detachedRunStorageMode`.
 | Export                                                                                                                                       | Description                                                                                                                                                  |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `createProject(baseUrl, token, spec, opts?)`                                                                                                 | Create a project, its notebooks, and their blocks; returns the ids Deepnote assigned. See below.                                                             |
+| `updateNotebook(baseUrl, token, notebookId, body, opts?)`                                                                                    | `PATCH /v2/notebooks/{id}` — rename a notebook and return its normalized metadata.                                                                           |
 | `triggerNotebookRun(baseUrl, token, body)`                                                                                                   | `POST /v2/runs` — start a run of an existing notebook. Returns the normalized run.                                                                           |
 | `getRun(baseUrl, token, runId, options?)`                                                                                                    | `GET /v2/runs/{runId}` — fetch a run's current state.                                                                                                        |
 | `pollRunUntilComplete(baseUrl, token, runId, opts?)`                                                                                         | Poll until the run reaches a terminal status. Retries transient failures; enforces a deadline.                                                               |
@@ -103,10 +104,10 @@ unauthenticated `/v1/import` endpoint and therefore has to be finished in a brow
 prefer `createProject` — it returns the new ids, so you can run the notebook immediately.
 
 Two API details leak through it. `POST /v2/projects` seeds a new project with an empty placeholder
-notebook, which `createProject` deletes once yours exist (there is no endpoint to rename one); a
-placeholder it cannot delete is reported via `onWarning` rather than failing the create. And there is
-no bulk block endpoint, so blocks cost one sequential request each — use `onProgress` to report that
-on a large notebook. A create that fails midway leaves partial content: there is no transaction.
+notebook, which `createProject` deletes once yours exist; a placeholder it cannot delete is reported
+via `onWarning` rather than failing the create. And there is no bulk block endpoint, so blocks cost
+one sequential request each — use `onProgress` to report that on a large notebook. A create that
+fails midway leaves partial content: there is no transaction.
 
 ## License
 

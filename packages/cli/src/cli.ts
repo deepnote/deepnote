@@ -15,6 +15,7 @@ import { createIntegrationsPullAction } from './commands/integrations'
 import { createIntegrationsAddAction } from './commands/integrations/add-integration'
 import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
+import { createNotebooksRenameAction } from './commands/notebooks/rename-notebook'
 import { createOpenAction } from './commands/open'
 import { createRunAction } from './commands/run'
 import { createScheduleAction } from './commands/schedule'
@@ -1002,6 +1003,38 @@ ${c.bold('Examples:')}
     .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
     .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
     .action(createIntegrationsEditAction(program))
+
+  // Notebooks command group - manage notebooks in Deepnote Cloud
+  const notebooksCmd = program
+    .command('notebooks')
+    .description('Manage notebooks in Deepnote Cloud')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Subcommands:')}
+  rename      Rename a notebook in Deepnote Cloud
+
+${c.bold('Examples:')}
+  ${c.dim('# Rename a notebook by its ID')}
+  $ deepnote notebooks rename <notebook-id> "New name"
+
+  ${c.dim('# Rename with a specific token')}
+  $ deepnote notebooks rename <notebook-id> "New name" --token <token>
+
+  ${c.dim('# Machine-readable output')}
+  $ deepnote notebooks rename <notebook-id> "New name" --output json
+`
+    })
+
+  notebooksCmd
+    .command('rename')
+    .description('Rename a notebook in Deepnote Cloud')
+    .argument('<notebook-id>', 'ID of the notebook in Deepnote Cloud')
+    .argument('<new-name>', 'New notebook name')
+    .option('--token <token>', `Deepnote API token (defaults to ${DEEPNOTE_TOKEN_ENV})`)
+    .option('--url <url>', 'Deepnote API base URL', DEFAULT_API_URL)
+    .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
+    .action(createNotebooksRenameAction(program))
 }
 
 /**
