@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -26,9 +26,16 @@ class RunnerError(RuntimeError):
 
 @dataclass(frozen=True)
 class RunnerInfo:
+    """The target and input contract exposed by a Deepnote runner."""
+
     notebook: str
     inputs: tuple[InputBlock, ...]
     run_target: str
+
+    def accepts_inputs(self, inputs: Iterable[InputBlock]) -> bool:
+        """Return whether input variable names and block types match this runner."""
+
+        return _input_contract(inputs) == _input_contract(self.inputs)
 
 
 class DeepnoteRunner:
@@ -229,6 +236,10 @@ def _required_run_id(run: Mapping[str, Any]) -> str:
     if not isinstance(run_id, str) or not run_id:
         raise RunnerError("Deepnote API response did not include a run id")
     return run_id
+
+
+def _input_contract(inputs: Iterable[InputBlock]) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted((input_block.variable_name, input_block.type) for input_block in inputs))
 
 
 def _normalize_cloud_inputs(inputs: Mapping[str, Any]) -> dict[str, str | bool | list[str]]:

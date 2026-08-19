@@ -62,3 +62,27 @@ def test_incomplete_date_range_is_still_valid_for_runner_contract() -> None:
     )
 
     assert values == {"period": ["2026-08-17", "2026-08-17"]}
+
+
+def test_slider_preserves_fractional_default_with_integer_bounds() -> None:
+    class SliderContainer(FakeContainer):
+        slider_kwargs: dict[str, Any]
+
+        def slider(self, _label: str, **kwargs: Any) -> Any:
+            self.slider_kwargs = kwargs
+            return kwargs["value"]
+
+    container = SliderContainer()
+    values = render_inputs(
+        [InputBlock("threshold", "input-slider", "20.5", min=10, max=30, step=0.5)],
+        container,
+    )
+
+    assert values == {"threshold": 20.5}
+    assert container.slider_kwargs == {
+        "min_value": 10.0,
+        "max_value": 30.0,
+        "value": 20.5,
+        "step": 0.5,
+        "key": "deepnote:threshold",
+    }

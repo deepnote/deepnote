@@ -5,7 +5,7 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
-from deepnote_streamlit import DeepnoteCloudRunner, DeepnoteRunner, RunnerError
+from deepnote_streamlit import DeepnoteCloudRunner, DeepnoteRunner, InputBlock, RunnerError, RunnerInfo
 
 
 class FakeResponse:
@@ -41,6 +41,18 @@ def test_info_parses_runner_contract() -> None:
     assert info.notebook == "Revenue"
     assert info.run_target == "cloud"
     assert info.inputs[0].variable_name == "region"
+
+
+def test_runner_info_requires_matching_input_names_and_types() -> None:
+    info = RunnerInfo(
+        notebook="Revenue",
+        inputs=(InputBlock("region", "input-select", "All"),),
+        run_target="cloud",
+    )
+
+    assert info.accepts_inputs([InputBlock("region", "input-select", "Europe")])
+    assert not info.accepts_inputs([InputBlock("market", "input-select", "Europe")])
+    assert not info.accepts_inputs([InputBlock("region", "input-text", "Europe")])
 
 
 def test_run_posts_inputs_and_parses_one_result_shape() -> None:

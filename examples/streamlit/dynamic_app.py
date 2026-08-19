@@ -35,19 +35,30 @@ st.write(
 with st.sidebar:
     st.header("Inputs")
     values = render_inputs(notebook.inputs, st.sidebar)
+    input_contract_matches = False
 
     try:
         info = runner.info()
         target_label = (
             "Deepnote Cloud" if info.run_target == "cloud" else "a local kernel"
         )
-        st.success(f"Runner connected · {target_label}")
+        input_contract_matches = info.accepts_inputs(notebook.inputs)
+        if input_contract_matches:
+            st.success(f"Runner connected · {target_label}")
+        else:
+            st.warning(
+                "The runner notebook has different input names or types. "
+                "Point DEEPNOTE_NOTEBOOK_ID at the notebook represented by this file."
+            )
     except RunnerError as error:
         info = None
         st.warning(str(error))
 
     run_clicked = st.button(
-        "Run notebook", type="primary", width="stretch", disabled=info is None
+        "Run notebook",
+        type="primary",
+        width="stretch",
+        disabled=info is None or not input_contract_matches,
     )
 
 if run_clicked:

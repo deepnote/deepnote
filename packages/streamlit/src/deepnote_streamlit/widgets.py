@@ -46,6 +46,8 @@ def _render_one(container: Any, input_block: InputBlock, label: str, key: str) -
         maximum = input_block.max if input_block.max is not None else 100
         step = input_block.step if input_block.step is not None else 1
         value = _as_number(input_block.value, minimum)
+        if any(isinstance(number, float) for number in (minimum, maximum, value, step)):
+            minimum, maximum, value, step = (float(number) for number in (minimum, maximum, value, step))
         return container.slider(label, min_value=minimum, max_value=maximum, value=value, step=step, key=key)
 
     if input_block.type == "input-date":
@@ -79,7 +81,8 @@ def _as_bool(value: Any) -> bool:
 
 def _as_number(value: Any, fallback: float | int) -> float | int:
     try:
-        return float(value) if isinstance(fallback, float) else int(float(value))
+        number = float(value)
+        return number if isinstance(fallback, float) or not number.is_integer() else int(number)
     except (TypeError, ValueError):
         return fallback
 
