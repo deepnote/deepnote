@@ -205,6 +205,10 @@
         notebookId: null,
         notebookName: 'Dashboard',
         baseUrl: 'https://api.deepnote.com',
+        // Origin of the Deepnote shell that embeds this app and answers the token handshake. It is
+        // pinned rather than wildcarded so no other embedder can hand this page a bearer token.
+        // Change it (or pass ?shellOrigin=) if the app is embedded somewhere else.
+        shellOrigin: 'https://deepnote.com',
         inputs: [],
       }
 
@@ -220,6 +224,7 @@
       // Query params override baked-in config
       if (params.get('baseUrl')) APP_CONFIG.baseUrl = params.get('baseUrl')
       if (params.get('notebookId')) APP_CONFIG.notebookId = params.get('notebookId')
+      if (params.get('shellOrigin')) APP_CONFIG.shellOrigin = params.get('shellOrigin')
 
       let apiToken = null
       let lastRuns = null
@@ -234,12 +239,16 @@
       function requestDeepnoteToken() {
         return new Promise((resolve) => {
           function onMessage(e) {
+            // A bearer token is only believable from the frame we asked, on the origin we expect.
+            // Without both checks any frame able to post to this window could inject one.
+            if (e.source !== window.parent) return
+            if (e.origin !== APP_CONFIG.shellOrigin) return
             if (e.data?.type !== 'deepnote-static-files-api-token-response') return
             window.removeEventListener('message', onMessage)
             resolve(e.data.token || null)
           }
           window.addEventListener('message', onMessage)
-          window.parent.postMessage({ type: 'deepnote-static-files-api-token-request' }, '*')
+          window.parent.postMessage({ type: 'deepnote-static-files-api-token-request' }, APP_CONFIG.shellOrigin)
           setTimeout(() => {
             window.removeEventListener('message', onMessage)
             resolve(null)
@@ -624,6 +633,9 @@
       window.addEventListener('message', (e) => {
         if (e.data?.type === 'deepnote-static-files-api-token-response') return
         if (e.origin !== 'null' || !e.data || typeof e.data.h !== 'number') return
+        // Sandboxed output runs with allow-scripts, so it can post any shape it likes. A non-string
+        // id would serialize to something like {} and make the attribute selector throw.
+        if (typeof e.data.id !== 'string') return
         const f = document.querySelector(`iframe[data-id=${JSON.stringify(e.data.id)}]`)
         if (f && e.source === f.contentWindow) f.style.height = e.data.h + 2 + 'px'
       })

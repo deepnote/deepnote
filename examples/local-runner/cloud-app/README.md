@@ -17,13 +17,17 @@ The HTML page embeds all the JS needed to:
 
 Everything is configurable via query params or by editing `APP_CONFIG` in the HTML:
 
-| Parameter    | Default                    | Description                                                                      |
-| ------------ | -------------------------- | -------------------------------------------------------------------------------- |
-| `baseUrl`    | `https://api.deepnote.com` | API server — cloud or local                                                      |
-| `notebookId` | —                          | Notebook to run                                                                  |
-| `token`      | —                          | Bearer token (not needed on deepnote.com or against a local server without auth) |
+| Parameter     | Default                    | Description                                                                      |
+| ------------- | -------------------------- | -------------------------------------------------------------------------------- |
+| `baseUrl`     | `https://api.deepnote.com` | API server — cloud or local                                                      |
+| `notebookId`  | —                          | Notebook to run                                                                  |
+| `token`       | —                          | Bearer token (not needed on deepnote.com or against a local server without auth) |
+| `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token     |
 
-On deepnote.com, the token is acquired automatically via postMessage — no configuration needed.
+On deepnote.com, the token is acquired automatically via postMessage — no configuration needed. The
+handshake is pinned to `shellOrigin` in both directions: the request is addressed to that origin
+rather than `*`, and a reply is only believed when it comes from the parent frame on that same
+origin. Set `shellOrigin` if the app is embedded somewhere other than `deepnote.com`.
 
 ## Quick start
 
