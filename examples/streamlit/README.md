@@ -24,18 +24,36 @@ No token, kernel, Node sidecar, or network is involved.
 
 ## Dynamic app
 
-To call an existing Deepnote notebook directly, start only Streamlit:
+First synchronize the local source into the cloud notebook as an explicit deployment operation:
 
 ```bash
-DEEPNOTE_NOTEBOOK_ID=... DEEPNOTE_TOKEN=... pnpm example:streamlit:dynamic
+export DEEPNOTE_NOTEBOOK_ID=...
+export DEEPNOTE_TOKEN=...
+
+deepnote run examples/local-runner-showcase.deepnote \
+  --cloud --notebook-id "$DEEPNOTE_NOTEBOOK_ID" --push --dry-run
+deepnote run examples/local-runner-showcase.deepnote \
+  --cloud --notebook-id "$DEEPNOTE_NOTEBOOK_ID" --push --yes
+```
+
+The first command previews the block changes. The second applies them and performs one deployment
+run. Synchronization is intentionally not part of a Streamlit viewer request because it may delete
+or recreate blocks.
+
+Once deployed, start only Streamlit for normal app runs:
+
+```bash
+pnpm example:streamlit:dynamic
 ```
 
 The app parses its local `.deepnote` file for the UI contract and sends input values to the public
-runs API. Applications with renewable credentials can pass a token provider to
+runs API. It disables the run button if the deployed notebook's input names or types differ from
+the local file. Applications with renewable credentials can pass a token provider to
 `DeepnoteCloudRunner` instead of setting `DEEPNOTE_TOKEN`.
 
-To create or synchronize the cloud notebook from the local file, start the runner and Streamlit in
-separate terminals:
+For sidecar-based local development, start the runner and Streamlit in separate terminals. The
+sidecar can create a missing cloud notebook, but updates to an existing one still use the explicit
+deployment sync above:
 
 ```bash
 # Terminal 1: cloud execution (default)

@@ -48,7 +48,8 @@ with st.sidebar:
         else:
             st.warning(
                 "The runner notebook has different input names or types. "
-                "Point DEEPNOTE_NOTEBOOK_ID at the notebook represented by this file."
+                "Sync this file with `deepnote run --cloud --push`, or point "
+                "DEEPNOTE_NOTEBOOK_ID at the notebook represented by this file."
             )
     except RunnerError as error:
         info = None
