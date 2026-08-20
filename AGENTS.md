@@ -37,12 +37,12 @@ Start with the owning package and its README before searching broadly. Avoid tra
 
 ### Setup
 
+Use the Node.js version specified in `.nvmrc` (e.g. `nvm use`) before installing dependencies, so the install and the root `prepare` script run under the correct version.
+
 ```bash
 # Install dependencies for the monorepo and its packages
 pnpm install
 ```
-
-Use the Node.js version specified in `.nvmrc` (e.g. `nvm use`).
 
 ### Running Commands
 
