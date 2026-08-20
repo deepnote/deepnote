@@ -1,6 +1,6 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
-import { parseApiErrorMessage } from './parse-api-error'
+import { authHeaders, DEFAULT_REQUEST_TIMEOUT_MS, request, requestText } from './http'
 
 /**
  * Client for the Deepnote public "runs" API (preview).
@@ -38,10 +38,11 @@ export function isSuccessStatus(status: string): boolean {
   return status === 'success'
 }
 
-const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 const DEFAULT_POLL_INTERVAL_MS = 2_000
 const DEFAULT_POLL_TIMEOUT_MS = 600_000
 const DEFAULT_MAX_TRANSIENT_RETRIES = 5
+const DEFAULT_SNAPSHOT_SETTLE_ATTEMPTS = 3
+const DEFAULT_SNAPSHOT_SETTLE_INTERVAL_MS = 1_500
 
 const snapshotSchema = z
   .object({
@@ -96,10 +97,18 @@ export interface NormalizedRun {
  */
 export type RunInputValue = string | boolean | string[]
 
+/** Project-storage access for a detached run. */
+export type DetachedRunStorageMode = 'read_write' | 'readonly'
+
 /** Request body for {@link triggerNotebookRun}. Deliberately minimal (see plan point 13). */
 export interface TriggerRunBody {
   notebookId: string
   inputs?: Record<string, RunInputValue>
+  /**
+   * Project-storage access for a detached run. Omit for the API default (`read_write`).
+   * Has no effect on live runs, so it cannot be combined with `blockIds`.
+   */
+  detachedRunStorageMode?: DetachedRunStorageMode
   /** Run only these blocks. Omitted from the request when empty — see {@link toRequestBody}. */
   blockIds?: string[]
 }
@@ -119,29 +128,6 @@ export class RunTimeoutError extends Error {
     this.runId = runId
     this.lastStatus = lastStatus
   }
-}
-
-function trimTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '')
-}
-
-function authHeaders(token: string): Record<string, string> {
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-}
-
-async function throwIfNotOk(response: Response, fallback: string): Promise<void> {
-  if (response.ok) {
-    return
-  }
-  const bodyText = await response.text().catch(() => '')
-  const message = parseApiErrorMessage(bodyText, `${fallback}: HTTP ${response.status} ${response.statusText}`)
-  if (response.status === 401) {
-    throw new ApiError(401, 'Authentication failed. Please check your API token.')
-  }
-  if (response.status === 403) {
-    throw new ApiError(403, message || 'Access denied. You may not have permission to run this notebook.')
-  }
-  throw new ApiError(response.status, message)
 }
 
 /** Normalize the snapshot from either the nested `snapshot` object or the flat run fields. */
@@ -186,6 +172,11 @@ function normalizeRun(json: unknown): NormalizedRun {
   }
 }
 
+/** Validate either API envelope and normalize it in the shared request pipeline. */
+const runResponseSchema: z.ZodType<NormalizedRun, z.ZodTypeDef, unknown> = z
+  .unknown()
+  .transform(json => normalizeRun(json))
+
 /** Extracts a human-readable message from a run's `error` field, which may be a string or object. */
 export function describeRunError(run: NormalizedRun): string | undefined {
   const { error } = run
@@ -209,16 +200,19 @@ export function describeRunError(run: NormalizedRun): string | undefined {
  * A {@link TriggerRunBody} as `POST /v2/runs` wants it. Two rules of that endpoint live here, so no
  * caller has to know them:
  *
- * - A run is `detached` unless it says otherwise — a background run that leaves the live editor
- *   session alone — and a detached run refuses `blockIds` outright (`blockIds is not supported for
- *   detached runs`, a 400). Deepnote only runs selected blocks in live mode, so asking for blocks is
- *   asking for a live run, and the body says so rather than being sent to fail.
+ * - Full-notebook runs explicitly ask for `detached: true`: a background run that leaves the live
+ *   editor session alone. A detached run refuses `blockIds` outright (`blockIds is not supported
+ *   for detached runs`, a 400). Deepnote only runs selected blocks in live mode, so asking for
+ *   blocks is asking for a live run, and the body says so rather than being sent to fail.
  * - `blockIds` must name at least one block. An empty array is not "no blocks in particular" to the
  *   API, it is a validation error — and it is exactly what a caller means by omitting it, so it is
  *   dropped.
  */
 function toRequestBody({ blockIds, ...rest }: TriggerRunBody): Record<string, unknown> {
-  return blockIds?.length ? { ...rest, blockIds, detached: false } : rest
+  if (blockIds?.length && rest.detachedRunStorageMode) {
+    throw new TypeError('detachedRunStorageMode cannot be used with blockIds because block runs are live.')
+  }
+  return blockIds?.length ? { ...rest, blockIds, detached: false } : { ...rest, detached: true }
 }
 
 /** Start a cloud run of an existing notebook. Returns the initial run (usually `pending`/`running`). */
@@ -226,17 +220,18 @@ export async function triggerNotebookRun(
   baseUrl: string,
   token: string,
   body: TriggerRunBody,
-  options: { requestTimeoutMs?: number } = {}
+  options: { requestTimeoutMs?: number; signal?: AbortSignal } = {}
 ): Promise<NormalizedRun> {
-  const url = `${trimTrailingSlash(baseUrl)}/v2/runs`
-  const response = await fetch(url, {
+  return request(baseUrl, token, {
     method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify(toRequestBody(body)),
-    signal: AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+    path: '/v2/runs',
+    schema: runResponseSchema,
+    body: toRequestBody(body),
+    timeoutMs: options.requestTimeoutMs,
+    signal: options.signal,
+    fallback: 'Failed to start Deepnote run',
+    forbiddenMessage: 'Access denied. You may not have permission to run this notebook.',
   })
-  await throwIfNotOk(response, 'Failed to start Deepnote run')
-  return normalizeRun(await response.json())
 }
 
 export interface GetRunOptions {
@@ -252,17 +247,20 @@ export async function getRun(
   runId: string,
   options: GetRunOptions = {}
 ): Promise<NormalizedRun> {
-  const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/runs/${encodeURIComponent(runId)}`)
+  const query = new URLSearchParams()
   if (options.snapshotDelivery) {
-    endpoint.searchParams.set('snapshotDelivery', options.snapshotDelivery)
+    query.set('snapshotDelivery', options.snapshotDelivery)
   }
-  const response = await fetch(endpoint.toString(), {
+  const suffix = query.size > 0 ? `?${query.toString()}` : ''
+  return request(baseUrl, token, {
     method: 'GET',
-    headers: authHeaders(token),
-    signal: options.signal ?? AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+    path: `/v2/runs/${encodeURIComponent(runId)}${suffix}`,
+    schema: runResponseSchema,
+    timeoutMs: options.requestTimeoutMs,
+    signal: options.signal,
+    fallback: 'Failed to fetch Deepnote run',
+    forbiddenMessage: 'Access denied. You may not have permission to read this run.',
   })
-  await throwIfNotOk(response, 'Failed to fetch Deepnote run')
-  return normalizeRun(await response.json())
 }
 
 const runSummarySchema = z
@@ -320,43 +318,31 @@ export async function listNotebookRuns(
   notebookId: string,
   options: ListRunsOptions = {}
 ): Promise<RunsPage> {
-  const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/notebooks/${encodeURIComponent(notebookId)}/runs`)
+  const query = new URLSearchParams()
   if (options.pageSize != null) {
-    endpoint.searchParams.set('pageSize', String(options.pageSize))
+    query.set('pageSize', String(options.pageSize))
   }
   if (options.pageToken) {
-    endpoint.searchParams.set('pageToken', options.pageToken)
+    query.set('pageToken', options.pageToken)
   }
-  const response = await fetch(endpoint.toString(), {
+  const suffix = query.size > 0 ? `?${query.toString()}` : ''
+  const parsed = await request(baseUrl, token, {
     method: 'GET',
-    headers: authHeaders(token),
-    signal: options.signal ?? AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+    path: `/v2/notebooks/${encodeURIComponent(notebookId)}/runs${suffix}`,
+    schema: runsPageSchema,
+    timeoutMs: options.requestTimeoutMs,
+    signal: options.signal,
+    fallback: 'Failed to list Deepnote runs',
   })
-  await throwIfNotOk(response, 'Failed to list Deepnote runs')
-
-  // `response.json()` throws a raw SyntaxError on a non-JSON body, which would escape this package's
-  // ApiError contract — so read the text and parse it where the failure can be reported properly.
-  const body = await response.text()
-  let json: unknown
-  try {
-    json = body ? JSON.parse(body) : {}
-  } catch {
-    throw new ApiError(502, 'Invalid Deepnote runs response: the body was not valid JSON.')
-  }
-
-  const parsed = runsPageSchema.safeParse(json)
-  if (!parsed.success) {
-    throw new ApiError(502, `Invalid Deepnote runs response: ${parsed.error.issues.map(i => i.message).join(', ')}`)
-  }
   return {
-    runs: parsed.data.runs.map(r => ({
+    runs: parsed.runs.map(r => ({
       runId: r.runId,
       status: r.status,
       createdAt: r.createdAt,
       completedAt: r.completedAt,
     })),
-    nextPageToken: parsed.data.pagination?.nextPageToken ?? undefined,
-    hasMore: parsed.data.pagination?.hasMore ?? false,
+    nextPageToken: parsed.pagination?.nextPageToken ?? undefined,
+    hasMore: parsed.pagination?.hasMore ?? false,
   }
 }
 
@@ -450,6 +436,7 @@ export interface FetchSnapshotOptions {
   baseUrl: string
   token: string
   requestTimeoutMs?: number
+  signal?: AbortSignal
 }
 
 /**
@@ -477,17 +464,148 @@ export async function fetchSnapshotContent(run: NormalizedRun, options: FetchSna
 
   const resolved = new URL(downloadUrl, options.baseUrl)
   const sameOrigin = resolved.origin === new URL(options.baseUrl).origin
-  const response = await fetch(resolved.toString(), {
+  return requestText(resolved.toString(), {
     method: 'GET',
     headers: sameOrigin ? authHeaders(options.token) : undefined,
-    signal: AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+    timeoutMs: options.requestTimeoutMs,
+    signal: options.signal,
+    fallback: 'Failed to download snapshot',
   })
-  if (!response.ok) {
-    const bodyText = await response.text().catch(() => '')
-    throw new ApiError(
-      response.status,
-      parseApiErrorMessage(bodyText, `Failed to download snapshot: HTTP ${response.status} ${response.statusText}`)
-    )
+}
+
+export interface WaitForRunSnapshotOptions {
+  /** Number of terminal-run re-fetches after the initial snapshot check. */
+  attempts?: number
+  intervalMs?: number
+  requestTimeoutMs?: number
+  signal?: AbortSignal
+  /** Injectable sleep for tests and callers that already own a scheduler. */
+  sleep?: (ms: number) => Promise<void>
+  /** Non-fatal status re-fetch failures encountered while settling. */
+  onRetryError?: (error: unknown) => void
+}
+
+export interface SettledRunSnapshot {
+  /** Latest run representation fetched while settling. */
+  run: NormalizedRun
+  /**
+   * Null means no snapshot was ever attached (empty content counts as not attached);
+   * read/download failures throw instead.
+   */
+  content: string | null
+  /**
+   * The status re-fetch failure that left `run` stale — set only when the *last* re-fetch failed.
+   * A failure followed by a successful re-fetch clears it: the final observation is fresh, so a
+   * null `content` is a confirmed "no snapshot", not a side effect of the outage.
+   */
+  retryError?: unknown
+}
+
+async function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    throw signal.reason
   }
-  return response.text()
+  await new Promise<void>((resolve, reject) => {
+    const finish = () => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }
+    const timer = setTimeout(finish, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(signal?.reason)
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+/** Reject a caller-provided async wait promptly when its signal aborts. */
+async function waitWithSignal(wait: Promise<void>, signal?: AbortSignal): Promise<void> {
+  if (!signal) {
+    return wait
+  }
+  if (signal.aborted) {
+    throw signal.reason
+  }
+  let rejectOnAbort: (() => void) | undefined
+  try {
+    await new Promise<void>((resolve, reject) => {
+      rejectOnAbort = () => reject(signal.reason)
+      signal.addEventListener('abort', rejectOnAbort, { once: true })
+      void wait.then(resolve, reject)
+    })
+  } finally {
+    if (rejectOnAbort) {
+      signal.removeEventListener('abort', rejectOnAbort)
+    }
+  }
+}
+
+/**
+ * Wait briefly for a terminal run's snapshot to be attached.
+ *
+ * A null result means Deepnote never produced a snapshot (valid for a no-op run). If a snapshot was
+ * advertised but could not be read, the last read error is thrown instead, so callers never mistake
+ * an unavailable artifact for an empty execution.
+ */
+export async function waitForRunSnapshot(
+  baseUrl: string,
+  token: string,
+  run: NormalizedRun,
+  options: WaitForRunSnapshotOptions = {}
+): Promise<SettledRunSnapshot> {
+  const attempts = options.attempts ?? DEFAULT_SNAPSHOT_SETTLE_ATTEMPTS
+  const intervalMs = options.intervalMs ?? DEFAULT_SNAPSHOT_SETTLE_INTERVAL_MS
+  let current = run
+  let lastReadError: unknown
+  let retryError: unknown
+
+  for (let attempt = 0; ; attempt++) {
+    if (current.snapshot) {
+      try {
+        const content = await fetchSnapshotContent(current, {
+          baseUrl,
+          token,
+          requestTimeoutMs: options.requestTimeoutMs,
+          signal: options.signal,
+        })
+        // Empty content is a snapshot that has not materialized yet, not a valid empty artifact —
+        // keep settling rather than handing callers an empty file to write.
+        if (content !== null && content.length > 0) {
+          return { run: current, content }
+        }
+      } catch (error) {
+        lastReadError = error
+      }
+    }
+
+    if (attempt >= attempts) {
+      if (lastReadError !== undefined) {
+        throw lastReadError
+      }
+      return { run: current, content: null, retryError }
+    }
+
+    if (attempt > 0) {
+      if (options.sleep) {
+        await waitWithSignal(options.sleep(intervalMs), options.signal)
+      } else {
+        await abortableSleep(intervalMs, options.signal)
+      }
+    }
+    try {
+      current = await getRun(baseUrl, token, current.runId, {
+        snapshotDelivery: 'inline',
+        requestTimeoutMs: options.requestTimeoutMs,
+        signal: options.signal,
+      })
+      retryError = undefined
+    } catch (error) {
+      if (options.signal?.aborted) {
+        throw options.signal.reason
+      }
+      retryError = error
+      options.onRetryError?.(error)
+    }
+  }
 }

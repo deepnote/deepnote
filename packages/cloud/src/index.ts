@@ -1,4 +1,5 @@
 export {
+  type DetachedRunStorageMode,
   describeRunError,
   type FetchSnapshotOptions,
   fetchSnapshotContent,
@@ -18,8 +19,11 @@ export {
   type RunSummary,
   type RunsPage,
   RunTimeoutError,
+  type SettledRunSnapshot,
   type TriggerRunBody,
   triggerNotebookRun,
+  type WaitForRunSnapshotOptions,
+  waitForRunSnapshot,
 } from './cloud-runs'
 export {
   type AddNotebooksOptions,
