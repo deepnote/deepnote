@@ -203,13 +203,11 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 
 ## Tools & Technologies
 
-- **Package Manager:** pnpm
-- **Runtime:** Node.js
-- **Build Tool:** tsdown
-- **Test Framework:** Vitest
-- **Linter:** Biome
-- **Formatter:** Biome + Prettier (for md/yaml)
-- **Type Checker:** TypeScript
+- Use the Node.js version specified in `.nvmrc`.
+- Use pnpm as configured by the `packageManager` and `engines` fields in `package.json`.
+- Treat `package.json` as the source of truth for scripts and direct dependencies.
+- Treat `pnpm-lock.yaml` as the source of truth for resolved dependency versions.
+- The project uses TypeScript, tsdown, Vitest, Biome, and Prettier.
 
 ## Getting Help
 
