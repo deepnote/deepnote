@@ -135,7 +135,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
   if (!args.yes) {
     // Nothing to prompt with when output is piped or machine-readable: hanging on a question nobody
     // can see is worse than refusing, and silently pushing without asking is worse than either.
-    if (args.machineOutput || !process.stdin.isTTY) {
+    if (args.machineOutput || !process.stdin.isTTY || !process.stdout.isTTY) {
       // A usage error, not a runtime one: this is a bad invocation for the environment it ran in,
       // and it should exit 2 like every other misuse rather than reading as a failed run.
       throw new CloudRunUsageError(

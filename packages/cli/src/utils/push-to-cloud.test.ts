@@ -53,17 +53,21 @@ function syncResult(overrides: Record<string, unknown> = {}) {
 }
 
 let stdinIsTTY: boolean | undefined
+let stdoutIsTTY: boolean | undefined
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
   stdinIsTTY = process.stdin.isTTY
+  stdoutIsTTY = process.stdout.isTTY
   // Default to an interactive terminal; individual tests override.
   Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+  Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
   runnerMock.syncNotebookContent.mockResolvedValue(syncResult())
   return () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: stdinIsTTY, configurable: true })
+    Object.defineProperty(process.stdout, 'isTTY', { value: stdoutIsTTY, configurable: true })
   }
 })
 
@@ -150,6 +154,15 @@ describe('pushLocalNotebook', () => {
     // A usage error, so the CLI exits 2 rather than reporting a failed run.
     await expect(pushLocalNotebook({ ...BASE })).rejects.toBeInstanceOf(CloudRunUsageError)
     await expect(pushLocalNotebook({ ...BASE })).rejects.toThrow(/--yes/)
+    expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
+  })
+
+  it('refuses rather than prompting invisibly when stdout is piped', async () => {
+    runnerMock.planNotebookSync.mockResolvedValue(plan())
+    Object.defineProperty(process.stdout, 'isTTY', { value: false, configurable: true })
+
+    await expect(pushLocalNotebook({ ...BASE })).rejects.toBeInstanceOf(CloudRunUsageError)
+    expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
   })
 
