@@ -7,7 +7,7 @@ import {
   syncNotebookContent,
 } from '@deepnote/local-runner'
 import ora from 'ora'
-import { debug, getChalk, getOutputConfig, log } from '../output'
+import { debug, getChalk, getOutputConfig, log, warn } from '../output'
 import { CloudRunUsageError } from './cloud-run-errors'
 import { promptForBooleanField } from './inquirer'
 
@@ -119,7 +119,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     // dropped SQL integration must not vanish just because the caller wanted JSON. stderr keeps
     // stdout machine-readable. The dry-run preview additionally carries them in its JSON payload.
     for (const warning of planned.warnings) {
-      debug(`push warning: ${warning}`)
+      warn(`push warning: ${warning}`)
     }
   } else {
     printPlan(planned, notebookId)

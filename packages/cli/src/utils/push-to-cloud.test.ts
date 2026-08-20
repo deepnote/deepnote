@@ -153,6 +153,14 @@ describe('pushLocalNotebook', () => {
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
   })
 
+  it('keeps push warnings visible on stderr under machine output', async () => {
+    runnerMock.planNotebookSync.mockResolvedValue(plan({ warnings: ['the sql block lost its integration'] }))
+
+    await pushLocalNotebook({ ...BASE, yes: true, machineOutput: true })
+
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('the sql block lost its integration'))
+  })
+
   it('refuses rather than prompting into machine-readable output', async () => {
     runnerMock.planNotebookSync.mockResolvedValue(plan())
 
