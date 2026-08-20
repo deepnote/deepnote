@@ -1,6 +1,5 @@
-import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
-import { parseApiErrorMessage } from './parse-api-error'
+import { DEFAULT_REQUEST_TIMEOUT_MS, request } from './http'
 
 /**
  * Create a project, its notebooks, and their blocks through the Deepnote public API — the headless
@@ -27,8 +26,6 @@ import { parseApiErrorMessage } from './parse-api-error'
  * the same project can be written with the id Deepnote just assigned it — see
  * {@link CreateProjectOptions.rewriteBlock}.
  */
-
-const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 
 const notebookRefSchema = z.object({ id: z.string(), name: z.string().optional() }).passthrough()
 
@@ -102,8 +99,14 @@ export interface CreateProjectOptions {
   rewriteBlock?: (block: BlockSpec, notebookIds: ReadonlyMap<string, string>) => BlockSpec
 }
 
-function trimTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '')
+export interface AddNotebooksOptions extends CreateProjectOptions {
+  /**
+   * Source ids already present in the destination project.
+   *
+   * These ids are available to {@link CreateProjectOptions.rewriteBlock}, allowing a newly added
+   * notebook to keep notebook-function references to existing siblings.
+   */
+  existingNotebookIds?: ReadonlyMap<string, string>
 }
 
 /**
@@ -117,11 +120,11 @@ function assertCreatableNotebooks(notebooks: NotebookSpec[]): void {
   const seen = new Set<string>()
   for (const notebook of notebooks) {
     if (!notebook.name.trim()) {
-      throw new Error('createProject: every notebook needs a name, and at least one has none.')
+      throw new Error('create content: every notebook needs a name, and at least one has none.')
     }
     if (seen.has(notebook.name)) {
       throw new Error(
-        `createProject: two notebooks are both named "${notebook.name}", but names must be unique ` +
+        `create content: two notebooks are both named "${notebook.name}", but names must be unique ` +
           'within a Deepnote project. Rename one of them.'
       )
     }
@@ -129,90 +132,48 @@ function assertCreatableNotebooks(notebooks: NotebookSpec[]): void {
   }
 }
 
-async function request<T>(
-  baseUrl: string,
-  token: string,
+type RequestCall = <T>(
   method: string,
   path: string,
   schema: z.ZodType<T>,
   body: unknown,
-  timeoutMs: number,
   fallback: string
-): Promise<T> {
-  const response = await fetch(`${trimTrailingSlash(baseUrl)}${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  })
+) => Promise<T>
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    const message = parseApiErrorMessage(text, `${fallback}: HTTP ${response.status} ${response.statusText}`)
-    if (response.status === 401) {
-      throw new ApiError(401, 'Authentication failed. Please check your API token.')
-    }
-    if (response.status === 403) {
-      throw new ApiError(403, message || 'Access denied. You may not have permission to create content.')
-    }
-    throw new ApiError(response.status, message)
-  }
-
-  const text = await response.text()
-  let json: unknown
-  try {
-    json = text ? JSON.parse(text) : {}
-  } catch {
-    // A body that isn't JSON is the API misbehaving, and callers of this package expect ApiError —
-    // a raw SyntaxError would escape that contract and read as a bug in the caller.
-    throw new ApiError(502, `Invalid Deepnote response for ${fallback}: the body was not valid JSON.`)
-  }
-  const parsed = schema.safeParse(json)
-  if (!parsed.success) {
-    throw new ApiError(
-      502,
-      `Invalid Deepnote response for ${fallback}: ${parsed.error.issues.map(i => i.message).join(', ')}`
-    )
-  }
-  return parsed.data
+/** Bind request authentication and timeout once for a multi-request create operation. */
+function createRequestCall(baseUrl: string, token: string, timeoutMs: number): RequestCall {
+  return <T>(method: string, path: string, schema: z.ZodType<T>, body: unknown, fallback: string) =>
+    request(baseUrl, token, {
+      method,
+      path,
+      schema,
+      body,
+      timeoutMs,
+      fallback,
+      forbiddenMessage: 'Access denied. You may not have permission to create content.',
+    })
 }
 
 /**
- * Create a project with its notebooks and blocks, and return their new ids.
+ * Create notebooks and then their blocks inside an existing project.
  *
- * Ids are assigned by Deepnote and will not match any ids in the caller's source, so the returned
- * {@link CreatedProject} is the only way to address the new content.
- *
- * Throws {@link ApiError} on any failed request; partial content may exist if it fails midway, since
- * there is no transactional create. A spec Deepnote would refuse — a nameless notebook, or two
- * sharing a name — throws before the first request instead, so it leaves nothing behind.
+ * All notebooks are created before any block so cross-notebook references can be rewritten with a
+ * complete id map. Placeholders are optional and used only by {@link createProject}.
  */
-export async function createProject(
-  baseUrl: string,
-  token: string,
-  spec: ProjectSpec,
-  options: CreateProjectOptions = {}
-): Promise<CreatedProject> {
-  assertCreatableNotebooks(spec.notebooks)
-
-  const timeout = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
-  const call = <T>(method: string, path: string, schema: z.ZodType<T>, body: unknown, fallback: string) =>
-    request(baseUrl, token, method, path, schema, body, timeout, fallback)
-
-  const created = await call('POST', '/v2/projects', createdProjectSchema, { name: spec.name }, 'create project')
-  const projectId = created.project.id
-  // Captured before we add our own, so we only ever delete notebooks Deepnote seeded, never ours.
-  const placeholders = created.project.notebooks ?? []
+async function createNotebookContents(
+  call: RequestCall,
+  projectId: string,
+  sources: NotebookSpec[],
+  options: AddNotebooksOptions,
+  placeholders: Array<{ id: string; name?: string }> = []
+): Promise<{ notebooks: CreatedNotebook[]; adopted: Set<string> }> {
   const adopted = new Set<string>()
-
-  // Every notebook first, then every block. A block may name another notebook of this same project,
-  // and until all of them exist there is no id to name it with.
   const createdIds: string[] = []
-  const notebookIds = new Map<string, string>()
-  for (const source of spec.notebooks) {
-    // Deepnote seeds the project with `Notebook 1` and 409s on a second notebook of that name, so a
-    // source notebook called `Notebook 1` can only be created by taking over the one already there.
-    // Seeded notebooks come with no blocks, so adopting one is the same as having created it.
+  const notebookIds = new Map(options.existingNotebookIds)
+
+  for (const source of sources) {
+    // Deepnote seeds a new project with `Notebook 1` and 409s on a second notebook of that name, so
+    // a source with that name can only be created by taking over the seed.
     const placeholder = placeholders.find(candidate => candidate.name === source.name && !adopted.has(candidate.id))
     if (placeholder) {
       adopted.add(placeholder.id)
@@ -234,11 +195,10 @@ export async function createProject(
     }
   }
 
-  const totalBlocks = spec.notebooks.reduce((n, nb) => n + nb.blocks.length, 0)
+  const totalBlocks = sources.reduce((count, notebook) => count + notebook.blocks.length, 0)
   let done = 0
   const notebooks: CreatedNotebook[] = []
-
-  for (const [index, source] of spec.notebooks.entries()) {
+  for (const [index, source] of sources.entries()) {
     const notebookId = createdIds[index]
     const blockIds: string[] = []
 
@@ -267,6 +227,36 @@ export async function createProject(
     notebooks.push({ id: notebookId, name: source.name, blockIds })
   }
 
+  return { notebooks, adopted }
+}
+
+/**
+ * Create a project with its notebooks and blocks, and return their new ids.
+ *
+ * Ids are assigned by Deepnote and will not match any ids in the caller's source, so the returned
+ * {@link CreatedProject} is the only way to address the new content.
+ *
+ * Throws {@link ApiError} on any failed request; partial content may exist if it fails midway, since
+ * there is no transactional create. A spec Deepnote would refuse — a nameless notebook, or two
+ * sharing a name — throws before the first request instead, so it leaves nothing behind.
+ */
+export async function createProject(
+  baseUrl: string,
+  token: string,
+  spec: ProjectSpec,
+  options: CreateProjectOptions = {}
+): Promise<CreatedProject> {
+  assertCreatableNotebooks(spec.notebooks)
+
+  const timeout = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+  const call = createRequestCall(baseUrl, token, timeout)
+
+  const created = await call('POST', '/v2/projects', createdProjectSchema, { name: spec.name }, 'create project')
+  const projectId = created.project.id
+  // Captured before we add our own, so we only ever delete notebooks Deepnote seeded, never ours.
+  const placeholders = created.project.notebooks ?? []
+  const { notebooks, adopted } = await createNotebookContents(call, projectId, spec.notebooks, options, placeholders)
+
   // Only now that our notebooks exist — a project must keep at least one, and this way a failed
   // delete leaves a tidy-up problem rather than an empty project. Best-effort by design: the
   // content is already created and usable, so a stray placeholder must not fail the whole call.
@@ -285,4 +275,23 @@ export async function createProject(
   }
 
   return { projectId, notebooks }
+}
+
+/**
+ * Add notebooks and their blocks to an existing project, returning their newly assigned ids.
+ *
+ * Unlike {@link createProject}, this never creates a project or removes placeholder notebooks.
+ */
+export async function addNotebooksToProject(
+  baseUrl: string,
+  token: string,
+  projectId: string,
+  notebooks: NotebookSpec[],
+  options: AddNotebooksOptions = {}
+): Promise<CreatedProject> {
+  assertCreatableNotebooks(notebooks)
+  const timeout = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+  const call = createRequestCall(baseUrl, token, timeout)
+  const created = await createNotebookContents(call, projectId, notebooks, options)
+  return { projectId, notebooks: created.notebooks }
 }

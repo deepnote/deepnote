@@ -2,10 +2,34 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { DeepnoteSnapshot } from '@deepnote/blocks'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DeepnoteInput } from './load-file'
+import { runInCloud } from './run-in-cloud'
+import { runWithInputs } from './run-with-inputs'
+import type { ScheduleInCloudOptions } from './schedule-in-cloud'
 import type { ServeStaticHandle } from './serve-static'
 import { serveStatic } from './serve-static'
+
+// Every other test injects `runner`, which means the defaults — the adapters that map RunOptions
+// onto each underlying function — would never execute. Dropping `token` there would break every
+// real cloud run while leaving the suite green, so they are mocked and asserted rather than left
+// to integration.
+vi.mock('./run-in-cloud', () => ({
+  runInCloud: vi.fn(async () => ({
+    runId: 'default-cloud',
+    status: 'success',
+    success: true,
+    outputs: [],
+    snapshotYaml: 'cloud',
+  })),
+}))
+vi.mock('./run-with-inputs', () => ({
+  runWithInputs: vi.fn(async () => ({
+    outputs: [],
+    summary: { totalBlocks: 0, executedBlocks: 0, failedBlocks: 0, totalDurationMs: 0 },
+    snapshotYaml: 'local',
+  })),
+}))
 
 const NOTEBOOK = `metadata:
   createdAt: '2026-01-01T00:00:00.000Z'
@@ -42,24 +66,47 @@ function rawStatus(port: number, path: string): Promise<number> {
   })
 }
 
+/**
+ * POST with fully caller-chosen `Host` and `Origin` headers.
+ *
+ * `fetch` refuses to set `Host`, which is the one header a DNS-rebinding attacker controls and the
+ * reason this goes through `http.request` instead.
+ */
+function rawPost(port: number, path: string, headers: Record<string, string>, body: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        host: '127.0.0.1',
+        port,
+        path,
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body), ...headers },
+      },
+      res => {
+        res.resume()
+        resolve(res.statusCode ?? 0)
+      }
+    )
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+
 let dir: string
 let handle: ServeStaticHandle
 let base: string
 
 beforeEach(async () => {
+  vi.clearAllMocks()
   dir = mkdtempSync(join(tmpdir(), 'lr-serve-'))
   writeFileSync(join(dir, 'index.html'), '<h1>hello</h1>')
   writeFileSync(join(dir, 'notebook.deepnote'), NOTEBOOK)
   handle = await serveStatic({
     dir,
     notebookPath: join(dir, 'notebook.deepnote'),
+    cloudToken: 'cloud-token',
+    // No `runTarget`, so this is the default: the Deepnote API.
     runner: async (_input, inputs) => ({
-      outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
-      summary: { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 1 },
-      snapshot: {} as unknown as DeepnoteSnapshot,
-      snapshotYaml: `ran ${JSON.stringify(inputs)}`,
-    }),
-    cloudRunner: async (_input, inputs) => ({
       runId: 'r1',
       status: 'success',
       success: true,
@@ -78,6 +125,18 @@ beforeEach(async () => {
       outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
       snapshotYaml: `snapshot of ${runId}`,
     }),
+    cloudScheduler: async (_input, cron, options) => ({
+      notebookId: 'nb-cloud',
+      schedule: {
+        notebookId: 'nb-cloud',
+        cron,
+        timezone: options?.timezone ?? 'UTC',
+        nextRunAt: '2026-07-31T08:00:00.000Z',
+        createdAt: '2026-07-30T12:00:00.000Z',
+        updatedAt: '2026-07-30T12:00:00.000Z',
+      },
+      viewUrl: 'https://deepnote.com/workspace/w/project/-p/notebook/nb-cloud?secondary-sidebar=runs',
+    }),
   })
   base = `http://127.0.0.1:${handle.port}`
 })
@@ -88,37 +147,444 @@ afterEach(async () => {
 })
 
 describe('serveStatic', () => {
-  it('GET /api/info returns the notebook name and input blocks as JSON', async () => {
+  it('GET /api/info returns the notebook name, input blocks, and run target as JSON', async () => {
     const res = await fetch(`${base}/api/info`)
     expect(res.headers.get('content-type')).toContain('application/json')
-    const body = (await res.json()) as { notebook: string; inputs: Array<{ variableName: string }> }
+    const body = (await res.json()) as {
+      notebook: string
+      inputs: Array<{ variableName: string }>
+      runTarget: string
+    }
     expect(body.notebook).toBe('Test')
     expect(body.inputs[0].variableName).toBe('count')
+    expect(body.runTarget).toBe('cloud')
   })
 
-  it('POST /api/run forwards inputs to the runner and returns JSON', async () => {
+  it('POST /api/run goes to the cloud runner by default, without being configured for it', async () => {
     const res = await fetch(`${base}/api/run`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ inputs: { count: 9 } }),
-    })
-    expect(res.status).toBe(200)
-    const body = (await res.json()) as { summary: { failedBlocks: number }; snapshotYaml: string }
-    expect(body.summary.failedBlocks).toBe(0)
-    expect(body.snapshotYaml).toContain('"count":9')
-  })
-
-  it('POST /api/run-cloud forwards inputs to the cloud runner and returns JSON', async () => {
-    const res = await fetch(`${base}/api/run-cloud`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ inputs: { count: 3 } }),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { status: string; success: boolean; snapshotYaml: string }
+    const body = (await res.json()) as { target: string; status: string; success: boolean; snapshotYaml: string }
+    expect(body.target).toBe('cloud')
     expect(body.success).toBe(true)
     expect(body.status).toBe('success')
     expect(body.snapshotYaml).toContain('"count":3')
+  })
+
+  it('POST /api/run forwards inputs to a local kernel when runTarget is "local"', async () => {
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+      runner: async (_input, inputs) => ({
+        outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
+        summary: { totalBlocks: 1, executedBlocks: 1, failedBlocks: 0, totalDurationMs: 1 },
+        snapshotYaml: `ran ${JSON.stringify(inputs)}`,
+      }),
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${localServer.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: { count: 9 } }),
+      })
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as {
+        target: string
+        success: boolean
+        summary: { failedBlocks: number }
+        snapshotYaml: string
+      }
+      expect(body.target).toBe('local')
+      expect(body.success).toBe(true)
+      expect(body.summary.failedBlocks).toBe(0)
+      expect(body.snapshotYaml).toContain('"count":9')
+    } finally {
+      await localServer.close()
+    }
+  })
+
+  it('POST /api/run reports a local run with a failed block as unsuccessful', async () => {
+    // A local kernel does not throw on a failing block — it returns with `failedBlocks > 0`. If
+    // the response assumed success whenever the runner resolved, a page would present a broken
+    // run as a good one.
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+      runner: async () => ({
+        outputs: [{ blockId: 'c1', outputs: [], executionCount: 1 }],
+        summary: { totalBlocks: 2, executedBlocks: 2, failedBlocks: 1, totalDurationMs: 1 },
+        snapshotYaml: 'ran',
+      }),
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${localServer.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: {} }),
+      })
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { target: string; success: boolean }
+      expect(body.target).toBe('local')
+      expect(body.success).toBe(false)
+    } finally {
+      await localServer.close()
+    }
+  })
+
+  it('defaults POST /api/run to runInCloud, forwarding the cloud token', async () => {
+    const server = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'default-token',
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: { count: 1 } }),
+      })
+      expect(((await res.json()) as { target: string }).target).toBe('cloud')
+      expect(runInCloud).toHaveBeenCalledWith(join(dir, 'notebook.deepnote'), { count: 1 }, { token: 'default-token' })
+      expect(runWithInputs).not.toHaveBeenCalled()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('defaults a local run target to runWithInputs, forwarding the kernel options', async () => {
+    const server = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+      pythonEnv: '/venv/bin/python',
+      persistSnapshot: false,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: { count: 2 } }),
+      })
+      expect(((await res.json()) as { target: string }).target).toBe('local')
+      expect(runWithInputs).toHaveBeenCalledWith(
+        join(dir, 'notebook.deepnote'),
+        { count: 2 },
+        { pythonEnv: '/venv/bin/python', persistSnapshot: false }
+      )
+      expect(runInCloud).not.toHaveBeenCalled()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('GET /api/info reports a configured local run target', async () => {
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${localServer.port}/api/info`)
+      expect(((await res.json()) as { runTarget: string }).runTarget).toBe('local')
+    } finally {
+      await localServer.close()
+    }
+  })
+
+  it('rejects an unsupported run target before it can select a cloud runner', () => {
+    expect(() =>
+      serveStatic({
+        dir,
+        notebookPath: join(dir, 'notebook.deepnote'),
+        runTarget: 'invalid-target' as never,
+      })
+    ).toThrow('Unsupported runTarget: invalid-target')
+  })
+
+  it('rejects a custom runner result that omits both success and a local summary', async () => {
+    const invalidRunner = async () => ({ outputs: [], status: 'error', error: 'boom' })
+    const server = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runner: invalidRunner as never,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: {} }),
+      })
+      expect(res.status).toBe(500)
+      expect((await res.json()) as { error: string }).toMatchObject({
+        error: 'Runner result must include "success" or a local execution "summary"',
+      })
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud forwards a reusable cron request and returns the cloud schedule', async () => {
+    const cloudScheduler = vi.fn(async (_input: DeepnoteInput, cron: string, options?: ScheduleInCloudOptions) => ({
+      notebookId: 'nb-scheduled',
+      schedule: {
+        notebookId: 'nb-scheduled',
+        cron,
+        timezone: options?.timezone ?? 'UTC',
+        nextRunAt: '2026-07-31T08:00:00.000Z',
+        createdAt: '2026-07-30T12:00:00.000Z',
+        updatedAt: '2026-07-30T12:00:00.000Z',
+      },
+      created: true,
+      viewUrl: 'https://deepnote.com/notebook/nb-scheduled',
+    }))
+    const scheduled = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${scheduled.port}/api/schedule-cloud`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          cron: '30 8 * * 1-5',
+          timezone: 'Europe/London',
+          createIfMissing: false,
+        }),
+      })
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({
+        notebookId: 'nb-scheduled',
+        schedule: expect.objectContaining({
+          cron: '30 8 * * 1-5',
+          timezone: 'Europe/London',
+          nextRunAt: '2026-07-31T08:00:00.000Z',
+        }),
+        created: true,
+        viewUrl: 'https://deepnote.com/notebook/nb-scheduled',
+      })
+      expect(cloudScheduler).toHaveBeenCalledWith(join(dir, 'notebook.deepnote'), '30 8 * * 1-5', {
+        token: 'cloud-token',
+        timezone: 'Europe/London',
+        createIfMissing: false,
+      })
+    } finally {
+      await scheduled.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud resolves a friendly weekly cadence in the library', async () => {
+    const cloudScheduler = vi.fn(async (_input: DeepnoteInput, cron: string, options?: ScheduleInCloudOptions) => ({
+      notebookId: 'nb-scheduled',
+      schedule: {
+        notebookId: 'nb-scheduled',
+        cron,
+        timezone: options?.timezone ?? 'UTC',
+        nextRunAt: '2026-07-31T16:45:00.000Z',
+        createdAt: '2026-07-30T12:00:00.000Z',
+        updatedAt: '2026-07-30T12:00:00.000Z',
+      },
+      viewUrl: 'https://deepnote.com/notebook/nb-scheduled',
+    }))
+    const scheduled = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${scheduled.port}/api/schedule-cloud`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schedule: { frequency: 'weekly', dayOfWeek: 5, time: '17:45' },
+          timezone: 'Europe/London',
+        }),
+      })
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual(
+        expect.objectContaining({
+          description: 'Every Friday at 17:45',
+          schedule: expect.objectContaining({ cron: '45 17 * * 5' }),
+        })
+      )
+      expect(cloudScheduler).toHaveBeenCalledWith(join(dir, 'notebook.deepnote'), '45 17 * * 5', {
+        token: 'cloud-token',
+        timezone: 'Europe/London',
+        createIfMissing: undefined,
+      })
+    } finally {
+      await scheduled.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud allows its own browser origin', async () => {
+    const res = await fetch(`${base}/api/schedule-cloud`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ cron: '0 9 * * *' }),
+    })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('POST /api/schedule-cloud rejects a foreign browser origin before scheduling', async () => {
+    const cloudScheduler = vi.fn(async () => {
+      throw new Error('scheduler must not be called')
+    })
+    const protectedServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      const res = await fetch(`http://127.0.0.1:${protectedServer.port}/api/schedule-cloud`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'https://attacker.example' },
+        body: JSON.stringify({ cron: '0 9 * * *' }),
+      })
+
+      expect(res.status).toBe(403)
+      expect(await res.json()).toEqual({ error: 'Cross-origin requests are not allowed' })
+      expect(cloudScheduler).not.toHaveBeenCalled()
+    } finally {
+      await protectedServer.close()
+    }
+  })
+
+  it('POST /api/run rejects a foreign origin when it targets the cloud', async () => {
+    // It spends the same cloud token, and creates project content when the notebook is not in
+    // Deepnote yet — so guarding only the schedule route left the same door open.
+    const status = await rawPost(
+      handle.port,
+      '/api/run',
+      { origin: 'https://attacker.example' },
+      JSON.stringify({ inputs: {} })
+    )
+
+    expect(status).toBe(403)
+  })
+
+  it('POST /api/run allows a foreign origin when it targets a local kernel', async () => {
+    // The guard exists to protect the cloud token and the project content it can create. A local
+    // run spends neither, so folding the two routes together must not tighten it by accident.
+    const localServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      runTarget: 'local',
+      runner: async () => ({
+        outputs: [],
+        summary: { totalBlocks: 0, executedBlocks: 0, failedBlocks: 0, totalDurationMs: 0 },
+        snapshotYaml: 'ran',
+      }),
+    })
+    try {
+      const status = await rawPost(
+        localServer.port,
+        '/api/run',
+        { origin: 'https://attacker.example' },
+        JSON.stringify({ inputs: {} })
+      )
+
+      expect(status).toBe(200)
+    } finally {
+      await localServer.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud rejects a rebound hostname whose Origin and Host agree', async () => {
+    const cloudScheduler = vi.fn(async () => {
+      throw new Error('scheduler must not be called')
+    })
+    const protectedServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      // What a DNS-rebinding page sends once its own hostname resolves to 127.0.0.1: the browser
+      // fills in a matching Origin and Host, so comparing the two to each other proves nothing.
+      const status = await rawPost(
+        protectedServer.port,
+        '/api/schedule-cloud',
+        { host: `attacker.example:${protectedServer.port}`, origin: `http://attacker.example:${protectedServer.port}` },
+        JSON.stringify({ cron: '0 9 * * *' })
+      )
+
+      expect(status).toBe(403)
+      expect(cloudScheduler).not.toHaveBeenCalled()
+    } finally {
+      await protectedServer.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud rejects a loopback origin on another port', async () => {
+    const cloudScheduler = vi.fn(async () => {
+      throw new Error('scheduler must not be called')
+    })
+    const protectedServer = await serveStatic({
+      dir,
+      notebookPath: join(dir, 'notebook.deepnote'),
+      cloudToken: 'cloud-token',
+      cloudScheduler,
+    })
+    try {
+      // Another local dev server is still another origin, and on a shared machine it is not
+      // necessarily one this notebook's token should answer to.
+      const status = await rawPost(
+        protectedServer.port,
+        '/api/schedule-cloud',
+        { origin: `http://127.0.0.1:${protectedServer.port + 1}` },
+        JSON.stringify({ cron: '0 9 * * *' })
+      )
+
+      expect(status).toBe(403)
+      expect(cloudScheduler).not.toHaveBeenCalled()
+    } finally {
+      await protectedServer.close()
+    }
+  })
+
+  it('POST /api/schedule-cloud allows localhost and 127.0.0.1 spellings of its own port', async () => {
+    for (const hostname of ['localhost', '127.0.0.1']) {
+      const status = await rawPost(
+        handle.port,
+        '/api/schedule-cloud',
+        { origin: `http://${hostname}:${handle.port}` },
+        JSON.stringify({ cron: '0 9 * * *' })
+      )
+
+      expect(status).toBe(200)
+    }
+  })
+
+  it.each([
+    [{}, /exactly one/],
+    [{ cron: '' }, /cron/],
+    [{ cron: '0 9 * * *', schedule: { frequency: 'daily', time: '09:00' } }, /exactly one/],
+    [{ schedule: { frequency: 'weekly', time: '09:00', dayOfWeek: 8 } }, /dayOfWeek/],
+    [{ schedule: { frequency: 'monthly', time: '09:00', dayOfMonth: 0 } }, /dayOfMonth/],
+    [{ cron: '0 9 * * *', timezone: '' }, /timezone/],
+    [{ cron: '0 9 * * *', createIfMissing: 'yes' }, /createIfMissing/],
+  ])('POST /api/schedule-cloud rejects an invalid request %#', async (requestBody, error) => {
+    const res = await fetch(`${base}/api/schedule-cloud`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    })
+
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { error: string }).error).toMatch(error)
   })
 
   it('GET /api/cloud-runs returns the notebook run history and a view link', async () => {

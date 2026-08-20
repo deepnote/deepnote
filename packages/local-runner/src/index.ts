@@ -13,11 +13,23 @@ export { loadDeepnoteFile } from './load-file'
 export type { OpenInCloudOptions } from './open-in-cloud'
 export { openInCloud } from './open-in-cloud'
 export { readSnapshot } from './read-snapshot'
+export type { RecurringSchedule, ResolvedRecurringSchedule } from './recurring-schedule'
+export { RecurringScheduleError, resolveRecurringSchedule } from './recurring-schedule'
 export type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 export { runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 export { runWithInputs } from './run-with-inputs'
-export type { RunnerFn, ServeStaticHandle, ServeStaticOptions } from './serve-static'
+export type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
+export { scheduleInCloud } from './schedule-in-cloud'
+export type {
+  CloudSchedulerFn,
+  RunnerFn,
+  RunOptions,
+  RunResult,
+  RunTarget,
+  ServeStaticHandle,
+  ServeStaticOptions,
+} from './serve-static'
 export { serveStatic } from './serve-static'
 export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'

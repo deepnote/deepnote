@@ -8,9 +8,9 @@ Built on the committed primitives: `@deepnote/blocks` (parse + input-block schem
 
 ## Requirements
 
-Execution needs a Python environment with [`deepnote-toolkit[server]`](https://pypi.org/project/deepnote-toolkit/)
-installed. Parsing, input coercion, snapshot building, **reading and viewing snapshots**, and the
-static server all work without it.
+Local execution needs a Python environment with [`deepnote-toolkit[server]`](https://pypi.org/project/deepnote-toolkit/)
+installed. Cloud execution needs a `DEEPNOTE_TOKEN` instead. Parsing, input coercion, snapshot
+building, **reading and viewing snapshots**, and the static server all work without either.
 
 ## Usage
 
@@ -81,10 +81,47 @@ Runs the notebook in Deepnote via the runs API — trigger → poll → fetch sn
 `@deepnote/cloud` client that also powers `deepnote run --cloud`. Needs a `DEEPNOTE_TOKEN`, and
 nothing else: if the notebook isn't in Deepnote yet, this creates it there (project, notebook, blocks)
 and runs it in the same call, reporting `created: true`. No browser step. Pass `createIfMissing: false`
-to fail instead. `serveStatic` exposes it at `POST /api/run-cloud`.
+to fail instead. `serveStatic` exposes it at `POST /api/run`, which is where runs go by default.
 
 The first run of a new notebook is the slow one — blocks are created one API request each — and
 `onCreateProgress` reports that. Later runs find the notebook by name and skip straight to running.
+
+### Schedule recurring Deepnote Cloud runs
+
+```ts
+import { scheduleInCloud } from "@deepnote/local-runner";
+
+const result = await scheduleInCloud(
+  "examples/6_with_inputs.deepnote",
+  "0 9 * * 1-5",
+  {
+    token: process.env.DEEPNOTE_TOKEN,
+    timezone: "Europe/London",
+  },
+);
+// result.schedule.nextRunAt / result.notebookId / result.viewUrl
+```
+
+This creates or updates the recurring schedule in Deepnote Cloud without running the notebook
+immediately. If the project is missing, it is created first; pass `createIfMissing: false` to require
+an existing cloud notebook. Deepnote has one schedule per project, so scheduling another notebook
+from the same project re-points that schedule.
+
+One file shape cannot be created this way: a project that declares an `initNotebookId`. The public
+API can neither set nor read a project's init designation, so a created notebook would run without
+its setup — at whatever hour the cron names, which is the least visible place to find out. Both
+`scheduleInCloud` and `runInCloud` refuse rather than create it, in every case:
+
+- a **new project** would be created without the designation;
+- an **existing exact-name project** proves nothing, since only the target notebook is uploaded into
+  it and the API will not say whether that project carries a designation — an unrelated project
+  sharing the name would run the notebook without setup just the same;
+- an **id that matches no notebook in the file** is the ordinary split-file shape, not an absent
+  init: `splitByNotebooks` keeps `initNotebookId` in every main file so the sibling resolver can find
+  the standalone init file.
+
+Import such a project into Deepnote once, which keeps the designation, then run or schedule it —
+that path creates nothing and so never refuses.
 
 ### Serve it to a static page
 
@@ -94,17 +131,57 @@ import { serveStatic } from "@deepnote/local-runner";
 const { port, close } = await serveStatic({
   dir: "./public", // your index.html + assets
   notebookPath: "examples/6_with_inputs.deepnote",
+  // runTarget: "local",  // omit for Deepnote Cloud
 });
-// GET  /api/info       -> { notebook, inputs }    (input blocks, to build controls)
-// POST /api/run        -> { inputs } -> { outputs, summary, snapshotYaml }
-// POST /api/run-cloud   -> { inputs } -> runs it in Deepnote Cloud (needs DEEPNOTE_TOKEN)
+// GET  /api/info       -> { notebook, inputs, runTarget }  (input blocks, to build controls)
+// POST /api/run        -> { inputs } -> { target, success, outputs, snapshotYaml, ... }
+// POST /api/schedule-cloud -> { schedule: { frequency, time, ... }, timezone? } -> cloud schedule
+// GET  /api/cloud-runs  -> { runs, viewUrl }       (for history/navigation)
 // any other GET         -> a file from `dir` (path-traversal guarded)
 await close();
 ```
 
-Deliberately minimal: binds to `127.0.0.1`, no WebSocket, no watch, no rendering. Bring your own
-page — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs
-no server at all.
+One run endpoint, one runner, wherever the run happens. `runTarget` decides — `"cloud"` unless you
+say otherwise, so a page needs one Run button rather than one per destination, and an app runs on
+the Deepnote API without being configured for it. Set `"local"` only when there is a local Deepnote
+kernel to run against instead; that path writes a snapshot next to `notebookPath` (like
+`deepnote run`) unless `persistSnapshot: false`.
+
+Both ends are adapted to a single `RunnerFn` — `(input, inputs, options) => Promise<RunResult>` —
+so the route never branches and one `RunResult` describes either run. Every runner must include
+`success`, or a local `summary` from which the server derives it; `runId`, `status`, `created`, and
+`viewUrl` describe a cloud run and are simply absent from a local one. The response says which one ran via `target`, and
+`GET /api/info` reports `runTarget` up front so a page can label its button without being told
+separately.
+
+`POST /api/schedule-cloud` accepts a reusable friendly cadence: `{ frequency: "daily", time }`,
+`{ frequency: "weekly", dayOfWeek, time }` (Sunday = `0`), or
+`{ frequency: "monthly", dayOfMonth, time }`. The server validates it and converts it to cron, so
+custom frontends do not need scheduling logic. Advanced frontends can still send `{ cron }`
+directly. Both forms accept `timezone` and `createIfMissing`; scheduling does not execute the
+notebook.
+
+The same conversion is available without the server:
+
+```ts
+import { resolveRecurringSchedule } from "@deepnote/local-runner";
+
+resolveRecurringSchedule({ frequency: "weekly", dayOfWeek: 5, time: "17:45" });
+// { cron: "45 17 * * 5", description: "Every Friday at 17:45" }
+```
+
+Cloud scheduling and execution may run concurrently. If the notebook does not exist yet,
+`runInCloud` and `scheduleInCloud` coordinate creation inside the library: same-notebook calls share
+one creation, while different notebooks in the same project serialize creation to avoid duplicate
+projects. Frontends do not need their own creation lock.
+
+What that shared creation writes is the file as it stands. A `runInCloud` call's input overrides are
+sent with the run, not baked into the notebook it creates — otherwise a schedule that joined the
+same creation would inherit that run's one-off arguments as its recurring defaults.
+
+The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. Bring your own page
+— or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no
+server at all.
 
 ### Read a snapshot — no Python, no kernel
 

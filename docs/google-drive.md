@@ -20,7 +20,7 @@ Let's set it all up and look at some examples of working with files from Google 
 
 ### Authorizing & connecting
 
-First, click the **Integrations** section in the left panel and find the Google Drive entry in the list of native integrations (you can also create new integrations in the **Integrations** area in the right panel).
+First, open the **Settings** panel from the top-right of your project, click the **Integrations** section, and find the Google Drive entry in the list of native integrations.
 
 ![choose_gd.png](../assets/docs/D43WydjvRT6fAPBdq2cW.webp)
 

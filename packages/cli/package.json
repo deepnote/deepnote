@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/cli",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Command-line interface for running Deepnote projects locally and on Deepnote Cloud",
   "keywords": [
     "cli",
@@ -46,6 +46,7 @@
     "@deepnote/cloud": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/database-integrations": "workspace:*",
+    "@deepnote/local-runner": "workspace:*",
     "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
     "@inquirer/prompts": "^8.2.1",
@@ -64,6 +65,7 @@
   },
   "devDependencies": {
     "@inquirer/testing": "^3.1.1",
+    "fflate": "^0.8.2",
     "json-schema-to-typescript": "^15.0.4",
     "tsx": "^4.22.4",
     "zod-to-json-schema": "^3.25.1"

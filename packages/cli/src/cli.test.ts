@@ -29,6 +29,7 @@ describe('CLI', () => {
 
       expect(commandNames).toContain('inspect')
       expect(commandNames).toContain('run')
+      expect(commandNames).toContain('schedule')
       expect(commandNames).toContain('convert')
       expect(commandNames).toContain('validate')
       expect(commandNames).toContain('completion')
@@ -65,6 +66,7 @@ describe('CLI', () => {
       expect(optionFlags).toContain('--cloud')
       expect(optionFlags).toContain('--notebook-id <uuid>')
       expect(optionFlags).toContain('--out <path>')
+      expect(optionFlags).toContain('--storage-mode <mode>')
       expect(optionFlags).toContain('--timeout <seconds>')
       // --push is registered but hidden until the push-to-cloud flow ships
       const pushOption = runCmd?.options.find(o => o.flags === '--push')
@@ -78,6 +80,33 @@ describe('CLI', () => {
 
       expect(completionCmd).toBeDefined()
       expect(completionCmd?.description()).toBe('Generate shell completion scripts')
+    })
+
+    it('schedule command is properly configured', () => {
+      const program = createProgram()
+      const scheduleCmd = program.commands.find(cmd => cmd.name() === 'schedule')
+
+      expect(scheduleCmd).toBeDefined()
+      expect(scheduleCmd?.description()).toBe('Schedule recurring notebook runs in Deepnote Cloud')
+
+      const optionFlags = scheduleCmd?.options.map(option => option.flags)
+      expect(optionFlags).toEqual(
+        expect.arrayContaining([
+          '--hourly',
+          '--daily',
+          '--weekly <day>',
+          '--monthly <day>',
+          '--cron <expression>',
+          '--at <time>',
+          '--timezone <timezone>',
+          '--notebook <name>',
+          '--token <token>',
+          '--url <url>',
+          '--no-create',
+          '--open',
+          '-o, --output <format>',
+        ])
+      )
     })
 
     it('convert command is properly configured', () => {
@@ -138,6 +167,13 @@ describe('CLI', () => {
       const output = consoleSpy.mock.calls[0][0]
       expect(output).toContain('_deepnote_completions()')
       expect(output).toContain('COMPREPLY')
+      expect(output).toContain('schedule')
+      expect(output).toContain('--timezone')
+      expect(output).toContain(`    # Handle --storage-mode option completion for detached cloud runs
+    if [[ "\${prev}" == "--storage-mode" && "\${subcommand}" == "run" ]]; then
+        COMPREPLY=( $(compgen -W "read-write readonly" -- "\${cur}") )
+        return 0
+    fi`)
       consoleSpy.mockRestore()
     })
 
@@ -152,6 +188,10 @@ describe('CLI', () => {
       const output = consoleSpy.mock.calls[0][0]
       expect(output).toContain('#compdef deepnote')
       expect(output).toContain('_deepnote()')
+      expect(output).toContain('Schedule recurring notebook runs in Deepnote Cloud')
+      expect(output).toContain(
+        "'--storage-mode[Project-storage access for a detached cloud run]:mode:(read-write readonly)'"
+      )
       consoleSpy.mockRestore()
     })
 
@@ -165,6 +205,10 @@ describe('CLI', () => {
       expect(consoleSpy).toHaveBeenCalled()
       const output = consoleSpy.mock.calls[0][0]
       expect(output).toContain('complete -c deepnote')
+      expect(output).toContain('__fish_seen_subcommand_from schedule')
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from run' -l storage-mode -a 'read-write readonly' -d 'Project-storage access for a detached cloud run'"
+      )
       consoleSpy.mockRestore()
     })
 

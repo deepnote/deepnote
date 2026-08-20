@@ -68,7 +68,7 @@
       @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
       .inputs-panel {
         border-right: 1px solid var(--line); padding: 22px 20px 28px; background: var(--surface);
-        display: flex; flex-direction: column;
+        display: flex; flex-direction: column; position: relative;
       }
       @media (max-width: 820px) { .inputs-panel { border-right: 0; border-bottom: 1px solid var(--line); } }
       .panel-head { margin-bottom: 16px; }
@@ -78,7 +78,7 @@
       .field { margin-bottom: 15px; animation: rise 0.45s both; }
       .field label { display: flex; align-items: baseline; gap: 8px; font-size: 0.82rem; font-weight: 560; margin-bottom: 7px; color: var(--ink-2); }
       .field .var { font-family: var(--mono); font-size: 0.68rem; color: var(--accent); font-weight: 500; margin-left: auto; opacity: 0.85; }
-      input[type="text"], input[type="date"], textarea, select {
+      input[type="text"], input[type="date"], input[type="time"], input[type="number"], textarea, select {
         width: 100%; font: inherit; font-size: 0.88rem; color: var(--ink); background: var(--bg);
         border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; transition: border-color 0.15s, box-shadow 0.15s;
       }
@@ -101,7 +101,7 @@
       .switch input:focus-visible + .track { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
       .switch .txt { font-size: 0.84rem; color: var(--ink-2); }
 
-      .actions { display: flex; gap: 8px; margin-top: 6px; }
+      .actions { display: flex; gap: 8px; margin-top: 6px; position: relative; }
       .btn { font: inherit; font-weight: 600; font-size: 0.86rem; border-radius: var(--r); padding: 9px 16px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 7px; transition: transform 0.08s, filter 0.15s, background 0.15s, border-color 0.15s; }
       .btn:active { transform: translateY(1px); }
       .btn:disabled { opacity: 0.5; cursor: default; }
@@ -109,6 +109,21 @@
       .btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
       .btn.ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
       .btn.ghost:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+      .scheduler {
+        position: absolute; z-index: 4; left: 0; right: 0; bottom: calc(100% + 10px);
+        padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+      .scheduler[hidden] { display: none; }
+      .scheduler-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 94px; gap: 8px; }
+      .scheduler-grid.daily { grid-template-columns: minmax(0, 1fr) 94px; }
+      .scheduler label { display: block; font-size: 0.7rem; color: var(--ink-3); margin-bottom: 4px; }
+      .scheduler select, .scheduler input { background: var(--surface); }
+      .scheduler-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+      .scheduler-actions .btn { padding: 7px 11px; font-size: 0.78rem; }
+      .scheduler-summary { color: var(--ink-2); font-size: 0.75rem; font-weight: 600; margin-top: 9px; }
+      .scheduler-note { color: var(--ink-3); font-size: 0.7rem; line-height: 1.4; margin-top: 9px; }
+      .scheduler-zone { margin-left: auto; color: var(--ink-3); font-family: var(--mono); font-size: 0.68rem; }
       .status { font-size: 0.8rem; color: var(--ink-3); margin-top: 13px; min-height: 1.2em; display: flex; align-items: center; gap: 7px; }
       .status.ok { color: var(--pos); } .status.err { color: var(--neg); } .status a { color: var(--accent); }
       .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp 0.7s linear infinite; }
@@ -154,7 +169,7 @@
   <body>
     <div class="topbar">
       <div class="brand"><span class="mark"></span>Deepnote <span class="dim">local-runner</span></div>
-      <div class="badge"><span class="dot"></span>Local kernel</div>
+      <div class="badge"><span class="dot"></span><span id="run-target-label">Deepnote Cloud</span></div>
     </div>
 
     <div class="layout">
@@ -166,7 +181,49 @@
         <div id="inputs"></div>
         <div class="actions">
           <button id="run" class="btn primary"><span id="spin"></span>Run</button>
-          <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
+          <button id="schedule-toggle" class="btn ghost">Schedule</button>
+          <div class="scheduler" id="scheduler" hidden>
+            <div class="scheduler-grid" id="scheduler-grid">
+              <div>
+                <label for="schedule-frequency">Frequency</label>
+                <select id="schedule-frequency">
+                  <option value="daily">Daily</option>
+                  <option value="weekly" selected>Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div id="schedule-weekday-field">
+                <label for="schedule-weekday">On</label>
+                <select id="schedule-weekday">
+                  <option value="1" selected>Monday</option>
+                  <option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option>
+                  <option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                  <option value="6">Saturday</option>
+                  <option value="0">Sunday</option>
+                </select>
+              </div>
+              <div id="schedule-month-field" hidden>
+                <label for="schedule-month-day">Day</label>
+                <input id="schedule-month-day" type="number" min="1" max="31" step="1" value="1" />
+              </div>
+              <div>
+                <label for="schedule-time">At</label>
+                <input id="schedule-time" type="time" value="09:00" />
+              </div>
+            </div>
+            <div id="schedule-summary" class="scheduler-summary">Every Monday at 09:00</div>
+            <div class="scheduler-actions">
+              <button id="schedule-save" class="btn primary"><span id="spin-schedule"></span>Save schedule</button>
+              <button id="schedule-cancel" class="btn ghost">Cancel</button>
+              <span id="schedule-timezone" class="scheduler-zone"></span>
+            </div>
+            <div class="scheduler-note">
+              Recurring runs use the input values saved in Deepnote. On first use, the cloud notebook is
+              created from this file’s defaults.
+            </div>
+          </div>
         </div>
         <div class="status" id="status"></div>
 
@@ -188,7 +245,7 @@
           <div class="empty">
             <div class="glyph">▷</div>
             <b>Edit the inputs, then Run.</b>
-            <div>The notebook executes in a local Python kernel and its output appears here.</div>
+            <div id="run-target-description">The notebook executes in Deepnote Cloud and its output appears here.</div>
           </div>
         </div>
       </section>
@@ -206,11 +263,20 @@
       // whatever order they like, so each checks it still owns the canvas before painting. Zero also
       // means "nothing has claimed it yet", which is what gates opening on the latest run.
       let displayGen = 0
+      // Where the server runs things. It decides; the page only reports it, so there is nothing to
+      // keep in sync between the two.
+      let runTarget = 'cloud'
 
       try {
         const res = await fetch('/api/info')
         if (!res.ok) throw new Error('HTTP ' + res.status)
         const info = await res.json()
+        runTarget = info.runTarget ?? 'cloud'
+        $('#run-target-label').textContent = runTarget === 'local' ? 'Local kernel' : 'Deepnote Cloud'
+        $('#run-target-description').textContent =
+          runTarget === 'local'
+            ? 'The notebook executes in a local Python kernel and its output appears here.'
+            : 'The notebook executes in Deepnote Cloud and its output appears here.'
         $('#nb-name').textContent = info.notebook
         $('#r-title').textContent = info.notebook
         info.inputs.forEach((inp, i) => {
@@ -277,10 +343,83 @@
         text.oninput = () => { state[inp.variableName] = text.value }; return text
       }
 
-      $('#run').onclick = () => go('/api/run', '#spin', 'Running in a local kernel…')
-      $('#run-cloud').onclick = () => go('/api/run-cloud', '#spin-cloud', 'Running in Deepnote Cloud…')
+      $('#run').onclick = () =>
+        go('/api/run', '#spin', runTarget === 'local' ? 'Running in a local kernel…' : 'Running in Deepnote Cloud…')
+      const scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+      $('#schedule-timezone').textContent = scheduleTimezone
+      $('#schedule-toggle').onclick = () => { $('#scheduler').hidden = !$('#scheduler').hidden }
+      $('#schedule-cancel').onclick = () => { $('#scheduler').hidden = true }
+      $('#schedule-save').onclick = saveSchedule
+      $('#schedule-frequency').onchange = updateScheduleBuilder
+      $('#schedule-weekday').onchange = updateScheduleSummary
+      $('#schedule-month-day').oninput = updateScheduleSummary
+      $('#schedule-time').oninput = updateScheduleSummary
+      updateScheduleBuilder()
 
       loadCloudRuns()
+
+      async function saveSchedule() {
+        try {
+          const time = $('#schedule-time').value
+          if (!/^\d{2}:\d{2}$/.test(time)) throw new Error('Choose a time for the schedule')
+          const frequency = $('#schedule-frequency').value
+          const schedule = { frequency, time }
+          if (frequency === 'weekly') schedule.dayOfWeek = Number($('#schedule-weekday').value)
+          if (frequency === 'monthly') schedule.dayOfMonth = Number($('#schedule-month-day').value)
+          setScheduleControlsDisabled(true)
+          $('#spin-schedule').className = 'spin'
+          setStatus('Saving the recurring Deepnote Cloud schedule…')
+          const res = await fetch('/api/schedule-cloud', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ schedule, timezone: scheduleTimezone }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          $('#scheduler').hidden = true
+          const next = new Date(data.schedule.nextRunAt).toLocaleString()
+          const cadence = data.description ? `${data.description} · ` : ''
+          const message = `${data.created ? 'Created the cloud notebook and scheduled it' : 'Schedule updated'} · ${cadence}next ${next}`
+          if (data.viewUrl) statusLink(`${message} — `, data.viewUrl, 'open in Deepnote →')
+          else setStatus(message, 'ok')
+          loadCloudRuns()
+        } catch (e) {
+          setStatus(cap(e.message), 'err')
+        } finally {
+          $('#spin-schedule').className = ''
+          setScheduleControlsDisabled(false)
+        }
+      }
+
+      function updateScheduleBuilder() {
+        const frequency = $('#schedule-frequency').value
+        $('#schedule-weekday-field').hidden = frequency !== 'weekly'
+        $('#schedule-month-field').hidden = frequency !== 'monthly'
+        $('#scheduler-grid').classList.toggle('daily', frequency === 'daily')
+        updateScheduleSummary()
+      }
+
+      function updateScheduleSummary() {
+        const frequency = $('#schedule-frequency').value
+        const time = $('#schedule-time').value || '—'
+        let summary = `Daily at ${time}`
+        if (frequency === 'weekly') {
+          summary = `Every ${$('#schedule-weekday').selectedOptions[0].textContent} at ${time}`
+        } else if (frequency === 'monthly') {
+          summary = `Every month on day ${$('#schedule-month-day').value || '—'} at ${time}`
+        }
+        $('#schedule-summary').textContent = summary
+      }
+
+      function setRunControlsDisabled(disabled) {
+        $('#run').disabled = disabled
+      }
+
+      function setScheduleControlsDisabled(disabled) {
+        $('#schedule-toggle').disabled = disabled
+        $('#schedule-save').disabled = disabled
+        $('#schedule-cancel').disabled = disabled
+      }
 
       // The notebook's run history in Deepnote — including runs started from the Deepnote UI, not
       // just this page. Silent on failure: no token (or a notebook not in Deepnote yet) is a normal
@@ -379,7 +518,7 @@
         // Claimed up front, not on arrival: this is the newest thing the user asked for, so a
         // history fetch still in flight from page load must not land on top of it.
         const gen = ++displayGen
-        $('#run').disabled = true; $('#run-cloud').disabled = true
+        setRunControlsDisabled(true)
         $(spinSel).className = 'spin'; setStatus(msg)
         try {
           const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: state }) })
@@ -389,13 +528,18 @@
           render(data)
           // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
           shownRunId = null
-          const where = endpoint.includes('cloud') ? 'cloud' : 'local'
+          // The response says where it ran, so this no longer reads the destination back out of the
+          // URL it was posted to.
+          const where = data.target ?? runTarget
 
           // A failed run is still worth rendering: the blocks that ran before it broke produced real
           // output, and throwing that away to show a bare error string loses the half of the story
           // that says how far it got.
           if (data.success === false) {
-            const why = cap(data.error || `The run failed (${data.status})`)
+            const localFailure = data.summary?.failedBlocks
+              ? `The run failed (${data.summary.failedBlocks} block${data.summary.failedBlocks === 1 ? '' : 's'} failed)`
+              : 'The local run failed'
+            const why = cap(data.error || (where === 'local' ? localFailure : `The run failed (${data.status})`))
             if (data.viewUrl) statusLink(`${why} — `, data.viewUrl, 'open the run in Deepnote →', 'err')
             else setStatus(why, 'err')
             return
@@ -410,9 +554,9 @@
           if (gen === displayGen) setStatus(cap(e.message), 'err')
         } finally {
           // The buttons re-enable either way — a superseded run still released them.
-          $('#run').disabled = false; $('#run-cloud').disabled = false; $(spinSel).className = ''
+          setRunControlsDisabled(false); $(spinSel).className = ''
           // A cloud run adds to the history — including a failed one, which is worth seeing.
-          if (endpoint.includes('cloud')) loadCloudRuns()
+          if (runTarget === 'cloud') loadCloudRuns()
         }
       }
 

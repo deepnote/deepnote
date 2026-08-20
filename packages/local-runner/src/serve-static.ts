@@ -1,31 +1,64 @@
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { extname, resolve, sep } from 'node:path'
+import type { ExecutionSummary } from '@deepnote/runtime-core'
 import { listInputBlocks } from './apply-input-overrides'
 import type { CloudRun, GetCloudRunOptions, ListCloudRunsOptions, ListCloudRunsResult } from './cloud-runs'
 import { getCloudRun, listCloudRuns } from './cloud-runs'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
-import type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
+import type { RecurringSchedule } from './recurring-schedule'
+import { resolveRecurringSchedule } from './recurring-schedule'
 import { runInCloud } from './run-in-cloud'
-import type { RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
+import type { RunBlockOutput } from './run-with-inputs'
 import { runWithInputs } from './run-with-inputs'
+import type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
+import { scheduleInCloud } from './schedule-in-cloud'
 
+/** Everything a run might need, whichever end of the wire it happens on. */
+export interface RunOptions {
+  /** Python venv/executable, for a local kernel. */
+  pythonEnv?: string
+  /** Whether a local kernel writes its snapshot to disk. */
+  persistSnapshot?: boolean
+  /** Bearer token, for Deepnote Cloud. */
+  token?: string
+}
+
+/**
+ * What a run reports back, whichever end of the wire it happened on. A runner must state its
+ * success explicitly, or provide a local execution summary from which it can be derived.
+ */
+export type RunResult = {
+  outputs: RunBlockOutput[]
+  summary?: ExecutionSummary
+  snapshotYaml?: string | null
+  runId?: string
+  status?: string
+  created?: boolean
+  viewUrl?: string
+  error?: string
+} & ({ success: boolean } | { success?: undefined; summary: ExecutionSummary })
+
+/** Runs a notebook. One shape for both a local Deepnote kernel and Deepnote Cloud. */
 export type RunnerFn = (
   input: DeepnoteInput,
   inputs: Record<string, unknown>,
-  options?: RunWithInputsOptions
-) => Promise<RunWithInputsResult>
-
-export type CloudRunnerFn = (
-  input: DeepnoteInput,
-  inputs: Record<string, unknown>,
-  options?: RunInCloudOptions
-) => Promise<RunInCloudResult>
+  options?: RunOptions
+) => Promise<RunResult>
 
 export type CloudRunListerFn = (input: DeepnoteInput, options?: ListCloudRunsOptions) => Promise<ListCloudRunsResult>
 
 export type CloudRunGetterFn = (runId: string, options?: GetCloudRunOptions) => Promise<CloudRun>
+
+export type CloudSchedulerFn = (
+  input: DeepnoteInput,
+  cron: string,
+  options?: ScheduleInCloudOptions
+) => Promise<ScheduleInCloudResult>
+
+/** Where `POST /api/run` executes the notebook. */
+export type RunTarget = 'cloud' | 'local'
 
 export interface ServeStaticOptions {
   /** Directory of static files to serve (e.g. an `index.html` that drives the API). */
@@ -38,16 +71,25 @@ export interface ServeStaticOptions {
   pythonEnv?: string
   /** Forwarded to the runner. Runs persist a snapshot next to `notebookPath` by default; pass `false` to skip. */
   persistSnapshot?: boolean
-  /** Bearer token for cloud runs (`POST /api/run-cloud`). Defaults to `DEEPNOTE_TOKEN` in the environment. */
+  /**
+   * Where `POST /api/run` executes. Defaults to `'cloud'` — the Deepnote API — so an app runs on
+   * Deepnote without being configured for it. Set `'local'` only when there is a local Deepnote
+   * kernel to run against instead.
+   */
+  runTarget?: RunTarget
+  /** Bearer token for cloud runs. Defaults to `DEEPNOTE_TOKEN` in the environment. */
   cloudToken?: string
-  /** Override the local runner (advanced; mainly for testing). Defaults to `runWithInputs`. */
+  /**
+   * Override the runner behind `POST /api/run` (advanced; mainly for testing). Defaults to
+   * `runInCloud`, or to `runWithInputs` when `runTarget` names a local kernel.
+   */
   runner?: RunnerFn
-  /** Override the cloud runner (advanced; mainly for testing). Defaults to `runInCloud`. */
-  cloudRunner?: CloudRunnerFn
   /** Override the cloud-run lister (advanced; mainly for testing). Defaults to `listCloudRuns`. */
   cloudRunLister?: CloudRunListerFn
   /** Override the single cloud-run fetch (advanced; mainly for testing). Defaults to `getCloudRun`. */
   cloudRunGetter?: CloudRunGetterFn
+  /** Override the cloud scheduler (advanced; mainly for testing). Defaults to `scheduleInCloud`. */
+  cloudScheduler?: CloudSchedulerFn
 }
 
 export interface ServeStaticHandle {
@@ -77,16 +119,21 @@ const CONTENT_TYPES: Record<string, string> = {
 /**
  * Serve a static directory and expose a minimal local-run API, so a plain web page can run a
  * `.deepnote` file with edited inputs:
- * - `GET /api/info` → `{ notebook, inputs }` (input blocks for building controls)
- * - `POST /api/run` → `{ inputs }` → `{ outputs, summary, snapshotYaml }`; writes a snapshot next
- *   to `notebookPath` by default (like `deepnote run`), unless `persistSnapshot: false`
- * - `POST /api/run-cloud` → `{ inputs }` → `{ status, success, outputs, snapshotYaml, created }` via
- *   Deepnote Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`). Creates the notebook there
- *   first if it doesn't exist, so one call is always enough.
+ * - `GET /api/info` → `{ notebook, inputs, runTarget }` (input blocks for building controls, plus
+ *   where runs go, so a page can label its Run button without being told separately)
+ * - `POST /api/run` → `{ inputs }` → `{ target, success, outputs, snapshotYaml, ... }`. One run
+ *   endpoint wherever the run happens, so a page needs one button and one response shape.
+ *   Defaults to Deepnote Cloud (needs a token: `cloudToken` or `DEEPNOTE_TOKEN`), creating the
+ *   notebook there first if it doesn't exist, so one call is always enough. With
+ *   `runTarget: 'local'` it runs in a local Python kernel instead and writes a snapshot next to
+ *   `notebookPath` (like `deepnote run`) unless `persistSnapshot: false`.
  * - `GET  /api/cloud-runs` → `{ runs, viewUrl }` — the notebook's run history in Deepnote. Answers
  *   `{ runs: [] }` rather than an error when there's no token or the notebook isn't in Deepnote.
  * - `GET  /api/cloud-runs/{runId}` → `{ status, success, outputs, snapshotYaml }` — one past run's
  *   outputs, read from its snapshot without re-running it.
+ * - `POST /api/schedule-cloud` → `{ schedule: { frequency, time, ... }, timezone?,
+ *   createIfMissing? }` (or raw `{ cron, ... }`) → the created or updated recurring Deepnote Cloud
+ *   schedule. This does not execute the notebook immediately.
  * - any other GET → a file from `dir` (path-traversal + symlink guarded)
  *
  * Bad requests get a specific status: `400` for malformed JSON / bad path encoding / a non-object
@@ -97,10 +144,24 @@ const CONTENT_TYPES: Record<string, string> = {
 export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHandle> {
   const { notebookPath, pythonEnv } = options
   const rootDir = resolve(options.dir)
-  const runner = options.runner ?? runWithInputs
-  const cloudRunner = options.cloudRunner ?? runInCloud
   const cloudRunLister = options.cloudRunLister ?? listCloudRuns
   const cloudRunGetter = options.cloudRunGetter ?? getCloudRun
+  const cloudScheduler = options.cloudScheduler ?? scheduleInCloud
+  const runTarget = options.runTarget ?? 'cloud'
+  if (runTarget !== 'cloud' && runTarget !== 'local') {
+    throw new Error(`Unsupported runTarget: ${String(runTarget)}. Expected "cloud" or "local".`)
+  }
+  // The default is the Deepnote API. A local kernel is the override, and the only reason to have
+  // one: both ends are adapted to the same signature here, so the route below never branches.
+  const runner: RunnerFn =
+    options.runner ??
+    (runTarget === 'local'
+      ? (input, inputs, runOptions) =>
+          runWithInputs(input, inputs, {
+            pythonEnv: runOptions?.pythonEnv,
+            persistSnapshot: runOptions?.persistSnapshot,
+          })
+      : (input, inputs, runOptions) => runInCloud(input, inputs, { token: runOptions?.token }))
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -113,11 +174,16 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
 
     if (req.method === 'GET' && pathname === '/api/info') {
       const { file } = loadDeepnoteFile(notebookPath)
-      sendJson(res, 200, { notebook: file.project.name, inputs: listInputBlocks(file) })
+      sendJson(res, 200, { notebook: file.project.name, inputs: listInputBlocks(file), runTarget })
       return
     }
 
     if (req.method === 'POST' && pathname === '/api/run') {
+      // Only a cloud run needs the guard the schedule route uses, and for the same reason: it
+      // spends the cloud token, and creates project content as a side effect of running a notebook
+      // that is not in Deepnote yet. A local run does neither, so it keeps the looser rule it had
+      // when it lived on its own route.
+      if (runTarget === 'cloud' && rejectCrossOriginRequest(req, res)) return
       const body = await readJsonBody(req, res)
       if (!body.ok) return
       const inputs = readInputMap(body.value)
@@ -125,33 +191,53 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
         sendJson(res, 400, { error: 'Request "inputs" must be an object' })
         return
       }
-      const result = await runner(notebookPath, inputs.inputs, { pythonEnv, persistSnapshot: options.persistSnapshot })
+
+      const result = await runner(notebookPath, inputs.inputs, {
+        pythonEnv,
+        persistSnapshot: options.persistSnapshot,
+        token: options.cloudToken,
+      })
+      // One response for both ends. A local kernel reports no `runId`/`viewUrl`/`created`, and
+      // those drop out of the JSON rather than being sent as nulls. `success` is stated rather
+      // than implied, so a page reads one field instead of inferring "no news is good news" from
+      // the shorter local response — which means deriving it where it isn't given: a cloud run
+      // states it outright, while a local kernel says the same thing through `failedBlocks`,
+      // since a failing block is reported in the summary rather than thrown.
       sendJson(res, 200, {
+        target: runTarget,
+        success: getRunSuccess(result),
         outputs: result.outputs,
         summary: result.summary,
         snapshotYaml: result.snapshotYaml,
+        runId: result.runId,
+        status: result.status,
+        created: result.created,
+        viewUrl: result.viewUrl,
+        error: result.error,
       })
       return
     }
 
-    if (req.method === 'POST' && pathname === '/api/run-cloud') {
+    if (req.method === 'POST' && pathname === '/api/schedule-cloud') {
+      if (rejectCrossOriginRequest(req, res)) return
       const body = await readJsonBody(req, res)
       if (!body.ok) return
-      const inputs = readInputMap(body.value)
-      if (!inputs.ok) {
-        sendJson(res, 400, { error: 'Request "inputs" must be an object' })
+      const request = readScheduleRequest(body.value)
+      if (!request.ok) {
+        sendJson(res, 400, { error: request.error })
         return
       }
-      const result = await cloudRunner(notebookPath, inputs.inputs, { token: options.cloudToken })
+      const result = await cloudScheduler(notebookPath, request.cron, {
+        token: options.cloudToken,
+        timezone: request.timezone,
+        createIfMissing: request.createIfMissing,
+      })
       sendJson(res, 200, {
-        runId: result.runId,
-        status: result.status,
-        success: result.success,
-        outputs: result.outputs,
-        snapshotYaml: result.snapshotYaml,
+        notebookId: result.notebookId,
+        schedule: result.schedule,
+        description: request.description,
         created: result.created,
         viewUrl: result.viewUrl,
-        error: result.error,
       })
       return
     }
@@ -206,12 +292,111 @@ export function serveStatic(options: ServeStaticOptions): Promise<ServeStaticHan
   return listen(server, options.port ?? 0)
 }
 
+/** Gets a runner's explicit success state, or derives it from a local execution summary. */
+function getRunSuccess(result: RunResult): boolean {
+  if (typeof result.success === 'boolean') return result.success
+  if (result.summary) return result.summary.failedBlocks === 0
+  throw new Error('Runner result must include "success" or a local execution "summary"')
+}
+
 /** Extract a validated `inputs` map from a parsed body. `{ ok: false }` = present but not an object. */
 function readInputMap(parsed: unknown): { ok: true; inputs: Record<string, unknown> } | { ok: false } {
   const raw = (parsed as { inputs?: unknown } | null)?.inputs
   if (raw === undefined || raw === null) return { ok: true, inputs: {} }
   if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false }
   return { ok: true, inputs: raw as Record<string, unknown> }
+}
+
+/** Hostnames a browser treats as this loopback server. Anything else is somebody else's name. */
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+
+/**
+ * Reject browser requests from another origin before a token-backed mutation reads its body.
+ * Requests without Origin remain available to scripts and CLI clients.
+ *
+ * The Origin is checked against the socket this request actually arrived on, never against `Host`.
+ * `Host` is client-controlled, so matching the two only proves the caller sent itself a matching
+ * pair — which is exactly what a DNS-rebinding page does once its hostname resolves to 127.0.0.1,
+ * and it would have carried this server's token off the back of it. The port comes from
+ * `req.socket.localPort` for the same reason: it is the port we are listening on, not a claim.
+ */
+function rejectCrossOriginRequest(req: IncomingMessage, res: ServerResponse): boolean {
+  if (req.headers.origin === undefined) {
+    return false
+  }
+  if (isOwnOrigin(req.headers.origin, req.socket.localPort)) {
+    return false
+  }
+  sendJson(res, 403, { error: 'Cross-origin requests are not allowed' })
+  return true
+}
+
+/** True only for `http://<loopback>:<the port this socket is bound to>`. */
+function isOwnOrigin(origin: string, localPort: number | undefined): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(origin)
+  } catch {
+    // Includes the literal `null` sent by sandboxed iframes and some redirects — not a loopback
+    // origin, so it falls through to the 403 rather than being read as "no Origin at all".
+    return false
+  }
+  if (parsed.protocol !== 'http:' || !LOOPBACK_HOSTNAMES.has(parsed.hostname)) {
+    return false
+  }
+  // The server binds to 127.0.0.1, so `localPort` is always present on a real request; treating an
+  // absent one as a match would reopen the hole on whatever produced it.
+  return localPort !== undefined && parsed.port === String(localPort)
+}
+
+interface ScheduleRequest {
+  cron: string
+  description?: string
+  timezone?: string
+  createIfMissing?: boolean
+}
+
+/** Validate the small JSON contract exposed by `POST /api/schedule-cloud`. */
+function readScheduleRequest(parsed: unknown): ({ ok: true } & ScheduleRequest) | { ok: false; error: string } {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: 'Request body must be an object' }
+  }
+  const body = parsed as Record<string, unknown>
+  const hasCron = body.cron !== undefined
+  const hasSchedule = body.schedule !== undefined
+  if (hasCron === hasSchedule) {
+    return { ok: false, error: 'Provide exactly one of request "cron" or "schedule"' }
+  }
+
+  let cron: string
+  let description: string | undefined
+  if (hasCron) {
+    if (typeof body.cron !== 'string' || !body.cron.trim()) {
+      return { ok: false, error: 'Request "cron" must be a non-empty string' }
+    }
+    cron = body.cron.trim()
+  } else {
+    try {
+      const resolved = resolveRecurringSchedule(body.schedule as RecurringSchedule)
+      cron = resolved.cron
+      description = resolved.description
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+  if (body.timezone !== undefined && (typeof body.timezone !== 'string' || !body.timezone.trim())) {
+    return { ok: false, error: 'Request "timezone" must be a non-empty string when provided' }
+  }
+  if (body.createIfMissing !== undefined && typeof body.createIfMissing !== 'boolean') {
+    return { ok: false, error: 'Request "createIfMissing" must be a boolean when provided' }
+  }
+  return {
+    ok: true,
+    cron,
+    ...(description !== undefined ? { description } : {}),
+    ...(body.timezone !== undefined ? { timezone: body.timezone.trim() } : {}),
+    ...(body.createIfMissing !== undefined ? { createIfMissing: body.createIfMissing } : {}),
+  }
 }
 
 /** Read + JSON-parse the body, sending the right error status on failure (`400`/`413`). */

@@ -45,6 +45,9 @@ deepnote validate path/to/file.deepnote
 
 # Convert between notebook formats
 deepnote convert notebook.ipynb
+
+# Schedule recurring runs in Deepnote Cloud
+deepnote schedule report.deepnote --daily --at 09:00
 ```
 
 ## Commands
@@ -138,27 +141,28 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option                  | Description                                                              | Default                    |
-| ----------------------- | ------------------------------------------------------------------------ | -------------------------- |
-| `--python <path>`       | Path to Python interpreter or virtual environment                        | auto-detected              |
-| `--cwd <path>`          | Working directory for execution                                          | file directory             |
-| `--notebook <name>`     | Run only the specified notebook                                          | all notebooks              |
-| `--block <id>`          | Run only the specified block                                             | all blocks                 |
-| `-i, --input <key=val>` | Set input variable value (can be repeated)                               |                            |
-| `--list-inputs`         | List input variables without running                                     | `false`                    |
-| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`) |                            |
-| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                  | text                       |
-| `--dry-run`             | Show execution plan without running                                      | `false`                    |
-| `--top`                 | Display resource usage (CPU/memory) during execution                     | `false`                    |
-| `--profile`             | Show per-block timing and memory summary                                 | `false`                    |
-| `--open`                | Open project in Deepnote Cloud after successful execution                | `false`                    |
-| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)         | `false`                    |
-| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                | `false`                    |
-| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                |                            |
-| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                   |                            |
-| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                     | `600`                      |
-| `--url <url>`           | API base URL                                                             | `https://api.deepnote.com` |
-| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                               |                            |
+| Option                  | Description                                                               | Default                    |
+| ----------------------- | ------------------------------------------------------------------------- | -------------------------- |
+| `--python <path>`       | Path to Python interpreter or virtual environment                         | auto-detected              |
+| `--cwd <path>`          | Working directory for execution                                           | file directory             |
+| `--notebook <name>`     | Run only the specified notebook                                           | all notebooks              |
+| `--block <id>`          | Run only the specified block                                              | all blocks                 |
+| `-i, --input <key=val>` | Set input variable value (can be repeated)                                |                            |
+| `--list-inputs`         | List input variables without running                                      | `false`                    |
+| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`)  |                            |
+| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                   | text                       |
+| `--dry-run`             | Show execution plan without running                                       | `false`                    |
+| `--top`                 | Display resource usage (CPU/memory) during execution                      | `false`                    |
+| `--profile`             | Show per-block timing and memory summary                                  | `false`                    |
+| `--open`                | Open project in Deepnote Cloud after successful execution                 | `false`                    |
+| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)          | `false`                    |
+| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                 | `false`                    |
+| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                 |                            |
+| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                    |                            |
+| `--storage-mode <mode>` | Project-storage access for a detached cloud run: `read-write`, `readonly` | `read-write`               |
+| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                      | `600`                      |
+| `--url <url>`           | API base URL                                                              | `https://api.deepnote.com` |
+| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                                |                            |
 
 **Examples:**
 
@@ -193,6 +197,9 @@ DEEPNOTE_TOKEN=... deepnote run --cloud --notebook-id 0f1e2d3c-4b5a-6789-abcd-ef
 # Run a .deepnote (notebook id read from the file) in the cloud, with inputs
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --input name="Alice"
 
+# Keep project storage read-only during a detached full-notebook run
+DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --storage-mode readonly
+
 # Run an agent with a prompt (appends an agent block to the file)
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
 
@@ -206,6 +213,22 @@ JSON arrays of strings for multi-select inputs and absolute date ranges, for exa
 
 These rules are the same for `--cloud` runs. Typing a value needs the notebook's input blocks, so
 `--input` requires the local `.deepnote` file — pass the file rather than only `--notebook-id`.
+
+Full-notebook cloud runs are detached: Deepnote executes a copy without updating outputs in the
+live editor. Project files remain shared and writable by default. `--storage-mode readonly` makes
+persistent project storage read-only for that run; temporary files and reads still work, and
+databases, integrations, external APIs, and other systems remain live. Block-scoped cloud runs are
+the exception: the API runs them in live mode, so they update live-editor outputs and cannot be
+combined with `--storage-mode`.
+
+Cloud execution status and snapshot delivery are reported separately. The CLI briefly polls after
+terminal status because snapshot attachment can lag; empty snapshot content is treated as no
+snapshot. If an empty or markdown-only local notebook successfully produces no snapshot, the CLI
+writes a valid output-free snapshot from the local source and marks it `artifactStatus:
+synthesized`. Any other run that produces no snapshot — including a remote-only run by
+`--notebook-id` — exits `1` with `artifactStatus: not_produced`; an advertised snapshot that
+cannot be downloaded or saved reports `artifactStatus: unavailable` and exits `1`. `success` in
+machine output means the run succeeded and its snapshot was delivered (`saved` or `synthesized`).
 
 #### Agent Block (`--prompt` and agent blocks)
 
@@ -481,6 +504,128 @@ deepnote open my-project.deepnote
 
 # Open with JSON output (for scripting)
 deepnote open my-project.deepnote -o json
+```
+
+### `schedule <path>`
+
+Create or update a recurring notebook run in Deepnote Cloud. This does not run the notebook
+immediately. If the local project is missing in Deepnote, the CLI creates it without opening a browser first.
+
+```bash
+deepnote schedule report.deepnote --daily --at 09:00
+```
+
+Choose exactly one frequency:
+
+| Option                  | Description                                     | Default                    |
+| ----------------------- | ----------------------------------------------- | -------------------------- |
+| `--hourly`              | Run every hour                                  | the creation minute        |
+| `--daily`               | Run every day                                   |                            |
+| `--weekly <day>`        | Run weekly on Monday-Sunday                     |                            |
+| `--monthly <day>`       | Run monthly on day 1-31                         |                            |
+| `--cron <expression>`   | Use a custom five-field cron expression         |                            |
+| `--at <HH:mm>`          | Time for daily/weekly/monthly; minute if hourly | the creation time          |
+| `--timezone <timezone>` | IANA timezone                                   | local system timezone      |
+| `--notebook <name>`     | Target a notebook in a multi-notebook file      | single notebook            |
+| `--token <token>`       | Deepnote API token                              | `DEEPNOTE_TOKEN` or `.env` |
+| `--url <url>`           | Deepnote API base URL                           | `https://api.deepnote.com` |
+| `--no-create`           | Fail rather than create a missing project       | `false`                    |
+| `--open`                | Open the scheduled notebook after configuration | `false`                    |
+| `-o, --output json`     | Print machine-readable JSON                     | text                       |
+
+Deepnote supports one scheduled notebook per project. Re-running this command updates that project
+schedule, including when a different notebook is selected. Scheduling availability depends on the
+workspace plan.
+
+Without `--at`, a schedule fires at the time it was created — hour and minute for daily, weekly and
+monthly, the minute alone for `--hourly`. Deepnote's scheduling UI defaults new schedules the same
+way, so runs spread out instead of piling onto the same execution spike. Pass `--at 09:00` (or
+`--at :15` for `--hourly`) to pin a specific time.
+
+**Examples:**
+
+```bash
+# Every weekday morning in London
+deepnote schedule report.deepnote --cron "0 8 * * 1-5" --timezone Europe/London
+
+# Every Monday, selecting one notebook from the project
+deepnote schedule project.deepnote --notebook "Weekly review" --weekly Monday --at 08:30
+
+# Configure it and open the cloud notebook
+deepnote schedule report.deepnote --daily --open
+
+# Machine-readable output
+deepnote schedule report.deepnote --hourly -o json
+```
+
+### `sync [dir]`
+
+Mirror Deepnote projects into a local directory: every project in your workspace becomes a directory
+`<folder path>/<project name>/` holding one `.deepnote` file per notebook, mirroring the workspace
+folder tree.
+
+```bash
+deepnote sync workspace
+```
+
+Sync state lives in `.deepnote-sync.json` in the synced directory. Projects are tracked by id
+(names are not unique in Deepnote), so cloud renames become local directory moves, and name
+collisions are disambiguated deterministically with a short id suffix. A project export is a ZIP of
+one deterministic document per notebook, so unchanged projects are detected by a content-hash
+comparison (over the documents, not the archive) and skipped.
+When the API reports only a visible suffix of a folder path, sync places it under
+`.deepnote-incomplete/<folder-id>/` instead of treating that suffix as the workspace-root hierarchy.
+
+Both directions work. Pull writes the exported documents down. Push is the **exact inverse** — a
+project edited only locally is re-uploaded as the same ZIP of documents to the project import
+endpoint, with `baseModifiedAt` + `baseContentHash` so a concurrent cloud edit is rejected (409) and
+resolved as override-or-skip rather than a silent overwrite. A project edited both locally and in the
+cloud is a conflict, resolved the same way. Project name and integration attachment edits are also
+applied from the documents; every document in a multi-notebook project must carry the same values.
+`--all-files` uploads changed working-directory files on push. File replacements are recorded before
+the cloud copy is deleted, so an interrupted upload is retried on the next `--all-files` sync.
+Working-directory files larger than 100 MiB are rejected because these transfers are buffered in
+memory; use another transfer method for larger data files.
+
+If a push changes `project.name`, the current run finishes in the existing local directory. The next
+sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.
+Renaming the local directory itself does not rename the cloud project. The full import contract is in
+`packages/cloud/docs/project-import-contract.md`.
+
+Sync never creates or deletes cloud projects. Pulls reconcile a tracked project's `.deepnote` files,
+removing local notebook files absent from the cloud export. Deleting directories for projects missing
+from the cloud or stale working-directory files requires `--prune`. Sync does not run git — commit and
+push yourself. Even with `--prune`, a stale manifest entry cannot delete a directory whose path is now
+used by a current cloud project. Sync also refuses to prune when none of the tracked project IDs match
+the listed workspace; verify the API token and `--url` before retrying.
+
+**Options:**
+
+| Option                       | Description                                                             | Default      |
+| ---------------------------- | ----------------------------------------------------------------------- | ------------ |
+| `--url <url>`                | API base URL                                                            | Deepnote API |
+| `--token <token>`            | Bearer token (or use `DEEPNOTE_TOKEN` env var)                          |              |
+| `--all-files`                | Also sync working-directory files (download on pull, upload on push)    | off          |
+| `--on-conflict <mode>`       | Conflict handling: `ask`, `skip`, or `override`                         | `ask`        |
+| `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
+| `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
+| `--dry-run`                  | Show what would be synced without writing anything                      | off          |
+| `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
+
+**Examples:**
+
+```bash
+# Mirror the whole workspace into ./workspace
+deepnote sync workspace
+
+# Also download working-directory files (data, requirements.txt, …)
+deepnote sync workspace --all-files
+
+# Non-interactive: skip anything conflicting (good for cron/CI)
+deepnote sync workspace --on-conflict skip
+
+# Preview without writing
+deepnote sync workspace --dry-run
 ```
 
 ### `validate <path>`
