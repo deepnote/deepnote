@@ -203,13 +203,13 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 
 ## Tools & Technologies
 
-- **Package Manager:** pnpm 10.19.0 (minimum supported: 10.17.1)
-- **Node Version:** 22.14.0+
-- **Build Tool:** tsdown 0.15.9
-- **Test Framework:** Vitest 4.1.8
-- **Linter:** Biome 2.2.7
+- **Package Manager:** pnpm
+- **Runtime:** Node.js
+- **Build Tool:** tsdown
+- **Test Framework:** Vitest
+- **Linter:** Biome
 - **Formatter:** Biome + Prettier (for md/yaml)
-- **Type Checker:** TypeScript 5.9.3
+- **Type Checker:** TypeScript
 
 ## Getting Help
 
