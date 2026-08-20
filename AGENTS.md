@@ -1,16 +1,20 @@
-# Claude Development Guide
+# Agent Development Guide
 
-This document provides guidelines for Claude (AI assistant) when working on the Deepnote monorepo.
+This document provides guidelines for AI coding agents working on the Deepnote monorepo.
 
 ## Repository Overview
 
 This is a TypeScript monorepo for Deepnote's open-source packages, managed with pnpm workspaces. The repository contains:
 
 - **packages/blocks** - Core package for working with Deepnote blocks and notebook files
+- **packages/cli** - Command-line interface for running Deepnote projects locally and on Deepnote Cloud
 - **packages/cloud** - Client for the Deepnote Cloud runs API (trigger a run, poll it, fetch its snapshot)
 - **packages/convert** - Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`)
 - **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
+- **packages/local-runner** - Local Python-backed runner and static UI for Deepnote notebooks
+- **packages/mcp** - MCP server for AI-assisted Deepnote notebook creation and manipulation
 - **packages/reactivity** - Reactivity and dependency graph for Deepnote notebooks
+- **packages/runtime-core** - Core runtime for executing Deepnote projects
 
 ## Development Workflow
 
@@ -109,7 +113,7 @@ Always run these checks before considering work complete:
 
 **Location:** `packages/blocks/`
 
-**Purpose:** Core package for working with Deepnote blocks, converting between Deepnote and Jupyter formats, and generating Python code from block configurations.
+**Purpose:** Core package for defining Deepnote blocks, reading and writing `.deepnote` files, and generating Python code from block configurations.
 
 **Key modules:**
 
@@ -119,7 +123,7 @@ Always run these checks before considering work complete:
   - `data-frame.ts` - DataFrame configuration for table display
   - `input-blocks.ts` - Input widgets (text, checkbox, select, etc.)
   - `python-utils.ts` - Python string escaping utilities
-- `src/deserialize-file/` - .deepnote file parsing
+- `src/deepnote-file/` - `.deepnote` schemas, parsing, serialization, and deserialization
 - `src/python-code.ts` - Main entry point for Python code generation
 
 **Common patterns:**
@@ -199,11 +203,11 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 
 ## Tools & Technologies
 
-- **Package Manager:** pnpm 10.18.1+
+- **Package Manager:** pnpm 10.19.0 (minimum supported: 10.17.1)
 - **Node Version:** 22.14.0+
-- **Build Tool:** tsdown
-- **Test Framework:** Vitest
-- **Linter:** Biome
+- **Build Tool:** tsdown 0.15.9
+- **Test Framework:** Vitest 4.1.8
+- **Linter:** Biome 2.2.7
 - **Formatter:** Biome + Prettier (for md/yaml)
 - **Type Checker:** TypeScript 5.9.3
 
