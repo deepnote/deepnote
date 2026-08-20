@@ -41,5 +41,5 @@ const server = createServer(async (req, res) => {
 server.listen(0, '127.0.0.1', () => {
   const { port } = server.address()
   console.log(`\n  Deepnote app (local dev) → http://127.0.0.1:${port}`)
-  console.log(`  Pass ?baseUrl=http://localhost:8080 for a local server, or ?token=… for cloud\n`)
+  console.log(`  Pass ?notebookId=… plus ?token=… for cloud, or ?baseUrl=http://localhost:8080 for a local server\n`)
 })
