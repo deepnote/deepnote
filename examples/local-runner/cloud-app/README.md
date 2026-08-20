@@ -10,7 +10,7 @@ The HTML page embeds all the JS needed to:
 
 1. **Trigger runs** via `POST {baseUrl}/v2/runs`
 2. **Poll for results** via `GET {baseUrl}/v2/runs/{runId}?snapshotDelivery=inline`
-3. **Parse snapshot YAML** using the `snapshot-reader.iife.js` bundle
+3. **Parse snapshot YAML** using the `snapshot-reader.iife.js` bundle — except embedded in Deepnote, where the short-lived app token never receives the raw snapshot and the API returns the executed blocks' outputs pre-parsed as `snapshotBlocks`
 4. **Render outputs** (tables, charts, text) in the browser
 
 ### Configuration

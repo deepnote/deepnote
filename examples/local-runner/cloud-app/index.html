@@ -313,15 +313,13 @@
           setStatus(`Running… (${run.status})`)
 
           if (terminal.has(run.status)) {
-            const contentOf = (r) => (r.snapshot ?? {}).snapshotContent ?? r.snapshotContent ?? null
-            let settled = run
-            let content = contentOf(settled)
+            let result = runResult(run)
 
             // A run reaches a terminal status before its snapshot is attached, so the first
             // terminal response usually carries no outputs — reporting "0 blocks" for a run whose
             // output appears moments later. `@deepnote/cloud` has `waitForRunSnapshot` for exactly
             // this; the browser needs the same wait.
-            for (let waited = 0; content === null && waited < 15; waited++) {
+            for (let waited = 0; result.snapshotContent === null && result.snapshotBlocks === null && waited < 15; waited++) {
               setStatus('Run finished — waiting for outputs…')
               await sleep(1000)
               const again = await fetch(
@@ -330,17 +328,10 @@
               )
               if (!again.ok) break
               const againJson = await again.json()
-              settled = againJson.run ?? againJson
-              content = contentOf(settled)
+              result = runResult(againJson.run ?? againJson)
             }
 
-            return {
-              runId: settled.runId ?? settled.id,
-              status: settled.status,
-              success: settled.status === 'success',
-              error: describeError(settled),
-              snapshotContent: content,
-            }
+            return result
           }
           interval = Math.min(interval * 1.2, 10000)
         }
@@ -357,14 +348,19 @@
           throw new Error(extractApiMessage(body, `HTTP ${res.status}`))
         }
         const json = await res.json()
-        const run = json.run ?? json
-        const snapshot = run.snapshot ?? {}
+        return runResult(json.run ?? json)
+      }
+
+      function runResult(run) {
         return {
           runId: run.runId ?? run.id,
           status: run.status,
           success: run.status === 'success',
           error: describeError(run),
-          snapshotContent: snapshot.snapshotContent ?? run.snapshotContent ?? null,
+          snapshotContent: (run.snapshot ?? {}).snapshotContent ?? run.snapshotContent ?? null,
+          // Static app tokens never get the raw snapshot (it is a full project export); the API
+          // sends the executed blocks with their outputs as `snapshotBlocks` instead.
+          snapshotBlocks: run.snapshotBlocks ?? null,
         }
       }
 
@@ -401,6 +397,15 @@
       function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
       // ── Snapshot → outputs ─────────────────────────────────────────────────────
+      function outputsOfRun(result) {
+        if (result.snapshotBlocks) {
+          return result.snapshotBlocks
+            .filter((b) => b.outputs.length > 0)
+            .map((b) => ({ blockId: b.id, outputs: b.outputs }))
+        }
+        return parseOutputsFromSnapshot(result.snapshotContent)
+      }
+
       function parseOutputsFromSnapshot(snapshotContent) {
         if (!snapshotContent || typeof DeepnoteSnapshot === 'undefined') return []
         try {
@@ -661,7 +666,7 @@
           const result = await pollRun(started.runId)
           if (gen !== displayGen) return
 
-          const outputs = parseOutputsFromSnapshot(result.snapshotContent)
+          const outputs = outputsOfRun(result)
           render({ outputs: outputs.map(b => ({ blockId: b.blockId, outputs: b.outputs })) })
           shownRunId = null
 
@@ -723,7 +728,7 @@
           const result = await fetchRun(runId)
           if (gen !== displayGen) return
           shownRunId = runId
-          const outputs = parseOutputsFromSnapshot(result.snapshotContent)
+          const outputs = outputsOfRun(result)
           render({ outputs: outputs.map(b => ({ blockId: b.blockId, outputs: b.outputs })) })
           if (lastRuns) renderRuns(lastRuns)
           const when = ago(lastRuns?.runs?.find(r => r.runId === runId)?.createdAt)
