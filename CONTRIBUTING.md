@@ -7,23 +7,28 @@ Here's how you can get started.
 
 ## 📂 Repository structure
 
+A partial overview — see below for the full package list and root config files:
+
 ```text
 deepnote/
 ├── packages/                  # Core TypeScript packages
 │   ├── blocks/                # @deepnote/blocks - Block types, schemas, and Python code generation
 │   ├── cli/                   # @deepnote/cli - CLI for running Deepnote projects locally and on Deepnote Cloud
 │   ├── cloud/                 # @deepnote/cloud - Client for the Deepnote Cloud runs API
-│   ├── convert/                # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
+│   ├── convert/               # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
 │   ├── database-integrations/ # @deepnote/database-integrations - Database integration definitions and schemas
 │   ├── local-runner/          # @deepnote/local-runner - Local Python-backed runner and static UI
 │   ├── mcp/                   # @deepnote/mcp - MCP server for AI-assisted notebook creation
 │   ├── reactivity/            # @deepnote/reactivity - Reactivity and dependency graph
 │   └── runtime-core/          # @deepnote/runtime-core - Core runtime for executing Deepnote projects
-├── skills/deepnote/           # Agent-facing reference docs (kept in sync with the packages above)
-├── test-fixtures/             # Shared test fixtures used across packages
-├── docs/                      # Documentation files
-├── .github/                   # GitHub workflows & templates
-│   └── workflows/             # CI/CD pipelines
+├── skills/deepnote/ # Agent-facing reference docs (kept in sync with the packages above)
+├── test-fixtures/   # Shared test fixtures used across packages
+├── docs/            # Documentation files
+├── .github/         # GitHub workflows & templates
+│   └── workflows/   # CI/CD pipelines
+├── .nvmrc         # Pinned Node.js version
+├── package.json   # Root scripts and workspace-wide devDependencies
+├── pnpm-lock.yaml # Resolved dependency versions (source of truth)
 ├── AGENTS.md
 ├── CONTRIBUTING.md
 └── README.md
