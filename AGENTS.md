@@ -35,6 +35,15 @@ Start with the owning package and its README before searching broadly. Avoid tra
 
 ## Development Workflow
 
+### Setup
+
+```bash
+# Install dependencies for the monorepo and its packages
+pnpm install
+```
+
+Use the Node.js version specified in `.nvmrc` (e.g. `nvm use`).
+
 ### Running Commands
 
 Always run commands from the **root directory** unless specifically told otherwise.
@@ -109,6 +118,7 @@ Always run these checks before considering work complete:
 - Follow existing test patterns in the codebase (see `packages/blocks/src/blocks/*.test.ts`)
 - Test edge cases, error handling, and special characters
 - For functions that generate code, test the exact output format
+- Tests must not depend on live network calls or real Deepnote Cloud credentials — mock external APIs. Verifying behavior against the real Deepnote Cloud API is a manual, explicitly-requested step outside `pnpm test`, and any resources created that way (projects, notebooks, runs) must be cleaned up afterward
 
 #### TypeScript Guidelines
 
@@ -208,6 +218,14 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 - **`.deepnote` file format** (block types, metadata, schema) — update `skills/deepnote/references/blocks-*.md` and `skills/deepnote/references/schema.ts`
 - **CLI commands** (options, output formats, exit codes, new commands) — update `skills/deepnote/references/cli-*.md`
 - **MCP tools** (tool names, parameters, behavior) — update `skills/deepnote/references/cli-*.md` (MCP mirrors CLI commands)
+
+## Git & Pull Request Rules
+
+- The `main` branch is protected: no direct commits or force pushes. All changes must go through pull requests.
+- Never rebase or force-push a branch you don't own. If someone else's PR needs to be brought up to date with `main`, merge `main` into their branch and resolve conflicts in the merge commit — don't rewrite their history.
+- Keep pull requests small and focused on a single purpose. Link the related issue in the PR description unless the change is self-explanatory.
+- Only add `Co-authored-by:` lines with the explicit consent of the person being credited.
+- See `CONTRIBUTING.md` for the full contributor and release workflow.
 
 ## Important Notes
 

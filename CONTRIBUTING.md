@@ -9,13 +9,22 @@ Here's how you can get started.
 
 ```text
 deepnote/
-├── packages/        # Core TypeScript packages
-│   ├── blocks/      # @deepnote/blocks - Block types and schemas
-│   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
-│   ├── reactivity/  # @deepnote/reactivity - Reactivity and dependency graph
-├── docs/            # Documentation files
-├── .github/         # GitHub workflows & templates
-│   └── workflows/   # CI/CD pipelines
+├── packages/                  # Core TypeScript packages
+│   ├── blocks/                # @deepnote/blocks - Block types, schemas, and Python code generation
+│   ├── cli/                   # @deepnote/cli - CLI for running Deepnote projects locally and on Deepnote Cloud
+│   ├── cloud/                 # @deepnote/cloud - Client for the Deepnote Cloud runs API
+│   ├── convert/                # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
+│   ├── database-integrations/ # @deepnote/database-integrations - Database integration definitions and schemas
+│   ├── local-runner/          # @deepnote/local-runner - Local Python-backed runner and static UI
+│   ├── mcp/                   # @deepnote/mcp - MCP server for AI-assisted notebook creation
+│   ├── reactivity/            # @deepnote/reactivity - Reactivity and dependency graph
+│   └── runtime-core/          # @deepnote/runtime-core - Core runtime for executing Deepnote projects
+├── skills/deepnote/           # Agent-facing reference docs (kept in sync with the packages above)
+├── test-fixtures/             # Shared test fixtures used across packages
+├── docs/                      # Documentation files
+├── .github/                   # GitHub workflows & templates
+│   └── workflows/             # CI/CD pipelines
+├── AGENTS.md
 ├── CONTRIBUTING.md
 └── README.md
 ```
@@ -40,7 +49,9 @@ Start by opening an issue or discussion to talk through your idea.
 
 ### Prerequisites
 
-> **Note:** Ensure you have [Docker](https://www.docker.com/get-started) installed before proceeding with local development.
+- Node.js, matching the version in [`.nvmrc`](.nvmrc) (e.g. `nvm use`)
+- [pnpm](https://pnpm.io/), matching the version in the `packageManager` field of `package.json`
+- To run `packages/local-runner` locally, a Python environment with [`deepnote-toolkit[server]`](https://pypi.org/project/deepnote-toolkit/) installed (see that package's README)
 
 ### Install dependencies
 
