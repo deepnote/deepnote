@@ -16,6 +16,23 @@ This is a TypeScript monorepo for Deepnote's open-source packages, managed with 
 - **packages/reactivity** - Reactivity and dependency graph for Deepnote notebooks
 - **packages/runtime-core** - Core runtime for executing Deepnote projects
 
+### Repository Routing
+
+Start with the owning package and its README before searching broadly. Avoid traversing unrelated packages.
+
+| When working on                                                | Start with                                            |
+| -------------------------------------------------------------- | ----------------------------------------------------- |
+| `.deepnote` schemas, block behavior, or Python code generation | `packages/blocks/`                                    |
+| Notebook format conversion                                     | `packages/convert/`                                   |
+| CLI commands and output                                        | `packages/cli/`                                       |
+| MCP tools and resources                                        | `packages/mcp/`                                       |
+| Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
+| Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
+| Dependency and reactivity analysis                             | `packages/reactivity/`                                |
+| Database integration definitions                               | `packages/database-integrations/`                     |
+| Shared test data                                               | `test-fixtures/`                                      |
+| Agent-facing format, CLI, and MCP references                   | `skills/deepnote/references/`                         |
+
 ## Development Workflow
 
 ### Running Commands
