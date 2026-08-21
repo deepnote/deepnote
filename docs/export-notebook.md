@@ -4,6 +4,6 @@ noIndex: false
 noContent: false
 ---
 
-To export a notebook as a `.ipynb` file, right-click on the notebook in the file tree (in the right-hand sidebar menu) and click 'Download'.
+To export a notebook as a `.ipynb` file, right-click the notebook in the left `Notebooks` list, choose `Export as ...`, and select `.ipynb`.
 
-<VideoLoop src="../assets/docs/azGGNHSpTYCtGis0UO6O.mp4" />
+<VideoLoop src="../assets/docs/export-notebook/export-notebook-ipynb.webm" />
