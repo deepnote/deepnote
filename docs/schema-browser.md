@@ -14,9 +14,9 @@ What comes before a great query? A thoughtful, high-level exploration of your da
 Once you have connected a data warehouse or database to your project, you can open the schema browser in two ways.
 
 1. Add an SQL block to the notebook and click on the block’s **View schema** button.
-2. Alternatively, you can click on a connected integration in the **Integrations** section in the right side bar.
+2. Alternatively, open the Settings sidebar and click a connected integration under **Integrations**.
 
-![open_schema.png](../assets/docs/1xqfpsFwTZyJDf0fxzqw.webp)
+![SQL block with View schema and the connected integration in Settings](../assets/docs/1xqfpsFwTZyJDf0fxzqw.webp)
 
 <Callout status="success">
 
@@ -39,7 +39,7 @@ For extremely large schemas (> than 2k tables), column search will be disabled. 
 
 </Callout>
 
-![search_schema.png](../assets/docs/B28PLPlRQliw1RfSbNVH.webp)
+![Schema browser search results for USERS across tables](../assets/docs/B28PLPlRQliw1RfSbNVH.webp)
 
 #### Schema tree
 
@@ -50,20 +50,20 @@ You can also access other useful table actions via the context menu when you hov
 - **Query table:** adds a new SQL block to your notebook with a pre-populated query for the given table (shown below). This is particularly useful for quickly previewing the contents of the table.
 - **Copy qualified table name:** copies the name of the table to your clipboard including its full path in the schema. You can then simply insert it into your SQL block to start querying the table.
 
-![qry_from_schema.png](../assets/docs/cUKuMl9eTZu0T1R0oUcR.webp)
+![Schema browser table actions menu with Query table](../assets/docs/cUKuMl9eTZu0T1R0oUcR.webp)
 
 #### Table details
 
 The bottom panel shows you details about the selected table.
 
-You can see a list of all the columns and their associated data types. You can hover over a column and click on the copy icon to copy the column’s name to the clipboard.
+You can see a list of all the columns and their associated data types. To copy all column names at once, open the table actions menu and select **Copy all columns**.
 
 The context menu in the upper right corner offers helpful table actions. These are identical to those available in the schema tree, with a couple of additions:
 
-- **Copy all columns**: copy a list of comma-separated columns names
+- **Copy all columns**: copies a comma-separated list of column names.
 - **Go to table in tree view**: clicking on this will navigate to the table in the schema tree. This can be useful if you opened a table in the search results and would like to quickly jump to its place within your schema hierarchy.
 
-![table_details.png](../assets/docs/ZiXYrRocTZaiwyRtE9I3.webp)
+![Schema browser table details showing column names and types](../assets/docs/ZiXYrRocTZaiwyRtE9I3.webp)
 
 ### Refreshing the schema
 
@@ -71,4 +71,4 @@ To provide a fast and seamless experience, the schema for a given integration is
 
 The cached version is retained for 7 days (or until the integration details are changed). After this expiration date, we automatically re-fetch the latest state of the schema when someone views the schema browser.
 
-If you need to access the freshest schema for your work, you can manually force an update. Click on the context menu displayed in the integration’s header and select **Refresh**.
+If you need to access the freshest schema for your work, you can manually force an update. Click the refresh icon in the integration’s header.
