@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-<Embed url='https://www.loom.com/share/77b1fd050a0c456d8de78f866984d123'/>
+<Iframe width="720" height="405" src="https://www.youtube.com/embed/EOgh1oVjfkQ?si=3Uh6d_lILl9ljt7h" title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen></Iframe>
 
 Deepnote is the AI workspace for data professionals, designed to simplify data exploration, accelerate analysis, and quickly deliver actionable insights for you and your team. Unlike outdated tools such as Jupyter, Deepnote is built with the next decade in mind. Deepnote is built to give anyone working with data superpowers. It unifies your data workflow through an integrated semantic layer, preparing your data for advanced AI applications. You can also leverage our AI data copilot to chat with your data, create charts, and write code, or turn your AI notebooks into fully-fledged data dashboards or apps. Combine data, SQL or Python code, and visualizations side-by-side on a flexible canvas - enhanced with cutting-edge AI reasoning models.
 
