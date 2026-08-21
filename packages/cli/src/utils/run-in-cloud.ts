@@ -7,18 +7,18 @@ import {
   deepnoteSnapshotSchema,
   deserializeDeepnoteFile,
   type InputBlockValueOverrides,
+  isExecutableBlock,
   parseYaml,
   serializeDeepnoteSnapshot,
 } from '@deepnote/blocks'
 import {
   describeRunError,
-  fetchSnapshotContent,
-  getRun,
   isSuccessStatus,
   type NormalizedRun,
   pollRunUntilComplete,
   type TriggerRunBody,
   triggerNotebookRun,
+  waitForRunSnapshot,
 } from '@deepnote/cloud'
 import { getSnapshotDir, getSnapshotPath, resolveSnapshotNotebookId, splitDeepnoteFile } from '@deepnote/convert'
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
@@ -39,13 +39,22 @@ import { parseInputs } from './parse-inputs'
  */
 export type RunCloudOptions = RunOptions
 
-/** Machine-readable result of a cloud run (shape shared by `-o json` and `-o toon`). */
+/**
+ * Machine-readable result of a cloud run (shape shared by `-o json` and `-o toon`).
+ * `synthesized` means the API returned no artifact and the CLI wrote an output-free snapshot
+ * built from the local source instead — not a snapshot the run itself produced.
+ */
+export type CloudArtifactStatus = 'saved' | 'synthesized' | 'not_produced' | 'unavailable'
+
 export interface CloudRunResult {
+  /** Whether the command succeeded — execution passed and artifact delivery did not fail. */
   success: boolean
   runId: string
   status: string
+  artifactStatus: CloudArtifactStatus
   snapshotPath?: string
   timestampedSnapshotPath?: string
+  artifactError?: string
   error?: string
 }
 
@@ -86,6 +95,7 @@ function assertNoIncompatibleFlags(options: RunCloudOptions): void {
 const CLOUD_ONLY_FLAGS: ReadonlyArray<readonly [keyof RunCloudOptions, string]> = [
   ['notebookId', '--notebook-id'],
   ['out', '--out'],
+  ['storageMode', '--storage-mode'],
   ['timeout', '--timeout'],
   ['push', '--push'],
 ]
@@ -199,6 +209,33 @@ function parseSnapshotContent(content: string): DeepnoteSnapshot | null {
   return null
 }
 
+/** True only when the local target is known to contain nothing the runtime can execute. */
+function isKnownNoOp(file: DeepnoteFile | undefined, notebookId: string, blockId: string | undefined): boolean {
+  if (!file || blockId) {
+    return false
+  }
+  const notebook = file.project.notebooks.find(candidate => candidate.id === notebookId)
+  return notebook !== undefined && !notebook.blocks.some(isExecutableBlock)
+}
+
+/**
+ * Materialize the valid output-free snapshot the API may omit for an empty/markdown-only run.
+ * Start from the source half so stale outputs from an older embedded snapshot cannot leak in.
+ */
+function synthesizeNoOpSnapshot(file: DeepnoteFile, run: NormalizedRun): string {
+  const { source } = splitDeepnoteFile(file)
+  const fallbackTime = new Date().toISOString()
+  const executed: DeepnoteFile = {
+    ...source,
+    execution: {
+      startedAt: run.createdAt ?? run.completedAt ?? fallbackTime,
+      finishedAt: run.completedAt ?? fallbackTime,
+      triggeredBy: 'api',
+    },
+  }
+  return serializeDeepnoteSnapshot(splitDeepnoteFile(executed).snapshot)
+}
+
 /** ISO timestamp → filename-safe segment, matching `saveExecutionSnapshot`'s convention. */
 function toSnapshotTimestamp(finishedAt: string | undefined): string {
   const parsed = finishedAt ? new Date(finishedAt) : new Date()
@@ -280,6 +317,13 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   }
 
   assertNoIncompatibleFlags(options)
+  if (options.block && options.storageMode) {
+    throw new CloudRunUsageError(
+      '--storage-mode cannot be combined with --block: the API runs selected blocks in live mode, ' +
+        'which does not support detached-run storage settings. Run the whole notebook read-only, or omit ' +
+        '--storage-mode to run the block in the live editor session.'
+    )
+  }
 
   // Resolve a local .deepnote file when we need one to derive the notebook id (no --notebook-id),
   // or when a path was explicitly given (used for snapshot naming). `resolvePathToDeepnoteFile`
@@ -306,10 +350,12 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   const notebookId = resolveTargetNotebookId(options, localFile)
   const inputs = parseCloudInputs(options, localFile, notebookId)
   const blockIds = options.block ? [options.block] : undefined
+  const detachedRunStorageMode = options.storageMode === 'read-write' ? 'read_write' : options.storageMode
 
   const body: TriggerRunBody = {
     notebookId,
     ...(Object.keys(inputs).length > 0 ? { inputs } : {}),
+    ...(detachedRunStorageMode ? { detachedRunStorageMode } : {}),
     ...(blockIds ? { blockIds } : {}),
   }
 
@@ -334,18 +380,6 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
         }
       },
     })
-
-    // Defensive: some deployments only include the snapshot once terminal — re-fetch if absent.
-    // A failure here must not escape: the run itself already reached a terminal state, so throwing
-    // would discard its runId and status. Treat it as "no snapshot content" and let the snapshot
-    // error path below report it with those fields intact.
-    if (!finalRun.snapshot) {
-      try {
-        finalRun = await getRun(baseUrl, token, finalRun.runId, { snapshotDelivery: 'inline' })
-      } catch (err) {
-        debug(`Re-fetching run ${finalRun.runId} for its snapshot failed: ${err instanceof Error ? err.message : err}`)
-      }
-    }
   } catch (err) {
     spinner?.fail('Deepnote run failed')
     throw err
@@ -355,16 +389,29 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   const success = isSuccessStatus(status)
   const runErrorMessage = describeRunError(finalRun)
 
-  // Download + persist the snapshot. Downloading it is this command's contract, so for a
-  // successful run any retrieval/persistence failure — or missing content — fails the command
-  // (machine clients must not see success without an artifact). For a run that already failed, a
-  // missing snapshot is expected, so we don't compound the failure.
+  // Snapshot delivery is separate from execution status. Terminal status can precede attachment,
+  // and a valid no-op run may never produce an artifact at all.
   let snapshotPath: string | undefined
   let timestampedSnapshotPath: string | undefined
-  let snapshotError: string | undefined
+  let artifactStatus: CloudArtifactStatus = 'not_produced'
+  let artifactError: string | undefined
   try {
-    const content = await fetchSnapshotContent(finalRun, { baseUrl, token })
-    if (content) {
+    const settled = await waitForRunSnapshot(baseUrl, token, finalRun, {
+      onRetryError: error => {
+        debug(
+          `Re-fetching run ${finalRun.runId} for its snapshot failed: ${error instanceof Error ? error.message : error}`
+        )
+      },
+    })
+    finalRun = settled.run
+    let content = settled.content
+    let synthesized = false
+    if (content === null && success && localFile && isKnownNoOp(localFile, notebookId, options.block)) {
+      content = synthesizeNoOpSnapshot(localFile, finalRun)
+      synthesized = true
+    }
+
+    if (content !== null) {
       const written = await writeCloudSnapshot({
         content,
         runId: finalRun.runId,
@@ -375,31 +422,38 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
       })
       snapshotPath = written.snapshotPath
       timestampedSnapshotPath = written.timestampedSnapshotPath
-    } else if (success) {
-      snapshotError = `Run ${finalRun.runId} completed but returned no snapshot content.`
+      artifactStatus = synthesized ? 'synthesized' : 'saved'
+    } else if (settled.retryError !== undefined) {
+      // The last status re-fetch failed, so "no snapshot" rests on stale data — an outage must not
+      // read as a valid empty run. A failure a *successful* re-fetch later superseded is not here:
+      // that null is a fresh, confirmed not_produced.
+      throw settled.retryError
     } else {
       debug(`Run ${finalRun.runId} returned no snapshot content.`)
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    if (success) {
-      snapshotError = `Failed to save snapshot: ${message}`
-    } else {
-      debug(`Failed to save snapshot for failed run ${finalRun.runId}: ${message}`)
-    }
+    artifactStatus = 'unavailable'
+    artifactError = `Failed to retrieve or save snapshot: ${message}`
   }
 
-  // The command succeeds only if the run succeeded AND its snapshot was saved.
-  const commandSucceeded = success && snapshotError === undefined
-  const errorMessage = runErrorMessage ?? snapshotError
+  if (success && artifactStatus === 'not_produced') {
+    artifactError = options.out
+      ? `Run ${finalRun.runId} completed successfully but produced no snapshot for --out.`
+      : `Run ${finalRun.runId} completed successfully but produced no snapshot.`
+  }
+
+  const commandSucceeded = success && artifactStatus !== 'unavailable' && artifactError === undefined
 
   const result: CloudRunResult = {
     success: commandSucceeded,
     runId: finalRun.runId,
     status,
+    artifactStatus,
     ...(snapshotPath ? { snapshotPath } : {}),
     ...(timestampedSnapshotPath ? { timestampedSnapshotPath } : {}),
-    ...(errorMessage ? { error: errorMessage } : {}),
+    ...(artifactError ? { artifactError } : {}),
+    ...(runErrorMessage ? { error: runErrorMessage } : {}),
   }
 
   if (options.output === 'json') {
@@ -417,20 +471,28 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
 
 function renderHumanResult(result: CloudRunResult, spinner: ReturnType<typeof ora> | null): void {
   const c = getChalk()
-  if (result.success) {
+  const artifactFailed = result.artifactStatus === 'unavailable' || result.artifactError !== undefined
+  if (result.success && !artifactFailed) {
     const message = `Run ${result.runId} completed (${result.status})`
     if (spinner) {
       spinner.succeed(message)
     } else {
       log(c.green(`✓ ${message}`))
     }
-    if (result.snapshotPath) {
+    if (result.snapshotPath && result.artifactStatus === 'synthesized') {
+      log(
+        c.yellow(
+          `The run produced no snapshot; saved an output-free snapshot synthesized from the local source to ${c.bold(result.snapshotPath)}`
+        )
+      )
+    } else if (result.snapshotPath) {
       log(`Snapshot saved to ${c.bold(result.snapshotPath)}`)
+    } else {
+      log(c.yellow('No snapshot was produced; the successful run had no local artifact.'))
     }
     return
   }
 
-  // status can be 'success' here when the run succeeded but its snapshot could not be saved.
   const message =
     result.status === 'success'
       ? `Run ${result.runId} completed but the snapshot could not be saved`
@@ -442,6 +504,9 @@ function renderHumanResult(result: CloudRunResult, spinner: ReturnType<typeof or
   }
   if (result.error) {
     log(c.red(result.error))
+  }
+  if (result.artifactError) {
+    log(c.red(result.artifactError))
   }
   if (result.snapshotPath) {
     log(`Partial snapshot saved to ${c.bold(result.snapshotPath)}`)

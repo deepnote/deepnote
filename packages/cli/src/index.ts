@@ -29,6 +29,7 @@
 
 export type { GlobalOptions } from './cli'
 export { createProgram, run } from './cli'
+export { MalformedIntegrationsFileError } from './commands/integrations'
 export type { ExitCode as ExitCodeType } from './exit-codes'
 export { ExitCode } from './exit-codes'
 export type { OutputConfig } from './output'
