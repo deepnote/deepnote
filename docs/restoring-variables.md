@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-When you return to your notebook after your machine goes offline, for example due to inactivity, you will usually have the option to restore variables from your previous session.
+When you return to your notebook after your machine goes offline, for example due to [inactivity](https://docs.deepnote.com/environment/long-running-jobs#automatic-machine-shut-down), you will usually have the option to restore variables from your previous session.
 
 If you wish to do so, click on the restore variables button displayed in the notebook's status bar at the top. This will restore **all the variables from your previous session** in the state they were at when your hardware was shut down.
 

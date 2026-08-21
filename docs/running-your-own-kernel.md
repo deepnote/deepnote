@@ -20,7 +20,7 @@ The best way to run a custom kernel is to find an existing image, for example on
 
 ## R kernel
 
-In the right sidebar, pick your preferred version of R from the dropdown in the environment section. We recommend choosing the `deepnote/ir-with-libs:4.2.0` image. This installs R 4.2.0 and many common data science libraries for you (see the image details [here](https://hub.docker.com/r/deepnote/ir-with-libs)).
+In the right sidebar, pick your preferred version of R from the dropdown in the environment section. We recommend choosing the `deepnote/ir-with-libs:4.2.0` image. This installs R 4.2.0 and many common data science libraries for you (see the [Deepnote R Docker image details](https://hub.docker.com/r/deepnote/ir-with-libs)).
 
 ### Installing R packages
 
