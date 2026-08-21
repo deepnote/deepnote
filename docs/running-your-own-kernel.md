@@ -4,12 +4,12 @@ noIndex: false
 noContent: false
 ---
 
-If you need to work with different language then Python, the Jupyter ecosystem provides you with a vast selection of other kernels. You can now run them in Deepnote!
+If you need to work with a language other than Python, the Jupyter ecosystem provides a vast selection of other kernels. You can now run them in Deepnote!
 
 <Callout status="warning">
 **Deepnote's support for other kernels is still in its early days.**
 
-Some features don't work yet. This includes including the variable explorer, SQL cells, input cells, and autocomplete.
+Some features don't work yet. This includes the variable explorer, SQL cells, input cells, and autocomplete.
 </Callout>
 
 <Callout status="info">
@@ -20,7 +20,7 @@ The best way to run a custom kernel is to find an existing image, for example on
 
 ## R kernel
 
-In the right sidebar, pick your preferred version of R from the dropdown in the environment section. We recommended choosing the `deepnote/ir_with_libs` image. This will install R 4.2 and many common data science libraries for you (see the image details [here](https://hub.docker.com/r/deepnote/ir-with-libs)).
+In the right sidebar, pick your preferred version of R from the dropdown in the environment section. We recommend choosing the `deepnote/ir-with-libs:4.2.0` image. This installs R 4.2.0 and many common data science libraries for you (see the image details [here](https://hub.docker.com/r/deepnote/ir-with-libs)).
 
 ### Installing R packages
 
@@ -36,7 +36,7 @@ If you're comfortable using your own Docker image, the preferred way would be to
 
 ## Julia kernel
 
-Use custom Dockerfile in the environment tab, and build an image with the following code:
+Use a custom Dockerfile in the environment tab, and build an image with the following code:
 
 ```bash
 FROM deepnote/python:3.7
@@ -53,7 +53,7 @@ ENV DEFAULT_KERNEL_NAME "julia-1.6"
 
 ## Bash kernel
 
-Use custom Dockerfile in the environment tab, and build an image with the following code:
+Use a custom Dockerfile in the environment tab, and build an image with the following code:
 
 ```bash
 FROM deepnote/python:3.7
@@ -75,7 +75,7 @@ ENV DEFAULT_KERNEL_NAME "scala212"
 
 ## Racket kernel
 
-Use custom Dockerfile in the environment tab, and build an image with the following code:
+Use a custom Dockerfile in the environment tab, and build an image with the following code:
 
 ```bash
 FROM deepnote/python:3.7
@@ -134,7 +134,7 @@ RUN apt-get update -qq && \
 ENV DEFAULT_KERNEL_NAME=ruby
 ```
 
-Then replace the content of your 'Init' notebook with following:
+Then replace the content of your `Init` notebook with the following:
 
 ```bash
 !iruby register --force
@@ -144,6 +144,6 @@ After resetting the project state, you should be able to use Ruby in your notebo
 
 ### Ruby On Rails
 
-We have[ published a tutorial](https://deepnote.com/@deepnote/Ruby-on-Rails-in-Deepnote-QF-mn5foT7y3lfI_ItXf7g) to help your run an existing Ruby on Rails project in Deepnote. One of the use cases is querying your data based on the existing ActiveRecord models, theirs scopes and relations.
+We have [published a tutorial](https://deepnote.com/@deepnote/Ruby-on-Rails-in-Deepnote-QF-mn5foT7y3lfI_ItXf7g) to help you run an existing Ruby on Rails project in Deepnote. One use case is querying your data using the existing ActiveRecord models, their scopes, and relations.
 
 ##
