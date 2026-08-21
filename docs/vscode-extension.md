@@ -30,7 +30,7 @@ The Deepnote extension provides:
 ### From marketplace
 
 1. **Open your editor**
-   - Launch VS Code, Cursor, or another VS Code-compatible editor
+   - Launch VS Code, Cursor, Windsurf, or Antigravity
 
 2. **Open Extensions View**
    - Click Extensions icon in sidebar (Ctrl/Cmd + Shift + X)
@@ -51,6 +51,8 @@ The Deepnote extension provides:
 # Install using CLI
 code --install-extension deepnote.vscode-deepnote  # VS Code
 cursor --install-extension deepnote.vscode-deepnote  # Cursor
+windsurf --install-extension deepnote.vscode-deepnote  # Windsurf
+antigravity --install-extension deepnote.vscode-deepnote  # Antigravity
 ```
 
 ### Verify installation
@@ -241,7 +243,7 @@ This opens the file in VS Code's standard text editor with YAML syntax highlight
 
 ### Extension settings
 
-On macOS, access the extension settings through Code → Preferences → Settings. On Windows or Linux, use File → Preferences → Settings. You can also press Ctrl/Cmd + , and search for "Deepnote".
+On macOS, access the extension settings through Code → Preferences → Settings. On Windows or Linux, use File → Preferences → Settings. You can also press Ctrl/Cmd + `,`. Then search for "Deepnote".
 
 ### Python environment
 
