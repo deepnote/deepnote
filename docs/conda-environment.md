@@ -40,7 +40,10 @@ Upon startup, Deepnote will install any packages listed in a `requirements.txt` 
 
 Here is a list of packages that are pre-installed when using the initial conda environment (as described above, you can use `!conda install <package name>` to install additional packages):
 
-<!-- cspell:disable -->
+{
+// cspell:disable
+null
+}
 
 - \_libgcc_mutex
 - \_openmp_mutex
@@ -187,4 +190,7 @@ Here is a list of packages that are pre-installed when using the initial conda e
 - zstandard
 - zstd
 
-<!-- cspell:enable -->
+{
+// cspell:enable
+null
+}
