@@ -1,5 +1,4 @@
-// Serves the cloud app for local development. Zero API routes — the page talks directly to the
-// local Deepnote server configured in APP_CONFIG.baseUrl.
+// Serves a static preview of the cloud app. It provides zero API routes and no notebook execution.
 // This only exists to wire /snapshot-reader.js from the built package without a copy step.
 
 import { readFile } from 'node:fs/promises'
@@ -40,6 +39,6 @@ const server = createServer(async (req, res) => {
 
 server.listen(0, '127.0.0.1', () => {
   const { port } = server.address()
-  console.log(`\n  Deepnote app (local dev) → http://127.0.0.1:${port}`)
-  console.log(`  Set APP_CONFIG.baseUrl for local execution, then pass ?notebookId=…\n`)
+  console.log(`\n  Deepnote app (static preview) → http://127.0.0.1:${port}`)
+  console.log('  Static assets only — publish the app to test notebook loading and runs.\n')
 })

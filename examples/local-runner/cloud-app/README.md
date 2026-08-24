@@ -4,7 +4,9 @@ A self-contained dynamic app that runs notebooks via the Deepnote `/v2/runs` API
 
 ## How it works
 
-One configurable `baseUrl` determines where standalone runs execute. Point it at a local Deepnote server (`localhost:8080`) for local kernel execution. When published, the trusted Deepnote shell supplies the API origin together with the app's short-lived token, and the app always uses those as one credential bundle.
+`baseUrl` is the fallback API origin. When published, the trusted Deepnote shell supplies the API
+origin together with the app's short-lived token, and the app always uses those as one credential
+bundle.
 
 The HTML page embeds all the JS needed to:
 
@@ -23,7 +25,7 @@ Runtime configuration comes from `APP_CONFIG` in the HTML. The non-sensitive `no
 
 | Parameter     | Default                    | Description                                                                  |
 | ------------- | -------------------------- | ---------------------------------------------------------------------------- |
-| `baseUrl`     | `https://api.deepnote.com` | Standalone API server; replaced by the shell-provided origin when embedded   |
+| `baseUrl`     | `https://api.deepnote.com` | Fallback API origin; replaced by the shell-provided origin when embedded     |
 | `notebookId`  | —                          | Required notebook to run                                                     |
 | `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token |
 | `inputs`      | `[]`                       | Optional input definitions; empty means discover them from the notebook API  |
@@ -36,8 +38,9 @@ and slider bounds — from `GET /v2/notebooks/:id`. It does not request arbitrar
 When embedded in Deepnote (published and opened from the project), the app asks the shell over
 postMessage and uses the short-lived, project- and viewer-scoped token it gets back. The shell also
 names the API origin in the same reply, and the app always sends that token only to that origin.
-Personal API tokens are not accepted through URL parameters. Standalone development therefore uses
-an unauthenticated local Deepnote server configured through `APP_CONFIG.baseUrl`.
+Personal API tokens are not accepted through URL parameters. The preview server below does not
+provide API routes, so notebook loading and execution must be tested through the published,
+embedded app.
 
 The handshake is pinned to `shellOrigin` in both directions: the request is addressed to that origin
 rather than `*`, and a reply is only believed when it comes from the parent frame on that same
@@ -47,18 +50,18 @@ Publishing the files is not enough for the embedded path. A project needs **API 
 apps** enabled, which is a separate opt-in from static file sharing. Without it the shell answers
 the handshake with nothing at all, and the app reports that it could not acquire a token.
 
-## Quick start
+## Local static preview
 
 ```bash
 # Build the snapshot reader (once)
 pnpm --filter @deepnote/local-runner build
 
-# Start the dev server (just serves static files + snapshot-reader.js)
+# Start the static preview server (no API routes)
 node examples/local-runner/cloud-app/serve.mjs
-
-# Set APP_CONFIG.baseUrl to http://localhost:8080, then open:
-# http://127.0.0.1:<port>?notebookId=<id>
 ```
+
+Open the URL printed by the server. This previews the app's assets and layout only; it cannot load
+a notebook or start a run. Use the published flow below for functional testing.
 
 ## Publishing to deepnote.com
 

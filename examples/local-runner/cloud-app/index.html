@@ -195,9 +195,8 @@
     <script src="./snapshot-reader.js"></script>
     <script type="module">
       // ── App config ─────────────────────────────────────────────────────────────
-      // The single `baseUrl` determines where standalone runs execute. Point it at a local Deepnote
-      // server (e.g. localhost:8080) for local development. When embedded, the trusted Deepnote
-      // shell replaces it with the API origin that minted the app's short-lived token.
+      // `baseUrl` is the fallback API origin. When embedded, the trusted Deepnote shell replaces it
+      // with the API origin that minted the app's short-lived token.
       //
       // Query-param overrides: ?notebookId=…  ?shellOrigin=…
       const APP_CONFIG = {
@@ -458,8 +457,8 @@
       // ── Initialize ─────────────────────────────────────────────────────────────
       async function init() {
         // Embedded, the shell's token is the only credential used: short-lived, scoped to this
-        // project and this viewer, and revoked with their access. Standalone local development
-        // talks to an unauthenticated local server; personal tokens are never accepted in the URL.
+        // project and this viewer, and revoked with their access. Personal tokens are never
+        // accepted in the URL.
         if (isEmbedded) {
           apiToken = await requestDeepnoteToken()
         }
