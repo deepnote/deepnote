@@ -672,12 +672,14 @@ deepnote integrations pull
 
 **Options:**
 
-| Option              | Description                                    | Default             |
-| ------------------- | ---------------------------------------------- | ------------------- |
-| `--url <url>`       | API base URL                                   | Deepnote API        |
-| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                     |
-| `--file <path>`     | Path to integrations file                      | `integrations.yaml` |
-| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`              |
+| Option              | Description                                    | Default                    |
+| ------------------- | ---------------------------------------------- | -------------------------- |
+| `--url <url>`       | API base URL                                   | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                            |
+| `--file <path>`     | Path to integrations file                      | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`                     |
+
+If the local integrations file contains invalid YAML (for example, unresolved merge conflict markers), the command fails with exit code 2 and does not modify any files — fix or delete the file manually, then re-run.
 
 **Examples:**
 
@@ -691,6 +693,39 @@ deepnote integrations pull --token <token>
 # Pull to a custom file path
 deepnote integrations pull --file my-integrations.yaml
 ```
+
+### `integrations add`
+
+Add a new database integration interactively. Prompts for the integration type, a name, and the type-specific connection fields. Secret values are written to the `.env` file and referenced from the YAML as `env:` placeholders.
+
+```bash
+deepnote integrations add
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+### `integrations edit [id]`
+
+Edit an existing database integration interactively. Without `[id]`, shows a picker of the integrations found in the file.
+
+```bash
+deepnote integrations edit
+deepnote integrations edit <integration-id>
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+Like `integrations pull`, both commands fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
 
 ### `completion <shell>`
 

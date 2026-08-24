@@ -2,8 +2,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ApiError, type ApiIntegration, apiResponseSchema } from '@deepnote/database-integrations'
-import { Command } from 'commander'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Command, CommanderError } from 'commander'
+import { afterAll, afterEach, assert, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ExitCode } from '../exit-codes'
 import { MissingTokenError } from '../utils/auth'
 
 // Mock fetchIntegrations before importing the command module
@@ -27,10 +28,16 @@ vi.mock('../output', () => ({
 }))
 
 import { existsSync } from 'node:fs'
-import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
+import {
+  DEFAULT_API_URL,
+  DEFAULT_ENV_FILE,
+  DEFAULT_INTEGRATIONS_FILE,
+  IntegrationsYamlParseError,
+} from '@deepnote/database-integrations'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 // Import after mocks are set up
-import { createIntegrationsPullAction } from './integrations'
+import { createIntegrationsPullAction, MalformedIntegrationsFileError, readIntegrationsDocument } from './integrations'
+import { CONFLICT_MARKERS_YAML } from './integrations/test-helpers'
 
 describe('integrations command', () => {
   beforeEach(() => {
@@ -308,6 +315,50 @@ describe('integrations command', () => {
       await updateDotEnv(envPath, { PASS: 'p$ss#word=123' })
       const result = await readDotEnv(envPath)
       expect(result.PASS).toBe('p\\$ss#word=123')
+    })
+  })
+
+  describe('readIntegrationsDocument', () => {
+    let tempDir: string
+
+    beforeAll(async () => {
+      tempDir = await mkdtemp(join(tmpdir(), 'read-integrations-document-test-'))
+    })
+
+    afterAll(async () => {
+      await rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('returns null when the file does not exist', async () => {
+      await expect(readIntegrationsDocument(join(tempDir, 'nonexistent.yaml'))).resolves.toBeNull()
+    })
+
+    it('rejects with MalformedIntegrationsFileError when the file has merge conflict markers', async () => {
+      const filePath = join(tempDir, 'conflict-markers.yaml')
+      await writeFile(filePath, CONFLICT_MARKERS_YAML)
+
+      try {
+        await readIntegrationsDocument(filePath)
+        expect.fail('Should have thrown')
+      } catch (error) {
+        assert(error instanceof MalformedIntegrationsFileError)
+
+        expect(error.name).toBe('MalformedIntegrationsFileError')
+        expect(error.message).toContain('Invalid YAML in integrations file:')
+        expect(error.message).toContain(filePath)
+        expect(error.filePath).toBe(filePath)
+        expect(error.cause).toBeInstanceOf(IntegrationsYamlParseError)
+      }
+
+      // Reading must never rewrite the file it failed to parse.
+      expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
+    })
+
+    it('rejects with MalformedIntegrationsFileError for a manual-edit typo', async () => {
+      const filePath = join(tempDir, 'typo.yaml')
+      await writeFile(filePath, 'a: b: c\n')
+
+      await expect(readIntegrationsDocument(filePath)).rejects.toBeInstanceOf(MalformedIntegrationsFileError)
     })
   })
 
@@ -779,6 +830,52 @@ integrations:
         expect(mockDebug).toHaveBeenCalledWith(
           expect.stringContaining('Skipping invalid or unsupported integration "Comet ML" (env)')
         )
+      })
+
+      it('fails with exit code 2 and writes nothing when the local file has invalid YAML', async () => {
+        mockFetchIntegrations.mockResolvedValueOnce([createMockIntegration()])
+
+        const filePath = join(tempDir, 'test-malformed.yaml')
+        const envFilePath = join(tempDir, 'test-malformed.env')
+        await writeFile(filePath, CONFLICT_MARKERS_YAML)
+
+        try {
+          await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+          expect.fail('Should have thrown')
+        } catch (error) {
+          assert(error instanceof CommanderError)
+
+          expect(error.exitCode).toBe(ExitCode.InvalidUsage)
+          expect(error.message).toContain('Invalid YAML in integrations file:')
+          expect(error.message).toContain(filePath)
+        }
+
+        // A failed pull must leave the user's file exactly as they left it, and must
+        // not have written half a pull's worth of secrets to .env.
+        expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
+        expect(existsSync(envFilePath)).toBe(false)
+      })
+
+      it('fails with exit code 2 on an invalid local file even when the workspace has no integrations', async () => {
+        mockFetchIntegrations.mockResolvedValueOnce([])
+
+        const filePath = join(tempDir, 'test-malformed-empty-workspace.yaml')
+        const envFilePath = join(tempDir, 'test-malformed-empty-workspace.env')
+        await writeFile(filePath, CONFLICT_MARKERS_YAML)
+
+        try {
+          await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+          expect.fail('Should have thrown')
+        } catch (error) {
+          assert(error instanceof CommanderError)
+
+          expect(error.exitCode).toBe(ExitCode.InvalidUsage)
+          expect(error.message).toContain('Invalid YAML in integrations file:')
+          expect(error.message).toContain(filePath)
+        }
+
+        expect(await readFile(filePath, 'utf-8')).toEqual(CONFLICT_MARKERS_YAML)
+        expect(existsSync(envFilePath)).toBe(false)
       })
     })
 

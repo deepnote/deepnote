@@ -7,7 +7,7 @@ import {
   syncNotebookContent,
 } from '@deepnote/local-runner'
 import ora from 'ora'
-import { debug, getChalk, getOutputConfig, log } from '../output'
+import { debug, getChalk, getOutputConfig, log, warn } from '../output'
 import { CloudRunUsageError } from './cloud-run-errors'
 import { promptForBooleanField } from './inquirer'
 
@@ -119,7 +119,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     // dropped SQL integration must not vanish just because the caller wanted JSON. stderr keeps
     // stdout machine-readable. The dry-run preview additionally carries them in its JSON payload.
     for (const warning of planned.warnings) {
-      debug(`push warning: ${warning}`)
+      warn(`push warning: ${warning}`)
     }
   } else {
     printPlan(planned, notebookId)
@@ -135,7 +135,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
   if (!args.yes) {
     // Nothing to prompt with when output is piped or machine-readable: hanging on a question nobody
     // can see is worse than refusing, and silently pushing without asking is worse than either.
-    if (args.machineOutput || !process.stdin.isTTY) {
+    if (args.machineOutput || !process.stdin.isTTY || !process.stdout.isTTY) {
       // A usage error, not a runtime one: this is a bad invocation for the environment it ran in,
       // and it should exit 2 like every other misuse rather than reading as a failed run.
       throw new CloudRunUsageError(
