@@ -21,19 +21,15 @@ Main benefits:
 
 ### Saving cached results
 
-To use SQL caching, enable it for your workspace. Go to **Settings & members** and select **Project settings**.
-
-![SQL caching workspace setting](../assets/docs/22WC5oxMR36CGgyI8YVn.webp)
-
-When **SQL caching** is turned **on** (default state), Deepnote stores the results of SQL block queries in the cache. The SQL block displays the query result after execution. Cached-result controls are available only in projects where caching is enabled.
-
-When the setting is turned **off**, query results are not saved to the cache, and the option to use cached results is disabled across all projects in the workspace.
-
-### Surfacing cached results
-
-To use cached results in a project, open **More options** in the **Machine** section of the right sidebar and select **SQL cache**. Turn on **SQL caching** in the popover. Deepnote then uses cached results for SQL blocks in the project and reruns queries when they are older than the selected expiration period.
+To save SQL block results in a project's cache, open **More options** in the **Machine** section of the right sidebar and select **SQL cache**. Turn on **SQL caching** in the popover. Deepnote reruns queries when they are older than the selected expiration period.
 
 ![SQL caching project setting](../assets/docs/moOaHWgaRlmfSjdxYwou.webp)
+
+When **SQL caching** is turned **on**, Deepnote stores the results of SQL block queries in the cache. The SQL block displays the query result after execution. Cached-result controls are available only in projects where caching is enabled.
+
+When **SQL caching** is turned **off**, query results are not saved to the cache.
+
+### Surfacing cached results
 
 After a query runs while project caching is disabled, the SQL block can show an **Enable SQL caching** prompt. Select **Enable caching** to turn on caching for the project.
 
@@ -54,12 +50,16 @@ When caching is enabled for a project, running the whole notebook or executing i
 
 1. In the dropdown options of the **Run notebook** button, select **Run notebook without cache** to execute the notebook without utilizing cached results.
 
+   ![Run notebook without cache](../assets/docs/xi2IGwPcRxIO7ePNMbnw.webp)
+
 2. In the block sidebar, select **Run without cache.** Clicking on this option forces the specific SQL block to pull fresh results from the warehouse.
+
+   ![Run block without cache](../assets/docs/BZA4LjtHQbieZAeq1MOQ.webp)
 
 These options are only displayed if project-level caching is enabled.
 
 <Callout status="info">
-**Scheduled runs** of notebooks **do not read from the cache**: queries always hit the warehouse for fresh data. However, they do write to the cache, so scheduling can be used to “pre-cache” results for later use.
+**Scheduled runs** of notebooks **do not read from the cache**: queries always hit the warehouse for fresh data. When SQL caching is enabled for the project, scheduled runs also write their results to the cache, so scheduling can be used to “pre-cache” results for later use.
 </Callout>
 
 ## Exceptions

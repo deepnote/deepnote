@@ -124,7 +124,7 @@ With caching enabled, Deepnote automatically saves the results of your queries i
 
 SQL blocks combine schema _Intellisense_ autocompletions and inline AI completions together for seamless SQL writing.
 
-The built-in _Intellisense_ will offer relevant suggestions for your cursor position. This includes entities in your schema such as databases, tables or columns but also aliases, CTEs or query previews that you may have defined in your previous queries. The autocomplete will open automatically as you type. In addition to that, you can trigger it manually by using one of these keyboard shortcuts <Keyboard>Control + Space</Keyboard>, <Keyboard>Option + Space</Keyboard> or <Keyboard>⌘ + I</Keyboard>.
+The built-in _Intellisense_ will offer relevant suggestions for your cursor position. This includes entities in your schema such as databases, tables or columns but also aliases, CTEs or query previews that you may have defined in your previous queries. The autocomplete will open automatically as you type. In addition to that, you can trigger it manually by using one of these keyboard shortcuts <Keyboard>Control + Space</Keyboard> or <Keyboard>⌘ + I</Keyboard>.
 
 ![SQL Autocomplete](../assets/docs/wWGpYQjmQTWM2gPRxEQk.webp)
 
