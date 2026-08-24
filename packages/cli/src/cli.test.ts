@@ -68,10 +68,11 @@ describe('CLI', () => {
       expect(optionFlags).toContain('--out <path>')
       expect(optionFlags).toContain('--storage-mode <mode>')
       expect(optionFlags).toContain('--timeout <seconds>')
-      // --push is registered but hidden until the push-to-cloud flow ships
+      // --push is wired into the cloud run flow and visible, with --yes to confirm it in CI
       const pushOption = runCmd?.options.find(o => o.flags === '--push')
       expect(pushOption).toBeDefined()
-      expect(pushOption?.hidden).toBe(true)
+      expect(pushOption?.hidden).toBe(false)
+      expect(optionFlags).toContain('--yes')
     })
 
     it('completion command is properly configured', () => {
@@ -174,6 +175,7 @@ describe('CLI', () => {
         COMPREPLY=( $(compgen -W "read-write readonly" -- "\${cur}") )
         return 0
     fi`)
+      expect(output).toContain('--storage-mode --timeout --push --yes --url')
       consoleSpy.mockRestore()
     })
 
@@ -192,6 +194,8 @@ describe('CLI', () => {
       expect(output).toContain(
         "'--storage-mode[Project-storage access for a detached cloud run]:mode:(read-write readonly)'"
       )
+      expect(output).toContain("'--push[Push the local .deepnote blocks to the Deepnote notebook before running]'")
+      expect(output).toContain("'--yes[Skip the --push confirmation prompt]'")
       consoleSpy.mockRestore()
     })
 
@@ -208,6 +212,12 @@ describe('CLI', () => {
       expect(output).toContain('__fish_seen_subcommand_from schedule')
       expect(output).toContain(
         "complete -c deepnote -n '__fish_seen_subcommand_from run' -l storage-mode -a 'read-write readonly' -d 'Project-storage access for a detached cloud run'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from run' -l push -d 'Push the local .deepnote blocks to the Deepnote notebook before running'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from run' -l yes -d 'Skip the --push confirmation prompt'"
       )
       consoleSpy.mockRestore()
     })
