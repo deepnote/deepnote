@@ -86,11 +86,12 @@ The notebook to run is resolved in this order:
 2. A local `.deepnote` file with `--notebook "<name>"` — the named notebook's id.
 3. A single-notebook `.deepnote` file — its notebook id.
 
-The notebook must already exist in Deepnote; `--cloud` does not upload local content, and
-non-`.deepnote` inputs are rejected. Snapshots are written as a timestamped file plus a `latest`
-copy, unless `--out <path>` is given (single file). `--input`, `--block`, `--notebook`, `--url`,
-`--token`, and `--storage-mode` are honored; local-only flags (`--python`, `--cwd`, `--top`,
-`--profile`, `--open`, `--prompt`, `--dry-run`, `--list-inputs`, `--context`) are not.
+The notebook must already exist in Deepnote; `--cloud` does not create it, and non-`.deepnote`
+inputs are rejected. Snapshots are written as a timestamped file plus a `latest` copy, unless
+`--out <path>` is given (single file). `--input`, `--block`, `--notebook`, `--url`, `--token`,
+`--storage-mode`, `--push`, and `--yes` are honored; local-only flags (`--python`, `--cwd`,
+`--top`, `--profile`, `--open`, `--prompt`, `--list-inputs`, `--context`) are not. `--dry-run` is
+rejected with `--cloud` unless `--push` is set, where it previews the push plan instead.
 
 Full-notebook cloud runs are detached, so Deepnote executes a copy without changing outputs in the
 live editor. This does not isolate anything the notebook accesses: project files remain shared and
@@ -98,6 +99,15 @@ writable by default, and databases, integrations, external APIs, and other syste
 Use `--storage-mode readonly` to make persistent project storage read-only for that detached run;
 reads and temporary files still work. Block-scoped cloud runs are different: the API runs them in
 live mode, they update live-editor outputs, and they cannot be combined with `--storage-mode`.
+
+`--push` sends the local file's blocks to the Deepnote notebook before the run, so the cloud
+executes what is on disk rather than what was last saved in Deepnote. The sync is destructive — a
+cloud block the file does not have is deleted, and a block whose type or metadata changed is
+recreated under a new id (a `--block` selection is remapped to the new id automatically). The CLI
+prints the plan and asks for confirmation: `--yes` skips the question and is required when output
+is piped or machine-readable; a declined confirmation exits `0` without running. `--push --dry-run`
+prints the plan and exits without sending or running anything; with `-o json`/`-o toon` it emits
+`{ previewed, plan: { changes, moves, warnings, isEmpty } }` instead of a run result.
 
 `--input` follows the same rules as a local run: each value is typed by the input block it names,
 and unknown names or invalid values are rejected before the run is triggered. Typing a value
@@ -129,6 +139,9 @@ DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --input name="Alice"
 
 # Run the whole notebook without allowing writes to persistent project storage
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --storage-mode readonly
+
+# Push local edits to the notebook first, then run what is on disk (asks before changing it)
+DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --push
 
 # Machine-readable result
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json
