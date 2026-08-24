@@ -587,10 +587,18 @@
           wrap.append(box, track, txt); return wrap
         }
         if (inp.type === 'input-select') {
+          // Older notebooks can retain the previous value shape after switching between single and
+          // multiple selection. Normalize it before the first run, not only after an onchange event.
+          const value = inp.multiple
+            ? (Array.isArray(inp.value) ? inp.value : inp.value == null || inp.value === '' ? [] : [inp.value]).map(String)
+            : String(Array.isArray(inp.value) ? (inp.value[0] ?? '') : (inp.value ?? ''))
+          const selectedValues = inp.multiple ? value : [value]
+          state[inp.variableName] = value
+
           const sel = el('select'); sel.multiple = inp.multiple
-          for (const opt of inp.options) {
-            const o = el('option'); o.value = opt; o.textContent = opt
-            o.selected = Array.isArray(inp.value) ? inp.value.includes(opt) : inp.value === opt
+          for (const opt of new Set([...(inp.options ?? []).map(String), ...selectedValues])) {
+            const o = el('option'); o.value = opt; o.textContent = opt || '—'
+            o.selected = selectedValues.includes(opt)
             sel.append(o)
           }
           sel.onchange = () => { state[inp.variableName] = inp.multiple ? [...sel.selectedOptions].map(o => o.value) : sel.value }
