@@ -39,7 +39,7 @@ For extremely large schemas (> than 2k tables), column search will be disabled. 
 
 </Callout>
 
-![Schema browser search results for USERS across tables](../assets/docs/B28PLPlRQliw1RfSbNVH.webp)
+![Schema browser search results for USER across tables and columns](../assets/docs/B28PLPlRQliw1RfSbNVH.webp)
 
 #### Schema tree
 
