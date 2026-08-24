@@ -427,33 +427,6 @@
         }
       }
 
-      // ── Project / notebook discovery ───────────────────────────────────────────
-      // A published app is served from `static-<projectId>.<outputs domain>`, so the host already
-      // says which project this is — the same derivation the Deepnote side makes. That means a
-      // published app needs no notebook id baked in before upload: it reads the project's notebooks
-      // and runs the one it was published alongside.
-      function projectIdFromHost() {
-        const match = location.hostname.match(
-          /^static-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\./i
-        )
-        return match ? match[1] : null
-      }
-
-      async function resolveNotebookId() {
-        const projectId = projectIdFromHost()
-        if (!projectId) return null
-        const res = await fetch(`${APP_CONFIG.baseUrl}/v2/projects/${encodeURIComponent(projectId)}`, {
-          headers: apiHeaders(),
-        })
-        if (!res.ok) return null
-        const project = (await res.json()).project ?? {}
-        const notebooks = project.notebooks ?? []
-        if (notebooks.length === 0) return null
-        // Prefer the configured name when it matches, so a multi-notebook project stays predictable.
-        const named = notebooks.find((n) => n.name === APP_CONFIG.notebookName)
-        return (named ?? notebooks[0]).id ?? null
-      }
-
       // ── Input discovery ────────────────────────────────────────────────────────
       // The notebook response exposes the complete, normalized input definitions needed to render
       // controls. Static-app tokens can call this endpoint without receiving notebook source.
@@ -501,16 +474,6 @@
           $('#env-label').textContent = apiToken ? 'Deepnote' : 'No token'
         } else {
           $('#env-label').textContent = apiToken ? host : 'No token'
-        }
-
-        // Nothing in the URL when embedded but the shell's own token, so fall back to the project
-        // named by the host before deciding there is no notebook to run.
-        if (!APP_CONFIG.notebookId && (apiToken || isLocal())) {
-          try {
-            APP_CONFIG.notebookId = await resolveNotebookId()
-          } catch {
-            // Leave it unset; the readiness check below reports it.
-          }
         }
 
         // Render configured inputs immediately; when none are configured, discover them from the
@@ -668,6 +631,8 @@
 
       // ── Run history ────────────────────────────────────────────────────────────
       async function loadRuns() {
+        // Static-app tokens can read only their own run by id, not enumerate notebook run history.
+        if (isEmbedded) return
         if (!apiToken && !isLocal()) return
         if (!APP_CONFIG.notebookId) return
         const data = await listRuns(APP_CONFIG.notebookId)

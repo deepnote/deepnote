@@ -13,6 +13,10 @@ The HTML page embeds all the JS needed to:
 3. **Parse snapshot YAML** using the `snapshot-reader.iife.js` bundle — except embedded in Deepnote, where the short-lived app token never receives the raw snapshot and the API returns the executed blocks' outputs pre-parsed as `snapshotBlocks`
 4. **Render outputs** (tables, charts, text) in the browser
 
+Embedded mode stays within the static-app token's restricted API surface: read the configured
+notebook, start a detached run, and poll that run. Notebook discovery and run-history enumeration
+are intentionally not available to static-app tokens.
+
 ### Configuration
 
 Runtime configuration comes from `APP_CONFIG` in the HTML. The non-sensitive `notebookId` and `shellOrigin` values can also be overridden through query parameters:
@@ -20,7 +24,7 @@ Runtime configuration comes from `APP_CONFIG` in the HTML. The non-sensitive `no
 | Parameter     | Default                    | Description                                                                  |
 | ------------- | -------------------------- | ---------------------------------------------------------------------------- |
 | `baseUrl`     | `https://api.deepnote.com` | Standalone API server; replaced by the shell-provided origin when embedded   |
-| `notebookId`  | —                          | Notebook to run                                                              |
+| `notebookId`  | —                          | Required notebook to run                                                     |
 | `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token |
 | `inputs`      | `[]`                       | Optional input definitions; empty means discover them from the notebook API  |
 
