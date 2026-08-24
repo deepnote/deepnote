@@ -29,6 +29,16 @@ When **SQL caching** is turned **on** (default state), Deepnote stores the resul
 
 When the setting is turned **off**, query results are not saved to the cache, and the option to use cached results is disabled across all projects in the workspace.
 
+### Surfacing cached results
+
+To use cached results in a project, open **More options** in the **Machine** section of the right sidebar and select **SQL cache**. Turn on **SQL caching** in the popover. Deepnote then uses cached results for SQL blocks in the project and reruns queries when they are older than the selected expiration period.
+
+![SQL caching project setting](../assets/docs/moOaHWgaRlmfSjdxYwou.webp)
+
+After a query runs while project caching is disabled, the SQL block can show an **Enable SQL caching** prompt. Select **Enable caching** to turn on caching for the project.
+
+![Enable SQL caching prompt](../assets/docs/NfUBQoW9QAyiClbFPXyK.webp)
+
 ## How does caching work?
 
 When you run a SQL block in a project where caching is enabled, Deepnote checks for a cached result that is no older than the project’s cache expiration period, which is 1 day by default.
