@@ -227,6 +227,7 @@
       if (params.get('shellOrigin')) APP_CONFIG.shellOrigin = params.get('shellOrigin')
 
       let apiToken = null
+      let apiTokenExpiresAtSeconds = null
       let lastRuns = null
       let shownRunId = null
       let displayGen = 0
@@ -247,13 +248,14 @@
             if (e.data?.type !== 'deepnote-static-files-api-token-response') return
             // The token and API origin are one trusted credential bundle. Never send a shell-issued
             // bearer token anywhere except the origin supplied in the same authenticated response.
-            if (!e.data.token || !e.data.apiOrigin) return
+            if (!e.data.token || !e.data.apiOrigin || !Number.isFinite(e.data.expiresAtSeconds)) return
+            let apiOrigin
             try {
-              APP_CONFIG.baseUrl = new URL(e.data.apiOrigin).origin
+              apiOrigin = new URL(e.data.apiOrigin).origin
             } catch {
               return
             }
-            finish(e.data.token)
+            finish({ token: e.data.token, apiOrigin, expiresAtSeconds: e.data.expiresAtSeconds })
           }
           window.addEventListener('message', onMessage)
 
@@ -279,10 +281,44 @@
         return h
       }
 
+      function installApiCredential(credential) {
+        if (!credential) return false
+        apiToken = credential.token
+        apiTokenExpiresAtSeconds = credential.expiresAtSeconds
+        APP_CONFIG.baseUrl = credential.apiOrigin
+        return true
+      }
+
+      async function refreshApiToken() {
+        return installApiCredential(await requestDeepnoteToken())
+      }
+
+      async function apiFetch(path, options = {}) {
+        const nowSeconds = Date.now() / 1000
+        if (
+          isEmbedded &&
+          apiTokenExpiresAtSeconds !== null &&
+          apiTokenExpiresAtSeconds - nowSeconds <= 60
+        ) {
+          await refreshApiToken()
+        }
+
+        const request = () =>
+          fetch(`${APP_CONFIG.baseUrl}${path}`, {
+            ...options,
+            headers: { ...apiHeaders(), ...(options.headers ?? {}) },
+          })
+
+        let response = await request()
+        if (isEmbedded && response.status === 401 && (await refreshApiToken())) {
+          response = await request()
+        }
+        return response
+      }
+
       async function triggerRun(notebookId, inputs) {
-        const res = await fetch(`${APP_CONFIG.baseUrl}/v2/runs`, {
+        const res = await apiFetch('/v2/runs', {
           method: 'POST',
-          headers: apiHeaders(),
           body: JSON.stringify({ notebookId, inputs }),
         })
         if (!res.ok) {
@@ -301,10 +337,7 @@
 
         for (let i = 0; i < maxPolls; i++) {
           await sleep(interval)
-          const res = await fetch(
-            `${APP_CONFIG.baseUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
-            { headers: apiHeaders() }
-          )
+          const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
           if (!res.ok) {
             const body = await res.text().catch(() => '')
             throw new Error(extractApiMessage(body, `HTTP ${res.status}`))
@@ -324,10 +357,7 @@
             for (let waited = 0; result.snapshotContent === null && result.snapshotBlocks === null && waited < 15; waited++) {
               setStatus('Run finished — waiting for outputs…')
               await sleep(1000)
-              const again = await fetch(
-                `${APP_CONFIG.baseUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
-                { headers: apiHeaders() }
-              )
+              const again = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
               if (!again.ok) break
               const againJson = await again.json()
               result = runResult(againJson.run ?? againJson)
@@ -341,10 +371,7 @@
       }
 
       async function fetchRun(runId) {
-        const res = await fetch(
-          `${APP_CONFIG.baseUrl}/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`,
-          { headers: apiHeaders() }
-        )
+        const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
         if (!res.ok) {
           const body = await res.text().catch(() => '')
           throw new Error(extractApiMessage(body, `HTTP ${res.status}`))
@@ -368,10 +395,7 @@
 
       async function listRuns(notebookId) {
         try {
-          const res = await fetch(
-            `${APP_CONFIG.baseUrl}/v2/notebooks/${encodeURIComponent(notebookId)}/runs`,
-            { headers: apiHeaders() }
-          )
+          const res = await apiFetch(`/v2/notebooks/${encodeURIComponent(notebookId)}/runs`)
           if (!res.ok) return { runs: [] }
           const json = await res.json()
           return { runs: json.runs ?? [] }
@@ -430,9 +454,7 @@
       // The notebook response exposes the complete, normalized input definitions needed to render
       // controls. Static-app tokens can call this endpoint without receiving notebook source.
       async function fetchNotebookInputs(notebookId) {
-        const res = await fetch(`${APP_CONFIG.baseUrl}/v2/notebooks/${encodeURIComponent(notebookId)}`, {
-          headers: apiHeaders(),
-        })
+        const res = await apiFetch(`/v2/notebooks/${encodeURIComponent(notebookId)}`)
         if (!res.ok) {
           const body = await res.text().catch(() => '')
           throw new Error(extractApiMessage(body, `HTTP ${res.status} ${res.statusText}`))
@@ -460,7 +482,7 @@
         // project and this viewer, and revoked with their access. Personal tokens are never
         // accepted in the URL.
         if (isEmbedded) {
-          apiToken = await requestDeepnoteToken()
+          await refreshApiToken()
         }
 
         // Badge shows where runs go
@@ -598,8 +620,7 @@
           // The shell's token is short-lived, so refresh it before running. A refresh that goes
           // unanswered must not throw away the token already in hand.
           if (isEmbedded) {
-            const refreshed = await requestDeepnoteToken()
-            if (refreshed) apiToken = refreshed
+            await refreshApiToken()
             if (!apiToken) throw new Error('Could not acquire an API token from the Deepnote shell')
           }
 
