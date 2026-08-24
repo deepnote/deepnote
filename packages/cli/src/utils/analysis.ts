@@ -5,7 +5,7 @@
  */
 
 import { type DeepnoteBlock, type DeepnoteFile, INPUT_BLOCK_TYPES } from '@deepnote/blocks'
-import { BUILTIN_INTEGRATIONS, getSqlEnvVarName } from '@deepnote/database-integrations'
+import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
@@ -516,9 +516,10 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     if (block.type !== 'sql') continue
 
     const metadata = block.metadata as Record<string, unknown>
-    const integrationId = metadata.sql_integration_id as string | undefined
+    const rawIntegrationId = metadata.sql_integration_id
+    const integrationId = typeof rawIntegrationId === 'string' ? rawIntegrationId : undefined
 
-    if (!integrationId || BUILTIN_INTEGRATIONS.has(integrationId)) {
+    if (!integrationId || isBuiltinIntegration(integrationId)) {
       continue
     }
 

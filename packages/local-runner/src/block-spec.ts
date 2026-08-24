@@ -40,6 +40,14 @@ function dropVolatileExecutionKeys(
   return cleaned
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const prototype: unknown = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
 /**
  * A `.deepnote` block as `POST /v2/blocks` wants it.
  *
@@ -58,13 +66,18 @@ export function toBlockSpec(block: DeepnoteBlock, onWarning?: (message: string) 
   // Anything but a plain object cannot be sent as metadata: an array (`typeof [] === 'object'`)
   // would be carried through to an endpoint that wants an object — a 400 partway through a push,
   // after other blocks have already changed — and a primitive would make the `in`-based key checks
-  // below throw before anything is sent at all. The schema rules both out for a deserialized file,
-  // but not for the object form of `DeepnoteInput`: `loadDeepnoteFile` deep-clones an object
+  // below throw before anything is sent at all, and a class instance like a `Date` or `Map` would
+  // JSON-serialize into a string or an empty object. The schema rules these out for a deserialized
+  // file, but not for the object form of `DeepnoteInput`: `loadDeepnoteFile` deep-clones an object
   // without validating it, and `planNotebookSync` takes a `DeepnoteFile` directly. Drop it rather
   // than send it.
   const rawMetadata = block.metadata
-  if (rawMetadata != null && (typeof rawMetadata !== 'object' || Array.isArray(rawMetadata))) {
-    const shape = Array.isArray(rawMetadata) ? 'an array' : `a ${typeof rawMetadata}`
+  if (rawMetadata != null && !isPlainObject(rawMetadata)) {
+    const shape = Array.isArray(rawMetadata)
+      ? 'an array'
+      : typeof rawMetadata === 'object'
+        ? `a ${(rawMetadata as object).constructor?.name ?? 'class'} instance`
+        : `a ${typeof rawMetadata}`
     onWarning?.(
       `The ${block.type} block's metadata is ${shape}, which is not a shape Deepnote accepts, so the ` +
         'block was created without it.'

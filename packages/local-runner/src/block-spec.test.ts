@@ -131,6 +131,22 @@ describe('toBlockSpec', () => {
     expect(warnings[0]).toContain(`is ${shape}`)
   })
 
+  it.each([
+    ['a Date instance', new Date('2026-01-01T00:00:00Z')],
+    ['a Map instance', new Map([['execution_start', 1]])],
+  ])(
+    'drops %s metadata and warns, since it would not JSON-serialize into an object Deepnote accepts',
+    (shape, metadata) => {
+      const warnings: string[] = []
+
+      const spec = toBlockSpec(block('code', metadata), m => warnings.push(m))
+
+      expect(spec.metadata).toBeUndefined()
+      expect(warnings).toHaveLength(1)
+      expect(warnings[0]).toContain(`is ${shape}`)
+    }
+  )
+
   it('leaves a null metadata alone', () => {
     const spec = toBlockSpec(block('code', null))
 
