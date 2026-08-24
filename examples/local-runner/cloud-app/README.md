@@ -22,6 +22,10 @@ Runtime configuration comes from `APP_CONFIG` in the HTML. The non-sensitive `no
 | `baseUrl`     | `https://api.deepnote.com` | Standalone API server; replaced by the shell-provided origin when embedded   |
 | `notebookId`  | —                          | Notebook to run                                                              |
 | `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token |
+| `inputs`      | `[]`                       | Optional input definitions; empty means discover them from the notebook API  |
+
+With an empty `inputs` array, the app loads normalized input definitions — including select options
+and slider bounds — from `GET /v2/notebooks/:id`. It does not request arbitrary block metadata.
 
 ### Tokens
 

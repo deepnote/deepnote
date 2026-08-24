@@ -455,9 +455,8 @@
       }
 
       // ── Input discovery ────────────────────────────────────────────────────────
-      // Without a server there is no /api/info to describe the notebook, so the app asks the API
-      // directly. `notebook.inputs` carries name/label/value/type; a slider's bounds and a select's
-      // options live in the block's metadata, which is one further request per such block.
+      // The notebook response exposes the complete, normalized input definitions needed to render
+      // controls. Static-app tokens can call this endpoint without receiving notebook source.
       async function fetchNotebookInputs(notebookId) {
         const res = await fetch(`${APP_CONFIG.baseUrl}/v2/notebooks/${encodeURIComponent(notebookId)}`, {
           headers: apiHeaders(),
@@ -473,30 +472,12 @@
           label: i.label,
           type: i.type,
           value: i.value,
+          min: i.min,
+          max: i.max,
+          step: i.step,
+          options: i.options,
+          multiple: i.multiple,
         }))
-
-        await Promise.all(
-          inputs.map(async (inp) => {
-            if (inp.type !== 'input-slider' && inp.type !== 'input-select') return
-            try {
-              const r = await fetch(`${APP_CONFIG.baseUrl}/v2/blocks/${encodeURIComponent(inp.blockId)}`, {
-                headers: apiHeaders(),
-              })
-              if (!r.ok) return
-              const m = (await r.json()).block?.metadata ?? {}
-              if (inp.type === 'input-slider') {
-                inp.min = m.deepnote_slider_min_value
-                inp.max = m.deepnote_slider_max_value
-                inp.step = m.deepnote_slider_step
-              } else {
-                inp.options = m.deepnote_variable_options ?? m.deepnote_variable_custom_options ?? []
-                inp.multiple = m.deepnote_allow_multiple_values === true
-              }
-            } catch {
-              // A missing bound or option list degrades the control, not the app.
-            }
-          })
-        )
 
         return { name: notebook.name, inputs }
       }
@@ -532,8 +513,8 @@
           }
         }
 
-        // Render UI. Anything baked into APP_CONFIG wins — that is the published-app case, where
-        // the inputs are known at publish time and there is no reason to spend a request on them.
+        // Render configured inputs immediately; when none are configured, discover them from the
+        // notebook endpoint below.
         $('#nb-name').textContent = APP_CONFIG.notebookName
         $('#r-title').textContent = APP_CONFIG.notebookName
         renderInputs(APP_CONFIG.inputs)
@@ -600,7 +581,7 @@
           state[inp.variableName] = String(inp.value)
           const row = el('div', 'range')
           const range = el('input'); range.type = 'range'
-          range.min = inp.min ?? 0; range.max = inp.max ?? 100; range.step = inp.step ?? 1; range.value = inp.value
+          range.min = inp.min; range.max = inp.max; range.step = inp.step; range.value = inp.value
           const out = el('span', 'val'); out.textContent = inp.value
           range.oninput = () => { state[inp.variableName] = range.value; out.textContent = range.value }
           row.append(range, out); return row
@@ -613,8 +594,8 @@
           wrap.append(box, track, txt); return wrap
         }
         if (inp.type === 'input-select') {
-          const sel = el('select'); sel.multiple = !!inp.multiple
-          for (const opt of inp.options ?? []) {
+          const sel = el('select'); sel.multiple = inp.multiple
+          for (const opt of inp.options) {
             const o = el('option'); o.value = opt; o.textContent = opt
             o.selected = Array.isArray(inp.value) ? inp.value.includes(opt) : inp.value === opt
             sel.append(o)
