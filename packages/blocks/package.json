@@ -27,9 +27,9 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown --format esm --format cjs --dts",
+    "build": "tsdown --format esm --format cjs --dts --no-fixed-extension",
     "test": "vitest",
-    "watch": "tsdown --watch --format esm --format cjs --dts"
+    "watch": "tsdown --watch --format esm --format cjs --dts --no-fixed-extension"
   },
   "dependencies": {
     "ts-dedent": "^2.2.0",
