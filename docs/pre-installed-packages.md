@@ -9,11 +9,8 @@ Deepnote provides key data analytics and ML Python libraries off the shelf, in t
 #### The current list of pre-installed packages
 
 - `agate`
-- `arrow`
 - `datascience`
 - `dill`
-- `fiona`
-- `jsonify`
 - `keras`
 - `matplotlib`
 - `nltk`

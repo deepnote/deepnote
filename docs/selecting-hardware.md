@@ -14,15 +14,15 @@ At this moment Deepnote does not support connecting to your own cloud-based reso
 
 </Callout>
 
-To choose a different machine for your project (and monitor you machine's performance), click the arrow next to "Environments" in the right sidebar. There you will see an option to change your machine if desired. More powerful machines are available on paid plans. See [Pricing](/docs/pricing) or contact us for details.
+To choose a different machine for your project and monitor its performance, click the selector under **Machine** in the right sidebar. You can then select another machine. More powerful machines are available on paid plans. See [Pricing](/docs/pricing) or contact us for details.
 
 <VideoLoop src="../assets/docs/1tOtitPQRwG3IlOoziUB.mp4" />
 
 # GPUs
 
-Deepnote's GPUs are engineered to meet the demanding requirements of machine learning workflows. We currently offer two choices on the team and enterprise plan. You may change the machine at the notebook level. Our current offerings are:
+Deepnote's GPUs are designed for machine learning workloads. You can change the machine at the notebook level. The current machine selector includes two GPU options:
 
-- 4 vCPUs, 64 GB memory, K80 GPU
-- 8 vCPUs, 64 GB memory, 16 GB V100 GPU
+- GPU (T4): 8 vCPU, 32 GB memory, 16 GB VRAM
+- GPU (L4): 16 vCPU, 64 GB memory, 24 GB VRAM
 
-Please contact us if you require more powerful GPUs.
+GPU (2x A100) is also listed as a disabled **Contact us** option.
