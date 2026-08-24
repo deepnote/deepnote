@@ -14,7 +14,11 @@ Deepnote offers two modes of execution:
 
 You can change the default execution mode for the notebook from the menu next to the **Run** button.
 
+![Execution mode menu for a notebook](../assets/docs/VHvdkG1DT862UHkNdg9t.webp)
+
 The current execution mode is displayed in the **Run** action in the block actions. You can override the default execution mode by selecting **Run this block** or **Run this block and dependent blocks below**.
+
+![Block action menu with execution options](../assets/docs/vRTSDtYbSoWZiZemv3R9.webp)
 
 ## How are block dependencies detected?
 
