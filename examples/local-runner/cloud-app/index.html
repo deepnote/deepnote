@@ -195,12 +195,11 @@
     <script src="./snapshot-reader.js"></script>
     <script type="module">
       // ── App config ─────────────────────────────────────────────────────────────
-      // The single `baseUrl` determines where runs execute. Point it at
-      // api.deepnote.com for cloud execution, or at a local Deepnote server
-      // (e.g. localhost:8080) for local kernel execution. One API surface either
-      // way — /v2/runs, /v2/runs/{id}, /v2/notebooks/{id}/runs.
+      // The single `baseUrl` determines where standalone runs execute. Point it at a local Deepnote
+      // server (e.g. localhost:8080) for local development. When embedded, the trusted Deepnote
+      // shell replaces it with the API origin that minted the app's short-lived token.
       //
-      // Query-param overrides: ?baseUrl=…  ?token=…  ?notebookId=…
+      // Query-param overrides: ?notebookId=…  ?shellOrigin=…
       const APP_CONFIG = {
         notebookId: null,
         notebookName: 'Dashboard',
@@ -224,8 +223,7 @@
       const isEmbedded = window !== window.parent
       const params = new URLSearchParams(location.search)
 
-      // Query params override baked-in config
-      if (params.get('baseUrl')) APP_CONFIG.baseUrl = params.get('baseUrl')
+      // Non-sensitive query params override baked-in config.
       if (params.get('notebookId')) APP_CONFIG.notebookId = params.get('notebookId')
       if (params.get('shellOrigin')) APP_CONFIG.shellOrigin = params.get('shellOrigin')
 
@@ -248,10 +246,15 @@
             if (e.source !== window.parent) return
             if (e.origin !== APP_CONFIG.shellOrigin) return
             if (e.data?.type !== 'deepnote-static-files-api-token-response') return
-            // The shell names the API origin for this deployment, so a review app or single-tenant
-            // install does not need the page rebuilt with a different baseUrl.
-            if (e.data.apiOrigin && !params.get('baseUrl')) APP_CONFIG.baseUrl = e.data.apiOrigin
-            finish(e.data.token || null)
+            // The token and API origin are one trusted credential bundle. Never send a shell-issued
+            // bearer token anywhere except the origin supplied in the same authenticated response.
+            if (!e.data.token || !e.data.apiOrigin) return
+            try {
+              APP_CONFIG.baseUrl = new URL(e.data.apiOrigin).origin
+            } catch {
+              return
+            }
+            finish(e.data.token)
           }
           window.addEventListener('message', onMessage)
 
@@ -501,13 +504,10 @@
       // ── Initialize ─────────────────────────────────────────────────────────────
       async function init() {
         // Embedded, the shell's token is the only credential used: short-lived, scoped to this
-        // project and this viewer, and revoked with their access. `?token=` exists for running the
-        // page outside the shell (from disk, or a local server) and is never reached for here — a
-        // personal token does not belong in a published app's URL.
+        // project and this viewer, and revoked with their access. Standalone local development
+        // talks to an unauthenticated local server; personal tokens are never accepted in the URL.
         if (isEmbedded) {
           apiToken = await requestDeepnoteToken()
-        } else {
-          apiToken = params.get('token') || null
         }
 
         // Badge shows where runs go
@@ -566,7 +566,7 @@
               ? 'No API token — the Deepnote shell did not answer the token handshake. The project' +
                   ' needs API access enabled for static apps, which is a separate setting from' +
                   ' static file sharing.'
-              : 'No API token — pass ?token=… or open the app from Deepnote',
+              : 'No API token — open the published app from Deepnote or configure a local API server',
             'err'
           )
         }

@@ -4,7 +4,7 @@ A self-contained dynamic app that runs notebooks via the Deepnote `/v2/runs` API
 
 ## How it works
 
-One configurable `baseUrl` determines where runs execute. Point it at `api.deepnote.com` for cloud execution, or at a local Deepnote server (`localhost:8080`) for local kernel execution. Same API surface either way — `/v2/runs`, `/v2/runs/{id}`, `/v2/notebooks/{id}/runs`. It cannot be both; the app runs against one target at a time.
+One configurable `baseUrl` determines where standalone runs execute. Point it at a local Deepnote server (`localhost:8080`) for local kernel execution. When published, the trusted Deepnote shell supplies the API origin together with the app's short-lived token, and the app always uses those as one credential bundle.
 
 The HTML page embeds all the JS needed to:
 
@@ -15,24 +15,21 @@ The HTML page embeds all the JS needed to:
 
 ### Configuration
 
-Everything is configurable via query params or by editing `APP_CONFIG` in the HTML:
+Runtime configuration comes from `APP_CONFIG` in the HTML. The non-sensitive `notebookId` and `shellOrigin` values can also be overridden through query parameters:
 
-| Parameter     | Default                    | Description                                                                      |
-| ------------- | -------------------------- | -------------------------------------------------------------------------------- |
-| `baseUrl`     | `https://api.deepnote.com` | API server — cloud or local                                                      |
-| `notebookId`  | —                          | Notebook to run                                                                  |
-| `token`       | —                          | Bearer token (not needed on deepnote.com or against a local server without auth) |
-| `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token     |
+| Parameter     | Default                    | Description                                                                  |
+| ------------- | -------------------------- | ---------------------------------------------------------------------------- |
+| `baseUrl`     | `https://api.deepnote.com` | Standalone API server; replaced by the shell-provided origin when embedded   |
+| `notebookId`  | —                          | Notebook to run                                                              |
+| `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token |
 
 ### Tokens
 
-The app takes its credential from wherever it is running, and never mixes the two:
-
-- **Embedded in Deepnote** (published, and opened from the project) it asks the shell over
-  postMessage and uses the short-lived, project- and viewer-scoped token it gets back. `?token=` is
-  not consulted — a personal token does not belong in a published app's URL. The shell also names
-  the API origin in its reply, so review apps and single-tenant installs need no rebuild.
-- **Anywhere else** — from disk, or a local server — it uses `?token=`.
+When embedded in Deepnote (published and opened from the project), the app asks the shell over
+postMessage and uses the short-lived, project- and viewer-scoped token it gets back. The shell also
+names the API origin in the same reply, and the app always sends that token only to that origin.
+Personal API tokens are not accepted through URL parameters. Standalone development therefore uses
+an unauthenticated local Deepnote server configured through `APP_CONFIG.baseUrl`.
 
 The handshake is pinned to `shellOrigin` in both directions: the request is addressed to that origin
 rather than `*`, and a reply is only believed when it comes from the parent frame on that same
@@ -51,11 +48,8 @@ pnpm --filter @deepnote/local-runner build
 # Start the dev server (just serves static files + snapshot-reader.js)
 node examples/local-runner/cloud-app/serve.mjs
 
-# Cloud execution
-# http://127.0.0.1:<port>?notebookId=<id>&token=<your-deepnote-token>
-
-# Local Deepnote server
-# http://127.0.0.1:<port>?notebookId=<id>&baseUrl=http://localhost:8080
+# Set APP_CONFIG.baseUrl to http://localhost:8080, then open:
+# http://127.0.0.1:<port>?notebookId=<id>
 ```
 
 ## Publishing to deepnote.com
