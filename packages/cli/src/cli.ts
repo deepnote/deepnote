@@ -320,7 +320,11 @@ ${c.bold('Examples:')}
       'Max seconds to wait for a cloud run to finish (with --cloud, default 600)',
       parseTimeoutSeconds
     )
-    .addOption(new Option('--push', 'Push a local notebook to Deepnote before running').hideHelp())
+    .option(
+      '--push',
+      'Push the local .deepnote blocks to the Deepnote notebook before running (deletes cloud blocks the file does not have)'
+    )
+    .option('--yes', 'Skip the --push confirmation prompt')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -348,6 +352,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run a .deepnote (notebook id read from the file) in the cloud, with inputs')}
   $ deepnote run my-project.deepnote --cloud --input name="Alice"
+
+  ${c.dim('# Push local edits to the Deepnote notebook first, then run what is on disk')}
+  $ deepnote run my-project.deepnote --cloud --push
+
+  ${c.dim('# Preview what --push would change without sending or running anything')}
+  $ deepnote run my-project.deepnote --cloud --push --dry-run
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
