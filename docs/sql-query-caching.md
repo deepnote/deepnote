@@ -19,21 +19,15 @@ Main benefits:
 
 ## How to enable caching
 
-### 1. Saving cached results
+### Saving cached results
 
 To use SQL caching, enable it for your workspace. Go to **Settings & members** and select **Project settings**.
 
 ![SQL caching workspace setting](../assets/docs/22WC5oxMR36CGgyI8YVn.webp)
 
-When **SQL caching** is turned **on** (default state), the results of all your SQL block queries are automatically stored in the cache. This process happens seamlessly in the background without affecting the visibility of cached results. It's important to note that you will only see cached results returning in your SQL blocks **if you specifically enable their usage within the project you are working on**.
+When **SQL caching** is turned **on** (default state), Deepnote stores the results of SQL block queries in the cache. The SQL block displays the query result after execution. Cached-result controls are available only in projects where caching is enabled.
 
 When the setting is turned **off**, query results are not saved to the cache, and the option to use cached results is disabled across all projects in the workspace.
-
-### 2. Surfacing cached results
-
-If you run a longer query in a project where caching is not yet enabled, Deepnote can show an **Enable SQL caching** control in the SQL block. Select **Enable caching** to enable query result caching for the project.
-
-![Enable SQL caching prompt](../assets/docs/NfUBQoW9QAyiClbFPXyK.webp)
 
 ## How does caching work?
 

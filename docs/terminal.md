@@ -8,6 +8,8 @@ If you need to run some advanced scripts, installations or other tasks, you can 
 
 Terminals are collaborative, so all collaborators can view the commands unless you close the terminal by right-clicking its name.
 
+<VideoLoop src="../assets/docs/ePieNO0CRnSFAsPsvkm9.mp4" />
+
 <Callout status="info">
 Terminals are an experimental feature so occasional bugs might happen.
 </Callout>
