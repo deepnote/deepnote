@@ -70,8 +70,8 @@ a notebook or start a run. Use the published flow below for functional testing.
 # 2. Copy the snapshot reader into this directory
 cp packages/local-runner/dist/snapshot-reader.iife.js examples/local-runner/cloud-app/snapshot-reader.js
 
-# 3. Publish
-deepnote publish examples/local-runner/cloud-app --project-id <your-project-id>
+# 3. Publish with a personal API token
+DEEPNOTE_TOKEN=... deepnote publish examples/local-runner/cloud-app --project-id <your-project-id>
 ```
 
 Once published, the app runs on `static-<projectId>.outputs.deepnoteworkspace.com` and acquires a token automatically via postMessage — no server, no manual token configuration.

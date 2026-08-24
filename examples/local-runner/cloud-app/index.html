@@ -214,6 +214,15 @@
       const $ = (s) => document.querySelector(s)
       const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
       const state = {}
+      const relativeDateRanges = [
+        ['', 'No range'],
+        ['past7days', 'Past 7 days'],
+        ['past14days', 'Past 14 days'],
+        ['pastMonth', 'Past month'],
+        ['past3months', 'Past 3 months'],
+        ['past6months', 'Past 6 months'],
+        ['pastYear', 'Past year'],
+      ]
 
       // ── Environment detection ──────────────────────────────────────────────────
       // Embedded is the whole condition: the shell answers the handshake for any page it embeds on
@@ -592,15 +601,31 @@
           ta.oninput = () => { state[inp.variableName] = ta.value }; return ta
         }
         if (inp.type === 'input-date') {
-          const d = el('input'); d.type = 'date'; d.value = inp.value ?? ''
-          d.oninput = () => { state[inp.variableName] = d.value }; return d
+          const d = el('input'); d.type = 'date'; d.value = typeof inp.value === 'string' ? inp.value.slice(0, 10) : ''
+          d.oninput = () => { state[inp.variableName] = d.value ? `${d.value}T00:00:00.000Z` : '' }; return d
         }
         if (inp.type === 'input-date-range') {
+          if (!Array.isArray(inp.value)) {
+            const select = el('select')
+            for (const [value, label] of relativeDateRanges) {
+              const option = el('option'); option.value = value; option.textContent = label
+              option.selected = inp.value === value
+              select.append(option)
+            }
+            if (inp.value && !relativeDateRanges.some(([value]) => value === inp.value)) {
+              const option = el('option'); option.value = inp.value
+              const customDays = /^customDays(\d+)$/.exec(inp.value)
+              option.textContent = customDays ? `Past ${customDays[1]} days` : inp.value
+              option.selected = true
+              select.append(option)
+            }
+            select.onchange = () => { state[inp.variableName] = select.value }
+            return select
+          }
           const wrap = el('div', 'dates')
-          const v = Array.isArray(inp.value) ? inp.value : ['', '']
-          const a = el('input'); a.type = 'date'; a.value = v[0] ?? ''
+          const a = el('input'); a.type = 'date'; a.value = inp.value[0] ?? ''
           const arrow = el('span'); arrow.textContent = '→'
-          const b = el('input'); b.type = 'date'; b.value = v[1] ?? ''
+          const b = el('input'); b.type = 'date'; b.value = inp.value[1] ?? ''
           const sync = () => { state[inp.variableName] = [a.value, b.value] }
           a.oninput = sync; b.oninput = sync
           wrap.append(a, arrow, b); return wrap
