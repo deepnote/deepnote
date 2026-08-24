@@ -1,4 +1,21 @@
 export {
+  type BlockDetail,
+  type BlockPlacement,
+  type BlockRequestOptions,
+  type CreateBlockParams,
+  type CreatedBlock,
+  createBlock,
+  deleteBlock,
+  getBlock,
+  getNotebook,
+  type NotebookBlock,
+  type NotebookDetail,
+  type NotebookInput,
+  reorderBlocks,
+  type UpdateBlockPatch,
+  updateBlock,
+} from './blocks'
+export {
   type DetachedRunStorageMode,
   describeRunError,
   type FetchSnapshotOptions,
