@@ -10,9 +10,9 @@ Deepnote comes with a pre-built conda environment which allows users to instantl
 
 ## How to use the conda environment Deepnote
 
-Simply select "Anaconda - Python 3.11" from Deepnote's environment dropdown (as shown below). You now have access to the pre-installed packages listed below as well the conda CLI.
+Simply select "Anaconda - Python 3.13" from Deepnote's environment dropdown (as shown below). You now have access to the pre-installed packages listed below as well as the conda CLI.
 
-<VideoLoop src="../assets/docs/Oyygz8pnS7K7ibNWoyZA.mp4" />
+<VideoLoop src="../assets/docs/environment/conda-environment.webm" />
 
 ### Installing packages from the Anaconda repository
 
@@ -36,60 +36,154 @@ To list the currently installed packages, type the following into a code block:
 
 Upon startup, Deepnote will install any packages listed in a `requirements.txt` file; however, currently `pip` will be used to install packages into the conda environment in this case.
 
-### Which packages are pre-installed in the miniconda environment?
+### Which packages are pre-installed in the Anaconda Python 3.13 environment?
 
 Here is a list of packages that are pre-installed when using the initial conda environment (as described above, you can use `!conda install <package name>` to install additional packages):
 
+<!-- cspell:disable -->
+
 - \_libgcc_mutex
 - \_openmp_mutex
-- altair
-- attrs
-- brotlipy
+- anaconda-anon-usage
+- anaconda-auth
+- anaconda-cli-base
+- annotated-types
+- anyio
+- archspec
+- boltons
+- brotlicffi
+- bzip2
+- c-ares
 - ca-certificates
 - certifi
 - cffi
 - charset-normalizer
-- colorama
+- click
 - conda
+- conda-anaconda-telemetry
+- conda-anaconda-tos
 - conda-content-trust
+- conda-libmamba-solver
 - conda-package-handling
+- conda-package-streaming
+- cpp-expected
 - cryptography
-- entrypoints
+- dbus
+- distro
+- expat
+- fmt
+- frozendict
+- gettext
+- gettext-tools
+- h11
+- httpcore
+- httpx
+- icu
 - idna
-- jinja2
-- jsonschema
+- jansson
+- jaraco.classes
+- jaraco.context
+- jaraco.functools
+- jeepney
+- jsonpatch
+- jsonpointer
+- keyring
 - ld_impl_linux-64
+- libarchive
+- libasprintf
+- libasprintf-devel
+- libbrotlicommon
+- libbrotlidec
+- libbrotlienc
+- libcurl
+- libev
+- libexpat
 - libffi
+- libgcc
 - libgcc-ng
+- libgettextpo
+- libgettextpo-devel
 - libgomp
+- libiconv
+- libidn2
+- libkrb5
+- libmamba
+- libmambapy
+- libmpdec
+- libnghttp2
+- libsolv
+- libssh2
+- libstdcxx
 - libstdcxx-ng
-- markupsafe
+- libunistring
+- libuuid
+- libxcb
+- libxml2
+- libzlib
+- lmdb
+- lz4-c
+- markdown-it-py
+- mdurl
+- menuinst
+- more-itertools
+- msgpack-python
 - ncurses
-- numpy
+- nlohmann_json
 - openssl
-- pandas
+- packaging
+- pcre2
 - pip
-- pyarrow
+- pkce
+- platformdirs
+- pluggy
+- pthread-stubs
+- pybind11-abi
 - pycosat
 - pycparser
-- pyopenssl
-- pyrsistent
+- pydantic
+- pydantic-core
+- pydantic-settings
+- pygments
+- pyjwt
 - pysocks
 - python
-- python-dateutil
-- pytz
+- python-dotenv
+- python_abi
+- readchar
 - readline
+- reproc
+- reproc-cpp
 - requests
-- ruamel_yaml
+- rich
+- ruamel.yaml
+- ruamel.yaml.clib
+- secretstorage
+- semver
 - setuptools
-- six
+- shellingham
+- simdjson
 - sqlite
 - tk
-- toolz
+- tomli
+- tomlkit
 - tqdm
+- truststore
+- typer
+- typer-slim
+- typer-slim-standard
+- typing-extensions
+- typing-inspection
+- typing_extensions
 - tzdata
 - urllib3
 - wheel
+- xorg-libx11
+- xorg-libxau
+- xorg-libxdmcp
+- xorg-xorgproto
 - xz
-- yaml
+- yaml-cpp
 - zlib
+- zstandard
+- zstd
+<!-- cspell:enable -->
