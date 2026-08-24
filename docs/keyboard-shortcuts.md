@@ -9,7 +9,7 @@ noContent: false
 | Mac                        | Windows & Linux               | Action                    |
 | -------------------------- | ----------------------------- | ------------------------- |
 | <Keyboard>⌘ + P</Keyboard> | <Keyboard>ctrl + P</Keyboard> | Show/Hide command palette |
-| <Keyboard>⌘ + K</Keyboard> | <Keyboard>ctrl + K</Keyboard> | Open search               |
+| <Keyboard>⌘ + K</Keyboard> | <Keyboard>ctrl + K</Keyboard> | Open search bar           |
 | <Keyboard>⌘ + .</Keyboard> | <Keyboard>ctrl + .</Keyboard> | Hide/Show UI              |
 | <Keyboard>⌘ + [</Keyboard> | <Keyboard>ctrl + [</Keyboard> | Go back                   |
 | <Keyboard>⌘ + ]</Keyboard> | <Keyboard>ctrl + ]</Keyboard> | Go forward                |

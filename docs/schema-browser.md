@@ -56,7 +56,7 @@ You can also access other useful table actions via the context menu when you hov
 
 The bottom panel shows you details about the selected table.
 
-You can see a list of all the columns and their associated data types. To copy all column names at once, open the table actions menu and select **Copy all columns**.
+You can see a list of all the columns and their associated data types. You can hover over a column and click on the copy icon to copy the column’s name to the clipboard.
 
 The context menu in the upper right corner offers helpful table actions. These are identical to those available in the schema tree, with a couple of additions:
 
