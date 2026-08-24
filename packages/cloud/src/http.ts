@@ -52,7 +52,7 @@ export interface TextRequestOptions {
   forbiddenMessage?: string
 }
 
-export function throwForResponse(response: Response, text: string, fallback: string, forbiddenMessage?: string): never {
+function throwForResponse(response: Response, text: string, fallback: string, forbiddenMessage?: string): never {
   const generic = `${fallback}: HTTP ${response.status} ${response.statusText}`
   const message = parseApiErrorMessage(text, generic)
   if (response.status === 401) {
