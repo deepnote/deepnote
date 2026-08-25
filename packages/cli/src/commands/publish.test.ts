@@ -49,16 +49,20 @@ describe('deepnote publish', () => {
     await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
     await fs.mkdir(join(tempDir, 'css'))
     await fs.writeFile(join(tempDir, 'css', 'style.css'), 'body {}')
+    await fs.mkdir(join(tempDir, 'assets'))
+    await fs.writeFile(join(tempDir, 'assets', 'café #1.js'), 'console.log("hi")')
 
     await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
     expect(mockedGetProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1')
-    expect(mockedUpload).toHaveBeenCalledTimes(2)
+    expect(mockedUpload).toHaveBeenCalledTimes(3)
     expect(mockedUpload.mock.calls.map(call => call[3]).sort()).toEqual([
+      '_deepnote_static/assets/café #1.js',
       '_deepnote_static/css/style.css',
       '_deepnote_static/index.html',
     ])
     expect(mockedDelete.mock.calls.map(call => call[3]).sort()).toEqual([
+      '_deepnote_static/assets/café #1.js',
       '_deepnote_static/css/style.css',
       '_deepnote_static/index.html',
     ])
