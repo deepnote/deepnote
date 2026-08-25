@@ -91,7 +91,10 @@ export {
   type ProjectFileTransferOptions,
   type ProjectFolder,
   type ProjectFolderPathSegment,
+  type ProjectStaticFilesSettings,
+  type ProjectStaticFilesUpdate,
   type SyncProject,
   type UploadedFile,
+  updateProjectStaticFiles,
   uploadProjectFile,
 } from './sync'

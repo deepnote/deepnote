@@ -15,6 +15,7 @@ import type { RequestOptions } from './projects'
  * Endpoints:
  * - `GET  {baseUrl}/v2/projects`                — list projects, paginated via `pageToken`
  * - `GET  {baseUrl}/v2/projects/{id}`           — project detail, including its file inventory
+ * - `PATCH {baseUrl}/v2/projects/{id}`           — update static-file sharing/API-access settings
  * - `GET  {baseUrl}/v2/projects/{id}/export`    — the whole project as a ZIP of `.deepnote` documents,
  *                                                 one per notebook
  * - `POST {baseUrl}/v2/projects/{id}/import`    — reconcile a ZIP of `.deepnote` documents (the exact
@@ -89,9 +90,27 @@ const projectFileEntrySchema = z
   })
   .passthrough()
 
+const projectStaticFilesSettingsSchema = z
+  .object({
+    sharingEnabled: z.boolean(),
+    apiAccessEnabled: z.boolean(),
+    url: z.string().url(),
+  })
+  .passthrough()
+
 const projectDetailSchema = z
   .object({
-    project: syncProjectSchema.extend({ files: z.array(projectFileEntrySchema) }),
+    project: syncProjectSchema.extend({
+      files: z.array(projectFileEntrySchema),
+      /** Optional so sync remains compatible with servers deployed before this field existed. */
+      staticFiles: projectStaticFilesSettingsSchema.optional(),
+    }),
+  })
+  .passthrough()
+
+const updateProjectStaticFilesResponseSchema = z
+  .object({
+    project: syncProjectSchema.extend({ staticFiles: projectStaticFilesSettingsSchema }),
   })
   .passthrough()
 
@@ -155,9 +174,24 @@ export interface ProjectFileEntry {
   updatedAt: string
 }
 
+/** Static website settings and the canonical, server-generated public URL for a project. */
+export interface ProjectStaticFilesSettings {
+  sharingEnabled: boolean
+  apiAccessEnabled: boolean
+  url: string
+}
+
+/** Fields accepted by `PATCH /v2/projects/{id}` for the project's static website. */
+export type ProjectStaticFilesUpdate =
+  | { sharingEnabled: true; apiAccessEnabled?: boolean }
+  | { sharingEnabled: false; apiAccessEnabled?: false }
+  | { sharingEnabled?: never; apiAccessEnabled: boolean }
+
 export interface ProjectDetail extends SyncProject {
   /** Recursive file inventory (files only, no directories, no contents). */
   files: ProjectFileEntry[]
+  /** Absent only when talking to a server version from before static website settings were exposed. */
+  staticFiles?: ProjectStaticFilesSettings
 }
 
 /**
@@ -315,6 +349,38 @@ export async function getProjectDetail(
   )
   const parsed = await parseJsonResponse(response, projectDetailSchema, 'fetch project')
   return parsed.project
+}
+
+/**
+ * Update a project's static website settings (`PATCH {baseUrl}/v2/projects/{id}`). The API requires
+ * at least one field. Enabling API access also requires sharing to already be enabled or enabled in
+ * the same request; disabling sharing disables API access server-side. Contradictory settings throw
+ * before a request is sent.
+ */
+export async function updateProjectStaticFiles(
+  baseUrl: string,
+  token: string,
+  projectId: string,
+  update: ProjectStaticFilesUpdate,
+  options: RequestOptions = {}
+): Promise<ProjectStaticFilesSettings> {
+  const uncheckedUpdate = update as { sharingEnabled?: boolean; apiAccessEnabled?: boolean }
+  if (uncheckedUpdate.sharingEnabled === false && uncheckedUpdate.apiAccessEnabled === true) {
+    throw new TypeError('API access cannot be enabled while static file sharing is disabled.')
+  }
+
+  const response = await requestOk(
+    `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ staticFiles: update }),
+    },
+    options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    'Failed to update Deepnote project'
+  )
+  const parsed = await parseJsonResponse(response, updateProjectStaticFilesResponseSchema, 'update project')
+  return parsed.project.staticFiles
 }
 
 /**

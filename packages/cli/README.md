@@ -48,6 +48,9 @@ deepnote convert notebook.ipynb
 
 # Schedule recurring runs in Deepnote Cloud
 deepnote schedule report.deepnote --daily --at 09:00
+
+# Publish a static website to an existing Deepnote project
+deepnote publish ./dist --project-id <uuid>
 ```
 
 ## Commands
@@ -514,6 +517,43 @@ deepnote open my-project.deepnote
 
 # Open with JSON output (for scripting)
 deepnote open my-project.deepnote -o json
+```
+
+### `publish <dir>`
+
+Publish a local static website to an existing Deepnote project. Matching remote files are replaced,
+then static website sharing is enabled only after every upload succeeds. By default, existing remote
+files that are absent locally and the project's API-access setting are both left unchanged.
+
+```bash
+deepnote publish ./dist --project-id <uuid>
+```
+
+**Options:**
+
+| Option                           | Description                                                       | Default                    |
+| -------------------------------- | ----------------------------------------------------------------- | -------------------------- |
+| `--project-id <uuid>`            | Project to publish to (required)                                  |                            |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                   | `_deepnote_static`         |
+| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published website | unchanged                  |
+| `--prune`                        | Delete remote files below `--path` that are absent locally        | `false`                    |
+| `--token <token>`                | Deepnote API token                                                | `DEEPNOTE_TOKEN`           |
+| `--url <url>`                    | Deepnote API base URL                                             | `https://api.deepnote.com` |
+
+The command prints the canonical website URL returned by the server. Use `--api-access enabled`
+only when the website needs to load notebooks or start runs through the Deepnote API.
+
+**Examples:**
+
+```bash
+# Publish an app that needs a static-app viewer token
+deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+# Remove files left behind by an older build
+deepnote publish ./dist --project-id <uuid> --prune
+
+# Publish a versioned subdirectory
+deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 ```
 
 ### `schedule <path>`
