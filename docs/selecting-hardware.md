@@ -25,4 +25,4 @@ Deepnote's GPUs are designed for machine learning workloads. You can change the 
 - GPU (T4): 8 vCPU, 32 GB memory, 16 GB VRAM
 - GPU (L4): 16 vCPU, 64 GB memory, 24 GB VRAM
 
-GPU (2x A100) is also listed as a disabled **Contact us** option.
+Please contact us if you require more powerful GPUs.
