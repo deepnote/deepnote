@@ -46,6 +46,7 @@
     "dateutil",
     "DBTSERVICETOKEN",
     "deepnote",
+    "deepnoteworkspace",
     "defu",
     "desync",
     "desyncing",
