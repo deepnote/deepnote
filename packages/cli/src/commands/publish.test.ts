@@ -210,6 +210,28 @@ describe('deepnote publish', () => {
     expect(mockedUpdateProject).toHaveBeenCalledOnce()
   })
 
+  it('removes stale file ancestors before uploading when pruning', async () => {
+    await fs.mkdir(join(tempDir, 'assets'))
+    await fs.writeFile(join(tempDir, 'assets', 'app.js'), 'hi')
+    mockedGetProject.mockResolvedValue({
+      id: 'p1',
+      name: 'Project',
+      files: [
+        { path: '_deepnote_static/assets', size: 1, updatedAt: '2026-01-01' },
+        { path: '_deepnote_static/old.js', size: 1, updatedAt: '2026-01-01' },
+      ],
+    })
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--prune', '-q')
+
+    expect(mockedDelete.mock.calls.map(call => call[3])).toEqual([
+      '_deepnote_static/assets',
+      '_deepnote_static/assets/app.js',
+      '_deepnote_static/old.js',
+    ])
+    expect(mockedDelete.mock.invocationCallOrder[0]).toBeLessThan(mockedUpload.mock.invocationCallOrder[0])
+  })
+
   it('does not prune or enable sharing after an upload fails', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({

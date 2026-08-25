@@ -173,6 +173,28 @@ export function createPublishAction(program: Command) {
     let pruned = 0
     const errors: Array<{ file: string; error: string }> = []
     const publishedPaths = new Set(publishFiles.map(file => file.destination))
+    const stalePaths = options.prune
+      ? projectFiles
+          .map(file => file.path)
+          .filter(path => path.startsWith(`${targetPrefix}/`) && !publishedPaths.has(path))
+      : []
+    const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
+
+    for (const path of blockingPaths) {
+      try {
+        await deleteProjectFile(baseUrl, token, options.projectId, path)
+        pruned++
+        if (!options.quiet) {
+          log(`  ${c.green('✓')} removed ${path.slice(targetPrefix.length + 1)}`)
+        }
+      } catch (error) {
+        const message = errorMessage(error)
+        errors.push({ file: path, error: message })
+        if (!options.quiet) {
+          log(`  ${c.red('✗')} remove ${path} — ${message}`)
+        }
+      }
+    }
 
     for (const { localPath, relativePath, destination } of publishFiles) {
       try {
@@ -198,11 +220,7 @@ export function createPublishAction(program: Command) {
     }
 
     if (errors.length === 0 && options.prune) {
-      const stalePaths = projectFiles
-        .map(file => file.path)
-        .filter(path => path.startsWith(`${targetPrefix}/`) && !publishedPaths.has(path))
-
-      for (const path of stalePaths) {
+      for (const path of stalePaths.filter(path => !blockingPaths.includes(path))) {
         try {
           await deleteProjectFile(baseUrl, token, options.projectId, path)
           pruned++
