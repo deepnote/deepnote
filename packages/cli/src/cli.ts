@@ -58,8 +58,8 @@ export function createProgram(): Command {
     })
     .exitOverride(err => {
       // Map Commander errors to appropriate exit codes
-      // InvalidArgumentError (e.g., invalid --type value) should exit with InvalidUsage (2)
-      if (err.code === 'commander.invalidArgument') {
+      // Invalid values and missing required options are both invalid usage (2).
+      if (err.code === 'commander.invalidArgument' || err.code === 'commander.missingMandatoryOptionValue') {
         process.exit(ExitCode.InvalidUsage)
       }
       // For other Commander errors, use the default exit code

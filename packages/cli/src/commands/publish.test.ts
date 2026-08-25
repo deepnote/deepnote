@@ -274,6 +274,6 @@ describe('deepnote publish', () => {
     })
 
     await expect(run(tempDir, '--token', 'tok')).rejects.toThrow('exit')
-    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(exitSpy).toHaveBeenCalledWith(2)
   })
 })
