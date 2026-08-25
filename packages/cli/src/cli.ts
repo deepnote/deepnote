@@ -572,19 +572,20 @@ ${c.bold('Exit Codes:')}
     .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .option('--path <prefix>', 'Target path prefix in the project', '_deepnote_static')
-    .option('--yes', 'Skip confirmation prompts')
+    .option('--path <prefix>', 'Target directory under _deepnote_static', '_deepnote_static')
+    .addOption(
+      new Option('--api-access <state>', 'Allow the published app to call Deepnote APIs').choices([
+        'enabled',
+        'disabled',
+      ])
+    )
+    .option('--prune', 'Delete remote files below --path that are absent locally')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
-  Uploads all files from a local directory to a Deepnote project, making them
-  available as a static or dynamic app. Files are placed under ${c.dim('_deepnote_static/')}
-  by default and served on the project's isolated origin.
-
-  Works for both static apps (plain HTML/CSS/JS) and dynamic apps (apps with
-  server-side rendering). The upload mechanism is the same; the server handles
-  rendering.
+  Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
+  after every upload succeeds. API access is left unchanged unless explicitly set.
 
 ${c.bold('Examples:')}
   ${c.dim('# Publish a build directory to a project')}
@@ -596,13 +597,19 @@ ${c.bold('Examples:')}
   ${c.dim('# Publish to a custom path prefix')}
   $ deepnote publish ./out --project-id <uuid> --path _deepnote_static/v2
 
+  ${c.dim('# Let the published app call Deepnote APIs')}
+  $ deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+  ${c.dim('# Remove remote files that are no longer in the local build')}
+  $ deepnote publish ./dist --project-id <uuid> --prune
+
   ${c.dim('# Quiet mode (no progress output)')}
   $ deepnote publish ./dist --project-id <uuid> -q
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  All files uploaded successfully
-  ${c.dim('1')}  One or more files failed to upload
-  ${c.dim('2')}  Invalid usage (directory not found, missing token)
+  ${c.dim('0')}  Files uploaded and website sharing enabled
+  ${c.dim('1')}  Upload, pruning, or settings update failed
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token)
 `
     })
     .action(createPublishAction(program))

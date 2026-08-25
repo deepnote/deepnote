@@ -53,13 +53,6 @@ export {
   type NotebookSpec,
   type ProjectSpec,
 } from './create-project'
-export {
-  STATIC_ROOT,
-  staticPath,
-  type UploadedFileReference,
-  type UploadFileOptions,
-  uploadFile,
-} from './files'
 export { type UploadedNotebook, type UploadNotebookOptions, uploadNotebook } from './import'
 export { parseApiErrorMessage } from './parse-api-error'
 export {
@@ -98,7 +91,10 @@ export {
   type ProjectFileTransferOptions,
   type ProjectFolder,
   type ProjectFolderPathSegment,
+  type ProjectStaticFilesSettings,
+  type ProjectStaticFilesUpdate,
   type SyncProject,
   type UploadedFile,
+  updateProjectStaticFiles,
   uploadProjectFile,
 } from './sync'

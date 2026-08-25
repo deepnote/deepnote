@@ -9,6 +9,7 @@ import {
   importProject,
   listAllProjects,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
+  updateProjectStaticFiles,
   uploadProjectFile,
 } from './sync'
 
@@ -153,6 +154,11 @@ describe('getProjectDetail', () => {
           name: 'One',
           folder: null,
           files: [{ path: 'data/input.csv', size: 42, updatedAt: '2026-01-01T00:00:00.000Z' }],
+          staticFiles: {
+            sharingEnabled: true,
+            apiAccessEnabled: false,
+            url: 'https://static-p1.example.com/',
+          },
         },
       })
     )
@@ -163,8 +169,19 @@ describe('getProjectDetail', () => {
       expect.objectContaining({
         id: 'p1',
         files: [{ path: 'data/input.csv', size: 42, updatedAt: '2026-01-01T00:00:00.000Z' }],
+        staticFiles: {
+          sharingEnabled: true,
+          apiAccessEnabled: false,
+          url: 'https://static-p1.example.com/',
+        },
       })
     )
+  })
+
+  it('accepts an older response without static website settings', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ project: { id: 'p1', name: 'One', files: [] } }))
+
+    await expect(getProjectDetail(BASE_URL, TOKEN, 'p1')).resolves.toMatchObject({ id: 'p1', files: [] })
   })
 
   it('rejects a response without a file inventory', async () => {
@@ -184,6 +201,44 @@ describe('getProjectDetail', () => {
     await expect(getProjectDetail(BASE_URL, TOKEN, 'p1')).rejects.toMatchObject({
       statusCode: 502,
       message: expect.stringContaining('Invalid Deepnote response for fetch project'),
+    })
+  })
+})
+
+describe('updateProjectStaticFiles', () => {
+  it('PATCHes the nested settings and returns the canonical static website settings', async () => {
+    const staticFiles = {
+      sharingEnabled: true,
+      apiAccessEnabled: true,
+      url: 'https://static-p1.example.com/',
+    }
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({
+        project: { id: 'p1', name: 'One', staticFiles },
+      })
+    )
+
+    await expect(
+      updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', { sharingEnabled: true, apiAccessEnabled: true })
+    ).resolves.toEqual(staticFiles)
+
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(String(url)).toBe(`${BASE_URL}/v2/projects/p1`)
+    expect(init).toMatchObject({
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ staticFiles: { sharingEnabled: true, apiAccessEnabled: true } }),
+    })
+  })
+
+  it('rejects a response without the canonical URL', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ project: { id: 'p1', name: 'One', staticFiles: { sharingEnabled: true, apiAccessEnabled: false } } })
+    )
+
+    await expect(updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', { sharingEnabled: true })).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for update project'),
     })
   })
 })
