@@ -174,7 +174,7 @@ export function createPublishAction(program: Command) {
     const stalePaths = options.prune
       ? projectFiles
           .map(file => file.path)
-          .filter(path => path.startsWith(`${targetPrefix}/`) && !publishedPaths.has(path))
+          .filter(path => (path === targetPrefix || path.startsWith(`${targetPrefix}/`)) && !publishedPaths.has(path))
       : []
     const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
 

@@ -233,6 +233,23 @@ describe('deepnote publish', () => {
     expect(mockedDelete.mock.invocationCallOrder[0]).toBeLessThan(mockedUpload.mock.invocationCallOrder[0])
   })
 
+  it('removes a stale file at the selected target prefix before uploading', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedGetProject.mockResolvedValue({
+      id: 'p1',
+      name: 'Project',
+      files: [{ path: '_deepnote_static/assets', size: 1, updatedAt: '2026-01-01' }],
+    })
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--path', '_deepnote_static/assets', '--prune', '-q')
+
+    expect(mockedDelete.mock.calls.map(call => call[3])).toEqual([
+      '_deepnote_static/assets',
+      '_deepnote_static/assets/index.html',
+    ])
+    expect(mockedDelete.mock.invocationCallOrder[0]).toBeLessThan(mockedUpload.mock.invocationCallOrder[0])
+  })
+
   it('does not prune or enable sharing after an upload fails', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
