@@ -74,6 +74,7 @@ describe('deepnote publish', () => {
     )
   })
 
+  // cspell:ignore Aalert
   it.each([
     ['v2', 'v2'],
     ['release#1', 'release%231'],
