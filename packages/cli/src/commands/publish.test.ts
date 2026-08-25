@@ -74,7 +74,13 @@ describe('deepnote publish', () => {
     )
   })
 
-  it('publishes below the static root and uses the server-provided canonical URL', async () => {
+  it.each([
+    ['v2', 'v2'],
+    ['release#1', 'release%231'],
+    ['release?x', 'release%3Fx'],
+    ['release%2F1', 'release%252F1'],
+    ['javascript:alert(1)', 'javascript%3Aalert(1)'],
+  ])('publishes below the static root at %s using an encoded canonical URL', async (suffix, encodedSuffix) => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedUpdateProject.mockResolvedValue({
       sharingEnabled: true,
@@ -84,11 +90,11 @@ describe('deepnote publish', () => {
     const logged: string[] = []
     const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
 
-    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--path', '_deepnote_static/v2')
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--path', `_deepnote_static/${suffix}`)
     spy.mockRestore()
 
-    expect(mockedUpload.mock.calls[0]?.[3]).toBe('_deepnote_static/v2/index.html')
-    expect(logged.join('\n')).toContain('https://apps.example.test/static-files/p1/v2/')
+    expect(mockedUpload.mock.calls[0]?.[3]).toBe(`_deepnote_static/${suffix}/index.html`)
+    expect(logged.join('\n')).toContain(`https://apps.example.test/static-files/p1/${encodedSuffix}/`)
   })
 
   it('skips the project update when the existing static website settings already match', async () => {

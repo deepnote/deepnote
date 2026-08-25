@@ -78,13 +78,23 @@ function preparePublishFiles(targetPrefix: string, localDir: string, files: stri
 
 function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
   const base = new URL(canonicalUrl)
+  const origin = base.origin
   if (!base.pathname.endsWith('/')) {
     base.pathname += '/'
   }
   if (targetPrefix === STATIC_ROOT) {
     return base.toString()
   }
-  return new URL(`${targetPrefix.slice(STATIC_ROOT.length + 1)}/`, base).toString()
+  const suffix = targetPrefix
+    .slice(STATIC_ROOT.length + 1)
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')
+  base.pathname += `${suffix}/`
+  if (base.origin !== origin) {
+    throw new Error('Static site URL changed origin')
+  }
+  return base.toString()
 }
 
 function errorMessage(error: unknown): string {

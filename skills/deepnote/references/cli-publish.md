@@ -28,7 +28,8 @@ an upload. Before any remote mutation, it rejects local paths the file API would
 differently or that collide at the destination. If an upload fails, the command reports exit code 1
 and does not prune or change project settings. With `--prune`, stale files are deleted only after all
 uploads succeed. Finally, the command enables sharing through `PATCH /v2/projects/{id}` when the
-current settings differ and prints the canonical website URL returned by the server.
+current settings differ and prints the canonical website URL returned by the server. Nested target
+path segments are percent-encoded in that URL.
 
 API access is security-sensitive and is not enabled by default. Pass `--api-access enabled` when the
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
