@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
@@ -25,6 +25,12 @@ interface PublishOptions {
   quiet: boolean
 }
 
+interface PublishFile {
+  localPath: string
+  relativePath: string
+  destination: string
+}
+
 async function collectFiles(dir: string): Promise<string[]> {
   const entries = await fs.readdir(dir, { withFileTypes: true, recursive: true })
   return entries.filter(entry => entry.isFile()).map(entry => join(entry.parentPath ?? entry.path, entry.name))
@@ -42,8 +48,32 @@ function normalizeTargetPrefix(path: string): string | null {
   return normalized
 }
 
-function remotePath(targetPrefix: string, localDir: string, filePath: string): string {
-  return `${targetPrefix}/${relative(localDir, filePath).replace(/\\/g, '/')}`
+function preparePublishFiles(targetPrefix: string, localDir: string, files: string[]): PublishFile[] {
+  const prepared = files.map(localPath => {
+    const relativePath = relative(localDir, localPath).split(sep).join('/')
+    const destination = `${targetPrefix}/${relativePath}`
+    const canonicalDestination = posix.normalize(destination.trim()).replace(/^\/+/, '')
+    return { localPath, relativePath, destination, canonicalDestination }
+  })
+
+  const destinations = new Map<string, string>()
+  for (const file of prepared) {
+    const existing = destinations.get(file.canonicalDestination)
+    if (existing !== undefined) {
+      throw new Error(
+        `File path collision: "${existing}" and "${file.relativePath}" both map to "${file.canonicalDestination}"`
+      )
+    }
+    destinations.set(file.canonicalDestination, file.relativePath)
+  }
+
+  for (const file of prepared) {
+    if (file.relativePath.includes('\\') || file.canonicalDestination !== file.destination) {
+      throw new Error(`Unsupported file path: "${file.relativePath}"`)
+    }
+  }
+
+  return prepared
 }
 
 function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
@@ -102,6 +132,14 @@ export function createPublishAction(program: Command) {
       return
     }
 
+    let publishFiles: PublishFile[]
+    try {
+      publishFiles = preparePublishFiles(targetPrefix, dir, files)
+    } catch (error) {
+      program.error(errorMessage(error), { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
     const baseUrl = options.url
     let project: Awaited<ReturnType<typeof getProjectDetail>>
     try {
@@ -124,15 +162,12 @@ export function createPublishAction(program: Command) {
     let uploaded = 0
     let pruned = 0
     const errors: Array<{ file: string; error: string }> = []
-    const publishedPaths = new Set(files.map(filePath => remotePath(targetPrefix, dir, filePath)))
+    const publishedPaths = new Set(publishFiles.map(file => file.destination))
 
-    for (const filePath of files) {
-      const relativePath = relative(dir, filePath).replace(/\\/g, '/')
-      const destination = remotePath(targetPrefix, dir, filePath)
-
+    for (const { localPath, relativePath, destination } of publishFiles) {
       try {
         // Read before deleting the remote copy so an unreadable local file leaves the live file intact.
-        const content = await fs.readFile(filePath)
+        const content = await fs.readFile(localPath)
         await deleteProjectFile(baseUrl, token, options.projectId, destination)
         const stored = await uploadProjectFile(baseUrl, token, options.projectId, destination, content)
         if (stored.path !== destination) {

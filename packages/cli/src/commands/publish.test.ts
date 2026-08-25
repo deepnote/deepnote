@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@deepnote/cloud', () => ({
@@ -123,6 +123,49 @@ describe('deepnote publish', () => {
 
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(mockedGetProject).not.toHaveBeenCalled()
+  })
+
+  it.skipIf(sep !== '/')('rejects paths the server would normalize before mutating the project', async () => {
+    await fs.writeFile(join(tempDir, 'index.html '), 'hi')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(mockedGetProject).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+    expect(mockedUpload).not.toHaveBeenCalled()
+  })
+
+  it.skipIf(sep !== '/')('rejects backslashes in local filenames before mutating the project', async () => {
+    await fs.writeFile(join(tempDir, 'assets\\app.js'), 'hi')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(mockedGetProject).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+    expect(mockedUpload).not.toHaveBeenCalled()
+  })
+
+  it.skipIf(sep !== '/')('rejects colliding Cloud destinations before mutating the project', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'first')
+    await fs.writeFile(join(tempDir, 'index.html '), 'second')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(mockedGetProject).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+    expect(mockedUpload).not.toHaveBeenCalled()
   })
 
   it.each([
