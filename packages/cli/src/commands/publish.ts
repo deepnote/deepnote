@@ -103,9 +103,9 @@ export function createPublishAction(program: Command) {
     }
 
     const baseUrl = options.url
-    let projectFiles: Awaited<ReturnType<typeof getProjectDetail>>['files']
+    let project: Awaited<ReturnType<typeof getProjectDetail>>
     try {
-      projectFiles = (await getProjectDetail(baseUrl, token, options.projectId)).files
+      project = await getProjectDetail(baseUrl, token, options.projectId)
     } catch (error) {
       if (!options.quiet) {
         log(c.red(`Could not load project ${options.projectId}: ${errorMessage(error)}`))
@@ -113,6 +113,7 @@ export function createPublishAction(program: Command) {
       process.exitCode = ExitCode.Error
       return
     }
+    const { files: projectFiles, staticFiles: existingSettings } = project
 
     if (!options.quiet) {
       log(
@@ -176,12 +177,20 @@ export function createPublishAction(program: Command) {
     let siteUrl: string | undefined
     let apiAccessEnabled: boolean | undefined
     if (errors.length === 0) {
-      const update: ProjectStaticFilesUpdate = { sharingEnabled: true }
-      if (options.apiAccess !== undefined) {
-        update.apiAccessEnabled = options.apiAccess === 'enabled'
-      }
+      const requestedApiAccess = options.apiAccess === undefined ? undefined : options.apiAccess === 'enabled'
       try {
-        const settings = await updateProjectStaticFiles(baseUrl, token, options.projectId, update)
+        let settings = existingSettings
+        if (
+          !settings ||
+          !settings.sharingEnabled ||
+          (requestedApiAccess !== undefined && settings.apiAccessEnabled !== requestedApiAccess)
+        ) {
+          const update: ProjectStaticFilesUpdate = { sharingEnabled: true }
+          if (requestedApiAccess !== undefined) {
+            update.apiAccessEnabled = requestedApiAccess
+          }
+          settings = await updateProjectStaticFiles(baseUrl, token, options.projectId, update)
+        }
         siteUrl = staticSiteUrl(settings.url, targetPrefix)
         apiAccessEnabled = settings.apiAccessEnabled
       } catch (error) {

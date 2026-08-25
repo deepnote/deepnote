@@ -91,6 +91,26 @@ describe('deepnote publish', () => {
     expect(logged.join('\n')).toContain('https://apps.example.test/static-files/p1/v2/')
   })
 
+  it('skips the project update when the existing static website settings already match', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedGetProject.mockResolvedValue({
+      id: 'p1',
+      name: 'Project',
+      files: [],
+      staticFiles: {
+        sharingEnabled: true,
+        apiAccessEnabled: false,
+        url: 'https://static-p1.example.com/',
+      },
+    })
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+    expect(mockedUpload).toHaveBeenCalledOnce()
+    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(process.exitCode).toBeUndefined()
+  })
+
   it('rejects upload targets outside _deepnote_static', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
