@@ -31,6 +31,7 @@ beforeEach(async () => {
     url: 'https://static-p1.example.com/',
   })
   mockedUpload.mockReset().mockImplementation(async (_base, _token, _projectId, path) => ({ path }))
+  vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
 
 afterEach(async () => {
@@ -246,6 +247,7 @@ describe('deepnote publish', () => {
     expect(mockedDelete).toHaveBeenCalledTimes(1)
     expect(mockedDelete).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', '_deepnote_static/index.html')
     expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('index.html — upload failed'))
     expect(process.exitCode).toBe(1)
   })
 

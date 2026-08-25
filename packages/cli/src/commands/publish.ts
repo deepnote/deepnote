@@ -10,7 +10,7 @@ import {
 import type { Command } from 'commander'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { getChalk, log } from '../output'
+import { getChalk, log, error as logError } from '../output'
 import { MissingTokenError } from '../utils/auth'
 
 const STATIC_ROOT = '_deepnote_static'
@@ -155,9 +155,7 @@ export function createPublishAction(program: Command) {
     try {
       project = await getProjectDetail(baseUrl, token, options.projectId)
     } catch (error) {
-      if (!options.quiet) {
-        log(c.red(`Could not load project ${options.projectId}: ${errorMessage(error)}`))
-      }
+      logError(`Could not load project ${options.projectId}: ${errorMessage(error)}`)
       process.exitCode = ExitCode.Error
       return
     }
@@ -190,9 +188,7 @@ export function createPublishAction(program: Command) {
       } catch (error) {
         const message = errorMessage(error)
         errors.push({ file: path, error: message })
-        if (!options.quiet) {
-          log(`  ${c.red('✗')} remove ${path} — ${message}`)
-        }
+        logError(`  ✗ remove ${path} — ${message}`)
       }
     }
 
@@ -213,9 +209,7 @@ export function createPublishAction(program: Command) {
       } catch (error) {
         const message = errorMessage(error)
         errors.push({ file: relativePath, error: message })
-        if (!options.quiet) {
-          log(`  ${c.red('✗')} ${relativePath} — ${message}`)
-        }
+        logError(`  ✗ ${relativePath} — ${message}`)
       }
     }
 
@@ -230,9 +224,7 @@ export function createPublishAction(program: Command) {
         } catch (error) {
           const message = errorMessage(error)
           errors.push({ file: path, error: message })
-          if (!options.quiet) {
-            log(`  ${c.red('✗')} remove ${path} — ${message}`)
-          }
+          logError(`  ✗ remove ${path} — ${message}`)
         }
       }
     }
@@ -257,10 +249,9 @@ export function createPublishAction(program: Command) {
         siteUrl = staticSiteUrl(settings.url, targetPrefix)
         apiAccessEnabled = settings.apiAccessEnabled
       } catch (error) {
-        errors.push({ file: 'project settings', error: errorMessage(error) })
-        if (!options.quiet) {
-          log(`  ${c.red('✗')} enable static website sharing — ${errorMessage(error)}`)
-        }
+        const message = errorMessage(error)
+        errors.push({ file: 'project settings', error: message })
+        logError(`  ✗ enable static website sharing — ${message}`)
       }
     }
 

@@ -21,7 +21,7 @@ Authentication uses `--token` or `DEEPNOTE_TOKEN`. `--url` selects the API origi
 | `--prune`                        | Delete remote files below `--path` that are absent from the local build  |
 | `--token <token>`                | Deepnote API token; otherwise uses `DEEPNOTE_TOKEN`                      |
 | `--url <url>`                    | Deepnote API base URL                                                    |
-| `-q, --quiet`                    | Suppress progress and result output                                      |
+| `-q, --quiet`                    | Suppress progress and result output; errors remain visible on stderr     |
 
 Publishing reads the project inventory, then replaces each matching file with a delete followed by
 an upload. Before any remote mutation, it rejects local paths the file API would normalize
