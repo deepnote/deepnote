@@ -9,6 +9,7 @@ import {
   importProject,
   listAllProjects,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
+  type ProjectStaticFilesUpdate,
   updateProjectStaticFiles,
   uploadProjectFile,
 } from './sync'
@@ -240,6 +241,17 @@ describe('updateProjectStaticFiles', () => {
       statusCode: 502,
       message: expect.stringContaining('Invalid Deepnote response for update project'),
     })
+  })
+
+  it('rejects contradictory static website settings before making a request', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+    // @ts-expect-error API access cannot be enabled while sharing is disabled.
+    const update: ProjectStaticFilesUpdate = { sharingEnabled: false, apiAccessEnabled: true }
+
+    await expect(updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', update)).rejects.toThrow(
+      'API access cannot be enabled while static file sharing is disabled.'
+    )
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
 

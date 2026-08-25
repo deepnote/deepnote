@@ -183,8 +183,9 @@ export interface ProjectStaticFilesSettings {
 
 /** Fields accepted by `PATCH /v2/projects/{id}` for the project's static website. */
 export type ProjectStaticFilesUpdate =
-  | { sharingEnabled: boolean; apiAccessEnabled?: boolean }
-  | { sharingEnabled?: boolean; apiAccessEnabled: boolean }
+  | { sharingEnabled: true; apiAccessEnabled?: boolean }
+  | { sharingEnabled: false; apiAccessEnabled?: false }
+  | { sharingEnabled?: never; apiAccessEnabled: boolean }
 
 export interface ProjectDetail extends SyncProject {
   /** Recursive file inventory (files only, no directories, no contents). */
@@ -353,7 +354,8 @@ export async function getProjectDetail(
 /**
  * Update a project's static website settings (`PATCH {baseUrl}/v2/projects/{id}`). The API requires
  * at least one field. Enabling API access also requires sharing to already be enabled or enabled in
- * the same request; disabling sharing disables API access server-side.
+ * the same request; disabling sharing disables API access server-side. Contradictory settings throw
+ * before a request is sent.
  */
 export async function updateProjectStaticFiles(
   baseUrl: string,
@@ -362,6 +364,11 @@ export async function updateProjectStaticFiles(
   update: ProjectStaticFilesUpdate,
   options: RequestOptions = {}
 ): Promise<ProjectStaticFilesSettings> {
+  const uncheckedUpdate = update as { sharingEnabled?: boolean; apiAccessEnabled?: boolean }
+  if (uncheckedUpdate.sharingEnabled === false && uncheckedUpdate.apiAccessEnabled === true) {
+    throw new TypeError('API access cannot be enabled while static file sharing is disabled.')
+  }
+
   const response = await requestOk(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}`,
     {
