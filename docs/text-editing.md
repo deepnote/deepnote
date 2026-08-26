@@ -23,7 +23,7 @@ You can build nested bulleted lists by indenting and dedenting list items — pr
 
 ### Text formatting
 
-Once you added a text block, you can apply formatting to the text via the formatting toolbar. Just highlight a piece of text and select from various styling options such as **bold**, _italic_, underline, ~~strikethrough~~, and `code`. You can add a hyperlink by clicking on the link button.
+Once you added a text block, you can apply formatting to the text via the formatting toolbar. Just highlight a piece of text and select from various styling options such as **bold**, *italic*, underline, ~~strikethrough~~, and `code`. You can add a hyperlink by clicking on the link button.
 
 <VideoLoop src="../assets/docs/lpVktfSsS5Woz47Acr65.mp4" />
 In addition to the formatting toolbar, keyboard shortcuts are also available for styling your text (eg. Cmd+B for bolding).
