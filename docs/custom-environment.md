@@ -18,7 +18,7 @@ Custom environments are especially valuable for complex projects where dependenc
 
 ## Requirements
 
-We recommend building your custom Dockerfile on top of our `deepnote:python3.x` base image to ensure compatibility with all Deepnote features. If you're creating an environment from scratch, your image must meet these requirements:
+We recommend building your custom Dockerfile on top of our `deepnote/python:3.x` base image to ensure compatibility with all Deepnote features. If you're creating an environment from scratch, your image must meet these requirements:
 
 - Python (versions 3.10-3.13) installed and accessible via the `python` command
 - Built for the `linux/amd64` platform (M1 Mac users: use `-platform linux/amd64` flag)
@@ -58,7 +58,7 @@ RUN apt update && apt install -y ffmpeg libsm6 libxext6
 
 To use your local Dockerfile, simply select **Dockerfile** from the Environment dropdown.
 
-![CleanShot 2024-11-28 at 10.00.45.png](../assets/docs/CzaaCxT1QO5mqxUtXavA.webp)
+![The Environment selection dialog with Dockerfile selected.](../assets/docs/CzaaCxT1QO5mqxUtXavA.webp)
 
 When building from a local Dockerfile, only the following Docker instructions are supported:
 
@@ -91,7 +91,7 @@ To use private repositories:
 2. Add your credentials
 3. Connect the integration to projects where you need your private images
 
-![CleanShot 2024-11-28 at 10.14.03.png](../assets/docs/m8a18CpYRaCyRNQEF0bk.webp)
+![The Add Docker environment dialog with the Name and Docker image fields and private image provider guidance.](../assets/docs/m8a18CpYRaCyRNQEF0bk.webp)
 
 ## Keep environment settings
 
