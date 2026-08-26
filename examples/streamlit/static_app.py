@@ -4,7 +4,7 @@ from pathlib import Path
 
 import streamlit as st
 from _sales_dashboard import render_sales_dashboard, values_by_name
-from deepnote_streamlit import DeepnoteDocument
+from deepnote_toolkit.streamlit import DeepnoteDocument
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE.parent / "snapshot-showcase.snapshot.deepnote"

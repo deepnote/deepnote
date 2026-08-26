@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import streamlit as st
-from deepnote_streamlit import INDEX_COLUMN
+from deepnote_toolkit.streamlit import INDEX_COLUMN
 
 
 def render_sales_dashboard(outputs: Any, inputs: Mapping[str, Any]) -> None:

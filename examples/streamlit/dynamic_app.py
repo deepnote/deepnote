@@ -5,7 +5,7 @@ from pathlib import Path
 
 import streamlit as st
 from _sales_dashboard import render_sales_dashboard
-from deepnote_streamlit import (
+from deepnote_toolkit.streamlit import (
     DeepnoteCloudRunner,
     DeepnoteDocument,
     DeepnoteRunner,
@@ -15,7 +15,7 @@ from deepnote_streamlit import (
 
 HERE = Path(__file__).resolve().parent
 NOTEBOOK = HERE.parent / "local-runner-showcase.deepnote"
-RUNNER_URL = os.environ.get("DEEPNOTE_RUNNER_URL", "http://127.0.0.1:8787")
+RUNNER_URL = os.environ.get("DEEPNOTE_RUNNER_URL")
 NOTEBOOK_ID = os.environ.get("DEEPNOTE_NOTEBOOK_ID")
 
 st.set_page_config(
@@ -23,13 +23,18 @@ st.set_page_config(
 )
 
 notebook = DeepnoteDocument.load(NOTEBOOK)
-runner = DeepnoteCloudRunner(NOTEBOOK_ID) if NOTEBOOK_ID else DeepnoteRunner(RUNNER_URL)
+if RUNNER_URL:
+    runner = DeepnoteRunner(RUNNER_URL)
+elif NOTEBOOK_ID:
+    runner = DeepnoteCloudRunner(NOTEBOOK_ID)
+else:
+    runner = None
 
-st.caption("DYNAMIC · local .deepnote source · Deepnote Cloud or local kernel")
+st.caption("DYNAMIC · local .deepnote source · viewer-scoped cloud run or local kernel")
 st.title(notebook.project_name)
 st.write(
-    "The controls come from the notebook's input blocks. One server-side request runs the file; "
-    "the runner decides whether execution happens in Deepnote Cloud or a local kernel."
+    "The controls come from the notebook's input blocks. The hosted runner calls the public API "
+    "as the current viewer; local development can use an API token or a runner sidecar."
 )
 
 with st.sidebar:
@@ -37,23 +42,30 @@ with st.sidebar:
     values = render_inputs(notebook.inputs, st.sidebar)
     input_contract_matches = False
 
-    try:
-        info = runner.info()
-        target_label = (
-            "Deepnote Cloud" if info.run_target == "cloud" else "a local kernel"
-        )
-        input_contract_matches = info.accepts_inputs(notebook.inputs)
-        if input_contract_matches:
-            st.success(f"Runner connected · {target_label}")
-        else:
-            st.warning(
-                "The runner notebook has different input names or types. "
-                "Sync this file with `deepnote run --cloud --push`, or point "
-                "DEEPNOTE_NOTEBOOK_ID at the notebook represented by this file."
-            )
-    except RunnerError as error:
+    if runner is None:
         info = None
-        st.warning(str(error))
+        st.warning(
+            "Set DEEPNOTE_NOTEBOOK_ID for a hosted or API-token run, or "
+            "DEEPNOTE_RUNNER_URL for sidecar-based local development."
+        )
+    else:
+        try:
+            info = runner.info()
+            target_label = (
+                "Deepnote Cloud" if info.run_target == "cloud" else "a local kernel"
+            )
+            input_contract_matches = info.accepts_inputs(notebook.inputs)
+            if input_contract_matches:
+                st.success(f"Runner connected · {target_label}")
+            else:
+                st.warning(
+                    "The runner notebook has different input names or types. "
+                    "Sync this file with `deepnote run --cloud --push`, or point "
+                    "DEEPNOTE_NOTEBOOK_ID at the notebook represented by this file."
+                )
+        except RunnerError as error:
+            info = None
+            st.warning(str(error))
 
     run_clicked = st.button(
         "Run notebook",
