@@ -6,6 +6,8 @@ noContent: false
 
 Deepnote provides key data analytics and ML Python libraries off the shelf, in the most recent version. All you have to do is import them into your project.
 
+The package list below applies to the Python 3.13 for data science environment.
+
 #### The current list of pre-installed packages
 
 - `agate`
