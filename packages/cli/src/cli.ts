@@ -564,28 +564,32 @@ ${c.bold('Exit Codes:')}
     })
     .action(createSyncAction(program))
 
-  // Publish command - publish a local app directory to Deepnote
+  // Publish command - publish a static directory or serve an existing Streamlit entrypoint
   program
     .command('publish')
-    .description('Publish a local app directory to a Deepnote project')
-    .argument('<dir>', 'Directory containing the app files to publish')
+    .description('Publish a static website or Streamlit app to a Deepnote project')
+    .argument('<path>', 'Local static directory, or project-relative Streamlit entrypoint with --streamlit')
     .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .option('--path <prefix>', 'Target directory under _deepnote_static', '_deepnote_static')
+    .option('--path <prefix>', 'Static only: target directory under _deepnote_static', '_deepnote_static')
     .addOption(
-      new Option('--api-access <state>', 'Allow the published app to call Deepnote APIs').choices([
+      new Option('--api-access <state>', 'Static only: allow the published app to call Deepnote APIs').choices([
         'enabled',
         'disabled',
       ])
     )
-    .option('--prune', 'Delete remote files below --path that are absent locally')
+    .option('--prune', 'Static only: delete remote files below --path that are absent locally')
+    .option('--streamlit', 'Serve an existing project file as a Streamlit app')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
-  Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
-  after every upload succeeds. API access is left unchanged unless explicitly set.
+  By default, replaces matching files in ${c.dim('_deepnote_static/')} and enables static website
+  sharing after every upload succeeds. API access is left unchanged unless explicitly set.
+
+  With ${c.dim('--streamlit')}, the path is an existing project-relative file. The command serves
+  it through the Streamlit apps API without uploading or changing static website settings.
 
 ${c.bold('Examples:')}
   ${c.dim('# Publish a build directory to a project')}
@@ -600,6 +604,9 @@ ${c.bold('Examples:')}
   ${c.dim('# Let the published app call Deepnote APIs')}
   $ deepnote publish ./dist --project-id <uuid> --api-access enabled
 
+  ${c.dim('# Serve an existing project file as a Streamlit app')}
+  $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
+
   ${c.dim('# Remove remote files that are no longer in the local build')}
   $ deepnote publish ./dist --project-id <uuid> --prune
 
@@ -607,9 +614,9 @@ ${c.bold('Examples:')}
   $ deepnote publish ./dist --project-id <uuid> -q
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Files uploaded and website sharing enabled
-  ${c.dim('1')}  Upload, pruning, or settings update failed
-  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token)
+  ${c.dim('0')}  Static website or Streamlit app published
+  ${c.dim('1')}  API, upload, pruning, or settings update failed
+  ${c.dim('2')}  Invalid usage (bad path, incompatible options, missing token)
 `
     })
     .action(createPublishAction(program))

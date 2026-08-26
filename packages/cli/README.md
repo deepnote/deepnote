@@ -51,6 +51,9 @@ deepnote schedule report.deepnote --daily --at 09:00
 
 # Publish a static website to an existing Deepnote project
 deepnote publish ./dist --project-id <uuid>
+
+# Or serve an existing project file as Streamlit
+deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
 ```
 
 ## Commands
@@ -519,11 +522,11 @@ deepnote open my-project.deepnote
 deepnote open my-project.deepnote -o json
 ```
 
-### `publish <dir>`
+### `publish <path>`
 
-Publish a local static website to an existing Deepnote project. Matching remote files are replaced,
-then static website sharing is enabled only after every upload succeeds. By default, existing remote
-files that are absent locally and the project's API-access setting are both left unchanged.
+Publish a static website or Streamlit app to an existing Deepnote project. Static publishing uploads
+a local directory and enables website sharing after every upload succeeds. With `--streamlit`, the
+path is an existing project-relative file that Deepnote serves without uploading it.
 
 ```bash
 deepnote publish ./dist --project-id <uuid>
@@ -531,23 +534,31 @@ deepnote publish ./dist --project-id <uuid>
 
 **Options:**
 
-| Option                           | Description                                                       | Default                    |
-| -------------------------------- | ----------------------------------------------------------------- | -------------------------- |
-| `--project-id <uuid>`            | Project to publish to (required)                                  |                            |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`                   | `_deepnote_static`         |
-| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published website | unchanged                  |
-| `--prune`                        | Delete remote files below `--path` that are absent locally        | `false`                    |
-| `--token <token>`                | Deepnote API token                                                | `DEEPNOTE_TOKEN`           |
-| `--url <url>`                    | Deepnote API base URL                                             | `https://api.deepnote.com` |
+| Option                           | Description                                                  | Default                    |
+| -------------------------------- | ------------------------------------------------------------ | -------------------------- |
+| `--project-id <uuid>`            | Project to publish to (required)                             |                            |
+| `--streamlit`                    | Serve the project-relative path as a Streamlit app           | `false`                    |
+| `--path <prefix>`                | Static only: target directory at or below `_deepnote_static` | `_deepnote_static`         |
+| `--api-access enabled\|disabled` | Static only: explicitly update API access                    | unchanged                  |
+| `--prune`                        | Static only: delete remote files absent from the local build | `false`                    |
+| `--token <token>`                | Deepnote API token                                           | `DEEPNOTE_TOKEN`           |
+| `--url <url>`                    | Deepnote API base URL                                        | `https://api.deepnote.com` |
 
-The command prints the canonical website URL returned by the server. Use `--api-access enabled`
-only when the website needs to load notebooks or start runs through the Deepnote API.
+The command prints the canonical website or Streamlit app URL returned by the server. Streamlit
+publishing requires the entrypoint file to already exist in the project's Files; it does not upload
+local code. Creating an app for an entrypoint that is already served returns an error.
+
+Use `--api-access enabled` only when a static website needs to load notebooks or start runs through
+the Deepnote API. Hosted Streamlit apps use their per-viewer token exchange instead.
 
 **Examples:**
 
 ```bash
 # Publish an app that needs a static-app viewer token
 deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+# Serve an existing project file as a Streamlit app
+deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
 
 # Remove files left behind by an older build
 deepnote publish ./dist --project-id <uuid> --prune

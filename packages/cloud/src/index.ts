@@ -75,6 +75,12 @@ export {
   upsertNotebookSchedule,
 } from './schedules'
 export {
+  type CreateStreamlitAppBody,
+  type CreateStreamlitAppOptions,
+  createStreamlitApp,
+  type StreamlitApp,
+} from './streamlit-apps'
+export {
   deleteProjectFile,
   downloadProjectFile,
   type ExportedNotebookFile,

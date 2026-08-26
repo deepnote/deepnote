@@ -28,6 +28,7 @@ First synchronize the local source into the cloud notebook as an explicit deploy
 
 ```bash
 export DEEPNOTE_NOTEBOOK_ID=...
+export DEEPNOTE_PROJECT_ID=...
 export DEEPNOTE_TOKEN=...
 
 deepnote run examples/local-runner-showcase.deepnote \
@@ -39,6 +40,20 @@ deepnote run examples/local-runner-showcase.deepnote \
 The first command previews the block changes. The second applies them and performs one deployment
 run. Synchronization is intentionally not part of a Streamlit viewer request because it may delete
 or recreate blocks.
+
+After the Streamlit source file exists in the project's Files, publish it through the same CLI and
+API-key authentication used for other cloud operations:
+
+```bash
+deepnote publish examples/streamlit/dynamic_app.py \
+  --project-id "$DEEPNOTE_PROJECT_ID" \
+  --streamlit
+```
+
+The positional path is project-relative, not a local upload. Upload or sync the file into the
+project first. For this example, the project must contain `examples/streamlit/dynamic_app.py`,
+`examples/streamlit/_sales_dashboard.py`, and `examples/local-runner-showcase.deepnote` at those
+paths. The command calls `POST /v2/streamlit-apps` and prints the hosted app URL.
 
 In a hosted Deepnote app, start only Streamlit for normal app runs:
 

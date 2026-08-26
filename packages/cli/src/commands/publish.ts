@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { join, posix, relative, sep } from 'node:path'
 import {
+  createStreamlitApp,
   deleteProjectFile,
   getProjectDetail,
   type ProjectStaticFilesUpdate,
@@ -23,6 +24,7 @@ interface PublishOptions {
   apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
+  streamlit: boolean
 }
 
 interface PublishFile {
@@ -42,6 +44,23 @@ function normalizeTargetPrefix(path: string): string | null {
   if (
     (normalized !== STATIC_ROOT && !normalized.startsWith(`${STATIC_ROOT}/`)) ||
     segments.some(segment => segment === '' || segment === '.' || segment === '..' || segment.includes('\0'))
+  ) {
+    return null
+  }
+  return normalized
+}
+
+function normalizeStreamlitEntrypoint(path: string): string | null {
+  const normalized = posix.normalize(path)
+  const segments = path.split('/')
+  if (
+    !path ||
+    path.trim() !== path ||
+    path.startsWith('/') ||
+    path.includes('\\') ||
+    path.includes('\0') ||
+    normalized !== path ||
+    segments.some(segment => segment === '' || segment === '.' || segment === '..')
   ) {
     return null
   }
@@ -102,13 +121,45 @@ function errorMessage(error: unknown): string {
 }
 
 export function createPublishAction(program: Command) {
-  return async (dir: string, options: PublishOptions) => {
+  return async (target: string, options: PublishOptions, command: Command) => {
     const c = getChalk()
     const token = options.token || process.env[DEEPNOTE_TOKEN_ENV]
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
       // unhandled rejection rather than the documented exit code.
       program.error(c.red(new MissingTokenError().message), { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
+    if (options.streamlit) {
+      const explicitStaticPath = command.getOptionValueSource('path') === 'cli'
+      if (explicitStaticPath || options.apiAccess !== undefined || options.prune) {
+        program.error('--path, --api-access, and --prune apply only to static website publishing', {
+          exitCode: ExitCode.InvalidUsage,
+        })
+        return
+      }
+
+      const entrypoint = normalizeStreamlitEntrypoint(target)
+      if (!entrypoint) {
+        program.error('Streamlit entrypoint must be a canonical project-relative file path', {
+          exitCode: ExitCode.InvalidUsage,
+        })
+        return
+      }
+
+      if (!options.quiet) {
+        log(`Publishing Streamlit app ${c.cyan(entrypoint)} in project ${c.dim(options.projectId)}`)
+      }
+      try {
+        const app = await createStreamlitApp(options.url, token, { projectId: options.projectId, entrypoint })
+        if (!options.quiet) {
+          log(`\n${c.green('✓')} ${c.bold('Streamlit app URL:')} ${c.underline(app.url)}`)
+        }
+      } catch (error) {
+        logError(`Could not publish Streamlit app: ${errorMessage(error)}`)
+        process.exitCode = ExitCode.Error
+      }
       return
     }
 
@@ -120,31 +171,31 @@ export function createPublishAction(program: Command) {
 
     let stat: Awaited<ReturnType<typeof fs.stat>>
     try {
-      stat = await fs.stat(dir)
+      stat = await fs.stat(target)
     } catch {
-      program.error(`Directory not found: ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`Directory not found: ${target}`, { exitCode: ExitCode.InvalidUsage })
       return
     }
     if (!stat.isDirectory()) {
-      program.error(`Not a directory: ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`Not a directory: ${target}`, { exitCode: ExitCode.InvalidUsage })
       return
     }
 
     let files: string[]
     try {
-      files = await collectFiles(dir)
+      files = await collectFiles(target)
     } catch (error) {
-      program.error(`Could not read ${dir}: ${errorMessage(error)}`, { exitCode: ExitCode.Error })
+      program.error(`Could not read ${target}: ${errorMessage(error)}`, { exitCode: ExitCode.Error })
       return
     }
     if (files.length === 0) {
-      program.error(`No files found in ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`No files found in ${target}`, { exitCode: ExitCode.InvalidUsage })
       return
     }
 
     let publishFiles: PublishFile[]
     try {
-      publishFiles = preparePublishFiles(targetPrefix, dir, files)
+      publishFiles = preparePublishFiles(targetPrefix, target, files)
     } catch (error) {
       program.error(errorMessage(error), { exitCode: ExitCode.InvalidUsage })
       return

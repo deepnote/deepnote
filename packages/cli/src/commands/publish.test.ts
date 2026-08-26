@@ -4,15 +4,23 @@ import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@deepnote/cloud', () => ({
+  createStreamlitApp: vi.fn(),
   deleteProjectFile: vi.fn(),
   getProjectDetail: vi.fn(),
   updateProjectStaticFiles: vi.fn(),
   uploadProjectFile: vi.fn(),
 }))
 
-import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
+import {
+  createStreamlitApp,
+  deleteProjectFile,
+  getProjectDetail,
+  updateProjectStaticFiles,
+  uploadProjectFile,
+} from '@deepnote/cloud'
 import { createProgram } from '../cli'
 
+const mockedCreateStreamlitApp = vi.mocked(createStreamlitApp)
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
 const mockedUpdateProject = vi.mocked(updateProjectStaticFiles)
@@ -23,6 +31,13 @@ let tempDir: string
 beforeEach(async () => {
   process.exitCode = undefined
   tempDir = await fs.mkdtemp(join(os.tmpdir(), 'publish-test-'))
+  mockedCreateStreamlitApp.mockReset().mockResolvedValue({
+    id: '7a2f0c1e-0f5f-4a67-9a2c-4a0b7bb0f0a1',
+    projectId: 'p1',
+    entrypoint: 'apps/dashboard.py',
+    url: 'https://deepnote.com/streamlit-apps/7a2f0c1e-0f5f-4a67-9a2c-4a0b7bb0f0a1',
+    createdAt: '2026-08-11T09:30:00.000Z',
+  })
   mockedDelete.mockReset().mockResolvedValue(false)
   mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [] })
   mockedUpdateProject.mockReset().mockResolvedValue({
@@ -46,6 +61,65 @@ function run(...args: string[]) {
 }
 
 describe('deepnote publish', () => {
+  it('publishes an existing project file as Streamlit without touching static files or settings', async () => {
+    const logged: string[] = []
+    vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(mockedCreateStreamlitApp).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', {
+      projectId: 'p1',
+      entrypoint: 'apps/dashboard.py',
+    })
+    expect(mockedGetProject).not.toHaveBeenCalled()
+    expect(mockedUpload).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(logged.join('\n')).toContain('https://deepnote.com/streamlit-apps/7a2f0c1e-0f5f-4a67-9a2c-4a0b7bb0f0a1')
+  })
+
+  it('supports quiet Streamlit publishing and reports API failures with exit code 1', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    await run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', '--quiet')
+    expect(logSpy).not.toHaveBeenCalled()
+
+    mockedCreateStreamlitApp.mockRejectedValue(new Error('already served'))
+    await run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', '--quiet')
+    expect(process.exitCode).toBe(1)
+  })
+
+  it.each(['../app.py', '/app.py', 'apps/../app.py', 'apps\\app.py', ' app.py', 'app.py '])(
+    'rejects invalid Streamlit entrypoint %s before calling the API',
+    async entrypoint => {
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run(entrypoint, '--project-id', 'p1', '--token', 'tok', '--streamlit')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    }
+  )
+
+  it.each([
+    ['--api-access', 'enabled'],
+    ['--prune'],
+    ['--path', '_deepnote_static'],
+    ['--path', '_deepnote_static/v2'],
+  ])('rejects static-only option %s in Streamlit mode', async (...option) => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+
+    await expect(run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', ...option)).rejects.toThrow(
+      'exit'
+    )
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+  })
+
   it('replaces every file and enables sharing only after all uploads finish', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
     await fs.mkdir(join(tempDir, 'css'))

@@ -1,8 +1,9 @@
 # Publish command
 
-`deepnote publish <dir>` uploads a local static website to an existing Deepnote project. It places
-files below `_deepnote_static`, replaces matching remote files, and enables static website sharing
-only after all file operations succeed.
+`deepnote publish <path>` publishes either a static website or a Streamlit app to an existing
+Deepnote project. The default static mode uploads a local directory below `_deepnote_static`,
+replaces matching remote files, and enables static website sharing only after all file operations
+succeed. `--streamlit` serves an existing project-relative file without uploading it.
 
 ```bash
 deepnote publish ./dist --project-id <uuid>
@@ -13,15 +14,16 @@ Authentication uses `--token` or `DEEPNOTE_TOKEN`. `--url` selects the API origi
 
 ## Options
 
-| Option                           | Behavior                                                                 |
-| -------------------------------- | ------------------------------------------------------------------------ |
-| `--project-id <uuid>`            | Required target project id                                               |
-| `--path <prefix>`                | Target directory; must be `_deepnote_static` or a directory below it     |
-| `--api-access enabled\|disabled` | Explicitly update API access; omitted means preserve the current setting |
-| `--prune`                        | Delete remote files below `--path` that are absent from the local build  |
-| `--token <token>`                | Deepnote API token; otherwise uses `DEEPNOTE_TOKEN`                      |
-| `--url <url>`                    | Deepnote API base URL                                                    |
-| `-q, --quiet`                    | Suppress progress and result output; errors remain visible on stderr     |
+| Option                           | Behavior                                                             |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `--project-id <uuid>`            | Required target project id                                           |
+| `--streamlit`                    | Serve the project-relative path as a Streamlit app                   |
+| `--path <prefix>`                | Static only; target at or below `_deepnote_static`                   |
+| `--api-access enabled\|disabled` | Static only; explicitly update API access                            |
+| `--prune`                        | Static only; delete remote files absent from the local build         |
+| `--token <token>`                | Deepnote API token; otherwise uses `DEEPNOTE_TOKEN`                  |
+| `--url <url>`                    | Deepnote API base URL                                                |
+| `-q, --quiet`                    | Suppress progress and result output; errors remain visible on stderr |
 
 Publishing reads the project inventory, then replaces each matching file with a delete followed by
 an upload. Before any remote mutation, it rejects local paths the file API would normalize
@@ -36,6 +38,13 @@ API access is security-sensitive and is not enabled by default. Pass `--api-acce
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
 `--api-access disabled` to turn it off explicitly.
 
+In Streamlit mode, `<path>` must be a canonical project-relative path such as
+`apps/dashboard.py`. The file must already exist in the project's Files. The command calls
+`POST /v2/streamlit-apps` with `{ projectId, entrypoint }` and prints the returned app URL. It does
+not upload the file, change static website settings, or make duplicate creation idempotent; the API
+returns 409 when that entrypoint is already served. `--path`, `--api-access`, and `--prune` are
+invalid together with `--streamlit`.
+
 ## Examples
 
 ```bash
@@ -45,6 +54,9 @@ deepnote publish ./dist --project-id <uuid>
 # Publish an app that loads notebooks or starts runs
 deepnote publish ./dist --project-id <uuid> --api-access enabled
 
+# Serve an existing project file as a hosted Streamlit app
+deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
+
 # Delete assets left behind by previous builds
 deepnote publish ./dist --project-id <uuid> --prune
 
@@ -52,6 +64,6 @@ deepnote publish ./dist --project-id <uuid> --prune
 deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 ```
 
-Exit code 0 means uploads and the sharing update succeeded. Exit code 1 means a project lookup,
-upload, optional prune, or sharing update failed. Exit code 2 means invalid arguments, a missing
-token, or an invalid local directory.
+Exit code 0 means publishing succeeded. Exit code 1 means an API request, upload, optional prune,
+or sharing update failed. Exit code 2 means invalid arguments, incompatible mode options, a missing
+token, or an invalid static directory.

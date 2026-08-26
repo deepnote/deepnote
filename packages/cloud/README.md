@@ -1,7 +1,7 @@
 # @deepnote/cloud
 
 Client for the Deepnote Cloud API (preview): create notebooks, trigger a run, poll it to completion,
-and fetch its execution snapshot.
+fetch its execution snapshot, and publish existing project files as Streamlit apps.
 
 Used by `deepnote run --cloud` (`@deepnote/cli`) and by `@deepnote/local-runner`.
 
@@ -68,6 +68,7 @@ therefore cannot use `detachedRunStorageMode`.
 | `uploadProjectFile(baseUrl, token, projectId, path, bytes, opts?)`                                                                           | `POST /v2/files` — upload one working-directory file (multipart). Does not overwrite; delete first. Buffered transfers are limited to 100 MiB.               |
 | `deleteProjectFile(baseUrl, token, projectId, path, opts?)`                                                                                  | `DELETE /v2/files` — delete one working-directory file; `false` if it did not exist.                                                                         |
 | `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                                                                                | `GET /v2/files/download` — raw bytes of one working-directory file. Buffered transfers are limited to 100 MiB.                                               |
+| `createStreamlitApp(baseUrl, token, body, opts?)`                                                                                            | `POST /v2/streamlit-apps` — serve an existing project-relative file as a hosted Streamlit app and return its URL.                                            |
 
 **Note on `exportProject`:** the export is a ZIP with one `.deepnote` document per notebook, each
 carrying the full project envelope and a shared `metadata.modifiedAt`. `exportProject` unzips it and
