@@ -48,6 +48,9 @@ deepnote convert notebook.ipynb
 
 # Schedule recurring runs in Deepnote Cloud
 deepnote schedule report.deepnote --daily --at 09:00
+
+# Publish a static website to an existing Deepnote project
+deepnote publish ./dist --project-id <uuid>
 ```
 
 ## Commands
@@ -516,6 +519,43 @@ deepnote open my-project.deepnote
 deepnote open my-project.deepnote -o json
 ```
 
+### `publish <dir>`
+
+Publish a local static website to an existing Deepnote project. Matching remote files are replaced,
+then static website sharing is enabled only after every upload succeeds. By default, existing remote
+files that are absent locally and the project's API-access setting are both left unchanged.
+
+```bash
+deepnote publish ./dist --project-id <uuid>
+```
+
+**Options:**
+
+| Option                           | Description                                                       | Default                    |
+| -------------------------------- | ----------------------------------------------------------------- | -------------------------- |
+| `--project-id <uuid>`            | Project to publish to (required)                                  |                            |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                   | `_deepnote_static`         |
+| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published website | unchanged                  |
+| `--prune`                        | Delete remote files below `--path` that are absent locally        | `false`                    |
+| `--token <token>`                | Deepnote API token                                                | `DEEPNOTE_TOKEN`           |
+| `--url <url>`                    | Deepnote API base URL                                             | `https://api.deepnote.com` |
+
+The command prints the canonical website URL returned by the server. Use `--api-access enabled`
+only when the website needs to load notebooks or start runs through the Deepnote API.
+
+**Examples:**
+
+```bash
+# Publish an app that needs a static-app viewer token
+deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+# Remove files left behind by an older build
+deepnote publish ./dist --project-id <uuid> --prune
+
+# Publish a versioned subdirectory
+deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
+```
+
 ### `schedule <path>`
 
 Create or update a recurring notebook run in Deepnote Cloud. This does not run the notebook
@@ -672,12 +712,14 @@ deepnote integrations pull
 
 **Options:**
 
-| Option              | Description                                    | Default             |
-| ------------------- | ---------------------------------------------- | ------------------- |
-| `--url <url>`       | API base URL                                   | Deepnote API        |
-| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                     |
-| `--file <path>`     | Path to integrations file                      | `integrations.yaml` |
-| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`              |
+| Option              | Description                                    | Default                    |
+| ------------------- | ---------------------------------------------- | -------------------------- |
+| `--url <url>`       | API base URL                                   | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                            |
+| `--file <path>`     | Path to integrations file                      | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`                     |
+
+If the local integrations file contains invalid YAML (for example, unresolved merge conflict markers), the command fails with exit code 2 and does not modify any files — fix or delete the file manually, then re-run.
 
 **Examples:**
 
@@ -691,6 +733,39 @@ deepnote integrations pull --token <token>
 # Pull to a custom file path
 deepnote integrations pull --file my-integrations.yaml
 ```
+
+### `integrations add`
+
+Add a new database integration interactively. Prompts for the integration type, a name, and the type-specific connection fields. Secret values are written to the `.env` file and referenced from the YAML as `env:` placeholders.
+
+```bash
+deepnote integrations add
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+### `integrations edit [id]`
+
+Edit an existing database integration interactively. Without `[id]`, shows a picker of the integrations found in the file.
+
+```bash
+deepnote integrations edit
+deepnote integrations edit <integration-id>
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+Like `integrations pull`, both commands fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
 
 ### `completion <shell>`
 

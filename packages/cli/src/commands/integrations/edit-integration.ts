@@ -19,7 +19,7 @@ import { ExitCode } from '../../exit-codes'
 import { debug, log, output } from '../../output'
 import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
 import { getProcessEnv } from '../../utils/process-env'
-import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
+import { MalformedIntegrationsFileError, readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForIntegrationName } from './add-integration'
 import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
 import { promptForFieldsAthena } from './integrations-prompts/athena'
@@ -363,7 +363,8 @@ export function createIntegrationsEditAction(
         program.error(chalk.yellow('Cancelled.'), { exitCode: ExitCode.Error })
       }
       const message = error instanceof Error ? error.message : String(error)
-      program.error(chalk.red(message), { exitCode: ExitCode.Error })
+      const exitCode = error instanceof MalformedIntegrationsFileError ? ExitCode.InvalidUsage : ExitCode.Error
+      program.error(chalk.red(message), { exitCode })
     }
   }
 }

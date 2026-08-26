@@ -95,6 +95,10 @@ export interface SyncOptions {
    * Defaults to `true`, because the alternative is silently leaving a block's metadata stale — and
    * metadata is where an input block's default value and every app-layout setting live. Pass `false`
    * for a fast content-only sync of a large notebook.
+   *
+   * This also turns off integration-change detection, which is not obvious from the name: a changed
+   * `integrationId` is only visible in the per-block detail this option stops fetching, so a SQL
+   * block moved to a different integration produces no update.
    */
   compareMetadata?: boolean
   /** Work out the changes but send none of them. Returns a plan with empty applied lists. */
