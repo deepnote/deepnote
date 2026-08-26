@@ -36,6 +36,32 @@ API access is security-sensitive and is not enabled by default. Pass `--api-acce
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
 `--api-access disabled` to turn it off explicitly.
 
+## The embedded token is narrower than a personal token
+
+A published app always runs embedded in the Deepnote shell, which hands it a short-lived,
+viewer-scoped token. That token is deliberately more restricted than the personal token a local
+preview uses:
+
+| Embedded app may             | Embedded app may not        |
+| ---------------------------- | --------------------------- |
+| Read the configured notebook | Discover other notebooks    |
+| Start a run                  | Enumerate a notebook's runs |
+| Poll that run by id          | Read another viewer's run   |
+
+Run-history enumeration is excluded because it is cross-viewer data: on a link-shared or public
+app, any viewer could otherwise read run ids, timestamps, and statuses belonging to the owner and
+to other viewers.
+
+This is the main source of confusing behavior when publishing an app. A feature developed against
+a local preview with a personal token can call endpoints the embedded app cannot, and the embedded
+app **does not report an error** — the call is simply refused and the feature silently does nothing.
+When a published app is missing something that worked locally, check this boundary before
+suspecting the publish itself. `deepnote publish` prints a reminder whenever it leaves API access
+enabled.
+
+`examples/local-runner/cloud-app` shows the intended pattern: it guards its run-history panel with
+`if (isEmbedded) return` rather than issuing a request that cannot succeed.
+
 ## Examples
 
 ```bash
