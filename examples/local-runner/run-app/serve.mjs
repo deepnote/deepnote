@@ -25,14 +25,21 @@ const decisionProviders = [
 const arbiterNotebook = join(here, 'decision-arbiter.deepnote')
 
 // Read `.env` from the working directory, like `deepnote run` does, so the keys the notebook's
-// agent block needs can live in a file rather than your shell: OPENAI_API_KEY for `Run` (local
-// kernel), DEEPNOTE_TOKEN for `Run in cloud` and `Schedule`. Absent `.env` is fine — the
+// agent block needs can live in a file rather than your shell: DEEPNOTE_TOKEN for cloud runs and
+// `Schedule`, OPENAI_API_KEY when running in a local kernel. Absent `.env` is fine — the
 // environment may carry them already, and the dashboard blocks need neither.
 try {
   process.loadEnvFile()
 } catch {}
 
-const target = process.env.DEEPNOTE_TOKEN ? 'cloud' : 'local'
+// One Run button, one `POST /api/run`, and this is the only thing that decides where it goes.
+// Omit it and runs go to Deepnote Cloud, which is what a published app wants. The orchestration
+// pipeline below runs against the same target.
+const runTarget = process.env.RUN_TARGET ?? 'cloud'
+if (runTarget !== 'cloud' && runTarget !== 'local') {
+  throw new Error(`RUN_TARGET must be "cloud" or "local", received ${JSON.stringify(runTarget)}`)
+}
+
 const regions = [
   { name: 'North America', targetShare: 0.42 },
   { name: 'Europe', targetShare: 0.34 },
@@ -74,7 +81,7 @@ async function runSalesPipeline(inputs, emit) {
       // A cloud notebook is created by the seed before the other regions fan out, preventing two
       // first runs from racing to create it. Local kernels can fan out immediately.
       const initial =
-        target === 'cloud'
+        runTarget === 'cloud'
           ? [await analyze(regions[0]), ...(await Promise.all(regions.slice(1).map(config => analyze(config))))]
           : await Promise.all(regions.map(config => analyze(config)))
       const initialResults = initial.map((step, index) => ({
@@ -139,7 +146,7 @@ async function runSalesPipeline(inputs, emit) {
         }
       )
       const providerReviews =
-        target === 'cloud'
+        runTarget === 'cloud'
           ? await Promise.all(
               decisionProviders.map(async provider => {
                 const step = await run({
@@ -190,7 +197,7 @@ async function runSalesPipeline(inputs, emit) {
         error: 'The final arbiter runs in Deepnote Cloud; set DEEPNOTE_TOKEN to enable it.',
         viewUrl: null,
       }
-      if (target === 'cloud') {
+      if (runTarget === 'cloud') {
         const arbitrationContext = {
           portfolio,
           providerReviews: providerReviews.map(({ provider, model, decision: providerDecision, readout, error }) => ({
@@ -233,14 +240,14 @@ async function runSalesPipeline(inputs, emit) {
 
       return {
         title: portfolio.title,
-        target,
+        target: runTarget,
         decision,
         qualityThreshold,
         regions: validated,
         totals,
         qualityGateFailures: needsRecovery.map(({ value }) => value.region),
         recoveredRegions: recoveryResults.map(({ value }) => value.region),
-        notebookRuns: initial.length + recoveries.length + (target === 'cloud' ? decisionProviders.length + 1 : 0),
+        notebookRuns: initial.length + recoveries.length + (runTarget === 'cloud' ? decisionProviders.length + 1 : 0),
         providerReviews,
         providerConsensus,
         finalDecision: finalReview.decision,
@@ -248,7 +255,7 @@ async function runSalesPipeline(inputs, emit) {
       }
     },
     {
-      defaultTarget: target,
+      defaultTarget: runTarget,
       local: { persistSnapshot: false },
       onEvent: emit,
     }
@@ -258,16 +265,17 @@ async function runSalesPipeline(inputs, emit) {
 const { port } = await serveStatic({
   dir: here, // serve index.html from this folder
   notebookPath: dashboardNotebook, // the single-notebook Run / Run in cloud paths
+  runTarget, // 'cloud' (default) or 'local'
   persistSnapshot: false, // this is an interactive demo — don't litter the repo with snapshot files
   orchestrationRunner: runSalesPipeline,
 })
 
 const has = k => (process.env[k] ? '✓' : '—')
+const needed = runTarget === 'local' ? 'OPENAI_API_KEY' : 'DEEPNOTE_TOKEN'
 console.log(`\n  Deepnote local-runner · run app → http://127.0.0.1:${port}`)
-console.log(
-  `  Run: OPENAI_API_KEY ${has('OPENAI_API_KEY')}   Cloud run + schedule: DEEPNOTE_TOKEN ${has('DEEPNOTE_TOKEN')}\n`
-)
-console.log(`  Pipeline target: ${target} (orchestration always stays in this Node process)\n`)
+console.log(`  Run → ${runTarget}${runTarget === 'cloud' ? '' : ' (RUN_TARGET=local)'}: ${needed} ${has(needed)}`)
+console.log(`  Schedule: DEEPNOTE_TOKEN ${has('DEEPNOTE_TOKEN')}   Set RUN_TARGET=local to run in a local kernel`)
+console.log(`  Pipeline target: ${runTarget} (orchestration always stays in this Node process)\n`)
 
 function numberInput(value, fallback) {
   const parsed = Number(value)

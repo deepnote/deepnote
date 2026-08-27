@@ -47,12 +47,12 @@
     "@deepnote/cloud": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
-    "@jupyterlab/nbformat": "^4.3.2"
+    "@jupyterlab/nbformat": "^4.6.3"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "tsx": "^4.22.4",
-    "typescript": "^5.0.0"
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "workflow": ">=4.0.0"

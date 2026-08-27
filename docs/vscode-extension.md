@@ -92,23 +92,23 @@ Integrations allow you to connect to data sources and other tools. To manage int
 
 **Supported data sources:**
 
-- ClickHouse
-- Amazon Redshift
-- Amazon Athena
-- Google BigQuery
-- Snowflake
-- Databricks
-- Dremio
-- Trino
-- MongoDB
-- PostgreSQL
-- MySQL
-- MariaDB
-- Microsoft SQL Server
-- Google AlloyDB
-- Google Cloud Spanner
-- Materialize
-- MindsDB
+- [ClickHouse](/docs/clickhouse)
+- [Amazon Redshift](/docs/amazon-redshift)
+- [Amazon Athena](/docs/amazon-athena)
+- [Google BigQuery](/docs/google-bigquery)
+- [Snowflake](/docs/snowflake)
+- [Databricks](/docs/databricks)
+- [Dremio](/docs/dremio)
+- [Trino](/docs/trino)
+- [MongoDB](/docs/mongodb)
+- [PostgreSQL](/docs/postgresql)
+- [MySQL](/docs/mysql)
+- [MariaDB](/docs/mysql)
+- [Microsoft SQL Server](/docs/sql-server)
+- [Google AlloyDB](/docs/google-alloydb)
+- [Google Cloud Spanner](/docs/google-spanner)
+- [Materialize](/docs/materialize)
+- [MindsDB](/docs/mindsdb)
 
 Your credentials are stored encrypted. We also support enforcing SSL connections and SSH tunnels for secure access.
 
@@ -218,10 +218,10 @@ ORDER BY
 
 ### Exporting to different formats
 
-You can export entire projects or individual notebooks to the Jupyter notebook format. To export:
+You can export individual notebooks to the Jupyter notebook format. To export a notebook:
 
-1. Right-click on a project or notebook in the Explorer
-2. Select "Export"
+1. Right-click a notebook in the Explorer
+2. Select "Export Notebook..."
 
 This allows you to share your work in the widely-supported `.ipynb` format.
 
@@ -243,7 +243,7 @@ This opens the file in VS Code's standard text editor with YAML syntax highlight
 
 ### Extension settings
 
-Access the extension settings by navigating to File → Preferences → Settings (or pressing Ctrl/Cmd + ,) and searching for "Deepnote".
+On macOS, access the extension settings through Code → Preferences → Settings. On Windows or Linux, use File → Preferences → Settings. You can also press Ctrl/Cmd + `,`. Then search for "Deepnote".
 
 ### Python environment
 

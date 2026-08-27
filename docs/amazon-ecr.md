@@ -1,6 +1,6 @@
 ---
 title: Amazon Elastic Container Registry
-description: Do you have a private Docker image on Amazon ECR that you want to use in Deepnote? No problem. Follow these steps use your custom environment.
+description: Do you have a private Docker image on Amazon ECR that you want to use in Deepnote? No problem. Follow these steps to use your custom environment.
 noIndex: false
 noContent: false
 ---
@@ -13,7 +13,7 @@ With Amazon ECR, you can run notebooks in your own custom environments using Doc
 
 ## How to connect to Amazon ECR
 
-To add a connection to ECR in Deepnote, go to **Integrations** in the **left-hand sidebar** and create a new Amazon ECR integration.
+To add a connection to ECR in Deepnote, open the **Settings** panel from the top-right of your project, go to **Integrations**, and create a new Amazon ECR integration.
 
 You will need the **Account ID** and the **Region** where your registry is located. You will also need an **Access key** and **Secret key** for an [IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) with the following permissions:
 
@@ -37,7 +37,7 @@ To allow Deepnote to access your ECR, you must update the role's trust policy. C
 
 After creating and connecting the integration, you can create a [custom environment](/docs/custom-environment) based on one of your Docker images.
 
-Click the Environment dropdown in the Machine section in the left-hand sidebar to bring up the Environment selection modal. Click on "Set up a new Docker image," enter the URL for the image you want to use, and give it a name. Clicking "Add environment and apply" will restart your machine using your Docker image.
+Click the Environment dropdown in the **Machine** section of the **Settings** panel (open **Settings** from the top-right) to bring up the Environment selection modal. Click on "Set up a new Docker image," enter the URL for the image you want to use, and give it a name. Clicking "Add environment and apply" will restart your machine using your Docker image.
 
 <Callout status="info">
 **Your credentials are encrypted and securely stored in our database.** When you delete this integration, we also wipe your ECR credentials from our systems.

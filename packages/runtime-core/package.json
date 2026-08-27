@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/runtime-core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Core runtime for executing Deepnote projects",
   "keywords": [
     "deepnote",
@@ -36,19 +36,19 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^1.0.25",
-    "@ai-sdk/openai": "^3.0.0",
+    "@ai-sdk/mcp": "^1.0.70",
+    "@ai-sdk/openai": "^3.0.96",
     "@deepnote/blocks": "workspace:*",
-    "@jupyterlab/nbformat": "^4.3.2",
-    "@jupyterlab/services": "^7.3.2",
-    "ai": "^6.0.0",
-    "tcp-port-used": "^1.0.2",
-    "ws": "^8.20.1",
+    "@jupyterlab/nbformat": "^4.6.3",
+    "@jupyterlab/services": "^7.6.3",
+    "ai": "^6.0.253",
+    "tcp-port-used": "^1.0.3",
+    "ws": "^8.21.3",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/tcp-port-used": "^1.0.4",
-    "@types/ws": "^8.5.13"
+    "@types/ws": "^8.18.1"
   },
   "publishConfig": {
     "access": "public",

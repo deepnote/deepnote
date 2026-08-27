@@ -16,10 +16,12 @@ import { createIntegrationsAddAction } from './commands/integrations/add-integra
 import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
+import { createPublishAction } from './commands/publish'
 import { createRunAction } from './commands/run'
 import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStatsAction } from './commands/stats'
+import { CONFLICT_MODES, createSyncAction } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
@@ -56,8 +58,8 @@ export function createProgram(): Command {
     })
     .exitOverride(err => {
       // Map Commander errors to appropriate exit codes
-      // InvalidArgumentError (e.g., invalid --type value) should exit with InvalidUsage (2)
-      if (err.code === 'commander.invalidArgument') {
+      // Invalid values and missing required options are both invalid usage (2).
+      if (err.code === 'commander.invalidArgument' || err.code === 'commander.missingMandatoryOptionValue') {
         process.exit(ExitCode.InvalidUsage)
       }
       // For other Commander errors, use the default exit code
@@ -308,12 +310,22 @@ ${c.bold('Examples:')}
     .option('--cloud', 'Run the notebook in Deepnote Cloud, then download the resulting snapshot locally')
     .option('--notebook-id <uuid>', 'Cloud notebook id to run (with --cloud); alternative to a local .deepnote file')
     .option('--out <path>', 'Write the downloaded cloud snapshot to this exact path (with --cloud)')
+    .addOption(
+      new Option('--storage-mode <mode>', 'Project-storage access for a detached cloud run').choices([
+        'read-write',
+        'readonly',
+      ])
+    )
     .option(
       '--timeout <seconds>',
       'Max seconds to wait for a cloud run to finish (with --cloud, default 600)',
       parseTimeoutSeconds
     )
-    .addOption(new Option('--push', 'Push a local notebook to Deepnote before running').hideHelp())
+    .option(
+      '--push',
+      'Push the local .deepnote blocks to the Deepnote notebook before running (deletes cloud blocks the file does not have)'
+    )
+    .option('--yes', 'Skip the --push confirmation prompt')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -341,6 +353,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run a .deepnote (notebook id read from the file) in the cloud, with inputs')}
   $ deepnote run my-project.deepnote --cloud --input name="Alice"
+
+  ${c.dim('# Push local edits to the Deepnote notebook first, then run what is on disk')}
+  $ deepnote run my-project.deepnote --cloud --push
+
+  ${c.dim('# Preview what --push would change without sending or running anything')}
+  $ deepnote run my-project.deepnote --cloud --push --dry-run
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
@@ -473,6 +491,128 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createScheduleAction(program))
+
+  // Sync command - mirror workspace projects to the local filesystem, both directions
+  program
+    .command('sync')
+    .description('Sync Deepnote projects with a local directory (pull and push .deepnote files)')
+    .argument('[dir]', 'Directory to sync into (defaults to current directory)')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--all-files', "Also sync each project's working-directory files (download on pull, upload on push)")
+    .addOption(
+      new Option(
+        '--on-conflict <mode>',
+        'What to do when a project changed both locally and in the cloud: ask (default), skip, or override'
+      ).choices(CONFLICT_MODES)
+    )
+    .option('--delete-missing-notebooks', 'When pushing, delete cloud notebooks that were removed from the local file')
+    .option('--prune', 'Delete local files for projects (and files) that no longer exist in the cloud')
+    .option('--dry-run', 'Show what would be synced without writing anything')
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Mirrors your workspace to a local directory: every project becomes a
+  directory <folder path>/<project name>/ holding one .deepnote file per
+  notebook, following the workspace folder tree. Sync state lives in
+  .deepnote-sync.json next to the files — projects are tracked by id, so
+  renames are handled as directory moves.
+
+  Both directions work. Pull writes the exported documents down; push is the
+  exact inverse — a project changed only locally is re-uploaded as the same
+  documents, with lost-update protection.
+
+${c.bold('Conflicts:')}
+  A project edited both locally and in the cloud is a conflict. By default
+  sync asks per project whether to keep the cloud version (overwriting local
+  changes) or skip; --on-conflict skip/override answers up front. Without a
+  terminal (CI, piped output), conflicts are skipped.
+
+${c.bold('What sync does not do:')}
+  - It never creates or deletes cloud projects; .deepnote files outside
+    tracked project directories are reported and left alone.
+  - Pulls remove tracked .deepnote files absent from the cloud export. Missing
+    project directories and working files are deleted only with --prune.
+  - Cloud notebooks are deleted on push only with --delete-missing-notebooks.
+  - --prune refuses to run when none of the tracked project ids match the
+    listed workspace; verify the API token and --url before retrying.
+  - It does not run git. Commit, branch, and push yourself.
+
+${c.bold('Examples:')}
+  ${c.dim('# Mirror the whole workspace into ./workspace')}
+  $ deepnote sync workspace
+
+  ${c.dim('# Also download working-directory files (data, requirements.txt, …)')}
+  $ deepnote sync workspace --all-files
+
+  ${c.dim('# Non-interactive: skip anything conflicting (good for cron/CI)')}
+  $ deepnote sync workspace --on-conflict skip
+
+  ${c.dim('# Preview without writing')}
+  $ deepnote sync workspace --dry-run
+
+  ${c.dim('# Machine-readable summary')}
+  $ deepnote sync workspace -o json
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Success (skipped conflicts are reported but do not fail the sync)
+  ${c.dim('1')}  One or more projects failed to sync
+  ${c.dim('2')}  Invalid usage (missing token, bad arguments)
+`
+    })
+    .action(createSyncAction(program))
+
+  // Publish command - publish a local app directory to Deepnote
+  program
+    .command('publish')
+    .description('Publish a local app directory to a Deepnote project')
+    .argument('<dir>', 'Directory containing the app files to publish')
+    .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--path <prefix>', 'Target directory under _deepnote_static', '_deepnote_static')
+    .addOption(
+      new Option('--api-access <state>', 'Allow the published app to call Deepnote APIs').choices([
+        'enabled',
+        'disabled',
+      ])
+    )
+    .option('--prune', 'Delete remote files below --path that are absent locally')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
+  after every upload succeeds. API access is left unchanged unless explicitly set.
+
+${c.bold('Examples:')}
+  ${c.dim('# Publish a build directory to a project')}
+  $ deepnote publish ./dist --project-id 0f1e2d3c-4b5a-6789-abcd-ef0123456789
+
+  ${c.dim('# Publish with an explicit token')}
+  $ deepnote publish ./build --project-id <uuid> --token <token>
+
+  ${c.dim('# Publish to a custom path prefix')}
+  $ deepnote publish ./out --project-id <uuid> --path _deepnote_static/v2
+
+  ${c.dim('# Let the published app call Deepnote APIs')}
+  $ deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+  ${c.dim('# Remove remote files that are no longer in the local build')}
+  $ deepnote publish ./dist --project-id <uuid> --prune
+
+  ${c.dim('# Quiet mode (no progress output)')}
+  $ deepnote publish ./dist --project-id <uuid> -q
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Files uploaded and website sharing enabled
+  ${c.dim('1')}  Upload, pruning, or settings update failed
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token)
+`
+    })
+    .action(createPublishAction(program))
 
   // Convert command - convert between notebook formats
   program

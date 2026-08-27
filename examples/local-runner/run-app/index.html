@@ -225,7 +225,7 @@
   <body>
     <div class="topbar">
       <div class="brand"><span class="mark"></span>Deepnote <span class="dim">local-runner</span></div>
-      <div class="badge"><span class="dot"></span>Local kernel</div>
+      <div class="badge"><span class="dot"></span><span id="run-target-label">Deepnote Cloud</span></div>
     </div>
 
     <div class="layout">
@@ -237,7 +237,6 @@
         <div id="inputs"></div>
         <div class="actions">
           <button id="run" class="btn primary"><span id="spin"></span>Run</button>
-          <button id="run-cloud" class="btn ghost"><span id="spin-cloud"></span>Run in cloud</button>
           <button id="schedule-toggle" class="btn ghost">Schedule</button>
           <button id="run-pipeline" class="btn pipeline"><span id="spin-pipeline"></span>Run orchestrated pipeline</button>
           <div class="scheduler" id="scheduler" hidden>
@@ -401,7 +400,7 @@
           <div class="empty">
             <div class="glyph">▷</div>
             <b>Edit the inputs, then Run.</b>
-            <div>The notebook executes in a local Python kernel and its output appears here.</div>
+            <div id="run-target-description">The notebook executes in Deepnote Cloud and its output appears here.</div>
           </div>
         </div>
       </section>
@@ -421,11 +420,20 @@
       // whatever order they like, so each checks it still owns the canvas before painting. Zero also
       // means "nothing has claimed it yet", which is what gates opening on the latest run.
       let displayGen = 0
+      // Where the server runs things. It decides; the page only reports it, so there is nothing to
+      // keep in sync between the two.
+      let runTarget = 'cloud'
 
       try {
         const res = await fetch('/api/info')
         if (!res.ok) throw new Error('HTTP ' + res.status)
         const info = await res.json()
+        runTarget = info.runTarget ?? 'cloud'
+        $('#run-target-label').textContent = runTarget === 'local' ? 'Local kernel' : 'Deepnote Cloud'
+        $('#run-target-description').textContent =
+          runTarget === 'local'
+            ? 'The notebook executes in a local Python kernel and its output appears here.'
+            : 'The notebook executes in Deepnote Cloud and its output appears here.'
         $('#nb-name').textContent = info.notebook
         $('#r-title').textContent = info.notebook
         info.inputs.forEach((inp, i) => {
@@ -492,8 +500,8 @@
         text.oninput = () => { state[inp.variableName] = text.value }; return text
       }
 
-      $('#run').onclick = () => go('/api/run', '#spin', 'Running in a local kernel…')
-      $('#run-cloud').onclick = () => go('/api/run-cloud', '#spin-cloud', 'Running in Deepnote Cloud…')
+      $('#run').onclick = () =>
+        go('/api/run', '#spin', runTarget === 'local' ? 'Running in a local kernel…' : 'Running in Deepnote Cloud…')
       $('#run-pipeline').onclick = runPipeline
       const scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       $('#schedule-timezone').textContent = scheduleTimezone
@@ -563,7 +571,6 @@
 
       function setRunControlsDisabled(disabled) {
         $('#run').disabled = disabled
-        $('#run-cloud').disabled = disabled
         $('#run-pipeline').disabled = disabled
       }
 
@@ -918,13 +925,18 @@
           render(data)
           // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
           shownRunId = null
-          const where = endpoint.includes('cloud') ? 'cloud' : 'local'
+          // The response says where it ran, so this no longer reads the destination back out of the
+          // URL it was posted to.
+          const where = data.target ?? runTarget
 
           // A failed run is still worth rendering: the blocks that ran before it broke produced real
           // output, and throwing that away to show a bare error string loses the half of the story
           // that says how far it got.
           if (data.success === false) {
-            const why = cap(data.error || `The run failed (${data.status})`)
+            const localFailure = data.summary?.failedBlocks
+              ? `The run failed (${data.summary.failedBlocks} block${data.summary.failedBlocks === 1 ? '' : 's'} failed)`
+              : 'The local run failed'
+            const why = cap(data.error || (where === 'local' ? localFailure : `The run failed (${data.status})`))
             if (data.viewUrl) statusLink(`${why} — `, data.viewUrl, 'open the run in Deepnote →', 'err')
             else setStatus(why, 'err')
             return
@@ -941,7 +953,7 @@
           // The buttons re-enable either way — a superseded run still released them.
           setRunControlsDisabled(false); $(spinSel).className = ''
           // A cloud run adds to the history — including a failed one, which is worth seeing.
-          if (endpoint.includes('cloud')) loadCloudRuns()
+          if (runTarget === 'cloud') loadCloudRuns()
         }
       }
 

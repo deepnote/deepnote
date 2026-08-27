@@ -10,10 +10,10 @@ export const apiIntegrationSchema = z
     name: z.string(),
     type: z.string(),
     metadata: z.unknown(),
-    is_public: z.boolean(),
-    created_at: z.string(),
-    updated_at: z.string(),
-    federated_auth_method: z.string().nullable(),
+    is_public: z.boolean().nullish(),
+    created_at: z.string().nullish(),
+    updated_at: z.string().nullish(),
+    federated_auth_method: z.string().nullish(),
   })
   .passthrough()
 
@@ -30,6 +30,12 @@ export const apiResponseSchema = z
 
 export type ApiResponse = z.infer<typeof apiResponseSchema>
 
+const REQUEST_TIMEOUT_MS = 30_000
+
+function trimTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, '')
+}
+
 /**
  * Fetch integrations from the Deepnote API.
  *
@@ -37,7 +43,7 @@ export type ApiResponse = z.infer<typeof apiResponseSchema>
  *
  * @param baseUrl - The base URL of the Deepnote API
  * @param token - The authentication token
- * @param integrationIds - Optional list of integration IDs to fetch. When provided, only these integrations are returned.
+ * @param integrationIds - Optional list of integration UUIDs to fetch. When provided, only these integrations are returned.
  * @returns Array of integrations from the API
  * @throws ApiError if the request fails
  */
@@ -46,10 +52,11 @@ export async function fetchIntegrations(
   token: string,
   integrationIds?: string[]
 ): Promise<ApiIntegration[]> {
-  const endpoint = new URL(`${baseUrl}/v2/integrations`)
+  const endpoint = new URL(`${trimTrailingSlash(baseUrl)}/v2/integrations`)
   endpoint.searchParams.set('includeMetadata', 'true')
   if (integrationIds && integrationIds.length > 0) {
-    endpoint.searchParams.set('integrationIds', integrationIds.join(','))
+    const normalizedIntegrationIds = new Set(integrationIds.map(id => id.toLowerCase()))
+    endpoint.searchParams.set('integrationIds', Array.from(normalizedIntegrationIds).join(','))
   }
   const url = endpoint.toString()
 
@@ -59,6 +66,7 @@ export async function fetchIntegrations(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 
   if (!response.ok) {

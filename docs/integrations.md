@@ -19,7 +19,7 @@ Learn more about any of Deepnote's currently supported integrations by selecting
 
 ### Creating & managing integrations
 
-To edit your existing integrations (and create new ones), open up the integrations overview from the left-hand sidebar. Alternatively, you can also find your way to the integrations overview via the integrations menu in the right-hand sidebar within each project.
+To edit your existing integrations (and create new ones) inside a project, open the **Settings** panel from the top-right and go to the **Integrations** section. An integration you create there can be connected to any project in the same workspace.
 
 ![Opening the integrations overview in Deepnote](../assets/docs/bJNx6rBXRJilCYxYcdbD.webp)
 

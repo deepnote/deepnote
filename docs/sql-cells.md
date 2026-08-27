@@ -28,7 +28,7 @@ SQL blocks work in Python notebooks, as well as in R notebooks (where they run v
 ### Dataframe SQL
 
 Apart from querying a database, you can also use SQL blocks to query your DataFrames or even tabular files like CSV or Excel. To do that, create a SQL block and select the "DataFrame SQL" option as the data source.
-DataFrame SQL blocks can also be created by drag and dropping a CSV file from your filesystem (this also works for already uploaded files in the left sidebar). By executing that SQL block, the contents of the CSV file will be loaded into a DataFrame variable.
+DataFrame SQL blocks can also be created by drag and dropping a CSV file from your filesystem (this also works for files you've already uploaded to the project's **Files** section). By executing that SQL block, the contents of the CSV file will be loaded into a DataFrame variable.
 
 <VideoLoop src="../assets/docs/qQ3uTPjHSydkFQUvUlb9.mp4" />
 
@@ -124,7 +124,7 @@ With caching enabled, Deepnote automatically saves the results of your queries i
 
 SQL blocks combine schema _Intellisense_ autocompletions and inline AI completions together for seamless SQL writing.
 
-The built-in _Intellisense_ will offer relevant suggestions for your cursor position. This includes entities in your schema such as databases, tables or columns but also aliases, CTEs or query previews that you may have defined in your previous queries. The autocomplete will open automatically as you type. In addition to that, you can trigger it manually by using one of these keyboard shortcuts <Keyboard>Control + Space</Keyboard>, <Keyboard>Option + Space</Keyboard> or <Keyboard>⌘ + I</Keyboard>.
+The built-in _Intellisense_ will offer relevant suggestions for your cursor position. This includes entities in your schema such as databases, tables or columns but also aliases, CTEs or query previews that you may have defined in your previous queries. The autocomplete will open automatically as you type. In addition to that, you can trigger it manually by using one of these keyboard shortcuts <Keyboard>Control + Space</Keyboard> or <Keyboard>⌘ + I</Keyboard>.
 
 ![SQL Autocomplete](../assets/docs/wWGpYQjmQTWM2gPRxEQk.webp)
 

@@ -327,6 +327,7 @@ describe('convertBlockToJupyterCell', () => {
 
     expect(cell.cell_type).toBe('markdown')
     expect(cell.source).toBe('# Title\n\nSome text')
+    expect(cell).not.toHaveProperty('execution_count')
     expect(cell.metadata.cell_id).toBe('md-block')
     expect(cell.metadata.deepnote_cell_type).toBe('markdown')
     expect(cell.outputs).toBeUndefined()

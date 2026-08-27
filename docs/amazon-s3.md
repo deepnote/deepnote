@@ -17,7 +17,7 @@ With the S3 integration, you can access the files in your S3 buckets directly in
 
 First, you will need to [create a S3 bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html) or have access to an existing one.
 
-To add a connection to an AWS S3 bucket in Deepnote, go to **Integrations** via the **left-hand sidebar**, then create a new S3 integration.
+To add a connection to an AWS S3 bucket in Deepnote, open the **Settings** panel from the top-right of your project, go to **Integrations**, then create a new S3 integration.
 
 If the bucket is publicly accessible, you will only need to enter:
 

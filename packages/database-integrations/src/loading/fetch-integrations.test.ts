@@ -49,7 +49,36 @@ describe('fetchIntegrations', () => {
         Authorization: `Bearer ${mockToken}`,
         'Content-Type': 'application/json',
       },
+      signal: expect.any(AbortSignal),
     })
+  })
+
+  it('should not double up the path separator when the base URL has a trailing slash', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ integrations: [] }),
+    } as Response)
+
+    await fetchIntegrations(`${mockBaseUrl}/`, mockToken)
+
+    expect(global.fetch).toHaveBeenCalledWith(`${mockBaseUrl}/v2/integrations?includeMetadata=true`, expect.anything())
+  })
+
+  it('should send integration UUIDs in canonical lowercase form', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ integrations: [] }),
+    } as Response)
+
+    await fetchIntegrations(mockBaseUrl, mockToken, [
+      '100EEF5B-8AD8-4D35-8E5E-3DFEEB387D4D',
+      '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
+    ])
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${mockBaseUrl}/v2/integrations?includeMetadata=true&integrationIds=100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d`,
+      expect.anything()
+    )
   })
 
   it('should throw ApiError with 401 for authentication failure', async () => {

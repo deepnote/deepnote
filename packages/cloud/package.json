@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@deepnote/database-integrations": "workspace:*",
+    "fflate": "^0.8.3",
     "zod": "3.25.76"
   },
   "engines": {

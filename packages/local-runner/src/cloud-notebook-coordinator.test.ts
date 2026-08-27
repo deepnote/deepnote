@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const cloudMock = vi.hoisted(() => ({
   triggerNotebookRun: vi.fn(),
   pollRunUntilComplete: vi.fn(),
-  fetchSnapshotContent: vi.fn(),
-  getRun: vi.fn(),
+  waitForRunSnapshot: vi.fn(),
   upsertNotebookSchedule: vi.fn(),
   createProject: vi.fn(),
   addNotebooksToProject: vi.fn(),
@@ -16,8 +15,7 @@ const cloudMock = vi.hoisted(() => ({
 vi.mock('@deepnote/cloud', () => ({
   triggerNotebookRun: cloudMock.triggerNotebookRun,
   pollRunUntilComplete: cloudMock.pollRunUntilComplete,
-  fetchSnapshotContent: cloudMock.fetchSnapshotContent,
-  getRun: cloudMock.getRun,
+  waitForRunSnapshot: cloudMock.waitForRunSnapshot,
   upsertNotebookSchedule: cloudMock.upsertNotebookSchedule,
   createProject: cloudMock.createProject,
   addNotebooksToProject: cloudMock.addNotebooksToProject,
@@ -94,7 +92,10 @@ beforeEach(() => {
     status: 'success',
     snapshot: { snapshotContent: NOTEBOOK },
   })
-  cloudMock.fetchSnapshotContent.mockResolvedValue(NOTEBOOK)
+  cloudMock.waitForRunSnapshot.mockImplementation(async (_baseUrl, _token, run) => ({
+    run,
+    content: NOTEBOOK,
+  }))
   cloudMock.findNotebook.mockResolvedValue(undefined)
   cloudMock.findProject.mockResolvedValue(undefined)
   cloudMock.getWorkspace.mockResolvedValue({ id: 'workspace-1', slug: 'deepnote' })

@@ -22,7 +22,7 @@ Available on Team and Enterprise plans
 
 ## How to connect to Snowflake
 
-From the left-hand sidebar, under **Integrations**, click the **+** button and choose **Create new integration**.
+Open the **Settings** panel from the top-right of your project, and under **Integrations** click the **+** button and choose **Create new integration**.
 ![Create new integration](../assets/docs/U4rUqFckSUObXKjdz7kt.webp)
 
 <br></br>

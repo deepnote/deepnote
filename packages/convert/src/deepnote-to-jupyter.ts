@@ -177,7 +177,7 @@ export function convertBlockToJupyterCell(block: DeepnoteBlock): JupyterCell {
   const cell: JupyterCell = {
     block_group: block.blockGroup,
     cell_type: jupyterCellType,
-    execution_count: executionCount ?? null,
+    ...(jupyterCellType === 'code' ? { execution_count: executionCount ?? null } : {}),
     metadata,
     outputs,
     // TODO: Add outputs_reference
