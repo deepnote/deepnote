@@ -170,15 +170,28 @@ export function parseCondition(source: string): Parsed {
     throw new Error(`Unexpected "${token.value}" in condition: ${source}`)
   }
 
+  /**
+   * `==` and `===` are the same comparison, and both treat an absent value as null.
+   *
+   * A missing path reads as `undefined`, so strict equality would make `upstream.value == null`
+   * always false — leaving a gate no way to ask whether an earlier step published something, which
+   * is one of the main things a gate is for. Absent and null are one concept here.
+   *
+   * They are also the same because the Python interpreter has no `undefined` to distinguish: one
+   * rule keeps the two implementations honest.
+   */
+  const isAbsent = (value: unknown): boolean => value === null || value === undefined
+  const equal = (a: unknown, b: unknown): boolean => (isAbsent(a) || isAbsent(b) ? isAbsent(a) && isAbsent(b) : a === b)
+
   const COMPARISONS: Record<string, (a: unknown, b: unknown) => boolean> = {
     '<': (a, b) => Number(a) < Number(b),
     '<=': (a, b) => Number(a) <= Number(b),
     '>': (a, b) => Number(a) > Number(b),
     '>=': (a, b) => Number(a) >= Number(b),
-    '==': (a, b) => a === b,
-    '===': (a, b) => a === b,
-    '!=': (a, b) => a !== b,
-    '!==': (a, b) => a !== b,
+    '==': equal,
+    '===': equal,
+    '!=': (a, b) => !equal(a, b),
+    '!==': (a, b) => !equal(a, b),
   }
 
   const parseComparison = (): Node => {
