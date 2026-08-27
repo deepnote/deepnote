@@ -8,6 +8,8 @@ import {
 } from '@deepnote/cloud'
 import { extractOutputs } from './extract-outputs'
 import { finishResult, type OrchestrationStepExecutor } from './orchestrate'
+import type { RunBlockOutput } from './run-with-inputs'
+import type { SnapshotView } from './snapshot-view'
 import { parseSnapshot } from './snapshot-view'
 
 /**
@@ -68,6 +70,15 @@ export function toRunInputs(inputs: Record<string, unknown>): Record<string, Run
   return coerced
 }
 
+/** Parse a snapshot without letting a malformed one destroy the step result. See its call site. */
+function readSnapshotSafely(snapshotYaml: string): { snapshot: SnapshotView | null; outputs: RunBlockOutput[] } {
+  try {
+    return { snapshot: parseSnapshot(snapshotYaml), outputs: extractOutputs(snapshotYaml) }
+  } catch {
+    return { snapshot: null, outputs: [] }
+  }
+}
+
 /** Build the executor {@link orchestrate} uses. Exported for callers composing their own engine. */
 export function createCloudStepExecutor(options: CloudExecutorOptions): OrchestrationStepExecutor {
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
@@ -92,7 +103,7 @@ export function createCloudStepExecutor(options: CloudExecutorOptions): Orchestr
       onStatus: status => {
         emit({ type: 'step_status', stepId: id, status })
       },
-    } as PollOptions)
+    })
 
     // Read the snapshot even when the run failed: it is usually the only place the failing block's
     // error is recorded, and a page that shows nothing is worse than one that shows why.
@@ -102,6 +113,13 @@ export function createCloudStepExecutor(options: CloudExecutorOptions): Orchestr
     })
     const snapshotYaml = settled.content
     const success = isSuccessStatus(completed.status)
+    // A snapshot that will not parse must not take the result with it. Both `parseSnapshot` and
+    // `extractOutputs` throw on malformed content, and a throw here escapes the executor and
+    // becomes an OrchestrationStepError — discarding the status, run id, and error, which is
+    // exactly the diagnostic information the previous call was made to preserve. `allowFailure`
+    // would not help either, because a thrown error is not a failed result. Degrade instead: the
+    // raw YAML is still returned for a caller to inspect.
+    const parsed = snapshotYaml ? readSnapshotSafely(snapshotYaml) : { snapshot: null, outputs: [] }
 
     return finishResult(
       {
@@ -109,9 +127,9 @@ export function createCloudStepExecutor(options: CloudExecutorOptions): Orchestr
         target: 'cloud',
         success,
         status: completed.status,
-        outputs: snapshotYaml ? extractOutputs(snapshotYaml) : [],
+        outputs: parsed.outputs,
         snapshotYaml,
-        snapshot: snapshotYaml ? parseSnapshot(snapshotYaml) : null,
+        snapshot: parsed.snapshot,
         runId: completed.runId,
         error: success
           ? undefined
