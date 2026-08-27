@@ -579,8 +579,20 @@ class DeepnoteApi:
             # A network blip during a poll must not abandon a run that is still going.
             raise TransientApiError(f"Deepnote API {method} {path} failed: {error}") from error
 
+    @staticmethod
+    def _unwrap(body: dict[str, Any]) -> dict[str, Any]:
+        """``GET /v2/runs/{id}`` nests the run under ``run``; ``POST /v2/runs`` returns it flat.
+
+        Reading the status off the wrong level gives a poll loop that never sees a terminal status,
+        so it spins until the deadline. Accept either shape.
+        """
+        inner = body.get("run")
+        return inner if isinstance(inner, dict) else body
+
     def run_notebook(self, notebook_id: str, inputs: dict[str, Any]) -> dict[str, Any]:
-        started = self._request("POST", "/v2/runs", {"notebookId": notebook_id, "inputs": to_run_inputs(inputs)})
+        started = self._unwrap(
+            self._request("POST", "/v2/runs", {"notebookId": notebook_id, "inputs": to_run_inputs(inputs)})
+        )
         run_id = started.get("runId") or started.get("id")
         if not run_id:
             # Without this the loop would poll /v2/runs/None until the deadline.
@@ -596,7 +608,7 @@ class DeepnoteApi:
                     f"of notebook {notebook_id}. The run may still be going in Deepnote."
                 )
             try:
-                run = self._request("GET", f"/v2/runs/{run_id}?snapshotDelivery=inline")
+                run = self._unwrap(self._request("GET", f"/v2/runs/{run_id}?snapshotDelivery=inline"))
                 transient_failures = 0
             except TransientApiError:
                 transient_failures += 1
