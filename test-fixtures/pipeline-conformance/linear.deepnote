@@ -1,0 +1,29 @@
+# The simplest shape: two steps, one dependency, no extensions.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: conformance-linear
+  name: Conformance - linear
+  notebooks:
+    - id: pipeline-notebook
+      name: Pipeline
+      blocks:
+        - blockGroup: g-load
+          id: load
+          sortingKey: a0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-load
+            function_notebook_export_mappings:
+              portfolio:
+                enabled: true
+                variable_name: portfolio
+        - blockGroup: g-review
+          id: review
+          sortingKey: a1
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-review
+            function_notebook_inputs:
+              portfolio_json: '{{portfolio}}'
+version: '1.0.0'

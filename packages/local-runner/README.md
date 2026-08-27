@@ -369,6 +369,31 @@ boundary worth keeping.
 
 See [`examples/local-runner/sales-pipeline.deepnote`](../../examples/local-runner/sales-pipeline.deepnote).
 
+### Run a pipeline on a schedule
+
+Deepnote already schedules one notebook. Point that at a notebook that _interprets_ a manifest and a
+whole pipeline runs on a schedule — the run is an ordinary Deepnote run, durable and visible in
+Deepnote's UI, with no workflow engine and no server of your own.
+
+```bash
+python3 packages/local-runner/python/deepnote_pipeline.py --plan pipeline.deepnote   # print the DAG
+DEEPNOTE_TOKEN=… python3 packages/local-runner/python/deepnote_pipeline.py --run pipeline.deepnote
+```
+
+Scheduling the _manifest_ itself does not work, and fails quietly rather than loudly: Deepnote's
+block engine runs blocks in order (serializing the fan-out), knows nothing about `run_if`,
+`for_each`, or `{{ }}`, and bakes `notebook-function` inputs as a static literal so no value can flow
+between steps. The scheduled artifact has to be a runner, not the definition.
+
+See [`examples/local-runner/scheduled-pipeline`](../../examples/local-runner/scheduled-pipeline) for
+a self-contained notebook you can create once and schedule.
+
+**Two implementations, one contract.** The interpreter exists in TypeScript for the browser and in
+Python for a scheduled notebook, which is a standing risk of quiet divergence.
+`test-fixtures/pipeline-conformance` is the contract: both planners must produce identical plans for
+every fixture, enforced by `pipeline-conformance.test.ts`. Change a semantic in one language and that
+test fails until it is changed in the other.
+
 ### Make a pipeline durable
 
 `orchestrate` holds its state in one process and is gone if that process is. That is the right trade

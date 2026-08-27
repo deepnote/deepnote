@@ -1,0 +1,81 @@
+# Exercises the whole surface: concurrent fan-out, data flow by variable reference,
+# a conditional fan-out (for_each + per-element run_if), and a ?? fallback.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: conformance-fan-out
+  name: Conformance - fan out and gate
+  notebooks:
+    - id: pipeline-notebook
+      name: Pipeline
+      blocks:
+        - blockGroup: g-na
+          id: analyze-na
+          sortingKey: a0
+          type: notebook-function
+          metadata:
+            name: North America
+            function_notebook_id: nb-regional
+            function_notebook_inputs:
+              region: North America
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: northAmerica
+        - blockGroup: g-eu
+          id: analyze-eu
+          sortingKey: a1
+          type: notebook-function
+          metadata:
+            name: Europe
+            function_notebook_id: nb-regional
+            function_notebook_inputs:
+              region: Europe
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: europe
+        - blockGroup: g-recover
+          id: recover
+          sortingKey: b0
+          type: notebook-function
+          metadata:
+            name: Recovery
+            for_each:
+              - '{{northAmerica}}'
+              - '{{europe}}'
+            for_each_as: region
+            run_if: region.qualityScore < 0.95
+            function_notebook_id: nb-regional
+            function_notebook_inputs:
+              region: '{{region.region}}'
+              backfill_missing: 'true'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: recovered
+        - blockGroup: g-aggregate
+          id: aggregate
+          sortingKey: c0
+          type: notebook-function
+          metadata:
+            name: Aggregate
+            function_notebook_id: nb-aggregate
+            function_notebook_inputs:
+              regions_json: '[{{northAmerica}}, {{europe}}]'
+              recovered_json: '{{recovered ?? null}}'
+            function_notebook_export_mappings:
+              portfolio:
+                enabled: true
+                variable_name: portfolio
+        - blockGroup: g-arbiter
+          id: arbiter
+          sortingKey: d0
+          type: notebook-function
+          metadata:
+            name: Final decision
+            run_if: portfolio.forecastK < portfolio.targetK
+            function_notebook_id: nb-arbiter
+            function_notebook_inputs:
+              context_json: '{{portfolio}}'
+version: '1.0.0'

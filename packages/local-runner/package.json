@@ -33,10 +33,11 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist",
-    "README.md",
     "LICENSE",
-    "package.json"
+    "README.md",
+    "dist",
+    "package.json",
+    "python"
   ],
   "scripts": {
     "build": "tsdown",

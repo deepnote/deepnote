@@ -1,0 +1,32 @@
+# The gate is the *only* thing that reads `quality`: the step's inputs never mention it.
+# So the dependency edge exists solely because the condition consults it — which is the case a
+# planner is most likely to get wrong, in either language.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: conformance-condition-dependency
+  name: Conformance - condition-only dependency
+  notebooks:
+    - id: pipeline-notebook
+      name: Pipeline
+      blocks:
+        - blockGroup: g-check
+          id: check
+          sortingKey: a0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-check
+            function_notebook_export_mappings:
+              quality:
+                enabled: true
+                variable_name: quality
+        - blockGroup: g-notify
+          id: notify
+          sortingKey: b0
+          type: notebook-function
+          metadata:
+            run_if: quality.score < 0.95 && !quality.suppressed
+            function_notebook_id: nb-notify
+            function_notebook_inputs:
+              channel: alerts
+version: '1.0.0'

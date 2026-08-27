@@ -1,0 +1,803 @@
+# A notebook that runs a `.deepnote` pipeline, so the pipeline can be scheduled.
+#
+# Deepnote already schedules one notebook. Point that at this one and a whole pipeline runs on a
+# schedule: the run is an ordinary Deepnote run — durable, retryable, and visible in Deepnote's UI —
+# while the pipeline definition stays in a file. No workflow engine and no server of your own.
+#
+# Create this notebook once in your project, set MANIFEST_PATH, and schedule it.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: local-runner-scheduled-pipeline
+  name: Local runner demo - scheduled pipeline
+  notebooks:
+    - id: scheduled-pipeline-notebook
+      name: Scheduled pipeline
+      blocks:
+        - blockGroup: manifest-input-group
+          id: manifest-path-input
+          sortingKey: a0
+          type: input-text
+          content: ''
+          metadata:
+            deepnote_variable_name: manifest_path
+            deepnote_input_label: Path to the .deepnote pipeline manifest
+            deepnote_variable_value: sales-pipeline.deepnote
+            deepnote_variable_default_value: sales-pipeline.deepnote
+        - blockGroup: runner-group
+          id: pipeline-runner
+          sortingKey: b0
+          type: code
+          content: |-
+            # The pipeline interpreter, embedded so this notebook is self-contained.
+            # Source of truth: packages/local-runner/python/deepnote_pipeline.py — its semantics are
+            # pinned against the TypeScript implementation by test-fixtures/pipeline-conformance.
+            # The CLI entry point is stripped: a notebook cell runs as __main__.
+            """Run a ``.deepnote`` pipeline from inside a Deepnote notebook.
+            
+            The TypeScript orchestrator interprets a pipeline manifest in a browser or a script. That is the
+            right shape for an interactive app and the wrong one for a scheduled pipeline: the page has to stay
+            open, and if it closes the coordination state is gone.
+            
+            This is the same interpreter for the scheduled case. Put it in a notebook, point it at a manifest,
+            and schedule that notebook. The run is then an ordinary Deepnote run — durable, retryable, and
+            visible in Deepnote's own UI — while the pipeline definition stays in the file. No workflow engine
+            and no server of your own.
+            
+            What it deliberately does *not* do is hand the manifest to Deepnote's block engine. That engine runs
+            blocks strictly in order and knows nothing about ``run_if``, ``for_each``, or ``{{ }}``, so it would
+            serialize the fan-out and pass reference strings through verbatim. Interpreting the file keeps the
+            concurrency and the semantics.
+            
+            Semantics are shared with the TypeScript implementation and pinned by the conformance fixtures in
+            ``test-fixtures/pipeline-conformance``; both planners must produce the same plan for each one.
+            
+            Usage::
+            
+                python deepnote_pipeline.py --plan pipeline.deepnote      # print the DAG, run nothing
+                python deepnote_pipeline.py --run  pipeline.deepnote      # execute it
+            
+            Environment: ``DEEPNOTE_TOKEN`` (required to run), ``DEEPNOTE_API_URL`` (defaults to Deepnote Cloud).
+            """
+            
+            from __future__ import annotations
+            
+            import argparse
+            import json
+            import os
+            import re
+            import sys
+            import time
+            import urllib.error
+            import urllib.request
+            from concurrent.futures import ThreadPoolExecutor
+            from dataclasses import dataclass, field
+            from typing import Any, Callable, Iterable
+            
+            try:
+                import yaml
+            except ImportError:  # pragma: no cover - environment problem, not a logic path
+                sys.exit("deepnote_pipeline needs PyYAML. Install it with: pip install pyyaml")
+            
+            DEFAULT_API_URL = "https://api.deepnote.com"
+            TERMINAL_STATUSES = {"success", "error", "failed", "cancelled", "canceled", "timeout"}
+            
+            # ---------------------------------------------------------------------------
+            # References:  {{ a ?? b ?? 'literal' }}
+            # ---------------------------------------------------------------------------
+            
+            _GROUP = re.compile(r"\{\{([^}]*)\}\}")
+            _PATH = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)((?:\.[A-Za-z_][A-Za-z0-9_]*|\[[0-9]+\])*)$")
+            _SEGMENT = re.compile(r"\.([A-Za-z_][A-Za-z0-9_]*)|\[([0-9]+)\]")
+            
+            MISSING = object()
+            
+            
+            @dataclass(frozen=True)
+            class Alternative:
+                """One option in a ``??`` chain: a path into a variable, or a literal."""
+            
+                root: str | None
+                path: tuple[Any, ...] = ()
+                literal: Any = None
+                is_literal: bool = False
+            
+            
+            def _parse_alternative(text: str) -> Alternative:
+                text = text.strip()
+                if not text:
+                    raise ValueError("Empty alternative in a {{ }} reference.")
+                if text == "null":
+                    return Alternative(None, literal=None, is_literal=True)
+                if text in ("true", "false"):
+                    return Alternative(None, literal=text == "true", is_literal=True)
+                if re.fullmatch(r"-?[0-9]+(\.[0-9]+)?", text):
+                    number = float(text) if "." in text else int(text)
+                    return Alternative(None, literal=number, is_literal=True)
+                if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+                    return Alternative(None, literal=text[1:-1], is_literal=True)
+            
+                match = _PATH.match(text)
+                if not match:
+                    raise ValueError(f'"{text}" is not a variable path or a literal in a {{{{ }}}} reference.')
+                path = tuple(
+                    segment.group(1) if segment.group(1) is not None else int(segment.group(2))
+                    for segment in _SEGMENT.finditer(match.group(2))
+                )
+                return Alternative(match.group(1), path)
+            
+            
+            def parse_group(inner: str) -> list[Alternative]:
+                return [_parse_alternative(part) for part in inner.split("??")]
+            
+            
+            def _walk_strings(value: Any) -> Iterable[str]:
+                if isinstance(value, str):
+                    yield value
+                elif isinstance(value, list):
+                    for item in value:
+                        yield from _walk_strings(item)
+                elif isinstance(value, dict):
+                    for item in value.values():
+                        yield from _walk_strings(item)
+            
+            
+            def reference_roots(value: Any, bound: frozenset[str] = frozenset()) -> set[str]:
+                """The variable names a value reads, ignoring any bound locally (a loop variable)."""
+                roots: set[str] = set()
+                for text in _walk_strings(value):
+                    for match in _GROUP.finditer(text):
+                        for alternative in parse_group(match.group(1)):
+                            if not alternative.is_literal and alternative.root not in bound:
+                                roots.add(alternative.root)  # type: ignore[arg-type]
+                return roots
+            
+            
+            def _read(alternative: Alternative, variables: dict[str, Any]) -> Any:
+                if alternative.is_literal:
+                    return alternative.literal
+                if alternative.root not in variables:
+                    return MISSING
+                current: Any = variables[alternative.root]
+                for segment in alternative.path:
+                    if isinstance(segment, int):
+                        if not isinstance(current, list) or segment >= len(current):
+                            return MISSING
+                        current = current[segment]
+                    else:
+                        if not isinstance(current, dict) or segment not in current:
+                            return MISSING
+                        current = current[segment]
+                return MISSING if current is None and not alternative.is_literal and False else current
+            
+            
+            def _resolve_group(inner: str, variables: dict[str, Any]) -> Any:
+                for alternative in parse_group(inner):
+                    value = _read(alternative, variables)
+                    if value is not MISSING:
+                        return value
+                return MISSING
+            
+            
+            def unresolvable_groups(value: Any, variables: dict[str, Any]) -> list[str]:
+                """Groups nothing can satisfy. A step with any of these can never run correctly."""
+                unresolved = []
+                for text in _walk_strings(value):
+                    for match in _GROUP.finditer(text):
+                        if _resolve_group(match.group(1), variables) is MISSING:
+                            unresolved.append(match.group(0))
+                return unresolved
+            
+            
+            def resolve_value(value: Any, variables: dict[str, Any]) -> Any:
+                """Substitute references.
+            
+                A string that is exactly one reference keeps the referenced value's type; a reference embedded
+                in text interpolates, and a non-string is JSON-encoded for that case.
+                """
+                if isinstance(value, str):
+                    whole = re.fullmatch(r"\{\{([^}]*)\}\}", value)
+                    if whole:
+                        resolved = _resolve_group(whole.group(1), variables)
+                        return None if resolved is MISSING else resolved
+            
+                    def substitute(match: re.Match[str]) -> str:
+                        resolved = _resolve_group(match.group(1), variables)
+                        if resolved is MISSING:
+                            return ""
+                        return resolved if isinstance(resolved, str) else json.dumps(resolved, separators=(",", ":"))
+            
+                    return _GROUP.sub(substitute, value)
+                if isinstance(value, list):
+                    return [resolve_value(item, variables) for item in value]
+                if isinstance(value, dict):
+                    return {key: resolve_value(item, variables) for key, item in value.items()}
+                return value
+            
+            
+            # ---------------------------------------------------------------------------
+            # Conditions:  europe.qualityScore < 0.95 && !europe.stale
+            # ---------------------------------------------------------------------------
+            
+            _OPERATORS = ["===", "!==", "==", "!=", "<=", ">=", "&&", "||", "<", ">", "!", "(", ")", ".", "[", "]"]
+            
+            
+            def _tokenize(source: str) -> list[tuple[str, Any]]:
+                tokens: list[tuple[str, Any]] = []
+                index = 0
+                while index < len(source):
+                    char = source[index]
+                    if char.isspace():
+                        index += 1
+                        continue
+                    if char in "\"'":
+                        end = source.find(char, index + 1)
+                        if end == -1:
+                            raise ValueError(f"Unterminated string in condition: {source}")
+                        tokens.append(("string", source[index + 1 : end]))
+                        index = end + 1
+                        continue
+                    number = re.match(r"-?[0-9]+(\.[0-9]+)?", source[index:])
+                    if number and (char.isdigit() or (char == "-" and source[index + 1 : index + 2].isdigit())):
+                        text = number.group(0)
+                        tokens.append(("number", float(text) if "." in text else int(text)))
+                        index += len(text)
+                        continue
+                    name = re.match(r"[A-Za-z_][A-Za-z0-9_]*", source[index:])
+                    if name:
+                        tokens.append(("name", name.group(0)))
+                        index += len(name.group(0))
+                        continue
+                    operator = next((candidate for candidate in _OPERATORS if source.startswith(candidate, index)), None)
+                    if operator is None:
+                        raise ValueError(f'Unexpected "{char}" in condition: {source}')
+                    tokens.append(("operator", operator))
+                    index += len(operator)
+                return tokens
+            
+            
+            def _compare(operator: str, left: Any, right: Any) -> bool:
+                if operator in ("==", "==="):
+                    return left == right
+                if operator in ("!=", "!=="):
+                    return left != right
+                try:
+                    left_number, right_number = float(left), float(right)  # type: ignore[arg-type]
+                except (TypeError, ValueError):
+                    return False
+                return {
+                    "<": left_number < right_number,
+                    "<=": left_number <= right_number,
+                    ">": left_number > right_number,
+                    ">=": left_number >= right_number,
+                }[operator]
+            
+            
+            class _Parser:
+                """Recursive descent over the condition grammar. No eval, no calls, no attribute magic."""
+            
+                def __init__(self, source: str) -> None:
+                    self.source = source
+                    self.tokens = _tokenize(source)
+                    self.position = 0
+                    self.references: set[str] = set()
+            
+                def _peek(self) -> tuple[str, Any] | None:
+                    return self.tokens[self.position] if self.position < len(self.tokens) else None
+            
+                def _eat(self, value: str) -> bool:
+                    token = self._peek()
+                    if token and token[0] == "operator" and token[1] == value:
+                        self.position += 1
+                        return True
+                    return False
+            
+                def parse(self) -> Callable[[dict[str, Any]], Any]:
+                    node = self._parse_or()
+                    if self.position != len(self.tokens):
+                        raise ValueError(f"Unexpected trailing input in condition: {self.source}")
+                    return node
+            
+                def _parse_or(self) -> Callable[[dict[str, Any]], Any]:
+                    node = self._parse_and()
+                    while self._eat("||"):
+                        left, right = node, self._parse_and()
+                        node = lambda variables, a=left, b=right: bool(a(variables)) or bool(b(variables))
+                    return node
+            
+                def _parse_and(self) -> Callable[[dict[str, Any]], Any]:
+                    node = self._parse_comparison()
+                    while self._eat("&&"):
+                        left, right = node, self._parse_comparison()
+                        node = lambda variables, a=left, b=right: bool(a(variables)) and bool(b(variables))
+                    return node
+            
+                def _parse_comparison(self) -> Callable[[dict[str, Any]], Any]:
+                    left = self._parse_primary()
+                    token = self._peek()
+                    if token and token[0] == "operator" and token[1] in ("<", "<=", ">", ">=", "==", "===", "!=", "!=="):
+                        self.position += 1
+                        operator = token[1]
+                        right = self._parse_primary()
+                        return lambda variables: _compare(operator, left(variables), right(variables))
+                    return left
+            
+                def _parse_primary(self) -> Callable[[dict[str, Any]], Any]:
+                    token = self._peek()
+                    if token is None:
+                        raise ValueError(f"Condition ended unexpectedly: {self.source}")
+                    if self._eat("("):
+                        inner = self._parse_or()
+                        if not self._eat(")"):
+                            raise ValueError(f'Missing ")" in condition: {self.source}')
+                        return inner
+                    if self._eat("!"):
+                        operand = self._parse_primary()
+                        return lambda variables: not operand(variables)
+                    if token[0] in ("number", "string"):
+                        self.position += 1
+                        return lambda _variables, value=token[1]: value
+                    if token[0] == "name":
+                        self.position += 1
+                        name = token[1]
+                        if name == "true":
+                            return lambda _variables: True
+                        if name == "false":
+                            return lambda _variables: False
+                        if name == "null":
+                            return lambda _variables: None
+            
+                        self.references.add(name)
+                        path: list[Any] = []
+                        while True:
+                            if self._eat("."):
+                                prop = self._peek()
+                                if not prop or prop[0] != "name":
+                                    raise ValueError(f'Expected a property name after "." in condition: {self.source}')
+                                self.position += 1
+                                path.append(prop[1])
+                                continue
+                            if self._eat("["):
+                                index = self._peek()
+                                if not index or index[0] != "number":
+                                    raise ValueError(f"Only numeric indexes are supported in condition: {self.source}")
+                                self.position += 1
+                                if not self._eat("]"):
+                                    raise ValueError(f'Missing "]" in condition: {self.source}')
+                                path.append(int(index[1]))
+                                continue
+                            break
+            
+                        def read(variables: dict[str, Any], root: str = name, segments: tuple[Any, ...] = tuple(path)) -> Any:
+                            current: Any = variables.get(root)
+                            for segment in segments:
+                                if isinstance(segment, int):
+                                    if not isinstance(current, list) or segment >= len(current):
+                                        return None
+                                    current = current[segment]
+                                else:
+                                    if not isinstance(current, dict) or segment not in current:
+                                        return None
+                                    current = current[segment]
+                            return current
+            
+                        return read
+                    raise ValueError(f'Unexpected "{token[1]}" in condition: {self.source}')
+            
+            
+            def condition_references(source: str) -> set[str]:
+                parser = _Parser(source)
+                parser.parse()
+                return parser.references
+            
+            
+            def evaluate_condition(source: str, variables: dict[str, Any]) -> bool:
+                parser = _Parser(source)
+                node = parser.parse()
+                return bool(node(variables))
+            
+            
+            # ---------------------------------------------------------------------------
+            # Planning
+            # ---------------------------------------------------------------------------
+            
+            
+            @dataclass
+            class PlannedStep:
+                id: str
+                label: str
+                notebook_id: str
+                inputs: dict[str, Any]
+                exports: dict[str, str]
+                depends_on: list[str] = field(default_factory=list)
+                condition: str | None = None
+                for_each: Any = None
+                for_each_as: str = "item"
+            
+                def to_json(self) -> dict[str, Any]:
+                    data: dict[str, Any] = {
+                        "id": self.id,
+                        "label": self.label,
+                        "notebookId": self.notebook_id,
+                        "inputs": self.inputs,
+                        "exports": self.exports,
+                        "dependsOn": sorted(self.depends_on),
+                        "forEachAs": self.for_each_as,
+                    }
+                    if self.condition is not None:
+                        data["condition"] = self.condition
+                    if self.for_each is not None:
+                        data["forEach"] = self.for_each
+                    return data
+            
+            
+            @dataclass
+            class Plan:
+                notebook_id: str
+                notebook_name: str
+                steps: list[PlannedStep]
+                produced_by: dict[str, str]
+            
+                def to_json(self) -> dict[str, Any]:
+                    return {
+                        "notebookId": self.notebook_id,
+                        "notebookName": self.notebook_name,
+                        "steps": [step.to_json() for step in self.steps],
+                        "producedBy": self.produced_by,
+                    }
+            
+            
+            def _select_notebook(file: dict[str, Any], notebook: str | None) -> dict[str, Any]:
+                notebooks = file.get("project", {}).get("notebooks", []) or []
+                if notebook:
+                    for candidate in notebooks:
+                        if candidate.get("name") == notebook or candidate.get("id") == notebook:
+                            return candidate
+                    raise ValueError(f'No notebook named "{notebook}" in this file.')
+                with_steps = [
+                    candidate
+                    for candidate in notebooks
+                    if any(block.get("type") == "notebook-function" for block in candidate.get("blocks", []) or [])
+                ]
+                if not with_steps:
+                    raise ValueError(
+                        "This file defines no orchestration: no notebook in it has a notebook-function block. "
+                        "Add one block per step, each naming the notebook it runs."
+                    )
+                if len(with_steps) > 1:
+                    names = ", ".join(f'"{candidate.get("name")}"' for candidate in with_steps)
+                    raise ValueError(f"More than one notebook defines steps ({names}). Name the one to run.")
+                return with_steps[0]
+            
+            
+            def plan_orchestration(file: dict[str, Any], notebook: str | None = None) -> Plan:
+                """Build the dependency graph a ``.deepnote`` file describes, without running anything."""
+                chosen = _select_notebook(file, notebook)
+                blocks = sorted(
+                    (block for block in chosen.get("blocks", []) or [] if block.get("type") == "notebook-function"),
+                    key=lambda block: block.get("sortingKey", ""),
+                )
+            
+                produced_by: dict[str, str] = {}
+                drafts: list[PlannedStep] = []
+                for block in blocks:
+                    metadata = block.get("metadata") or {}
+                    notebook_id = metadata.get("function_notebook_id")
+                    if not notebook_id:
+                        raise ValueError(
+                            f'Step "{block.get("id")}" names no notebook. '
+                            "Set function_notebook_id to the notebook it should run."
+                        )
+                    exports: dict[str, str] = {}
+                    for export_name, mapping in (metadata.get("function_notebook_export_mappings") or {}).items():
+                        mapping = mapping or {}
+                        if mapping.get("enabled") is False or not mapping.get("variable_name"):
+                            continue
+                        variable = mapping["variable_name"]
+                        if variable in produced_by:
+                            raise ValueError(
+                                f'Steps "{produced_by[variable]}" and "{block.get("id")}" both export "{variable}". '
+                                "A variable can only come from one step."
+                            )
+                        produced_by[variable] = block["id"]
+                        exports[export_name] = variable
+            
+                    condition = (metadata.get("run_if") or "").strip() or None
+                    if condition:
+                        condition_references(condition)  # parse now: a bad condition is a plan-time error
+                    for_each = metadata.get("for_each")
+                    if isinstance(for_each, str):
+                        for_each = for_each.strip() or None
+                    for_each_as = (metadata.get("for_each_as") or "").strip() or "item"
+                    if for_each is None and metadata.get("for_each_as"):
+                        raise ValueError(f'Step "{block.get("id")}" sets for_each_as but has no for_each to iterate.')
+            
+                    drafts.append(
+                        PlannedStep(
+                            id=block["id"],
+                            label=(metadata.get("name") or "").strip() or block["id"],
+                            notebook_id=notebook_id,
+                            inputs=metadata.get("function_notebook_inputs") or {},
+                            exports=exports,
+                            condition=condition,
+                            for_each=for_each,
+                            for_each_as=for_each_as,
+                        )
+                    )
+            
+                for draft in drafts:
+                    bound = frozenset([draft.for_each_as]) if draft.for_each is not None else frozenset()
+                    names = reference_roots(draft.inputs, bound) | reference_roots(draft.for_each, bound)
+                    if draft.condition:
+                        names |= {name for name in condition_references(draft.condition) if name not in bound}
+                    depends: set[str] = set()
+                    for name in names:
+                        producer = produced_by.get(name)
+                        if not producer:
+                            raise ValueError(
+                                f'Step "{draft.id}" reads "{{{{{name}}}}}", which no step exports. '
+                                "Check the export mappings of the step that should produce it."
+                            )
+                        if producer == draft.id:
+                            raise ValueError(f'Step "{draft.id}" reads "{{{{{name}}}}}", which it exports itself.')
+                        depends.add(producer)
+                    draft.depends_on = sorted(depends)
+            
+                _assert_acyclic(drafts)
+                return Plan(chosen["id"], chosen.get("name", ""), drafts, produced_by)
+            
+            
+            def _assert_acyclic(steps: list[PlannedStep]) -> None:
+                by_id = {step.id: step for step in steps}
+                state: dict[str, str] = {}
+            
+                def visit(node: str, trail: list[str]) -> None:
+                    if state.get(node) == "done":
+                        return
+                    if state.get(node) == "visiting":
+                        cycle = trail[trail.index(node) :] + [node]
+                        raise ValueError("These steps depend on each other in a cycle: " + " -> ".join(cycle) + ".")
+                    state[node] = "visiting"
+                    for dependency in by_id[node].depends_on if node in by_id else []:
+                        visit(dependency, trail + [node])
+                    state[node] = "done"
+            
+                for step in steps:
+                    visit(step.id, [])
+            
+            
+            # ---------------------------------------------------------------------------
+            # Execution
+            # ---------------------------------------------------------------------------
+            
+            
+            class DeepnoteApi:
+                """The three calls a step needs: start a run, poll it, read its snapshot."""
+            
+                def __init__(self, token: str, base_url: str = DEFAULT_API_URL, poll_seconds: float = 3.0) -> None:
+                    self.token = token
+                    self.base_url = base_url.rstrip("/")
+                    self.poll_seconds = poll_seconds
+            
+                def _request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+                    request = urllib.request.Request(
+                        f"{self.base_url}{path}",
+                        method=method,
+                        data=json.dumps(body).encode() if body is not None else None,
+                        headers={"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"},
+                    )
+                    try:
+                        with urllib.request.urlopen(request, timeout=60) as response:
+                            return json.loads(response.read().decode() or "{}")
+                    except urllib.error.HTTPError as error:
+                        detail = error.read().decode(errors="replace")[:400]
+                        raise RuntimeError(f"Deepnote API {method} {path} failed: HTTP {error.code} {detail}") from error
+            
+                def run_notebook(self, notebook_id: str, inputs: dict[str, Any]) -> dict[str, Any]:
+                    started = self._request("POST", "/v2/runs", {"notebookId": notebook_id, "inputs": to_run_inputs(inputs)})
+                    run_id = started.get("runId") or started.get("id")
+                    while True:
+                        run = self._request("GET", f"/v2/runs/{run_id}?snapshotDelivery=inline")
+                        if run.get("status") in TERMINAL_STATUSES:
+                            return run
+                        time.sleep(self.poll_seconds)
+            
+            
+            def to_run_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+                """``POST /v2/runs`` accepts only strings, booleans, and lists of strings."""
+                coerced: dict[str, Any] = {}
+                for name, value in (inputs or {}).items():
+                    if isinstance(value, bool) or isinstance(value, str):
+                        coerced[name] = value
+                    elif isinstance(value, (int, float)):
+                        coerced[name] = str(value)
+                    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+                        coerced[name] = value
+                    elif value is not None:
+                        raise ValueError(
+                            f'Input "{name}" is a {type(value).__name__}. '
+                            "Deepnote inputs accept a string, boolean, or list of strings."
+                        )
+                return coerced
+            
+            
+            def last_json(run: dict[str, Any]) -> Any:
+                """The last structured JSON value a run produced, read without depending on block ids."""
+                blocks: list[dict[str, Any]] = []
+                if isinstance(run.get("snapshotBlocks"), list):
+                    blocks = run["snapshotBlocks"]
+                else:
+                    content = (run.get("snapshot") or {}).get("snapshotContent") or run.get("snapshotContent")
+                    if content:
+                        snapshot = yaml.safe_load(content) or {}
+                        for notebook in snapshot.get("project", {}).get("notebooks", []) or []:
+                            blocks.extend(notebook.get("blocks", []) or [])
+            
+                for block in reversed(blocks):
+                    for output in reversed(block.get("outputs", []) or []):
+                        data = output.get("data") or {}
+                        if "application/json" in data:
+                            value = data["application/json"]
+                            return json.loads(value) if isinstance(value, str) else value
+                        text = data.get("text/plain") or output.get("text") or ""
+                        if isinstance(text, list):
+                            text = "".join(text)
+                        text = (text or "").strip()
+                        if text:
+                            try:
+                                return json.loads(text)
+                            except json.JSONDecodeError:
+                                continue
+                raise ValueError("The run produced no structured JSON output.")
+            
+            
+            def run_plan(
+                plan: Plan,
+                api: DeepnoteApi,
+                max_workers: int = 8,
+                on_event: Callable[[str, str, dict[str, Any]], None] | None = None,
+            ) -> dict[str, Any]:
+                """Execute a plan, running every step whose dependencies are met at the same time."""
+                variables: dict[str, Any] = {}
+                pending = {step.id: step for step in plan.steps}
+                settled: set[str] = set()
+                skipped: set[str] = set()
+            
+                def notify(kind: str, step_id: str, **detail: Any) -> None:
+                    if on_event:
+                        on_event(kind, step_id, detail)
+            
+                with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                    while len(settled) < len(plan.steps):
+                        ready = [step for step in pending.values() if all(dep in settled for dep in step.depends_on)]
+                        if not ready:
+                            raise RuntimeError("The pipeline stalled: no step is ready.")
+            
+                        for step in ready:
+                            del pending[step.id]
+            
+                            if step.for_each is not None:
+                                items = resolve_value(step.for_each, variables)
+                                if not isinstance(items, list):
+                                    raise ValueError(
+                                        f'Step "{step.id}" iterates {step.for_each!r}, which is not a list. for_each needs one.'
+                                    )
+                                instances = [
+                                    (f"{step.id}[{index}]", {**variables, step.for_each_as: item})
+                                    for index, item in enumerate(items)
+                                ]
+                            else:
+                                instances = [(step.id, variables)]
+            
+                            admitted = [
+                                (instance_id, scope)
+                                for instance_id, scope in instances
+                                if not unresolvable_groups(step.inputs, scope)
+                                and (not step.condition or evaluate_condition(step.condition, scope))
+                            ]
+            
+                            if step.for_each is not None and not items:
+                                _publish(step, [], variables)
+                                settled.add(step.id)
+                                continue
+                            if not admitted:
+                                skipped.add(step.id)
+                                settled.add(step.id)
+                                notify("skipped", step.id)
+                                continue
+            
+                            futures = []
+                            for instance_id, scope in admitted:
+                                notify("started", instance_id)
+                                futures.append(
+                                    pool.submit(api.run_notebook, step.notebook_id, resolve_value(step.inputs, scope))
+                                )
+            
+                            runs = []
+                            for (instance_id, _scope), future in zip(admitted, futures):
+                                run = future.result()
+                                status = run.get("status")
+                                notify("finished", instance_id, status=status, runId=run.get("runId"))
+                                if status != "success":
+                                    raise RuntimeError(f'Step "{instance_id}" finished with status "{status}".')
+                                runs.append(run)
+            
+                            _publish(step, runs, variables)
+                            settled.add(step.id)
+            
+                return {"variables": variables, "skipped": sorted(skipped)}
+            
+            
+            def _publish(step: PlannedStep, runs: list[dict[str, Any]], variables: dict[str, Any]) -> None:
+                """A fan-out collects one list per exported name, in element order."""
+                if not step.exports:
+                    return
+                if step.for_each is None:
+                    if runs:
+                        value = last_json(runs[0])
+                        for export_name, variable in step.exports.items():
+                            variables[variable] = _pluck(step, export_name, value)
+                    return
+                collected: dict[str, list[Any]] = {variable: [] for variable in step.exports.values()}
+                for run in runs:
+                    value = last_json(run)
+                    for export_name, variable in step.exports.items():
+                        collected[variable].append(_pluck(step, export_name, value))
+                variables.update(collected)
+            
+            
+            def _pluck(step: PlannedStep, export_name: str, value: Any) -> Any:
+                if not isinstance(value, dict):
+                    raise ValueError(f'Step "{step.id}" exports values, so its last output must be a JSON object.')
+                if export_name not in value:
+                    raise ValueError(
+                        f'Step "{step.id}" exports "{export_name}", which its output does not contain. '
+                        f"It produced: {', '.join(value.keys()) or '(nothing)'}."
+                    )
+                return value[export_name]
+            
+            
+            def load(path: str) -> dict[str, Any]:
+                with open(path, encoding="utf-8") as handle:
+                    return yaml.safe_load(handle)
+            
+            
+            def main(argv: list[str] | None = None) -> int:
+                parser = argparse.ArgumentParser(description="Run a .deepnote pipeline.")
+                parser.add_argument("manifest")
+                parser.add_argument("--plan", action="store_true", help="print the DAG as JSON and run nothing")
+                parser.add_argument("--run", action="store_true", help="execute the pipeline")
+                parser.add_argument("--notebook", help="which notebook in the file holds the pipeline")
+                arguments = parser.parse_args(argv)
+            
+                plan = plan_orchestration(load(arguments.manifest), arguments.notebook)
+            
+                if arguments.plan or not arguments.run:
+                    print(json.dumps(plan.to_json(), indent=2, sort_keys=True))
+                    return 0
+            
+                token = os.environ.get("DEEPNOTE_TOKEN")
+                if not token:
+                    print("DEEPNOTE_TOKEN is required to run a pipeline.", file=sys.stderr)
+                    return 1
+            
+                api = DeepnoteApi(token, os.environ.get("DEEPNOTE_API_URL", DEFAULT_API_URL))
+                result = run_plan(plan, api, on_event=lambda kind, step, detail: print(f"  {kind:8} {step} {detail or ''}"))
+                print(json.dumps(result, indent=2, sort_keys=True, default=str))
+                return 0
+            
+        - blockGroup: run-group
+          id: run-pipeline
+          sortingKey: c0
+          type: code
+          content: |-
+            import json, os
+
+            plan = plan_orchestration(load(manifest_path))
+            print(f"pipeline: {plan.notebook_name} ({len(plan.steps)} steps)")
+
+            api = DeepnoteApi(os.environ["DEEPNOTE_TOKEN"], os.environ.get("DEEPNOTE_API_URL", DEFAULT_API_URL))
+            result = run_plan(plan, api, on_event=lambda kind, step, detail: print(f"  {kind:8} {step}"))
+
+            print(json.dumps(result, indent=2, default=str))
+version: '1.0.0'
