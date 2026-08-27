@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-Chart blocks allow you to create charts from pandas, Polars, and PySpark DataFrames without using code. They are perfect for fast exploratory analysis, or for those who are not familiar with how to make charts using Python code.
+Chart blocks allow you to create charts from pandas, Polars, and PySpark DataFrames without code. They are useful for fast exploratory analysis and for people who are not familiar with making charts with Python code.
 
 To get started, you can watch our quick demo on chart block configuration.
 
@@ -31,43 +31,33 @@ Alternatively, you can also add a chart block by pressing the **Add block (+)** 
 
 <VideoLoop src="../assets/docs/CQysjgaRWfuPpuRfg6sA.mp4" />
 
-To start, you need to select a DataFrame to visualize in the upper left corner. By default, your chart will be simple column chart, if you want to switch to different type (e.g. line chart or scatter), you can do so using dropdown in the top left corner.
+To start, select a DataFrame to visualize in the upper left corner. By default, your chart is a simple column chart. To switch to another type, such as a line chart or scatter plot, use the dropdown in the top left corner.
 
 Once you picked a DataFrame, you need to configure which data to display on the chart. Depending on selected chart type this can be either X/Y axes or segment's color and size for circular charts. Both can be adjusted from the first two sections of the sidebar. Just select a column you want to visualize and adjust settings if needed (we'll go over those in a minute).
 
-In this doc we'll be referring to those setting as dimension and measure. Dimension describes categories (structure) of your chart. For example, in "Monthly revenue" column chart this is "monthly" part and will be displayed on X axis. Dimension settings are always located in the first section of the sidebar. Measure is quantitative value which you want to analyze or summarize on a chart. Following our previous example, this is the "revenue" part and it will be charted on Y axis.
+In this doc, we'll refer to these settings as dimension and measure. Dimension describes the categories in your chart. For example, in a "Monthly revenue" column chart, the dimension is "monthly" and appears on the X-axis. Dimension settings are always in the first section of the sidebar. A measure is a quantitative value that you want to analyze or summarize. In the previous example, the measure is "revenue" and it appears on the Y-axis.
 
 Dimension and measure can correspond to different axes, depending on chart type. For example, in column chart dimension is X axis and measure is Y axis. But they are swapped in bar chart. In pie and donut charts, dimension is color of the segment, while measure is its size.
 
-## Chart AI
-
-Not feeling like pointing and clicking today? We got you. As an alternative to manual setup, you can also ask Deepnote AI to create a chart for you. Open Chart AI by clicking **Chart AI** button on the top of the chart block, type in what you want to visualize, and hit **Submit**. In a few seconds, Deepnote AI will respond with a chart suggestion. You can accept it (**Done**) or reject (**Undo**) and adjust your description.
-
-<VideoLoop src="../assets/docs/yCGeQETZqFODHTDsOFbw.mp4" />
-
-The accepted chart will have all the configurations filled out for you. You can use it as a starting point and manually tweak things further. You can also request follow-up edits from Deepnote AI by typing in a new prompt to modify your existing chart.
-
-<VideoLoop src="../assets/docs/CYey9W5tQyCcdV6zH4Jk.mp4" />
-
 ## Adjusting how data is interpreted
 
-Depending on chart type and data type, there are couple of additional settings that change how data is interpreted and charted. You'll find available settings next to the column dropdown.
+Depending on the chart type and data type, there are a couple of additional settings that change how data is interpreted and charted. You'll find these settings next to the column dropdown.
 
 ### Data type
 
 Depending on the chart type, you might be able to manually change the data type of selected column. Deepnote supports 3 data types.
 
-- Nominal — categorical data without a specific order among values. For example, product categories in sales report.
+- Nominal - categorical data without a specific order among values. For example, product categories in a sales report.
 
-- Temporal — data related to time and dates. Following our sales report example, order date will have temporal data type.
+- Temporal - data related to time and dates. In the sales report example, order date has a temporal data type.
 
-- Quantitative — numerical data that can be measured and analyzed mathematically, e.g. product prices or store's revenue.
+- Quantitative - numerical data that can be measured and analyzed mathematically, such as product prices or store revenue.
 
 ### Aggregation
 
 Quantitative and nominal fields can have an aggregation. Aggregation allows us to combine multiple records into single summary value.
 
-Nominal fields support two integration: `count` which reduces set or records to single number representing their count, and `distinct` which returns number of unique values of selected column among matching set of records.
+Nominal fields support two aggregations: `count`, which reduces a set of records to a single number representing their count, and `distinct`, which returns the number of unique values in the selected column among matching records.
 
 But aggregations really shine with quantitative fields. In addition to `count` and `distinct` you can calculate `sum`, `min`, `max`, `average`, and `median`.
 
@@ -83,7 +73,7 @@ For temporal fields you can select how precise you want your chart to be. All re
 
 Grouping allows you to add another dimension to your chart. But instead of making it 3D and hard to read, it adds color. To add grouping to series click **+ Group by** and select column which should be used for grouping. Don't see it? That means selected chart type doesn't support grouping, try another chart type.
 
-Results will vary depending on selected chart type and data type of the column used for grouping. Grouping by nominal column will split chart into multiple elements, one for each value of the grouping column. If you selected stacked chart type, those elements will be stack one on top of another, otherwise they will be displayed side-by-side. Grouping by nominal field, for example, allows you to see monthly revenue for each store location instead of single total value.
+Results vary depending on the selected chart type and the data type of the column used for grouping. Grouping by a nominal column splits the chart into multiple elements, one for each value of the grouping column. If you select a stacked chart type, those elements are stacked on top of one another. Otherwise, they are displayed side by side. Grouping by a nominal field lets you see monthly revenue for each store location instead of a single total value.
 
 ![Group by nominal field](../assets/docs/Yb5neGfRQeCCzv3ykNwK.webp)
 
@@ -107,11 +97,11 @@ Once you selected some data, press the **Keep only** or **Exclude** buttons to f
 
 <VideoLoop src="../assets/docs/KC6hlTXPTCuIlpiWdNQV.mp4" />
 
-You can also apply **conditional filters** on your charts, giving you more precision and the ability to apply more complex filtering logic. Simply click the **Filter** button in the block actions menu, select the column you wish to filter, choose an operator and a value for your condition, and press **Apply**.
+You can also apply **conditional filters** on your charts, giving you more precision and the ability to apply more complex filtering logic. Click the **Filter** button in the chart controls, select the column you want to filter, choose an operator and a value, and press **Apply**.
 
 <VideoLoop src="../assets/docs/p7WogC9QmqIYj1exF9VQ.mp4" />
 
-Applied filters are always added to the Filters list, making them easy to remove or modify. You can also combine multiple conditional filters — just press the plus button in the Filters list to add a new filter for more complex filtering logic.
+Applied filters are added to the Filters list, making them easy to remove or modify. To combine multiple conditional filters, press the plus button in the Filters list.
 
 <VideoLoop src="../assets/docs/oQd8gnR22ohfu3Q2hBqw.mp4" />
 
@@ -131,7 +121,7 @@ In addition to all the usual series settings, you can switch series type. Click 
 
 ## Custom tooltips
 
-Ever needed to show just a bit more information on a chart without cluttering the entire visualization? With custom tooltips you can enrich your charts by selecting additional columns from your plotted DataFrame to display in the tooltip — not just those configured on the chart.
+Ever needed to show a bit more information on a chart without cluttering the entire visualization? With custom tooltips, you can select additional columns from your plotted DataFrame to display in the tooltip, not just those configured on the chart.
 
 It’s perfect for highlighting more information for an unusual data point on a scatterplot or adding context with an extra metric on your bar charts, all without overwhelming your audience.
 
@@ -167,21 +157,21 @@ Once you’ve finalized your chart, you can collapse the configuration sidebar t
 
 ## Customize charts with code
 
-If you need more flexibility to customize your charts, you can **duplicate your chart block into code** by selecting the option in the **block actions** menu.
+If you need more flexibility to customize your charts, open the **block actions** menu and select **Duplicate as code**.
 
-This adds a new Python code block to your notebook, containing the configuration of your chart in the [Vega-lite](https://vega.github.io/vega-lite/) specification format. Vega-lite is very powerful and fairly easy to learn so it’s a great option if you need to create a finely customized or super advanced visualisation.
+This adds a new Python code block containing your chart configuration in the [Vega-Lite](https://vega.github.io/vega-lite/) specification format. Vega-Lite is powerful and fairly easy to learn, so it is a good option for finely customized or advanced visualizations.
 
 <VideoLoop src="../assets/docs/GGVOfg2mSISnWCjbp6jy.mp4" />
 
 ## Limitations
 
-You can chart DataFrames of all shapes and sizes, Deepnote doesn't apply any limitation on the number of rows. As long as the DataFrame fits into the memory of the machine and there is enough memory to process it, it will be charted.
+You can chart DataFrames of all shapes and sizes. Deepnote does not limit the number of rows. As long as the DataFrame fits in machine memory, it will be charted.
 
 However, we apply a limit of 5,000 data points post-aggregations. In cases when a DataFrame exceeds 5,000 rows after applying aggregations, Deepnote will display only the first 5,000 data points.
 
 For example, imagine you're preparing a yearly sales report. You have DataFrames with all orders from last year, it contains 1,000,000 orders (sales were good last year!), and you want to chart the number of sales per each month. In this case your whole dataset will be aggregated to just 12 data points, and Deepnote will happily chart that for you.
 
-In the next chart, you might want to show the correlation between customer age and how much they spent last year. You have a DataFrame with 50,000 users and their spendings last year, and you intend to use a scatterplot to showcase this data. Since there is no aggregation, this will produce a chart with 50,000 data points. Rendering this many data points can cause browser performance issues and make the chart hard to use. So Deepnote will render only the first 5,000 data points to avoid this.
+In another chart, you might want to show the correlation between customer age and how much they spent last year. You have a DataFrame with 50,000 users and their spending last year, and you intend to use a scatter plot to show this data. Since there is no aggregation, this produces a chart with 50,000 data points. Rendering this many data points can cause browser performance issues and make the chart hard to use. Deepnote renders only the first 5,000 data points to avoid this.
 
 When charting a PySpark DataFrame, aggregations run across your full Spark cluster with no sampling, so the resulting chart reflects the entire dataset rather than a preview.
 
