@@ -85,17 +85,8 @@ export interface ExecutionOptions {
   onServerReady?: () => void
   integrations?: Array<{ id: string; name: string; type: string }>
   /**
-   * Optional abort signal forwarded only to agent-block execution
-   * (`executeAgentBlock` / `AgentBlockContext.signal`).
-   *
-   * Does not interrupt code, SQL, or other kernel blocks, including blocks
-   * that run before an agent block in the same `runProject` call.
-   *
-   * When the agent throws because this signal aborted, `runProject` / `runFile`
-   * still resolve: the agent is recorded as a failed block (`success: false`,
-   * `failedBlocks` incremented). They do not reject with `signal.reason`.
-   * A non-Error abort reason is wrapped with `new Error(String(error))` at
-   * the engine catch, same as any other thrown value.
+   * Cancels agent blocks only; code and SQL blocks still run to completion.
+   * An aborted agent is reported as a failed block, not as a rejection.
    */
   signal?: AbortSignal
 }

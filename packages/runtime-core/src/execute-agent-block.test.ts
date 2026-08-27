@@ -197,13 +197,12 @@ describe('executeAgentBlock abort', () => {
     await expect(executeAgentBlock(AGENT_BLOCK, makeContext({ signal: controller.signal }))).rejects.toBe(reason)
   })
 
-  it('throws with signal.reason and skips tool discovery when aborted during pending MCP client creation', async () => {
+  it('skips tool discovery and closes the started client when aborted during MCP startup', async () => {
     const controller = new AbortController()
     const reason = new Error('cancelled during mcp init')
     const toolsSpy = vi.fn(async () => ({}))
     const closeSpy = vi.fn(async () => {})
-    const unreachable = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
-    modelRef.current = unreachable
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
 
     let resolveCreate!: () => void
     const createGate = new Promise<void>(resolve => {
@@ -230,22 +229,20 @@ describe('executeAgentBlock abort', () => {
     await expect(runPromise).rejects.toBe(reason)
     expect(toolsSpy).not.toHaveBeenCalled()
     expect(closeSpy).toHaveBeenCalledTimes(1)
-    expect(unreachable.doStreamCalls).toHaveLength(0)
+    expect(modelRef.current.doStreamCalls).toHaveLength(0)
   })
 
-  it('throws with signal.reason and does not start the agent when aborted during pending tool discovery', async () => {
+  it('does not call the model when aborted during tool discovery', async () => {
     const controller = new AbortController()
     const reason = new Error('cancelled during tool discovery')
-    const toolsSpy = vi.fn()
     const closeSpy = vi.fn(async () => {})
-    const unreachable = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
-    modelRef.current = unreachable
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
 
-    let resolveTools!: (value: Record<string, never>) => void
-    const toolsGate = new Promise<Record<string, never>>(resolve => {
+    let resolveTools!: (tools: Record<string, unknown>) => void
+    const toolsGate = new Promise<Record<string, unknown>>(resolve => {
       resolveTools = resolve
     })
-    toolsSpy.mockReturnValue(toolsGate)
+    const toolsSpy = vi.fn(() => toolsGate)
 
     createMCPClientMock.mockResolvedValue({ tools: toolsSpy, close: closeSpy })
 
@@ -263,7 +260,7 @@ describe('executeAgentBlock abort', () => {
 
     await expect(runPromise).rejects.toBe(reason)
     expect(closeSpy).toHaveBeenCalledTimes(1)
-    expect(unreachable.doStreamCalls).toHaveLength(0)
+    expect(modelRef.current.doStreamCalls).toHaveLength(0)
   })
 })
 

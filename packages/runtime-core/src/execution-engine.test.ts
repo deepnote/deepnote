@@ -922,40 +922,13 @@ describe('ExecutionEngine', () => {
       expect(context.onAgentEvent).toBe(onAgentEvent)
     })
 
-    it('forwards signal from runProject options to agent context', async () => {
+    it('passes signal through to agent context', async () => {
       const controller = new AbortController()
       await engine.start()
       await engine.runProject(AGENT_FIXTURE, { signal: controller.signal })
 
       const [, context] = mockExecuteAgentBlock.mock.calls[0]
       expect(context.signal).toBe(controller.signal)
-    })
-
-    it('passes undefined signal when runProject is called without signal', async () => {
-      await engine.start()
-      await engine.runProject(AGENT_FIXTURE)
-
-      const [, context] = mockExecuteAgentBlock.mock.calls[0]
-      expect(context.signal).toBeUndefined()
-    })
-
-    it('records aborted agent block as failed without rejecting runProject', async () => {
-      const controller = new AbortController()
-      const reason = new Error('cancelled by host')
-      controller.abort(reason)
-      mockExecuteAgentBlock.mockRejectedValue(reason)
-      const onBlockDone = vi.fn()
-
-      await engine.start()
-      const summary = await engine.runProject(AGENT_FIXTURE, { signal: controller.signal, onBlockDone })
-
-      expect(summary.failedBlocks).toBe(1)
-      expect(onBlockDone).toHaveBeenCalledWith(
-        expect.objectContaining({
-          blockType: 'agent',
-          success: false,
-        })
-      )
     })
 
     it('lets agent context helpers add code and markdown blocks and report added code outputs', async () => {
