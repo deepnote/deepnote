@@ -1,4 +1,5 @@
 import type { DeepnoteBlock, DeepnoteFile, NotebookFunctionBlock } from '@deepnote/blocks'
+import { parseCondition } from './condition-expression'
 
 /**
  * Read an orchestration out of a `.deepnote` file.
@@ -29,6 +30,14 @@ export interface PlannedStep {
   exports: Record<string, string>
   /** Step ids this step reads a variable from. */
   dependsOn: string[]
+  /**
+   * A `run_if` condition. When it evaluates false the step is skipped, and so is anything that
+   * reads what it would have exported.
+   *
+   * This is what lets a gate live in the file rather than in application code: the step's
+   * *existence* becomes a function of an earlier step's result.
+   */
+  condition?: string
 }
 
 export interface OrchestrationPlan {
@@ -152,18 +161,30 @@ export function planOrchestration(file: DeepnoteFile, options: PlanOptions = {})
       producedBy[entry.variable_name] = block.id
       exports[exportName] = entry.variable_name
     }
+    const condition = (block.metadata?.run_if as string | undefined)?.trim() || undefined
+    if (condition) {
+      // Parse now so a malformed condition is a plan-time error, not a surprise mid-run.
+      parseCondition(condition)
+    }
     return {
       id: block.id,
       label: (block.metadata?.name as string | undefined)?.trim() || block.id,
       notebookId,
       inputs: (block.metadata?.function_notebook_inputs ?? {}) as Record<string, unknown>,
       exports,
+      condition,
     }
   })
 
   const steps: PlannedStep[] = drafts.map(draft => {
     const dependsOn = new Set<string>()
-    for (const name of referencesIn(draft.inputs)) {
+    // A condition reads variables too, so the step depends on whatever it consults — otherwise the
+    // gate could be evaluated before the value it tests exists.
+    const names = new Set([
+      ...referencesIn(draft.inputs),
+      ...(draft.condition ? parseCondition(draft.condition).references : []),
+    ])
+    for (const name of names) {
       const producer = producedBy[name]
       if (!producer) {
         throw new Error(

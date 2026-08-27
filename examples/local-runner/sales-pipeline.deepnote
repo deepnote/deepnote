@@ -106,12 +106,16 @@ project:
               review:
                 enabled: true
                 variable_name: claudeReview
+        # A gate in the file, not in application code: arbitration is only worth a notebook run when
+        # the two providers actually disagree. run_if reads the reviews, so this step depends on
+        # them; when it is false the step is skipped and reported as skipped.
         - blockGroup: final-arbiter-group
           id: final-arbiter
           sortingKey: d0
           type: notebook-function
           metadata:
             name: Final decision
+            run_if: gptReview.decision != claudeReview.decision
             function_notebook_id: REPLACE_WITH_ARBITER_NOTEBOOK_ID
             function_notebook_inputs:
               decision_context_json:

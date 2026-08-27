@@ -217,3 +217,94 @@ describe('orchestrateFile', () => {
     ).rejects.toThrow('exports "portfolio", which its output does not contain')
   })
 })
+
+describe('run_if gates in the file', () => {
+  it('skips a step whose condition is false, and runs one whose condition is true', async () => {
+    const ran: string[] = []
+    const executor = jsonResultExecutor(
+      { 'analyze-eu': { qualityScore: 0.91 }, 'analyze-na': { qualityScore: 0.99 } },
+      id => ran.push(id)
+    )
+
+    const result = await orchestrateFile(
+      file([
+        step('analyze-eu', 'nb-regional', { sortingKey: 'a0', exports: exp('qualityScore', 'euQuality') }),
+        step('analyze-na', 'nb-regional', { sortingKey: 'a1', exports: exp('qualityScore', 'naQuality') }),
+        {
+          ...step('recover-eu', 'nb-regional', { sortingKey: 'b0' }),
+          metadata: { ...step('recover-eu', 'nb-regional', {}).metadata, run_if: 'euQuality < 0.95' },
+        },
+        {
+          ...step('recover-na', 'nb-regional', { sortingKey: 'b1' }),
+          metadata: { ...step('recover-na', 'nb-regional', {}).metadata, run_if: 'naQuality < 0.95' },
+        },
+      ]),
+      {},
+      executor
+    )
+
+    // Europe fell below the threshold and was recovered; North America did not and was skipped.
+    expect(ran).toContain('recover-eu')
+    expect(ran).not.toContain('recover-na')
+    expect(result.skipped).toEqual(['recover-na'])
+  })
+
+  it('shows the gate decision in the graph next to the step it governs', async () => {
+    const result = await orchestrateFile(
+      file([
+        step('analyze-eu', 'nb-regional', { sortingKey: 'a0', exports: exp('qualityScore', 'euQuality') }),
+        {
+          ...step('recover-eu', 'nb-regional', { sortingKey: 'b0' }),
+          metadata: { ...step('recover-eu', 'nb-regional', {}).metadata, run_if: 'euQuality < 0.95' },
+        },
+      ]),
+      {},
+      jsonResultExecutor({ 'analyze-eu': { qualityScore: 0.5 } })
+    )
+
+    const gate = result.graph.nodes.find(node => node.id === 'recover-eu-gate')
+    expect(gate?.kind).toBe('gate')
+    expect(gate?.label).toBe('euQuality < 0.95')
+    expect(result.graph.edges).toContainEqual({ from: 'analyze-eu', to: 'recover-eu-gate', label: undefined })
+    expect(result.graph.edges).toContainEqual({ from: 'recover-eu-gate', to: 'recover-eu', label: undefined })
+  })
+
+  it('skips anything that reads a skipped step, rather than running it with a missing value', async () => {
+    const ran: string[] = []
+    const result = await orchestrateFile(
+      file([
+        step('analyze-eu', 'nb-regional', { sortingKey: 'a0', exports: exp('qualityScore', 'euQuality') }),
+        {
+          ...step('recover-eu', 'nb-regional', { sortingKey: 'b0', exports: exp('value', 'recovered') }),
+          metadata: {
+            ...step('recover-eu', 'nb-regional', { exports: exp('value', 'recovered') }).metadata,
+            run_if: 'euQuality < 0.95',
+          },
+        },
+        step('report', 'nb-report', { sortingKey: 'c0', inputs: { data: '{{recovered}}' } }),
+      ]),
+      {},
+      jsonResultExecutor({ 'analyze-eu': { qualityScore: 0.99 } }, id => ran.push(id))
+    )
+
+    expect(ran).toEqual(['analyze-eu'])
+    expect(result.skipped.sort()).toEqual(['recover-eu', 'report'])
+  })
+
+  it('rejects a malformed condition at plan time, before anything runs', async () => {
+    const ran: string[] = []
+    await expect(
+      orchestrateFile(
+        file([
+          {
+            ...step('a', 'nb-a', { sortingKey: 'a0' }),
+            metadata: { ...step('a', 'nb-a', {}).metadata, run_if: 'x <' },
+          },
+        ]),
+        {},
+        jsonResultExecutor({}, id => ran.push(id))
+      )
+    ).rejects.toThrow()
+    expect(ran).toEqual([])
+  })
+})

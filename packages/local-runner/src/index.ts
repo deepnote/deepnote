@@ -9,6 +9,7 @@ export type {
   ListCloudRunsResult,
 } from './cloud-runs'
 export { getCloudRun, listCloudRuns } from './cloud-runs'
+export { evaluateCondition, parseCondition } from './condition-expression'
 export type { DeepnoteInput, LoadedDeepnoteFile } from './load-file'
 export { loadDeepnoteFile } from './load-file'
 export type { OpenInCloudOptions } from './open-in-cloud'
@@ -48,7 +49,7 @@ export {
 } from './orchestrate'
 export type { CloudOrchestrationOptions } from './orchestrate-cloud'
 export { createCloudStepExecutor, orchestrateFileInCloud, orchestrateInCloud } from './orchestrate-cloud'
-export type { OrchestratePlanOptions, PlanRunResult } from './orchestrate-plan'
+export type { OrchestratePlanOptions, PlanRunResult, PlanWorkflowResult } from './orchestrate-plan'
 export { orchestrateFile, planWorkflow } from './orchestrate-plan'
 export type { OrchestrationPlan, PlannedStep, PlanOptions } from './orchestration-plan'
 export { planOrchestration, resolveValue } from './orchestration-plan'

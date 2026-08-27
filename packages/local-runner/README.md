@@ -263,9 +263,34 @@ Errors that a graph can be checked for are raised at plan time, before anything 
 step exports, two steps exporting the same variable, a step naming no notebook, and dependency
 cycles.
 
-What a file cannot express is a step whose _existence_ depends on a result — a quality gate that
-conditionally reruns a region, or a fan-out over a list computed at run time. Those stay in
-`orchestrate`, and the two compose: a file for the fixed topology, code for the parts that branch.
+#### Gates: `run_if`
+
+A step's _existence_ can depend on an earlier result, so a gate lives in the file too:
+
+```yaml
+- id: final-arbiter
+  type: notebook-function
+  metadata:
+    run_if: gptReview.decision != claudeReview.decision
+    function_notebook_id: nb-arbiter
+```
+
+The condition reads exported variables, so the step depends on what it consults without that being
+written down twice. When it is false the step is skipped, and so is anything that reads what it
+would have exported — a dependent is never run with a value that will never arrive. Skipped steps
+come back in `result.skipped` rather than being silently absent, and each gate appears in the graph
+as a `gate` node between the steps it reads and the step it governs.
+
+The condition language is deliberately **not JavaScript**: a pipeline definition is data, and a file
+that runs arbitrary code in whoever opens it is a different and much worse thing than a file that
+describes a graph. There is no `eval`, no calls, no assignment, and no prototype access — property
+lookups are own-properties only. It supports comparisons (`< <= > >= == !=`), `&& || !`, parentheses,
+numeric indexing, and literals. A malformed condition fails at plan time.
+
+What a file still cannot express is a fan-out whose _width_ is computed at run time — one step per
+element of a list a previous step returned — and a reference that falls back to another value when
+its step was skipped (`{{recovered}}` or else `{{original}}`). Those stay in `orchestrate`, and the
+two compose: a file for the topology and its gates, code for the parts that are genuinely dynamic.
 
 See [`examples/local-runner/sales-pipeline.deepnote`](../../examples/local-runner/sales-pipeline.deepnote).
 
