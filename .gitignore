@@ -20,3 +20,7 @@ node_modules
 snapshot-reader.js
 snapshot-viewer.js
 snapshot.deepnote
+
+# Python bytecode, from running the pipeline runner locally
+__pycache__/
+*.pyc
