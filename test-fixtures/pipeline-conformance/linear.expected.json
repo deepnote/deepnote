@@ -1,0 +1,31 @@
+{
+  "notebookId": "pipeline-notebook",
+  "notebookName": "Pipeline",
+  "producedBy": {
+    "portfolio": "load"
+  },
+  "steps": [
+    {
+      "dependsOn": [],
+      "exports": {
+        "portfolio": "portfolio"
+      },
+      "forEachAs": "item",
+      "id": "load",
+      "inputs": {},
+      "label": "load",
+      "notebookId": "nb-load"
+    },
+    {
+      "dependsOn": ["load"],
+      "exports": {},
+      "forEachAs": "item",
+      "id": "review",
+      "inputs": {
+        "portfolio_json": "{{portfolio}}"
+      },
+      "label": "review",
+      "notebookId": "nb-review"
+    }
+  ]
+}

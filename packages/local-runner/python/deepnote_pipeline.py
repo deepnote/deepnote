@@ -133,7 +133,9 @@ def _read(alternative: Alternative, variables: dict[str, Any]) -> Any:
             if not isinstance(current, dict) or segment not in current:
                 return MISSING
             current = current[segment]
-    return MISSING if current is None and not alternative.is_literal and False else current
+    # A published null is a real value and does not fall through the ?? chain; only an absent one
+    # does. This matches the TypeScript resolver, where `undefined` means absent and null does not.
+    return current
 
 
 def _resolve_group(inner: str, variables: dict[str, Any]) -> Any:
@@ -536,13 +538,26 @@ def _assert_acyclic(steps: list[PlannedStep]) -> None:
 # ---------------------------------------------------------------------------
 
 
+class TransientApiError(RuntimeError):
+    """A failure worth retrying: a network blip, a 429, or a 5xx."""
+
+
 class DeepnoteApi:
     """The three calls a step needs: start a run, poll it, read its snapshot."""
 
-    def __init__(self, token: str, base_url: str = DEFAULT_API_URL, poll_seconds: float = 3.0) -> None:
+    def __init__(
+        self,
+        token: str,
+        base_url: str = DEFAULT_API_URL,
+        poll_seconds: float = 3.0,
+        run_timeout_seconds: float = 3600.0,
+        max_transient_retries: int = 5,
+    ) -> None:
         self.token = token
         self.base_url = base_url.rstrip("/")
         self.poll_seconds = poll_seconds
+        self.run_timeout_seconds = run_timeout_seconds
+        self.max_transient_retries = max_transient_retries
 
     def _request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         request = urllib.request.Request(
@@ -556,13 +571,39 @@ class DeepnoteApi:
                 return json.loads(response.read().decode() or "{}")
         except urllib.error.HTTPError as error:
             detail = error.read().decode(errors="replace")[:400]
-            raise RuntimeError(f"Deepnote API {method} {path} failed: HTTP {error.code} {detail}") from error
+            message = f"Deepnote API {method} {path} failed: HTTP {error.code} {detail}"
+            if error.code == 429 or error.code >= 500:
+                raise TransientApiError(message) from error
+            raise RuntimeError(message) from error
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            # A network blip during a poll must not abandon a run that is still going.
+            raise TransientApiError(f"Deepnote API {method} {path} failed: {error}") from error
 
     def run_notebook(self, notebook_id: str, inputs: dict[str, Any]) -> dict[str, Any]:
         started = self._request("POST", "/v2/runs", {"notebookId": notebook_id, "inputs": to_run_inputs(inputs)})
         run_id = started.get("runId") or started.get("id")
+        if not run_id:
+            # Without this the loop would poll /v2/runs/None until the deadline.
+            raise RuntimeError(f"Deepnote did not return a run id for notebook {notebook_id}: {started}")
+
+        deadline = time.monotonic() + self.run_timeout_seconds
+        transient_failures = 0
         while True:
-            run = self._request("GET", f"/v2/runs/{run_id}?snapshotDelivery=inline")
+            if time.monotonic() >= deadline:
+                # A scheduled notebook should fail with a reason, not hang until someone notices.
+                raise RuntimeError(
+                    f"Timed out after {self.run_timeout_seconds:.0f}s waiting for run {run_id} "
+                    f"of notebook {notebook_id}. The run may still be going in Deepnote."
+                )
+            try:
+                run = self._request("GET", f"/v2/runs/{run_id}?snapshotDelivery=inline")
+                transient_failures = 0
+            except TransientApiError:
+                transient_failures += 1
+                if transient_failures > self.max_transient_retries:
+                    raise
+                time.sleep(min(self.poll_seconds * 2**transient_failures, 30.0))
+                continue
             if run.get("status") in TERMINAL_STATUSES:
                 return run
             time.sleep(self.poll_seconds)
@@ -638,6 +679,11 @@ def run_plan(
             if not ready:
                 raise RuntimeError("The pipeline stalled: no step is ready.")
 
+            # Two phases on purpose. Submitting and then immediately waiting inside one loop would
+            # serialize independent steps — only a fan-out's own elements would overlap — which is
+            # the opposite of the point and disagrees with the TypeScript scheduler.
+            in_flight: list[tuple[PlannedStep, list[str], list[Any]]] = []
+
             for step in ready:
                 del pending[step.id]
 
@@ -661,32 +707,36 @@ def run_plan(
                     and (not step.condition or evaluate_condition(step.condition, scope))
                 ]
 
-                if step.for_each is not None and not items:
-                    _publish(step, [], variables)
-                    settled.add(step.id)
-                    continue
                 if not admitted:
-                    skipped.add(step.id)
-                    settled.add(step.id)
-                    notify("skipped", step.id)
+                    # A fan-out that ran nothing publishes empty lists rather than being skipped,
+                    # whether the list was empty or every element was gated off. A plain step
+                    # publishes a value, so "none" there really is absent.
+                    if step.for_each is not None:
+                        _publish(step, [], variables)
+                        settled.add(step.id)
+                    else:
+                        skipped.add(step.id)
+                        settled.add(step.id)
+                        notify("skipped", step.id)
                     continue
 
+                instance_ids = []
                 futures = []
                 for instance_id, scope in admitted:
                     notify("started", instance_id)
-                    futures.append(
-                        pool.submit(api.run_notebook, step.notebook_id, resolve_value(step.inputs, scope))
-                    )
+                    instance_ids.append(instance_id)
+                    futures.append(pool.submit(api.run_notebook, step.notebook_id, resolve_value(step.inputs, scope)))
+                in_flight.append((step, instance_ids, futures))
 
+            for step, instance_ids, futures in in_flight:
                 runs = []
-                for (instance_id, _scope), future in zip(admitted, futures):
+                for instance_id, future in zip(instance_ids, futures):
                     run = future.result()
                     status = run.get("status")
                     notify("finished", instance_id, status=status, runId=run.get("runId"))
                     if status != "success":
                         raise RuntimeError(f'Step "{instance_id}" finished with status "{status}".')
                     runs.append(run)
-
                 _publish(step, runs, variables)
                 settled.add(step.id)
 

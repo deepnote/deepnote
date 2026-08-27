@@ -1,0 +1,80 @@
+{
+  "notebookId": "pipeline-notebook",
+  "notebookName": "Pipeline",
+  "producedBy": {
+    "europe": "analyze-eu",
+    "northAmerica": "analyze-na",
+    "portfolio": "aggregate",
+    "recovered": "recover"
+  },
+  "steps": [
+    {
+      "dependsOn": [],
+      "exports": {
+        "region": "northAmerica"
+      },
+      "forEachAs": "item",
+      "id": "analyze-na",
+      "inputs": {
+        "region": "North America"
+      },
+      "label": "North America",
+      "notebookId": "nb-regional"
+    },
+    {
+      "dependsOn": [],
+      "exports": {
+        "region": "europe"
+      },
+      "forEachAs": "item",
+      "id": "analyze-eu",
+      "inputs": {
+        "region": "Europe"
+      },
+      "label": "Europe",
+      "notebookId": "nb-regional"
+    },
+    {
+      "condition": "region.qualityScore < 0.95",
+      "dependsOn": ["analyze-eu", "analyze-na"],
+      "exports": {
+        "region": "recovered"
+      },
+      "forEach": ["{{northAmerica}}", "{{europe}}"],
+      "forEachAs": "region",
+      "id": "recover",
+      "inputs": {
+        "backfill_missing": "true",
+        "region": "{{region.region}}"
+      },
+      "label": "Recovery",
+      "notebookId": "nb-regional"
+    },
+    {
+      "dependsOn": ["analyze-eu", "analyze-na", "recover"],
+      "exports": {
+        "portfolio": "portfolio"
+      },
+      "forEachAs": "item",
+      "id": "aggregate",
+      "inputs": {
+        "recovered_json": "{{recovered ?? null}}",
+        "regions_json": "[{{northAmerica}}, {{europe}}]"
+      },
+      "label": "Aggregate",
+      "notebookId": "nb-aggregate"
+    },
+    {
+      "condition": "portfolio.forecastK < portfolio.targetK",
+      "dependsOn": ["aggregate"],
+      "exports": {},
+      "forEachAs": "item",
+      "id": "arbiter",
+      "inputs": {
+        "context_json": "{{portfolio}}"
+      },
+      "label": "Final decision",
+      "notebookId": "nb-arbiter"
+    }
+  ]
+}

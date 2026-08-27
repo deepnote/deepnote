@@ -1,8 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
+import { NOTEBOOK, replaceEmbedded, SOURCE } from '../scripts/embed-pipeline-runner.mjs'
 import type { OrchestrationPlan } from './orchestration-plan'
 import { planOrchestration } from './orchestration-plan'
 
@@ -54,25 +56,104 @@ function normalize(plan: OrchestrationPlan): unknown {
 
 const fixtures = readdirSync(FIXTURES).filter(name => name.endsWith('.deepnote'))
 
-describe('pipeline conformance: TypeScript and Python plan identically', () => {
+function planOf(fixture: string): unknown {
+  return normalize(planOrchestration(deserializeDeepnoteFile(readFileSync(join(FIXTURES, fixture), 'utf8'))))
+}
+
+/** Both sides go through JSON so key order and undefined-vs-absent cannot differ. */
+function comparable(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value))
+}
+
+describe('pipeline conformance', () => {
   it('has fixtures to check', () => {
     expect(fixtures.length).toBeGreaterThan(0)
   })
 
-  describe.skipIf(!python)('against the Python runner', () => {
+  // Comparing the two implementations to each other cannot catch a mistake they both make, so each
+  // fixture also has a committed expected plan that was checked by hand.
+  describe('TypeScript matches the expected plan', () => {
     for (const fixture of fixtures) {
       it(fixture, () => {
-        const file = deserializeDeepnoteFile(readFileSync(join(FIXTURES, fixture), 'utf8'))
-        const fromTypeScript = normalize(planOrchestration(file))
-
-        const stdout = execFileSync(python as string, [RUNNER, '--plan', join(FIXTURES, fixture)], {
-          encoding: 'utf8',
-        })
-        const fromPython = JSON.parse(stdout)
-
-        // JSON round-trip on both sides so key order and undefined-vs-absent cannot differ.
-        expect(JSON.parse(JSON.stringify(fromPython))).toEqual(JSON.parse(JSON.stringify(fromTypeScript)))
+        const expected = JSON.parse(
+          readFileSync(join(FIXTURES, fixture.replace('.deepnote', '.expected.json')), 'utf8')
+        )
+        expect(comparable(planOf(fixture))).toEqual(expected)
       })
     }
   })
+
+  describe.skipIf(!python)('Python matches the expected plan', () => {
+    for (const fixture of fixtures) {
+      it(fixture, () => {
+        const expected = JSON.parse(
+          readFileSync(join(FIXTURES, fixture.replace('.deepnote', '.expected.json')), 'utf8')
+        )
+        const stdout = execFileSync(python as string, [RUNNER, '--plan', join(FIXTURES, fixture)], {
+          encoding: 'utf8',
+        })
+        expect(JSON.parse(stdout)).toEqual(expected)
+      })
+    }
+  })
+
+  describe.skipIf(!python)('both implementations reject the same bad manifests', () => {
+    const BAD = [
+      { name: 'a reference no step exports', yaml: badManifest({ inputs: { x: '{{nothing}}' } }) },
+      { name: 'a malformed condition', yaml: badManifest({ run_if: 'quality <' }) },
+      { name: 'a step naming no notebook', yaml: badManifest({ noNotebook: true }) },
+    ]
+
+    for (const { name, yaml } of BAD) {
+      it(name, () => {
+        const path = join(tmpdir(), `conformance-${name.replace(/\W+/g, '-')}.deepnote`)
+        writeFileSync(path, yaml)
+        try {
+          expect(() => planOrchestration(deserializeDeepnoteFile(yaml))).toThrow()
+          const result = spawnSync(python as string, [RUNNER, '--plan', path], { encoding: 'utf8' })
+          expect(result.status).not.toBe(0)
+        } finally {
+          rmSync(path, { force: true })
+        }
+      })
+    }
+  })
+
+  describe.skipIf(!python)('the notebook embeds the current interpreter', () => {
+    it('runner.deepnote is not stale', () => {
+      // The scheduled notebook must be self-contained, so the interpreter really is duplicated.
+      // This is what stops the copy drifting from the source it was generated from.
+      const notebook = readFileSync(NOTEBOOK, 'utf8')
+      expect(replaceEmbedded(notebook, readFileSync(SOURCE, 'utf8'))).toBe(notebook)
+    })
+  })
 })
+
+/** A one-step manifest, broken in exactly one way. */
+function badManifest(options: { inputs?: Record<string, unknown>; run_if?: string; noNotebook?: boolean }): string {
+  const metadata: Record<string, unknown> = {
+    function_notebook_id: options.noNotebook ? null : 'nb-a',
+    function_notebook_inputs: options.inputs ?? {},
+  }
+  if (options.run_if) {
+    metadata.run_if = options.run_if
+  }
+  return [
+    'metadata:',
+    "  createdAt: '2026-01-01T00:00:00.000Z'",
+    'project:',
+    '  id: bad',
+    '  name: Bad',
+    '  notebooks:',
+    '    - id: nb',
+    '      name: Pipeline',
+    '      blocks:',
+    '        - blockGroup: g',
+    '          id: only',
+    '          sortingKey: a0',
+    '          type: notebook-function',
+    `          metadata: ${JSON.stringify(metadata)}`,
+    "version: '1.0.0'",
+    '',
+  ].join('\n')
+}

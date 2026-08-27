@@ -1,0 +1,32 @@
+{
+  "notebookId": "pipeline-notebook",
+  "notebookName": "Pipeline",
+  "producedBy": {
+    "quality": "check"
+  },
+  "steps": [
+    {
+      "dependsOn": [],
+      "exports": {
+        "quality": "quality"
+      },
+      "forEachAs": "item",
+      "id": "check",
+      "inputs": {},
+      "label": "check",
+      "notebookId": "nb-check"
+    },
+    {
+      "condition": "quality.score < 0.95 && !quality.suppressed",
+      "dependsOn": ["check"],
+      "exports": {},
+      "forEachAs": "item",
+      "id": "notify",
+      "inputs": {
+        "channel": "alerts"
+      },
+      "label": "notify",
+      "notebookId": "nb-notify"
+    }
+  ]
+}
