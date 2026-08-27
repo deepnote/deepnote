@@ -1,3 +1,4 @@
+import type { DeepnoteFile } from '@deepnote/blocks'
 import type { NormalizedRun, PollOptions, RunInputValue, WaitForRunSnapshotOptions } from '@deepnote/cloud'
 import {
   describeRunError,
@@ -14,6 +15,9 @@ import type {
   OrchestrationStepExecutor,
 } from './orchestrate-core'
 import { finishResult, runOrchestration } from './orchestrate-core'
+import type { PlanRunResult } from './orchestrate-plan'
+import { orchestrateFile } from './orchestrate-plan'
+import type { PlanOptions } from './orchestration-plan'
 import { parseSnapshot } from './snapshot-view'
 
 /**
@@ -158,4 +162,17 @@ export async function orchestrateInCloud<T>(
     { defaultTarget: 'cloud', onEvent: options.onEvent },
     createCloudStepExecutor(options)
   )
+}
+
+/**
+ * Run a pipeline defined by a `.deepnote` file, entirely in the browser.
+ *
+ * The parent notebook says what runs and how the steps feed each other; this supplies the runner.
+ * Nothing about the pipeline lives in the page.
+ */
+export async function orchestrateFileInCloud(
+  file: DeepnoteFile,
+  options: CloudOrchestrationOptions & Pick<OrchestrateOptions, 'onEvent'> & PlanOptions
+): Promise<PlanRunResult<Record<string, unknown>>> {
+  return orchestrateFile(file, { ...options, defaultTarget: 'cloud' }, createCloudStepExecutor(options))
 }

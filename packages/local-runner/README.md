@@ -208,6 +208,67 @@ returns when the callback returns; if the process exits, the run is gone. That i
 a script or a dev server, and the wrong one for anything scheduled or long-lived — for those, keep
 the same code and run it under Workflow SDK.
 
+### Define a pipeline in a `.deepnote` file
+
+`orchestrate` puts the pipeline in application code. A pipeline can instead live in a file: a parent
+notebook whose `notebook-function` blocks each name an external notebook, the inputs to run it with,
+and the values it publishes.
+
+```yaml
+- id: analyze-europe
+  type: notebook-function
+  metadata:
+    function_notebook_id: nb-regional
+    function_notebook_inputs: { region: Europe, trailing_months: "6" }
+    function_notebook_export_mappings:
+      region: { enabled: true, variable_name: europe }
+
+- id: aggregate
+  type: notebook-function
+  metadata:
+    function_notebook_id: nb-aggregate
+    function_notebook_inputs:
+      regions_json: "[{{northAmerica}}, {{europe}}, {{asiaPacific}}]"
+```
+
+```ts
+import {
+  orchestrateFileInCloud,
+  planOrchestration,
+} from "@deepnote/local-runner";
+
+const { value, plan, graph } = await orchestrateFileInCloud(file, {
+  token,
+  onEvent,
+});
+```
+
+**Dependencies are never declared twice.** A step reading `{{europe}}` depends on whichever step
+exports `europe`, so the three regional steps above are independent _by construction_ and run
+concurrently. This is the same variable-flow model the reactivity package already applies to
+notebook-function blocks. `planOrchestration(file)` returns that graph without running anything, so
+a UI can draw the pipeline before it starts.
+
+A whole-value reference keeps its type — `"{{portfolio}}"` passes the object, not `"[object
+Object]"` — while a reference inside surrounding text interpolates. A step's exports are read from
+its last structured JSON output, so they survive Deepnote reassigning block ids.
+
+**The parent is interpreted, not executed.** That is the point of the design rather than an
+implementation detail: Deepnote's block engine runs blocks strictly in order, so handing it the
+parent would serialize the fan-out into one run with one status. Reading it as a manifest keeps
+concurrency and per-step events, while the definition still lives in a versioned, reviewable file
+instead of in a page.
+
+Errors that a graph can be checked for are raised at plan time, before anything runs: a reference no
+step exports, two steps exporting the same variable, a step naming no notebook, and dependency
+cycles.
+
+What a file cannot express is a step whose _existence_ depends on a result — a quality gate that
+conditionally reruns a region, or a fan-out over a list computed at run time. Those stay in
+`orchestrate`, and the two compose: a file for the fixed topology, code for the parts that branch.
+
+See [`examples/local-runner/sales-pipeline.deepnote`](../../examples/local-runner/sales-pipeline.deepnote).
+
 ### Orchestrate from the browser — no server
 
 `orchestrate` runs in Node because its runners do: one spawns a Python kernel, and both read

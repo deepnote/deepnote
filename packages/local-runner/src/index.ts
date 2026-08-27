@@ -47,7 +47,11 @@ export {
   runOrchestration,
 } from './orchestrate'
 export type { CloudOrchestrationOptions } from './orchestrate-cloud'
-export { createCloudStepExecutor, orchestrateInCloud } from './orchestrate-cloud'
+export { createCloudStepExecutor, orchestrateFileInCloud, orchestrateInCloud } from './orchestrate-cloud'
+export type { OrchestratePlanOptions, PlanRunResult } from './orchestrate-plan'
+export { orchestrateFile, planWorkflow } from './orchestrate-plan'
+export type { OrchestrationPlan, PlannedStep, PlanOptions } from './orchestration-plan'
+export { planOrchestration, resolveValue } from './orchestration-plan'
 export { readSnapshot } from './read-snapshot'
 export type { RecurringSchedule, ResolvedRecurringSchedule } from './recurring-schedule'
 export { RecurringScheduleError, resolveRecurringSchedule } from './recurring-schedule'
