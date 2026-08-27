@@ -232,6 +232,44 @@ describe('executeAgentBlock abort', () => {
     expect(modelRef.current.doStreamCalls).toHaveLength(0)
   })
 
+  it('reports the abort reason rather than an MCP startup failure when both happen', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancelled during mcp init')
+    const startupFailure = new Error('spawn failed')
+    const goodClient = { tools: vi.fn(async () => ({})), close: vi.fn(async () => {}) }
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    let resolveCreate!: () => void
+    const createGate = new Promise<void>(resolve => {
+      resolveCreate = resolve
+    })
+
+    createMCPClientMock
+      .mockImplementationOnce(async () => {
+        await createGate
+        return goodClient
+      })
+      .mockRejectedValueOnce(startupFailure)
+
+    const runPromise = executeAgentBlock(
+      AGENT_BLOCK,
+      makeContext({
+        signal: controller.signal,
+        mcpServers: [
+          { name: 'good', command: 'ok', args: [] },
+          { name: 'bad', command: 'boom', args: [] },
+        ],
+      })
+    )
+
+    await vi.waitFor(() => expect(createMCPClientMock).toHaveBeenCalledTimes(2))
+    controller.abort(reason)
+    resolveCreate()
+
+    await expect(runPromise).rejects.toBe(reason)
+    expect(goodClient.close).toHaveBeenCalledTimes(1)
+  })
+
   it('does not call the model when aborted during tool discovery', async () => {
     const controller = new AbortController()
     const reason = new Error('cancelled during tool discovery')
