@@ -501,6 +501,15 @@
         return `Every day at ${time}`
       }
 
+      /**
+       * `GET /v2/runs/{id}` returns the run inside a `run` envelope; `POST /v2/runs` returns it
+       * flat. Reading the status off the wrong level makes a poll loop that never terminates, so
+       * accept either shape.
+       */
+      function unwrapRun(body) {
+        return body && typeof body === 'object' && body.run ? body.run : body
+      }
+
       /** The API reports a run's failure as a string or an object; both should read the same. */
       function describeError(run) {
         if (run.error == null) return undefined
@@ -533,8 +542,9 @@
 
         for (;;) {
           const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
-          const run = await res.json().catch(() => ({}))
-          if (!res.ok) throw new Error(run.message || run.error || `HTTP ${res.status}`)
+          const body = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(body.message || body.error || `HTTP ${res.status}`)
+          const run = unwrapRun(body)
           onStatus?.(run.status)
           if (TERMINAL.has(run.status)) {
             const success = run.status === 'success'
@@ -801,10 +811,11 @@
         const gen = ++displayGen
         try {
           const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
-          const run = await res.json().catch(() => ({}))
+          const body = await res.json().catch(() => ({}))
           // Superseded while this was in flight — say nothing rather than paint over newer output.
           if (gen !== displayGen) return
-          if (!res.ok) throw new Error(run.message || run.error || `HTTP ${res.status}`)
+          if (!res.ok) throw new Error(body.message || body.error || `HTTP ${res.status}`)
+          const run = unwrapRun(body)
           const data = {
             target: 'cloud',
             status: run.status,
