@@ -361,6 +361,13 @@ export interface PollOptions {
   requestTimeoutMs?: number
   maxTransientRetries?: number
   snapshotDelivery?: 'inline' | 'downloadUrl'
+  /**
+   * Abort the poll.
+   *
+   * Polling is the long part of a run — minutes, not milliseconds — so a caller that can cancel
+   * needs it to reach here and not just the requests around it.
+   */
+  signal?: AbortSignal
   onStatus?: (status: string, run: NormalizedRun) => void
   /** Injectable clock/sleep for tests. */
   now?: () => number
@@ -401,12 +408,17 @@ export async function pollRunUntilComplete(
 
     let run: NormalizedRun
     try {
+      options.signal?.throwIfAborted()
       run = await getRun(baseUrl, token, runId, {
         snapshotDelivery: options.snapshotDelivery,
         requestTimeoutMs: Math.min(requestTimeoutMs, Math.max(1, deadline - now())),
+        signal: options.signal,
       })
       transientFailures = 0
     } catch (err) {
+      if (options.signal?.aborted) {
+        throw err
+      }
       if (isTransientError(err) && transientFailures < maxTransientRetries) {
         transientFailures += 1
         if (now() >= deadline) {
@@ -429,6 +441,7 @@ export async function pollRunUntilComplete(
       throw new RunTimeoutError(runId, lastStatus)
     }
     await sleep(Math.min(intervalMs, Math.max(0, deadline - now())))
+    options.signal?.throwIfAborted()
   }
 }
 
