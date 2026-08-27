@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { planOrchestration, resolveValue } from './orchestration-plan'
+import { planOrchestration } from './orchestration-plan'
+import { resolveValue } from './reference-expression'
 
 function step(id: string, notebookId: string | null, extra: Record<string, unknown> = {}) {
   return {

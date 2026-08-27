@@ -8,8 +8,9 @@ import type {
   OrchestrationStepResult,
 } from './orchestrate-core'
 import { runOrchestration } from './orchestrate-core'
-import type { OrchestrationPlan, PlanOptions } from './orchestration-plan'
-import { planOrchestration, resolveValue } from './orchestration-plan'
+import type { OrchestrationPlan, PlannedStep, PlanOptions } from './orchestration-plan'
+import { planOrchestration } from './orchestration-plan'
+import { resolveValue, unresolvableGroups } from './reference-expression'
 
 /**
  * Run a pipeline that a `.deepnote` file defines.
@@ -82,6 +83,14 @@ export interface PlanWorkflowResult {
   skipped: string[]
 }
 
+/** One run of a step: the whole step, or one element of a `for_each` fan-out. */
+interface Instance {
+  id: string
+  label: string
+  /** Variables visible to this instance — the pipeline's, plus the loop binding. */
+  scope: Record<string, unknown>
+}
+
 /**
  * Execute a plan, running every step whose dependencies are met at the same time.
  *
@@ -103,6 +112,75 @@ export function planWorkflow(plan: OrchestrationPlan) {
       pending.delete(id)
     }
 
+    /** The element list a `for_each` step expands over, or null when it is not a fan-out. */
+    const expand = (step: PlannedStep): Instance[] | null => {
+      if (step.forEach === undefined) {
+        return null
+      }
+      const list = resolveValue(step.forEach, variables)
+      if (!Array.isArray(list)) {
+        const described = typeof step.forEach === 'string' ? step.forEach : JSON.stringify(step.forEach)
+        throw new Error(
+          `Step "${step.id}" iterates ${described}, which is ${list === undefined ? 'not available' : `a ${typeof list}`}. for_each needs an array.`
+        )
+      }
+      return list.map((item, index) => ({
+        id: `${step.id}[${index}]`,
+        label: `${step.label} ${index + 1}/${list.length}`,
+        scope: { ...variables, [step.forEachAs]: item },
+      }))
+    }
+
+    /** Decide whether one instance runs: its gate, and whether its inputs can resolve at all. */
+    const admit = async (step: PlannedStep, instance: Instance, dependsOn: string[]): Promise<boolean> => {
+      const unresolvable = unresolvableGroups(step.inputs, instance.scope)
+      if (unresolvable.length > 0) {
+        return false
+      }
+      if (!step.condition) {
+        return true
+      }
+      // The gate is a control node, so the decision appears in the graph next to the step it
+      // governs instead of happening invisibly.
+      return Boolean(
+        await control(
+          {
+            id: `${instance.id}-gate`,
+            kind: 'gate',
+            label: step.condition,
+            dependsOn,
+            metadata: { condition: step.condition },
+          },
+          () => evaluateCondition(step.condition as string, instance.scope)
+        )
+      )
+    }
+
+    /** Publish a step's exports. A fan-out collects one array per exported name, in element order. */
+    const publish = (step: PlannedStep, results: { instance: Instance; result: OrchestrationStepResult }[]): void => {
+      if (Object.keys(step.exports).length === 0) {
+        return
+      }
+      if (!step.forEach) {
+        const only = results[0]
+        if (only) {
+          Object.assign(variables, exportsFrom(step, only.result, outputs))
+        }
+        return
+      }
+      const collected: Record<string, unknown[]> = {}
+      for (const variableName of Object.values(step.exports)) {
+        collected[variableName] = []
+      }
+      for (const { result } of results) {
+        const published = exportsFrom(step, result, outputs)
+        for (const [variableName, value] of Object.entries(published)) {
+          collected[variableName].push(value)
+        }
+      }
+      Object.assign(variables, collected)
+    }
+
     while (settled.size < plan.steps.length) {
       const ready = [...pending.values()].filter(step => step.dependsOn.every(id => settled.has(id)))
 
@@ -112,45 +190,45 @@ export function planWorkflow(plan: OrchestrationPlan) {
       }
 
       for (const step of ready) {
-        // A step reading a skipped step's export can never have its inputs resolved, so it is
-        // skipped too rather than run with a missing value.
-        if (step.dependsOn.some(id => skipped.has(id))) {
-          skip(step.id)
+        pending.delete(step.id)
+
+        const instances = expand(step) ?? [{ id: step.id, label: step.label, scope: variables }]
+        const gateDependsOn = step.dependsOn.filter(id => !skipped.has(id))
+
+        // A fan-out over an empty list is not a skip: downstream still gets an empty array, which
+        // is a true answer rather than a missing one.
+        if (step.forEach && instances.length === 0) {
+          publish(step, [])
+          settled.add(step.id)
           continue
         }
 
-        pending.delete(step.id)
+        const admitted: Instance[] = []
+        for (const instance of instances) {
+          if (await admit(step, instance, gateDependsOn)) {
+            admitted.push(instance)
+          }
+        }
 
-        // The gate is a control node, so the decision appears in the graph next to the step it
-        // governs instead of happening invisibly.
-        const gate = step.condition
-          ? await control(
-              {
-                id: `${step.id}-gate`,
-                kind: 'gate',
-                label: step.condition,
-                dependsOn: step.dependsOn,
-                metadata: { condition: step.condition },
-              },
-              () => evaluateCondition(step.condition as string, variables)
-            )
-          : true
-
-        if (!gate) {
+        if (admitted.length === 0) {
           skip(step.id)
           continue
         }
 
         running.set(
           step.id,
-          run({
-            id: step.id,
-            label: step.label,
-            notebookId: step.notebookId,
-            dependsOn: step.condition ? [`${step.id}-gate`] : step.dependsOn,
-            inputs: resolveValue(step.inputs, variables) as Record<string, unknown>,
-          }).then(result => {
-            Object.assign(variables, exportsFrom(step, result, outputs))
+          Promise.all(
+            admitted.map(instance =>
+              run({
+                id: instance.id,
+                label: instance.label,
+                notebookId: step.notebookId,
+                dependsOn: step.condition ? [`${instance.id}-gate`] : gateDependsOn,
+                inputs: resolveValue(step.inputs, instance.scope) as Record<string, unknown>,
+              }).then(result => ({ instance, result }))
+            )
+          ).then(results => {
+            publish(step, results)
             settled.add(step.id)
             running.delete(step.id)
           })

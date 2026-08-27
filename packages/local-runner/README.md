@@ -287,10 +287,54 @@ describes a graph. There is no `eval`, no calls, no assignment, and no prototype
 lookups are own-properties only. It supports comparisons (`< <= > >= == !=`), `&& || !`, parentheses,
 numeric indexing, and literals. A malformed condition fails at plan time.
 
-What a file still cannot express is a fan-out whose _width_ is computed at run time — one step per
-element of a list a previous step returned — and a reference that falls back to another value when
-its step was skipped (`{{recovered}}` or else `{{original}}`). Those stay in `orchestrate`, and the
-two compose: a file for the topology and its gates, code for the parts that are genuinely dynamic.
+#### Dynamic fan-out: `for_each`
+
+A step's _width_ can come from the data rather than the file — one run per element, all concurrent:
+
+```yaml
+- id: recover
+  type: notebook-function
+  metadata:
+    for_each: "{{regions}}" # or a list written inline, whose items may be references
+    for_each_as: region # each element is bound to this name
+    run_if: region.qualityScore < 0.95 # evaluated per element
+    function_notebook_inputs:
+      region: "{{region.name}}"
+    function_notebook_export_mappings:
+      region: { enabled: true, variable_name: recovered }
+```
+
+`run_if` on a fan-out is evaluated per element, so this is conditional recovery: one run for each
+region that failed the gate, and none at all when they all passed. Exports collect into an array in
+element order, so `recovered` is the list of what actually ran. An empty list is an empty array
+rather than a skip — downstream gets a true answer instead of a missing one, and a `for_each` over
+something that is not an array is an error naming the step.
+
+The loop variable is bound by the step, so it is not a dependency on anything; the step depends on
+whatever the list and the other references consult.
+
+#### Optional values: `??`
+
+A reference is a chain of alternatives, and the first with a value wins:
+
+```yaml
+recovered_json: "{{recovered ?? null}}"
+data: "{{recovered ?? original}}"
+retries: "{{attempts ?? 0}}"
+```
+
+This is what keeps a gate from poisoning everything downstream. Without it, a step reading
+`{{recovered}}` is skipped whenever recovery was gated off — correct, but it cascades. With a
+fallback the step runs on whatever is available. A step is skipped only when a reference has _no_
+satisfiable alternative. Literals (numbers, quoted strings, `true`, `false`, `null`) are allowed as
+the last resort, and a step depends on every alternative, since which one wins is a run-time fact.
+
+#### What is still code
+
+`orchestrate` remains the answer for logic that is genuinely computation rather than topology:
+reshaping or merging results between steps, retry policies with backoff, and anything that needs a
+library. A file describes a graph — its steps, their gates, and their width — and that is the
+boundary worth keeping.
 
 See [`examples/local-runner/sales-pipeline.deepnote`](../../examples/local-runner/sales-pipeline.deepnote).
 

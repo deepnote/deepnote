@@ -64,7 +64,35 @@ project:
               region:
                 enabled: true
                 variable_name: asiaPacific
-        # Depends on all three regions, so it starts only once the slowest finishes.
+        # One run per region that failed the quality gate — and none at all when they all passed.
+        # for_each sizes the fan-out from the data rather than the file, and run_if is evaluated per
+        # element, so the conditional recovery that used to need application code is now the
+        # definition. Recovered regions collect into `recovered`, in element order.
+        - blockGroup: recover-group
+          id: recover
+          sortingKey: a3
+          type: notebook-function
+          metadata:
+            name: Recovery
+            for_each:
+              - '{{northAmerica}}'
+              - '{{europe}}'
+              - '{{asiaPacific}}'
+            for_each_as: region
+            run_if: region.qualityScore < 0.95
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region: '{{region.region}}'
+              trailing_months: '6'
+              backfill_missing: 'true'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: recovered
+        # Depends on all three regions and on recovery settling, so it starts only once they finish.
+        # `{{recovered ?? null}}` is the point of the fallback: when every region passed the gate
+        # nothing was recovered, and this step still runs instead of being skipped for a value that
+        # was never going to arrive.
         - blockGroup: aggregate-group
           id: aggregate
           sortingKey: b0
@@ -74,6 +102,7 @@ project:
             function_notebook_id: REPLACE_WITH_AGGREGATE_NOTEBOOK_ID
             function_notebook_inputs:
               regions_json: '[{{northAmerica}}, {{europe}}, {{asiaPacific}}]'
+              recovered_json: '{{recovered ?? null}}'
               quality_threshold: '0.95'
             function_notebook_export_mappings:
               portfolio:

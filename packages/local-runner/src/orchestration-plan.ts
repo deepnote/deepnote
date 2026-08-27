@@ -1,5 +1,6 @@
 import type { DeepnoteBlock, DeepnoteFile, NotebookFunctionBlock } from '@deepnote/blocks'
 import { parseCondition } from './condition-expression'
+import { referenceRoots } from './reference-expression'
 
 /**
  * Read an orchestration out of a `.deepnote` file.
@@ -36,8 +37,21 @@ export interface PlannedStep {
    *
    * This is what lets a gate live in the file rather than in application code: the step's
    * *existence* becomes a function of an earlier step's result.
+   *
+   * On a {@link forEach} step it is evaluated per element, which is how a file expresses "recover
+   * only the regions that failed the gate".
    */
   condition?: string
+  /**
+   * What the step iterates: a reference to an array (`{{regions}}`), or a list written inline whose
+   * items may themselves be references. The step becomes one run per element, all concurrent.
+   *
+   * The width is not known until the array exists, so this is the one part of a plan that is
+   * resolved at run time rather than at plan time.
+   */
+  forEach?: unknown
+  /** The name each element is bound to inside this step's inputs and condition. */
+  forEachAs: string
 }
 
 export interface OrchestrationPlan {
@@ -54,55 +68,8 @@ export interface PlanOptions {
   notebook?: string
 }
 
-const REFERENCE = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g
-
 function isNotebookFunctionBlock(block: DeepnoteBlock): block is NotebookFunctionBlock {
   return block.type === 'notebook-function'
-}
-
-/** Every `{{variable}}` mentioned anywhere in a value, including nested objects and arrays. */
-function referencesIn(value: unknown, found: Set<string> = new Set()): Set<string> {
-  if (typeof value === 'string') {
-    for (const match of value.matchAll(REFERENCE)) {
-      found.add(match[1])
-    }
-  } else if (Array.isArray(value)) {
-    for (const item of value) {
-      referencesIn(item, found)
-    }
-  } else if (value && typeof value === 'object') {
-    for (const item of Object.values(value)) {
-      referencesIn(item, found)
-    }
-  }
-  return found
-}
-
-/**
- * Substitute `{{variable}}` references with values produced by earlier steps.
- *
- * A string that is *exactly* one reference resolves to the value itself, so an object stays an
- * object rather than becoming "[object Object]". A reference embedded in surrounding text
- * interpolates, and a non-string value is JSON-encoded for that case.
- */
-export function resolveValue(value: unknown, variables: Record<string, unknown>): unknown {
-  if (typeof value === 'string') {
-    const whole = value.match(/^\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$/)
-    if (whole) {
-      return variables[whole[1]]
-    }
-    return value.replace(REFERENCE, (_text, name: string) => {
-      const resolved = variables[name]
-      return typeof resolved === 'string' ? resolved : JSON.stringify(resolved ?? null)
-    })
-  }
-  if (Array.isArray(value)) {
-    return value.map(item => resolveValue(item, variables))
-  }
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, resolveValue(item, variables)]))
-  }
-  return value
 }
 
 function selectNotebook(file: DeepnoteFile, options: PlanOptions) {
@@ -166,6 +133,12 @@ export function planOrchestration(file: DeepnoteFile, options: PlanOptions = {})
       // Parse now so a malformed condition is a plan-time error, not a surprise mid-run.
       parseCondition(condition)
     }
+    const rawForEach = block.metadata?.for_each
+    const forEach = typeof rawForEach === 'string' ? rawForEach.trim() || undefined : (rawForEach ?? undefined)
+    const forEachAs = (block.metadata?.for_each_as as string | undefined)?.trim() || 'item'
+    if (!forEach && block.metadata?.for_each_as) {
+      throw new Error(`Step "${block.id}" sets for_each_as but has no for_each to iterate.`)
+    }
     return {
       id: block.id,
       label: (block.metadata?.name as string | undefined)?.trim() || block.id,
@@ -173,16 +146,21 @@ export function planOrchestration(file: DeepnoteFile, options: PlanOptions = {})
       inputs: (block.metadata?.function_notebook_inputs ?? {}) as Record<string, unknown>,
       exports,
       condition,
+      forEach,
+      forEachAs,
     }
   })
 
   const steps: PlannedStep[] = drafts.map(draft => {
     const dependsOn = new Set<string>()
-    // A condition reads variables too, so the step depends on whatever it consults — otherwise the
-    // gate could be evaluated before the value it tests exists.
+    // The loop variable is bound by the step itself, so it is not a dependency on anything.
+    const bound = draft.forEach ? new Set([draft.forEachAs]) : new Set<string>()
+    // A condition and a for_each read variables too, so the step depends on whatever they consult —
+    // otherwise the gate could be evaluated, or the fan-out sized, before those values exist.
     const names = new Set([
-      ...referencesIn(draft.inputs),
-      ...(draft.condition ? parseCondition(draft.condition).references : []),
+      ...referenceRoots(draft.inputs, bound),
+      ...referenceRoots(draft.forEach, bound),
+      ...[...(draft.condition ? parseCondition(draft.condition).references : [])].filter(name => !bound.has(name)),
     ])
     for (const name of names) {
       const producer = producedBy[name]

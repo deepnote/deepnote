@@ -27,6 +27,28 @@ function file(blocks: unknown[]) {
 
 const exp = (exportName: string, variable: string) => ({ [exportName]: { enabled: true, variable_name: variable } })
 
+function jsonSnapshot(value: unknown) {
+  return {
+    notebooks: [
+      {
+        id: 'n1',
+        name: 'n',
+        blocks: [
+          {
+            id: 'b1',
+            type: 'code',
+            content: '',
+            executionCount: 1,
+            outputs: [{ output_type: 'execute_result', data: { 'application/json': value }, metadata: {} }],
+          },
+        ],
+      },
+    ],
+    inputs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: minimal snapshot view for the helper
+  } as any
+}
+
 // The runner reads a step's exports via outputs.lastJson; give the stub results a JSON output.
 function jsonResultExecutor(values: Record<string, unknown>, onStart?: (id: string) => void) {
   const executor: OrchestrationStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
@@ -306,5 +328,176 @@ describe('run_if gates in the file', () => {
       )
     ).rejects.toThrow()
     expect(ran).toEqual([])
+  })
+})
+
+function meta(id: string, notebookId: string, extra: Record<string, unknown>) {
+  const base = step(id, notebookId, extra)
+  return { ...base, metadata: { ...base.metadata, ...(extra.meta as object) } }
+}
+
+describe('for_each fan-out', () => {
+  it('runs one concurrent step per element of a run-time array', async () => {
+    let inFlight = 0
+    let peak = 0
+    const ran: string[] = []
+    const executor: OrchestrationStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
+      ran.push(id)
+      inFlight += 1
+      peak = Math.max(peak, inFlight)
+      await new Promise(resolve => setTimeout(resolve, 5))
+      inFlight -= 1
+      return {
+        id,
+        target: 'cloud' as const,
+        success: true,
+        status: 'success',
+        outputs: [],
+        snapshotYaml: null,
+        snapshot: jsonSnapshot({ echoed: planned.inputs?.region }),
+        startedAt,
+        finishedAt: new Date(startedMs + 1).toISOString(),
+        durationMs: 1,
+        // biome-ignore lint/suspicious/noExplicitAny: test double
+      } as any
+    }
+
+    const result = await orchestrateFile(
+      file([
+        step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
+        meta('analyze', 'nb-regional', {
+          sortingKey: 'b0',
+          exports: exp('echoed', 'analyzed'),
+          inputs: { region: '{{region.name}}' },
+          meta: { for_each: '{{regions}}', for_each_as: 'region' },
+        }),
+      ]),
+      {},
+      (() => {
+        let first = true
+        const load = jsonResultExecutor({ load: { regions: [{ name: 'NA' }, { name: 'EU' }, { name: 'APAC' }] } })
+        return async (execution: Parameters<OrchestrationStepExecutor>[0]) => {
+          if (first && execution.id === 'load') {
+            first = false
+            return load(execution)
+          }
+          return executor(execution)
+        }
+      })()
+    )
+
+    // Width came from the data, and all three ran at once.
+    expect(ran.sort()).toEqual(['analyze[0]', 'analyze[1]', 'analyze[2]'])
+    expect(peak).toBe(3)
+    // Exports from a fan-out collect into an array, in element order.
+    expect(result.value.analyzed).toEqual(['NA', 'EU', 'APAC'])
+  })
+
+  it('evaluates run_if per element, which is how a file expresses conditional recovery', async () => {
+    const ran: string[] = []
+    const executor = async (execution: Parameters<OrchestrationStepExecutor>[0]) => {
+      ran.push(execution.id)
+      if (execution.id === 'load') {
+        return jsonResultExecutor({
+          load: {
+            regions: [
+              { name: 'NA', qualityScore: 0.99 },
+              { name: 'EU', qualityScore: 0.91 },
+              { name: 'APAC', qualityScore: 0.8 },
+            ],
+          },
+        })(execution)
+      }
+      return jsonResultExecutor({ [execution.id]: { region: execution.step.inputs?.region } })(execution)
+    }
+
+    const result = await orchestrateFile(
+      file([
+        step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
+        meta('recover', 'nb-regional', {
+          sortingKey: 'b0',
+          exports: exp('region', 'recovered'),
+          inputs: { region: '{{region.name}}' },
+          meta: { for_each: '{{regions}}', for_each_as: 'region', run_if: 'region.qualityScore < 0.95' },
+        }),
+      ]),
+      {},
+      executor
+    )
+
+    // Only the two regions below the threshold were recovered.
+    expect(ran.filter(id => id.startsWith('recover')).sort()).toEqual(['recover[1]', 'recover[2]'])
+    expect(result.value.recovered).toEqual(['EU', 'APAC'])
+  })
+
+  it('treats an empty list as an empty result, not a skip', async () => {
+    const result = await orchestrateFile(
+      file([
+        step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
+        meta('analyze', 'nb-regional', {
+          sortingKey: 'b0',
+          exports: exp('x', 'analyzed'),
+          meta: { for_each: '{{regions}}', for_each_as: 'region' },
+        }),
+      ]),
+      {},
+      jsonResultExecutor({ load: { regions: [] } })
+    )
+
+    expect(result.value.analyzed).toEqual([])
+    expect(result.skipped).toEqual([])
+  })
+
+  it('explains a for_each over something that is not an array', async () => {
+    await expect(
+      orchestrateFile(
+        file([
+          step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
+          meta('analyze', 'nb-regional', { sortingKey: 'b0', meta: { for_each: '{{regions}}' } }),
+        ]),
+        {},
+        jsonResultExecutor({ load: { regions: 'not-a-list' } })
+      )
+    ).rejects.toThrow('for_each needs an array')
+  })
+})
+
+describe('?? fallbacks across a skipped step', () => {
+  it('uses the fallback when the preferred step was skipped, instead of cascading the skip', async () => {
+    const result = await orchestrateFile(
+      file([
+        step('first-pass', 'nb-a', { sortingKey: 'a0', exports: exp('value', 'original') }),
+        meta('recover', 'nb-a', {
+          sortingKey: 'b0',
+          exports: exp('value', 'recovered'),
+          meta: { run_if: 'original.quality < 0.5' },
+        }),
+        step('aggregate', 'nb-agg', { sortingKey: 'c0', inputs: { data: '{{recovered ?? original}}' } }),
+      ]),
+      {},
+      jsonResultExecutor({ 'first-pass': { value: { quality: 0.9 } }, aggregate: {} })
+    )
+
+    // Recovery was gated off, but aggregate still ran on the first pass rather than being skipped.
+    expect(result.skipped).toEqual(['recover'])
+    expect(result.graph.nodes.find(node => node.id === 'aggregate')?.status).toBe('success')
+  })
+
+  it('still skips when no alternative can be satisfied', async () => {
+    const result = await orchestrateFile(
+      file([
+        step('first-pass', 'nb-a', { sortingKey: 'a0', exports: exp('value', 'original') }),
+        meta('recover', 'nb-a', {
+          sortingKey: 'b0',
+          exports: exp('value', 'recovered'),
+          meta: { run_if: 'original.quality < 0.5' },
+        }),
+        step('aggregate', 'nb-agg', { sortingKey: 'c0', inputs: { data: '{{recovered}}' } }),
+      ]),
+      {},
+      jsonResultExecutor({ 'first-pass': { value: { quality: 0.9 } } })
+    )
+
+    expect(result.skipped.sort()).toEqual(['aggregate', 'recover'])
   })
 })
