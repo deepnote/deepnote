@@ -30,6 +30,8 @@ export type {
   OrchestrationOutputHelpers,
   OrchestrationResult,
   OrchestrationStep,
+  OrchestrationStepExecution,
+  OrchestrationStepExecutor,
   OrchestrationStepResult,
   OrchestrationTarget,
 } from './orchestrate'
@@ -42,7 +44,10 @@ export {
   orchestrationOutputs,
   outputJson,
   outputText,
+  runOrchestration,
 } from './orchestrate'
+export type { CloudOrchestrationOptions } from './orchestrate-cloud'
+export { createCloudStepExecutor, orchestrateInCloud } from './orchestrate-cloud'
 export { readSnapshot } from './read-snapshot'
 export type { RecurringSchedule, ResolvedRecurringSchedule } from './recurring-schedule'
 export { RecurringScheduleError, resolveRecurringSchedule } from './recurring-schedule'

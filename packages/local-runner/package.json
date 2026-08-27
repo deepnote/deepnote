@@ -26,7 +26,8 @@
       "import": "./dist/workflows.js",
       "require": "./dist/workflows.cjs"
     },
-    "./snapshot-reader": "./dist/snapshot-reader.iife.js"
+    "./snapshot-reader": "./dist/snapshot-reader.iife.js",
+    "./orchestrator": "./dist/orchestrator.iife.js"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

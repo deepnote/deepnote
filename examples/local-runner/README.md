@@ -8,12 +8,14 @@ language on purpose — the difference is the deployment model, not the styling.
 | [**run-app**](./run-app)                               | A page that **runs or schedules** the notebook in Deepnote Cloud or a local kernel, with editable inputs and cloud history, **and** a live fan-out → quality gate → GPT/Claude review → arbiter. | Yes — `serveStatic`   | `pnpm example:local-runner`           |
 | [**cloud-app**](./cloud-app)                           | A published client-only app that **runs one configured notebook** in Deepnote Cloud with the signed-in viewer's short-lived credentials.                                                         | No application server | Publish to Deepnote                   |
 | [**snapshot-viewer**](./snapshot-viewer)               | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.                                                                              | No                    | `pnpm example:snapshot-viewer`        |
+| [**client-orchestration**](./client-orchestration)     | The same fan-out → quality gate → arbiter pipeline, running **entirely in the browser** against Deepnote Cloud with the viewer's short-lived token.                                              | No application server | `pnpm example:client-orchestration`   |
 | [**orchestration**](./orchestration)                   | A one-shot local-or-cloud pipeline using plain TypeScript control flow, normalized results, and output helpers.                                                                                  | No — a Node script    | `pnpm example:orchestration`          |
 | [**workflow-orchestration**](./workflow-orchestration) | An end-to-end durable decision pipeline: regional fan-out, contained failure, quality-gated recovery, aggregation, and an agent memo.                                                            | Yes — Vite dev server | `pnpm example:workflow-orchestration` |
 
 The rule of thumb: **run notebooks when you have a server; publish a cloud app when you want a
 client-only UI; view snapshots when you only have static hosting; orchestrate when several runs form
-one result.** The root scripts build the packages they need, so a clean checkout works with one
+one result.** Orchestration is not itself a reason to need a server — `client-orchestration` runs the
+same pipeline in a page; what a server buys is a local kernel and notebook creation. The root scripts build the packages they need, so a clean checkout works with one
 command.
 
 The run app's orchestration makes model-provider choice visible rather than hiding it behind

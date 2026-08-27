@@ -1,0 +1,46 @@
+// Serves a static preview of the client-only orchestration app.
+//
+// It provides zero API routes and runs no notebooks: it is a file server, and only exists so
+// ./orchestrator.js resolves to the built bundle without a copy step. The app itself talks
+// straight to the Deepnote API from the browser — publish it as static files and nothing here runs.
+
+import { readFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const here = dirname(fileURLToPath(import.meta.url))
+
+const routes = {
+  '/': [join(here, 'index.html'), 'text/html; charset=utf-8'],
+  '/orchestrator.js': [
+    join(here, '..', '..', '..', 'packages', 'local-runner', 'dist', 'orchestrator.iife.js'),
+    'text/javascript; charset=utf-8',
+  ],
+}
+
+const server = createServer(async (req, res) => {
+  const route = routes[(req.url ?? '/').split('?')[0]]
+  if (!route) {
+    res.writeHead(404).end('Not found')
+    return
+  }
+  try {
+    res.writeHead(200, { 'content-type': route[1] }).end(await readFile(route[0]))
+  } catch (err) {
+    const missingBundle = route[0].endsWith('orchestrator.iife.js')
+    res
+      .writeHead(500)
+      .end(
+        missingBundle
+          ? 'orchestrator bundle not built. Run: pnpm --filter @deepnote/local-runner build'
+          : `Failed to read ${route[0]}: ${err instanceof Error ? err.message : String(err)}`
+      )
+  }
+})
+
+server.listen(0, '127.0.0.1', () => {
+  const { port } = server.address()
+  console.log(`\n  Deepnote client-only orchestration (static preview) → http://127.0.0.1:${port}`)
+  console.log('  Static assets only — the pipeline runs in your browser against Deepnote Cloud.\n')
+})

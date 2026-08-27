@@ -208,6 +208,52 @@ returns when the callback returns; if the process exits, the run is gone. That i
 a script or a dev server, and the wrong one for anything scheduled or long-lived — for those, keep
 the same code and run it under Workflow SDK.
 
+### Orchestrate from the browser — no server
+
+`orchestrate` runs in Node because its runners do: one spawns a Python kernel, and both read
+notebooks off disk. The engine itself is only control flow, so it also ships with a `fetch`-based
+cloud executor that runs the same pipeline in a page.
+
+```html
+<script src="https://unpkg.com/@deepnote/local-runner/dist/orchestrator.iife.js"></script>
+<script>
+  const { orchestrateInCloud } = DeepnoteOrchestrator;
+
+  const result = await orchestrateInCloud(
+    async ({ run, control, outputs }) => {
+      const regions = await Promise.all(
+        REGIONS.map((region) =>
+          run({ id: region.name, notebookId: region.notebookId, inputs: { region: region.name } }),
+        ),
+      );
+      const failing = await control({ id: "quality-gate", kind: "gate" }, () =>
+        regions.filter((step) => outputs.lastJson(step).qualityScore < 0.95),
+      );
+      return { checked: regions.length, failing: failing.length };
+    },
+    { token, baseUrl, onEvent: (event) => render(event) },
+  );
+</script>
+```
+
+The workflow callback is unchanged — `run`, `control`, `outputs`, the graph, `dependsOn`,
+`allowFailure`, and the event stream all behave as they do in Node. Two things differ, and both are
+consequences of having no server:
+
+| In Node                                        | In the browser                                             |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| `notebook:` a path, YAML, or parsed file       | `notebookId:` a notebook that already exists in Deepnote   |
+| `target: "local"` runs a Python kernel         | rejected — a browser has no kernel                         |
+| `cloud: { createIfMissing: true }` creates one | not available — a viewer token may run, not create         |
+| `DEEPNOTE_TOKEN` from the environment          | a short-lived, viewer-scoped token from the Deepnote shell |
+
+Both constraints are enforced with an explanatory error rather than left to fail deep in an API
+call. `runOrchestration(workflow, options, executor)` is the same engine with the executor left
+open, if you need a third binding.
+
+See [`examples/local-runner/client-orchestration`](../../examples/local-runner/client-orchestration)
+for a complete page.
+
 ### Make notebook steps durable with Workflow SDK
 
 Workflow SDK is the durable layer, rather than a second one embedded here. Install

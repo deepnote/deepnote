@@ -15,6 +15,7 @@
     "biome:check": "biome check .",
     "biome:check:fix": "biome check --write .",
     "build": "pnpm -r run build",
+    "example:client-orchestration": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/client-orchestration/serve.mjs",
     "example:gallery": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/gallery/serve.mjs",
     "example:local-runner": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/run-app/serve.mjs",
     "example:orchestration": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/orchestration/run.mjs",

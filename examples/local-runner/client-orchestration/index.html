@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Client-only orchestration</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfbfd;
+        --surface: #ffffff;
+        --surface-2: #f5f5f9;
+        --ink: #17151f;
+        --ink-2: #57546a;
+        --ink-3: #8b889b;
+        --line: #e9e8f1;
+        --accent: #5b3df5;
+        --accent-soft: #efecff;
+        --pos: #0f8f7f;
+        --neg: #d6425f;
+        --shadow: 0 1px 2px rgba(20, 18, 40, 0.04), 0 10px 30px -16px rgba(20, 18, 40, 0.16);
+        --r: 8px;
+        --r-lg: 12px;
+        --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0c0b12;
+          --surface: #141220;
+          --surface-2: #1b1828;
+          --ink: #ece9f7;
+          --ink-2: #a9a6bd;
+          --ink-3: #726f86;
+          --line: #262233;
+          --accent: #a78bfa;
+          --accent-soft: #211b3b;
+          --pos: #35d0b6;
+          --neg: #ff6b86;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 34px -18px rgba(0, 0, 0, 0.7);
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+      h1 { font-size: 15px; margin: 0; font-weight: 620; letter-spacing: -0.01em; }
+      .badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 12px; color: var(--ink-2);
+        border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+      }
+      .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); }
+      .dot.ok { background: var(--pos); }
+      .dot.err { background: var(--neg); }
+      main { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px; align-items: start; }
+      @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+      .card {
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 16px;
+      }
+      .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); margin: 0 0 12px; }
+      label { display: block; font-size: 12px; color: var(--ink-2); margin: 10px 0 4px; }
+      input {
+        width: 100%; padding: 7px 10px; font: inherit; font-size: 13px;
+        color: var(--ink); background: var(--surface-2);
+        border: 1px solid var(--line); border-radius: var(--r);
+      }
+      .btn {
+        width: 100%; margin-top: 14px; padding: 9px 14px; font: inherit; font-weight: 560;
+        color: #fff; background: var(--accent); border: 0; border-radius: var(--r); cursor: pointer;
+      }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .status { margin: 0 20px 4px; font-size: 13px; color: var(--ink-2); }
+      .status.err { color: var(--neg); }
+      .status.ok { color: var(--pos); }
+      .graph { display: flex; flex-direction: column; gap: 10px; }
+      .tier { display: flex; gap: 10px; flex-wrap: wrap; }
+      .node {
+        flex: 1 1 150px; min-width: 150px; padding: 10px 12px;
+        border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2);
+      }
+      .node .name { font-size: 13px; font-weight: 560; }
+      .node .meta { font-size: 11px; color: var(--ink-3); font-family: var(--mono); margin-top: 3px; }
+      .node.running { border-color: var(--accent); background: var(--accent-soft); }
+      .node.success { border-color: color-mix(in srgb, var(--pos) 45%, var(--line)); }
+      .node.failed { border-color: color-mix(in srgb, var(--neg) 55%, var(--line)); }
+      .node.gate { border-style: dashed; }
+      pre {
+        margin: 0; padding: 12px; overflow-x: auto;
+        background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r);
+        font-family: var(--mono); font-size: 12px;
+      }
+      .muted { color: var(--ink-3); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Client-only orchestration</h1>
+      <span class="badge"><span class="dot" id="env-dot"></span><span id="env-label">No token</span></span>
+      <span class="badge">no server</span>
+    </header>
+    <p class="status" id="status">Loading…</p>
+    <main>
+      <section class="card">
+        <h2>Inputs</h2>
+        <label for="months">Trailing months</label>
+        <input id="months" type="number" value="6" min="1" max="24" />
+        <label for="target">Monthly target (k)</label>
+        <input id="target" type="number" value="1000" min="0" step="50" />
+        <button class="btn" id="run" disabled>Run pipeline</button>
+        <p class="muted" style="margin-top: 12px">
+          Every step runs in Deepnote Cloud over <code>fetch</code>. This page has no backend.
+        </p>
+      </section>
+      <section style="display: grid; gap: 20px">
+        <div class="card">
+          <h2>Pipeline</h2>
+          <div class="graph" id="graph"><p class="muted">Not started.</p></div>
+        </div>
+        <div class="card">
+          <h2>Result</h2>
+          <pre id="result">—</pre>
+        </div>
+      </section>
+    </main>
+
+    <script src="./orchestrator.js"></script>
+    <script>
+      const { orchestrateInCloud } = DeepnoteOrchestrator
+      const $ = (sel) => document.querySelector(sel)
+
+      // Notebooks are addressed by id and must already exist: a viewer-scoped token may run a
+      // notebook, not create one. That is the trade for having no server.
+      const params = new URLSearchParams(location.search)
+      const APP_CONFIG = {
+        baseUrl: 'https://api.deepnote.com',
+        shellOrigin: 'https://deepnote.com',
+        regions: [
+          { name: 'North America', notebookId: params.get('naNotebookId') ?? '' },
+          { name: 'Europe', notebookId: params.get('euNotebookId') ?? '' },
+          { name: 'Asia Pacific', notebookId: params.get('apacNotebookId') ?? '' },
+        ],
+        arbiterNotebookId: params.get('arbiterNotebookId') ?? '',
+      }
+
+      let apiToken = params.get('token') ?? ''
+
+      /**
+       * Ask the embedding Deepnote shell for a short-lived, viewer-scoped token.
+       *
+       * The token and the API origin arrive as one bundle and are used as one: a bearer token is
+       * only believable from the frame we asked, on the origin we pinned, and it is never sent
+       * anywhere except the origin named in that same reply.
+       */
+      function requestShellToken(timeoutMs = 4000) {
+        if (window.parent === window) return Promise.resolve(null)
+        return new Promise((resolve) => {
+          const done = (value) => {
+            window.removeEventListener('message', onMessage)
+            clearTimeout(timer)
+            resolve(value)
+          }
+          const onMessage = (event) => {
+            if (event.origin !== APP_CONFIG.shellOrigin) return
+            if (event.data?.type !== 'deepnote-static-files-api-token-response') return
+            if (!event.data.token || !event.data.apiOrigin) return
+            done({ token: event.data.token, apiOrigin: event.data.apiOrigin })
+          }
+          const timer = setTimeout(() => done(null), timeoutMs)
+          window.addEventListener('message', onMessage)
+          window.parent.postMessage({ type: 'deepnote-static-files-api-token-request' }, APP_CONFIG.shellOrigin)
+        })
+      }
+
+      function setStatus(text, kind = '') {
+        const el = $('#status')
+        el.textContent = text
+        el.className = `status ${kind}`
+      }
+
+      const nodeEls = new Map()
+
+      function renderNode(node) {
+        let el = nodeEls.get(node.id)
+        if (!el) {
+          el = document.createElement('div')
+          nodeEls.set(node.id, el)
+          const tierName = node.kind === 'notebook' ? (node.concluding ? 'arbiter' : 'fanout') : 'control'
+          let tier = $(`#graph .tier[data-tier="${tierName}"]`)
+          if (!tier) {
+            tier = document.createElement('div')
+            tier.className = 'tier'
+            tier.dataset.tier = tierName
+            $('#graph').append(tier)
+          }
+          tier.append(el)
+        }
+        el.className = `node ${node.status}${node.kind === 'gate' || node.kind === 'join' ? ' gate' : ''}`
+        const detail = node.error ?? (node.durationMs != null ? `${(node.durationMs / 1000).toFixed(1)}s` : 'running…')
+        el.innerHTML = ''
+        const name = document.createElement('div')
+        name.className = 'name'
+        name.textContent = node.label
+        const meta = document.createElement('div')
+        meta.className = 'meta'
+        meta.textContent = detail
+        el.append(name, meta)
+      }
+
+      async function runPipeline() {
+        $('#run').disabled = true
+        $('#graph').innerHTML = ''
+        nodeEls.clear()
+        $('#result').textContent = '—'
+        setStatus('Running in Deepnote Cloud…')
+
+        const trailingMonths = Number($('#months').value) || 6
+        const monthlyTargetK = Number($('#target').value) || 1000
+        const qualityThreshold = 0.95
+        const regions = APP_CONFIG.regions.filter((region) => region.notebookId)
+
+        // The graph is drawn from the engine's events, so progress appears as it happens rather
+        // than only at the end.
+        const onEvent = (event) => {
+          if (event.type === 'step_started') {
+            renderNode({ id: event.stepId, label: event.stepId, kind: 'notebook', status: 'running' })
+          } else if (event.type === 'step_completed' || event.type === 'step_failed') {
+            renderNode({
+              id: event.stepId,
+              label: event.stepId,
+              kind: 'notebook',
+              status: event.type === 'step_completed' ? 'success' : 'failed',
+              durationMs: event.result?.durationMs,
+              error: event.type === 'step_failed' ? event.error : undefined,
+            })
+          } else if (event.type.startsWith('control_')) {
+            renderNode({ ...event.node, status: event.node.status })
+          }
+        }
+
+        try {
+          const result = await orchestrateInCloud(
+            async ({ run, control, outputs }) => {
+              // Ordinary control flow — Promise.all, filter, a conditional rerun. The engine only
+              // records what happened; it does not define a workflow language.
+              const initial = await Promise.all(
+                regions.map((region) =>
+                  run({
+                    id: `analyze-${slug(region.name)}`,
+                    label: `${region.name} analysis`,
+                    notebookId: region.notebookId,
+                    inputs: {
+                      region: region.name,
+                      trailing_months: trailingMonths,
+                      monthly_target_k: Math.round(monthlyTargetK / regions.length),
+                    },
+                    allowFailure: true,
+                  })
+                )
+              )
+
+              const readings = initial.map((step, index) => ({
+                region: regions[index],
+                step,
+                value: step.success ? safeJson(outputs, step) : null,
+              }))
+
+              const failing = await control(
+                {
+                  id: 'quality-gate',
+                  kind: 'gate',
+                  label: `${qualityThreshold * 100}% quality gate`,
+                  dependsOn: initial.map((step) => step.id),
+                },
+                () =>
+                  readings
+                    .filter(({ value }) => !value || value.qualityScore < qualityThreshold)
+                    .map(({ region }) => region.name)
+              )
+
+              const validated = readings.filter(({ value }) => value).map(({ value }) => value)
+
+              let finalDecision = null
+              if (APP_CONFIG.arbiterNotebookId) {
+                const arbiter = await run({
+                  id: 'final-arbiter',
+                  label: 'Final decision',
+                  notebookId: APP_CONFIG.arbiterNotebookId,
+                  dependsOn: ['quality-gate'],
+                  concluding: true,
+                  inputs: { decision_context_json: JSON.stringify({ validated, qualityThreshold }) },
+                  allowFailure: true,
+                })
+                finalDecision = arbiter.success ? tryAgentText(outputs, arbiter) : arbiter.error
+              }
+
+              return { validated, belowThreshold: failing, finalDecision }
+            },
+            { token: apiToken, baseUrl: APP_CONFIG.baseUrl, onEvent }
+          )
+
+          $('#result').textContent = JSON.stringify(result.value, null, 2)
+          const failed = result.steps.filter((step) => !step.success).length
+          setStatus(
+            `Pipeline complete — ${result.steps.length} notebook runs in ${(result.durationMs / 1000).toFixed(1)}s` +
+              (failed ? `, ${failed} failed` : ''),
+            failed ? 'err' : 'ok'
+          )
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), 'err')
+        } finally {
+          $('#run').disabled = false
+        }
+      }
+
+      const slug = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+
+      function safeJson(outputs, step) {
+        try {
+          return outputs.lastJson(step)
+        } catch {
+          return null
+        }
+      }
+
+      function tryAgentText(outputs, step) {
+        try {
+          return outputs.lastAgentText(step)
+        } catch {
+          return null
+        }
+      }
+
+      async function init() {
+        const credential = await requestShellToken()
+        if (credential) {
+          apiToken = credential.token
+          APP_CONFIG.baseUrl = credential.apiOrigin
+        }
+
+        const configured = APP_CONFIG.regions.filter((region) => region.notebookId).length
+        $('#env-dot').className = `dot ${apiToken ? 'ok' : 'err'}`
+        $('#env-label').textContent = apiToken ? new URL(APP_CONFIG.baseUrl).host : 'No token'
+
+        if (!apiToken) {
+          setStatus(
+            'No API token — open this app from Deepnote so the shell can issue one, or pass ?token=… for local testing.',
+            'err'
+          )
+          return
+        }
+        if (!configured) {
+          setStatus('No notebook ids — pass ?naNotebookId=…&euNotebookId=…&arbiterNotebookId=…', 'err')
+          return
+        }
+        setStatus(`Ready — ${configured} regional notebook${configured === 1 ? '' : 's'} configured.`)
+        $('#run').disabled = false
+      }
+
+      $('#run').onclick = runPipeline
+      init()
+    </script>
+  </body>
+</html>
