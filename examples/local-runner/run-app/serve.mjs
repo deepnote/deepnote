@@ -1,36 +1,48 @@
-// A complete local "run a notebook from a web page" server, in a handful of lines.
+// Serves a static preview of the run app.
+//
+// It provides zero API routes and runs no notebooks. The app talks straight to the Deepnote API
+// from the browser — runs, run history, scheduling, and the orchestrated pipeline are all `fetch`
+// calls made in the page. This exists only so ./orchestrator.js resolves to the built bundle
+// without a copy step; publish the folder as static files and nothing here runs.
+
+import { readFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-// In a real project: `import { serveStatic } from '@deepnote/local-runner'` after installing it.
-// This example isn't a workspace package, so it imports the built package directly.
-import { serveStatic } from '../../../packages/local-runner/dist/index.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-// Read `.env` from the working directory, like `deepnote run` does, so the keys the notebook's
-// agent block needs can live in a file rather than your shell: DEEPNOTE_TOKEN for cloud runs and
-// `Schedule`, OPENAI_API_KEY when running in a local kernel. Absent `.env` is fine — the
-// environment may carry them already, and the dashboard blocks need neither.
-try {
-  process.loadEnvFile()
-} catch {}
-
-// One Run button, one `POST /api/run`, and this is the only thing that decides where it goes.
-// Omit it and runs go to Deepnote Cloud, which is what a published app wants.
-const runTarget = process.env.RUN_TARGET ?? 'cloud'
-if (runTarget !== 'cloud' && runTarget !== 'local') {
-  throw new Error(`RUN_TARGET must be "cloud" or "local", received ${JSON.stringify(runTarget)}`)
+const routes = {
+  '/': [join(here, 'index.html'), 'text/html; charset=utf-8'],
+  '/orchestrator.js': [
+    join(here, '..', '..', '..', 'packages', 'local-runner', 'dist', 'orchestrator.iife.js'),
+    'text/javascript; charset=utf-8',
+  ],
 }
 
-const { port } = await serveStatic({
-  dir: here, // serve index.html from this folder
-  notebookPath: join(here, '..', '..', 'local-runner-showcase.deepnote'), // the notebook to run
-  runTarget, // 'cloud' (default) or 'local'
-  persistSnapshot: false, // this is an interactive demo — don't litter the repo with snapshot files
+const server = createServer(async (req, res) => {
+  const route = routes[(req.url ?? '/').split('?')[0]]
+  if (!route) {
+    res.writeHead(404).end('Not found')
+    return
+  }
+  try {
+    res.writeHead(200, { 'content-type': route[1] }).end(await readFile(route[0]))
+  } catch (err) {
+    const missingBundle = route[0].endsWith('orchestrator.iife.js')
+    res
+      .writeHead(500)
+      .end(
+        missingBundle
+          ? 'orchestrator bundle not built. Run: pnpm --filter @deepnote/local-runner build'
+          : `Failed to read ${route[0]}: ${err instanceof Error ? err.message : String(err)}`
+      )
+  }
 })
 
-const has = k => (process.env[k] ? '✓' : '—')
-const needed = runTarget === 'local' ? 'OPENAI_API_KEY' : 'DEEPNOTE_TOKEN'
-console.log(`\n  Deepnote local-runner · run app → http://127.0.0.1:${port}`)
-console.log(`  Run → ${runTarget}${runTarget === 'cloud' ? '' : ' (RUN_TARGET=local)'}: ${needed} ${has(needed)}`)
-console.log(`  Schedule: DEEPNOTE_TOKEN ${has('DEEPNOTE_TOKEN')}   Set RUN_TARGET=local to run in a local kernel\n`)
+server.listen(0, '127.0.0.1', () => {
+  const { port } = server.address()
+  console.log(`\n  Deepnote local-runner · run app (static preview) → http://127.0.0.1:${port}`)
+  console.log('  Static assets only — every run happens in your browser against Deepnote Cloud.')
+  console.log('  Open with ?token=…&notebookId=… (published, the Deepnote shell supplies the token).\n')
+})

@@ -1,0 +1,102 @@
+metadata:
+  createdAt: '2026-07-27T00:00:00.000Z'
+project:
+  id: local-runner-pipeline-regional
+  name: Local runner demo - regional analysis
+  notebooks:
+    - id: local-runner-pipeline-regional-notebook
+      name: Regional analysis
+      blocks:
+        - blockGroup: region-input-group
+          id: region-input
+          sortingKey: a0
+          type: input-text
+          content: ''
+          metadata:
+            deepnote_variable_name: region
+            deepnote_input_label: Region
+            deepnote_variable_value: North America
+            deepnote_variable_default_value: null
+        - blockGroup: months-input-group
+          id: months-input
+          sortingKey: a1
+          type: input-slider
+          content: ''
+          metadata:
+            deepnote_variable_name: trailing_months
+            deepnote_input_label: Trailing months
+            deepnote_variable_value: '6'
+            deepnote_slider_min_value: 3
+            deepnote_slider_max_value: 12
+            deepnote_slider_step: 1
+            deepnote_variable_default_value: null
+        - blockGroup: target-input-group
+          id: target-input
+          sortingKey: a2
+          type: input-slider
+          content: ''
+          metadata:
+            deepnote_variable_name: monthly_target_k
+            deepnote_input_label: Monthly target ($k)
+            deepnote_variable_value: '420'
+            deepnote_slider_min_value: 50
+            deepnote_slider_max_value: 1000
+            deepnote_slider_step: 10
+            deepnote_variable_default_value: null
+        - blockGroup: backfill-input-group
+          id: backfill-input
+          sortingKey: a3
+          type: input-checkbox
+          content: ''
+          metadata:
+            deepnote_variable_name: backfill_missing
+            deepnote_input_label: Backfill missing data
+            deepnote_variable_value: false
+            deepnote_variable_default_value: null
+        - blockGroup: regional-analysis-group
+          id: regional-analysis
+          sortingKey: b0
+          type: code
+          content: |-
+            import json
+
+            CATALOG = {
+                "North America": {"monthly_k": 440, "growth_pct": 2.0, "missing_months": 0},
+                "Europe": {"monthly_k": 325, "growth_pct": 2.8, "missing_months": 1},
+                "Asia Pacific": {"monthly_k": 255, "growth_pct": 4.2, "missing_months": 0},
+            }
+
+            if region not in CATALOG:
+                raise ValueError(f"Unknown region: {region}")
+
+            months = int(trailing_months)
+            source = CATALOG[region]
+            missing_months = 0 if backfill_missing else source["missing_months"]
+            observed_months = months - min(months, missing_months)
+            growth = source["growth_pct"] / 100
+            revenue_k = round(
+                sum(source["monthly_k"] * (1 + growth) ** index for index in range(observed_months)),
+                1,
+            )
+            forecast_k = round(
+                sum(
+                    source["monthly_k"] * (1 + growth) ** (months + index)
+                    for index in range(months)
+                ),
+                1,
+            )
+            target_k = round(float(monthly_target_k) * months, 1)
+
+            result = {
+                "region": region,
+                "revenueK": revenue_k,
+                "forecastK": forecast_k,
+                "targetK": target_k,
+                "growthPct": source["growth_pct"],
+                "qualityScore": round(observed_months / months, 3),
+                "backfilled": bool(backfill_missing),
+                "onTrack": forecast_k >= target_k,
+            }
+            print(json.dumps(result, separators=(",", ":")))
+          metadata: {}
+version: 1.0.0
