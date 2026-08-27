@@ -7,9 +7,13 @@ report. About 40 lines.
 DEEPNOTE_TOKEN=… NA_NOTEBOOK_ID=… EU_NOTEBOOK_ID=… APAC_NOTEBOOK_ID=… pnpm example:orchestration
 ```
 
-The point of the example is that none of it is Node-specific. `orchestrate` runs every step as an
-HTTP call to Deepnote, so the same pipeline runs unchanged in a browser page with no server behind
-it — see [`run-app`](../run-app). What Node adds here is a shell, not a capability.
+The point of the example is that the _pipeline_ is not Node-specific. `orchestrate` runs every step
+as an HTTP call to Deepnote, so the callback below runs unchanged in a browser page with no server
+behind it — see [`run-app`](../run-app), which uses the same API.
+
+The bootstrap is Node and would be replaced in a browser: this script reads `DEEPNOTE_TOKEN` and the
+notebook ids from the environment via `process`, whereas a page gets its token from the Deepnote
+shell and its configuration from the URL. What Node adds here is a shell, not a capability.
 
 Notebooks are named by id and must already exist: running a pipeline needs permission to run a
 notebook, not to create one.
@@ -17,6 +21,8 @@ notebook, not to create one.
 Each regional notebook should end by emitting a JSON object the gate can read:
 
 ```python
+import json
+
 print(json.dumps({"region": region, "revenueK": 812.4, "qualityScore": 0.97}))
 ```
 
