@@ -55,14 +55,6 @@
     "tsx": "^4.23.12",
     "typescript": "^5.9.3"
   },
-  "peerDependencies": {
-    "workflow": ">=4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "workflow": {
-      "optional": true
-    }
-  },
   "engines": {
     "node": ">=22.14.0",
     "pnpm": ">=10.17.1"

@@ -411,9 +411,13 @@ export async function salesReview() {
 }
 ```
 
-Replay, retries, timers, and observability are that engine's job. `workflow` is an **optional peer
-dependency**: without its compiler the `'use step'` directive is inert and `runNotebookStep` is an
-ordinary async function, so nothing is imposed on consumers who do not want it.
+Replay, retries, timers, and observability are that engine's job.
+
+Nothing here imports `workflow` — `'use step'` is a directive its compiler reads, and without that
+compiler the directive is inert and `runNotebookStep` is an ordinary async function. So this package
+declares no dependency on it, not even a peer one: install
+[`workflow`](https://www.npmjs.com/package/workflow) (>= 4) alongside it if you want durability, and
+nothing is imposed on consumers who do not.
 
 Two deliberate choices:
 
