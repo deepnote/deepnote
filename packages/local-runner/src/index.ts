@@ -2,6 +2,8 @@ export type { AgentStreamEvent } from '@deepnote/runtime-core'
 export type { InputBlockInfo } from './apply-input-overrides'
 export { applyInputOverrides, listInputBlocks } from './apply-input-overrides'
 export { mapBlockIds, toBlockSpec } from './block-spec'
+export type { CloudExecutorOptions } from './cloud-executor'
+export { createCloudStepExecutor, DEFAULT_CLOUD_API_URL, toRunInputs } from './cloud-executor'
 export type {
   CloudRun,
   GetCloudRunOptions,
@@ -13,6 +15,38 @@ export type { DeepnoteInput, LoadedDeepnoteFile } from './load-file'
 export { loadDeepnoteFile } from './load-file'
 export type { OpenInCloudOptions } from './open-in-cloud'
 export { openInCloud } from './open-in-cloud'
+export type {
+  OrchestrateOptions,
+  OrchestrationContext,
+  OrchestrationControlKind,
+  OrchestrationControlNode,
+  OrchestrationDependency,
+  OrchestrationDependencyInput,
+  OrchestrationEvent,
+  OrchestrationGraph,
+  OrchestrationGraphEdge,
+  OrchestrationGraphNode,
+  OrchestrationGraphNodeKind,
+  OrchestrationGraphNodeStatus,
+  OrchestrationOutputHelpers,
+  OrchestrationResult,
+  OrchestrationStep,
+  OrchestrationStepExecution,
+  OrchestrationStepExecutor,
+  OrchestrationStepResult,
+} from './orchestrate'
+export {
+  allOutputText,
+  finishResult,
+  lastAgentText,
+  lastOutputJson,
+  OrchestrationStepError,
+  orchestrate,
+  orchestrationOutputs,
+  outputJson,
+  outputText,
+  runOrchestration,
+} from './orchestrate'
 export { readSnapshot } from './read-snapshot'
 export type { RecurringSchedule, ResolvedRecurringSchedule } from './recurring-schedule'
 export { RecurringScheduleError, resolveRecurringSchedule } from './recurring-schedule'

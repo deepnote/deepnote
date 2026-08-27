@@ -1,0 +1,228 @@
+import { describe, expect, it } from 'vitest'
+import type { OrchestrationEvent, OrchestrationStepExecutor, OrchestrationStepResult } from './orchestrate'
+import { OrchestrationStepError, runOrchestration } from './orchestrate'
+
+function snapshotOf(blocks: { id: string; type?: string; outputs: unknown[] }[]) {
+  return {
+    notebooks: [
+      {
+        id: 'n1',
+        name: 'n',
+        blocks: blocks.map(block => ({
+          id: block.id,
+          type: block.type ?? 'code',
+          content: '',
+          executionCount: 1,
+          outputs: block.outputs,
+        })),
+      },
+    ],
+    inputs: [],
+    // biome-ignore lint/suspicious/noExplicitAny: a minimal snapshot view for tests
+  } as any
+}
+
+/** An executor that returns whatever a test tells it to, without touching a network. */
+function fakeExecutor(
+  per: Record<string, Partial<OrchestrationStepResult>> = {},
+  onRun?: (id: string) => void
+): OrchestrationStepExecutor {
+  return async ({ id, startedAt, startedMs }) => {
+    onRun?.(id)
+    return {
+      id,
+      target: 'fake',
+      success: true,
+      status: 'success',
+      outputs: [],
+      snapshotYaml: null,
+      snapshot: null,
+      startedAt,
+      finishedAt: new Date(startedMs + 1).toISOString(),
+      durationMs: 1,
+      ...per[id],
+    } as OrchestrationStepResult
+  }
+}
+
+const jsonBlock = (value: unknown) => ({
+  id: 'b1',
+  outputs: [{ output_type: 'execute_result', data: { 'application/json': value }, metadata: {} }],
+})
+
+describe('runOrchestration', () => {
+  it('records the graph the pipeline actually took', async () => {
+    const result = await runOrchestration(
+      async ({ run, control }) => {
+        const a = await run({ id: 'a', notebookId: 'nb-a' })
+        await control({ id: 'gate', kind: 'gate', dependsOn: ['a'] }, () => true)
+        await run({ id: 'b', notebookId: 'nb-b', dependsOn: [{ id: 'gate', label: 'passed' }], concluding: true })
+        return a.id
+      },
+      {},
+      fakeExecutor()
+    )
+
+    expect(result.graph.nodes.map(node => [node.id, node.kind, node.status])).toEqual([
+      ['a', 'notebook', 'success'],
+      ['gate', 'gate', 'success'],
+      ['b', 'notebook', 'success'],
+    ])
+    expect(result.graph.edges).toEqual([
+      { from: 'a', to: 'gate', label: undefined },
+      { from: 'gate', to: 'b', label: 'passed' },
+    ])
+    expect(result.graph.concludingNodeId).toBe('b')
+    expect(result.steps.map(step => step.id)).toEqual(['a', 'b'])
+  })
+
+  it('records where each step ran, as the executor named it', async () => {
+    const result = await runOrchestration(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, fakeExecutor())
+    expect(result.steps[0].target).toBe('fake')
+    expect(result.graph.nodes[0].target).toBe('fake')
+  })
+
+  it('throws on a failed step, carrying the result so a caller can still show outputs', async () => {
+    const failure = fakeExecutor({ a: { success: false, status: 'error', error: 'the warehouse is down' } })
+    await expect(
+      runOrchestration(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, failure)
+    ).rejects.toThrow(OrchestrationStepError)
+
+    let caught: OrchestrationStepError | undefined
+    try {
+      await runOrchestration(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, failure)
+    } catch (error) {
+      caught = error as OrchestrationStepError
+    }
+    expect(caught?.stepId).toBe('a')
+    expect(caught?.result?.status).toBe('error')
+  })
+
+  it('returns a failed step instead of throwing when it is allowed to fail', async () => {
+    const result = await runOrchestration(
+      async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }),
+      {},
+      fakeExecutor({ a: { success: false, status: 'error', error: 'boom' } })
+    )
+    expect(result.value.success).toBe(false)
+    expect(result.graph.nodes[0].status).toBe('failed')
+  })
+
+  it('emits tagged events so concurrent steps stay distinguishable', async () => {
+    const events: OrchestrationEvent[] = []
+    await runOrchestration(
+      async ({ run }) => Promise.all([run({ id: 'a', notebookId: 'nb-a' }), run({ id: 'b', notebookId: 'nb-b' })]),
+      { onEvent: event => events.push(event) },
+      fakeExecutor()
+    )
+    const started = events.filter(e => e.type === 'step_started').map(e => (e as { stepId: string }).stepId)
+    expect(started.sort()).toEqual(['a', 'b'])
+  })
+
+  it('refuses a duplicate node id', async () => {
+    await expect(
+      runOrchestration(
+        async ({ run }) => {
+          await run({ id: 'a', notebookId: 'nb-a' })
+          return run({ id: 'a', notebookId: 'nb-a' })
+        },
+        {},
+        fakeExecutor()
+      )
+    ).rejects.toThrow('was used more than once')
+  })
+
+  it('refuses a dependency on a node that has not started', async () => {
+    await expect(
+      runOrchestration(
+        async ({ run }) => run({ id: 'a', notebookId: 'nb-a', dependsOn: ['ghost'] }),
+        {},
+        fakeExecutor()
+      )
+    ).rejects.toThrow('depends on unknown or not-yet-started node "ghost"')
+  })
+
+  it('refuses two concluding nodes', async () => {
+    await expect(
+      runOrchestration(
+        async ({ run }) => {
+          await run({ id: 'a', notebookId: 'nb-a', concluding: true })
+          return run({ id: 'b', notebookId: 'nb-b', concluding: true })
+        },
+        {},
+        fakeExecutor()
+      )
+    ).rejects.toThrow('are both marked as concluding')
+  })
+
+  it('marks a failed control node and rethrows, rather than swallowing the decision', async () => {
+    const events: OrchestrationEvent[] = []
+    await expect(
+      runOrchestration(
+        async ({ control }) =>
+          control({ id: 'gate', kind: 'gate' }, () => {
+            throw new Error('bad threshold')
+          }),
+        { onEvent: event => events.push(event) },
+        fakeExecutor()
+      )
+    ).rejects.toThrow('bad threshold')
+    expect(events.some(event => event.type === 'control_failed')).toBe(true)
+  })
+})
+
+describe('output helpers', () => {
+  it('reads the last structured JSON without depending on block ids', async () => {
+    const result = await runOrchestration(
+      async ({ run, outputs }) => outputs.lastJson<{ revenue: number }>(await run({ id: 'a', notebookId: 'nb-a' })),
+      {},
+      fakeExecutor({ a: { snapshot: snapshotOf([jsonBlock({ revenue: 42 })]) } })
+    )
+    expect(result.value).toEqual({ revenue: 42 })
+  })
+
+  it('reads a named block, and says so when it is missing', async () => {
+    const executor = fakeExecutor({ a: { snapshot: snapshotOf([jsonBlock({ revenue: 42 })]) } })
+    const value = await runOrchestration(
+      async ({ run, outputs }) => outputs.json(await run({ id: 'a', notebookId: 'nb-a' }), 'b1'),
+      {},
+      executor
+    )
+    expect(value.value).toEqual({ revenue: 42 })
+
+    await expect(
+      runOrchestration(
+        async ({ run, outputs }) => outputs.json(await run({ id: 'a', notebookId: 'nb-a' }), 'nope'),
+        {},
+        executor
+      )
+    ).rejects.toThrow('has no block "nope"')
+  })
+
+  it('reads the last agent block, preferring the text it generated', async () => {
+    const result = await runOrchestration(
+      async ({ run, outputs }) => outputs.lastAgentText(await run({ id: 'a', notebookId: 'nb-a' })),
+      {},
+      fakeExecutor({
+        a: {
+          snapshot: snapshotOf([
+            { id: 'agent', type: 'agent', outputs: [{ output_type: 'stream', name: 'stdout', text: 'tool summary' }] },
+            { id: 'memo', type: 'markdown', outputs: [] },
+          ]),
+        },
+      })
+    )
+    // The generated markdown block follows the agent block, so it is the readout.
+    expect(result.value).toBe('tool summary')
+  })
+
+  it('explains a step with no snapshot to read', async () => {
+    await expect(
+      runOrchestration(
+        async ({ run, outputs }) => outputs.lastJson(await run({ id: 'a', notebookId: 'nb-a' })),
+        {},
+        fakeExecutor()
+      )
+    ).rejects.toThrow('has no snapshot to read outputs from')
+  })
+})

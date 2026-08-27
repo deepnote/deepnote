@@ -17,6 +17,7 @@
     "build": "pnpm -r run build",
     "example:gallery": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/gallery/serve.mjs",
     "example:local-runner": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/run-app/serve.mjs",
+    "example:orchestration": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/orchestration/run.mjs",
     "example:schedule-cloud": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/schedule-cloud.mjs",
     "example:snapshot-viewer": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/snapshot-viewer/serve.mjs",
     "license-check": "license-checker-rseidelsohn --json --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC\" --excludePackages \"deepnote\"",
