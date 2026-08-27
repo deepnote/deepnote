@@ -9,11 +9,11 @@ language on purpose — the difference is the deployment model, not the styling.
 | [**cloud-app**](./cloud-app)             | A published client-only app that **runs one configured notebook** in Deepnote Cloud with the signed-in viewer's short-lived credentials.                                                            | No application server | Publish to Deepnote            |
 | [**snapshot-viewer**](./snapshot-viewer) | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.                                                                                 | No                    | `pnpm example:snapshot-viewer` |
 
-Use the run app when you need a local kernel, scheduling, or cloud run history and can run an
-application server. Use the cloud app for a published, client-only UI that runs one configured
-notebook through Deepnote. Use the snapshot viewer when the output is already available and no
-execution is needed. The run-app and snapshot-viewer scripts build the package first, so a clean
-checkout works with one command.
+Use the run app when you want inputs, scheduling, cloud run history, and a multi-notebook pipeline
+in one page; it runs every notebook in Deepnote Cloud and needs only static hosting. Use the cloud
+app for a smaller published UI that runs one configured notebook. Use the snapshot viewer when the
+output is already available and no execution is needed. The run-app and snapshot-viewer scripts
+build the package and start a static preview server, so a clean checkout works with one command.
 
 The run app and snapshot viewer draw on two committed artifacts at the `examples/` root:
 
