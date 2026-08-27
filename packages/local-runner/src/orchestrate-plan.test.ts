@@ -434,6 +434,64 @@ describe('for_each fan-out', () => {
     expect(result.value.recovered).toEqual(['EU', 'APAC'])
   })
 
+  it('publishes empty arrays when every element is gated off, matching the empty-list case', async () => {
+    // Both mean "no element qualified", so downstream must get the same answer either way —
+    // otherwise a pipeline breaks precisely on the happy path where nothing needed recovering.
+    const ran: string[] = []
+    const result = await runOrchestrationFile(
+      file([
+        step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
+        meta('recover', 'nb-regional', {
+          sortingKey: 'b0',
+          exports: exp('region', 'recovered'),
+          meta: { for_each: '{{regions}}', for_each_as: 'region', run_if: 'region.qualityScore < 0.95' },
+        }),
+        step('aggregate', 'nb-agg', { sortingKey: 'c0', inputs: { recovered_json: '{{recovered}}' } }),
+      ]),
+      {},
+      (execution => {
+        ran.push(execution.id)
+        return jsonResultExecutor({
+          load: { regions: [{ qualityScore: 0.99 }, { qualityScore: 0.98 }] },
+        })(execution)
+      }) as OrchestrationStepExecutor
+    )
+
+    expect(ran).toEqual(['load', 'aggregate'])
+    expect(result.skipped).toEqual([])
+    expect(result.value.recovered).toEqual([])
+  })
+
+  it('lets a later step depend on a fan-out, which needs a node of its own', async () => {
+    // The runs register as analyze[0], analyze[1]; without a join node named `analyze` a dependent
+    // is rejected for depending on a node that never started.
+    const result = await runOrchestrationFile(
+      file([
+        step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
+        meta('analyze', 'nb-regional', {
+          sortingKey: 'b0',
+          exports: exp('name', 'analyzed'),
+          inputs: { region: '{{region}}' },
+          meta: { for_each: '{{regions}}', for_each_as: 'region' },
+        }),
+        step('report', 'nb-report', { sortingKey: 'c0', inputs: { all: '{{analyzed}}' } }),
+      ]),
+      {},
+      (execution =>
+        jsonResultExecutor({
+          load: { regions: ['NA', 'EU'] },
+          'analyze[0]': { name: 'NA' },
+          'analyze[1]': { name: 'EU' },
+        })(execution)) as OrchestrationStepExecutor
+    )
+
+    expect(result.value.analyzed).toEqual(['NA', 'EU'])
+    const join = result.graph.nodes.find(node => node.id === 'analyze')
+    expect(join?.kind).toBe('join')
+    expect(result.graph.edges).toContainEqual({ from: 'analyze[0]', to: 'analyze', label: undefined })
+    expect(result.graph.edges).toContainEqual({ from: 'analyze', to: 'report', label: undefined })
+  })
+
   it('treats an empty list as an empty result, not a skip', async () => {
     const result = await runOrchestrationFile(
       file([

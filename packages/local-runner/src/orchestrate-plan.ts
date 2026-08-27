@@ -133,6 +133,27 @@ export function planWorkflow(plan: OrchestrationPlan) {
       }))
     }
 
+    /**
+     * Give a fan-out a node of its own.
+     *
+     * Its runs are registered under `id[0]`, `id[1]`, … so without this there is no node named
+     * `id` at all, and any step declaring `dependsOn: [id]` is rejected as depending on something
+     * that never started. The join also reads correctly in the graph: N runs converging on one
+     * result, including the case where N is zero.
+     */
+    const joinFanOut = async (step: PlannedStep, instanceIds: string[], fallback: string[]): Promise<void> => {
+      await control(
+        {
+          id: step.id,
+          kind: 'join',
+          label: step.label,
+          dependsOn: instanceIds.length > 0 ? instanceIds : fallback,
+          metadata: { elements: instanceIds.length },
+        },
+        () => null
+      )
+    }
+
     /** Decide whether one instance runs: its gate, and whether its inputs can resolve at all. */
     const admit = async (step: PlannedStep, instance: Instance, dependsOn: string[]): Promise<boolean> => {
       const unresolvable = unresolvableGroups(step.inputs, instance.scope)
@@ -163,7 +184,7 @@ export function planWorkflow(plan: OrchestrationPlan) {
       if (Object.keys(step.exports).length === 0) {
         return
       }
-      if (!step.forEach) {
+      if (step.forEach === undefined) {
         const only = results[0]
         if (only) {
           Object.assign(variables, exportsFrom(step, only.result, outputs))
@@ -197,14 +218,6 @@ export function planWorkflow(plan: OrchestrationPlan) {
         const instances = expand(step) ?? [{ id: step.id, label: step.label, scope: variables }]
         const gateDependsOn = step.dependsOn.filter(id => !skipped.has(id))
 
-        // A fan-out over an empty list is not a skip: downstream still gets an empty array, which
-        // is a true answer rather than a missing one.
-        if (step.forEach && instances.length === 0) {
-          publish(step, [])
-          settled.add(step.id)
-          continue
-        }
-
         const admitted: Instance[] = []
         for (const instance of instances) {
           if (await admit(step, instance, gateDependsOn)) {
@@ -213,7 +226,17 @@ export function planWorkflow(plan: OrchestrationPlan) {
         }
 
         if (admitted.length === 0) {
-          skip(step.id)
+          // A fan-out that ran nothing publishes empty arrays rather than being skipped, whether
+          // the list was empty or every element was gated off — both mean "no element qualified",
+          // and downstream deserves the same answer either way. A plain step is different: it
+          // publishes a value, not a collection, so "none" there really is absent.
+          if (step.forEach !== undefined) {
+            publish(step, [])
+            await joinFanOut(step, [], gateDependsOn)
+            settled.add(step.id)
+          } else {
+            skip(step.id)
+          }
           continue
         }
 
@@ -229,8 +252,15 @@ export function planWorkflow(plan: OrchestrationPlan) {
                 inputs: resolveValue(step.inputs, instance.scope) as Record<string, unknown>,
               }).then(result => ({ instance, result }))
             )
-          ).then(results => {
+          ).then(async results => {
             publish(step, results)
+            if (step.forEach !== undefined) {
+              await joinFanOut(
+                step,
+                results.map(({ instance }) => instance.id),
+                gateDependsOn
+              )
+            }
             settled.add(step.id)
             running.delete(step.id)
           })
