@@ -27,7 +27,11 @@ const server = createServer(async (req, res) => {
     return
   }
   try {
-    res.writeHead(200, { 'content-type': route[1] }).end(await readFile(route[0]))
+    // Read before responding: writing the 200 header first means a missing bundle throws after the
+    // headers are sent, and the catch below then fails with ERR_HTTP_HEADERS_SENT instead of
+    // reporting the real problem — leaving the request hanging, because `end` never runs.
+    const body = await readFile(route[0])
+    res.writeHead(200, { 'content-type': route[1] }).end(body)
   } catch (err) {
     const missingBundle = route[0].endsWith('orchestrator.iife.js')
     res

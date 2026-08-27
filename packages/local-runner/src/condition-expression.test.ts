@@ -37,8 +37,16 @@ describe('evaluateCondition', () => {
     expect(evaluateCondition('portfolio.tags[1] == "b"', vars)).toBe(true)
   })
 
-  it('treats a missing value as absent rather than throwing', () => {
-    expect(evaluateCondition('missing.thing == null', vars)).toBe(false)
+  it('lets a gate ask whether an upstream step published a value', () => {
+    // Absent and null are one concept: strict equality here would make this always false and leave
+    // a gate no way to test for a value that was never produced.
+    expect(evaluateCondition('missing.thing == null', vars)).toBe(true)
+    expect(evaluateCondition('europe.nope == null', vars)).toBe(true)
+    expect(evaluateCondition('europe.region == null', vars)).toBe(false)
+    expect(evaluateCondition('europe.region != null', vars)).toBe(true)
+  })
+
+  it('treats a missing value as falsy rather than throwing', () => {
     expect(evaluateCondition('europe.nope', vars)).toBe(false)
   })
 

@@ -287,7 +287,7 @@
 
         <div class="pipeline-progress" id="pipeline-progress" hidden>
           <h2>Live pipeline</h2>
-          <svg class="pipeline-graph" id="pipeline-graph" viewBox="0 0 300 506" role="img" aria-labelledby="pipeline-graph-title">
+          <svg class="pipeline-graph" id="pipeline-graph" viewBox="0 0 300 506" role="group" aria-labelledby="pipeline-graph-title">
             <title id="pipeline-graph-title">Regional analyses fan out, join at a quality gate, optionally recover, aggregate, fan out to GPT and Claude reviews, then join at a final decision arbiter</title>
             <text class="graph-stage-label" x="150" y="12" text-anchor="middle">Parallel fan-out</text>
 
@@ -527,13 +527,13 @@
           method: 'POST',
           body: JSON.stringify({ notebookId, inputs: toRunInputs(inputs) }),
         })
-        const startedBody = await started.json()
+        const startedBody = await started.json().catch(() => ({}))
         if (!started.ok) throw new Error(startedBody.message || startedBody.error || `HTTP ${started.status}`)
         const runId = startedBody.runId ?? startedBody.id
 
         for (;;) {
           const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
-          const run = await res.json()
+          const run = await res.json().catch(() => ({}))
           if (!res.ok) throw new Error(run.message || run.error || `HTTP ${res.status}`)
           onStatus?.(run.status)
           if (TERMINAL.has(run.status)) {
@@ -697,7 +697,7 @@
             method: 'POST',
             body: JSON.stringify({ cron: toCron(schedule), timezone: scheduleTimezone }),
           })
-          const body = await res.json()
+          const body = await res.json().catch(() => ({}))
           if (!res.ok) throw new Error(body.message || body.error || `HTTP ${res.status}`)
           const saved = body.schedule ?? body
           $('#scheduler').hidden = true
@@ -801,7 +801,7 @@
         const gen = ++displayGen
         try {
           const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
-          const run = await res.json()
+          const run = await res.json().catch(() => ({}))
           // Superseded while this was in flight — say nothing rather than paint over newer output.
           if (gen !== displayGen) return
           if (!res.ok) throw new Error(run.message || run.error || `HTTP ${res.status}`)
@@ -1040,7 +1040,9 @@
           return { status: 'incomplete', decision: null, summary: `${decisions.length} of ${reviews.length} providers returned a structured decision` }
         }
         if (new Set(decisions).size === 1) {
-          return { status: 'agreement', decision: decisions[0], summary: `Both providers independently recommend ${decisions[0]}` }
+          const who = reviews.length === 1 ? reviews[0].model : `All ${reviews.length} providers`
+          const verb = reviews.length === 1 ? 'recommends' : 'independently recommend'
+          return { status: 'agreement', decision: decisions[0], summary: `${who} ${verb} ${decisions[0]}` }
         }
         return {
           status: 'split',
@@ -1119,7 +1121,7 @@
           label = event.status
         } else {
           state = 'active'
-          label = event.target
+          label = 'running'
         }
         pipelineStepStates.set(event.stepId, state)
         bindGraphRunLink(event.stepId, event.result?.viewUrl)

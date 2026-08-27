@@ -318,6 +318,10 @@ describes a graph. There is no `eval`, no calls, no assignment, and no prototype
 lookups are own-properties only. It supports comparisons (`< <= > >= == !=`), `&& || !`, parentheses,
 numeric indexing, and literals. A malformed condition fails at plan time.
 
+`==` and `===` are the same comparison and both treat an absent value as `null`, so a gate can ask
+whether an earlier step published anything (`upstream.value != null`). Strict equality would make
+that always false, and the Python interpreter has no `undefined` to distinguish anyway.
+
 #### Dynamic fan-out: `for_each`
 
 A step's _width_ can come from the data rather than the file — one run per element, all concurrent:
@@ -337,9 +341,16 @@ A step's _width_ can come from the data rather than the file — one run per ele
 
 `run_if` on a fan-out is evaluated per element, so this is conditional recovery: one run for each
 region that failed the gate, and none at all when they all passed. Exports collect into an array in
-element order, so `recovered` is the list of what actually ran. An empty list is an empty array
-rather than a skip — downstream gets a true answer instead of a missing one, and a `for_each` over
-something that is not an array is an error naming the step.
+element order, so `recovered` is the list of what actually ran.
+
+**A fan-out always publishes a list, even when it ran nothing** — an empty input list and every
+element being gated off both give `[]` rather than a skip. Both mean "no element qualified", so
+downstream gets the same true answer either way, and a pipeline does not break on the happy path
+where nothing needed recovering. A `for_each` over something that is not an array is an error naming
+the step.
+
+The fan-out also appears in the graph as a single `join` node its runs converge on, so a later step
+can depend on it by name.
 
 The loop variable is bound by the step, so it is not a dependency on anything; the step depends on
 whatever the list and the other references consult.
@@ -354,11 +365,12 @@ data: "{{recovered ?? original}}"
 retries: "{{attempts ?? 0}}"
 ```
 
-This is what keeps a gate from poisoning everything downstream. Without it, a step reading
-`{{recovered}}` is skipped whenever recovery was gated off — correct, but it cascades. With a
+This is what keeps a gate from poisoning everything downstream. Without it, a step reading a value
+from a _plain_ gated step is skipped whenever that gate was false — correct, but it cascades. With a
 fallback the step runs on whatever is available. A step is skipped only when a reference has _no_
-satisfiable alternative. Literals (numbers, quoted strings, `true`, `false`, `null`) are allowed as
-the last resort, and a step depends on every alternative, since which one wins is a run-time fact.
+satisfiable alternative; a gated fan-out needs no fallback, because it publishes an empty list.
+Literals (numbers, quoted strings, `true`, `false`, `null`) are allowed as the last resort, and a
+step depends on every alternative, since which one wins is a run-time fact.
 
 #### What is still code
 
@@ -404,6 +416,7 @@ workflow engines — durability is delegated. `@deepnote/local-runner/workflows`
 run as a step you compose inside a [Workflow SDK](https://www.npmjs.com/package/workflow) function:
 
 ```ts
+import { lastOutputJson } from "@deepnote/local-runner";
 import { runNotebookStep } from "@deepnote/local-runner/workflows";
 
 export async function salesReview() {
