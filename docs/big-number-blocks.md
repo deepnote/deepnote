@@ -11,4 +11,4 @@ You can add a big number block by pressing the **add block (+)** button betwee
 
 In the current UI, a new big number block shows **Title** and **Value** placeholders. The tested block did not expose controls for selecting a notebook variable, interpolating a Python variable in the title, formatting the value, or adding a comparison.
 
-![A new Big number block with Title and Value placeholders](../assets/docs/big-number-blocks/current-big-number.webp)
+![A new Big number block with Title and Value placeholders](../assets/docs/jrloPDWaTkSYpdCk3lfq.webp)

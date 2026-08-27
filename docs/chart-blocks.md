@@ -25,7 +25,7 @@ You can add a chart block to your notebook by clicking on the **Visualize** butt
 
 Alternatively, you can also add a chart block by pressing the **Add block (+)** button in between blocks and selecting the **Chart** option from the menu.
 
-![Current chart controls with a filter and X-axis settings](../assets/docs/chart-blocks/current-chart-controls.webp)
+![Current chart controls with a filter and X-axis settings](../assets/docs/3WSqMFGWTJabStyp9day.webp)
 
 ## Setting up the data
 

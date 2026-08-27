@@ -19,7 +19,7 @@ The current Text menu includes these block types:
 - Markdown
 - Separator
 
-![The current Text block menu](../assets/docs/text-editing/current-text-menu.webp)
+![The current Text block menu](../assets/docs/wbWbmLDkQN8l9Q0SSBez.webp)
 
 After you choose a type, the new block opens for editing. The block controls include options for running the block, adding a comment, deleting it, and opening more actions.
 

@@ -17,7 +17,7 @@ To get started:
 2. Select the data source you want to query
 3. Name the results variable
 
-![Current SQL source menu with database and DataFrame SQL options](../assets/docs/sql-cells/current-sql-source-menu.webp)
+![Current SQL source menu with database and DataFrame SQL options](../assets/docs/QjvPRVWRBiZ1RhpZr0fS.webp)
 
 <Callout status="info">
 SQL blocks work in Python notebooks, as well as in R notebooks (where they run via reticulate).
@@ -50,7 +50,7 @@ DataFrame SQL uses duckdb under the hood. Visit the [duckdb reference](https://d
 
 When you execute a SQL query, Deepnote displays the result in a data table. The data table helps you understand your data quickly through column descriptors such as breakdowns of column values for categorical columns or summary statistics for numeric columns.
 
-![A DataFrame SQL table with its current output controls](../assets/docs/data-tables/current-column-menu.webp)
+![A DataFrame SQL table with its current output controls](../assets/docs/RBGpC1dtQ6ybM6HyDizw.webp)
 
 Have a look at the [data table documentation](/docs/data-tables) for more details on how to further modify the data table through things like column filtering, column renaming or conditional cell formatting.
 

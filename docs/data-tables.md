@@ -23,7 +23,7 @@ Click a column name to open its menu. The current menu includes:
 - Hide column
 - Wrap cells
 
-![A DataFrame SQL table with its column menu open](../assets/docs/data-tables/current-column-menu.webp)
+![A DataFrame SQL table with its column menu open](../assets/docs/RBGpC1dtQ6ybM6HyDizw.webp)
 
 ## Current limits
 

@@ -20,7 +20,7 @@ The current Input menu includes:
 - File input
 - Button
 
-![The current Input block menu](../assets/docs/input-blocks/current-input-menu.webp)
+![The current Input block menu](../assets/docs/BRAbFKI2RLqYfVC7kX7A.webp)
 
 ### Text input settings
 
