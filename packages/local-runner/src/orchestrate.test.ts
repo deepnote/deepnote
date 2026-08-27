@@ -178,6 +178,58 @@ describe('orchestrate', () => {
     expect(result.graph.nodes[0].status).toBe('failed')
   })
 
+  it('keeps a run reportable when its snapshot will not parse', async () => {
+    // parseSnapshot and extractOutputs both throw on malformed content. If that escaped the
+    // executor it would become an OrchestrationStepError and discard the status, run id, and error
+    // — the very diagnostics the snapshot was fetched to preserve.
+    cloudMock.waitForRunSnapshot.mockImplementation(async (_base, _token, run) => ({
+      run,
+      content: 'this is not a deepnote snapshot',
+    }))
+
+    const result = await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), { token: TOKEN })
+
+    expect(result.value.success).toBe(true)
+    expect(result.value.runId).toBe('run-nb-a')
+    expect(result.value.snapshot).toBeNull()
+    expect(result.value.outputs).toEqual([])
+    // The raw YAML survives so a caller can still inspect what came back.
+    expect(result.value.snapshotYaml).toBe('this is not a deepnote snapshot')
+  })
+
+  it('still reports a failed run whose snapshot will not parse', async () => {
+    cloudMock.pollRunUntilComplete.mockImplementation(async (_base, _token, runId) => ({
+      runId,
+      status: 'error',
+      error: { message: 'the warehouse is unavailable' },
+      raw: {},
+    }))
+    cloudMock.waitForRunSnapshot.mockImplementation(async (_base, _token, run) => ({ run, content: 'garbage' }))
+
+    const result = await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }), {
+      token: TOKEN,
+    })
+
+    expect(result.value.success).toBe(false)
+    expect(result.value.status).toBe('error')
+    expect(result.value.error).toBeTruthy()
+  })
+
+  it('passes an abort signal into polling, which is the long part of a run', async () => {
+    const controller = new AbortController()
+    await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {
+      token: TOKEN,
+      signal: controller.signal,
+    })
+
+    expect(cloudMock.pollRunUntilComplete).toHaveBeenCalledWith(
+      expect.anything(),
+      TOKEN,
+      'run-nb-a',
+      expect.objectContaining({ signal: controller.signal })
+    )
+  })
+
   it('streams status updates for each step so a page can render progress', async () => {
     const statuses: string[] = []
     await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {

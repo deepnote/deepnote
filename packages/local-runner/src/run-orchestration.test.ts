@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { OrchestrationEvent, OrchestrationStepExecutor, OrchestrationStepResult } from './orchestrate'
 import { OrchestrationStepError, runOrchestration } from './orchestrate'
 
-function snapshotOf(blocks: { id: string; type?: string; outputs: unknown[] }[]) {
+function snapshotOf(blocks: { id: string; type?: string; content?: string; outputs: unknown[] }[]) {
   return {
     notebooks: [
       {
@@ -11,7 +11,7 @@ function snapshotOf(blocks: { id: string; type?: string; outputs: unknown[] }[])
         blocks: blocks.map(block => ({
           id: block.id,
           type: block.type ?? 'code',
-          content: '',
+          content: block.content ?? '',
           executionCount: 1,
           outputs: block.outputs,
         })),
@@ -207,12 +207,28 @@ describe('output helpers', () => {
         a: {
           snapshot: snapshotOf([
             { id: 'agent', type: 'agent', outputs: [{ output_type: 'stream', name: 'stdout', text: 'tool summary' }] },
-            { id: 'memo', type: 'markdown', outputs: [] },
+            { id: 'memo', type: 'markdown', content: 'Forecast is 12% below target.', outputs: [] },
           ]),
         },
       })
     )
-    // The generated markdown block follows the agent block, so it is the readout.
+    // A cloud agent run appends the readout as a generated block after the agent block. That is the
+    // answer, not the agent block's own output, which is often only a tool-completion summary.
+    expect(result.value).toBe('Forecast is 12% below target.')
+  })
+
+  it('falls back to the agent block itself when nothing was generated after it', async () => {
+    const result = await runOrchestration(
+      async ({ run, outputs }) => outputs.lastAgentText(await run({ id: 'a', notebookId: 'nb-a' })),
+      {},
+      fakeExecutor({
+        a: {
+          snapshot: snapshotOf([
+            { id: 'agent', type: 'agent', outputs: [{ output_type: 'stream', name: 'stdout', text: 'tool summary' }] },
+          ]),
+        },
+      })
+    )
     expect(result.value).toBe('tool summary')
   })
 
