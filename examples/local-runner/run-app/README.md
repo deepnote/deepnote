@@ -1,74 +1,72 @@
 # run-app
 
-A page that shows every way to compose [`@deepnote/local-runner`](../../../packages/local-runner):
+A page that shows every way to compose [`@deepnote/local-runner`](../../../packages/local-runner) —
+with **no application server**. Runs, run history, scheduling, and the orchestrated pipeline are all
+`fetch` calls made in the browser against the Deepnote API.
 
-- **Run** one notebook — in Deepnote Cloud by default, or a local Python kernel with
-  `RUN_TARGET=local`. Edit the inputs, click **Run**, and real Python output comes back.
+- **Run** one notebook in Deepnote Cloud. Edit the inputs, click **Run**, and real Python output
+  comes back — a KPI, a table, a chart, and an agent-written readout.
 - **Schedule** sets up a recurring Deepnote Cloud run of that notebook.
 - **Run orchestrated pipeline** fans out three regional notebooks, quality-gates their structured
   results, conditionally reruns incomplete data, aggregates the validated portfolio, asks GPT and
   Claude for independent reviews, and fans those reviews into a final arbiter notebook.
 
-The same edited inputs drive all these paths. Single runs use
-[`../../local-runner-showcase.deepnote`](../../local-runner-showcase.deepnote), returning a KPI, a
-table, a chart, and an agent-written readout, powered entirely by `serveStatic`.
+The same edited inputs drive all these paths. It's an app shell, not a document: an inputs panel on
+the left, a results canvas on the right. [`index.html`](./index.html) does all of the work — no
+framework, no frontend build step, and nothing on the server side. [`serve.mjs`](./serve.mjs) is a
+static file host for local preview only; it has no API routes and runs no notebooks.
 
-There is one **Run** button and one `POST /api/run` behind it. Where the run happens is a server
-setting, not a second button: `serveStatic` sends it to Deepnote Cloud unless told otherwise, so an
-app runs on Deepnote without being configured for it.
+## Which API calls replace which server routes
 
-It's an app shell, not a document: an inputs panel on the left, a results canvas on the right. Two
-files do the work — [`serve.mjs`](./serve.mjs) (`serveStatic({ dir, notebookPath })`, plus an
-application-owned `orchestrationRunner`) and [`index.html`](./index.html) (`GET /api/info` to build
-the controls, then the run, schedule, and history APIs to drive the page, and the pipeline's NDJSON
-progress to render the live fork/join graph and decision). No framework, no frontend build step.
+The app used to run behind `serveStatic`. Every route it provided is a plain Deepnote endpoint the
+page now calls directly:
+
+| Was                        | Now                                                     |
+| -------------------------- | ------------------------------------------------------- |
+| `GET /api/info`            | `GET /v2/notebooks/{id}` — normalized input definitions |
+| `POST /api/run`            | `POST /v2/runs`, then poll `GET /v2/runs/{runId}`       |
+| `GET /api/cloud-runs`      | `GET /v2/notebooks/{id}/runs`                           |
+| `POST /api/schedule-cloud` | `POST /v2/notebooks/{id}/schedule`                      |
+| `POST /api/orchestrate`    | `orchestrateInCloud(...)` in the page                   |
+
+## What having no server costs
+
+- **Notebooks must already exist.** Steps and runs name a notebook id. There is no
+  `createIfMissing`, because a viewer-scoped token may run a notebook, not create one. The
+  `.deepnote` files in this folder are the _source_ for the notebooks you create once in Deepnote.
+- **There is no local Python kernel.** Every run goes through the Deepnote API. The notebooks' agent
+  blocks run on Deepnote's side, so no `OPENAI_API_KEY` is involved anywhere.
+- **Run history depends on token scope.** A published app's static-app token may not enumerate a
+  notebook's runs; the panel stays hidden rather than erroring when that call is refused.
 
 ## Run it
 
 ```bash
-DEEPNOTE_TOKEN=... pnpm example:local-runner
-# open the printed http://127.0.0.1:<port>
+pnpm example:local-runner
 ```
 
-That builds the package and starts the server. Edit the inputs and hit **Run** — the notebook runs
-in Deepnote Cloud and the dashboard updates. `serve.mjs` also reads a `.env` in the working
-directory (like `deepnote run`), so the token can live there instead; the startup banner prints
-what it found and where runs will go.
+That builds the package and starts the static preview. Open the printed URL with a token and the
+notebook ids:
 
-`POST /api/run` reaches `runInCloud` → the shared `@deepnote/cloud` client, the same one behind
-`deepnote run --cloud`. One click is enough whether or not the notebook is in Deepnote yet. If it
-already exists there it runs and the outputs come back with a "view in Deepnote" link; if it
-doesn't, `runInCloud` creates it — project, notebook, blocks — and runs it in the same call,
-reporting `created: true`. Nothing opens a browser: a token is required either way, so there's no
-reason to hand the job to a logged-in session. Without a token the run degrades gracefully and the
-status line says what's missing.
-
-The first cloud run is the slow one — blocks are created one API request each, so a 16-block
-notebook is 16 round-trips before the run even starts. Later runs reuse the notebook and skip
-straight to it. The agent block runs on Deepnote's side, so no `OPENAI_API_KEY` is involved.
-
-## Run in a local kernel instead
-
-Same button, same endpoint — one setting changes where the work happens:
-
-```bash
-RUN_TARGET=local OPENAI_API_KEY=sk-... pnpm example:local-runner
+```text
+http://127.0.0.1:<port>/?token=…&notebookId=…
+  &naNotebookId=…&euNotebookId=…&apacNotebookId=…
+  &gptNotebookId=…&claudeNotebookId=…&arbiterNotebookId=…
 ```
 
-`serve.mjs` turns that into `serveStatic({ runTarget: 'local' })`. This path needs a Python
-environment with `deepnote-toolkit[server]` — the same prerequisite as `deepnote run` — and an
-OpenAI key for the notebook's **agent block**. Without a key the dashboard still renders in full and
-only the agent block reports the problem: it runs last, and the engine stops at the first failing
-block. `deepnote_agent_model: auto` resolves to `$OPENAI_MODEL` (default `gpt-5`) locally; in the
-cloud Deepnote picks the model.
+A `?token=` is for local testing only. Published to Deepnote and opened from the project, the page
+asks the embedding shell over `postMessage` and uses the short-lived, project- and viewer-scoped
+token it gets back. The shell names the API origin in the same reply, and that token is only ever
+sent to that origin — the two are one credential bundle. No long-lived `DEEPNOTE_TOKEN` is embedded
+in the page.
+
+Only `notebookId` is needed for **Run** and **Schedule**. The pipeline needs the regional ids; the
+provider and arbiter ids are optional and their nodes report themselves as unconfigured when absent.
 
 ## Run the pipeline
 
-Click **Run orchestrated pipeline** in the same page. The orchestration always runs in the local Node
-process; each notebook step runs in Deepnote Cloud when `DEEPNOTE_TOKEN` is present, otherwise in
-local Python kernels. This is one-shot orchestration, so it needs no Workflow SDK server.
-
-The live graph makes the control flow visible instead of flattening concurrent work into a list:
+Click **Run orchestrated pipeline**. The orchestration itself is control flow in the page —
+`Promise.all`, a filter, a conditional rerun — and each step is a Deepnote Cloud run:
 
 ```text
 North America ─┐
@@ -79,34 +77,24 @@ Asia Pacific ──┘                                              └─ Claud
 Europe deliberately starts with one missing month. Its quality score falls below 95%, so only that
 region reruns with backfilling. The page then shows the validated regional table, forecast-versus-
 target decision, number of notebook runs, recovery count, both provider reviews, and the arbiter's
-final decision. The backend uses `outputs.lastJson(step)`, so it does not depend on source block IDs
+final decision. It uses `outputs.lastJson(step)`, so it does not depend on source block IDs
 surviving cloud creation.
 
-When the pipeline targets Deepnote Cloud, every notebook node becomes a keyboard-focusable link to
-that exact run as soon as its `viewUrl` arrives. The quality gate and aggregation stay non-clickable
-because they are local orchestration decisions, not notebook executions.
+Every notebook node becomes a keyboard-focusable link to that exact run as soon as its `viewUrl`
+arrives. The quality gate and aggregation stay non-clickable because they are orchestration
+decisions, not notebook executions.
 
-The GPT-5.5 and Claude Sonnet 5 reviews and the final Deepnote Auto arbiter run only in Deepnote
-Cloud, so they require `DEEPNOTE_TOKEN`. Without it, the regional fan-out, quality gate, recovery,
-aggregation, and rule-based proposal still complete locally; the page marks the provider and
-arbiter nodes as cloud-only.
+This is one-shot orchestration: it holds its state in the page and is gone if the tab closes. That
+is the right trade for an interactive app and the wrong one for anything scheduled — for those, see
+[Workflow SDK](../../../packages/local-runner/README.md#make-notebook-steps-durable-with-workflow-sdk).
 
 ## Schedule recurring cloud runs
 
-The **Schedule** control is a thin frontend over `POST /api/schedule-cloud`. It sends a structured
-Daily, Weekly (choose weekday), or Monthly (choose calendar day) cadence plus time and timezone.
-`serveStatic` validates and converts that cadence to cron before calling `scheduleInCloud`, so custom
-frontends can reuse the scheduling behavior without implementing cron conversion. Advanced
-frontends can still send raw cron.
-
-Scheduling creates the cloud notebook if necessary but does not run it immediately. Recurring runs
-use the input values stored in Deepnote; when scheduling creates the notebook, those are the
-defaults committed in the `.deepnote` file. Deepnote allows one scheduled notebook per project, so
-saving again updates that project schedule.
-
-The scheduler remains available while a cloud run is active. The local-runner library coordinates
-the first create-if-missing operation, so custom frontends can safely offer the same concurrency
-without implementing their own lock.
+The **Schedule** control sends a Daily, Weekly (choose weekday), or Monthly (choose calendar day)
+cadence plus time and timezone. The page converts that cadence to cron and calls
+`POST /v2/notebooks/{id}/schedule`. Recurring runs use the input values stored in Deepnote, not the
+ones currently in the panel. Deepnote allows one scheduled notebook per project, so saving again
+updates that project schedule.
 
 ## Notes
 
@@ -114,8 +102,7 @@ without implementing their own lock.
   output can't reach this page's DOM, storage, or cookies. It isn't sealed off entirely: `allow-scripts`
   is on so the frame can report its height, and `postMessage` is the channel it uses — which is why the
   listener checks both the origin and the sending frame before believing a number.
-- Input values are coerced to each block's schema shape before running, so native control values just
-  work: the range input hands over the number `7` and the `input-slider` block stores `'7'`, because a
-  slider's value is a string in the schema. That is a storage detail, not what your code sees — the
-  block's generated Python is `months = 7`, so the kernel has an `int`. A text input stores and
-  injects a string, and a checkbox a real `True`/`False`.
+- `POST /v2/runs` accepts only strings, booleans, and string arrays, so input values are coerced
+  before they are sent: the range input hands over the number `7` and the request carries `'7'`.
+  That is a transport detail, not what your code sees — the block's generated Python is `months = 7`,
+  so the kernel has an `int`.

@@ -13,6 +13,7 @@
  * produces (how a table looks, whether HTML output is sandboxed) belong to the page, not the
  * library. See `examples/local-runner/snapshot-viewer` for a complete one.
  */
+export { extractOutputs } from './extract-outputs'
 export type { InputBlockInfo } from './input-info'
 export type { CloudOrchestrationOptions } from './orchestrate-cloud'
 export { createCloudStepExecutor, DEFAULT_CLOUD_API_URL, orchestrateInCloud } from './orchestrate-cloud'

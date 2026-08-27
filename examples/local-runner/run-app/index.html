@@ -406,7 +406,9 @@
       </section>
     </div>
 
+    <script src="./orchestrator.js"></script>
     <script type="module">
+      const { orchestrateInCloud, extractOutputs } = DeepnoteOrchestrator
       const $ = (s) => document.querySelector(s)
       const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
       const state = {}
@@ -420,20 +422,184 @@
       // whatever order they like, so each checks it still owns the canvas before painting. Zero also
       // means "nothing has claimed it yet", which is what gates opening on the latest run.
       let displayGen = 0
-      // Where the server runs things. It decides; the page only reports it, so there is nothing to
-      // keep in sync between the two.
-      let runTarget = 'cloud'
+      // Everything runs in Deepnote Cloud. There is no server behind this page and no local
+      // kernel, so there is no run target to choose.
+      const runTarget = 'cloud'
+
+      // The notebooks this app drives. They already exist in Deepnote and are addressed by id: a
+      // viewer-scoped token may run a notebook, not create one.
+      const params = new URLSearchParams(location.search)
+      const APP_CONFIG = {
+        baseUrl: params.get('baseUrl') ?? 'https://api.deepnote.com',
+        shellOrigin: params.get('shellOrigin') ?? 'https://deepnote.com',
+        notebookId: params.get('notebookId') ?? '',
+        regions: [
+          { name: 'North America', targetShare: 0.42, notebookId: params.get('naNotebookId') ?? '' },
+          { name: 'Europe', targetShare: 0.34, notebookId: params.get('euNotebookId') ?? '' },
+          { name: 'Asia Pacific', targetShare: 0.24, notebookId: params.get('apacNotebookId') ?? '' },
+        ],
+        providers: [
+          { id: 'decision-gpt', provider: 'OpenAI', model: 'GPT-5.5', notebookId: params.get('gptNotebookId') ?? '' },
+          { id: 'decision-claude', provider: 'Anthropic', model: 'Claude Sonnet 5', notebookId: params.get('claudeNotebookId') ?? '' },
+        ],
+        arbiterNotebookId: params.get('arbiterNotebookId') ?? '',
+      }
+
+      // A `?token=` is for local testing only. Published and embedded, the Deepnote shell issues a
+      // short-lived, project- and viewer-scoped token instead.
+      let apiToken = params.get('token') ?? ''
+
+      /**
+       * Ask the embedding Deepnote shell for a token.
+       *
+       * The token and the API origin arrive as one bundle and are used as one: a bearer token is
+       * only believed from the frame we asked, on the origin we pinned, and it is never sent
+       * anywhere except the origin named in that same reply.
+       */
+      function requestShellToken(timeoutMs = 4000) {
+        if (window.parent === window) return Promise.resolve(null)
+        return new Promise((resolve) => {
+          const done = (value) => { window.removeEventListener('message', onMessage); clearTimeout(timer); resolve(value) }
+          const onMessage = (e) => {
+            if (e.origin !== APP_CONFIG.shellOrigin) return
+            if (e.data?.type !== 'deepnote-static-files-api-token-response') return
+            if (!e.data.token || !e.data.apiOrigin) return
+            done({ token: e.data.token, apiOrigin: e.data.apiOrigin })
+          }
+          const timer = setTimeout(() => done(null), timeoutMs)
+          window.addEventListener('message', onMessage)
+          window.parent.postMessage({ type: 'deepnote-static-files-api-token-request' }, APP_CONFIG.shellOrigin)
+        })
+      }
+
+      async function apiFetch(path, init = {}) {
+        return fetch(`${APP_CONFIG.baseUrl}${path}`, {
+          ...init,
+          headers: { authorization: `Bearer ${apiToken}`, 'content-type': 'application/json', ...(init.headers ?? {}) },
+        })
+      }
+
+      /**
+       * The cron the schedule builder describes.
+       *
+       * `resolveRecurringSchedule` did this server-side. The mapping is small and total — the
+       * builder only offers daily, weekly, and monthly — so it moves to the page rather than
+       * keeping a server alive to translate three shapes.
+       */
+      function toCron({ frequency, time, dayOfWeek, dayOfMonth }) {
+        const [hour, minute] = time.split(':').map(Number)
+        if (frequency === 'weekly') return `${minute} ${hour} * * ${dayOfWeek ?? 1}`
+        if (frequency === 'monthly') return `${minute} ${hour} ${dayOfMonth ?? 1} * *`
+        return `${minute} ${hour} * * *`
+      }
+
+      const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+      function describeCadence({ frequency, time, dayOfWeek, dayOfMonth }) {
+        if (frequency === 'weekly') return `Every ${WEEKDAYS[dayOfWeek ?? 1]} at ${time}`
+        if (frequency === 'monthly') return `Every month on day ${dayOfMonth ?? 1} at ${time}`
+        return `Every day at ${time}`
+      }
+
+      /** The API reports a run's failure as a string or an object; both should read the same. */
+      function describeError(run) {
+        if (run.error == null) return undefined
+        if (typeof run.error === 'string') return run.error
+        if (typeof run.error === 'object' && run.error.message) return run.error.message
+        return JSON.stringify(run.error)
+      }
+
+      /** The block outputs `render` expects, from whichever snapshot form the API returned. */
+      function outputsFromRun(run) {
+        if (Array.isArray(run.snapshotBlocks)) {
+          return run.snapshotBlocks.map((b) => ({ blockId: b.id ?? b.blockId, outputs: b.outputs ?? [] }))
+        }
+        const yaml = run.snapshot?.snapshotContent ?? run.snapshotContent
+        if (!yaml) return []
+        try { return extractOutputs(yaml) } catch { return [] }
+      }
+
+      const TERMINAL = new Set(['success', 'error', 'failed', 'cancelled', 'canceled', 'timeout'])
+
+      /** Start a run and poll it to completion — the whole of `POST /api/run`, in the page. */
+      async function runNotebook(notebookId, inputs, onStatus) {
+        const started = await apiFetch('/v2/runs', {
+          method: 'POST',
+          body: JSON.stringify({ notebookId, inputs: toRunInputs(inputs) }),
+        })
+        const startedBody = await started.json()
+        if (!started.ok) throw new Error(startedBody.message || startedBody.error || `HTTP ${started.status}`)
+        const runId = startedBody.runId ?? startedBody.id
+
+        for (;;) {
+          const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
+          const run = await res.json()
+          if (!res.ok) throw new Error(run.message || run.error || `HTTP ${res.status}`)
+          onStatus?.(run.status)
+          if (TERMINAL.has(run.status)) {
+            const success = run.status === 'success'
+            return {
+              target: 'cloud',
+              runId,
+              status: run.status,
+              success,
+              outputs: outputsFromRun(run),
+              viewUrl: run.viewUrl,
+              error: success ? undefined : describeError(run) ?? `The run failed (${run.status})`,
+            }
+          }
+          await new Promise((r) => setTimeout(r, 1500))
+        }
+      }
+
+      /**
+       * The input controls this page renders, from the notebook's normalized input definitions.
+       *
+       * This is what `GET /api/info` used to do server-side by reading the `.deepnote` file. The
+       * API already returns select options and slider bounds, so no block metadata is requested.
+       */
+      function normalizeInputs(notebook) {
+        return (notebook.inputs ?? []).map((i) => ({
+          blockId: i.blockId,
+          variableName: i.name,
+          label: i.label,
+          type: i.type,
+          value: i.value,
+          min: i.min,
+          max: i.max,
+          step: i.step,
+          options: i.options,
+          multiple: i.multiple,
+        }))
+      }
+
+      /** `POST /v2/runs` accepts only strings, booleans, and string arrays. */
+      function toRunInputs(inputs) {
+        const out = {}
+        for (const [name, value] of Object.entries(inputs ?? {})) {
+          if (typeof value === 'string' || typeof value === 'boolean') out[name] = value
+          else if (typeof value === 'number' && Number.isFinite(value)) out[name] = String(value)
+          else if (Array.isArray(value) && value.every((v) => typeof v === 'string')) out[name] = value
+        }
+        return out
+      }
+
+      const credential = await requestShellToken()
+      if (credential) {
+        apiToken = credential.token
+        APP_CONFIG.baseUrl = credential.apiOrigin
+      }
 
       try {
-        const res = await fetch('/api/info')
+        if (!apiToken) throw new Error('No API token — open this app from Deepnote, or pass ?token=… for local testing')
+        if (!APP_CONFIG.notebookId) throw new Error('No notebook id — pass ?notebookId=…')
+        const res = await apiFetch(`/v2/notebooks/${encodeURIComponent(APP_CONFIG.notebookId)}`)
         if (!res.ok) throw new Error('HTTP ' + res.status)
-        const info = await res.json()
-        runTarget = info.runTarget ?? 'cloud'
-        $('#run-target-label').textContent = runTarget === 'local' ? 'Local kernel' : 'Deepnote Cloud'
+        const notebook = (await res.json()).notebook ?? {}
+        const info = { notebook: notebook.name ?? 'Notebook', inputs: normalizeInputs(notebook) }
+        $('#run-target-label').textContent = 'Deepnote Cloud'
         $('#run-target-description').textContent =
-          runTarget === 'local'
-            ? 'The notebook executes in a local Python kernel and its output appears here.'
-            : 'The notebook executes in Deepnote Cloud and its output appears here.'
+          'The notebook executes in Deepnote Cloud and its output appears here.'
         $('#nb-name').textContent = info.notebook
         $('#r-title').textContent = info.notebook
         info.inputs.forEach((inp, i) => {
@@ -501,7 +667,7 @@
       }
 
       $('#run').onclick = () =>
-        go('/api/run', '#spin', runTarget === 'local' ? 'Running in a local kernel…' : 'Running in Deepnote Cloud…')
+        go(null, '#spin', 'Running in Deepnote Cloud…')
       $('#run-pipeline').onclick = runPipeline
       const scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       $('#schedule-timezone').textContent = scheduleTimezone
@@ -527,18 +693,19 @@
           setScheduleControlsDisabled(true)
           $('#spin-schedule').className = 'spin'
           setStatus('Saving the recurring Deepnote Cloud schedule…')
-          const res = await fetch('/api/schedule-cloud', {
+          const res = await apiFetch(`/v2/notebooks/${encodeURIComponent(APP_CONFIG.notebookId)}/schedule`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ schedule, timezone: scheduleTimezone }),
+            body: JSON.stringify({ cron: toCron(schedule), timezone: scheduleTimezone }),
           })
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          const body = await res.json()
+          if (!res.ok) throw new Error(body.message || body.error || `HTTP ${res.status}`)
+          const saved = body.schedule ?? body
           $('#scheduler').hidden = true
-          const next = new Date(data.schedule.nextRunAt).toLocaleString()
-          const cadence = data.description ? `${data.description} · ` : ''
-          const message = `${data.created ? 'Created the cloud notebook and scheduled it' : 'Schedule updated'} · ${cadence}next ${next}`
-          if (data.viewUrl) statusLink(`${message} — `, data.viewUrl, 'open in Deepnote →')
+          // The notebook already exists — this page cannot create one — so the only outcome is an
+          // updated schedule. `nextRunAt` is advisory: report the cadence when the API omits it.
+          const next = saved.nextRunAt ? `next ${new Date(saved.nextRunAt).toLocaleString()}` : scheduleTimezone
+          const message = `Schedule updated · ${describeCadence(schedule)} · ${next}`
+          if (body.viewUrl) statusLink(`${message} — `, body.viewUrl, 'open in Deepnote →')
           else setStatus(message, 'ok')
           loadCloudRuns()
         } catch (e) {
@@ -585,9 +752,11 @@
       // state for this demo, and the server already answers with an empty list.
       async function loadCloudRuns() {
         try {
-          const res = await fetch('/api/cloud-runs')
+          if (!apiToken || !APP_CONFIG.notebookId) return
+          const res = await apiFetch(`/v2/notebooks/${encodeURIComponent(APP_CONFIG.notebookId)}/runs`)
           if (!res.ok) return
-          renderRuns(await res.json())
+          const body = await res.json()
+          renderRuns({ runs: body.runs ?? [], viewUrl: body.viewUrl })
         } catch {}
       }
 
@@ -631,11 +800,19 @@
       async function showRun(runId) {
         const gen = ++displayGen
         try {
-          const res = await fetch(`/api/cloud-runs/${encodeURIComponent(runId)}`)
-          const data = await res.json()
+          const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
+          const run = await res.json()
           // Superseded while this was in flight — say nothing rather than paint over newer output.
           if (gen !== displayGen) return
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          if (!res.ok) throw new Error(run.message || run.error || `HTTP ${res.status}`)
+          const data = {
+            target: 'cloud',
+            status: run.status,
+            success: run.status === 'success',
+            outputs: outputsFromRun(run),
+            viewUrl: run.viewUrl,
+            error: describeError(run),
+          }
           shownRunId = runId
           render(data)
           if (lastRuns) renderRuns(lastRuns) // move the highlight
@@ -673,6 +850,205 @@
         return secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`
       }
 
+      /**
+       * The orchestrated pipeline, previously `runSalesPipeline` in `serve.mjs`.
+       *
+       * It is unchanged control flow — fan out the regions, gate on quality, rerun what failed the
+       * gate, aggregate, ask two providers, then arbitrate. Only the addressing changed: steps name
+       * an existing `notebookId` rather than a file on disk, and nothing is created on the fly.
+       */
+      async function salesPipeline({ run, control, outputs }, inputs, regions) {
+        const trailingMonths = Number(inputs.trailing_months) || 6
+        const monthlyTargetK = Number(inputs.target_revenue_k) || 1000
+        const qualityThreshold = 0.95
+
+        await control(
+          { id: 'pipeline-inputs', label: 'Pipeline inputs', metadata: { trailingMonths, monthlyTargetK, qualityThreshold } },
+          () => ({ trailingMonths, monthlyTargetK, qualityThreshold }),
+        )
+
+        const analyze = (config, backfillMissing = false, dependsOn = ['pipeline-inputs']) =>
+          run({
+            id: `${backfillMissing ? 'recover' : 'analyze'}-${slug(config.name)}`,
+            label: `${config.name}${backfillMissing ? ' recovery' : ' analysis'}`,
+            notebookId: config.notebookId,
+            dependsOn,
+            metadata: { region: config.name, recovery: backfillMissing },
+            inputs: {
+              region: config.name,
+              trailing_months: trailingMonths,
+              monthly_target_k: Math.round(monthlyTargetK * config.targetShare),
+              backfill_missing: backfillMissing,
+            },
+          })
+
+        // Every notebook already exists, so the regions can all start at once — there is no first
+        // run that has to create something before the others may follow.
+        const initial = await Promise.all(regions.map((config) => analyze(config)))
+        const initialResults = initial.map((step, index) => ({ config: regions[index], step, value: outputs.lastJson(step) }))
+
+        const recoveryRegions = await control(
+          {
+            id: 'quality-gate',
+            kind: 'gate',
+            label: '95% quality gate',
+            dependsOn: initial.map((step) => step.id),
+            metadata: { threshold: qualityThreshold },
+          },
+          () => initialResults.filter(({ value }) => value.qualityScore < qualityThreshold).map(({ value }) => value.region),
+        )
+        const needsRecovery = initialResults.filter(({ value }) => recoveryRegions.includes(value.region))
+        const recoveries = await Promise.all(
+          needsRecovery.map(({ config }) => analyze(config, true, [{ id: 'quality-gate', label: `quality below ${qualityThreshold}` }])),
+        )
+        const recoveryResults = recoveries.map((step) => ({ step, value: outputs.lastJson(step) }))
+
+        const { validated, totals, decision, portfolio } = await control(
+          {
+            id: 'aggregate',
+            kind: 'join',
+            label: 'Validated portfolio',
+            dependsOn: [
+              { id: 'quality-gate', label: 'passed regions' },
+              ...recoveries.map((recovery) => ({ id: recovery.id, label: 'recovered region' })),
+            ],
+          },
+          () => {
+            const validated = initialResults.map(
+              (initialResult) =>
+                (recoveryResults.find((recovery) => recovery.value.region === initialResult.value.region) ?? initialResult).value,
+            )
+            const totals = {
+              revenueK: sum(validated.map((r) => r.revenueK)),
+              forecastK: sum(validated.map((r) => r.forecastK)),
+              targetK: sum(validated.map((r) => r.targetK)),
+            }
+            const decision = totals.forecastK >= totals.targetK ? 'proceed' : 'intervene'
+            return {
+              validated,
+              totals,
+              decision,
+              portfolio: {
+                title: String(inputs.report_title ?? 'Orchestrated sales review'),
+                trailingMonths,
+                qualityThreshold,
+                analystNotes: String(inputs.analyst_notes ?? ''),
+                proposedDecision: decision,
+                regions: validated,
+                totals,
+              },
+            }
+          },
+        )
+
+        const configuredProviders = APP_CONFIG.providers.filter((provider) => provider.notebookId)
+        const providerReviews = await Promise.all(
+          configuredProviders.map(async (provider) => {
+            const step = await run({
+              id: provider.id,
+              label: `${provider.provider} ${provider.model} review`,
+              notebookId: provider.notebookId,
+              dependsOn: ['aggregate'],
+              metadata: { provider: provider.provider, model: provider.model },
+              inputs: { portfolio_json: JSON.stringify(portfolio) },
+              allowFailure: true,
+            })
+            let readout = null
+            let error = step.error
+            if (step.success) {
+              try { readout = outputs.lastAgentText(step) } catch (e) { error = e instanceof Error ? e.message : String(e) }
+            }
+            return {
+              id: provider.id,
+              provider: provider.provider,
+              model: provider.model,
+              decision: parseProviderDecision(readout),
+              readout,
+              error,
+              viewUrl: step.viewUrl,
+            }
+          }),
+        )
+        const providerConsensus = compareProviderDecisions(providerReviews)
+
+        let finalReview = {
+          provider: 'Deepnote',
+          model: 'Auto',
+          decision: null,
+          readout: null,
+          error: 'No arbiter notebook is configured; pass ?arbiterNotebookId=… to enable it.',
+          viewUrl: null,
+        }
+        if (APP_CONFIG.arbiterNotebookId) {
+          const arbiter = await run({
+            id: 'final-arbiter',
+            label: 'Final decision',
+            notebookId: APP_CONFIG.arbiterNotebookId,
+            dependsOn: configuredProviders.map((provider) => provider.id),
+            concluding: true,
+            metadata: { provider: 'Deepnote', model: 'Auto' },
+            inputs: {
+              decision_context_json: JSON.stringify({
+                portfolio,
+                providerReviews: providerReviews.map(({ provider, model, decision: d, readout, error }) => ({ provider, model, decision: d, readout, error })),
+              }),
+            },
+            allowFailure: true,
+          })
+          let readout = null
+          let error = arbiter.error
+          if (arbiter.success) {
+            try { readout = outputs.lastAgentText(arbiter) } catch (e) { error = e instanceof Error ? e.message : String(e) }
+          }
+          finalReview = { provider: 'Deepnote', model: 'Auto', decision: parseFinalDecision(readout), readout, error, viewUrl: arbiter.viewUrl }
+        }
+
+        return {
+          title: portfolio.title,
+          target: 'cloud',
+          decision,
+          qualityThreshold,
+          regions: validated,
+          totals,
+          qualityGateFailures: needsRecovery.map(({ value }) => value.region),
+          recoveredRegions: recoveryResults.map(({ value }) => value.region),
+          notebookRuns: initial.length + recoveries.length + configuredProviders.length + (APP_CONFIG.arbiterNotebookId ? 1 : 0),
+          providerReviews,
+          providerConsensus,
+          finalDecision: finalReview.decision,
+          finalReview,
+        }
+      }
+
+      const slug = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      const sum = (values) => Math.round(values.reduce((total, value) => total + value, 0) * 10) / 10
+
+      function parseProviderDecision(readout) {
+        const match = readout?.match(/decision\s*:\s*\**\s*(proceed|intervene)/i)
+        return match?.[1]?.toLowerCase() ?? null
+      }
+
+      function parseFinalDecision(readout) {
+        const match = readout?.match(/final\s+decision\s*:\s*\**\s*(proceed|intervene)/i)
+        return match?.[1]?.toLowerCase() ?? null
+      }
+
+      function compareProviderDecisions(reviews) {
+        const decisions = reviews.map((review) => review.decision).filter(Boolean)
+        if (!reviews.length) return { status: 'incomplete', decision: null, summary: 'No provider notebooks are configured' }
+        if (decisions.length !== reviews.length) {
+          return { status: 'incomplete', decision: null, summary: `${decisions.length} of ${reviews.length} providers returned a structured decision` }
+        }
+        if (new Set(decisions).size === 1) {
+          return { status: 'agreement', decision: decisions[0], summary: `Both providers independently recommend ${decisions[0]}` }
+        }
+        return {
+          status: 'split',
+          decision: null,
+          summary: `${reviews[0].model} recommends ${reviews[0].decision}; ${reviews[1].model} recommends ${reviews[1].decision}`,
+        }
+      }
+
       async function runPipeline() {
         const gen = ++displayGen
         setRunControlsDisabled(true)
@@ -683,38 +1059,15 @@
         let finalResult = null
 
         try {
-          const res = await fetch('/api/orchestrate', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ inputs: state }),
-          })
-          if (!res.ok) {
-            const data = await res.json()
-            throw new Error(data.error || `HTTP ${res.status}`)
-          }
-          if (!res.body) throw new Error('The pipeline response cannot be streamed in this browser.')
+          if (!apiToken) throw new Error('No API token — open this app from Deepnote to run the pipeline')
+          const regions = APP_CONFIG.regions.filter((r) => r.notebookId)
+          if (!regions.length) throw new Error('No regional notebook ids — pass ?naNotebookId=… etc.')
 
-          const reader = res.body.getReader()
-          const decoder = new TextDecoder()
-          let buffered = ''
-          while (true) {
-            const { done, value } = await reader.read()
-            buffered += decoder.decode(value, { stream: !done })
-            const lines = buffered.split('\n')
-            buffered = lines.pop() ?? ''
-            for (const line of lines) {
-              const frame = JSON.parse(line)
-              if (frame.type === 'event') renderPipelineEvent(frame.event)
-              else if (frame.type === 'result') finalResult = frame.result
-              else if (frame.type === 'error') throw new Error(frame.error)
-            }
-            if (done) break
-          }
-          if (buffered.trim()) {
-            const frame = JSON.parse(buffered)
-            if (frame.type === 'result') finalResult = frame.result
-            else if (frame.type === 'error') throw new Error(frame.error)
-          }
+          finalResult = await orchestrateInCloud((ctx) => salesPipeline(ctx, state, regions), {
+            token: apiToken,
+            baseUrl: APP_CONFIG.baseUrl,
+            onEvent: renderPipelineEvent,
+          })
           if (!finalResult) throw new Error('The pipeline ended without a result.')
           if (gen !== displayGen) return
 
@@ -911,17 +1264,17 @@
         return ms >= 1000 ? `${(ms / 1000).toFixed(ms >= 10_000 ? 0 : 1)}s` : `${ms}ms`
       }
 
-      async function go(endpoint, spinSel, msg) {
+      async function go(_endpoint, spinSel, msg) {
         // Claimed up front, not on arrival: this is the newest thing the user asked for, so a
         // history fetch still in flight from page load must not land on top of it.
         const gen = ++displayGen
         setRunControlsDisabled(true)
         $(spinSel).className = 'spin'; setStatus(msg)
         try {
-          const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: state }) })
-          const data = await res.json()
+          const data = await runNotebook(APP_CONFIG.notebookId, state, (status) => {
+            if (gen === displayGen && !TERMINAL.has(status)) setStatus(`${msg} (${status})`)
+          })
           if (gen !== displayGen) return
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
           render(data)
           // This is a fresh run, not one picked out of the history — drop the sidebar highlight.
           shownRunId = null
