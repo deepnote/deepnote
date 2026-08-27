@@ -90,9 +90,8 @@ project:
                 enabled: true
                 variable_name: recovered
         # Depends on all three regions and on recovery settling, so it starts only once they finish.
-        # `{{recovered ?? null}}` is the point of the fallback: when every region passed the gate
-        # nothing was recovered, and this step still runs instead of being skipped for a value that
-        # was never going to arrive.
+        # `recovered` is always defined because a fan-out publishes a list even when nothing ran:
+        # every region passing the gate gives an empty list, not a missing value.
         - blockGroup: aggregate-group
           id: aggregate
           sortingKey: b0
@@ -102,7 +101,7 @@ project:
             function_notebook_id: REPLACE_WITH_AGGREGATE_NOTEBOOK_ID
             function_notebook_inputs:
               regions_json: '[{{northAmerica}}, {{europe}}, {{asiaPacific}}]'
-              recovered_json: '{{recovered ?? null}}'
+              recovered_json: '{{recovered}}'
               quality_threshold: '0.95'
             function_notebook_export_mappings:
               portfolio:
