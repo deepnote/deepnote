@@ -1,7 +1,9 @@
 // A pipeline in ~40 lines: fan out, gate on the results, then decide.
 //
-// Nothing here is browser- or Node-specific. The same code runs in a page — every step is an HTTP
-// call to Deepnote, so there is no server, no local kernel, and no orchestration daemon.
+// The bootstrap below is Node — `process.loadEnvFile`, `process.env`, `process.exit`. The pipeline
+// itself is not: the callback passed to `orchestrate` runs unchanged in a browser, because every
+// step is an HTTP call to Deepnote. A page supplies its own configuration and token (see
+// `examples/local-runner/run-app`); what it does not need is a server, a kernel, or a daemon.
 //
 // In a real project, import from '@deepnote/local-runner' after installing it.
 import { orchestrate } from '../../../packages/local-runner/dist/index.js'
