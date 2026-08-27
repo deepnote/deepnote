@@ -17,13 +17,11 @@ To get started:
 2. Select the data source you want to query
 3. Name the results variable
 
-![SQL selecting a data source](../assets/docs/QjvPRVWRBiZ1RhpZr0fS.webp)
+![Current SQL source menu with database and DataFrame SQL options](../assets/docs/sql-cells/current-sql-source-menu.webp)
 
 <Callout status="info">
 SQL blocks work in Python notebooks, as well as in R notebooks (where they run via reticulate).
 </Callout>
-
-![SQL block](../assets/docs/3KbKnkM0Tk2vJprDHtbX.webp)
 
 ### Dataframe SQL
 
@@ -52,7 +50,7 @@ DataFrame SQL uses duckdb under the hood. Visit the [duckdb reference](https://d
 
 When you execute a SQL query, Deepnote displays the result in a data table. The data table helps you understand your data quickly through column descriptors such as breakdowns of column values for categorical columns or summary statistics for numeric columns.
 
-![SQL block data table](../assets/docs/mkDfIkIRGeSv03vceC7a.webp)
+![A DataFrame SQL table with its current output controls](../assets/docs/data-tables/current-column-menu.webp)
 
 Have a look at the [data table documentation](/docs/data-tables) for more details on how to further modify the data table through things like column filtering, column renaming or conditional cell formatting.
 
@@ -67,8 +65,6 @@ SQL blocks offer two distinct output modes: **DataFrame** mode and **Query previ
 2. Query preview
 
 - Query preview mode retrieves only the first 100 rows of the result. Instead of creating only a DataFrame, it also stores the source SQL code used to query that data. You can reference these query previews in later SQL blocks to build complex queries through query chaining. Query preview mode lets you decide when to pull the full result into memory while leaving the data in the warehouse until then.
-
-![SQL output modes](../assets/docs/c5TNTJuTRcWjjoqnTG7r.webp)
 
 <Callout status="info">
 Under the hood, Deepnote appends a LIMIT clause to your query preview mode queries.
@@ -90,19 +86,13 @@ Q: Can I use query preview objects in other blocks?
 
 A: Yes, you can use query previews much like a DataFrame. The `DeepnoteQueryPreview` object is a subclass of a Pandas DataFrame, so you can also plot it in a Chart block. Keep in mind that the preview contains only the first 100 rows.
 
-![SQL using DeepnoteQueryPreview](../assets/docs/WmfGCeTZRyC2eKRG6qdB.webp)
-
 ### Query chaining
 
 Query chaining makes complex SQL development simpler and more efficient. Instead of writing one massive query, you can break your logic into manageable steps across multiple blocks, using query preview to see results without loading entire datasets. Each query becomes a reusable building block that you can reference in subsequent SQL blocks. Behind the scenes, Deepnote automatically combines these references by generating proper CTE statements, giving you both the clarity of step-by-step development and the power of properly structured SQL. This approach makes your code easier to understand, debug, and maintain while keeping memory usage minimal.
 
 For example, let's say that we often query "large pizzas" from our Pizza Sales dataset. We can write a query and get back a preview of the first 100 results:
 
-![Query chaining part 1](../assets/docs/MKvWtEg1SC6zOoJupbZo.webp)
-
 The result is stored as `large_pizzas`, which can then be used downstream in another SQL block. Let's say that we'd like to fetch some basic metrics for sales of large pizzas. We can reference the `large_pizzas` object as if it were a CTE:
-
-![Query chaining part 2](../assets/docs/2Ik4jEaSR5OoBCljfS60.webp)
 
 The current SQL block actions menu does not include a compiled SQL query view.
 
@@ -114,15 +104,11 @@ Query chaining only works for single `SELECT` statements. This includes the use 
 
 With caching enabled, Deepnote automatically saves the results of your queries in SQL blocks. Returning these cached results for repeated queries can improve performance in your notebooks and reduce the load on your database or warehouse. See [Query caching](/docs/sql-query-caching) for more information on how to use and customize it.
 
-![Query caching](../assets/docs/X4AJhfoXQFuwpCSNJ2Y2.webp)
-
 ### SQL autocomplete
 
 SQL blocks provide schema _Intellisense_ suggestions. The block actions menu also includes an AI code completion setting.
 
 The built-in _Intellisense_ offers relevant suggestions for your cursor position. This includes entities in your schema such as databases, tables, or columns, as well as aliases, CTEs, or query previews that you defined in previous queries. You can trigger it manually with <Keyboard>Control + Space</Keyboard>, <Keyboard>Option + Space</Keyboard>, or <Keyboard>⌘ + I</Keyboard>.
-
-![SQL Autocomplete](../assets/docs/wWGpYQjmQTWM2gPRxEQk.webp)
 
 ### Using Python and SQL together
 

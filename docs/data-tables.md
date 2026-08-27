@@ -23,6 +23,8 @@ Click a column name to open its menu. The current menu includes:
 - Hide column
 - Wrap cells
 
+![A DataFrame SQL table with its column menu open](../assets/docs/data-tables/current-column-menu.webp)
+
 ## Current limits
 
 In the tested DataFrame SQL output, the table-level formatting, copy, and export controls were disabled. The current UI did not expose the older cell-formatting, column-reordering, or cell-copying workflows described in this page, so those steps and their videos have been removed until they can be checked again.

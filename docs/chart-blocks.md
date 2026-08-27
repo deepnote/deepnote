@@ -25,7 +25,7 @@ You can add a chart block to your notebook by clicking on the **Visualize** butt
 
 Alternatively, you can also add a chart block by pressing the **Add block (+)** button in between blocks and selecting the **Chart** option from the menu.
 
-![Screenshot 2022-11-08 at 9.23.06.png](../assets/docs/3WSqMFGWTJabStyp9day.webp)
+![Current chart controls with a filter and X-axis settings](../assets/docs/chart-blocks/current-chart-controls.webp)
 
 ## Setting up the data
 
@@ -75,11 +75,7 @@ Grouping allows you to add another dimension to your chart. But instead of makin
 
 Results vary depending on the selected chart type and the data type of the column used for grouping. Grouping by a nominal column splits the chart into multiple elements, one for each value of the grouping column. If you select a stacked chart type, those elements are stacked on top of one another. Otherwise, they are displayed side by side. Grouping by a nominal field lets you see monthly revenue for each store location instead of a single total value.
 
-![Group by nominal field](../assets/docs/Yb5neGfRQeCCzv3ykNwK.webp)
-
 Grouping by quantitative field with applied aggregation will change color of the element depending on the value of the column. For example, if you have "Sales by location" chart, you can add grouping by average value of order.
-
-![Group by numerical field](../assets/docs/jLihFDeTTqgInO4vcfWC.webp)
 
 To change color palette you can click on color/palette badge next to the series name and select one from the built-in palettes.
 
@@ -126,8 +122,6 @@ Ever needed to show a bit more information on a chart without cluttering the ent
 It’s perfect for highlighting more information for an unusual data point on a scatterplot or adding context with an extra metric on your bar charts, all without overwhelming your audience.
 
 Simply go to the **Tooltip** section and select which column you'd like to display.
-
-![Custom tooltip settings](../assets/docs/v7a8m59sRZezm7c256j6.webp)
 
 ## Visual settings
 

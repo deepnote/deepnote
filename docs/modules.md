@@ -13,6 +13,8 @@ Open the notebook you want to publish and use the module control in the notebook
 
 Publishing changes the workspace, so review the notebook before confirming.
 
+![The dialog for publishing a notebook as a module](../assets/docs/modules/current-module-publish.webp)
+
 ## Adding a module block
 
 Use the **Module** button in the notebook footer to add a module block. The current block starts with **Select module** and **Select a module**. Choose a published module when one is available.

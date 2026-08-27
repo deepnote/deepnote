@@ -20,6 +20,8 @@ The current Input menu includes:
 - File input
 - Button
 
+![The current Input block menu](../assets/docs/input-blocks/current-input-menu.webp)
+
 ### Text input settings
 
 After adding a Text input, enter a value in the block. Open **Options** to edit its **Variable name**, **Display name**, and **Default value**.
