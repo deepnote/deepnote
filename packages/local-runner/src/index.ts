@@ -11,6 +11,7 @@ export type {
   ListCloudRunsResult,
 } from './cloud-runs'
 export { getCloudRun, listCloudRuns } from './cloud-runs'
+export { evaluateCondition, parseCondition } from './condition-expression'
 export type { DeepnoteInput, LoadedDeepnoteFile } from './load-file'
 export { loadDeepnoteFile } from './load-file'
 export type { OpenInCloudOptions } from './open-in-cloud'
@@ -47,9 +48,15 @@ export {
   outputText,
   runOrchestration,
 } from './orchestrate'
+export type { OrchestratePlanOptions, PlanRunResult, PlanWorkflowResult } from './orchestrate-plan'
+export { orchestrateFile, planWorkflow, runOrchestrationFile } from './orchestrate-plan'
+export type { OrchestrationPlan, PlannedStep, PlanOptions } from './orchestration-plan'
+export { planOrchestration } from './orchestration-plan'
 export { readSnapshot } from './read-snapshot'
 export type { RecurringSchedule, ResolvedRecurringSchedule } from './recurring-schedule'
 export { RecurringScheduleError, resolveRecurringSchedule } from './recurring-schedule'
+export type { Alternative, ReferenceGroup } from './reference-expression'
+export { referenceRoots, resolveValue, unresolvableGroups } from './reference-expression'
 export type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 export { runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'

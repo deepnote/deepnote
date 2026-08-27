@@ -1,0 +1,159 @@
+# A pipeline defined as a file, not as application code.
+#
+# Each notebook-function block is one step: the notebook it runs, the inputs to run it with, and the
+# values it publishes. Dependencies are not declared twice — a step that reads {{portfolio}} depends
+# on whichever step exports it, so the fan-out below is independent by construction and runs
+# concurrently.
+#
+# The parent is read as a manifest rather than executed as a notebook. Running it through Deepnote's
+# block engine would serialize these steps into one run with one status; interpreting it keeps the
+# concurrency and reports each step separately.
+#
+# Replace every function_notebook_id with the id of the notebook in your Deepnote project.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: local-runner-sales-pipeline
+  name: Local runner demo - orchestrated sales review
+  notebooks:
+    - id: local-runner-sales-pipeline-notebook
+      name: Sales review pipeline
+      blocks:
+        - blockGroup: analyze-north-america-group
+          id: analyze-north-america
+          sortingKey: a0
+          type: notebook-function
+          metadata:
+            name: North America analysis
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region: North America
+              trailing_months: '6'
+              monthly_target_k: '420'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: northAmerica
+        - blockGroup: analyze-europe-group
+          id: analyze-europe
+          sortingKey: a1
+          type: notebook-function
+          metadata:
+            name: Europe analysis
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region: Europe
+              trailing_months: '6'
+              monthly_target_k: '340'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: europe
+        - blockGroup: analyze-asia-pacific-group
+          id: analyze-asia-pacific
+          sortingKey: a2
+          type: notebook-function
+          metadata:
+            name: Asia Pacific analysis
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region: Asia Pacific
+              trailing_months: '6'
+              monthly_target_k: '240'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: asiaPacific
+        # One run per region that failed the quality gate — and none at all when they all passed.
+        # for_each sizes the fan-out from the data rather than the file, and run_if is evaluated per
+        # element, so the conditional recovery that used to need application code is now the
+        # definition. Recovered regions collect into `recovered`, in element order.
+        - blockGroup: recover-group
+          id: recover
+          sortingKey: a3
+          type: notebook-function
+          metadata:
+            name: Recovery
+            for_each:
+              - '{{northAmerica}}'
+              - '{{europe}}'
+              - '{{asiaPacific}}'
+            for_each_as: region
+            run_if: region.qualityScore < 0.95
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region: '{{region.region}}'
+              trailing_months: '6'
+              backfill_missing: 'true'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: recovered
+        # Depends on all three regions and on recovery settling, so it starts only once they finish.
+        # `{{recovered ?? null}}` is the point of the fallback: when every region passed the gate
+        # nothing was recovered, and this step still runs instead of being skipped for a value that
+        # was never going to arrive.
+        - blockGroup: aggregate-group
+          id: aggregate
+          sortingKey: b0
+          type: notebook-function
+          metadata:
+            name: Validated portfolio
+            function_notebook_id: REPLACE_WITH_AGGREGATE_NOTEBOOK_ID
+            function_notebook_inputs:
+              regions_json: '[{{northAmerica}}, {{europe}}, {{asiaPacific}}]'
+              recovered_json: '{{recovered ?? null}}'
+              quality_threshold: '0.95'
+            function_notebook_export_mappings:
+              portfolio:
+                enabled: true
+                variable_name: portfolio
+        # Both reviews depend only on the portfolio, so they run at the same time as each other.
+        - blockGroup: decision-gpt-group
+          id: decision-gpt
+          sortingKey: c0
+          type: notebook-function
+          metadata:
+            name: OpenAI GPT-5.5 review
+            function_notebook_id: REPLACE_WITH_GPT_NOTEBOOK_ID
+            function_notebook_inputs:
+              portfolio_json: '{{portfolio}}'
+            function_notebook_export_mappings:
+              review:
+                enabled: true
+                variable_name: gptReview
+        - blockGroup: decision-claude-group
+          id: decision-claude
+          sortingKey: c1
+          type: notebook-function
+          metadata:
+            name: Anthropic Claude Sonnet 5 review
+            function_notebook_id: REPLACE_WITH_CLAUDE_NOTEBOOK_ID
+            function_notebook_inputs:
+              portfolio_json: '{{portfolio}}'
+            function_notebook_export_mappings:
+              review:
+                enabled: true
+                variable_name: claudeReview
+        # A gate in the file, not in application code: arbitration is only worth a notebook run when
+        # the two providers actually disagree. run_if reads the reviews, so this step depends on
+        # them; when it is false the step is skipped and reported as skipped.
+        - blockGroup: final-arbiter-group
+          id: final-arbiter
+          sortingKey: d0
+          type: notebook-function
+          metadata:
+            name: Final decision
+            run_if: gptReview.decision != claudeReview.decision
+            function_notebook_id: REPLACE_WITH_ARBITER_NOTEBOOK_ID
+            function_notebook_inputs:
+              decision_context_json:
+                portfolio: '{{portfolio}}'
+                providerReviews:
+                  - '{{gptReview}}'
+                  - '{{claudeReview}}'
+            function_notebook_export_mappings:
+              decision:
+                enabled: true
+                variable_name: finalDecision
+version: '1.0.0'

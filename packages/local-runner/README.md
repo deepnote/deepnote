@@ -242,6 +242,133 @@ callers that want to run steps somewhere else.
 
 See [`examples/local-runner/orchestration`](../../examples/local-runner/orchestration).
 
+### Define a pipeline in a `.deepnote` file
+
+`orchestrate` puts the pipeline in application code. A pipeline can instead live in a file: a parent
+notebook whose `notebook-function` blocks each name an external notebook, the inputs to run it with,
+and the values it publishes.
+
+```yaml
+- id: analyze-europe
+  type: notebook-function
+  metadata:
+    function_notebook_id: nb-regional
+    function_notebook_inputs: { region: Europe, trailing_months: "6" }
+    function_notebook_export_mappings:
+      region: { enabled: true, variable_name: europe }
+
+- id: aggregate
+  type: notebook-function
+  metadata:
+    function_notebook_id: nb-aggregate
+    function_notebook_inputs:
+      regions_json: "[{{northAmerica}}, {{europe}}, {{asiaPacific}}]"
+```
+
+```ts
+import { orchestrateFile, planOrchestration } from "@deepnote/local-runner";
+
+const { value, plan, graph } = await orchestrateFile(file, {
+  token,
+  onEvent,
+});
+```
+
+**Dependencies are never declared twice.** A step reading `{{europe}}` depends on whichever step
+exports `europe`, so the three regional steps above are independent _by construction_ and run
+concurrently. This is the same variable-flow model the reactivity package already applies to
+notebook-function blocks. `planOrchestration(file)` returns that graph without running anything, so
+a UI can draw the pipeline before it starts.
+
+A whole-value reference keeps its type — `"{{portfolio}}"` passes the object, not `"[object
+Object]"` — while a reference inside surrounding text interpolates. A step's exports are read from
+its last structured JSON output, so they survive Deepnote reassigning block ids.
+
+**The parent is interpreted, not executed.** That is the point of the design rather than an
+implementation detail: Deepnote's block engine runs blocks strictly in order, so handing it the
+parent would serialize the fan-out into one run with one status. Reading it as a manifest keeps
+concurrency and per-step events, while the definition still lives in a versioned, reviewable file
+instead of in a page.
+
+Errors that a graph can be checked for are raised at plan time, before anything runs: a reference no
+step exports, two steps exporting the same variable, a step naming no notebook, and dependency
+cycles.
+
+#### Gates: `run_if`
+
+A step's _existence_ can depend on an earlier result, so a gate lives in the file too:
+
+```yaml
+- id: final-arbiter
+  type: notebook-function
+  metadata:
+    run_if: gptReview.decision != claudeReview.decision
+    function_notebook_id: nb-arbiter
+```
+
+The condition reads exported variables, so the step depends on what it consults without that being
+written down twice. When it is false the step is skipped, and so is anything that reads what it
+would have exported — a dependent is never run with a value that will never arrive. Skipped steps
+come back in `result.skipped` rather than being silently absent, and each gate appears in the graph
+as a `gate` node between the steps it reads and the step it governs.
+
+The condition language is deliberately **not JavaScript**: a pipeline definition is data, and a file
+that runs arbitrary code in whoever opens it is a different and much worse thing than a file that
+describes a graph. There is no `eval`, no calls, no assignment, and no prototype access — property
+lookups are own-properties only. It supports comparisons (`< <= > >= == !=`), `&& || !`, parentheses,
+numeric indexing, and literals. A malformed condition fails at plan time.
+
+#### Dynamic fan-out: `for_each`
+
+A step's _width_ can come from the data rather than the file — one run per element, all concurrent:
+
+```yaml
+- id: recover
+  type: notebook-function
+  metadata:
+    for_each: "{{regions}}" # or a list written inline, whose items may be references
+    for_each_as: region # each element is bound to this name
+    run_if: region.qualityScore < 0.95 # evaluated per element
+    function_notebook_inputs:
+      region: "{{region.name}}"
+    function_notebook_export_mappings:
+      region: { enabled: true, variable_name: recovered }
+```
+
+`run_if` on a fan-out is evaluated per element, so this is conditional recovery: one run for each
+region that failed the gate, and none at all when they all passed. Exports collect into an array in
+element order, so `recovered` is the list of what actually ran. An empty list is an empty array
+rather than a skip — downstream gets a true answer instead of a missing one, and a `for_each` over
+something that is not an array is an error naming the step.
+
+The loop variable is bound by the step, so it is not a dependency on anything; the step depends on
+whatever the list and the other references consult.
+
+#### Optional values: `??`
+
+A reference is a chain of alternatives, and the first with a value wins:
+
+```yaml
+recovered_json: "{{recovered ?? null}}"
+data: "{{recovered ?? original}}"
+retries: "{{attempts ?? 0}}"
+```
+
+This is what keeps a gate from poisoning everything downstream. Without it, a step reading
+`{{recovered}}` is skipped whenever recovery was gated off — correct, but it cascades. With a
+fallback the step runs on whatever is available. A step is skipped only when a reference has _no_
+satisfiable alternative. Literals (numbers, quoted strings, `true`, `false`, `null`) are allowed as
+the last resort, and a step depends on every alternative, since which one wins is a run-time fact.
+
+#### What is still code
+
+`orchestrate` remains the answer for logic that is genuinely computation rather than topology:
+reshaping or merging results between steps, retry policies with backoff, and anything that needs a
+library. A file describes a graph — its steps, their gates, and their width — and that is the
+boundary worth keeping.
+
+See [`examples/local-runner/sales-pipeline.deepnote`](../../examples/local-runner/sales-pipeline.deepnote).
+
 ### Read a snapshot — no Python, no kernel
 
 A snapshot is a `.deepnote` file with the outputs stored inline, so reading one is parsing, not

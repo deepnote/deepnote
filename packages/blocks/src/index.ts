@@ -22,6 +22,7 @@ export type {
   ExecutionSummary,
   InputBlock,
   McpServerConfig,
+  NotebookFunctionBlock,
   SnapshotHashInput,
   SqlBlock,
 } from './deepnote-file/deepnote-file-schema'
