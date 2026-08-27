@@ -41,9 +41,6 @@ export interface WorkflowNotebookStep {
   poll?: WorkflowCloudPollOptions
 }
 
-/** Environment variable holding the Deepnote API token (matches the CLI). */
-const TOKEN_ENV = 'DEEPNOTE_TOKEN'
-
 /**
  * Run one Deepnote notebook as a durable step.
  *
@@ -53,9 +50,10 @@ const TOKEN_ENV = 'DEEPNOTE_TOKEN'
 export async function runNotebookStep(step: WorkflowNotebookStep): Promise<OrchestrationStepResult> {
   'use step'
 
-  const token = process.env[TOKEN_ENV]
+  // Matches the CLI's variable, so a workflow host configured for Deepnote already has it.
+  const token = process.env.DEEPNOTE_TOKEN
   if (!token) {
-    throw new Error(`runNotebookStep requires ${TOKEN_ENV} in the environment.`)
+    throw new Error('runNotebookStep requires DEEPNOTE_TOKEN in the environment.')
   }
 
   const { id, notebookId, inputs, allowFailure } = step

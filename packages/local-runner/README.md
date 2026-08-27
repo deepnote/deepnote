@@ -391,6 +391,7 @@ workflow engines — durability is delegated. `@deepnote/local-runner/workflows`
 run as a step you compose inside a [Workflow SDK](https://www.npmjs.com/package/workflow) function:
 
 ```ts
+import { lastOutputJson } from "@deepnote/local-runner";
 import { runNotebookStep } from "@deepnote/local-runner/workflows";
 
 export async function salesReview() {
