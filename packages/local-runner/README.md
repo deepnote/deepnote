@@ -369,6 +369,50 @@ boundary worth keeping.
 
 See [`examples/local-runner/sales-pipeline.deepnote`](../../examples/local-runner/sales-pipeline.deepnote).
 
+### Make a pipeline durable
+
+`orchestrate` holds its state in one process and is gone if that process is. That is the right trade
+for a script or an interactive page, and the wrong one for anything scheduled or long-lived.
+
+Rather than growing a checkpoint/resume layer — which is how orchestration libraries turn into bad
+workflow engines — durability is delegated. `@deepnote/local-runner/workflows` exposes one notebook
+run as a step you compose inside a [Workflow SDK](https://www.npmjs.com/package/workflow) function:
+
+```ts
+import { runNotebookStep } from "@deepnote/local-runner/workflows";
+
+export async function salesReview() {
+  "use workflow";
+
+  const regions = await Promise.all(
+    REGIONS.map((region) =>
+      runNotebookStep({ id: region.name, notebookId: region.notebookId }),
+    ),
+  );
+  const failing = regions.filter((r) => lastOutputJson(r).qualityScore < 0.95);
+  return runNotebookStep({
+    id: "arbiter",
+    notebookId: ARBITER,
+    inputs: { failing: failing.length },
+  });
+}
+```
+
+Replay, retries, timers, and observability are that engine's job. `workflow` is an **optional peer
+dependency**: without its compiler the `'use step'` directive is inert and `runNotebookStep` is an
+ordinary async function, so nothing is imposed on consumers who do not want it.
+
+Two deliberate choices:
+
+- **The token is read from the environment inside the step**, not passed as an argument, so the
+  credential stays out of the workflow's arguments and therefore out of its event log.
+- **`maxRetries` is 0.** A notebook may write files, mutate databases, or spend model budget;
+  repeating that implicitly is not a safe default. A consumer who has made a notebook idempotent can
+  wrap it in their own step with whatever policy they want.
+
+This is a server-side concern by definition — a durable engine needs a process that outlives a page —
+which is why it is a separate entry point from the rest of the package.
+
 ### Read a snapshot — no Python, no kernel
 
 A snapshot is a `.deepnote` file with the outputs stored inline, so reading one is parsing, not

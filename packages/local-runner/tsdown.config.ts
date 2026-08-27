@@ -4,11 +4,12 @@ export default defineConfig([
   {
     entry: {
       index: 'src/index.ts',
+      workflows: 'src/workflows/index.ts',
     },
     format: ['esm', 'cjs'],
     fixedExtension: false,
     dts: true,
-    external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/convert', '@deepnote/runtime-core'],
+    external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/convert', '@deepnote/runtime-core', 'workflow'],
   },
   {
     // The browser build ships as one self-contained file that a static page can <script> in, so

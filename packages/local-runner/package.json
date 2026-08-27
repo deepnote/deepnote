@@ -22,7 +22,12 @@
       "require": "./dist/index.cjs"
     },
     "./snapshot-reader": "./dist/snapshot-reader.iife.js",
-    "./orchestrator": "./dist/orchestrator.iife.js"
+    "./orchestrator": "./dist/orchestrator.iife.js",
+    "./workflows": {
+      "types": "./dist/workflows.d.ts",
+      "import": "./dist/workflows.js",
+      "require": "./dist/workflows.cjs"
+    }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -49,6 +54,14 @@
     "@types/node": "^22.20.1",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "workflow": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "workflow": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22.14.0",
