@@ -1,6 +1,6 @@
 ---
 title: Converting notebooks to and from Deepnote format
-description: Learn how to convert between Deepnote project files (`.deepnote`) and other notebook formats — Jupyter (`.ipynb`), Quarto (`.qmd`), Percent (`.py`), and Marimo (`.py`) — using the `@deepnote/convert` tool.
+description: Learn how to use the `@deepnote/convert` tool to convert between Deepnote project files (`.deepnote`) and Jupyter (`.ipynb`), Quarto (`.qmd`), Percent (`.py`), or Marimo (`.py`) notebooks.
 noIndex: false
 noContent: false
 ---
@@ -32,7 +32,7 @@ After converting your notebooks, you can open them either in Deepnote or directl
 Option 1: Open directly in [Deepnote](https://deepnote.com)
 
 1. Load the `.deepnote` file in the Deepnote application.
-2. Configure the environment — install required Python packages and set environment variables.
+2. Configure the environment by installing required Python packages and setting environment variables.
 3. Run the notebook in Deepnote Cloud to collaborate in real time, build data apps, and enhance your workflow with AI tools.
 
 Option 2: Open in your IDE
@@ -52,7 +52,7 @@ Option 2: Open in your IDE
 
 ## CLI usage
 
-The package provides a `deepnote-convert` command-line tool for converting notebooks. Pass any supported file as the `<path>` argument — the tool detects the input format automatically (`.ipynb`, `.qmd`, or a `.py` file in Percent or Marimo format) and produces a `.deepnote` file. Pass a `.deepnote` file to convert in the reverse direction (see [Converting .deepnote to other formats](#converting-deepnote-to-other-formats)).
+The package provides a `deepnote-convert` command-line tool for converting notebooks. Pass any supported file as the `<path>` argument. The tool detects the input format (`.ipynb`, `.qmd`, or a `.py` file in Percent or Marimo format) and produces a `.deepnote` file. Pass a `.deepnote` file to convert in the reverse direction (see [Converting .deepnote to other formats](#converting-deepnote-to-other-formats)).
 
 ### Convert a single notebook
 
@@ -62,7 +62,7 @@ Convert a single `.ipynb` file to a `.deepnote` file:
 deepnote-convert path/to/notebook.ipynb
 ```
 
-This creates a `notebook.deepnote` file in the current directory containing a single-notebook project. Quarto (`.qmd`), Percent (`.py`), and Marimo (`.py`) files are converted the same way — just pass the file path.
+This creates a `notebook.deepnote` file in the current directory containing a single-notebook project. To convert Quarto (`.qmd`), Percent (`.py`), or Marimo (`.py`) files, pass the file path to the same command.
 
 **Example:**
 
@@ -219,7 +219,7 @@ This workflow allows you to work with Deepnote's enhanced features and collabora
 
 ### Migrating existing projects
 
-Convert an entire project directory — each notebook becomes its own `.deepnote` file:
+Convert an entire project directory. Each notebook becomes its own `.deepnote` file:
 
 ```bash
 deepnote-convert ~/jupyter-projects/data-analysis -o ~/deepnote-projects/
@@ -227,7 +227,7 @@ deepnote-convert ~/jupyter-projects/data-analysis -o ~/deepnote-projects/
 
 ### Batch conversion script
 
-Create a script to convert multiple projects. (For a plain directory of notebooks, `deepnote-convert <dir>` already writes one `.deepnote` per notebook — a script like this is only needed for custom logic.)
+Create a script to convert multiple projects. For a plain directory of notebooks, `deepnote-convert <dir>` writes one `.deepnote` file per notebook, so you only need a script for custom logic.
 
 ```typescript
 import { convertIpynbFileToDeepnoteFile } from "@deepnote/convert";
