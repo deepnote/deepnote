@@ -74,5 +74,5 @@ When you create an app from a notebook that uses the integration, every app user
 
 <Callout status="info">
 - User authentication is also required to browse the Snowflake schema.
-- Scheduled notebooks can use a Snowflake OAuth integration: scheduled runs authenticate with the OAuth tokens of the user who set up the schedule. Because those tokens can expire or be revoked, scheduled runs may fail unexpectedly — for reliable scheduling, create a Snowflake integration with username and password as the authentication method instead.
+- Scheduled notebooks can use a Snowflake OAuth integration: scheduled runs authenticate with the OAuth tokens of the user who set up the schedule. Those tokens can expire or be revoked. For reliable scheduling, create a Snowflake integration with username and password as the authentication method instead.
 </Callout>
