@@ -1,6 +1,6 @@
 ---
 title: Securing connections
-description: Data is the core of your work in Deepnote — that's why we prioritize keeping it safe. Here's how to secure connections to your data and ensure end-to-end privacy.
+description: Data is the core of your work in Deepnote. Learn how to secure connections to your data and protect its privacy.
 noIndex: false
 noContent: false
 ---
