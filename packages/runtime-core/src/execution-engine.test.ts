@@ -922,6 +922,15 @@ describe('ExecutionEngine', () => {
       expect(context.onAgentEvent).toBe(onAgentEvent)
     })
 
+    it('passes signal through to agent context', async () => {
+      const controller = new AbortController()
+      await engine.start()
+      await engine.runProject(AGENT_FIXTURE, { signal: controller.signal })
+
+      const [, context] = mockExecuteAgentBlock.mock.calls[0]
+      expect(context.signal).toBe(controller.signal)
+    })
+
     it('lets agent context helpers add code and markdown blocks and report added code outputs', async () => {
       const project = structuredClone(AGENT_FIXTURE)
       const helperCode = 'print("Agent-created block")'
