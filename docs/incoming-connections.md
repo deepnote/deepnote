@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-Many tools, such as [Tensorboard](https://www.tensorflow.org/tensorboard) and [Streamlit](https://streamlit.io/), require a local webserver to be spun up to serve docs, dashboards, and other web interfaces. They often prompt you to open an address like `http://localhost:8080)`.
+Many tools, such as [Tensorboard](https://www.tensorflow.org/tensorboard) and [Streamlit](https://streamlit.io/), require a local webserver to be spun up to serve docs, dashboards, and other web interfaces. They often prompt you to open an address like `http://localhost:8080`.
 
 When you enable incoming connections, Deepnote exposes port `8080` on the internet under an address such as `b9d13315-f12a-4931-857c-ed6b4c59dcad.deepnoteproject.com`. You can use this address to access services running on port `8080` on your Deepnote machine.
 
@@ -35,7 +35,7 @@ When this setting is disabled, projects in the workspace cannot enable incoming 
 Once incoming connections are enabled at the workspace level, you can turn them on for specific projects:
 
 1. Open the project where you want to enable incoming connections
-2. In the left sidebar, click on the **More options** button next to **Start machine**.
+2. Open the **Settings** panel from the top-right, and in the **Machine** section click the **More options** button next to **Start machine**.
 
 3. Toggle on **Incoming connections**.
 

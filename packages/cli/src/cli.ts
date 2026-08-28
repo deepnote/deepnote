@@ -16,6 +16,7 @@ import { createIntegrationsAddAction } from './commands/integrations/add-integra
 import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
+import { createPublishAction } from './commands/publish'
 import { createRunAction } from './commands/run'
 import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
@@ -57,8 +58,8 @@ export function createProgram(): Command {
     })
     .exitOverride(err => {
       // Map Commander errors to appropriate exit codes
-      // InvalidArgumentError (e.g., invalid --type value) should exit with InvalidUsage (2)
-      if (err.code === 'commander.invalidArgument') {
+      // Invalid values and missing required options are both invalid usage (2).
+      if (err.code === 'commander.invalidArgument' || err.code === 'commander.missingMandatoryOptionValue') {
         process.exit(ExitCode.InvalidUsage)
       }
       // For other Commander errors, use the default exit code
@@ -309,12 +310,22 @@ ${c.bold('Examples:')}
     .option('--cloud', 'Run the notebook in Deepnote Cloud, then download the resulting snapshot locally')
     .option('--notebook-id <uuid>', 'Cloud notebook id to run (with --cloud); alternative to a local .deepnote file')
     .option('--out <path>', 'Write the downloaded cloud snapshot to this exact path (with --cloud)')
+    .addOption(
+      new Option('--storage-mode <mode>', 'Project-storage access for a detached cloud run').choices([
+        'read-write',
+        'readonly',
+      ])
+    )
     .option(
       '--timeout <seconds>',
       'Max seconds to wait for a cloud run to finish (with --cloud, default 600)',
       parseTimeoutSeconds
     )
-    .addOption(new Option('--push', 'Push a local notebook to Deepnote before running').hideHelp())
+    .option(
+      '--push',
+      'Push the local .deepnote blocks to the Deepnote notebook before running (deletes cloud blocks the file does not have)'
+    )
+    .option('--yes', 'Skip the --push confirmation prompt')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -342,6 +353,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run a .deepnote (notebook id read from the file) in the cloud, with inputs')}
   $ deepnote run my-project.deepnote --cloud --input name="Alice"
+
+  ${c.dim('# Push local edits to the Deepnote notebook first, then run what is on disk')}
+  $ deepnote run my-project.deepnote --cloud --push
+
+  ${c.dim('# Preview what --push would change without sending or running anything')}
+  $ deepnote run my-project.deepnote --cloud --push --dry-run
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
@@ -546,6 +563,56 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createSyncAction(program))
+
+  // Publish command - publish a local app directory to Deepnote
+  program
+    .command('publish')
+    .description('Publish a local app directory to a Deepnote project')
+    .argument('<dir>', 'Directory containing the app files to publish')
+    .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--path <prefix>', 'Target directory under _deepnote_static', '_deepnote_static')
+    .addOption(
+      new Option('--api-access <state>', 'Allow the published app to call Deepnote APIs').choices([
+        'enabled',
+        'disabled',
+      ])
+    )
+    .option('--prune', 'Delete remote files below --path that are absent locally')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
+  after every upload succeeds. API access is left unchanged unless explicitly set.
+
+${c.bold('Examples:')}
+  ${c.dim('# Publish a build directory to a project')}
+  $ deepnote publish ./dist --project-id 0f1e2d3c-4b5a-6789-abcd-ef0123456789
+
+  ${c.dim('# Publish with an explicit token')}
+  $ deepnote publish ./build --project-id <uuid> --token <token>
+
+  ${c.dim('# Publish to a custom path prefix')}
+  $ deepnote publish ./out --project-id <uuid> --path _deepnote_static/v2
+
+  ${c.dim('# Let the published app call Deepnote APIs')}
+  $ deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+  ${c.dim('# Remove remote files that are no longer in the local build')}
+  $ deepnote publish ./dist --project-id <uuid> --prune
+
+  ${c.dim('# Quiet mode (no progress output)')}
+  $ deepnote publish ./dist --project-id <uuid> -q
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Files uploaded and website sharing enabled
+  ${c.dim('1')}  Upload, pruning, or settings update failed
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token)
+`
+    })
+    .action(createPublishAction(program))
 
   // Convert command - convert between notebook formats
   program

@@ -11,6 +11,7 @@ import {
   pollRunUntilComplete,
   RunTimeoutError,
   triggerNotebookRun,
+  waitForRunSnapshot,
 } from './cloud-runs'
 
 const BASE_URL = 'https://api.example.com'
@@ -59,7 +60,7 @@ describe('triggerNotebookRun', () => {
     expect(url).toBe(`${BASE_URL}/v2/runs`)
     expect(init?.method).toBe('POST')
     expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
-    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: '1' } })
+    expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: '1' }, detached: true })
   })
 
   it('asks for a live run when blocks are targeted, since a detached run refuses them', async () => {
@@ -84,7 +85,46 @@ describe('triggerNotebookRun', () => {
 
     await triggerNotebookRun(BASE_URL, TOKEN, { notebookId: 'nb-1', blockIds: [] })
 
-    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({ notebookId: 'nb-1' })
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({ notebookId: 'nb-1', detached: true })
+  })
+
+  it('passes the detached-run storage mode through', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ runId: 'run-1', status: 'pending' }))
+
+    await triggerNotebookRun(BASE_URL, TOKEN, {
+      notebookId: 'nb-1',
+      detachedRunStorageMode: 'readonly',
+    })
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({
+      notebookId: 'nb-1',
+      detachedRunStorageMode: 'readonly',
+      detached: true,
+    })
+  })
+
+  it('accepts the API read_write storage mode', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ runId: 'run-1', status: 'pending' }))
+
+    await triggerNotebookRun(BASE_URL, TOKEN, {
+      notebookId: 'nb-1',
+      detachedRunStorageMode: 'read_write',
+    })
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string).detachedRunStorageMode).toBe('read_write')
+  })
+
+  it('rejects a storage mode with blockIds because block runs are live', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+
+    await expect(
+      triggerNotebookRun(BASE_URL, TOKEN, {
+        notebookId: 'nb-1',
+        blockIds: ['blk-1'],
+        detachedRunStorageMode: 'readonly',
+      })
+    ).rejects.toThrow(/cannot be used with blockIds/i)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('normalizes a top-level {runId,status} response', async () => {
@@ -268,6 +308,132 @@ describe('fetchSnapshotContent', () => {
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toBe(`${BASE_URL}/v2/runs/r/snapshot`)
     expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
+  })
+})
+
+describe('waitForRunSnapshot', () => {
+  const run = (snapshot?: NormalizedRun['snapshot']): NormalizedRun => ({
+    runId: 'r',
+    status: 'success',
+    snapshot,
+    raw: {},
+  })
+
+  it('re-fetches a terminal run until its snapshot is attached', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ run: { id: 'r', status: 'success' } }))
+      .mockResolvedValueOnce(
+        response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: 'version: 1.0.0' } } })
+      )
+    const sleep = vi.fn(async () => {})
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 3, sleep })
+
+    expect(settled.content).toBe('version: 1.0.0')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(sleep).toHaveBeenCalledOnce()
+  })
+
+  it('keeps settling past empty snapshot content until real content arrives', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: '' } } }))
+      .mockResolvedValueOnce(
+        response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: 'version: 1.0.0' } } })
+      )
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run({ snapshotContent: '' }), {
+      attempts: 3,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBe('version: 1.0.0')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats persistently empty snapshot content as no snapshot', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: '' } } })
+    )
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run({ snapshotContent: '' }), {
+      attempts: 2,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBeNull()
+  })
+
+  it('returns null only when no snapshot is attached within the bounded window', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'success' } }))
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), {
+      attempts: 2,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBeNull()
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2)
+  })
+
+  it('clears the retry error once a later re-fetch succeeds, so the null is a confirmed no-snapshot', async () => {
+    let gets = 0
+    vi.spyOn(global, 'fetch').mockImplementation(async () => {
+      gets++
+      if (gets === 1) {
+        throw new Error('503 transient')
+      }
+      return response({ run: { id: 'r', status: 'success' } })
+    })
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 2, sleep: async () => {} })
+
+    expect(settled.content).toBeNull()
+    expect(settled.retryError).toBeUndefined()
+  })
+
+  it('reports the retry error when the final re-fetch failed, since the null rests on stale data', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('503 down'))
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 2, sleep: async () => {} })
+
+    expect(settled.content).toBeNull()
+    expect((settled.retryError as Error).message).toBe('503 down')
+  })
+
+  it('throws a persistent snapshot download failure instead of calling it no output', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async url => {
+      if (String(url).startsWith('https://storage.example.com/')) {
+        return response('unavailable', { ok: false, status: 503, statusText: 'Service Unavailable' })
+      }
+      return response({
+        run: { id: 'r', status: 'success', snapshot: { downloadUrl: 'https://storage.example.com/snapshot' } },
+      })
+    })
+
+    await expect(
+      waitForRunSnapshot(BASE_URL, TOKEN, run({ downloadUrl: 'https://storage.example.com/snapshot' }), {
+        attempts: 1,
+        sleep: async () => {},
+      })
+    ).rejects.toMatchObject({ statusCode: 503 })
+  })
+
+  it('aborts promptly while a caller-provided sleep remains pending', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'success' } }))
+    const sleep = vi.fn(() => new Promise<void>(() => {}))
+    const controller = new AbortController()
+
+    const pending = waitForRunSnapshot(BASE_URL, TOKEN, run(), {
+      attempts: 2,
+      sleep,
+      signal: controller.signal,
+    })
+    await vi.waitFor(() => expect(sleep).toHaveBeenCalledOnce())
+    controller.abort(new Error('stop settling'))
+
+    await expect(pending).rejects.toThrow('stop settling')
   })
 })
 

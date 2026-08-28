@@ -20,18 +20,18 @@ npm install @deepnote/cloud
 import {
   triggerNotebookRun,
   pollRunUntilComplete,
-  fetchSnapshotContent,
+  waitForRunSnapshot,
 } from "@deepnote/cloud";
 
 const started = await triggerNotebookRun(baseUrl, token, {
   notebookId,
   inputs,
-  blockIds,
+  detachedRunStorageMode: "readonly",
 });
 const run = await pollRunUntilComplete(baseUrl, token, started.runId, {
   snapshotDelivery: "inline",
 });
-const snapshotYaml = await fetchSnapshotContent(run, { baseUrl, token });
+const { content: snapshotYaml } = await waitForRunSnapshot(baseUrl, token, run);
 ```
 
 Auth is `Authorization: Bearer <token>`. Endpoints: `POST {baseUrl}/v2/runs` and
@@ -39,27 +39,35 @@ Auth is `Authorization: Bearer <token>`. Endpoints: `POST {baseUrl}/v2/runs` and
 is in preview and its exact shape may drift. Failures throw `ApiError`
 (from `@deepnote/database-integrations`).
 
+Full-notebook runs are detached by default and do not update outputs in the live editor.
+`detachedRunStorageMode: "readonly"` additionally prevents writes to persistent project storage;
+it does not isolate databases, integrations, external APIs, or other systems the notebook accesses.
+Block-scoped runs use live mode because the API does not support `blockIds` on detached runs, and
+therefore cannot use `detachedRunStorageMode`.
+
 ## API reference
 
-| Export                                                                                    | Description                                                                                                                                                  |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `createProject(baseUrl, token, spec, opts?)`                                              | Create a project, its notebooks, and their blocks; returns the ids Deepnote assigned. See below.                                                             |
-| `triggerNotebookRun(baseUrl, token, body)`                                                | `POST /v2/runs` — start a run of an existing notebook. Returns the normalized run.                                                                           |
-| `getRun(baseUrl, token, runId, options?)`                                                 | `GET /v2/runs/{runId}` — fetch a run's current state.                                                                                                        |
-| `pollRunUntilComplete(baseUrl, token, runId, opts?)`                                      | Poll until the run reaches a terminal status. Retries transient failures; enforces a deadline.                                                               |
-| `fetchSnapshotContent(run, options)`                                                      | Return the run's snapshot YAML, from inline content or a `downloadUrl`. `null` if it has none.                                                               |
-| `describeRunError(run)`                                                                   | A human-readable message for a failed run, if the API supplied one.                                                                                          |
-| `isTerminalStatus` / `isSuccessStatus` / `isFailedStatus`                                 | Status classifiers. Unknown statuses are treated as non-terminal, so a drifting API cannot hang.                                                             |
-| `RUN_STATUSES`, `RunStatus`                                                               | The known run statuses.                                                                                                                                      |
-| `RunTimeoutError`                                                                         | Thrown when `pollRunUntilComplete` exceeds its deadline. Carries the `runId` — the run may still be executing.                                               |
-| `NormalizedRun`, `TriggerRunBody`, `GetRunOptions`, `PollOptions`, `FetchSnapshotOptions` | Types.                                                                                                                                                       |
-| `listAllProjects(baseUrl, token, opts?)`                                                  | `GET /v2/projects` — every project in the workspace, walking pagination to exhaustion.                                                                       |
-| `getProjectDetail(baseUrl, token, projectId, opts?)`                                      | `GET /v2/projects/{id}` — one project, including its working-directory file inventory.                                                                       |
-| `exportProject(baseUrl, token, projectId, opts?)`                                         | `GET /v2/projects/{id}/export` — the project's notebooks as deterministic `.deepnote` documents (unzipped from the export ZIP, one per notebook). See below. |
-| `importProject(baseUrl, token, projectId, files, opts?)`                                  | `POST /v2/projects/{id}/import` — reconcile a ZIP of `.deepnote` documents (the exact inverse of export) into the project. See below.                        |
-| `uploadProjectFile(baseUrl, token, projectId, path, bytes, opts?)`                        | `POST /v2/files` — upload one working-directory file (multipart). Does not overwrite; delete first. Buffered transfers are limited to 100 MiB.               |
-| `deleteProjectFile(baseUrl, token, projectId, path, opts?)`                               | `DELETE /v2/files` — delete one working-directory file; `false` if it did not exist.                                                                         |
-| `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                             | `GET /v2/files/download` — raw bytes of one working-directory file. Buffered transfers are limited to 100 MiB.                                               |
+| Export                                                                                                                                       | Description                                                                                                                                                  |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `createProject(baseUrl, token, spec, opts?)`                                                                                                 | Create a project, its notebooks, and their blocks; returns the ids Deepnote assigned. See below.                                                             |
+| `triggerNotebookRun(baseUrl, token, body)`                                                                                                   | `POST /v2/runs` — start a run of an existing notebook. Returns the normalized run.                                                                           |
+| `getRun(baseUrl, token, runId, options?)`                                                                                                    | `GET /v2/runs/{runId}` — fetch a run's current state.                                                                                                        |
+| `pollRunUntilComplete(baseUrl, token, runId, opts?)`                                                                                         | Poll until the run reaches a terminal status. Retries transient failures; enforces a deadline.                                                               |
+| `fetchSnapshotContent(run, options)`                                                                                                         | Return the run's snapshot YAML, from inline content or a `downloadUrl`. `null` if it has none.                                                               |
+| `waitForRunSnapshot(baseUrl, token, run, opts?)`                                                                                             | Return a `SettledRunSnapshot` after bounded settling. Its `content` is `null` if none is produced; an unreadable snapshot throws.                            |
+| `describeRunError(run)`                                                                                                                      | A human-readable message for a failed run, if the API supplied one.                                                                                          |
+| `isTerminalStatus` / `isSuccessStatus` / `isFailedStatus`                                                                                    | Status classifiers. Unknown statuses are treated as non-terminal, so a drifting API cannot hang.                                                             |
+| `RUN_STATUSES`, `RunStatus`                                                                                                                  | The known run statuses.                                                                                                                                      |
+| `RunTimeoutError`                                                                                                                            | Thrown when `pollRunUntilComplete` exceeds its deadline. Carries the `runId` — the run may still be executing.                                               |
+| `NormalizedRun`, `TriggerRunBody`, `GetRunOptions`, `PollOptions`, `FetchSnapshotOptions`, `SettledRunSnapshot`, `WaitForRunSnapshotOptions` | Types.                                                                                                                                                       |
+| `listAllProjects(baseUrl, token, opts?)`                                                                                                     | `GET /v2/projects` — every project in the workspace, walking pagination to exhaustion.                                                                       |
+| `getProjectDetail(baseUrl, token, projectId, opts?)`                                                                                         | `GET /v2/projects/{id}` — one project, including its working-directory file inventory and static website settings when supported by the server.              |
+| `updateProjectStaticFiles(baseUrl, token, projectId, update, opts?)`                                                                         | `PATCH /v2/projects/{id}` — update static website sharing and/or API access; returns the settings and canonical website URL.                                 |
+| `exportProject(baseUrl, token, projectId, opts?)`                                                                                            | `GET /v2/projects/{id}/export` — the project's notebooks as deterministic `.deepnote` documents (unzipped from the export ZIP, one per notebook). See below. |
+| `importProject(baseUrl, token, projectId, files, opts?)`                                                                                     | `POST /v2/projects/{id}/import` — reconcile a ZIP of `.deepnote` documents (the exact inverse of export) into the project. See below.                        |
+| `uploadProjectFile(baseUrl, token, projectId, path, bytes, opts?)`                                                                           | `POST /v2/files` — upload one working-directory file (multipart). Does not overwrite; delete first. Buffered transfers are limited to 100 MiB.               |
+| `deleteProjectFile(baseUrl, token, projectId, path, opts?)`                                                                                  | `DELETE /v2/files` — delete one working-directory file; `false` if it did not exist.                                                                         |
+| `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                                                                                | `GET /v2/files/download` — raw bytes of one working-directory file. Buffered transfers are limited to 100 MiB.                                               |
 
 **Note on `exportProject`:** the export is a ZIP with one `.deepnote` document per notebook, each
 carrying the full project envelope and a shared `metadata.modifiedAt`. `exportProject` unzips it and
@@ -79,9 +87,17 @@ attachments. The shared name is applied, and a present `project.integrations` li
 project's attachments (`[]` detaches all; an absent field leaves them unchanged). Integration
 credentials and `settings.requirements` are never imported.
 
-**Note on `fetchSnapshotContent`:** the bearer token is sent only when the download URL is
+Terminal status can arrive before its snapshot is attached. Prefer `waitForRunSnapshot` after
+polling: it retries attachment briefly, returns `content: null` when no artifact is ever produced,
+and preserves download/read failures as errors rather than mistaking them for an empty run.
+
+**Note on snapshot downloads:** the bearer token is sent only when the download URL is
 same-origin with `baseUrl`. A cross-origin URL (e.g. a presigned S3 link) is fetched without auth,
 so the token is never leaked to a third-party host.
+
+Cloud-run and content-creation requests keep their deadline active even when the caller supplies a
+cancellation signal. The deadline includes consuming the response body, and timeout/caller-abort
+errors remain distinguishable from `ApiError` responses.
 
 **Note on `createProject`:** this is the headless counterpart to `uploadNotebook`, which uses the
 unauthenticated `/v1/import` endpoint and therefore has to be finished in a browser. With a token,

@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/blocks",
-  "version": "4.6.0",
+  "version": "4.7.0",
   "description": "",
   "keywords": [],
   "repository": {
@@ -27,13 +27,13 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsdown --format esm --format cjs --dts",
+    "build": "tsdown --format esm --format cjs --dts --no-fixed-extension",
     "test": "vitest",
-    "watch": "tsdown --watch --format esm --format cjs --dts"
+    "watch": "tsdown --watch --format esm --format cjs --dts --no-fixed-extension"
   },
   "dependencies": {
-    "ts-dedent": "^2.2.0",
-    "yaml": "^2.8.3",
+    "ts-dedent": "^2.3.0",
+    "yaml": "^2.9.0",
     "zod": "3.25.76"
   },
   "engines": {
