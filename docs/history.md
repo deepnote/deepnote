@@ -18,7 +18,7 @@ You can find the Project version history in the three-dot menu in the top-right 
 
 New version are created in two ways:
 
-- **Automatic**. When you're working on a project, a new version is automatically created every 10 minutes. Another version will be created when you stop—after 2 minutes of inactivity.
+- **Automatic**. When you're working on a project, a new version is automatically created every 10 minutes. Another version will be created when you stop after 2 minutes of inactivity.
 - **Manual**. You can open the Versions sidebar from the top left part, and press a plus button in the sidebar to create a named version.
 
 #### Restoring a version
@@ -40,7 +40,7 @@ You can see actions done by all collaborators and significant system events.
 
 If an action log is associated with a specific notebook, you can click on the action and you will be focused on the notebook where the change was made.
 
-Deepnote also keeps a [run snapshot](/docs/run-snapshots) after every run — an immutable, read-only view of the notebook as it was executed. You can open these snapshots from the version history.
+Deepnote also keeps a [run snapshot](/docs/run-snapshots) after every run. The snapshot provides an immutable, read-only view of the notebook as it was executed. You can open these snapshots from the version history.
 
 ### Filesystem snapshots (deprecated)
 
