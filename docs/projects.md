@@ -1,6 +1,6 @@
 ---
 title: Projects
-description: You have a very specific task that requires a coding environment, notebooks, and data. That's where projects come in — a collaborative container for everything you need to complete your analysis.
+description: Projects provide a collaborative container for the coding environment, notebooks, and data you need for an analysis.
 noIndex: false
 noContent: false
 ---
@@ -10,7 +10,7 @@ noContent: false
 Projects do a lot, from shared data sources across multiple notebooks to native version control. Here are some highlights:
 
 - Projects contain notebooks and therefore can be used to organize related work (e.g., EDA notebook, ML notebook)
-- Projects define your environment — including the Python version, required libraries, and the machine specifications (i.e., RAM, number of cores).
+- Projects define your environment, including the Python version, required libraries, and machine specifications (i.e. RAM and number of cores).
 - Projects have their own file system and provide access to database integrations.
 
 ### Creating a project
@@ -63,7 +63,7 @@ First, click on the ⚙️ icon. You should now see your environment configurati
 
 <Callout status="info">
 
-🔥 If the built-in environments don't meet your needs, no problem. You may **define a local Dockerfile** or bring your own image from any registry (e.g., ECR, Docker Hub, etc.). To learn more about custom environments, [hop over here](https://deepnote.com/docs/custom-environments).
+If the built-in environments don't meet your needs, no problem. You may **define a local Dockerfile** or bring your own image from any registry (e.g., ECR, Docker Hub, etc.). To learn more about custom environments, [hop over here](https://deepnote.com/docs/custom-environments).
 
 </Callout>
 
