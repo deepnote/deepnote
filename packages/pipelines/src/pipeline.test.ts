@@ -16,15 +16,15 @@ vi.mock('@deepnote/cloud', async () => {
   }
 })
 
-import type { OrchestrationEvent } from './orchestrate'
-import { orchestrate } from './orchestrate'
+import type { PipelineEvent } from './pipeline'
+import { runPipeline } from './pipeline'
 
 function snapshotWith(value: unknown): string {
   return `metadata:
   createdAt: '2026-01-01T00:00:00.000Z'
 project:
   id: project-1
-  name: Client-only orchestration
+  name: Client-only pipeline
   notebooks:
     - id: notebook-1
       name: Main
@@ -64,10 +64,10 @@ beforeEach(() => {
   }))
 })
 
-describe('orchestrate', () => {
+describe('runPipeline', () => {
   it('runs a fan-out, gate, and arbiter pipeline with no server and no local kernel', async () => {
-    const events: OrchestrationEvent[] = []
-    const result = await orchestrate(
+    const events: PipelineEvent[] = []
+    const result = await runPipeline(
       async ({ run, control, outputs }) => {
         const regions = await Promise.all(
           ['nb-na', 'nb-eu'].map(notebookId => run({ id: notebookId, notebookId, inputs: { trailing_months: 6 } }))
@@ -104,7 +104,7 @@ describe('orchestrate', () => {
   })
 
   it('sends the viewer token to the configured API origin', async () => {
-    await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {
+    await runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {
       token: TOKEN,
       baseUrl: 'https://api.example.test',
     })
@@ -118,7 +118,7 @@ describe('orchestrate', () => {
   })
 
   it('defaults to the Deepnote API origin', async () => {
-    await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), { token: TOKEN })
+    await runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), { token: TOKEN })
 
     expect(cloudMock.triggerNotebookRun).toHaveBeenCalledWith(
       'https://api.deepnote.com',
@@ -129,7 +129,7 @@ describe('orchestrate', () => {
   })
 
   it('coerces numeric inputs, which the runs API does not accept directly', async () => {
-    await orchestrate(
+    await runPipeline(
       async ({ run }) =>
         run({ id: 'a', notebookId: 'nb-a', inputs: { months: 6, live: true, name: 'eu', tags: ['x', 'y'] } }),
       { token: TOKEN }
@@ -145,7 +145,7 @@ describe('orchestrate', () => {
 
   it('refuses an input value the runs API has no representation for', async () => {
     await expect(
-      orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', inputs: { portfolio: { total: 1 } } }), {
+      runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', inputs: { portfolio: { total: 1 } } }), {
         token: TOKEN,
       })
     ).rejects.toThrow('Deepnote inputs accept a string, boolean, or array of strings')
@@ -154,7 +154,7 @@ describe('orchestrate', () => {
   it('rejects a step with no notebookId, since it cannot create one', async () => {
     await expect(
       // biome-ignore lint/suspicious/noExplicitAny: deliberately omitting a required field
-      orchestrate(async ({ run }) => run({ id: 'a' } as any), { token: TOKEN })
+      runPipeline(async ({ run }) => run({ id: 'a' } as any), { token: TOKEN })
     ).rejects.toThrow('has no notebookId')
   })
 
@@ -166,7 +166,7 @@ describe('orchestrate', () => {
       raw: {},
     }))
 
-    const result = await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }), {
+    const result = await runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }), {
       token: TOKEN,
     })
 
@@ -180,14 +180,14 @@ describe('orchestrate', () => {
 
   it('keeps a run reportable when its snapshot will not parse', async () => {
     // parseSnapshot and extractOutputs both throw on malformed content. If that escaped the
-    // executor it would become an OrchestrationStepError and discard the status, run id, and error
+    // executor it would become an PipelineStepError and discard the status, run id, and error
     // — the very diagnostics the snapshot was fetched to preserve.
     cloudMock.waitForRunSnapshot.mockImplementation(async (_base, _token, run) => ({
       run,
       content: 'this is not a deepnote snapshot',
     }))
 
-    const result = await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), { token: TOKEN })
+    const result = await runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), { token: TOKEN })
 
     expect(result.value.success).toBe(true)
     expect(result.value.runId).toBe('run-nb-a')
@@ -206,7 +206,7 @@ describe('orchestrate', () => {
     }))
     cloudMock.waitForRunSnapshot.mockImplementation(async (_base, _token, run) => ({ run, content: 'garbage' }))
 
-    const result = await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }), {
+    const result = await runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }), {
       token: TOKEN,
     })
 
@@ -217,7 +217,7 @@ describe('orchestrate', () => {
 
   it('passes an abort signal into polling, which is the long part of a run', async () => {
     const controller = new AbortController()
-    await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {
+    await runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {
       token: TOKEN,
       signal: controller.signal,
     })
@@ -232,7 +232,7 @@ describe('orchestrate', () => {
 
   it('streams status updates for each step so a page can render progress', async () => {
     const statuses: string[] = []
-    await orchestrate(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {
+    await runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {
       token: TOKEN,
       onEvent: event => {
         if (event.type === 'step_status') {

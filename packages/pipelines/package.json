@@ -1,17 +1,17 @@
 {
-  "name": "@deepnote/local-runner",
+  "name": "@deepnote/pipelines",
   "version": "0.1.0",
-  "description": "Run a .deepnote notebook with edited inputs against a local Python backend, and serve it to a static page.",
+  "description": "Compose Deepnote notebook runs into pipelines, with no server and no orchestration engine",
   "keywords": [
     "deepnote",
-    "notebook",
-    "runner",
-    "inputs"
+    "pipelines",
+    "notebooks",
+    "runs"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/deepnote/deepnote.git",
-    "directory": "packages/local-runner"
+    "directory": "packages/pipelines"
   },
   "license": "Apache-2.0",
   "type": "module",
@@ -21,7 +21,12 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./snapshot-reader": "./dist/snapshot-reader.iife.js"
+    "./browser": "./dist/browser.iife.js",
+    "./workflows": {
+      "types": "./dist/workflows.d.ts",
+      "import": "./dist/workflows.js",
+      "require": "./dist/workflows.cjs"
+    }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -40,15 +45,7 @@
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
     "@deepnote/cloud": "workspace:*",
-    "@deepnote/convert": "workspace:*",
-    "@deepnote/pipelines": "workspace:*",
-    "@deepnote/runtime-core": "workspace:*",
     "@jupyterlab/nbformat": "^4.6.3"
-  },
-  "devDependencies": {
-    "@types/node": "^22.20.1",
-    "tsx": "^4.23.12",
-    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22.14.0",

@@ -1,15 +1,15 @@
-# orchestration
+# A pipeline as a script
 
 A pipeline as a script: fan out across regional notebooks, gate on their structured results, and
 report. About 40 lines.
 
 ```bash
-DEEPNOTE_TOKEN=… NA_NOTEBOOK_ID=… EU_NOTEBOOK_ID=… APAC_NOTEBOOK_ID=… pnpm example:orchestration
+DEEPNOTE_TOKEN=… NA_NOTEBOOK_ID=… EU_NOTEBOOK_ID=… APAC_NOTEBOOK_ID=… pnpm example:pipeline
 ```
 
-The point of the example is that the _pipeline_ is not Node-specific. `orchestrate` runs every step
+The point of the example is that the _pipeline_ is not Node-specific. `runPipeline` runs every step
 as an HTTP call to Deepnote, so the callback below runs unchanged in a browser page with no server
-behind it — see [`run-app`](../run-app), which uses the same API.
+behind it — see [`run-app`](../../local-runner/run-app), which uses the same API.
 
 The bootstrap is Node and would be replaced in a browser: this script reads `DEEPNOTE_TOKEN` and the
 notebook ids from the environment via `process`, whereas a page gets its token from the Deepnote

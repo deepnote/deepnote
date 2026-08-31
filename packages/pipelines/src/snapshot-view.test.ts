@@ -1,10 +1,9 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { deserializeDeepnoteFile } from '@deepnote/blocks'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { readSnapshot } from './read-snapshot'
 import { parseSnapshot } from './snapshot-view'
+
+const FIXTURES = path.join(__dirname, '../../../test-fixtures')
 
 /** Inputs carrying the per-type metadata that gives their values meaning. */
 const DESCRIBED_INPUTS = `
@@ -52,61 +51,7 @@ version: "1.0.0"
 `
 
 /** A snapshot with an input, a code block with outputs, a SQL block with outputs, and markdown. */
-const SNAPSHOT = `
-metadata:
-  createdAt: 2025-01-01T00:00:00.000Z
-  snapshotHash: abc123
-environment:
-  pythonVersion: "3.12"
-execution:
-  startedAt: 2025-01-01T00:00:00.000Z
-  finishedAt: 2025-01-01T00:00:05.000Z
-project:
-  name: Sales
-  id: 00000000-0000-0000-0000-000000000100
-  notebooks:
-    - id: 00000000-0000-0000-0000-000000000101
-      name: Analysis
-      blocks:
-        - blockGroup: "1"
-          id: b-input
-          sortingKey: "1"
-          type: input-slider
-          content: ""
-          metadata:
-            deepnote_variable_name: count
-            deepnote_variable_value: "7"
-        - blockGroup: "2"
-          id: b-md
-          sortingKey: "2"
-          type: markdown
-          content: "# Results"
-          metadata: {}
-        - blockGroup: "3"
-          id: b-code
-          sortingKey: "3"
-          type: code
-          content: print(count)
-          executionCount: 1
-          outputs:
-            - output_type: stream
-              name: stdout
-              text: "7\\n"
-          metadata: {}
-        - blockGroup: "4"
-          id: b-sql
-          sortingKey: "4"
-          type: sql
-          content: select 1
-          executionCount: 2
-          outputs:
-            - output_type: execute_result
-              data:
-                text/html: "<table><tr><td>1</td></tr></table>"
-              metadata: {}
-          metadata: {}
-version: 1.0.0
-`
+const SNAPSHOT = readFileSync(path.join(FIXTURES, 'snapshot-view.snapshot.deepnote'), 'utf8')
 
 describe('parseSnapshot', () => {
   it('reads blocks, outputs and input values with no kernel involved', () => {
@@ -183,19 +128,5 @@ describe('parseSnapshot', () => {
   it('rejects content that is not a Deepnote file', () => {
     expect(() => parseSnapshot('just: yaml')).toThrow(/not a valid \.deepnote snapshot/i)
     expect(() => parseSnapshot('\tnot: [valid')).toThrow(/not a valid \.deepnote snapshot/i)
-  })
-})
-
-describe('readSnapshot', () => {
-  it('reads from a path, raw YAML, or a parsed object', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'snap-'))
-    const path = join(dir, 'run.snapshot.deepnote')
-    writeFileSync(path, SNAPSHOT)
-
-    expect(readSnapshot(path).projectName).toBe('Sales')
-    expect(readSnapshot(SNAPSHOT).projectName).toBe('Sales')
-
-    const file = deserializeDeepnoteFile(SNAPSHOT)
-    expect(readSnapshot(file).notebooks[0].blocks.map(b => b.id)).toEqual(['b-input', 'b-md', 'b-code', 'b-sql'])
   })
 })

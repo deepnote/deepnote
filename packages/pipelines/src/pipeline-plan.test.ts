@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planOrchestration } from './orchestration-plan'
+import { planPipeline } from './pipeline-plan'
 import { resolveValue } from './reference-expression'
 
 function step(id: string, notebookId: string | null, extra: Record<string, unknown> = {}) {
@@ -28,9 +28,9 @@ function file(blocks: unknown[], name = 'Pipeline') {
 
 const exp = (exportName: string, variable: string) => ({ [exportName]: { enabled: true, variable_name: variable } })
 
-describe('planOrchestration', () => {
+describe('planPipeline', () => {
   it('derives dependencies from variable flow, not a second declaration', () => {
-    const plan = planOrchestration(
+    const plan = planPipeline(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('portfolio', 'portfolio') }),
         step('review', 'nb-review', { sortingKey: 'a1', inputs: { portfolio_json: '{{portfolio}}' } }),
@@ -44,7 +44,7 @@ describe('planOrchestration', () => {
   })
 
   it('leaves independent steps independent, which is what lets them run at once', () => {
-    const plan = planOrchestration(
+    const plan = planPipeline(
       file([
         step('na', 'nb-na', { sortingKey: 'a0', inputs: { region: 'North America' } }),
         step('eu', 'nb-eu', { sortingKey: 'a1', inputs: { region: 'Europe' } }),
@@ -55,7 +55,7 @@ describe('planOrchestration', () => {
   })
 
   it('finds references nested inside objects and arrays', () => {
-    const plan = planOrchestration(
+    const plan = planPipeline(
       file([
         step('a', 'nb-a', { sortingKey: 'a0', exports: exp('value', 'alpha') }),
         step('b', 'nb-b', { sortingKey: 'a1', exports: exp('value', 'beta') }),
@@ -67,14 +67,14 @@ describe('planOrchestration', () => {
   })
 
   it('names a reference no step exports instead of failing at run time', () => {
-    expect(() =>
-      planOrchestration(file([step('a', 'nb-a', { sortingKey: 'a0', inputs: { x: '{{missing}}' } })]))
-    ).toThrow('reads "{{missing}}", which no step exports')
+    expect(() => planPipeline(file([step('a', 'nb-a', { sortingKey: 'a0', inputs: { x: '{{missing}}' } })]))).toThrow(
+      'reads "{{missing}}", which no step exports'
+    )
   })
 
   it('rejects two steps exporting the same variable', () => {
     expect(() =>
-      planOrchestration(
+      planPipeline(
         file([
           step('a', 'nb-a', { sortingKey: 'a0', exports: exp('v', 'shared') }),
           step('b', 'nb-b', { sortingKey: 'a1', exports: exp('v', 'shared') }),
@@ -85,7 +85,7 @@ describe('planOrchestration', () => {
 
   it('detects a dependency cycle before anything runs', () => {
     expect(() =>
-      planOrchestration(
+      planPipeline(
         file([
           step('a', 'nb-a', { sortingKey: 'a0', exports: exp('v', 'fromA'), inputs: { x: '{{fromB}}' } }),
           step('b', 'nb-b', { sortingKey: 'a1', exports: exp('v', 'fromB'), inputs: { x: '{{fromA}}' } }),
@@ -95,15 +95,15 @@ describe('planOrchestration', () => {
   })
 
   it('rejects a step that names no notebook', () => {
-    expect(() => planOrchestration(file([step('a', null, { sortingKey: 'a0' })]))).toThrow('names no notebook')
+    expect(() => planPipeline(file([step('a', null, { sortingKey: 'a0' })]))).toThrow('names no notebook')
   })
 
-  it('explains a file that defines no orchestration', () => {
-    expect(() => planOrchestration(file([]))).toThrow('defines no orchestration')
+  it('explains a file that defines no pipeline', () => {
+    expect(() => planPipeline(file([]))).toThrow('defines no pipeline')
   })
 
   it('orders steps by sortingKey, not array order', () => {
-    const plan = planOrchestration(
+    const plan = planPipeline(
       file([step('second', 'nb-2', { sortingKey: 'a1' }), step('first', 'nb-1', { sortingKey: 'a0' })])
     )
     expect(plan.steps.map(s => s.id)).toEqual(['first', 'second'])
