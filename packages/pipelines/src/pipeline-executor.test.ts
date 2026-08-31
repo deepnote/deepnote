@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { OrchestrationEvent, OrchestrationStepExecutor, OrchestrationStepResult } from './orchestrate'
-import { OrchestrationStepError, runOrchestration } from './orchestrate'
+import type { PipelineEvent, PipelineStepExecutor, PipelineStepResult } from './pipeline'
+import { PipelineStepError, runPipelineWithExecutor } from './pipeline'
 
 function snapshotOf(blocks: { id: string; type?: string; content?: string; outputs: unknown[] }[]) {
   return {
@@ -24,9 +24,9 @@ function snapshotOf(blocks: { id: string; type?: string; content?: string; outpu
 
 /** An executor that returns whatever a test tells it to, without touching a network. */
 function fakeExecutor(
-  per: Record<string, Partial<OrchestrationStepResult>> = {},
+  per: Record<string, Partial<PipelineStepResult>> = {},
   onRun?: (id: string) => void
-): OrchestrationStepExecutor {
+): PipelineStepExecutor {
   return async ({ id, startedAt, startedMs }) => {
     onRun?.(id)
     return {
@@ -41,7 +41,7 @@ function fakeExecutor(
       finishedAt: new Date(startedMs + 1).toISOString(),
       durationMs: 1,
       ...per[id],
-    } as OrchestrationStepResult
+    } as PipelineStepResult
   }
 }
 
@@ -50,9 +50,9 @@ const jsonBlock = (value: unknown) => ({
   outputs: [{ output_type: 'execute_result', data: { 'application/json': value }, metadata: {} }],
 })
 
-describe('runOrchestration', () => {
+describe('runPipelineWithExecutor', () => {
   it('records the graph the pipeline actually took', async () => {
-    const result = await runOrchestration(
+    const result = await runPipelineWithExecutor(
       async ({ run, control }) => {
         const a = await run({ id: 'a', notebookId: 'nb-a' })
         await control({ id: 'gate', kind: 'gate', dependsOn: ['a'] }, () => true)
@@ -77,7 +77,11 @@ describe('runOrchestration', () => {
   })
 
   it('records where each step ran, as the executor named it', async () => {
-    const result = await runOrchestration(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, fakeExecutor())
+    const result = await runPipelineWithExecutor(
+      async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }),
+      {},
+      fakeExecutor()
+    )
     expect(result.steps[0].target).toBe('fake')
     expect(result.graph.nodes[0].target).toBe('fake')
   })
@@ -85,21 +89,21 @@ describe('runOrchestration', () => {
   it('throws on a failed step, carrying the result so a caller can still show outputs', async () => {
     const failure = fakeExecutor({ a: { success: false, status: 'error', error: 'the warehouse is down' } })
     await expect(
-      runOrchestration(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, failure)
-    ).rejects.toThrow(OrchestrationStepError)
+      runPipelineWithExecutor(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, failure)
+    ).rejects.toThrow(PipelineStepError)
 
-    let caught: OrchestrationStepError | undefined
+    let caught: PipelineStepError | undefined
     try {
-      await runOrchestration(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, failure)
+      await runPipelineWithExecutor(async ({ run }) => run({ id: 'a', notebookId: 'nb-a' }), {}, failure)
     } catch (error) {
-      caught = error as OrchestrationStepError
+      caught = error as PipelineStepError
     }
     expect(caught?.stepId).toBe('a')
     expect(caught?.result?.status).toBe('error')
   })
 
   it('returns a failed step instead of throwing when it is allowed to fail', async () => {
-    const result = await runOrchestration(
+    const result = await runPipelineWithExecutor(
       async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }),
       {},
       fakeExecutor({ a: { success: false, status: 'error', error: 'boom' } })
@@ -109,8 +113,8 @@ describe('runOrchestration', () => {
   })
 
   it('emits tagged events so concurrent steps stay distinguishable', async () => {
-    const events: OrchestrationEvent[] = []
-    await runOrchestration(
+    const events: PipelineEvent[] = []
+    await runPipelineWithExecutor(
       async ({ run }) => Promise.all([run({ id: 'a', notebookId: 'nb-a' }), run({ id: 'b', notebookId: 'nb-b' })]),
       { onEvent: event => events.push(event) },
       fakeExecutor()
@@ -121,7 +125,7 @@ describe('runOrchestration', () => {
 
   it('refuses a duplicate node id', async () => {
     await expect(
-      runOrchestration(
+      runPipelineWithExecutor(
         async ({ run }) => {
           await run({ id: 'a', notebookId: 'nb-a' })
           return run({ id: 'a', notebookId: 'nb-a' })
@@ -134,7 +138,7 @@ describe('runOrchestration', () => {
 
   it('refuses a dependency on a node that has not started', async () => {
     await expect(
-      runOrchestration(
+      runPipelineWithExecutor(
         async ({ run }) => run({ id: 'a', notebookId: 'nb-a', dependsOn: ['ghost'] }),
         {},
         fakeExecutor()
@@ -144,7 +148,7 @@ describe('runOrchestration', () => {
 
   it('refuses two concluding nodes', async () => {
     await expect(
-      runOrchestration(
+      runPipelineWithExecutor(
         async ({ run }) => {
           await run({ id: 'a', notebookId: 'nb-a', concluding: true })
           return run({ id: 'b', notebookId: 'nb-b', concluding: true })
@@ -156,9 +160,9 @@ describe('runOrchestration', () => {
   })
 
   it('marks a failed control node and rethrows, rather than swallowing the decision', async () => {
-    const events: OrchestrationEvent[] = []
+    const events: PipelineEvent[] = []
     await expect(
-      runOrchestration(
+      runPipelineWithExecutor(
         async ({ control }) =>
           control({ id: 'gate', kind: 'gate' }, () => {
             throw new Error('bad threshold')
@@ -173,7 +177,7 @@ describe('runOrchestration', () => {
 
 describe('output helpers', () => {
   it('reads the last structured JSON without depending on block ids', async () => {
-    const result = await runOrchestration(
+    const result = await runPipelineWithExecutor(
       async ({ run, outputs }) => outputs.lastJson<{ revenue: number }>(await run({ id: 'a', notebookId: 'nb-a' })),
       {},
       fakeExecutor({ a: { snapshot: snapshotOf([jsonBlock({ revenue: 42 })]) } })
@@ -183,7 +187,7 @@ describe('output helpers', () => {
 
   it('reads a named block, and says so when it is missing', async () => {
     const executor = fakeExecutor({ a: { snapshot: snapshotOf([jsonBlock({ revenue: 42 })]) } })
-    const value = await runOrchestration(
+    const value = await runPipelineWithExecutor(
       async ({ run, outputs }) => outputs.json(await run({ id: 'a', notebookId: 'nb-a' }), 'b1'),
       {},
       executor
@@ -191,7 +195,7 @@ describe('output helpers', () => {
     expect(value.value).toEqual({ revenue: 42 })
 
     await expect(
-      runOrchestration(
+      runPipelineWithExecutor(
         async ({ run, outputs }) => outputs.json(await run({ id: 'a', notebookId: 'nb-a' }), 'nope'),
         {},
         executor
@@ -200,7 +204,7 @@ describe('output helpers', () => {
   })
 
   it('reads the last agent block, preferring the text it generated', async () => {
-    const result = await runOrchestration(
+    const result = await runPipelineWithExecutor(
       async ({ run, outputs }) => outputs.lastAgentText(await run({ id: 'a', notebookId: 'nb-a' })),
       {},
       fakeExecutor({
@@ -218,7 +222,7 @@ describe('output helpers', () => {
   })
 
   it('falls back to the agent block itself when nothing was generated after it', async () => {
-    const result = await runOrchestration(
+    const result = await runPipelineWithExecutor(
       async ({ run, outputs }) => outputs.lastAgentText(await run({ id: 'a', notebookId: 'nb-a' })),
       {},
       fakeExecutor({
@@ -234,7 +238,7 @@ describe('output helpers', () => {
 
   it('explains a step with no snapshot to read', async () => {
     await expect(
-      runOrchestration(
+      runPipelineWithExecutor(
         async ({ run, outputs }) => outputs.lastJson(await run({ id: 'a', notebookId: 'nb-a' })),
         {},
         fakeExecutor()

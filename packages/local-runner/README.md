@@ -183,64 +183,9 @@ The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. 
 — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no
 server at all.
 
-### Orchestrate notebook pipelines
-
-Run several notebooks as one pipeline — fan out, gate on the results, decide:
-
-```ts
-import { orchestrate } from "@deepnote/local-runner";
-
-const { value, graph } = await orchestrate(
-  async ({ run, control, outputs }) => {
-    const analyses = await Promise.all(
-      REGIONS.map((region) =>
-        run({
-          id: region.name,
-          notebookId: region.notebookId,
-          inputs: { region: region.name },
-        }),
-      ),
-    );
-    const readings = analyses.map((step) => outputs.lastJson(step));
-
-    const failing = await control(
-      {
-        id: "quality-gate",
-        kind: "gate",
-        dependsOn: analyses.map((s) => s.id),
-      },
-      () => readings.filter((r) => r.qualityScore < 0.95).map((r) => r.region),
-    );
-
-    return { checked: readings.length, failing };
-  },
-  { token, onEvent: (event) => render(event) },
-);
-```
-
-This is deliberately an imperative API, not a workflow language: `await`, `Promise.all`, loops and
-branches in the callback provide sequencing, concurrency, and conditionals. The library records what
-happened — the graph, the events, the normalized results.
-
-**It needs no server and no local kernel.** Every step is an HTTP call to Deepnote, so the same
-pipeline runs in a script, in CI, and in a browser page. Nothing reachable from `orchestrate`
-imports `node:*`.
-
-Notebooks are addressed by id and must already exist. Running a pipeline needs permission to run a
-notebook, not to create one — which is what lets a page do it with a viewer's short-lived token.
-
-`control` records a local decision as a node, so a gate or an aggregation shows up in the graph
-instead of happening invisibly between steps. `outputs.lastJson(step)` and
-`outputs.lastAgentText(step)` read a step's results without depending on block ids, which Deepnote
-reassigns when it creates a notebook.
-
-A failed notebook throws `OrchestrationStepError` carrying the result, so a caller can still show
-how far the run got; `allowFailure: true` returns it instead.
-
-`runOrchestration(workflow, options, executor)` is the same engine with the runner left open, for
-callers that want to run steps somewhere else.
-
-See [`examples/local-runner/orchestration`](../../examples/local-runner/orchestration).
+To run several notebooks as one pipeline — fanning out, gating on results, drawing the graph — see
+[`@deepnote/pipelines`](../pipelines). That package needs neither this one nor a kernel: every step
+is an HTTP call, so a pipeline also runs in a browser page.
 
 ### Read a snapshot — no Python, no kernel
 
