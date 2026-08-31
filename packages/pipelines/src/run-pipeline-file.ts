@@ -3,31 +3,31 @@ import type { CloudExecutorOptions } from './cloud-executor'
 import { createCloudStepExecutor } from './cloud-executor'
 import { evaluateCondition } from './condition-expression'
 import type {
-  OrchestrateOptions,
-  OrchestrationContext,
-  OrchestrationResult,
-  OrchestrationStepExecutor,
-  OrchestrationStepResult,
-} from './orchestrate'
-import { runOrchestration } from './orchestrate'
-import type { OrchestrationPlan, PlannedStep, PlanOptions } from './orchestration-plan'
-import { planOrchestration } from './orchestration-plan'
+  PipelineContext,
+  PipelineOptions,
+  PipelineResult,
+  PipelineStepExecutor,
+  PipelineStepResult,
+} from './pipeline'
+import { runPipelineWithExecutor } from './pipeline'
+import type { PipelinePlan, PlannedStep, PlanOptions } from './pipeline-plan'
+import { planPipeline } from './pipeline-plan'
 import { resolveValue, unresolvableGroups } from './reference-expression'
 
 /**
  * Run a pipeline that a `.deepnote` file defines.
  *
  * The parent notebook is interpreted, not executed: its `notebook-function` blocks become steps in
- * the ordinary orchestration engine, so independent steps run concurrently and each one reports its
+ * the ordinary pipeline engine, so independent steps run concurrently and each one reports its
  * own status — neither of which survives handing the parent to Deepnote's sequential block engine.
  *
  * What the file buys is that the pipeline stops being application code. The same manifest runs from
  * a browser, a script, or CI, and it can be reviewed and versioned like the notebooks it composes.
  */
 
-export interface PlanRunResult<T> extends OrchestrationResult<T> {
+export interface PlanRunResult<T> extends PipelineResult<T> {
   /** The plan that was executed, for a UI that wants to draw it before anything runs. */
-  plan: OrchestrationPlan
+  plan: PipelinePlan
   /**
    * Steps that did not run: their `run_if` was false, or they read a value from a step that was
    * itself skipped. Reported rather than silently absent, so a page can grey them out.
@@ -38,8 +38,8 @@ export interface PlanRunResult<T> extends OrchestrationResult<T> {
 /** The variables a completed step publishes, read from its structured output. */
 function exportsFrom(
   step: { exports: Record<string, string>; id: string },
-  result: OrchestrationStepResult,
-  outputs: OrchestrationContext['outputs']
+  result: PipelineStepResult,
+  outputs: PipelineContext['outputs']
 ): Record<string, unknown> {
   const names = Object.entries(step.exports)
   if (names.length === 0) {
@@ -80,7 +80,7 @@ function exportsFrom(
  * helpers rather than reimplementing them — the declarative front end and the imperative one
  * produce identical results.
  */
-export interface PlanWorkflowResult {
+export interface PlanPipelineResult {
   variables: Record<string, unknown>
   skipped: string[]
 }
@@ -100,8 +100,8 @@ interface Instance {
  * helpers rather than reimplementing them — the declarative front end and the imperative one
  * produce identical results.
  */
-export function planWorkflow(plan: OrchestrationPlan) {
-  return async ({ run, control, outputs }: OrchestrationContext): Promise<PlanWorkflowResult> => {
+export function pipelineForPlan(plan: PipelinePlan) {
+  return async ({ run, control, outputs }: PipelineContext): Promise<PlanPipelineResult> => {
     const variables: Record<string, unknown> = {}
     const pending = new Map(plan.steps.map(step => [step.id, step]))
     const settled = new Set<string>()
@@ -180,7 +180,7 @@ export function planWorkflow(plan: OrchestrationPlan) {
     }
 
     /** Publish a step's exports. A fan-out collects one array per exported name, in element order. */
-    const publish = (step: PlannedStep, results: { instance: Instance; result: OrchestrationStepResult }[]): void => {
+    const publish = (step: PlannedStep, results: { instance: Instance; result: PipelineStepResult }[]): void => {
       if (Object.keys(step.exports).length === 0) {
         return
       }
@@ -278,28 +278,28 @@ export function planWorkflow(plan: OrchestrationPlan) {
   }
 }
 
-export interface OrchestratePlanOptions extends OrchestrateOptions, PlanOptions {}
+export interface PipelineFileOptions extends PipelineOptions, PlanOptions {}
 
 /**
  * Run the pipeline a `.deepnote` file defines, in Deepnote Cloud.
  *
- * This is the file-defined counterpart to `orchestrate`: same engine, same events, same graph —
+ * This is the file-defined counterpart to `runPipeline`: same engine, same events, same graph —
  * the pipeline comes from a definition rather than from code.
  */
-export async function orchestrateFile(
+export async function runPipelineFile(
   file: DeepnoteFile,
-  options: OrchestratePlanOptions & CloudExecutorOptions
+  options: PipelineFileOptions & CloudExecutorOptions
 ): Promise<PlanRunResult<Record<string, unknown>>> {
-  return runOrchestrationFile(file, options, createCloudStepExecutor(options))
+  return runPipelineFileWithExecutor(file, options, createCloudStepExecutor(options))
 }
 
 /** Plan a `.deepnote` file and run it with a caller-supplied executor. */
-export async function runOrchestrationFile(
+export async function runPipelineFileWithExecutor(
   file: DeepnoteFile,
-  options: OrchestratePlanOptions,
-  execute: OrchestrationStepExecutor
+  options: PipelineFileOptions,
+  execute: PipelineStepExecutor
 ): Promise<PlanRunResult<Record<string, unknown>>> {
-  const plan = planOrchestration(file, options)
-  const result = await runOrchestration(planWorkflow(plan), options, execute)
+  const plan = planPipeline(file, options)
+  const result = await runPipelineWithExecutor(pipelineForPlan(plan), options, execute)
   return { ...result, value: result.value.variables, plan, skipped: result.value.skipped }
 }

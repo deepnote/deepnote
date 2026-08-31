@@ -1,0 +1,53 @@
+metadata:
+  createdAt: 2025-01-01T00:00:00.000Z
+  snapshotHash: abc123
+environment:
+  pythonVersion: "3.12"
+execution:
+  startedAt: 2025-01-01T00:00:00.000Z
+  finishedAt: 2025-01-01T00:00:05.000Z
+project:
+  name: Sales
+  id: 00000000-0000-0000-0000-000000000100
+  notebooks:
+    - id: 00000000-0000-0000-0000-000000000101
+      name: Analysis
+      blocks:
+        - blockGroup: "1"
+          id: b-input
+          sortingKey: "1"
+          type: input-slider
+          content: ""
+          metadata:
+            deepnote_variable_name: count
+            deepnote_variable_value: "7"
+        - blockGroup: "2"
+          id: b-md
+          sortingKey: "2"
+          type: markdown
+          content: "# Results"
+          metadata: {}
+        - blockGroup: "3"
+          id: b-code
+          sortingKey: "3"
+          type: code
+          content: print(count)
+          executionCount: 1
+          outputs:
+            - output_type: stream
+              name: stdout
+              text: "7\n"
+          metadata: {}
+        - blockGroup: "4"
+          id: b-sql
+          sortingKey: "4"
+          type: sql
+          content: select 1
+          executionCount: 2
+          outputs:
+            - output_type: execute_result
+              data:
+                text/html: "<table><tr><td>1</td></tr></table>"
+              metadata: {}
+          metadata: {}
+version: 1.0.0

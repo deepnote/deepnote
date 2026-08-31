@@ -1,4 +1,4 @@
-import type { RunBlockOutput } from './run-with-inputs'
+import type { RunBlockOutput } from './block-output'
 import type { SnapshotView } from './snapshot-view'
 import { parseSnapshot } from './snapshot-view'
 

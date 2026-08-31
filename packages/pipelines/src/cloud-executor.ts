@@ -6,9 +6,9 @@ import {
   triggerNotebookRun,
   waitForRunSnapshot,
 } from '@deepnote/cloud'
+import type { RunBlockOutput } from './block-output'
 import { extractOutputs } from './extract-outputs'
-import { finishResult, type OrchestrationStepExecutor } from './orchestrate'
-import type { RunBlockOutput } from './run-with-inputs'
+import { finishResult, type PipelineStepExecutor } from './pipeline'
 import type { SnapshotView } from './snapshot-view'
 import { parseSnapshot } from './snapshot-view'
 
@@ -79,14 +79,14 @@ function readSnapshotSafely(snapshotYaml: string): { snapshot: SnapshotView | nu
   }
 }
 
-/** Build the executor {@link orchestrate} uses. Exported for callers composing their own engine. */
-export function createCloudStepExecutor(options: CloudExecutorOptions): OrchestrationStepExecutor {
+/** Build the executor {@link runPipeline} uses. Exported for callers composing their own engine. */
+export function createCloudStepExecutor(options: CloudExecutorOptions): PipelineStepExecutor {
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
   const { token } = options
 
   return async ({ id, step, startedMs, startedAt, emit }) => {
     if (!step.notebookId) {
-      throw new Error(`Orchestration step "${id}" has no notebookId to run.`)
+      throw new Error(`Pipeline step "${id}" has no notebookId to run.`)
     }
 
     const started = await triggerNotebookRun(
@@ -115,7 +115,7 @@ export function createCloudStepExecutor(options: CloudExecutorOptions): Orchestr
     const success = isSuccessStatus(completed.status)
     // A snapshot that will not parse must not take the result with it. Both `parseSnapshot` and
     // `extractOutputs` throw on malformed content, and a throw here escapes the executor and
-    // becomes an OrchestrationStepError — discarding the status, run id, and error, which is
+    // becomes an PipelineStepError — discarding the status, run id, and error, which is
     // exactly the diagnostic information the previous call was made to preserve. `allowFailure`
     // would not help either, because a thrown error is not a failed result. Degrade instead: the
     // raw YAML is still returned for a caller to inspect.

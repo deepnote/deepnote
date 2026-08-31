@@ -1,13 +1,13 @@
 # run-app
 
 A page that shows every way to compose [`@deepnote/local-runner`](../../../packages/local-runner) —
-with **no application server**. Runs, run history, scheduling, and the orchestrated pipeline are all
+with **no application server**. Runs, run history, scheduling, and the pipeline are all
 `fetch` calls made in the browser against the Deepnote API.
 
 - **Run** one notebook in Deepnote Cloud. Edit the inputs, click **Run**, and real Python output
   comes back — a KPI, a table, a chart, and an agent-written readout.
 - **Schedule** sets up a recurring Deepnote Cloud run of that notebook.
-- **Run orchestrated pipeline** fans out three regional notebooks, quality-gates their structured
+- **Run the pipeline** fans out three regional notebooks, quality-gates their structured
   results, conditionally reruns incomplete data, aggregates the validated portfolio, asks GPT and
   Claude for independent reviews, and fans those reviews into a final arbiter notebook.
 
@@ -27,7 +27,7 @@ page now calls directly:
 | `POST /api/run`            | `POST /v2/runs`, then poll `GET /v2/runs/{runId}`       |
 | `GET /api/cloud-runs`      | `GET /v2/notebooks/{id}/runs`                           |
 | `POST /api/schedule-cloud` | `POST /v2/notebooks/{id}/schedule`                      |
-| `POST /api/orchestrate`    | `orchestrateInCloud(...)` in the page                   |
+| `POST /api/pipeline`       | `runPipelineInCloud(...)` in the page                   |
 
 ## What having no server costs
 
@@ -65,7 +65,7 @@ provider and arbiter ids are optional and their nodes report themselves as uncon
 
 ## Run the pipeline
 
-Click **Run orchestrated pipeline**. The orchestration itself is control flow in the page —
+Click **Run the pipeline**. The pipeline itself is control flow in the page —
 `Promise.all`, a filter, a conditional rerun — and each step is a Deepnote Cloud run:
 
 ```text
@@ -81,10 +81,10 @@ final decision. It uses `outputs.lastJson(step)`, so it does not depend on sourc
 surviving cloud creation.
 
 Every notebook node becomes a keyboard-focusable link to that exact run as soon as its `viewUrl`
-arrives. The quality gate and aggregation stay non-clickable because they are orchestration
+arrives. The quality gate and aggregation stay non-clickable because they are pipeline
 decisions, not notebook executions.
 
-This is one-shot orchestration: it holds its state in the page and is gone if the tab closes, which
+This is one-shot coordination: it holds its state in the page and is gone if the tab closes, which
 is the right trade for an interactive app.
 
 The pipeline here is written in JavaScript. The same shape can live in a file instead — see
