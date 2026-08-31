@@ -1,9 +1,9 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { deepnoteFileSchema, deepnoteSnapshotSchema, parseYaml } from '@deepnote/blocks'
 import { describeRunError, findNotebook, getWorkspace, type NormalizedRun, notebookUrl } from '@deepnote/cloud'
-import { parseSnapshot } from './snapshot-view'
+import { parseSnapshot } from '@deepnote/pipelines'
 
-export { extractOutputs } from './extract-outputs'
+export { extractOutputs } from '@deepnote/pipelines'
 
 /**
  * The plumbing every cloud entry point needs — `run-in-cloud.ts` and `cloud-runs.ts` both reach for

@@ -14,7 +14,7 @@ metadata:
   createdAt: '2026-08-27T00:00:00.000Z'
 project:
   id: local-runner-sales-pipeline
-  name: Local runner demo - orchestrated sales review
+  name: Pipelines demo - sales review
   notebooks:
     - id: local-runner-sales-pipeline-notebook
       name: Sales review pipeline

@@ -1,37 +1,38 @@
-import type { AgentStreamEvent, ExecutionSummary, IOutput } from '@deepnote/runtime-core'
+import type { IOutput } from '@jupyterlab/nbformat'
+import type { AgentStreamEvent, ExecutionSummary, RunBlockOutput } from './block-output'
 import { type CloudExecutorOptions, createCloudStepExecutor } from './cloud-executor'
-import type { RunBlockOutput } from './run-with-inputs'
 import type { SnapshotBlock, SnapshotView } from './snapshot-view'
 
 /**
- * Orchestrate a pipeline of Deepnote notebooks.
+ * Compose Deepnote notebook runs into a pipeline.
  *
  * A pipeline is ordinary control flow: `await`, `Promise.all`, loops and branches in the callback
  * define sequencing, concurrency, and conditionals. This module records what happened — the graph,
- * the events, the results — rather than defining a workflow language.
+ * the events, the results — rather than defining a workflow language. There is no engine here to
+ * interpret the pipeline, because the language the caller wrote it in already did.
  *
  * Every step runs in Deepnote Cloud over `fetch`, which is why nothing here imports `node:*`: the
  * same pipeline runs in a script, in CI, and in a browser page with no server behind it. Steps name
  * notebooks that already exist, by id.
  *
- * How a step actually runs is an {@link OrchestrationStepExecutor}, so a caller that does have a
- * local Python kernel can supply one via {@link runOrchestration}.
+ * How a step actually runs is a {@link PipelineStepExecutor}, so a caller that does have a local
+ * Python kernel can supply one via {@link runPipelineWithExecutor}.
  */
 
-export interface OrchestrationDependency {
+export interface PipelineDependency {
   /** ID of an earlier notebook or control node. */
   id: string
   /** Optional label rendered on the dependency edge. */
   label?: string
 }
 
-export type OrchestrationDependencyInput = string | OrchestrationDependency
+export type PipelineDependencyInput = string | PipelineDependency
 
-interface OrchestrationNodeDefinition {
+interface PipelineNodeDefinition {
   /** Human-readable label for generated graphs. Defaults to the node ID. */
   label?: string
   /** Earlier nodes whose outputs or decisions this node depends on. */
-  dependsOn?: OrchestrationDependencyInput[]
+  dependsOn?: PipelineDependencyInput[]
   /** Marks the node that a result viewer should select first. Only one node may be concluding. */
   concluding?: boolean
   /** Bump this when node behavior changes but its notebook and inputs do not. */
@@ -40,9 +41,9 @@ interface OrchestrationNodeDefinition {
   metadata?: Record<string, string | number | boolean | null>
 }
 
-/** One notebook invocation in an orchestration. */
-export interface OrchestrationStep extends OrchestrationNodeDefinition {
-  /** Unique within one orchestration, and attached to every event and result. */
+/** One notebook invocation in a pipeline. */
+export interface PipelineStep extends PipelineNodeDefinition {
+  /** Unique within one pipeline, and attached to every event and result. */
   id: string
   /**
    * The Deepnote notebook to run.
@@ -62,19 +63,19 @@ export interface OrchestrationStep extends OrchestrationNodeDefinition {
   allowFailure?: boolean
 }
 
-export type OrchestrationControlKind = 'control' | 'gate' | 'join' | 'branch'
-export type OrchestrationGraphNodeKind = 'notebook' | OrchestrationControlKind
+export type PipelineControlKind = 'control' | 'gate' | 'join' | 'branch'
+export type PipelineGraphNodeKind = 'notebook' | PipelineControlKind
 
 /** A local JavaScript decision or transformation that should appear in the execution graph. */
-export interface OrchestrationControlNode extends OrchestrationNodeDefinition {
-  /** Unique within one orchestration, shared with notebook step IDs. */
+export interface PipelineControlNode extends PipelineNodeDefinition {
+  /** Unique within one pipeline, shared with notebook step IDs. */
   id: string
   /** More specific kinds let renderers distinguish validation, joining, and branching. */
-  kind?: OrchestrationControlKind
+  kind?: PipelineControlKind
 }
 
 /** The normalized result of one notebook run. */
-export interface OrchestrationStepResult {
+export interface PipelineStepResult {
   id: string
   /** Where this ran, named by the executor. `'cloud'` for the built-in one. */
   target: string
@@ -94,13 +95,13 @@ export interface OrchestrationStepResult {
   durationMs: number
 }
 
-export type OrchestrationGraphNodeStatus = 'running' | 'success' | 'failed'
+export type PipelineGraphNodeStatus = 'running' | 'success' | 'failed'
 
-export interface OrchestrationGraphNode {
+export interface PipelineGraphNode {
   id: string
   label: string
-  kind: OrchestrationGraphNodeKind
-  status: OrchestrationGraphNodeStatus
+  kind: PipelineGraphNodeKind
+  status: PipelineGraphNodeStatus
   /** Set when the node finishes, from the result the executor returned. */
   target?: string
   concluding?: boolean
@@ -113,43 +114,43 @@ export interface OrchestrationGraphNode {
   error?: string
 }
 
-export interface OrchestrationGraphEdge {
+export interface PipelineGraphEdge {
   from: string
   to: string
   label?: string
 }
 
 /** Runtime topology and status generated from notebook and control-node execution. */
-export interface OrchestrationGraph {
-  nodes: OrchestrationGraphNode[]
-  edges: OrchestrationGraphEdge[]
+export interface PipelineGraph {
+  nodes: PipelineGraphNode[]
+  edges: PipelineGraphEdge[]
   concludingNodeId?: string
 }
 
 /** Progress from every notebook run, tagged so concurrent steps remain distinguishable. */
-export type OrchestrationEvent =
+export type PipelineEvent =
   | { type: 'step_started'; stepId: string; startedAt: string }
   | { type: 'step_status'; stepId: string; status: string }
   | { type: 'block_output'; stepId: string; blockId: string; output: IOutput }
   | { type: 'agent_event'; stepId: string; event: AgentStreamEvent }
-  | { type: 'step_completed'; stepId: string; result: OrchestrationStepResult }
-  | { type: 'step_failed'; stepId: string; error: string; result?: OrchestrationStepResult }
-  | { type: 'control_started'; node: OrchestrationGraphNode }
-  | { type: 'control_completed'; node: OrchestrationGraphNode }
-  | { type: 'control_failed'; node: OrchestrationGraphNode; error: string }
+  | { type: 'step_completed'; stepId: string; result: PipelineStepResult }
+  | { type: 'step_failed'; stepId: string; error: string; result?: PipelineStepResult }
+  | { type: 'control_started'; node: PipelineGraphNode }
+  | { type: 'control_completed'; node: PipelineGraphNode }
+  | { type: 'control_failed'; node: PipelineGraphNode; error: string }
 
-export interface OrchestrateOptions {
+export interface PipelineOptions {
   /** Synchronous event sink for logging, UIs, and telemetry. */
-  onEvent?: (event: OrchestrationEvent) => void
+  onEvent?: (event: PipelineEvent) => void
 }
 
 /** Everything an executor needs to run one step and tag the events it emits. */
-export interface OrchestrationStepExecution {
+export interface PipelineStepExecution {
   id: string
-  step: OrchestrationStep
+  step: PipelineStep
   startedMs: number
   startedAt: string
-  emit: (event: OrchestrationEvent) => void
+  emit: (event: PipelineEvent) => void
 }
 
 /**
@@ -158,9 +159,9 @@ export interface OrchestrationStepExecution {
  * A failed notebook is a returned result with `success: false`, not a thrown error. Throwing is
  * reserved for infrastructure problems — no credentials, an unknown notebook, a broken API.
  */
-export type OrchestrationStepExecutor = (execution: OrchestrationStepExecution) => Promise<OrchestrationStepResult>
+export type PipelineStepExecutor = (execution: PipelineStepExecution) => Promise<PipelineStepResult>
 
-export interface OrchestrationOutputHelpers {
+export interface PipelineOutputHelpers {
   /** All textual output from one block, in output order. */
   text: typeof outputText
   /** Textual output from every block, in notebook order. Portable across remapped cloud block ids. */
@@ -173,40 +174,40 @@ export interface OrchestrationOutputHelpers {
   lastJson: typeof lastOutputJson
 }
 
-export interface OrchestrationContext {
+export interface PipelineContext {
   /** Run one notebook. Ordinary `await`, `Promise.all`, loops, and branches define the pipeline. */
-  run(step: OrchestrationStep): Promise<OrchestrationStepResult>
+  run(step: PipelineStep): Promise<PipelineStepResult>
   /** Run an observable local decision/transformation and include it in the generated graph. */
-  control<T>(node: OrchestrationControlNode, operation: () => T | Promise<T>): Promise<T>
-  outputs: OrchestrationOutputHelpers
+  control<T>(node: PipelineControlNode, operation: () => T | Promise<T>): Promise<T>
+  outputs: PipelineOutputHelpers
 }
 
-export interface OrchestrationResult<T> {
+export interface PipelineResult<T> {
   /** Whatever the pipeline function returned. */
   value: T
   /** Step results in start order, including allowed failures. */
-  steps: OrchestrationStepResult[]
+  steps: PipelineStepResult[]
   /** Notebook and explicit control nodes, with their runtime dependency edges. */
-  graph: OrchestrationGraph
+  graph: PipelineGraph
   startedAt: string
   finishedAt: string
   durationMs: number
 }
 
 /** A notebook step failed and was not marked `allowFailure`. */
-export class OrchestrationStepError extends Error {
+export class PipelineStepError extends Error {
   readonly stepId: string
-  readonly result?: OrchestrationStepResult
+  readonly result?: PipelineStepResult
 
-  constructor(stepId: string, message: string, options: { result?: OrchestrationStepResult; cause?: unknown } = {}) {
-    super(`Orchestration step "${stepId}" failed: ${message}`, { cause: options.cause })
-    this.name = 'OrchestrationStepError'
+  constructor(stepId: string, message: string, options: { result?: PipelineStepResult; cause?: unknown } = {}) {
+    super(`Pipeline step "${stepId}" failed: ${message}`, { cause: options.cause })
+    this.name = 'PipelineStepError'
     this.stepId = stepId
     this.result = options.result
   }
 }
 
-export const orchestrationOutputs: OrchestrationOutputHelpers = {
+export const pipelineOutputs: PipelineOutputHelpers = {
   text: outputText,
   allText: allOutputText,
   lastAgentText,
@@ -218,60 +219,60 @@ export const orchestrationOutputs: OrchestrationOutputHelpers = {
  * Run a pipeline in Deepnote Cloud.
  *
  * This is the imperative interface: the callback's own control flow is the pipeline. For a pipeline
- * that should live in a file rather than in code, see `orchestrateFile`, which compiles a
+ * that should live in a file rather than in code, see `runPipelineFile`, which compiles a
  * `.deepnote` definition into exactly this callback.
  */
-export async function orchestrate<T>(
-  workflow: (context: OrchestrationContext) => T | Promise<T>,
-  options: CloudExecutorOptions & OrchestrateOptions
-): Promise<OrchestrationResult<T>> {
-  return runOrchestration(workflow, options, createCloudStepExecutor(options))
+export async function runPipeline<T>(
+  workflow: (context: PipelineContext) => T | Promise<T>,
+  options: CloudExecutorOptions & PipelineOptions
+): Promise<PipelineResult<T>> {
+  return runPipelineWithExecutor(workflow, options, createCloudStepExecutor(options))
 }
 
 /**
  * Run a pipeline with a caller-supplied executor.
  *
- * {@link orchestrate} is this bound to the cloud runner. Supply your own to run steps somewhere
+ * {@link runPipeline} is this bound to the cloud runner. Supply your own to run steps somewhere
  * else — a local Python kernel, a fake in a test — without reimplementing the graph or the events.
  */
-export async function runOrchestration<T>(
-  workflow: (context: OrchestrationContext) => T | Promise<T>,
-  options: OrchestrateOptions,
-  execute: OrchestrationStepExecutor
-): Promise<OrchestrationResult<T>> {
-  const orchestrationStartedMs = Date.now()
-  const orchestrationStartedAt = new Date(orchestrationStartedMs).toISOString()
+export async function runPipelineWithExecutor<T>(
+  workflow: (context: PipelineContext) => T | Promise<T>,
+  options: PipelineOptions,
+  execute: PipelineStepExecutor
+): Promise<PipelineResult<T>> {
+  const pipelineStartedMs = Date.now()
+  const pipelineStartedAt = new Date(pipelineStartedMs).toISOString()
   const usedIds = new Set<string>()
   const resultOrder = new Map<string, number>()
-  const results: OrchestrationStepResult[] = []
-  const graph: OrchestrationGraph = { nodes: [], edges: [] }
+  const results: PipelineStepResult[] = []
+  const graph: PipelineGraph = { nodes: [], edges: [] }
 
-  const emit = (event: OrchestrationEvent): void => {
+  const emit = (event: PipelineEvent): void => {
     options.onEvent?.(event)
   }
 
   const registerNode = (
     id: string,
-    kind: OrchestrationGraphNodeKind,
-    definition: OrchestrationNodeDefinition,
+    kind: PipelineGraphNodeKind,
+    definition: PipelineNodeDefinition,
     startedAt: string
-  ): OrchestrationGraphNode => {
+  ): PipelineGraphNode => {
     validateNodeId(id, usedIds)
     const dependencies = normalizeDependencies(definition.dependsOn)
     for (const dependency of dependencies) {
       if (!graph.nodes.some(node => node.id === dependency.id)) {
-        throw new Error(`Orchestration node "${id}" depends on unknown or not-yet-started node "${dependency.id}".`)
+        throw new Error(`Pipeline node "${id}" depends on unknown or not-yet-started node "${dependency.id}".`)
       }
     }
     if (definition.concluding) {
       if (graph.concludingNodeId) {
-        throw new Error(`Orchestration nodes "${graph.concludingNodeId}" and "${id}" are both marked as concluding.`)
+        throw new Error(`Pipeline nodes "${graph.concludingNodeId}" and "${id}" are both marked as concluding.`)
       }
       graph.concludingNodeId = id
     }
 
     usedIds.add(id)
-    const node: OrchestrationGraphNode = {
+    const node: PipelineGraphNode = {
       id,
       label: definition.label?.trim() || id,
       kind,
@@ -286,8 +287,8 @@ export async function runOrchestration<T>(
   }
 
   const finishNode = (
-    node: OrchestrationGraphNode,
-    status: Exclude<OrchestrationGraphNodeStatus, 'running'>,
+    node: PipelineGraphNode,
+    status: Exclude<PipelineGraphNodeStatus, 'running'>,
     startedMs: number,
     details: { target?: string; runId?: string; viewUrl?: string; error?: string } = {}
   ): void => {
@@ -300,7 +301,7 @@ export async function runOrchestration<T>(
     node.error = details.error
   }
 
-  const runNode = async (step: OrchestrationStep): Promise<OrchestrationStepResult> => {
+  const runNode = async (step: PipelineStep): Promise<PipelineStepResult> => {
     const id = step.id.trim()
     const startedMs = Date.now()
     const startedAt = new Date(startedMs).toISOString()
@@ -323,7 +324,7 @@ export async function runOrchestration<T>(
         })
         emit({ type: 'step_failed', stepId: id, error, result })
         if (!step.allowFailure) {
-          throw new OrchestrationStepError(id, error, { result })
+          throw new PipelineStepError(id, error, { result })
         }
         return result
       }
@@ -336,17 +337,17 @@ export async function runOrchestration<T>(
       emit({ type: 'step_completed', stepId: id, result })
       return result
     } catch (error) {
-      if (error instanceof OrchestrationStepError) {
+      if (error instanceof PipelineStepError) {
         throw error
       }
       const message = error instanceof Error ? error.message : String(error)
       finishNode(node, 'failed', startedMs, { error: message })
       emit({ type: 'step_failed', stepId: id, error: message })
-      throw new OrchestrationStepError(id, message, { cause: error })
+      throw new PipelineStepError(id, message, { cause: error })
     }
   }
 
-  const controlNode = async <T>(definition: OrchestrationControlNode, operation: () => T | Promise<T>): Promise<T> => {
+  const controlNode = async <T>(definition: PipelineControlNode, operation: () => T | Promise<T>): Promise<T> => {
     const id = definition.id.trim()
     const kind = definition.kind ?? 'control'
     const startedMs = Date.now()
@@ -368,10 +369,10 @@ export async function runOrchestration<T>(
     }
   }
 
-  const context: OrchestrationContext = {
+  const context: PipelineContext = {
     run: runNode,
     control: controlNode,
-    outputs: orchestrationOutputs,
+    outputs: pipelineOutputs,
   }
 
   const value = await workflow(context)
@@ -380,32 +381,32 @@ export async function runOrchestration<T>(
     value,
     steps: results.sort((a, b) => (resultOrder.get(a.id) ?? 0) - (resultOrder.get(b.id) ?? 0)),
     graph,
-    startedAt: orchestrationStartedAt,
+    startedAt: pipelineStartedAt,
     finishedAt: new Date(finishedMs).toISOString(),
-    durationMs: finishedMs - orchestrationStartedMs,
+    durationMs: finishedMs - pipelineStartedMs,
   }
 }
 
 function validateNodeId(id: string, usedIds: Set<string>): void {
   if (!id) {
-    throw new Error('Orchestration node ids cannot be empty.')
+    throw new Error('Pipeline node ids cannot be empty.')
   }
   if (usedIds.has(id)) {
-    throw new Error(`Orchestration node id "${id}" was used more than once.`)
+    throw new Error(`Pipeline node id "${id}" was used more than once.`)
   }
 }
 
-function normalizeDependencies(dependencies: OrchestrationDependencyInput[] | undefined): OrchestrationDependency[] {
+function normalizeDependencies(dependencies: PipelineDependencyInput[] | undefined): PipelineDependency[] {
   const normalized = (dependencies ?? []).map(dependency =>
     typeof dependency === 'string' ? { id: dependency.trim() } : { ...dependency, id: dependency.id.trim() }
   )
   const ids = new Set<string>()
   for (const dependency of normalized) {
     if (!dependency.id) {
-      throw new Error('Orchestration dependency ids cannot be empty.')
+      throw new Error('Pipeline dependency ids cannot be empty.')
     }
     if (ids.has(dependency.id)) {
-      throw new Error(`Orchestration dependency "${dependency.id}" was listed more than once.`)
+      throw new Error(`Pipeline dependency "${dependency.id}" was listed more than once.`)
     }
     ids.add(dependency.id)
   }
@@ -414,10 +415,10 @@ function normalizeDependencies(dependencies: OrchestrationDependencyInput[] | un
 
 /** Stamp an executor result with its timing. Exported for executors outside this module. */
 export function finishResult(
-  result: Omit<OrchestrationStepResult, 'startedAt' | 'finishedAt' | 'durationMs'>,
+  result: Omit<PipelineStepResult, 'startedAt' | 'finishedAt' | 'durationMs'>,
   startedMs: number,
   startedAt: string
-): OrchestrationStepResult {
+): PipelineStepResult {
   const finishedMs = Date.now()
   return {
     ...result,
@@ -428,12 +429,12 @@ export function finishResult(
 }
 
 /** Return all text-like output from a block, preserving the runner's output order. */
-export function outputText(result: OrchestrationStepResult, blockId: string): string {
+export function outputText(result: PipelineStepResult, blockId: string): string {
   return textForBlock(result, findBlock(result, blockId))
 }
 
 /** Return text-like output from every block, preserving notebook, block, and output order. */
-export function allOutputText(result: OrchestrationStepResult): string {
+export function allOutputText(result: PipelineStepResult): string {
   const text = snapshotBlocks(result)
     .flatMap(block => textPartsForBlock(block))
     .join('')
@@ -444,7 +445,7 @@ export function allOutputText(result: OrchestrationStepResult): string {
 }
 
 /** Return the final text produced by the last agent block in the executed snapshot. */
-export function lastAgentText(result: OrchestrationStepResult): string {
+export function lastAgentText(result: PipelineStepResult): string {
   const blocks = snapshotBlocks(result)
   const agentIndex = blocks.map(block => block.type).lastIndexOf('agent')
   if (agentIndex === -1) {
@@ -479,7 +480,7 @@ export function lastAgentText(result: OrchestrationStepResult): string {
  * Prefers `application/json` from a display/execute result. If none exists, parses the block's
  * textual output, which makes `print(json.dumps(...))` useful without a custom display helper.
  */
-export function outputJson<T = unknown>(result: OrchestrationStepResult, blockId: string): T {
+export function outputJson<T = unknown>(result: PipelineStepResult, blockId: string): T {
   const block = findBlock(result, blockId)
   for (const output of block.outputs) {
     if (!('data' in output) || !isRecord(output.data) || !('application/json' in output.data)) {
@@ -501,7 +502,7 @@ export function outputJson<T = unknown>(result: OrchestrationStepResult, blockId
  * assigns different block ids while creating a notebook. Structured `application/json` output is
  * preferred, then text-like outputs containing a complete JSON value are considered.
  */
-export function lastOutputJson<T = unknown>(result: OrchestrationStepResult): T {
+export function lastOutputJson<T = unknown>(result: PipelineStepResult): T {
   const blocks = snapshotBlocks(result)
   for (let blockIndex = blocks.length - 1; blockIndex >= 0; blockIndex -= 1) {
     const block = blocks[blockIndex]
@@ -526,7 +527,7 @@ export function lastOutputJson<T = unknown>(result: OrchestrationStepResult): T 
   throw new Error(`Step "${result.id}" produced no structured JSON output.`)
 }
 
-function parseJson<T>(result: OrchestrationStepResult, blockId: string, text: string): T {
+function parseJson<T>(result: PipelineStepResult, blockId: string, text: string): T {
   try {
     return JSON.parse(text) as T
   } catch (error) {
@@ -538,7 +539,7 @@ function parseJson<T>(result: OrchestrationStepResult, blockId: string, text: st
   }
 }
 
-function findBlock(result: OrchestrationStepResult, blockId: string): SnapshotBlock {
+function findBlock(result: PipelineStepResult, blockId: string): SnapshotBlock {
   const matches = snapshotBlocks(result).filter(block => block.id === blockId)
   if (matches.length === 0) {
     throw new Error(`Step "${result.id}" has no block "${blockId}" in its snapshot.`)
@@ -549,14 +550,14 @@ function findBlock(result: OrchestrationStepResult, blockId: string): SnapshotBl
   return matches[0]
 }
 
-function snapshotBlocks(result: OrchestrationStepResult): SnapshotBlock[] {
+function snapshotBlocks(result: PipelineStepResult): SnapshotBlock[] {
   if (!result.snapshot) {
     throw new Error(`Step "${result.id}" has no snapshot to read outputs from.`)
   }
   return result.snapshot.notebooks.flatMap(notebook => notebook.blocks)
 }
 
-function textForBlock(result: OrchestrationStepResult, block: SnapshotBlock): string {
+function textForBlock(result: PipelineStepResult, block: SnapshotBlock): string {
   const text = textPartsForBlock(block).join('')
   if (!text) {
     throw new Error(`Block "${block.id}" in step "${result.id}" produced no textual output.`)

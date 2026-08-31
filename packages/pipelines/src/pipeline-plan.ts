@@ -3,7 +3,7 @@ import { parseCondition } from './condition-expression'
 import { referenceRoots } from './reference-expression'
 
 /**
- * Read an orchestration out of a `.deepnote` file.
+ * Read a pipeline out of a `.deepnote` file.
  *
  * A parent notebook of `notebook-function` blocks *is* a pipeline definition: each block names an
  * external notebook, the inputs to run it with, and the values it publishes. This module turns that
@@ -12,7 +12,7 @@ import { referenceRoots } from './reference-expression'
  * The parent is read as a manifest, not run as a notebook. That distinction is the whole point —
  * Deepnote's own engine runs blocks strictly in order, so executing the parent would serialize the
  * pipeline and collapse it into a single run with a single status. Interpreting it instead lets the
- * orchestrator run independent steps concurrently and report each one separately, while the
+ * pipeline run independent steps concurrently and report each one separately, while the
  * definition still lives in a versioned file that can be reviewed, rather than in application code.
  *
  * Nothing here is Node-specific, so a browser can plan a pipeline it fetched.
@@ -20,7 +20,7 @@ import { referenceRoots } from './reference-expression'
 
 /** A step's inputs and exports, resolved from one `notebook-function` block. */
 export interface PlannedStep {
-  /** The block id, used as the orchestration step id. */
+  /** The block id, used as the pipeline step id. */
   id: string
   label: string
   /** The external notebook this step runs. */
@@ -54,7 +54,7 @@ export interface PlannedStep {
   forEachAs: string
 }
 
-export interface OrchestrationPlan {
+export interface PipelinePlan {
   /** The notebook the plan was read from. */
   notebookId: string
   notebookName: string
@@ -64,7 +64,7 @@ export interface OrchestrationPlan {
 }
 
 export interface PlanOptions {
-  /** Which notebook in the file holds the orchestration. Defaults to the only one that has steps. */
+  /** Which notebook in the file holds the pipeline. Defaults to the only one that has steps. */
   notebook?: string
 }
 
@@ -84,7 +84,7 @@ function selectNotebook(file: DeepnoteFile, options: PlanOptions) {
   const withSteps = notebooks.filter(notebook => notebook.blocks.some(isNotebookFunctionBlock))
   if (withSteps.length === 0) {
     throw new Error(
-      'This file defines no orchestration: no notebook in it has a notebook-function block. Add one block per step, each naming the notebook it runs.'
+      'This file defines no pipeline: no notebook in it has a notebook-function block. Add one block per step, each naming the notebook it runs.'
     )
   }
   if (withSteps.length > 1) {
@@ -102,7 +102,7 @@ function selectNotebook(file: DeepnoteFile, options: PlanOptions) {
  * `{{portfolio}}` depends on whichever step exports `portfolio`. This is the same model the
  * reactivity package already applies to notebook-function blocks.
  */
-export function planOrchestration(file: DeepnoteFile, options: PlanOptions = {}): OrchestrationPlan {
+export function planPipeline(file: DeepnoteFile, options: PlanOptions = {}): PipelinePlan {
   const notebook = selectNotebook(file, options)
   const blocks = [...notebook.blocks]
     .filter(isNotebookFunctionBlock)

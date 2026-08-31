@@ -1,12 +1,12 @@
 // A pipeline in ~40 lines: fan out, gate on the results, then decide.
 //
 // The bootstrap below is Node — `process.loadEnvFile`, `process.env`, `process.exit`. The pipeline
-// itself is not: the callback passed to `orchestrate` runs unchanged in a browser, because every
+// itself is not: the callback passed to `runPipeline` runs unchanged in a browser, because every
 // step is an HTTP call to Deepnote. A page supplies its own configuration and token (see
 // `examples/local-runner/run-app`); what it does not need is a server, a kernel, or a daemon.
 //
-// In a real project, import from '@deepnote/local-runner' after installing it.
-import { orchestrate } from '../../../packages/local-runner/dist/index.js'
+// In a real project, import from '@deepnote/pipelines' after installing it.
+import { runPipeline } from '../../../packages/pipelines/dist/index.js'
 
 try {
   process.loadEnvFile()
@@ -32,7 +32,7 @@ if (REGIONS.length === 0) {
 
 const QUALITY_THRESHOLD = 0.95
 
-const { value, graph, durationMs } = await orchestrate(
+const { value, graph, durationMs } = await runPipeline(
   async ({ run, control, outputs }) => {
     // Ordinary control flow is the pipeline: these fan out concurrently because Promise.all does.
     const analyses = await Promise.all(
