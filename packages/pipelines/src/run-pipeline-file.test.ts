@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { OrchestrationEvent, OrchestrationStepExecutor } from './orchestrate'
-import { runOrchestrationFile } from './orchestrate-plan'
+import type { PipelineEvent, PipelineStepExecutor } from './pipeline'
+import { runPipelineFileWithExecutor } from './run-pipeline-file'
 
 function step(id: string, notebookId: string, extra: Record<string, unknown> = {}) {
   return {
@@ -51,7 +51,7 @@ function jsonSnapshot(value: unknown) {
 
 // The runner reads a step's exports via outputs.lastJson; give the stub results a JSON output.
 function jsonResultExecutor(values: Record<string, unknown>, onStart?: (id: string) => void) {
-  const executor: OrchestrationStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
+  const executor: PipelineStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
     onStart?.(id)
     const value = values[id] ?? {}
     return {
@@ -90,12 +90,12 @@ function jsonResultExecutor(values: Record<string, unknown>, onStart?: (id: stri
   return executor
 }
 
-describe('orchestrateFile', () => {
+describe('runPipelineFile', () => {
   it('runs independent steps concurrently', async () => {
     const order: string[] = []
     let inFlight = 0
     let peak = 0
-    const executor: OrchestrationStepExecutor = async ({ id, startedAt, startedMs }) => {
+    const executor: PipelineStepExecutor = async ({ id, startedAt, startedMs }) => {
       order.push(id)
       inFlight += 1
       peak = Math.max(peak, inFlight)
@@ -116,7 +116,7 @@ describe('orchestrateFile', () => {
       } as any
     }
 
-    await runOrchestrationFile(
+    await runPipelineFileWithExecutor(
       file([
         step('na', 'nb-na', { sortingKey: 'a0', inputs: { region: 'NA' } }),
         step('eu', 'nb-eu', { sortingKey: 'a1', inputs: { region: 'EU' } }),
@@ -136,7 +136,7 @@ describe('orchestrateFile', () => {
     const order: string[] = []
     const executor = jsonResultExecutor({ load: { portfolio: { total: 5 } } }, id => order.push(id))
 
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('portfolio', 'portfolio') }),
         step('review', 'nb-review', { sortingKey: 'a1', inputs: { portfolio_json: '{{portfolio}}' } }),
@@ -152,7 +152,7 @@ describe('orchestrateFile', () => {
 
   it('passes a resolved export into the dependent step as a real value', async () => {
     const seen: Record<string, unknown>[] = []
-    const executor: OrchestrationStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
+    const executor: PipelineStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
       seen.push(planned.inputs ?? {})
       return {
         id,
@@ -193,7 +193,7 @@ describe('orchestrateFile', () => {
       } as any
     }
 
-    await runOrchestrationFile(
+    await runPipelineFileWithExecutor(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('portfolio', 'portfolio') }),
         step('review', 'nb-review', {
@@ -210,8 +210,8 @@ describe('orchestrateFile', () => {
   })
 
   it('reports every step separately, which a single parent run could not', async () => {
-    const events: OrchestrationEvent[] = []
-    await runOrchestrationFile(
+    const events: PipelineEvent[] = []
+    await runPipelineFileWithExecutor(
       file([step('na', 'nb-na', { sortingKey: 'a0' }), step('eu', 'nb-eu', { sortingKey: 'a1' })]),
       { onEvent: event => events.push(event) },
       jsonResultExecutor({})
@@ -224,7 +224,7 @@ describe('orchestrateFile', () => {
   })
 
   it('returns the plan so a page can draw the graph before running it', async () => {
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([step('na', 'nb-na', { sortingKey: 'a0' })]),
       {},
       jsonResultExecutor({})
@@ -235,7 +235,7 @@ describe('orchestrateFile', () => {
 
   it('explains a step whose output is missing a value it promised to export', async () => {
     await expect(
-      runOrchestrationFile(
+      runPipelineFileWithExecutor(
         file([step('load', 'nb-load', { sortingKey: 'a0', exports: exp('portfolio', 'portfolio') })]),
         {},
         jsonResultExecutor({ load: { somethingElse: 1 } })
@@ -252,7 +252,7 @@ describe('run_if gates in the file', () => {
       id => ran.push(id)
     )
 
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('analyze-eu', 'nb-regional', { sortingKey: 'a0', exports: exp('qualityScore', 'euQuality') }),
         step('analyze-na', 'nb-regional', { sortingKey: 'a1', exports: exp('qualityScore', 'naQuality') }),
@@ -276,7 +276,7 @@ describe('run_if gates in the file', () => {
   })
 
   it('shows the gate decision in the graph next to the step it governs', async () => {
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('analyze-eu', 'nb-regional', { sortingKey: 'a0', exports: exp('qualityScore', 'euQuality') }),
         {
@@ -297,7 +297,7 @@ describe('run_if gates in the file', () => {
 
   it('skips anything that reads a skipped step, rather than running it with a missing value', async () => {
     const ran: string[] = []
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('analyze-eu', 'nb-regional', { sortingKey: 'a0', exports: exp('qualityScore', 'euQuality') }),
         {
@@ -320,7 +320,7 @@ describe('run_if gates in the file', () => {
   it('rejects a malformed condition at plan time, before anything runs', async () => {
     const ran: string[] = []
     await expect(
-      runOrchestrationFile(
+      runPipelineFileWithExecutor(
         file([
           {
             ...step('a', 'nb-a', { sortingKey: 'a0' }),
@@ -345,7 +345,7 @@ describe('for_each fan-out', () => {
     let inFlight = 0
     let peak = 0
     const ran: string[] = []
-    const executor: OrchestrationStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
+    const executor: PipelineStepExecutor = async ({ id, step: planned, startedAt, startedMs }) => {
       ran.push(id)
       inFlight += 1
       peak = Math.max(peak, inFlight)
@@ -366,7 +366,7 @@ describe('for_each fan-out', () => {
       } as any
     }
 
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
         meta('analyze', 'nb-regional', {
@@ -380,7 +380,7 @@ describe('for_each fan-out', () => {
       (() => {
         let first = true
         const load = jsonResultExecutor({ load: { regions: [{ name: 'NA' }, { name: 'EU' }, { name: 'APAC' }] } })
-        return async (execution: Parameters<OrchestrationStepExecutor>[0]) => {
+        return async (execution: Parameters<PipelineStepExecutor>[0]) => {
           if (first && execution.id === 'load') {
             first = false
             return load(execution)
@@ -399,7 +399,7 @@ describe('for_each fan-out', () => {
 
   it('evaluates run_if per element, which is how a file expresses conditional recovery', async () => {
     const ran: string[] = []
-    const executor = async (execution: Parameters<OrchestrationStepExecutor>[0]) => {
+    const executor = async (execution: Parameters<PipelineStepExecutor>[0]) => {
       ran.push(execution.id)
       if (execution.id === 'load') {
         return jsonResultExecutor({
@@ -415,7 +415,7 @@ describe('for_each fan-out', () => {
       return jsonResultExecutor({ [execution.id]: { region: execution.step.inputs?.region } })(execution)
     }
 
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
         meta('recover', 'nb-regional', {
@@ -438,7 +438,7 @@ describe('for_each fan-out', () => {
     // Both mean "no element qualified", so downstream must get the same answer either way —
     // otherwise a pipeline breaks precisely on the happy path where nothing needed recovering.
     const ran: string[] = []
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
         meta('recover', 'nb-regional', {
@@ -454,7 +454,7 @@ describe('for_each fan-out', () => {
         return jsonResultExecutor({
           load: { regions: [{ qualityScore: 0.99 }, { qualityScore: 0.98 }] },
         })(execution)
-      }) as OrchestrationStepExecutor
+      }) as PipelineStepExecutor
     )
 
     expect(ran).toEqual(['load', 'aggregate'])
@@ -465,7 +465,7 @@ describe('for_each fan-out', () => {
   it('lets a later step depend on a fan-out, which needs a node of its own', async () => {
     // The runs register as analyze[0], analyze[1]; without a join node named `analyze` a dependent
     // is rejected for depending on a node that never started.
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
         meta('analyze', 'nb-regional', {
@@ -482,7 +482,7 @@ describe('for_each fan-out', () => {
           load: { regions: ['NA', 'EU'] },
           'analyze[0]': { name: 'NA' },
           'analyze[1]': { name: 'EU' },
-        })(execution)) as OrchestrationStepExecutor
+        })(execution)) as PipelineStepExecutor
     )
 
     expect(result.value.analyzed).toEqual(['NA', 'EU'])
@@ -493,7 +493,7 @@ describe('for_each fan-out', () => {
   })
 
   it('treats an empty list as an empty result, not a skip', async () => {
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
         meta('analyze', 'nb-regional', {
@@ -512,7 +512,7 @@ describe('for_each fan-out', () => {
 
   it('explains a for_each over something that is not an array', async () => {
     await expect(
-      runOrchestrationFile(
+      runPipelineFileWithExecutor(
         file([
           step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
           meta('analyze', 'nb-regional', { sortingKey: 'b0', meta: { for_each: '{{regions}}' } }),
@@ -526,7 +526,7 @@ describe('for_each fan-out', () => {
 
 describe('?? fallbacks across a skipped step', () => {
   it('uses the fallback when the preferred step was skipped, instead of cascading the skip', async () => {
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('first-pass', 'nb-a', { sortingKey: 'a0', exports: exp('value', 'original') }),
         meta('recover', 'nb-a', {
@@ -546,7 +546,7 @@ describe('?? fallbacks across a skipped step', () => {
   })
 
   it('still skips when no alternative can be satisfied', async () => {
-    const result = await runOrchestrationFile(
+    const result = await runPipelineFileWithExecutor(
       file([
         step('first-pass', 'nb-a', { sortingKey: 'a0', exports: exp('value', 'original') }),
         meta('recover', 'nb-a', {

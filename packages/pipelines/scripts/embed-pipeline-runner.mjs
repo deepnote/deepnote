@@ -1,5 +1,5 @@
-// Regenerates the interpreter embedded in examples/local-runner/scheduled-pipeline/runner.deepnote
-// from packages/local-runner/python/deepnote_pipeline.py, which is the source of truth.
+// Regenerates the interpreter embedded in examples/pipelines/scheduled/runner.deepnote
+// from packages/pipelines/python/deepnote_pipeline.py, which is the source of truth.
 //
 // The notebook has to be self-contained — a scheduled notebook cannot rely on this repo being
 // present in the project — so the code genuinely is duplicated. `pipeline-conformance.test.ts`
@@ -10,14 +10,14 @@ import { fileURLToPath } from 'node:url'
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 export const SOURCE = join(packageRoot, 'python/deepnote_pipeline.py')
-export const NOTEBOOK = join(packageRoot, '../../examples/local-runner/scheduled-pipeline/runner.deepnote')
+export const NOTEBOOK = join(packageRoot, '../../examples/pipelines/scheduled/runner.deepnote')
 
 const HEADER = [
   '            # The pipeline interpreter, embedded so this notebook is self-contained.',
-  '            # Source of truth: packages/local-runner/python/deepnote_pipeline.py — its semantics are',
+  '            # Source of truth: packages/pipelines/python/deepnote_pipeline.py — its semantics are',
   '            # pinned against the TypeScript implementation by test-fixtures/pipeline-conformance.',
   '            # The CLI entry point is stripped: a notebook cell runs as __main__.',
-  '            # Regenerate with: node packages/local-runner/scripts/embed-pipeline-runner.mjs',
+  '            # Regenerate with: node packages/pipelines/scripts/embed-pipeline-runner.mjs',
 ].join('\n')
 
 /** The interpreter as a notebook cell: no CLI entry point, indented into the YAML block. */

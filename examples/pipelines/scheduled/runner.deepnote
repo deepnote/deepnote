@@ -8,7 +8,7 @@
 metadata:
   createdAt: '2026-08-27T00:00:00.000Z'
 project:
-  id: local-runner-scheduled-pipeline
+  id: pipelines-scheduled-pipeline
   name: Local runner demo - scheduled pipeline
   notebooks:
     - id: scheduled-pipeline-notebook
@@ -30,10 +30,10 @@ project:
           type: code
           content: |-
             # The pipeline interpreter, embedded so this notebook is self-contained.
-            # Source of truth: packages/local-runner/python/deepnote_pipeline.py — its semantics are
+            # Source of truth: packages/pipelines/python/deepnote_pipeline.py — its semantics are
             # pinned against the TypeScript implementation by test-fixtures/pipeline-conformance.
             # The CLI entry point is stripped: a notebook cell runs as __main__.
-            # Regenerate with: node packages/local-runner/scripts/embed-pipeline-runner.mjs
+            # Regenerate with: node packages/pipelines/scripts/embed-pipeline-runner.mjs
             """Run a ``.deepnote`` pipeline from inside a Deepnote notebook.
             
             The TypeScript orchestrator interprets a pipeline manifest in a browser or a script. That is the

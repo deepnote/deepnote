@@ -238,7 +238,7 @@
         <div class="actions">
           <button id="run" class="btn primary"><span id="spin"></span>Run</button>
           <button id="schedule-toggle" class="btn ghost">Schedule</button>
-          <button id="run-pipeline" class="btn pipeline"><span id="spin-pipeline"></span>Run orchestrated pipeline</button>
+          <button id="run-pipeline" class="btn pipeline"><span id="spin-pipeline"></span>Run the pipeline</button>
           <div class="scheduler" id="scheduler" hidden>
             <div class="scheduler-grid" id="scheduler-grid">
               <div>
@@ -406,9 +406,9 @@
       </section>
     </div>
 
-    <script src="./orchestrator.js"></script>
+    <script src="./pipelines.js"></script>
     <script type="module">
-      const { orchestrate, extractOutputs } = DeepnoteOrchestrator
+      const { runPipeline, extractOutputs } = DeepnotePipelines
       const $ = (s) => document.querySelector(s)
       const el = (t, c) => { const n = document.createElement(t); if (c) n.className = c; return n }
       const state = {}
@@ -678,7 +678,7 @@
 
       $('#run').onclick = () =>
         go(null, '#spin', 'Running in Deepnote Cloud…')
-      $('#run-pipeline').onclick = runPipeline
+      $('#run-pipeline').onclick = onRunPipeline
       const scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       $('#schedule-timezone').textContent = scheduleTimezone
       $('#schedule-toggle').onclick = () => { $('#scheduler').hidden = !$('#scheduler').hidden }
@@ -862,7 +862,7 @@
       }
 
       /**
-       * The orchestrated pipeline, previously `runSalesPipeline` in `serve.mjs`.
+       * The pipeline, previously `runSalesPipeline` in `serve.mjs`.
        *
        * It is unchanged control flow — fan out the regions, gate on quality, rerun what failed the
        * gate, aggregate, ask two providers, then arbitrate. Only the addressing changed: steps name
@@ -940,7 +940,7 @@
               totals,
               decision,
               portfolio: {
-                title: String(inputs.report_title ?? 'Orchestrated sales review'),
+                title: String(inputs.report_title ?? 'Sales review'),
                 trailingMonths,
                 qualityThreshold,
                 analystNotes: String(inputs.analyst_notes ?? ''),
@@ -1062,13 +1062,13 @@
         }
       }
 
-      async function runPipeline() {
+      async function onRunPipeline() {
         const gen = ++displayGen
         setRunControlsDisabled(true)
         $('#spin-pipeline').className = 'spin'
         $('#pipeline-progress').hidden = false
         resetPipelineGraph()
-        setStatus('Starting the orchestrated pipeline…')
+        setStatus('Starting the pipeline…')
         let finalResult = null
 
         try {
@@ -1076,7 +1076,7 @@
           const regions = APP_CONFIG.regions.filter((r) => r.notebookId)
           if (!regions.length) throw new Error('No regional notebook ids — pass ?naNotebookId=… etc.')
 
-          finalResult = await orchestrate((ctx) => salesPipeline(ctx, state, regions), {
+          finalResult = await runPipeline((ctx) => salesPipeline(ctx, state, regions), {
             token: apiToken,
             baseUrl: APP_CONFIG.baseUrl,
             onEvent: renderPipelineEvent,
@@ -1086,7 +1086,7 @@
 
           shownRunId = null
           finalizePipelineGraph(finalResult.value, finalResult.graph)
-          renderOrchestration(finalResult)
+          renderPipeline(finalResult)
           const value = finalResult.value
           const summary = `${value.notebookRuns} notebook runs · ${value.recoveredRegions.length} conditional recovery`
           const conclusion = value.finalDecision
@@ -1329,9 +1329,9 @@
         const a = el('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label; s.append(a)
       }
 
-      function renderOrchestration(result) {
+      function renderPipeline(result) {
         const value = result.value
-        $('#r-title').textContent = 'Orchestrated sales decision'
+        $('#r-title').textContent = 'Sales decision'
         $('#r-caption').textContent = `${value.target} · ${formatDuration(result.durationMs)}`
         const root = $('#output'); root.innerHTML = ''
         const grid = el('div', 'grid')

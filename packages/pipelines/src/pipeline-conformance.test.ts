@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { NOTEBOOK, replaceEmbedded, SOURCE } from '../scripts/embed-pipeline-runner.mjs'
-import type { OrchestrationPlan } from './orchestration-plan'
-import { planOrchestration } from './orchestration-plan'
+import type { PipelinePlan } from './pipeline-plan'
+import { planPipeline } from './pipeline-plan'
 
 /**
  * The pipeline semantics exist twice: in TypeScript for the browser and scripts, and in Python for
@@ -35,7 +35,7 @@ function pythonWithYaml(): string | null {
 const python = pythonWithYaml()
 
 /** The shape both sides agree on: sorted, with absent optionals omitted. */
-function normalize(plan: OrchestrationPlan): unknown {
+function normalize(plan: PipelinePlan): unknown {
   return {
     notebookId: plan.notebookId,
     notebookName: plan.notebookName,
@@ -57,7 +57,7 @@ function normalize(plan: OrchestrationPlan): unknown {
 const fixtures = readdirSync(FIXTURES).filter(name => name.endsWith('.deepnote'))
 
 function planOf(fixture: string): unknown {
-  return normalize(planOrchestration(deserializeDeepnoteFile(readFileSync(join(FIXTURES, fixture), 'utf8'))))
+  return normalize(planPipeline(deserializeDeepnoteFile(readFileSync(join(FIXTURES, fixture), 'utf8'))))
 }
 
 /** Both sides go through JSON so key order and undefined-vs-absent cannot differ. */
@@ -109,7 +109,7 @@ describe('pipeline conformance', () => {
         const path = join(tmpdir(), `conformance-${name.replace(/\W+/g, '-')}.deepnote`)
         writeFileSync(path, yaml)
         try {
-          expect(() => planOrchestration(deserializeDeepnoteFile(yaml))).toThrow()
+          expect(() => planPipeline(deserializeDeepnoteFile(yaml))).toThrow()
           const result = spawnSync(python as string, [RUNNER, '--plan', path], { encoding: 'utf8' })
           expect(result.status).not.toBe(0)
         } finally {

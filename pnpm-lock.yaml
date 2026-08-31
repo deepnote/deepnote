@@ -252,6 +252,9 @@ importers:
       '@deepnote/convert':
         specifier: workspace:*
         version: link:../convert
+      '@deepnote/pipelines':
+        specifier: workspace:*
+        version: link:../pipelines
       '@deepnote/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
@@ -299,6 +302,18 @@ importers:
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
+
+  packages/pipelines:
+    dependencies:
+      '@deepnote/blocks':
+        specifier: workspace:*
+        version: link:../blocks
+      '@deepnote/cloud':
+        specifier: workspace:*
+        version: link:../cloud
+      '@jupyterlab/nbformat':
+        specifier: ^4.6.3
+        version: 4.6.3
 
   packages/reactivity:
     dependencies:

@@ -34,7 +34,7 @@ on this repository being present. Its CLI entry point is stripped, because a not
 That copy is generated, not hand-maintained. Regenerate it after changing the interpreter:
 
 ```bash
-node packages/local-runner/scripts/embed-pipeline-runner.mjs
+node packages/pipelines/scripts/embed-pipeline-runner.mjs
 ```
 
 `pipeline-conformance.test.ts` fails if the embedded copy has drifted from its source.
@@ -42,8 +42,8 @@ node packages/local-runner/scripts/embed-pipeline-runner.mjs
 ## Run it locally first
 
 ```bash
-python3 packages/local-runner/python/deepnote_pipeline.py --plan examples/local-runner/sales-pipeline.deepnote
-DEEPNOTE_TOKEN=… python3 packages/local-runner/python/deepnote_pipeline.py --run examples/local-runner/sales-pipeline.deepnote
+python3 packages/pipelines/python/deepnote_pipeline.py --plan examples/pipelines/sales-pipeline.deepnote
+DEEPNOTE_TOKEN=… python3 packages/pipelines/python/deepnote_pipeline.py --run examples/pipelines/sales-pipeline.deepnote
 ```
 
 `--plan` prints the DAG and runs nothing, which is the fastest way to check a manifest.
@@ -66,4 +66,4 @@ Steps run concurrently within the notebook run — independent steps overlap, no
 a fan-out — and the run itself is durable. But there is no resume: if the notebook run fails halfway, rerunning starts from the beginning. Notebook runs are
 not automatically idempotent, so re-running a pipeline re-runs its side effects. For replay,
 per-step retries, and timers, use the Workflow SDK integration in
-[`@deepnote/local-runner/workflows`](../../../packages/local-runner/README.md) instead.
+[`@deepnote/pipelines/workflows`](../../../packages/pipelines/README.md) instead.

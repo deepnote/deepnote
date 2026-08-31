@@ -1,20 +1,21 @@
 import type { PollOptions } from '@deepnote/cloud'
 import { createCloudStepExecutor } from '../cloud-executor'
-import type { OrchestrationStepResult } from '../orchestrate'
-import { runOrchestration } from '../orchestrate'
+import type { PipelineStepResult } from '../pipeline'
+import { runPipelineWithExecutor } from '../pipeline'
 
 /**
  * A Deepnote notebook run as a durable step.
  *
- * `orchestrate` is deliberately not durable: it holds its state in one process and is gone if that
+ * `runPipeline` is deliberately not durable: it holds its state in one process and is gone if that
  * process is. That is the right trade for a script or an interactive page, and the wrong one for
  * anything scheduled or long-lived.
  *
  * Rather than growing a checkpoint/resume layer of its own — which is how orchestration libraries
  * become bad workflow engines — this delegates. Compose these steps inside a
  * [Workflow SDK](https://www.npmjs.com/package/workflow) function and durability, replay, and
- * observability are that engine's job. `workflow` is an optional peer dependency: without its
- * compiler the `'use step'` directive is inert and this is an ordinary async function.
+ * observability are that engine's job. Nothing here imports it, and no dependency on it is
+ * declared: `'use step'` is a directive its compiler reads, and without that compiler this is an
+ * ordinary async function.
  */
 
 /**
@@ -47,7 +48,7 @@ export interface WorkflowNotebookStep {
  * The token is read from the environment inside the step rather than taken as an argument, which
  * keeps the credential out of the workflow's arguments and therefore out of its event log.
  */
-export async function runNotebookStep(step: WorkflowNotebookStep): Promise<OrchestrationStepResult> {
+export async function runNotebookStep(step: WorkflowNotebookStep): Promise<PipelineStepResult> {
   'use step'
 
   // Matches the CLI's variable, so a workflow host configured for Deepnote already has it.
@@ -57,7 +58,7 @@ export async function runNotebookStep(step: WorkflowNotebookStep): Promise<Orche
   }
 
   const { id, notebookId, inputs, allowFailure } = step
-  const result = await runOrchestration(
+  const result = await runPipelineWithExecutor(
     ({ run }) => run({ id, notebookId, inputs, allowFailure }),
     {},
     createCloudStepExecutor({ token, baseUrl: step.baseUrl, poll: step.poll })
