@@ -1,14 +1,13 @@
 ---
 title: Publishing static sites with the Deepnote CLI
-description: Deploy a local build directory to a Deepnote project as a public static website using deepnote publish
+description: Deploy a local build directory to a Deepnote project as a hosted static website using deepnote publish
 noIndex: false
 noContent: false
 ---
 
 `deepnote publish` uploads a local directory — a Vite or Next.js build, a hand-written page, a
-documentation site — to an existing Deepnote project and serves it as a public static website. The
-command uploads the files, enables static website sharing, and prints the canonical URL Deepnote
-assigns.
+documentation site — to an existing Deepnote project and serves it as a static website. The command
+uploads the files, enables static website sharing, and prints the canonical URL Deepnote assigns.
 
 ```bash
 deepnote publish ./dist --project-id <project-id>
@@ -16,6 +15,12 @@ deepnote publish ./dist --project-id <project-id>
 
 This is a command-line deploy path, separate from publishing an app from inside the Deepnote editor.
 It writes plain files; it does not create or run notebooks.
+
+<Callout status="warning">
+A published static site is **not anonymously public**. Viewers must be signed in to Deepnote and have
+access to the project. See [Who can view a published site](#who-can-view-a-published-site) — the
+access model differs from [data apps](/docs/data-apps), which do offer public and link-only sharing.
+</Callout>
 
 ## Prerequisites
 
@@ -49,9 +54,9 @@ An API token carries your access to the workspace. Treat it like a password.
 - **In CI, use a secret.** Store the token in your CI provider's secret store and expose it as
   `DEEPNOTE_TOKEN` for the publish step only. Never commit it to the repository you are deploying.
 - **Rotate and revoke** from the same settings page if a token is ever exposed.
-- **Keep it out of the build directory.** Everything under the directory you publish becomes
-  publicly readable at the site URL — including dotfiles, source maps, and stray `.env` files.
-  Publish a clean build output directory, not a project root.
+- **Keep it out of the build directory.** Everything under the directory you publish becomes readable
+  at the site URL by anyone who can view the site — including dotfiles, source maps, and stray `.env`
+  files. Publish a clean build output directory, not a project root.
 
 ## Finding a project ID
 
@@ -70,7 +75,7 @@ project itself.
 
 Published files live under a reserved directory in the project's file store called
 `_deepnote_static`. Publishing `./dist/index.html` puts the file at `_deepnote_static/index.html`,
-and that path is what the public site serves.
+and that path is what the site serves.
 
 Use `--path` to publish below a subdirectory of the static root — useful for keeping versions side by
 side:
@@ -82,6 +87,34 @@ deepnote publish ./dist --project-id <project-id> --path _deepnote_static/v2
 `--path` must be `_deepnote_static` or a directory under it; anything else is rejected before the
 command touches the project. Nested path segments are percent-encoded in the printed URL, so a path
 containing `#` or `?` still yields a working link.
+
+Always use the URL the command prints rather than assembling one yourself. Deepnote serves each
+project's site from its own dedicated origin and hands out the shareable link on the main domain, so
+a hand-built URL is unlikely to resolve.
+
+## Who can view a published site
+
+Static site sharing is **not** public hosting. Every viewer must be:
+
+1. **Signed in to Deepnote** — anonymous visitors are redirected to sign-in, never served content.
+2. **An active user** — suspended or deactivated accounts are refused.
+3. **Able to view the project** — workspace members, project collaborators (including app users),
+   and user groups with project access.
+
+Two further switches can turn a site off independently of the project setting: a workspace-level
+static file sharing setting, and plan availability for the feature. Access is re-checked on every
+request, so revoking any of these — the project toggle, the workspace setting, the viewer's account,
+or the plan — takes effect immediately rather than at the next deploy.
+
+<Callout status="warning">
+There is no anonymous tier and no link-only tier for static sites. A link alone never grants access,
+so you cannot use `deepnote publish` to serve a page to the general public, to an unauthenticated
+webhook consumer, or to a search engine crawler.
+</Callout>
+
+This is the main difference from [data apps](/docs/data-apps), which do offer **Anyone with a link**
+and **Public** access levels. If your deliverable has to reach people without Deepnote accounts, a
+data app is the model that supports it — not a published static site.
 
 ## Options
 
@@ -105,8 +138,12 @@ assets, but it cannot call the Deepnote API.
 
 Passing `--api-access enabled` lets the page acquire a short-lived, project- and viewer-scoped token
 from the Deepnote shell that embeds it. That token has a deliberately narrow surface — read the
-configured notebook, start a run, poll that run — and is what makes an interactive
-[data app](/docs/data-apps) possible from a purely static page.
+configured notebook, start a run, poll that run — which is what makes an interactive page possible
+without a server of your own.
+
+This is a second opt-in layered on top of site sharing, and it can only ever narrow the audience, not
+widen it: a viewer who cannot see the site cannot obtain a token for it. Because every viewer is a
+signed-in user with project access, the token is minted for that identity.
 
 <Callout status="warning">
 API access is security-sensitive and is never enabled implicitly. Enable it only when the page needs
