@@ -58,11 +58,11 @@ deepnote publish ./dist --project-id <uuid>
 stale ones, enables website sharing, and prints the canonical URL. Use that returned URL — never
 assemble a static-site URL by hand.
 
-Ownership note: `deepnote sync --all-files` mirrors a project's working-directory files, and that
-inventory currently includes `_deepnote_static/**`, so a published build and a synced workspace can
-fight over the same paths. Coordination between the two commands is in flight; treat `publish` as the
-writer for that namespace, and re-verify this paragraph against `references/cli-publish.md` and
-`references/cli-sync.md` once the coordination lands.
+Ownership note: the static root is a subtree of the same project file store that
+`deepnote sync --all-files` mirrors, so both commands can write those paths. `publish` is the
+deploying writer — build output goes through `publish`, not through a synced workspace. How the two
+commands stay in step is the CLI's concern, not the app author's; see `references/cli-publish.md`
+and `references/cli-sync.md` before scripting a workflow that runs both.
 
 See `references/cli-publish.md` for options and exit codes.
 
