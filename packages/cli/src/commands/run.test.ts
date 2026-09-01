@@ -117,6 +117,7 @@ vi.mock('@deepnote/convert', async importOriginal => {
   }
 })
 
+import { IntegrationAuthenticationError } from '../federated-auth/resolve-bigquery-sql-env-vars'
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
 
 // Helper to parse JSON from console output
@@ -1487,25 +1488,67 @@ describe('run command', () => {
         expect(mockStart).toHaveBeenCalled()
       })
 
+      it('tells the resolver not to refresh under --dry-run, so it never contacts Google', async () => {
+        mockGetBlockDependencies.mockResolvedValue([])
+        mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
+
+        await action(INTEGRATIONS_FILE, { dryRun: true })
+
+        // The bolded contract: a dry run reads the token store and compares the fingerprint, but
+        // contacts Google for nothing and writes nothing. Flipping this flag is invisible without
+        // the assertion, because everything else about the command still succeeds.
+        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.any(String),
+          expect.any(Array),
+          {
+            refreshFederatedTokens: false,
+          }
+        )
+        expect(mockStart).not.toHaveBeenCalled()
+      })
+
+      it('fails an unauthenticated federated integration before the engine is ever constructed', async () => {
+        mockGetBlockDependencies.mockResolvedValue([])
+        setupSuccessfulRun()
+        mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
+        mockInjectIntegrationEnvVars.mockImplementation(() => {
+          throw new IntegrationAuthenticationError(
+            'Integration "100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d" is not authenticated. Run `deepnote integrations auth 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d`.'
+          )
+        })
+
+        await expect(action(INTEGRATIONS_FILE, {})).rejects.toThrow('program.error called')
+
+        // The whole point of the gate: no kernel started, no block executed, so nothing the
+        // notebook would have done first can have left a side effect behind.
+        expect(mockStart).not.toHaveBeenCalled()
+        expect(mockRunProject).not.toHaveBeenCalled()
+        expect(programErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('deepnote integrations auth'),
+          expect.objectContaining({ exitCode: 2 })
+        )
+      })
+
+      /** The integration the INTEGRATIONS_FILE fixture's SQL block references, as a federated one. */
+      function federatedBigQueryIntegration() {
+        return {
+          id: '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
+          name: 'Federated BigQuery',
+          type: 'big-query',
+          metadata: {
+            authMethod: 'google-oauth',
+            project: 'my-gcp-project',
+            clientId: 'client-id',
+            clientSecret: 'client-secret',
+          },
+        }
+      }
+
       it('does not report a federated BigQuery integration as missing in --context output', async () => {
         mockGetBlockDependencies.mockResolvedValue([])
         setupSuccessfulRun()
-        mockParseIntegrationsFile.mockResolvedValue({
-          integrations: [
-            {
-              id: '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
-              name: 'Federated BigQuery',
-              type: 'big-query',
-              metadata: {
-                authMethod: 'google-oauth',
-                project: 'my-gcp-project',
-                clientId: 'client-id',
-                clientSecret: 'client-secret',
-              },
-            },
-          ],
-          issues: [],
-        })
+        mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
 
         await action(INTEGRATIONS_FILE, { output: 'json', context: true })
 
