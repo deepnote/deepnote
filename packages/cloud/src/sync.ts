@@ -38,6 +38,14 @@ const DEFAULT_DOWNLOAD_TIMEOUT_MS = 600_000
 export const MAX_BUFFERED_PROJECT_FILE_BYTES = 100 * 1024 * 1024
 
 /**
+ * The reserved directory in a project's file store that backs its static website. Files below it are
+ * served publicly once static sharing is enabled, so it is the deploy surface `deepnote publish`
+ * writes — and the subtree where two writers (publish, sync, the Deepnote app) are most likely to
+ * meet. Exported so every writer agrees on where that boundary is.
+ */
+export const PROJECT_STATIC_ROOT = '_deepnote_static'
+
+/**
  * A runaway guard, not a real limit: at the API's maximum page size of 100 this is 50,000 projects.
  * Unlike `findNotebook`'s name-narrowed walk this one is unfiltered, so the guard is generous — but
  * a server that keeps handing out page tokens past it is looping, and silently truncating the list

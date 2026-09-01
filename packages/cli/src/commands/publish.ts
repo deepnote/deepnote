@@ -3,6 +3,7 @@ import { join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
+  PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
   updateProjectStaticFiles,
   uploadProjectFile,
@@ -10,10 +11,21 @@ import {
 import type { Command } from 'commander'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { getChalk, log, error as logError } from '../output'
+import { getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError } from '../utils/auth'
+import {
+  findDivergedPublishPaths,
+  type PublishMirror,
+  PublishMirrorError,
+  recordPrunedFile,
+  recordPublishedFile,
+  resolvePublishMirror,
+  type SyncRootOption,
+  savePublishMirror,
+} from '../utils/publish-mirror'
+import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 
-const STATIC_ROOT = '_deepnote_static'
+const STATIC_ROOT = PROJECT_STATIC_ROOT
 
 interface PublishOptions {
   projectId: string
@@ -23,6 +35,9 @@ interface PublishOptions {
   apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
+  /** `--sync-root <dir>`, `false` for `--no-sync-root`, otherwise "discover one". */
+  syncRoot: SyncRootOption
+  force: boolean
 }
 
 interface PublishFile {
@@ -150,6 +165,36 @@ export function createPublishAction(program: Command) {
       return
     }
 
+    // Resolve the sync workspace this publish belongs to, if any, before touching the network: the
+    // deploy and the workspace's mirror share one baseline, so neither command sees the other's
+    // writes as drift. Absent a workspace, publish behaves exactly as it always has.
+    let mirror: PublishMirror | undefined
+    try {
+      mirror = await resolvePublishMirror({
+        syncRoot: options.syncRoot,
+        publishDir: dir,
+        projectId: options.projectId,
+      })
+    } catch (error) {
+      const exitCode = error instanceof PublishMirrorError ? ExitCode.InvalidUsage : ExitCode.Error
+      program.error(errorMessage(error), { exitCode })
+      return
+    }
+
+    /** Apply a mirror update, downgrading failures to warnings: the deploy itself already
+     * succeeded, and a stale manifest is safe — the next sync detects the divergence and asks. */
+    const mirrorFailures: string[] = []
+    const updateMirror = async (label: string, action: (mirror: PublishMirror) => Promise<void>) => {
+      if (!mirror) {
+        return
+      }
+      try {
+        await action(mirror)
+      } catch (error) {
+        mirrorFailures.push(`${label} — ${errorMessage(error)}`)
+      }
+    }
+
     const baseUrl = options.url
     let project: Awaited<ReturnType<typeof getProjectDetail>>
     try {
@@ -178,10 +223,27 @@ export function createPublishAction(program: Command) {
       : []
     const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
 
+    // Stop before the first remote mutation if the cloud has moved past the workspace's baseline:
+    // someone published or edited these files since the last sync, and the local mirror does not
+    // hold that content, so overwriting it would lose the only copy.
+    if (mirror && !options.force) {
+      const diverged = findDivergedPublishPaths(mirror, projectFiles, [...publishedPaths, ...stalePaths])
+      if (diverged.length > 0) {
+        logError(
+          `${diverged.length} file${diverged.length === 1 ? '' : 's'} changed in Deepnote since ${mirror.rootDir} last synced: ` +
+            `${diverged.join(', ')}. Run \`deepnote sync --all-files\` to bring the changes down, ` +
+            'or publish with --force to overwrite them.'
+        )
+        process.exitCode = ExitCode.Error
+        return
+      }
+    }
+
     for (const path of blockingPaths) {
       try {
         await deleteProjectFile(baseUrl, token, options.projectId, path)
         pruned++
+        await updateMirror(path, mirror => recordPrunedFile(mirror, path))
         if (!options.quiet) {
           log(`  ${c.green('✓')} removed ${path.slice(targetPrefix.length + 1)}`)
         }
@@ -203,6 +265,7 @@ export function createPublishAction(program: Command) {
           throw new Error(`Deepnote stored the file at "${stored.path}" instead of "${destination}"`)
         }
         uploaded++
+        await updateMirror(relativePath, mirror => recordPublishedFile(mirror, destination, content, stored))
         if (!options.quiet) {
           log(`  ${c.green('✓')} ${relativePath}`)
         }
@@ -218,6 +281,7 @@ export function createPublishAction(program: Command) {
         try {
           await deleteProjectFile(baseUrl, token, options.projectId, path)
           pruned++
+          await updateMirror(path, mirror => recordPrunedFile(mirror, path))
           if (!options.quiet) {
             log(`  ${c.green('✓')} removed ${path.slice(targetPrefix.length + 1)}`)
           }
@@ -227,6 +291,18 @@ export function createPublishAction(program: Command) {
           logError(`  ✗ remove ${path} — ${message}`)
         }
       }
+    }
+
+    // Persist the shared baseline for whatever actually landed, even after a partial failure: the
+    // manifest must describe the files that were really written, not the ones that were intended.
+    if (mirror && (uploaded > 0 || pruned > 0)) {
+      await updateMirror(SYNC_MANIFEST_FILENAME, savePublishMirror)
+    }
+    if (mirrorFailures.length > 0) {
+      warn(
+        `Published, but could not fully update the sync mirror in ${mirror?.rootDir}: ${mirrorFailures.join('; ')}. ` +
+          'Run `deepnote sync --all-files` to reconcile.'
+      )
     }
 
     let siteUrl: string | undefined
@@ -262,6 +338,9 @@ export function createPublishAction(program: Command) {
       }
       if (pruned > 0) {
         log(`${c.green('✓')} Removed ${pruned} stale file${pruned === 1 ? '' : 's'}`)
+      }
+      if (mirror && mirrorFailures.length === 0 && (uploaded > 0 || pruned > 0)) {
+        log(`${c.green('✓')} Updated the sync mirror in ${c.dim(mirror.rootDir)}`)
       }
       if (errors.length > 0) {
         log(`${c.red('✗')} Publish failed with ${errors.length} error${errors.length === 1 ? '' : 's'}`)

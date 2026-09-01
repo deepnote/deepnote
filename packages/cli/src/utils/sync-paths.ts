@@ -20,6 +20,11 @@ const ILLEGAL_CHARACTERS = /[<>:"/\\|?*\u0000-\u001f]/g
 
 const MAX_SEGMENT_LENGTH = 120
 
+/** The directory inside a project's local directory that mirrors its cloud working-directory files.
+ * Leading dot on purpose: it keeps the mirror out of the `.deepnote` notebook scan, and out of the
+ * untracked-file walk. Shared so `publish` can address the same mirror `sync` maintains. */
+export const PROJECT_FILES_DIR_NAME = '.files'
+
 /** User-provided names cannot sanitize to this leading-dot segment. */
 const INCOMPLETE_FOLDER_NAMESPACE = '.deepnote-incomplete'
 
@@ -77,6 +82,11 @@ function buildDir(project: PlannableProject, dirName: string): string {
       ? [INCOMPLETE_FOLDER_NAMESPACE, sanitizePathSegment(project.folder.id)]
       : []
   return [...incompletePrefix, ...folderSegments, dirName].join('/')
+}
+
+/** The mirror directory for a project at root-relative POSIX path `projectDir`. */
+export function projectFilesDir(projectDir: string): string {
+  return `${projectDir}/${PROJECT_FILES_DIR_NAME}`
 }
 
 export function pathsOverlap(left: string, right: string): boolean {
@@ -165,7 +175,7 @@ export function planProjectPaths(projects: readonly PlannableProject[]): Map<str
   }
 
   return new Map(
-    [...planned.entries()].map(([id, projectDir]) => [id, { projectDir, filesDir: `${projectDir}/.files` }])
+    [...planned.entries()].map(([id, projectDir]) => [id, { projectDir, filesDir: projectFilesDir(projectDir) }])
   )
 }
 

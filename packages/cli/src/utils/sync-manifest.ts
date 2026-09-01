@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { isErrnoENOENT } from './file-resolver'
-import { isSafeRelativeFilePath } from './sync-paths'
+import { isSafeRelativeFilePath, PROJECT_FILES_DIR_NAME } from './sync-paths'
 
 /**
  * The sync manifest: `deepnote sync`'s local state file, written to the root of the synced
@@ -31,7 +31,7 @@ import { isSafeRelativeFilePath } from './sync-paths'
 
 export const SYNC_MANIFEST_FILENAME = '.deepnote-sync.json'
 
-const RESERVED_PROJECT_DIR_SEGMENTS = new Set(['.git', '.files', SYNC_MANIFEST_FILENAME])
+const RESERVED_PROJECT_DIR_SEGMENTS = new Set(['.git', PROJECT_FILES_DIR_NAME, SYNC_MANIFEST_FILENAME])
 
 function isSafeProjectDirectory(dir: string): boolean {
   return (
@@ -150,6 +150,34 @@ export async function loadSyncManifest(rootDir: string): Promise<SyncManifest> {
     await assertNoSymbolicLinkAncestors(rootDir, record.dir)
   }
   return parsed.data
+}
+
+/** Whether `rootDir` itself holds a sync manifest (no upward walk). */
+export async function hasSyncManifest(rootDir: string): Promise<boolean> {
+  return manifestExistsWithoutSymbolicLink(path.join(rootDir, SYNC_MANIFEST_FILENAME))
+}
+
+/**
+ * Find the sync root that governs `startDir`: the nearest ancestor directory (starting with
+ * `startDir` itself) holding a sync manifest, or `undefined` when there is none.
+ *
+ * `deepnote publish` uses this to notice it is writing into a project that `deepnote sync` also
+ * mirrors, so the two commands can share one baseline instead of silently overwriting each other.
+ * Discovery is upward and stops at the filesystem root, the same way git finds its own repository —
+ * a build directory nested anywhere under a synced workspace resolves to that workspace.
+ */
+export async function findSyncManifestRoot(startDir: string): Promise<string | undefined> {
+  let currentDir = path.resolve(startDir)
+  for (;;) {
+    if (await manifestExistsWithoutSymbolicLink(path.join(currentDir, SYNC_MANIFEST_FILENAME))) {
+      return currentDir
+    }
+    const parentDir = path.dirname(currentDir)
+    if (parentDir === currentDir) {
+      return undefined
+    }
+    currentDir = parentDir
+  }
 }
 
 /** Write the manifest with sorted project ids and file paths, so repeated syncs produce stable,

@@ -531,17 +531,38 @@ deepnote publish ./dist --project-id <uuid>
 
 **Options:**
 
-| Option                           | Description                                                       | Default                    |
-| -------------------------------- | ----------------------------------------------------------------- | -------------------------- |
-| `--project-id <uuid>`            | Project to publish to (required)                                  |                            |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`                   | `_deepnote_static`         |
-| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published website | unchanged                  |
-| `--prune`                        | Delete remote files below `--path` that are absent locally        | `false`                    |
-| `--token <token>`                | Deepnote API token                                                | `DEEPNOTE_TOKEN`           |
-| `--url <url>`                    | Deepnote API base URL                                             | `https://api.deepnote.com` |
+| Option                           | Description                                                           | Default                     |
+| -------------------------------- | --------------------------------------------------------------------- | --------------------------- |
+| `--project-id <uuid>`            | Project to publish to (required)                                      |                             |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                       | `_deepnote_static`          |
+| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published website     | unchanged                   |
+| `--prune`                        | Delete remote files below `--path` that are absent locally            | `false`                     |
+| `--sync-root <dir>`              | Sync workspace whose mirror to update                                 | search upwards from `<dir>` |
+| `--no-sync-root`                 | Publish without looking for or updating a sync workspace              | `false`                     |
+| `--force`                        | Publish even when Deepnote holds changes the workspace has not synced | `false`                     |
+| `--token <token>`                | Deepnote API token                                                    | `DEEPNOTE_TOKEN`            |
+| `--url <url>`                    | Deepnote API base URL                                                 | `https://api.deepnote.com`  |
 
 The command prints the canonical website URL returned by the server. Use `--api-access enabled`
 only when the website needs to load notebooks or start runs through the Deepnote API.
+
+#### Working with `deepnote sync`
+
+`_deepnote_static/` lives in the same project file store that [`deepnote sync --all-files`](#sync-dir)
+mirrors, so both commands write it. They share one baseline rather than dividing the namespace:
+
+- When the published directory sits inside a synced workspace, publish also writes the files into
+  that project's `.files/` mirror and records them in `.deepnote-sync.json` — exactly as a sync
+  download would. Afterwards the manifest, the mirror, and Deepnote agree, so sync sees the deploy
+  as already in step instead of re-downloading the whole site on its next run.
+- If files below `--path` changed in Deepnote since that workspace last synced, publish stops
+  instead of destroying content the mirror does not hold. Pull first, or pass `--force`.
+- `--prune` also drops the pruned files from the mirror, so a later push cannot resurrect them.
+- `--no-sync-root` skips all of this — the right choice for a CI deploy. Sync stays safe either way:
+  it checks every file against Deepnote before pushing and asks before overwriting a newer copy.
+
+Note the two `--prune` flags point in opposite directions: `publish --prune` deletes **remote** files
+absent from the local build, while `sync --prune` deletes **local** files absent from the cloud.
 
 **Examples:**
 
@@ -554,6 +575,9 @@ deepnote publish ./dist --project-id <uuid> --prune
 
 # Publish a versioned subdirectory
 deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
+
+# CI deploy: never touch a sync workspace
+deepnote publish ./dist --project-id <uuid> --no-sync-root
 ```
 
 ### `schedule <path>`
@@ -636,6 +660,14 @@ applied from the documents; every document in a multi-notebook project must carr
 the cloud copy is deleted, so an interrupted upload is retried on the next `--all-files` sync.
 Working-directory files larger than 100 MiB are rejected because these transfers are buffered in
 memory; use another transfer method for larger data files.
+
+Sync is not the only writer of a project's files — [`deepnote publish`](#publish-dir) deploys into
+`_deepnote_static/` and the Deepnote app can write anything — so each file is checked against the
+cloud inventory before it is uploaded. A file whose cloud copy changed, or was deleted, since the
+manifest last recorded it goes through the same `--on-conflict` override-or-skip choice as a diverged
+notebook; skipped files are reported as `N file(s) kept from Deepnote`. Files synced before
+`updatedAt` was recorded have no baseline to compare and are still overwritten; they become
+verifiable after the next pull.
 
 If a push changes `project.name`, the current run finishes in the existing local directory. The next
 sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.

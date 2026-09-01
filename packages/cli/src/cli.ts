@@ -580,12 +580,25 @@ ${c.bold('Exit Codes:')}
       ])
     )
     .option('--prune', 'Delete remote files below --path that are absent locally')
+    .option('--sync-root <dir>', 'Sync workspace whose mirror to update (default: search upwards from <dir>)')
+    .option('--no-sync-root', 'Publish without looking for or updating a sync workspace')
+    .option('--force', 'Publish even when files changed in Deepnote since the sync workspace last synced')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
   Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
   after every upload succeeds. API access is left unchanged unless explicitly set.
+
+${c.bold('Working with deepnote sync:')}
+  ${c.dim('_deepnote_static/')} is part of the same project file store that
+  ${c.dim('deepnote sync --all-files')} mirrors, so both commands write it. When the published
+  directory sits inside a synced workspace, publish updates that workspace's mirror and
+  manifest too, so sync sees the deploy as already in step instead of as drift.
+
+  If files below ${c.dim('--path')} changed in Deepnote since that workspace last synced, publish
+  stops rather than destroying content the mirror does not hold — pull first, or pass
+  ${c.dim('--force')}. Use ${c.dim('--no-sync-root')} for a deploy that should ignore any workspace.
 
 ${c.bold('Examples:')}
   ${c.dim('# Publish a build directory to a project')}
@@ -606,10 +619,13 @@ ${c.bold('Examples:')}
   ${c.dim('# Quiet mode (no progress output)')}
   $ deepnote publish ./dist --project-id <uuid> -q
 
+  ${c.dim('# CI deploy: never touch a sync workspace')}
+  $ deepnote publish ./dist --project-id <uuid> --no-sync-root
+
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Files uploaded and website sharing enabled
-  ${c.dim('1')}  Upload, pruning, or settings update failed
-  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token)
+  ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root)
 `
     })
     .action(createPublishAction(program))
