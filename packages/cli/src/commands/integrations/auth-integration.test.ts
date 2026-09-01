@@ -428,6 +428,65 @@ describe('auth-integration', () => {
     )
   })
 
+  describe('pre-flight failures added after review', () => {
+    it('rejects a --domain that is not a hostname, before opening a browser', async () => {
+      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
+      await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
+
+      try {
+        await createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain: 'a b/c' }))
+        expect.fail('Should have thrown')
+      } catch (error) {
+        assert(error instanceof CommanderError)
+        expect(error.message).toContain('Invalid --domain')
+      }
+      expect(mockOpenInBrowser).not.toHaveBeenCalled()
+    })
+
+    it('rejects a credential field written blank in the document, naming the field', async () => {
+      // Distinct from the `env:` cases above: no reference is involved, so the walker never sees it.
+      // Google answers a blank clientSecret with invalid_client, but only after the user consents.
+      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', clientSecretRef: "''" })))
+
+      try {
+        await createIntegrationsAuthAction(program)('my-bq', baseOptions())
+        expect.fail('Should have thrown')
+      } catch (error) {
+        assert(error instanceof CommanderError)
+        expect(error.exitCode).toBe(ExitCode.InvalidUsage)
+        expect(error.message).toContain('clientSecret')
+        expect(error.message).toContain('my-bq')
+      }
+      expect(mockOpenInBrowser).not.toHaveBeenCalled()
+    })
+
+    it('names the offending field and the integration when the entry fails schema validation', async () => {
+      await writeFile(
+        filePath,
+        [
+          'integrations:',
+          '  - id: broken-bq',
+          '    type: big-query',
+          '    name: Broken',
+          '    metadata:',
+          '      authMethod: google-oauth',
+          '      project: p',
+          '',
+        ].join('\n')
+      )
+
+      try {
+        await createIntegrationsAuthAction(program)('broken-bq', baseOptions())
+        expect.fail('Should have thrown')
+      } catch (error) {
+        assert(error instanceof CommanderError)
+        expect(error.message).toContain('broken-bq')
+        expect(error.message).toContain('clientId')
+      }
+      expect(mockOpenInBrowser).not.toHaveBeenCalled()
+    })
+  })
+
   describe('supported integration types', () => {
     it('rejects a non-BigQuery integration, naming what is supported', async () => {
       await writeFile(filePath, integrationsYaml(pgsqlEntry('pg-1')))
@@ -476,6 +535,24 @@ describe('auth-integration', () => {
         ...overrides,
       } as ApiIntegration
     }
+
+    it('says why a workspace integration is unusable rather than reporting it as not found', async () => {
+      // Sending the user to `integrations pull` for an off-schema entry is the CLI contradicting
+      // itself: pull will report the integration exists.
+      mockFetchIntegrations.mockResolvedValueOnce([
+        apiBigQueryIntegration({ metadata: { authMethod: 'google-oauth' } } as Partial<ApiIntegration>),
+      ])
+
+      try {
+        await createIntegrationsAuthAction(program)('api-only-bq', baseOptions({ token: TOKEN }))
+        expect.fail('Should have thrown')
+      } catch (error) {
+        assert(error instanceof CommanderError)
+        expect(error.message).toContain('api-only-bq')
+        expect(error.message).toContain('not usable')
+        expect(error.message).not.toContain('was not found')
+      }
+    })
 
     it('resolves through the API when a token is available, using the distinct --url (not --domain)', async () => {
       mockFetchIntegrations.mockResolvedValueOnce([apiBigQueryIntegration()])

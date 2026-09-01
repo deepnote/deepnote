@@ -385,6 +385,21 @@ describe('runOAuthFlow', () => {
     ).rejects.toBe(opener)
   })
 
+  it('rejects on SIGINT and releases the port, instead of leaving the flow armed', async () => {
+    const { flow, callbackUrl } = await startFlow()
+    const assertion = expect(flow).rejects.toThrow('Authentication cancelled.')
+
+    const before = process.listenerCount('SIGINT')
+    expect(before).toBeGreaterThan(0)
+    process.emit('SIGINT')
+    await assertion
+
+    // The handler is installed for the flow's lifetime only — leaving it behind would make every
+    // later Ctrl-C in the same process reject an already-finished flow.
+    expect(process.listenerCount('SIGINT')).toBe(before - 1)
+    await expectPortClosed(Number(new URL(callbackUrl).port))
+  })
+
   it('rejects on its timeoutMs deadline and tears the server down, without waiting for a callback', async () => {
     const { flow, callbackUrl } = await startFlow({ timeoutMs: 100 })
 
