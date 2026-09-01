@@ -51,6 +51,9 @@ deepnote schedule report.deepnote --daily --at 09:00
 
 # Publish a static website to an existing Deepnote project
 deepnote publish ./dist --project-id <uuid>
+
+# Stop serving it later without deleting its files
+deepnote static-site access --project-id <uuid> --sharing disabled
 ```
 
 ## Commands
@@ -579,6 +582,26 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 # CI deploy: never touch a sync workspace
 deepnote publish ./dist --project-id <uuid> --no-sync-root
 ```
+
+### `static-site access`
+
+Change access to an already-published static site without uploading or deleting files. At least one
+of `--sharing` and `--api-access` is required.
+
+```bash
+# Stop serving the site; its files remain stored
+deepnote static-site access --project-id <uuid> --sharing disabled
+
+# Serve the stored files again and allow viewer-scoped Deepnote API calls
+deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
+
+# Revoke viewer API access without changing the current sharing setting
+deepnote static-site access --project-id <uuid> --api-access disabled
+```
+
+Disabling sharing also disables viewer API access. Re-enabling sharing later serves the same stored
+files at the canonical URL. Use `--token` or `DEEPNOTE_TOKEN` for authentication and `--url` to
+select a non-default API origin.
 
 ### `schedule <path>`
 

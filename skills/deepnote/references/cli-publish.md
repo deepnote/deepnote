@@ -39,6 +39,27 @@ API access is security-sensitive and is not enabled by default. Pass `--api-acce
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
 `--api-access disabled` to turn it off explicitly.
 
+## Change access without republishing
+
+Use `deepnote static-site access` to change an existing site's access settings without uploading,
+deleting, or otherwise modifying `_deepnote_static/**`:
+
+```bash
+# Stop serving the site while retaining its files
+deepnote static-site access --project-id <uuid> --sharing disabled
+
+# Serve the stored files again and enable viewer-scoped API calls
+deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
+
+# Revoke viewer API access while preserving the current sharing setting
+deepnote static-site access --project-id <uuid> --api-access disabled
+```
+
+At least one of `--sharing` and `--api-access` is required. Disabling sharing also disables viewer
+API access. Re-enabling sharing later serves the retained files at the canonical URL returned by
+Deepnote. The command uses the same `--token` / `DEEPNOTE_TOKEN` authentication and `--url` override
+as `publish`.
+
 ## Coordination with `deepnote sync`
 
 `_deepnote_static` is a subtree of the same project file store that `deepnote sync --all-files`
@@ -86,9 +107,16 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 
 # CI deploy: never look for or update a sync workspace
 deepnote publish ./dist --project-id <uuid> --no-sync-root
+
+# Stop serving the site without deleting the published files
+deepnote static-site access --project-id <uuid> --sharing disabled
 ```
 
 Exit code 0 means uploads and the sharing update succeeded. Exit code 1 means a project lookup,
 upload, optional prune, or sharing update failed, or that Deepnote holds changes the sync workspace
 has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid local directory, or
 a `--sync-root` that has no manifest or does not track the project.
+
+For `static-site access`, exit code 0 means the settings update succeeded, exit code 1 means the
+project settings request failed, and exit code 2 means invalid arguments, a missing token, no
+requested setting, or contradictory settings.

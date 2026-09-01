@@ -58,6 +58,11 @@ deepnote publish ./dist --project-id <uuid>
 stale ones, enables website sharing, and prints the canonical URL. Use that returned URL — never
 assemble a static-site URL by hand.
 
+Publishing and access are separate operations. To stop serving a site without deleting its files,
+run `deepnote static-site access --project-id <uuid> --sharing disabled`. Re-enable it later with
+`--sharing enabled`; use `--api-access enabled|disabled` to change viewer API access without
+republishing. Disabling sharing also disables viewer API access.
+
 Ownership note: the static root is a subtree of the same project file store that
 `deepnote sync --all-files` mirrors, so both commands write those paths. They share one baseline
 rather than splitting the namespace, and `publish` is the deploying writer — build output goes
@@ -152,11 +157,8 @@ Three separate things, often confused:
 - **Codex-plugin documentation and skills** — a _consumer_ of the hosted MCP, not a third MCP
   implementation.
 
-The limitation that changes app plans:
-
-> Hosted MCP can configure static-site sharing/API access and activate existing app files, but it
-> cannot currently upload the underlying static-site or Streamlit files.
-
-So a hosted-only agent can finish an app whose files already exist, and cannot start one. Getting the
-files there is `deepnote publish` (static sites) or the Deepnote UI / a synced project file
-(Streamlit).
+For static sites, use `deepnote publish` when a local terminal is available. When only the hosted MCP
+can deploy, use its narrow `publish_static_site` tool if the connected server advertises it; then use
+`update_project` to disable or re-enable sharing, or to change viewer API access, without changing
+the published files. Do not fall back to notebook execution as a way to write website files. Hosted
+MCP still cannot upload a Streamlit entrypoint.
