@@ -26,7 +26,7 @@ Let's move to the newly created Project panel now. Notice that the left panel ha
 
 ### Learning the most important bits
 
-The project sidebar contains your notebooks and terminals. Open the **Settings** panel from the top-right to manage integrations, files, the machine, and the environment.
+The Project sidebar on the left contains sections for your notebooks, integrations, files, the environment, and more. Let's learn about each of these in detail.
 
 ![Important Bits.jpg](../assets/docs/h9lkwiibTeSNaquQx2If.jpg)
 <br></br><br></br>
@@ -37,11 +37,11 @@ The **Notebooks** section can contain multiple notebooks. This is helpful since 
 
 #### Integrations
 
-Open **Settings** from the top-right and choose **Integrations** to connect [databases and warehouses](https://deepnote.com/docs/snowflake), [buckets](https://deepnote.com/docs/amazon-s3), [Docker container registries](https://deepnote.com/docs/amazon-ecr), and [secrets](https://deepnote.com/docs/environment-variables). Your collaborators can use these shared connections without extra setup.
+The **Integrations** section is all about hooking up resources to your project. It's where you connect to [databases/warehouses](https://deepnote.com/docs/snowflake), [buckets](https://deepnote.com/docs/amazon-s3), [Docker container registries](https://deepnote.com/docs/amazon-ecr), and [secrets](https://deepnote.com/docs/environment-variables). Your collaborators can share these connections without having to bother with additional setup.
 
 #### Files
 
-Open **Settings** from the top-right and choose **Files**. Drag a CSV into this section or upload the other scripts and files you need. The file system is shared by all notebooks in the project. To learn more about working with the file system, read our [file system guide](https://deepnote.com/docs/importing-data-to-deepnote).
+Think of this section as your local computer's file system. It's snappy like that. Drag a CSV into it or upload the other scripts and files you need. The file system is a shared space for all notebooks within a single project. To learn more about working with the file system, read our general guidelines [here](https://deepnote.com/docs/importing-data-to-deepnote).
 
 <Callout status="success">
 
@@ -51,11 +51,13 @@ Got a `requirements.txt` file? We create one for you when you `pip` install a pa
 
 #### Environment
 
-Open **Settings** from the top-right and choose **Machine**. Use the **Environment** dropdown to view the environment configuration options.
+Time to get serious. You probably want to know how to configure your environment. Let's dive into what you can do in the **Environment** section.
+
+First, click on the ⚙️ icon. You should now see your environment configuration options (shown below). Follow me.
 
 ![Environment.jpg](../assets/docs/PSMiDJAtRlFgQrhOIsVA.jpg)
 
-**Machine:** Use the machine picker in the **Machine** section to change the project hardware. Team and Enterprise plans include unlimited hours on a 16GB, 4vCPU machine. Read more about [machines in Deepnote](https://deepnote.com/docs/machine-hours).
+**Machine:** If you need a "beefier" machine, this is where you can choose one. If you're on a Team or Enterprise plan, you get unlimited hours on a 16GB, 4vCPU machine. To learn more about machines in Deepnote, click [here](https://deepnote.com/docs/machine-hours).
 
 **Built-in environments:** From the dropdown menu (under **Environment**) you can choose between any of the built-in Python environments. They come [pre-installed with the most popular libraries](https://deepnote.com/docs/pre-installed-packages) so you can begin working immediately. The default environment is Python 3.11.
 
@@ -67,7 +69,7 @@ Open **Settings** from the top-right and choose **Machine**. Use the **Environme
 
 **Initialization notebook:** There are times when you want to run some "starter" code before your notebook is used. You can place such code in a notebook called 'Init'. Read more about setting up custom [project initialization](https://deepnote.com/docs/project-initialization).
 
-**Incoming connections:** Open **More options** next to **Start machine** in the **Machine** section to [enable incoming connections](https://deepnote.com/docs/incoming-connections). You can use incoming connections to host tools such as Airflow, Streamlit, and TensorBoard.
+**Incoming connections:** Toggle this switch if you need to [spin up a web server from Deepnote](https://deepnote.com/docs/incoming-connections). Yes, this is perfect for hosting the Airflow console, Streamlit apps, TensorBoard, and much more.
 
 #### Terminals
 
