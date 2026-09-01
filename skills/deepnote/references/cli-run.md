@@ -70,6 +70,14 @@ Use plain strings for text, date, file, slider, and single-select inputs; use `t
 JSON arrays of strings for multi-select inputs and absolute date ranges. Unknown input names and invalid values are
 rejected before execution.
 
+A local run whose executing blocks include a SQL block against a `big-query` + `google-oauth`
+integration fails before the kernel starts unless `deepnote integrations auth <id>` has already been
+run — no partial execution. `--dry-run` only checks that a credential is stored and its client
+fingerprint matches; it never contacts Google or writes to the token store. `--cloud` is unaffected,
+since it authenticates BigQuery server-side. The MCP `deepnote_run` tool and `packages/local-runner`
+used outside the CLI inject no integration credentials at all, federated or otherwise, so this gate
+exists only in the CLI's `deepnote run`.
+
 ## Run in Deepnote Cloud (`--cloud`)
 
 By default `run` executes locally against a Python kernel. With `--cloud` it instead triggers a
