@@ -50,7 +50,13 @@ import { injectIntegrationEnvVars } from '../integrations/inject-integration-env
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
-import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import {
+  analyzeProject,
+  buildBlockMap,
+  collectFederatedBigQueryIntegrationIds,
+  diagnoseBlockFailure,
+  type ProjectStats,
+} from '../utils/analysis'
 import { MissingTokenError } from '../utils/auth'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
@@ -902,6 +908,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         pythonEnv,
         options,
         summary,
+        allIntegrations,
         blockResults: state.blockResults,
       })
 
@@ -1233,6 +1240,7 @@ async function buildMachineRunResult({
   pythonEnv,
   options,
   summary,
+  allIntegrations,
   blockResults,
 }: {
   absolutePath: string
@@ -1240,6 +1248,7 @@ async function buildMachineRunResult({
   pythonEnv: string
   options: RunOptions
   summary: ExecutionSummary
+  allIntegrations: DatabaseIntegrationConfig[]
   blockResults: BlockResult[]
 }): Promise<RunResult> {
   const result: RunResult = {
@@ -1262,6 +1271,10 @@ async function buildMachineRunResult({
     const { stats, lint, dag } = await analyzeProject(file, {
       notebook: options.notebook,
       pythonInterpreter: pythonEnv,
+      // Same check `deepnote lint` runs, so it must be told the same thing: without this a
+      // federated BigQuery integration reads as missing here even though the credential gate
+      // already passed and the run succeeded.
+      federatedIntegrationIds: collectFederatedBigQueryIntegrationIds(allIntegrations),
     })
     const blockMap = buildBlockMap(file, { notebook: options.notebook })
 

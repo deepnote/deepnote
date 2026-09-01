@@ -5,7 +5,12 @@
  */
 
 import { type DeepnoteBlock, type DeepnoteFile, INPUT_BLOCK_TYPES } from '@deepnote/blocks'
-import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
+import {
+  BigQueryAuthMethods,
+  type DatabaseIntegrationConfig,
+  getSqlEnvVarName,
+  isBuiltinIntegration,
+} from '@deepnote/database-integrations'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
@@ -107,6 +112,23 @@ export interface AnalysisResult {
  * Perform comprehensive analysis on a DeepnoteFile.
  * Combines stats, lint, and DAG analysis into a single result.
  */
+/**
+ * Ids (lowercased) of federated (Google OAuth) BigQuery integrations, for `federatedIntegrationIds`.
+ * The synchronous env var generator never produces a `process.env[SQL_<ID>]` for them, so without
+ * this every one reads as a false-positive `missing-integration`. Lives here rather than beside a
+ * single command because every caller of {@link checkForIssues} needs it — `deepnote lint` and
+ * `deepnote run --context` both run the same check and must agree.
+ */
+export function collectFederatedBigQueryIntegrationIds(integrations: DatabaseIntegrationConfig[]): Set<string> {
+  const ids = new Set<string>()
+  for (const integration of integrations) {
+    if (integration.type === 'big-query' && integration.metadata.authMethod === BigQueryAuthMethods.GoogleOauth) {
+      ids.add(integration.id.toLowerCase())
+    }
+  }
+  return ids
+}
+
 export async function analyzeProject(file: DeepnoteFile, options: AnalysisOptions = {}): Promise<AnalysisResult> {
   const stats = computeProjectStats(file, options)
   const { lint, dag } = await checkForIssues(file, options)

@@ -5,7 +5,7 @@ import { exchangeAuthorizationCode } from './google-oauth'
 /**
  * Purely local bound on the whole flow — comfortably longer than a consent screen takes, short
  * enough that an abandoned flow doesn't pin a port indefinitely. Not coupled to the proxy's own
- * pending-flow TTL, which it never enforces on the callback (see PLAN-bigquery-oauth-cli.md §2.1).
+ * pending-flow TTL, which the proxy prunes only at the next start and never enforces on the callback.
  */
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000
 
@@ -52,7 +52,7 @@ function respondThenSettle(res: ServerResponse, status: number, body: string, se
 /**
  * Runs one OAuth loopback flow: binds an ephemeral `127.0.0.1` port, waits for the single
  * `/callback` redirect the Deepnote proxy sends after Google consent, exchanges the authorization
- * code, and tears the server down. See PLAN-bigquery-oauth-cli.md §2 and §3.1.
+ * code, and tears the server down.
  *
  * `onListening` is called with the bound callback URL once the server is ready to accept it and is
  * never awaited — the caller opens a browser, which is not this function's concern and must not be

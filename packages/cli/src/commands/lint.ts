@@ -2,7 +2,6 @@ import fs from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { InitNotebookResolutionError } from '@deepnote/convert'
 import {
-  BigQueryAuthMethods,
   type DatabaseIntegrationConfig,
   DEFAULT_ENV_FILE,
   type EnvVar,
@@ -15,7 +14,12 @@ import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, error as logError, output, outputJson, warn } from '../output'
-import { checkForIssues, type LintIssue, type LintResult } from '../utils/analysis'
+import {
+  checkForIssues,
+  collectFederatedBigQueryIntegrationIds,
+  type LintIssue,
+  type LintResult,
+} from '../utils/analysis'
 import { FileResolutionError, isErrnoENOENT, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
 
@@ -124,23 +128,6 @@ function generateIntegrationEnvVars(
   }
 
   return { envVars, issues }
-}
-
-/**
- * Ids (lowercased) of federated (Google OAuth) BigQuery integrations, for `checkMissingIntegrations`
- * to count as configured. The synchronous generator above never produces a `process.env[SQL_<ID>]`
- * for them, so without this every one would lint as a false-positive `missing-integration` — lint
- * only checks configuration shape here, never the token store, so this is not proof a credential is
- * actually stored or live.
- */
-function collectFederatedBigQueryIntegrationIds(integrations: DatabaseIntegrationConfig[]): Set<string> {
-  const ids = new Set<string>()
-  for (const integration of integrations) {
-    if (integration.type === 'big-query' && integration.metadata.authMethod === BigQueryAuthMethods.GoogleOauth) {
-      ids.add(integration.id.toLowerCase())
-    }
-  }
-  return ids
 }
 
 /**

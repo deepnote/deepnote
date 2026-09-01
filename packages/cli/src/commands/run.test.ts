@@ -22,6 +22,8 @@ const mockRunProject = vi.fn()
 const mockConstructor = vi.fn()
 let mockServerPort: number | null = 8888
 const mockGetBlockDependencies = vi.fn()
+const mockGetDagForBlocks = vi.fn<(...args: unknown[]) => Promise<{ dag: { nodes: unknown[]; edges: unknown[] } }>>()
+mockGetDagForBlocks.mockResolvedValue({ dag: { nodes: [], edges: [] } })
 const mockGetUpstreamBlocks = vi.fn()
 
 // Mock @deepnote/runtime-core before importing run
@@ -53,6 +55,9 @@ vi.mock('@deepnote/reactivity', () => {
   return {
     getBlockDependencies: (...args: unknown[]) => mockGetBlockDependencies(...args),
     getUpstreamBlocks: (...args: unknown[]) => mockGetUpstreamBlocks(...args),
+    // Needed by analyzeProject, which run.ts uses for --context. Without it that call throws and
+    // is swallowed by its own catch, so the context branch silently produced nothing in every test.
+    getDagForBlocks: (...args: unknown[]) => mockGetDagForBlocks(...args),
   }
 })
 
@@ -1480,6 +1485,36 @@ describe('run command', () => {
         await action(INTEGRATIONS_FILE, {})
         expect(programErrorSpy).not.toHaveBeenCalled()
         expect(mockStart).toHaveBeenCalled()
+      })
+
+      it('does not report a federated BigQuery integration as missing in --context output', async () => {
+        mockGetBlockDependencies.mockResolvedValue([])
+        setupSuccessfulRun()
+        mockParseIntegrationsFile.mockResolvedValue({
+          integrations: [
+            {
+              id: '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
+              name: 'Federated BigQuery',
+              type: 'big-query',
+              metadata: {
+                authMethod: 'google-oauth',
+                project: 'my-gcp-project',
+                clientId: 'client-id',
+                clientSecret: 'client-secret',
+              },
+            },
+          ],
+          issues: [],
+        })
+
+        await action(INTEGRATIONS_FILE, { output: 'json', context: true })
+
+        // The context analysis runs the same check as `deepnote lint`, so it has to be told the
+        // same thing: the credential gate has already passed by the time this runs, and reporting
+        // the integration as missing here contradicts the run that just succeeded.
+        const parsed = JSON.parse(getOutput(consoleLogSpy))
+        const codes = (parsed.project?.issues?.details ?? []).map((issue: { code: string }) => issue.code)
+        expect(codes).not.toContain('missing-integration')
       })
     })
 
