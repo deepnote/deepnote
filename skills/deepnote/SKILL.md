@@ -271,6 +271,15 @@ deepnote run project.deepnote -o json                  # JSON output
 3. If errors, check snapshot for details
 4. Fix and re-run
 
+## Apps
+
+Deepnote apps come in several distinct models (data apps, Streamlit apps, published static sites,
+published browser apps with viewer API access, and local `serveStatic` apps) with different
+hosting, credentials, and file ownership.
+
+- Read [Deepnote apps](references/apps.md) when choosing, building, previewing, publishing, or
+  explaining a Deepnote app.
+
 ## CLI Quick Reference
 
 | Command                                 | Description                                                                                                                                                                                                                                                                                         |
