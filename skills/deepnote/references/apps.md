@@ -54,17 +54,23 @@ store and served by Deepnote. There is no server: whatever the browser can do, t
 deepnote publish ./dist --project-id <uuid>
 ```
 
-`publish` owns the `_deepnote_static/**` namespace. It replaces matching files, optionally prunes
+`deepnote publish` deploys into `_deepnote_static/**`: it replaces matching files, optionally prunes
 stale ones, enables website sharing, and prints the canonical URL. Use that returned URL — never
 assemble a static-site URL by hand.
 
 Ownership note: the static root is a subtree of the same project file store that
-`deepnote sync --all-files` mirrors, so both commands can write those paths. `publish` is the
-deploying writer — build output goes through `publish`, not through a synced workspace. How the two
-commands stay in step is the CLI's concern, not the app author's; see `references/cli-publish.md`
-and `references/cli-sync.md` before scripting a workflow that runs both.
+`deepnote sync --all-files` mirrors, so both commands write those paths. They share one baseline
+rather than splitting the namespace, and `publish` is the deploying writer — build output goes
+through `publish`, not through a synced workspace. Two consequences for anyone scripting a deploy:
 
-See `references/cli-publish.md` for options and exit codes.
+- Publish looks upwards from the published directory for a sync workspace and updates its mirror, so
+  the next sync sees the deploy as already in step. A CI deploy has no workspace to update and
+  should pass `--no-sync-root`.
+- If Deepnote holds changes below the target path that the workspace has not synced, publish exits 1
+  without touching the project. Sync first, or pass `--force`.
+
+`references/cli-publish.md` (options, exit codes, the full coordination rules) and
+`references/cli-sync.md` carry the rest.
 
 ## 4. Published browser apps with API access
 
