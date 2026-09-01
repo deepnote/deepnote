@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-### ⌨️ General
+### General
 
 | Mac                        | Windows & Linux               | Action                    |
 | -------------------------- | ----------------------------- | ------------------------- |
@@ -20,7 +20,7 @@ To look up keyboard shortcuts in Deepnote, open the command palette and search f
 </Callout>
 ![Command palette search for shortcuts](../assets/docs/bBTtb1qSQf6fej7x6oEk.webp)
 
-### 🧱 Block actions
+### Block actions
 
 | Mac                            | Windows & Linux                               | Action                                                                                             |
 | ------------------------------ | --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -45,7 +45,7 @@ To look up keyboard shortcuts in Deepnote, open the command palette and search f
 | <Keyboard>⌘ + ⇧ + E</Keyboard> | <Keyboard>ctrl + shift + E</Keyboard>         | Edit code with AI                                                                                  |
 | <Keyboard>⌘ + ⇧ + I</Keyboard> | <Keyboard>ctrl + shift + I</Keyboard>         | Explain code with AI                                                                               |
 
-### ✍️ Code editing
+### Code editing
 
 | Mac                            | Windows & Linux                      | Action                                                                                                     |
 | ------------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
@@ -57,7 +57,7 @@ To look up keyboard shortcuts in Deepnote, open the command palette and search f
 | <Keyboard>⌥ + ↑</Keyboard>     | <Keyboard>alt + ↑</Keyboard>         | Move lines up                                                                                              |
 | <Keyboard>⌥ + ⇧ + F</Keyboard> | <Keyboard>alt + shift + F</Keyboard> | Format code                                                                                                |
 
-### 🖥️ Terminal
+### Terminal
 
 | Mac                        | Windows & Linux                       | Action             |
 | -------------------------- | ------------------------------------- | ------------------ |

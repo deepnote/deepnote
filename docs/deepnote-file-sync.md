@@ -5,16 +5,16 @@ noIndex: false
 noContent: false
 ---
 
-Deepnote file sync lets you export your cloud project to a `.deepnote` file that stays synchronized with your notebooks. This file lives inside a Git repository — you can share it with teammates or run it locally.
+Deepnote file sync lets you export your cloud project to a `.deepnote` file that stays synchronized with your notebooks. You can store the file in a Git repository, share it with teammates, or run it on your machine.
 
 The `.deepnote` format is open-source and human-readable (YAML), so you can review notebook changes in pull requests just like regular code.
 
 ## Why use file sync?
 
-- **Version control notebooks in Git** — store your notebooks alongside your code and track changes over time
-- **Share projects via repositories** — teammates can pull the repo and open the same notebooks locally
-- **Run notebooks locally** — use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to execute notebooks without cloud dependency
-- **Review notebook changes in PRs** — the file format produces meaningful diffs for code review
+- **Version control notebooks in Git:** Store your notebooks alongside your code and track changes over time
+- **Share projects via repositories:** Teammates can pull the repo and open the same notebooks on their machines
+- **Run notebooks on your machine:** Use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to execute notebooks without a cloud dependency
+- **Review notebook changes in PRs:** The file format produces readable diffs for code review
 
 ## Linking a project
 
@@ -58,9 +58,9 @@ Similarly, when you pull from a remote Git repository or switch to a different b
 
 You can also trigger sync manually from the project menu or from the linked file:
 
-- **Sync to file** — Push your current project state to the `.deepnote` file.
+- **Sync to file:** Push your current project state to the `.deepnote` file.
 
-- **Sync from file** — Pull changes from the file into your project. Use this after `git pull` or `git checkout` if you performed it from your machine's terminal or programmatically from the notebook.
+- **Sync from file:** Pull changes from the file into your project. Use this after `git pull` or `git checkout` if you performed it from your machine's terminal or programmatically from the notebook.
 
 ### What gets synced
 

@@ -156,7 +156,7 @@ models:
 If you want to share your catalog and organize it with Deepnote you can run `!dbt doc` , then create streamlit of Flask app, if you want to use streamlit you can see the the [example](https://deepnote.com/workspace/Deepnote-8b0ebf6d-5672-4a8b-a488-2dd220383dd3/project/dbt-demo-b0c962f8-96a6-4a1e-9182-9ba3b34bb5ae/dbt_catalog.py) if you want use Flask you need to serve the 'index.html' on `0.0.0.0`, then switch on incoming connection
 
 <aside>
-💡Note that this will open your connection to entire internet
+Note that this will open your connection to the entire internet.
 </aside>
 
 ![Screenshot 2025-01-24 at 15.55.06.png](../assets/docs/UdEXzNKjTCWqT8tD1sFm.webp)

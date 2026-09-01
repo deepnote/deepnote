@@ -13,11 +13,11 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
-| **VS Code and Cursor extensions**             | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
-| **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
-| **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
+| **VS Code and Cursor extensions**             | Full-featured development | Yes       | Yes     | Easy       |
+| **Deepnote Toolkit**                          | Custom implementations    | Yes       | Yes     | Advanced   |
+| **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | Yes       | Yes     | Easy       |
 
-## 🚀 VS Code and Cursor extensions (recommended)
+## VS Code and Cursor extensions (recommended)
 
 The **Deepnote extension** is available from the **VS Code Marketplace** and the **Open VSX Registry**. It supports local notebook editing and execution in VS Code and Cursor.
 
@@ -25,13 +25,13 @@ The editor feature claims in this guide apply only to VS Code and Cursor.
 
 ### Features
 
-- ✅ **Full editing capabilities** - Edit code, markdown, and SQL blocks
-- ✅ **Execute notebooks** - Run Python code and SQL queries locally
-- ✅ **Database integrations** - Connect to PostgreSQL, BigQuery, Snowflake, and more
-- ✅ **Multiple block types** - Work with code, SQL, markdown, and specialized blocks
-- ✅ **Init notebooks** - Automatic initialization code execution
-- ✅ **Secure credentials** - Encrypted storage using VS Code's SecretStorage API
-- ✅ **Project explorer** - Browse and manage multiple notebooks
+- **Full editing capabilities** - Edit code, markdown, and SQL blocks
+- **Execute notebooks** - Run Python code and SQL queries locally
+- **Database integrations** - Connect to PostgreSQL, BigQuery, Snowflake, and more
+- **Multiple block types** - Work with code, SQL, markdown, and specialized blocks
+- **Init notebooks** - Automatic initialization code execution
+- **Secure credentials** - Encrypted storage using VS Code's SecretStorage API
+- **Project explorer** - Browse and manage multiple notebooks
 
 ### Installation
 
@@ -117,11 +117,11 @@ The toolkit is the core Python package that powers Deepnote's execution environm
 
 Consider using the Deepnote Toolkit if you:
 
-- ✅ Want to build custom notebook execution environments
-- ✅ Need to integrate Deepnote notebooks into existing Python applications
-- ✅ Are developing extensions or tools for Deepnote
-- ✅ Want full control over the execution environment
-- ✅ Need to customize the notebook runtime behavior
+- Want to build custom notebook execution environments
+- Need to integrate Deepnote notebooks into existing Python applications
+- Are developing extensions or tools for Deepnote
+- Want full control over the execution environment
+- Need to customize the notebook runtime behavior
 
 ### Installation
 
@@ -198,7 +198,7 @@ The toolkit provides access to advanced Deepnote features:
 - [API Documentation](https://github.com/deepnote/deepnote-toolkit/tree/main/docs)
 - [Contributing Guide](https://github.com/deepnote/deepnote-toolkit/blob/main/README.md#development-workflow)
 
-## 🔮 Local singleplayer (coming soon)
+## Local singleplayer (coming soon)
 
 We're working on a **Local Singleplayer** experience that will provide a complete, standalone Deepnote environment running entirely on your local machine.
 
@@ -206,11 +206,11 @@ We're working on a **Local Singleplayer** experience that will provide a complet
 
 Want to be notified when Local Singleplayer launches?
 
-- ⭐ Star the [Deepnote GitHub repository](https://github.com/deepnote/deepnote)
-- 📧 Sign up for updates at [deepnote.com](https://deepnote.com)
-- 💬 Join the discussion in [GitHub Discussions](https://github.com/deepnote/deepnote/discussions)
+- Star the [Deepnote GitHub repository](https://github.com/deepnote/deepnote)
+- Sign up for updates at [deepnote.com](https://deepnote.com)
+- Join the discussion in [GitHub Discussions](https://github.com/deepnote/deepnote/discussions)
 
-## Comparison Matrix
+## Comparison matrix
 
 ### Feature Comparison
 
