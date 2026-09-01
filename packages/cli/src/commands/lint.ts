@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { InitNotebookResolutionError } from '@deepnote/convert'
 import {
+  BigQueryAuthMethods,
   type DatabaseIntegrationConfig,
   DEFAULT_ENV_FILE,
   type EnvVar,
@@ -126,6 +127,23 @@ function generateIntegrationEnvVars(
 }
 
 /**
+ * Ids (lowercased) of federated (Google OAuth) BigQuery integrations, for `checkMissingIntegrations`
+ * to count as configured. The synchronous generator above never produces a `process.env[SQL_<ID>]`
+ * for them, so without this every one would lint as a false-positive `missing-integration` — lint
+ * only checks configuration shape here, never the token store, so this is not proof a credential is
+ * actually stored or live.
+ */
+function collectFederatedBigQueryIntegrationIds(integrations: DatabaseIntegrationConfig[]): Set<string> {
+  const ids = new Set<string>()
+  for (const integration of integrations) {
+    if (integration.type === 'big-query' && integration.metadata.authMethod === BigQueryAuthMethods.GoogleOauth) {
+      ids.add(integration.id.toLowerCase())
+    }
+  }
+  return ids
+}
+
+/**
  * Creates the lint action - checks for issues in a .deepnote file or integrations yaml file.
  */
 export function createLintAction(_program: Command): (path: string | undefined, options: LintOptions) => Promise<void> {
@@ -214,12 +232,14 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
         `Injected ${envVars.length} environment variables for ${parsedIntegrations.integrations.length} integrations`
       )
     }
+    const federatedIntegrationIds = collectFederatedBigQueryIntegrationIds(parsedIntegrations.integrations)
 
     debug(`Analyzing blocks...`)
     const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
     const { lint } = await checkForIssues(deepnoteFile, {
       notebook: options.notebook,
       pythonInterpreter,
+      federatedIntegrationIds,
     })
 
     // Integration/config issues are hard errors (no severity field), so fold their count into

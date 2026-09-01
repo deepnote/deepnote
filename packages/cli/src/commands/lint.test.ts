@@ -600,6 +600,118 @@ describe('lint command', () => {
     })
   })
 
+  describe('federated BigQuery integrations', () => {
+    const tempDirs: string[] = []
+
+    afterEach(() => {
+      for (const dir of tempDirs.splice(0)) {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    /** One notebook with one SQL block per entry in `blocks` (block id -> sql_integration_id). */
+    function sqlBlocksFile(blocks: Record<string, string>): DeepnoteFile {
+      return {
+        version: '1.0.0',
+        metadata: { createdAt: '2025-01-01T00:00:00Z' },
+        project: {
+          id: 'proj-federated-lint',
+          name: 'Federated Lint Fixture',
+          notebooks: [
+            {
+              id: 'nb-0',
+              name: 'Notebook',
+              blocks: Object.entries(blocks).map(([blockId, integrationId], index) => ({
+                id: blockId,
+                blockGroup: `group-${index}`,
+                sortingKey: String(index).padStart(5, '0'),
+                type: 'sql',
+                content: 'SELECT 1',
+                metadata: { sql_integration_id: integrationId },
+              })),
+            },
+          ],
+        },
+      }
+    }
+
+    function writeFixture(
+      blocks: Record<string, string>,
+      integrationsYaml: string
+    ): { notebookPath: string; integrationsFilePath: string } {
+      const dir = fs.mkdtempSync(join(os.tmpdir(), 'lint-federated-bq-'))
+      tempDirs.push(dir)
+      const notebookPath = join(dir, 'notebook.deepnote')
+      fs.writeFileSync(notebookPath, serializeDeepnoteFile(sqlBlocksFile(blocks)))
+      const integrationsFilePath = join(dir, 'integrations.yaml')
+      fs.writeFileSync(integrationsFilePath, integrationsYaml)
+      return { notebookPath, integrationsFilePath }
+    }
+
+    const FEDERATED_INTEGRATIONS_YAML = `integrations:
+  - id: federated-bq
+    name: Federated BigQuery
+    type: big-query
+    metadata:
+      authMethod: google-oauth
+      project: my-gcp-project
+      clientId: client-id.apps.googleusercontent.com
+      clientSecret: GOCSPX-secret`
+
+    it('does not report missing-integration for a google-oauth BigQuery integration, with an undeclared (unconfigured) integration as the control', async () => {
+      const action = createLintAction(program)
+      // 'unconfigured-bq' is referenced by a block but never declared in the integrations file, so
+      // it has no chance of an env var — proving this fixture still catches a real gap rather than
+      // the fix having silenced missing-integration reporting altogether.
+      const { notebookPath, integrationsFilePath } = writeFixture(
+        { 'federated-block': 'federated-bq', 'control-block': 'unconfigured-bq' },
+        FEDERATED_INTEGRATIONS_YAML
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(notebookPath, { output: 'json', integrationsFile: integrationsFilePath })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      const missingIds = (parsed.issues as Array<{ code: string; details?: { integrationId?: string } }>)
+        .filter(i => i.code === 'missing-integration')
+        .map(i => i.details?.integrationId)
+
+      expect(missingIds).not.toContain('federated-bq')
+      expect(missingIds).toContain('unconfigured-bq')
+      expect(parsed.integrations.configured).toContain('federated-bq')
+      expect(parsed.integrations.missing).toEqual(['unconfigured-bq'])
+    })
+
+    it('matches the integration id case-insensitively between the SQL block and the integrations file', async () => {
+      const action = createLintAction(program)
+      const { notebookPath, integrationsFilePath } = writeFixture(
+        { 'federated-block': 'Federated-BQ' },
+        FEDERATED_INTEGRATIONS_YAML
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(notebookPath, { output: 'json', integrationsFile: integrationsFilePath })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      expect(parsed.issues.some((i: { code: string }) => i.code === 'missing-integration')).toBe(false)
+    })
+
+    it('never imports the federated-auth token store — lint reports config shape only, never live authentication status', () => {
+      // Behavioral coverage can't distinguish "never read" from "read and tolerated ENOENT", since
+      // an absent store reads the same either way. The architectural invariant (§3.2 of the OAuth
+      // plan: lint must stay CI-safe with no token directory at all) is instead pinned directly.
+      const lintSource = fs.readFileSync(join(process.cwd(), 'packages/cli/src/commands/lint.ts'), 'utf-8')
+      const analysisSource = fs.readFileSync(join(process.cwd(), 'packages/cli/src/utils/analysis.ts'), 'utf-8')
+
+      expect(lintSource).not.toMatch(/token-store/)
+      expect(analysisSource).not.toMatch(/token-store/)
+    })
+  })
+
   describe('input checks', () => {
     it('includes inputs summary in JSON output', async () => {
       const action = createLintAction(program)

@@ -76,10 +76,19 @@ vi.mock('@deepnote/database-integrations', async importOriginal => {
 })
 
 // Mock injectIntegrationEnvVars for testing integration env var injection
-const mockInjectIntegrationEnvVars = vi.fn<(integrations: unknown[], workingDirectory: string) => string[]>()
+const mockInjectIntegrationEnvVars =
+  vi.fn<
+    (
+      integrations: unknown[],
+      workingDirectory: string,
+      federatedIds: string[],
+      options: { refreshFederatedTokens: boolean }
+    ) => string[]
+  >()
 mockInjectIntegrationEnvVars.mockReturnValue([])
 vi.mock('../integrations/inject-integration-env-vars', () => ({
-  injectIntegrationEnvVars: (...args: [unknown[], string]) => mockInjectIntegrationEnvVars(...args),
+  injectIntegrationEnvVars: (...args: [unknown[], string, string[], { refreshFederatedTokens: boolean }]) =>
+    mockInjectIntegrationEnvVars(...args),
 }))
 
 // Mock openDeepnoteFileInCloud for --open flag tests
@@ -1598,7 +1607,9 @@ describe('run command', () => {
             expect.objectContaining({ id: 'local-only-id', name: 'Local DB' }),
             expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'API DB' }),
           ]),
-          expect.any(String)
+          expect.any(String),
+          expect.any(Array),
+          { refreshFederatedTokens: true }
         )
 
         expect(mockStart).toHaveBeenCalled()
@@ -1634,7 +1645,9 @@ describe('run command', () => {
               metadata: expect.objectContaining({ host: 'local.example.com' }),
             }),
           ],
-          expect.any(String)
+          expect.any(String),
+          expect.any(Array),
+          { refreshFederatedTokens: true }
         )
 
         expect(mockStart).toHaveBeenCalled()
@@ -1670,7 +1683,9 @@ describe('run command', () => {
         expect(mockFetchIntegrations).toHaveBeenCalled()
         expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
           [expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'Test PostgreSQL' })],
-          expect.any(String)
+          expect.any(String),
+          expect.any(Array),
+          { refreshFederatedTokens: true }
         )
         expect(programErrorSpy).not.toHaveBeenCalled()
         expect(mockStart).toHaveBeenCalled()
@@ -1756,7 +1771,9 @@ describe('run command', () => {
               name: 'Local DB',
             }),
           ],
-          expect.any(String)
+          expect.any(String),
+          expect.any(Array),
+          { refreshFederatedTokens: true }
         )
 
         expect(mockStart).toHaveBeenCalled()
