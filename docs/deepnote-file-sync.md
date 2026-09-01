@@ -9,6 +9,20 @@ Deepnote file sync lets you export your cloud project to a `.deepnote` file that
 
 The `.deepnote` format is open-source and human-readable (YAML), so you can review notebook changes in pull requests just like regular code.
 
+<Callout status="warning">
+**"Deepnote file sync" and the `deepnote sync` CLI command are two different things.**
+
+- **Deepnote file sync** — this page. An in-product feature that links **one** cloud project to
+  **one** `.deepnote` file inside a **connected Git repository**, and keeps the two in step
+  automatically. You drive it from the project menu in the Deepnote editor.
+- **[`deepnote sync`](/docs/deepnote-cli-sync)** — a local command-line tool. It mirrors **many**
+  projects (a whole workspace) into a directory on your machine, **on demand**, and does not involve
+  Git at all. You drive it from your terminal and commit anything yourself.
+
+They can be used together, but they are separate mechanisms with separate state. If you are reading
+about `.deepnote-sync.json`, `--all-files`, or `--on-conflict`, you want the CLI page.
+</Callout>
+
 ## Why use file sync?
 
 - **Version control notebooks in Git** — store your notebooks alongside your code and track changes over time
@@ -98,3 +112,10 @@ With `.deepnote` file sync, you can easily bring your notebooks to your local ma
 ### Code review for notebooks
 
 Adding a Deepnote project file inside your Git repository makes it part of the Git workflow. For example, you can now submit and review changes to the notebook as a pull request. Since the `.deepnote` format is human-readable YAML, notebook changes show up as meaningful diffs in GitHub/GitLab. Similarly, you could run CI on your notebooks.
+
+## Related
+
+- [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync) — the `deepnote sync` command, which mirrors many projects to a local directory on demand. Use it when you want a whole workspace locally, or when the project you want to work on is not linked to a Git repository.
+- [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish) — deploy a built site or app to a project with `deepnote publish`.
+- [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file.
+- [How to set up Deepnote locally](/docs/local-setup) — editors and other local tooling.
