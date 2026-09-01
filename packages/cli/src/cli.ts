@@ -13,6 +13,7 @@ import { createInspectAction } from './commands/inspect'
 import { createInstallSkillsAction } from './commands/install-skills'
 import { createIntegrationsPullAction } from './commands/integrations'
 import { createIntegrationsAddAction } from './commands/integrations/add-integration'
+import { createIntegrationsAuthAction } from './commands/integrations/auth-integration'
 import { createIntegrationsEditAction } from './commands/integrations/edit-integration'
 import { createLintAction } from './commands/lint'
 import { createOpenAction } from './commands/open'
@@ -27,6 +28,7 @@ import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
+import { DEFAULT_DOMAIN } from './utils/deepnote-api'
 import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
 import { parseTimeoutSeconds } from './utils/parse-timeout'
 import { version } from './version'
@@ -1018,6 +1020,7 @@ ${c.bold('Subcommands:')}
   pull        Pull integrations from Deepnote API and merge with local file
   add         Add a new database integration interactively
   edit        Edit an existing database integration interactively
+  auth        Authenticate a big-query integration using Google OAuth
 
 ${c.bold('Examples:')}
   ${c.dim('# Pull integrations from Deepnote API')}
@@ -1037,6 +1040,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Edit a specific integration by ID')}
   $ deepnote integrations edit <integration-id>
+
+  ${c.dim('# Authenticate a big-query (Google OAuth) integration')}
+  $ deepnote integrations auth <integration-id>
+
+  ${c.dim('# Authenticate against a custom Deepnote domain')}
+  $ deepnote integrations auth <integration-id> --domain deepnote.example.com
 `
     })
 
@@ -1063,6 +1072,17 @@ ${c.bold('Examples:')}
     .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
     .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
     .action(createIntegrationsEditAction(program))
+
+  integrationsCmd
+    .command('auth')
+    .argument('[id]', 'Integration ID to authenticate (skips interactive selection)')
+    .description('Authenticate a big-query integration using Google OAuth')
+    .option('--file <path>', 'Path to integrations file', DEFAULT_INTEGRATIONS_FILE)
+    .option('--env-file <path>', 'Path to .env file for storing secrets', DEFAULT_ENV_FILE)
+    .option('--domain <domain>', 'Deepnote domain', DEFAULT_DOMAIN)
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for authentication (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .action(createIntegrationsAuthAction(program))
 }
 
 /**

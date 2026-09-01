@@ -36,7 +36,7 @@ _deepnote_completions() {
     subcommand=""
     for word in "\${COMP_WORDS[@]:1}"; do
         case "\${word}" in
-            inspect|cat|run|open|schedule|validate|convert|split|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull)
+            inspect|cat|run|open|schedule|validate|convert|split|completion|help|dag|stats|analyze|lint|show|vars|downstream|diff|integrations|pull|auth)
                 subcommand="\${word}"
                 break
                 ;;
@@ -238,7 +238,7 @@ _deepnote_completions() {
             return 0
             ;;
         integrations)
-            COMPREPLY=( $(compgen -W "pull" -- "\${cur}") )
+            COMPREPLY=( $(compgen -W "pull auth" -- "\${cur}") )
             return 0
             ;;
         pull)
@@ -246,6 +246,17 @@ _deepnote_completions() {
             if [[ "\${subcommand}" == "integrations" || "\${subcommand}" == "pull" ]]; then
                 if [[ "\${cur}" == -* ]]; then
                     COMPREPLY=( $(compgen -W "--url --token --file --env-file" -- "\${cur}") )
+                else
+                    COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
+                fi
+                return 0
+            fi
+            ;;
+        auth)
+            # Complete integrations auth options
+            if [[ "\${subcommand}" == "integrations" || "\${subcommand}" == "auth" ]]; then
+                if [[ "\${cur}" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "--file --env-file --domain --url --token" -- "\${cur}") )
                 else
                     COMPREPLY=( $(compgen -f -- "\${cur}") $(compgen -d -- "\${cur}") )
                 fi
@@ -486,6 +497,7 @@ ${commandEntries}
                     local -a subcommands
                     subcommands=(
                         'pull:Pull integrations from Deepnote API and merge with local file'
+                        'auth:Authenticate a big-query integration using Google OAuth'
                     )
                     _arguments \\
                         '2: :->subcommand' \\
@@ -499,7 +511,8 @@ ${commandEntries}
                                 '--url[API base URL]:url:' \\
                                 '--token[Bearer token for authentication]:token:' \\
                                 '--file[Path to integrations file]:file path:_files' \\
-                                '--env-file[Path to .env file for storing secrets]:env file path:_files'
+                                '--env-file[Path to .env file for storing secrets]:env file path:_files' \\
+                                '--domain[Deepnote domain]:domain:'
                             ;;
                     esac
                     ;;
@@ -675,6 +688,12 @@ complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_se
 complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l token -d 'Bearer token for authentication'
 complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l file -d 'Path to integrations file' -F
 complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from pull' -l env-file -d 'Path to .env file for storing secrets' -F
+complete -c deepnote -n '__fish_seen_subcommand_from integrations' -a auth -d 'Authenticate a big-query integration using Google OAuth'
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from auth' -l file -d 'Path to integrations file' -F
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from auth' -l env-file -d 'Path to .env file for storing secrets' -F
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from auth' -l domain -d 'Deepnote domain'
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from auth' -l url -d 'API base URL'
+complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from auth' -l token -d 'Bearer token for authentication'
 
 # completion subcommand
 complete -c deepnote -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

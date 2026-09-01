@@ -3,6 +3,7 @@ import { chmod, mkdir, open, readdir, readFile, rename, unlink } from 'node:fs/p
 import { homedir, platform } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { z } from 'zod'
+import { DEEPNOTE_CONFIG_DIR_NAME, FEDERATED_AUTH_TOKENS_DIR_NAME } from '../constants'
 import { debug } from '../output'
 import { isErrnoENOENT, isErrnoException } from '../utils/file-resolver'
 import { sanitizePathSegment } from '../utils/sync-paths'
@@ -28,7 +29,7 @@ const STORE_FILE_MODE = 0o600
 
 /** Root of the per-integration token store. Created lazily by {@link writeToken}. */
 export function getTokenStoreDir(): string {
-  return join(homedir(), '.deepnote', 'federated-auth-tokens')
+  return join(homedir(), DEEPNOTE_CONFIG_DIR_NAME, FEDERATED_AUTH_TOKENS_DIR_NAME)
 }
 
 /**
