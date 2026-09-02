@@ -67,6 +67,180 @@ callers that want to run steps somewhere else.
 
 See [`examples/pipelines/script`](../../examples/pipelines/script).
 
+## Define a pipeline in a `.deepnote` file
+
+`runPipeline` puts the pipeline in application code. A pipeline can instead live in a file: the
+notebook marked `isPipeline: true`, whose `notebook-function` blocks each name an external notebook,
+the inputs to run it with, and the values it publishes.
+
+The encoding is the one deepnote.com stores for a notebook-function block, so the same file means
+the same thing in the product and here. An input is `{ variable_name }` — a pipeline variable — or
+`{ custom_value }` — a literal. An export is `{ enabled, variable_name }`.
+
+```yaml
+notebooks:
+  - id: pipeline
+    name: Sales review
+    isPipeline: true
+    blocks:
+      - id: analyze-europe
+        type: notebook-function
+        metadata:
+          function_notebook_id: nb-regional
+          function_notebook_inputs:
+            region: { custom_value: Europe }
+            trailing_months: { custom_value: "6" }
+          function_notebook_export_mappings:
+            summary_json: { enabled: true, variable_name: europe }
+
+      - id: aggregate
+        type: notebook-function
+        metadata:
+          function_notebook_id: nb-aggregate
+          function_notebook_inputs:
+            europe_json: { variable_name: europe }
+            north_america_json: { variable_name: northAmerica }
+```
+
+```ts
+import { runPipelineFile, planPipeline } from "@deepnote/pipelines";
+
+const { value, plan, graph, skipped, failed } = await runPipelineFile(file, {
+  token,
+  onEvent,
+});
+```
+
+**Dependencies are never declared twice.** A step reading `{ variable_name: europe }` depends on
+whichever step exports `europe`, so regional steps that read nothing from each other are independent
+_by construction_ and run concurrently. `planPipeline(file)` returns that graph without running
+anything, so a UI can draw the pipeline before it starts.
+
+A variable is referenced by name only — no paths, no templating. Reading a field belongs in a
+`run_if` condition; a step that needs a field of another step's result should have that field
+exported. A step's exports are read from the JSON object that ends its output, so they survive
+Deepnote reassigning block ids; the last block's output must end with a JSON object, and anything
+printed before it on earlier lines is ignored. Deepnote input blocks take strings, booleans and lists
+of strings, so a structure that must cross into a notebook is exported as a JSON string. The runs API
+rejects arrays for text inputs, so a fan-out's collected list can only feed an `input-select` block
+with `deepnote_allow_multiple_values: true`.
+
+**The pipeline notebook is interpreted, not executed.** Deepnote's block engine runs blocks strictly
+in order, so handing it the parent would serialize the fan-out into one run with one status. Reading
+it as a manifest keeps concurrency and per-step events, while the definition still lives in a
+versioned, reviewable file.
+
+Errors a graph can be checked for are raised at plan time, before anything runs: no notebook marked
+`isPipeline` (or more than one), a variable no step exports, two steps exporting the same variable, a
+step naming no notebook, a variable reference that is a path, a `for_each_as` without a `for_each`
+or that shadows an export, a malformed condition, and a dependency cycle.
+
+### Gates: `function_notebook_run_if`
+
+A step's _existence_ can depend on an earlier result, so a gate lives in the file too:
+
+```yaml
+- id: final-arbiter
+  type: notebook-function
+  metadata:
+    function_notebook_run_if: gptDecision != claudeDecision
+    function_notebook_id: nb-arbiter
+```
+
+The condition reads pipeline variables, so the step depends on what it consults without that being
+written down twice — even when no input mentions them. When it is false the step is skipped, and so
+is anything that reads what it would have exported: a dependent is never run with a value that will
+never arrive. Skipped steps come back in `result.skipped`, and each gate appears in the graph as a
+`gate` node between the steps it reads and the step it governs.
+
+The condition language is deliberately **not JavaScript**: a pipeline definition is data, and a file
+that runs arbitrary code in whoever opens it is a different and much worse thing than a file that
+describes a graph. There is no `eval`, no calls, no assignment, and no prototype access — property
+lookups are own-properties only. It supports comparisons (`< <= > >= == !=`), `&& || !`, parentheses,
+numeric indexing, and literals. A malformed condition fails at plan time.
+
+One rule for every comparison operator: when both operands are numbers or numeric strings they
+compare numerically (`"6" == 6`, `"6" < 10`), otherwise strictly (`"a" == 6` is false). `==` also
+treats an absent value as `null`, so a gate can ask whether an earlier step published anything
+(`recovered == null`); a variable whose producer was skipped reads as absent.
+
+### Dynamic fan-out: `function_notebook_for_each`
+
+A step's _width_ can come from the data rather than the file — one run per element, all concurrent:
+
+```yaml
+- id: recover
+  type: notebook-function
+  metadata:
+    function_notebook_for_each: belowThreshold # a pipeline variable holding an array
+    function_notebook_for_each_as: region # each element is bound to this name
+    function_notebook_run_if: region.qualityScore < 0.95 # evaluated per element
+    function_notebook_inputs:
+      region: { variable_name: region } # the element, passed as an input
+    function_notebook_export_mappings:
+      summary_json: { enabled: true, variable_name: recovered }
+```
+
+`run_if` on a fan-out is evaluated per element, so this is conditional recovery: one run for each
+region that failed the gate, and none at all when they all passed. Exports collect into an array in
+element order, so `recovered` is the list of what actually ran.
+
+**A fan-out always publishes a list, even when it ran nothing** — an empty array and every element
+being gated off both give `[]` rather than a skip. A `for_each` over a variable that never arrived
+skips the step, like any other missing value. A `for_each` over something that is not an array, or
+over more than 50 elements, is a run-time error naming the step. Fan-out runs count towards the
+engine's concurrency like any other step.
+
+The fan-out also appears in the graph as a single `join` node its runs converge on, so a later step
+can depend on it by name. The loop variable is bound by the step, so it is not a dependency on
+anything; the step depends on the array and on whatever its other inputs and condition consult.
+
+### Optional values: `fallback`
+
+An input can name what to use when its variable never arrives because the producer was skipped (or
+failed with `allow_failure`):
+
+```yaml
+claude_review_json:
+  variable_name: claudeReview
+  fallback: { custom_value: "" }
+data:
+  variable_name: recovered
+  fallback: { variable_name: original }
+```
+
+A fallback is itself an input, so it may chain. This is what keeps a gate from poisoning everything
+downstream: without it a step reading a value from a gated step is skipped whenever that gate was
+false — correct, but it cascades. A step is skipped only when an input has _no_ satisfiable
+alternative, and it depends on every alternative, since which one wins is a run-time fact.
+
+### Tolerated failures: `function_notebook_allow_failure`
+
+By default a failed notebook fails the pipeline (`PipelineStepError`). With
+`function_notebook_allow_failure: true` the failed result is returned instead and the run continues;
+the step is listed in `result.failed`, publishes nothing, and dependents fall back or are skipped.
+On a fan-out, exports collect from the elements that succeeded. This covers every way a step can
+fail — including a poll timeout or an API error — so one hung run in a fan-out does not discard the
+rest; the result's `status` and `error` say what happened, and a timed-out run's `runId` is on it.
+
+A run that finishes but whose exports cannot be read — no JSON object ends its output, or the object
+lacks an exported key — counts as a failed step too: under `allow_failure` it is listed in `failed`
+and publishes nothing, and without it the pipeline fails with a `PipelineStepError` naming the step
+rather than a bare error. A terminal step marked `allow_failure` therefore lets the run resolve with
+every other variable present.
+
+### What is still code
+
+`runPipeline` remains the answer for logic that is genuinely computation rather than topology:
+reshaping or merging results between steps, retry policies with backoff, and anything that needs a
+library. A file describes a graph — its steps, their gates, and their width — and that is the
+boundary worth keeping.
+
+See [`examples/pipelines/sales-pipeline.deepnote`](../../examples/pipelines/sales-pipeline.deepnote)
+and the conformance fixtures in
+[`test-fixtures/pipeline-conformance`](../../test-fixtures/pipeline-conformance), which are the
+contract every implementation of this encoding must meet.
+
 ## When a step fails
 
 A failed notebook rejects the pipeline with `PipelineStepError` unless the step has
@@ -98,6 +272,10 @@ try {
 
 The resolved shape is unchanged: a pipeline that returns gets `value`, `steps`, `graph` and the
 timings as before.
+
+`runPipelineFile` attaches the file runner's state as well: the error carries `variables`, `skipped`
+and `failed` as they stood when the run stopped, alongside `partial`, so a caller can render every
+value that did arrive next to the step that stopped the run.
 
 ## What this is not
 

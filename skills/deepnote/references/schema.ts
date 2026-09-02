@@ -394,11 +394,22 @@ export type DeepnoteBlock =
         };
         function_notebook_id: string | null;
         function_notebook_inputs?: {
-          [k: string]: any;
+          [k: string]: {
+            variable_name?: string | null;
+            custom_value?: any;
+            fallback?: any;
+          };
         };
         function_notebook_export_mappings?: {
-          [k: string]: any;
+          [k: string]: {
+            enabled: boolean;
+            variable_name: string | null;
+          };
         };
+        function_notebook_run_if?: string;
+        function_notebook_for_each?: string;
+        function_notebook_for_each_as?: string;
+        function_notebook_allow_failure?: boolean;
         [k: string]: any;
       };
     }
@@ -1356,11 +1367,22 @@ export interface DeepnoteFile {
               };
               function_notebook_id: string | null;
               function_notebook_inputs?: {
-                [k: string]: any;
+                [k: string]: {
+                  variable_name?: string | null;
+                  custom_value?: any;
+                  fallback?: any;
+                };
               };
               function_notebook_export_mappings?: {
-                [k: string]: any;
+                [k: string]: {
+                  enabled: boolean;
+                  variable_name: string | null;
+                };
               };
+              function_notebook_run_if?: string;
+              function_notebook_for_each?: string;
+              function_notebook_for_each_as?: string;
+              function_notebook_allow_failure?: boolean;
               [k: string]: any;
             };
           }
@@ -1884,6 +1906,7 @@ export interface DeepnoteFile {
       executionMode?: 'block' | 'downstream';
       id: string;
       isModule?: boolean;
+      isPipeline?: boolean;
       name: string;
       workingDirectory?: string;
     }[];

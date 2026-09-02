@@ -1,0 +1,24 @@
+{
+  "stepOutputs": {
+    "check": { "quality": { "score": 0.99 }, "regions": ["NA", "EU"] }
+  },
+  "failingSteps": ["flaky"],
+  "ran": {
+    "check": {},
+    "flaky": {},
+    "report": {
+      "summary": "nothing to recover",
+      "regions": ["NA", "EU"],
+      "threshold": "0.95"
+    },
+    "notify[0]": { "region": "NA", "mode": "email" },
+    "notify[1]": { "region": "EU", "mode": "email" },
+    "after-flaky": { "value": "default" }
+  },
+  "skipped": ["audit", "recover", "redo"],
+  "failed": ["flaky"],
+  "variables": {
+    "quality": { "score": 0.99 },
+    "regions": ["NA", "EU"]
+  }
+}

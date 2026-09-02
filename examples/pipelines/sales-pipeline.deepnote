@@ -1,0 +1,204 @@
+# A pipeline defined as a file, not as application code.
+#
+# The notebook marked `isPipeline: true` is the pipeline. Each of its notebook-function blocks is one
+# step: the notebook it runs, the inputs to run it with, and the values it publishes. This is the
+# encoding deepnote.com stores for a notebook-function block — an input is `{ variable_name }` (a
+# pipeline variable) or `{ custom_value }` (a literal) — so the same file means the same thing in the
+# product and here.
+#
+# Dependencies are not declared twice: a step that reads `{ variable_name: portfolio }` depends on
+# whichever step exports `portfolio`, so the three regional analyses below are independent by
+# construction and run concurrently.
+#
+# The pipeline notebook is read as a manifest rather than executed. Running it through Deepnote's
+# block engine would serialize these steps into one run with one status; interpreting it keeps the
+# concurrency and reports each step separately.
+#
+# Each notebook ends by printing one JSON object; the export mappings read fields from it. Deepnote
+# input blocks take strings, booleans and lists of strings, so a structure that has to cross into
+# another notebook is exported as a JSON string (the `*_json` fields below).
+#
+# Replace every function_notebook_id with the id of the notebook in your Deepnote project.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: local-runner-sales-pipeline
+  name: Pipelines demo - sales review
+  notebooks:
+    - id: local-runner-sales-pipeline-notebook
+      name: Sales review pipeline
+      isPipeline: true
+      blocks:
+        - blockGroup: analyze-north-america-group
+          id: analyze-north-america
+          sortingKey: a0
+          type: notebook-function
+          metadata:
+            name: North America analysis
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region:
+                custom_value: North America
+              trailing_months:
+                custom_value: '6'
+              monthly_target_k:
+                custom_value: '420'
+            function_notebook_export_mappings:
+              summary_json:
+                enabled: true
+                variable_name: northAmerica
+        - blockGroup: analyze-europe-group
+          id: analyze-europe
+          sortingKey: a1
+          type: notebook-function
+          metadata:
+            name: Europe analysis
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region:
+                custom_value: Europe
+              trailing_months:
+                custom_value: '6'
+              monthly_target_k:
+                custom_value: '340'
+            function_notebook_export_mappings:
+              summary_json:
+                enabled: true
+                variable_name: europe
+        - blockGroup: analyze-asia-pacific-group
+          id: analyze-asia-pacific
+          sortingKey: a2
+          type: notebook-function
+          metadata:
+            name: Asia Pacific analysis
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_inputs:
+              region:
+                custom_value: Asia Pacific
+              trailing_months:
+                custom_value: '6'
+              monthly_target_k:
+                custom_value: '240'
+            function_notebook_export_mappings:
+              summary_json:
+                enabled: true
+                variable_name: asiaPacific
+        # Depends on all three regions, so it starts only once they finish. One input per variable:
+        # the notebook receives the three summaries separately and combines them itself. Besides the
+        # portfolio it publishes the list of regions that failed the quality gate.
+        - blockGroup: aggregate-group
+          id: aggregate
+          sortingKey: b0
+          type: notebook-function
+          metadata:
+            name: Validated portfolio
+            function_notebook_id: REPLACE_WITH_AGGREGATE_NOTEBOOK_ID
+            function_notebook_inputs:
+              north_america_json:
+                variable_name: northAmerica
+              europe_json:
+                variable_name: europe
+              asia_pacific_json:
+                variable_name: asiaPacific
+              quality_threshold:
+                custom_value: '0.95'
+            function_notebook_export_mappings:
+              portfolio_json:
+                enabled: true
+                variable_name: portfolio
+              below_threshold:
+                enabled: true
+                variable_name: belowThreshold
+        # One run per region that failed the quality gate — and none at all when they all passed.
+        # for_each sizes the fan-out from the data rather than the file; `region` is bound to each
+        # element and can be passed straight in as an input. Recovered summaries collect into
+        # `recovered`, in element order: an empty list, not a missing value, when nothing needed it.
+        - blockGroup: recover-group
+          id: recover
+          sortingKey: c0
+          type: notebook-function
+          metadata:
+            name: Recovery
+            function_notebook_id: REPLACE_WITH_REGIONAL_NOTEBOOK_ID
+            function_notebook_for_each: belowThreshold
+            function_notebook_for_each_as: region
+            function_notebook_inputs:
+              region:
+                variable_name: region
+              trailing_months:
+                custom_value: '6'
+              backfill_missing:
+                custom_value: 'true'
+            function_notebook_export_mappings:
+              summary_json:
+                enabled: true
+                variable_name: recovered
+        # Both reviews depend only on the portfolio and the recovery, so they run at the same time as
+        # each other.
+        - blockGroup: decision-gpt-group
+          id: decision-gpt
+          sortingKey: d0
+          type: notebook-function
+          metadata:
+            name: OpenAI GPT-5.5 review
+            function_notebook_id: REPLACE_WITH_GPT_NOTEBOOK_ID
+            function_notebook_inputs:
+              portfolio_json:
+                variable_name: portfolio
+              recovered_json:
+                variable_name: recovered
+            function_notebook_export_mappings:
+              decision:
+                enabled: true
+                variable_name: gptDecision
+              review_json:
+                enabled: true
+                variable_name: gptReview
+        # allow_failure: a failed review is reported and the pipeline carries on. The step then
+        # publishes nothing, so `claudeDecision` reads as absent in the gate below and the arbiter's
+        # fallback stands in for the review.
+        - blockGroup: decision-claude-group
+          id: decision-claude
+          sortingKey: d1
+          type: notebook-function
+          metadata:
+            name: Anthropic Claude Sonnet 5 review
+            function_notebook_id: REPLACE_WITH_CLAUDE_NOTEBOOK_ID
+            function_notebook_allow_failure: true
+            function_notebook_inputs:
+              portfolio_json:
+                variable_name: portfolio
+              recovered_json:
+                variable_name: recovered
+            function_notebook_export_mappings:
+              decision:
+                enabled: true
+                variable_name: claudeDecision
+              review_json:
+                enabled: true
+                variable_name: claudeReview
+        # A gate in the file, not in application code: arbitration is only worth a notebook run when
+        # the two providers disagree (or one of them failed). run_if reads the decisions, so this step
+        # depends on both reviews; when it is false the step is skipped and reported as skipped.
+        - blockGroup: final-arbiter-group
+          id: final-arbiter
+          sortingKey: e0
+          type: notebook-function
+          metadata:
+            name: Final decision
+            function_notebook_id: REPLACE_WITH_ARBITER_NOTEBOOK_ID
+            function_notebook_run_if: gptDecision != claudeDecision
+            function_notebook_inputs:
+              portfolio_json:
+                variable_name: portfolio
+              gpt_review_json:
+                variable_name: gptReview
+              claude_review_json:
+                variable_name: claudeReview
+                fallback:
+                  custom_value: ''
+            function_notebook_export_mappings:
+              decision:
+                enabled: true
+                variable_name: finalDecision
+version: '1.0.0'
