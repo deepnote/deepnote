@@ -175,6 +175,66 @@ describe('runPipelineWithExecutor', () => {
   })
 })
 
+describe('concurrency', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e']
+
+  /** An executor that remembers the most steps it ever had running at once. */
+  function trackingExecutor() {
+    let inFlight = 0
+    let peak = 0
+    const executor: PipelineStepExecutor = async execution => {
+      inFlight += 1
+      peak = Math.max(peak, inFlight)
+      await new Promise(resolve => setTimeout(resolve, 5))
+      inFlight -= 1
+      return fakeExecutor()(execution)
+    }
+    return { executor, peak: () => peak }
+  }
+
+  it('runs at most `concurrency` steps at once, and still finishes every one', async () => {
+    const { executor, peak } = trackingExecutor()
+    const result = await runPipelineWithExecutor(
+      async ({ run }) => Promise.all(ids.map(id => run({ id, notebookId: `nb-${id}` }))),
+      { concurrency: 2 },
+      executor
+    )
+
+    expect(peak()).toBe(2)
+    expect(result.value.map(step => step.id).sort()).toEqual(ids)
+    expect(result.steps.map(step => step.id).sort()).toEqual(ids)
+    expect(result.graph.nodes.map(node => node.status)).toEqual(ids.map(() => 'success'))
+  })
+
+  it('lets a small fan-out run fully in parallel under the default cap', async () => {
+    const { executor, peak } = trackingExecutor()
+    await runPipelineWithExecutor(
+      async ({ run }) => Promise.all(ids.map(id => run({ id, notebookId: `nb-${id}` }))),
+      {},
+      executor
+    )
+    expect(peak()).toBe(ids.length)
+  })
+
+  it('frees the slot of a failed step so the rest of the fan-out still runs', async () => {
+    const ran: string[] = []
+    const failing = fakeExecutor({ a: { success: false, status: 'error', error: 'boom' } }, id => ran.push(id))
+    const result = await runPipelineWithExecutor(
+      async ({ run }) => Promise.all(ids.map(id => run({ id, notebookId: `nb-${id}`, allowFailure: true }))),
+      { concurrency: 1 },
+      failing
+    )
+    expect(ran).toEqual(ids)
+    expect(result.steps.map(step => step.success)).toEqual([false, true, true, true, true])
+  })
+
+  it.each([0, -1, 1.5, Number.NaN])('refuses a concurrency of %s', async concurrency => {
+    await expect(runPipelineWithExecutor(async () => 'unused', { concurrency }, fakeExecutor())).rejects.toThrow(
+      'Pipeline concurrency must be a positive integer'
+    )
+  })
+})
+
 describe('output helpers', () => {
   it('reads the last structured JSON without depending on block ids', async () => {
     const result = await runPipelineWithExecutor(

@@ -135,7 +135,17 @@ export type PipelineEvent =
 export interface PipelineOptions {
   /** Synchronous event sink for logging, UIs, and telemetry. */
   onEvent?: (event: PipelineEvent) => void
+  /**
+   * How many notebook steps may run at once. A positive integer; defaults to 10.
+   *
+   * `Promise.all` over a large fan-out would otherwise start every run immediately. Steps beyond the
+   * cap wait for a slot before they start, so `step_started` and `startedAt` describe a run that has
+   * actually begun. Control nodes are local and never wait.
+   */
+  concurrency?: number
 }
+
+const DEFAULT_CONCURRENCY = 10
 
 /** Everything an executor needs to run one step and tag the events it emits. */
 export interface PipelineStepExecution {
@@ -232,6 +242,12 @@ export async function runPipelineWithExecutor<T>(
   options: PipelineOptions,
   execute: PipelineStepExecutor
 ): Promise<PipelineResult<T>> {
+  const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    throw new Error(`Pipeline concurrency must be a positive integer, got ${String(options.concurrency)}.`)
+  }
+  const acquireSlot = createSemaphore(concurrency)
+
   const pipelineStartedMs = Date.now()
   const pipelineStartedAt = new Date(pipelineStartedMs).toISOString()
   const usedIds = new Set<string>()
@@ -293,6 +309,15 @@ export async function runPipelineWithExecutor<T>(
   }
 
   const runNode = async (step: PipelineStep): Promise<PipelineStepResult> => {
+    const release = await acquireSlot()
+    try {
+      return await executeNode(step)
+    } finally {
+      release()
+    }
+  }
+
+  const executeNode = async (step: PipelineStep): Promise<PipelineStepResult> => {
     const id = step.id.trim()
     const startedMs = Date.now()
     const startedAt = new Date(startedMs).toISOString()
@@ -364,6 +389,31 @@ export async function runPipelineWithExecutor<T>(
     startedAt: pipelineStartedAt,
     finishedAt: new Date(finishedMs).toISOString(),
     durationMs: finishedMs - pipelineStartedMs,
+  }
+}
+
+/**
+ * A counting semaphore: `acquire` resolves with the matching `release` once one of `limit` slots is
+ * free. Waiters are served in the order they asked.
+ */
+function createSemaphore(limit: number): () => Promise<() => void> {
+  let active = 0
+  const waiting: Array<() => void> = []
+  const release = (): void => {
+    const next = waiting.shift()
+    if (next) {
+      next()
+    } else {
+      active -= 1
+    }
+  }
+  return async () => {
+    if (active < limit) {
+      active += 1
+    } else {
+      await new Promise<void>(resolve => waiting.push(resolve))
+    }
+    return release
   }
 }
 

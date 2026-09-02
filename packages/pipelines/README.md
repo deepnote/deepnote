@@ -43,7 +43,9 @@ const { value, graph } = await runPipeline(
 
 This is deliberately an imperative API, not a workflow language: `await`, `Promise.all`, loops and
 branches in the callback provide sequencing, concurrency, and conditionals. The library records what
-happened — the graph, the events, the normalized results.
+happened — the graph, the events, the normalized results. One guard rail: `concurrency` (default 10)
+caps how many notebook steps are in flight at once, so a large fan-out does not start every run at
+the same instant.
 
 **It needs no server and no local kernel.** Every step is an HTTP call to Deepnote, so the same
 pipeline runs in a script, in CI, and in a browser page. Nothing reachable from `runPipeline`
