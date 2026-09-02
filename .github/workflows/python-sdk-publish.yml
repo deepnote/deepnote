@@ -1,0 +1,77 @@
+name: CD PyPI Python SDK
+
+on:
+  push:
+    tags:
+      - 'python-sdk-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sdist and wheel
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+
+      - name: Check that the tag matches the package version
+        working-directory: packages/pipelines/python
+        run: |
+          version="$(python -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
+          expected="python-sdk-v${version}"
+          if [[ "${GITHUB_REF_NAME}" != "${expected}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match pyproject.toml version ${version} (expected ${expected})." >&2
+            exit 1
+          fi
+
+      - name: Install Python build tools
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Build sdist and wheel
+        run: python -m build packages/pipelines/python --outdir packages/pipelines/python/dist
+
+      - name: Validate package metadata
+        run: python -m twine check packages/pipelines/python/dist/*
+
+      - name: Smoke test wheel
+        run: |
+          python -m pip install --force-reinstall packages/pipelines/python/dist/*.whl
+          python -c 'import deepnote, deepnote.sync; print(deepnote.Deepnote, deepnote.sync.Deepnote)'
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-sdk-dist
+          path: packages/pipelines/python/dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: python-sdk-dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
+        with:
+          packages-dir: dist

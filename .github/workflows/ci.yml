@@ -295,3 +295,36 @@ jobs:
 
       - name: Run audit for all dependencies
         run: pnpm audit
+  python-sdk:
+    name: Python SDK Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor and the ceiling of what pyproject.toml claims to support.
+        python-version: ['3.10', '3.12']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the SDK and its test dependencies
+        working-directory: packages/pipelines/python
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+
+      - name: Lint the Python SDK
+        working-directory: packages/pipelines/python
+        run: |
+          ruff check deepnote tests ../../../examples/pipelines/python
+          ruff format --check deepnote tests ../../../examples/pipelines/python
+
+      - name: Run the Python SDK tests
+        working-directory: packages/pipelines/python
+        run: pytest -q

@@ -21,3 +21,8 @@ snapshot-reader.js
 snapshot-viewer.js
 snapshot.deepnote
 examples/local-runner/run-app/pipelines.js
+
+# Python build and bytecode, from running the pipeline runner or installing the SDK locally
+__pycache__/
+*.pyc
+*.egg-info/

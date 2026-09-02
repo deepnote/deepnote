@@ -31,6 +31,7 @@ Start with the owning package and its README before searching broadly. Avoid tra
 | Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
 | Composing several notebook runs into one pipeline              | `packages/pipelines/`                                 |
 | The ergonomic client SDK (notebook handles, awaitable runs)    | `packages/pipelines/src/client/`                      |
+| The Python SDK and the `.deepnote` pipeline interpreter        | `packages/pipelines/python/`                          |
 | Dependency and reactivity analysis                             | `packages/reactivity/`                                |
 | Database integration definitions                               | `packages/database-integrations/`                     |
 | Shared test data                                               | `test-fixtures/`                                      |
