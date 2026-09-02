@@ -173,7 +173,10 @@ export interface PipelineOutputHelpers {
   lastAgentText: typeof lastAgentText
   /** A block's `application/json` output, or its textual output parsed as JSON. */
   json: typeof outputJson
-  /** The last structured JSON value in a run, without relying on stable cloud block ids. */
+  /**
+   * The last structured JSON value in a run, without relying on stable cloud block ids. The output
+   * only has to end with JSON: lines printed before it are ignored.
+   */
   lastJson: typeof lastOutputJson
 }
 
@@ -197,16 +200,45 @@ export interface PipelineResult<T> {
   durationMs: number
 }
 
+/**
+ * What a pipeline had recorded when it threw: the same fields a {@link PipelineResult} carries, minus
+ * the value the callback never returned. Steps that were still running when the pipeline threw are
+ * absent from `steps` and still `running` in the graph.
+ */
+export type PipelinePartialResult = Omit<PipelineResult<never>, 'value'>
+
 /** A notebook step failed and was not marked `allowFailure`. */
 export class PipelineStepError extends Error {
   readonly stepId: string
   readonly result?: PipelineStepResult
+  /** The run so far. Set by the engine when it rejects; absent on an error thrown from elsewhere. */
+  partial?: PipelinePartialResult
 
-  constructor(stepId: string, message: string, options: { result?: PipelineStepResult; cause?: unknown } = {}) {
+  constructor(
+    stepId: string,
+    message: string,
+    options: { result?: PipelineStepResult; partial?: PipelinePartialResult; cause?: unknown } = {}
+  ) {
     super(`Pipeline step "${stepId}" failed: ${message}`, { cause: options.cause })
     this.name = 'PipelineStepError'
     this.stepId = stepId
     this.result = options.result
+    this.partial = options.partial
+  }
+}
+
+/**
+ * The pipeline callback threw something other than a {@link PipelineStepError}: a control node, a
+ * graph mistake such as a duplicate node id, or the caller's own code. The original error is `cause`.
+ */
+export class PipelineRunError extends Error {
+  /** The run so far. */
+  readonly partial: PipelinePartialResult
+
+  constructor(message: string, options: { partial: PipelinePartialResult; cause?: unknown }) {
+    super(`Pipeline failed: ${message}`, { cause: options.cause })
+    this.name = 'PipelineRunError'
+    this.partial = options.partial
   }
 }
 
@@ -380,16 +412,34 @@ export async function runPipelineWithExecutor<T>(
     outputs: pipelineOutputs,
   }
 
-  const value = await workflow(context)
-  const finishedMs = Date.now()
-  return {
-    value,
-    steps: results.sort((a, b) => (resultOrder.get(a.id) ?? 0) - (resultOrder.get(b.id) ?? 0)),
-    graph,
-    startedAt: pipelineStartedAt,
-    finishedAt: new Date(finishedMs).toISOString(),
-    durationMs: finishedMs - pipelineStartedMs,
+  /** Everything recorded so far, whether the callback returned or threw. */
+  const recorded = (): PipelinePartialResult => {
+    const finishedMs = Date.now()
+    return {
+      steps: results.sort((a, b) => (resultOrder.get(a.id) ?? 0) - (resultOrder.get(b.id) ?? 0)),
+      graph,
+      startedAt: pipelineStartedAt,
+      finishedAt: new Date(finishedMs).toISOString(),
+      durationMs: finishedMs - pipelineStartedMs,
+    }
   }
+
+  let value: T
+  try {
+    value = await workflow(context)
+  } catch (error) {
+    // The results and graph accumulated before the failure are the most useful thing a caller can
+    // render, so the rejection carries them rather than discarding them with the run.
+    if (error instanceof PipelineStepError) {
+      error.partial = recorded()
+      throw error
+    }
+    throw new PipelineRunError(error instanceof Error ? error.message : String(error), {
+      partial: recorded(),
+      cause: error,
+    })
+  }
+  return { value, ...recorded() }
 }
 
 /**
@@ -534,8 +584,12 @@ export function outputJson<T = unknown>(result: PipelineStepResult, blockId: str
  */
 export function lastOutputJson<T = unknown>(result: PipelineStepResult): T {
   const blocks = snapshotBlocks(result)
+  let lastPrinted = ''
   for (let blockIndex = blocks.length - 1; blockIndex >= 0; blockIndex -= 1) {
     const block = blocks[blockIndex]
+    if (!lastPrinted) {
+      lastPrinted = textPartsForBlock(block).join('')
+    }
     for (let outputIndex = block.outputs.length - 1; outputIndex >= 0; outputIndex -= 1) {
       const output = block.outputs[outputIndex]
       if ('data' in output && isRecord(output.data) && 'application/json' in output.data) {
@@ -543,30 +597,75 @@ export function lastOutputJson<T = unknown>(result: PipelineStepResult): T {
         return typeof value === 'string' ? parseJson<T>(result, block.id, value) : (value as T)
       }
 
-      const text = textPartsForOutput(output).trim()
-      if (!text) {
-        continue
+      const parsed = parseJsonTail(textPartsForOutput(output))
+      if (parsed.found) {
+        return parsed.value as T
       }
-      try {
-        return JSON.parse(text) as T
-      } catch {
-        // A later human-readable output is not an error: keep looking for structured data.
-      }
+      // A later human-readable output is not an error: keep looking for structured data.
     }
   }
-  throw new Error(`Step "${result.id}" produced no structured JSON output.`)
+  throw new Error(
+    `Step "${result.id}" produced no structured JSON output.${
+      lastPrinted ? ` Its last output ends with: ${quoteTail(lastPrinted)}` : ''
+    }`
+  )
 }
 
 function parseJson<T>(result: PipelineStepResult, blockId: string, text: string): T {
-  try {
-    return JSON.parse(text) as T
-  } catch (error) {
-    throw new Error(
-      `Output from block "${blockId}" in step "${result.id}" is not valid JSON: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    )
+  const parsed = parseJsonTail(text)
+  if (parsed.found) {
+    return parsed.value as T
   }
+  throw new Error(
+    `Output from block "${blockId}" in step "${result.id}" is not JSON and does not end with a JSON value. It ends with: ${quoteTail(text)}`
+  )
+}
+
+/**
+ * Parse `text` as JSON, or failing that the longest-to-shortest suffix that starts on a line
+ * beginning with `{` or `[`, trying the last such line first.
+ *
+ * Jupyter merges consecutive prints into one stream chunk, so a step that prints a summary line and
+ * then its JSON hands us both in one string. Scanning candidate lines from the end finds the JSON
+ * that closes the output; a pretty-printed value whose inner lines also begin with `{` or `[` still
+ * parses once the scan reaches its opening line.
+ */
+function parseJsonTail(text: string): { found: true; value: unknown } | { found: false } {
+  const trimmed = text.trim()
+  if (!trimmed) {
+    return { found: false }
+  }
+  try {
+    return { found: true, value: JSON.parse(trimmed) }
+  } catch {
+    // Fall through to the line scan.
+  }
+  const lineStarts: number[] = []
+  for (let index = 0; index < trimmed.length; index += 1) {
+    if (trimmed[index] === '\n') {
+      lineStarts.push(index + 1)
+    }
+  }
+  for (let candidate = lineStarts.length - 1; candidate >= 0; candidate -= 1) {
+    const suffix = trimmed.slice(lineStarts[candidate]).trimStart()
+    if (!suffix.startsWith('{') && !suffix.startsWith('[')) {
+      continue
+    }
+    try {
+      return { found: true, value: JSON.parse(suffix) }
+    } catch {
+      // Not a complete value from here; try an earlier line.
+    }
+  }
+  return { found: false }
+}
+
+const QUOTED_TAIL_LENGTH = 200
+
+/** The end of what a block printed, so an author can spot the stray print that broke the JSON. */
+function quoteTail(text: string): string {
+  const tail = text.length > QUOTED_TAIL_LENGTH ? `…${text.slice(-QUOTED_TAIL_LENGTH)}` : text
+  return JSON.stringify(tail)
 }
 
 function findBlock(result: PipelineStepResult, blockId: string): SnapshotBlock {

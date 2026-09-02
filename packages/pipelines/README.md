@@ -57,15 +57,44 @@ notebook, not to create one — which is what lets a page do it with a viewer's 
 `control` records a local decision as a node, so a gate or an aggregation shows up in the graph
 instead of happening invisibly between steps. `outputs.lastJson(step)` and
 `outputs.lastAgentText(step)` read a step's results without depending on block ids, which Deepnote
-reassigns when it creates a notebook.
-
-A failed notebook throws `PipelineStepError` carrying the result, so a caller can still show
-how far the run got; `allowFailure: true` returns it instead.
+reassigns when it creates a notebook. `lastJson` needs the last block's output to _end_ with a JSON
+value; anything printed before it on earlier lines is ignored, so a summary `print` before the
+`json.dumps` is fine. A later block that prints only prose is skipped. When nothing parses, the
+error quotes the last 200 characters the block printed.
 
 `runPipelineWithExecutor(workflow, options, executor)` is the same engine with the runner left open, for
 callers that want to run steps somewhere else.
 
 See [`examples/pipelines/script`](../../examples/pipelines/script).
+
+## When a step fails
+
+A failed notebook rejects the pipeline with `PipelineStepError` unless the step has
+`allowFailure: true`, in which case its failed result is returned and the callback decides what to
+do. Infrastructure failures — no credentials, an unknown notebook, an unreadable API response — are
+step errors too, attributed to the step that hit them.
+
+The rejection does not discard the run. Every error the engine throws carries `partial`: the `steps`
+that finished, in start order exactly as the success path returns them, the `graph` with each node's
+status, and `startedAt`, `finishedAt`, `durationMs`. Steps still in flight when the pipeline threw are
+absent from `steps` and still `running` in the graph. `PipelineStepError` additionally names the
+`stepId` and carries the failing step's own `result`. Anything else the callback throws — a control
+node, a graph mistake such as a duplicate node id, your own code — is wrapped in `PipelineRunError`
+with the same `partial` and the original error as `cause`.
+
+```ts
+try {
+  await runPipeline(workflow, { token });
+} catch (error) {
+  if (error instanceof PipelineStepError || error instanceof PipelineRunError) {
+    render(error.partial.graph); // what finished, and where it stopped
+  }
+  throw error;
+}
+```
+
+The resolved shape is unchanged: a pipeline that returns gets `value`, `steps`, `graph` and the
+timings as before.
 
 ## What this is not
 

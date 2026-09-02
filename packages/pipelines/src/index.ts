@@ -18,12 +18,13 @@ export type {
   PipelineGraphNodeStatus,
   PipelineOptions,
   PipelineOutputHelpers,
+  PipelinePartialResult,
   PipelineResult,
   PipelineStep,
   PipelineStepExecution,
   PipelineStepExecutor,
   PipelineStepResult,
 } from './pipeline'
-export { PipelineStepError, pipelineOutputs, runPipeline, runPipelineWithExecutor } from './pipeline'
+export { PipelineRunError, PipelineStepError, pipelineOutputs, runPipeline, runPipelineWithExecutor } from './pipeline'
 export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'

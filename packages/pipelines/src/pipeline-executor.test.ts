@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PipelineEvent, PipelineStepExecutor, PipelineStepResult } from './pipeline'
-import { PipelineStepError, runPipelineWithExecutor } from './pipeline'
+import { PipelineRunError, PipelineStepError, runPipelineWithExecutor } from './pipeline'
 
 function snapshotOf(blocks: { id: string; type?: string; content?: string; outputs: unknown[] }[]) {
   return {
@@ -44,6 +44,21 @@ function fakeExecutor(
     } as PipelineStepResult
   }
 }
+
+/** The error a promise rejects with; fails the test when it resolves instead. */
+async function rejection(promise: Promise<unknown>): Promise<Error> {
+  try {
+    await promise
+  } catch (error) {
+    return error as Error
+  }
+  throw new Error('expected the pipeline to reject')
+}
+
+const streamBlock = (id: string, text: string) => ({
+  id,
+  outputs: [{ output_type: 'stream', name: 'stdout', text }],
+})
 
 const jsonBlock = (value: unknown) => ({
   id: 'b1',
@@ -100,6 +115,94 @@ describe('runPipelineWithExecutor', () => {
     }
     expect(caught?.stepId).toBe('a')
     expect(caught?.result?.status).toBe('error')
+  })
+
+  it('carries the partial run when a step fails, so the caller can render what finished', async () => {
+    const failure = fakeExecutor({ b: { success: false, status: 'error', error: 'the warehouse is down' } })
+    const caught = await rejection(
+      runPipelineWithExecutor(
+        async ({ run }) => {
+          await run({ id: 'a', notebookId: 'nb-a' })
+          return run({ id: 'b', notebookId: 'nb-b', dependsOn: ['a'] })
+        },
+        {},
+        failure
+      )
+    )
+
+    expect(caught).toBeInstanceOf(PipelineStepError)
+    const { partial } = caught as PipelineStepError
+    expect(partial?.steps.map(step => [step.id, step.success])).toEqual([
+      ['a', true],
+      ['b', false],
+    ])
+    expect(partial?.graph.nodes.map(node => [node.id, node.status])).toEqual([
+      ['a', 'success'],
+      ['b', 'failed'],
+    ])
+    expect(partial?.graph.edges).toEqual([{ from: 'a', to: 'b', label: undefined }])
+    expect(partial?.startedAt).toBeTypeOf('string')
+    expect(partial?.finishedAt).toBeTypeOf('string')
+    expect(partial?.durationMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('carries the partial run when a control node fails', async () => {
+    const caught = await rejection(
+      runPipelineWithExecutor(
+        async ({ run, control }) => {
+          await run({ id: 'a', notebookId: 'nb-a' })
+          return control({ id: 'gate', kind: 'gate', dependsOn: ['a'] }, () => {
+            throw new Error('no readings')
+          })
+        },
+        {},
+        fakeExecutor()
+      )
+    )
+
+    expect(caught).toBeInstanceOf(PipelineRunError)
+    expect(caught.message).toBe('Pipeline failed: no readings')
+    expect((caught as PipelineRunError).cause).toBeInstanceOf(Error)
+    const { partial } = caught as PipelineRunError
+    expect(partial.steps.map(step => step.id)).toEqual(['a'])
+    expect(partial.graph.nodes.map(node => [node.id, node.status, node.error])).toEqual([
+      ['a', 'success', undefined],
+      ['gate', 'failed', 'no readings'],
+    ])
+  })
+
+  it('wraps a plain error thrown by the callback, keeping the steps that ran', async () => {
+    const original = new Error('the caller tripped')
+    const caught = await rejection(
+      runPipelineWithExecutor(
+        async ({ run }) => {
+          await Promise.all([run({ id: 'a', notebookId: 'nb-a' }), run({ id: 'b', notebookId: 'nb-b' })])
+          throw original
+        },
+        {},
+        fakeExecutor()
+      )
+    )
+
+    expect(caught).toBeInstanceOf(PipelineRunError)
+    expect(caught.message).toContain('the caller tripped')
+    expect((caught as PipelineRunError).cause).toBe(original)
+    expect((caught as PipelineRunError).partial.steps.map(step => step.id)).toEqual(['a', 'b'])
+  })
+
+  it('wraps a non-Error value thrown by the callback', async () => {
+    const caught = await rejection(
+      runPipelineWithExecutor(
+        async () => {
+          throw 'gave up'
+        },
+        {},
+        fakeExecutor()
+      )
+    )
+    expect(caught).toBeInstanceOf(PipelineRunError)
+    expect(caught.message).toBe('Pipeline failed: gave up')
+    expect((caught as PipelineRunError).partial.steps).toEqual([])
   })
 
   it('returns a failed step instead of throwing when it is allowed to fail', async () => {
@@ -243,6 +346,77 @@ describe('output helpers', () => {
       fakeExecutor({ a: { snapshot: snapshotOf([jsonBlock({ revenue: 42 })]) } })
     )
     expect(result.value).toEqual({ revenue: 42 })
+  })
+
+  it('reads JSON that follows a summary line in the same stream chunk', async () => {
+    // Jupyter merges consecutive prints into one chunk, so both lines arrive as one output.
+    const result = await runPipelineWithExecutor(
+      async ({ run, outputs }) => outputs.lastJson<{ revenue: number }>(await run({ id: 'a', notebookId: 'nb-a' })),
+      {},
+      fakeExecutor({ a: { snapshot: snapshotOf([streamBlock('b1', 'Loaded 3 regions\n{"revenue": 42}\n')]) } })
+    )
+    expect(result.value).toEqual({ revenue: 42 })
+  })
+
+  it('reads pretty-printed JSON that closes the output', async () => {
+    const printed =
+      'Summary follows\n{\n  "regions": [\n    {"name": "EU"},\n    {"name": "NA"}\n  ],\n  "ok": true\n}\n'
+    const result = await runPipelineWithExecutor(
+      async ({ run, outputs }) => outputs.lastJson(await run({ id: 'a', notebookId: 'nb-a' })),
+      {},
+      fakeExecutor({ a: { snapshot: snapshotOf([streamBlock('b1', printed)]) } })
+    )
+    expect(result.value).toEqual({ regions: [{ name: 'EU' }, { name: 'NA' }], ok: true })
+  })
+
+  it('skips a later block that printed only prose', async () => {
+    const result = await runPipelineWithExecutor(
+      async ({ run, outputs }) => outputs.lastJson(await run({ id: 'a', notebookId: 'nb-a' })),
+      {},
+      fakeExecutor({
+        a: {
+          snapshot: snapshotOf([
+            streamBlock('b1', 'Loaded\n{"revenue": 42}\n'),
+            streamBlock('b2', 'Done. Wrote the report to disk.\n'),
+          ]),
+        },
+      })
+    )
+    expect(result.value).toEqual({ revenue: 42 })
+  })
+
+  it('quotes the end of what the block printed when nothing parses', async () => {
+    const filler = 'x'.repeat(300)
+    const printed = `${filler}\n{"revenue": 42}\nand then a stray print`
+    const caught = await rejection(
+      runPipelineWithExecutor(
+        async ({ run, outputs }) => outputs.lastJson(await run({ id: 'a', notebookId: 'nb-a' })),
+        {},
+        fakeExecutor({ a: { snapshot: snapshotOf([streamBlock('b1', printed)]) } })
+      )
+    )
+    expect(caught.message).toContain('Step "a" produced no structured JSON output.')
+    expect(caught.message).toContain(JSON.stringify(`…${printed.slice(-200)}`))
+    expect(caught.message).not.toContain('x'.repeat(201))
+  })
+
+  it('reads a named block whose output ends with JSON, and quotes the tail when it does not', async () => {
+    const value = await runPipelineWithExecutor(
+      async ({ run, outputs }) => outputs.json(await run({ id: 'a', notebookId: 'nb-a' }), 'b1'),
+      {},
+      fakeExecutor({ a: { snapshot: snapshotOf([streamBlock('b1', 'Loaded 3 regions\n["EU", "NA"]\n')]) } })
+    )
+    expect(value.value).toEqual(['EU', 'NA'])
+
+    const caught = await rejection(
+      runPipelineWithExecutor(
+        async ({ run, outputs }) => outputs.json(await run({ id: 'a', notebookId: 'nb-a' }), 'b1'),
+        {},
+        fakeExecutor({ a: { snapshot: snapshotOf([streamBlock('b1', '{"revenue": 42}\nDone\n')]) } })
+      )
+    )
+    expect(caught.message).toContain('Output from block "b1" in step "a" is not JSON')
+    expect(caught.message).toContain(JSON.stringify('{"revenue": 42}\nDone\n'))
   })
 
   it('reads a named block, and says so when it is missing', async () => {

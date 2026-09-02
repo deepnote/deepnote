@@ -27,4 +27,9 @@ print(json.dumps({"region": region, "revenueK": 812.4, "qualityScore": 0.97}))
 ```
 
 `outputs.lastJson(step)` reads that back without depending on block ids, which Deepnote reassigns
-when it creates a notebook.
+when it creates a notebook. The output only has to _end_ with the JSON: a `print` of a summary line
+before it is ignored, and pretty-printed JSON spanning several lines is fine.
+
+When a step fails the script still writes what finished. The error the engine throws carries
+`partial` — the steps that completed and the graph with each node's status — and the script prints
+those before exiting non-zero, so a failed run still shows where it stopped.
