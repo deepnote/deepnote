@@ -104,6 +104,8 @@ Check a .deepnote file or integrations yaml file for issues. `[path]` is optiona
 
 Integrations are automatically loaded from `.deepnote.env.yaml` in the same directory as the .deepnote file (or from `--integrations-file` if specified).
 
+A `big-query` integration using Google OAuth counts as configured based on its config shape alone — lint never reads the token store under `~/.deepnote/federated-auth-tokens/`, so a clean lint result is not evidence that credentials exist or are still valid; that is checked only by `deepnote run`.
+
 **Exit codes:** 0 = no errors (warnings OK), 1 = errors found (including configuration errors), 2 = invalid usage.
 
 **Examples:**

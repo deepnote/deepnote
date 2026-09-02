@@ -14,7 +14,12 @@ import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import { debug, getChalk, error as logError, output, outputJson, warn } from '../output'
-import { checkForIssues, type LintIssue, type LintResult } from '../utils/analysis'
+import {
+  checkForIssues,
+  collectFederatedBigQueryIntegrationIds,
+  type LintIssue,
+  type LintResult,
+} from '../utils/analysis'
 import { FileResolutionError, isErrnoENOENT, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
 
@@ -214,12 +219,14 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
         `Injected ${envVars.length} environment variables for ${parsedIntegrations.integrations.length} integrations`
       )
     }
+    const federatedIntegrationIds = collectFederatedBigQueryIntegrationIds(parsedIntegrations.integrations)
 
     debug(`Analyzing blocks...`)
     const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
     const { lint } = await checkForIssues(deepnoteFile, {
       notebook: options.notebook,
       pythonInterpreter,
+      federatedIntegrationIds,
     })
 
     // Integration/config issues are hard errors (no severity field), so fold their count into

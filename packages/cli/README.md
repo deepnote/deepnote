@@ -765,7 +765,30 @@ deepnote integrations edit <integration-id>
 | `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
 | `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
 
-Like `integrations pull`, both commands fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
+### `integrations auth [id]`
+
+Authenticate a `big-query` integration configured with `authMethod: google-oauth` so `deepnote run` can execute SQL blocks against it locally — the only integration type and auth method this command supports; anything else is rejected. Without `[id]`, it picks the sole matching integration automatically, prompts with a picker when there are several, and errors when there are none. If `[id]` is not found in the local integrations file, it is resolved from the Deepnote API instead, using `--token` or `DEEPNOTE_TOKEN`.
+
+Opens a browser to Deepnote's OAuth consent screen and completes the token exchange locally; the URL is always printed too, so a headless session or a browser that fails to open can be completed by pasting it manually. Requires a browser and a signed-in Deepnote session. On success, the refresh token is stored under `~/.deepnote/federated-auth-tokens/` — one file per integration, mode `0600` in a `0700` directory on POSIX. On Windows the file mode is not enforced; confidentiality instead relies on the `%USERPROFILE%` ACL. The stored credential is keyed by integration id only, machine-wide: authenticating once satisfies every local project that references the same id, and re-authenticating replaces it everywhere.
+
+```bash
+deepnote integrations auth
+deepnote integrations auth <integration-id>
+```
+
+**Options:**
+
+| Option              | Description                                    | Default                    |
+| ------------------- | ---------------------------------------------- | -------------------------- |
+| `--file <path>`     | Path to integrations file                      | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file                            | `.env`                     |
+| `--domain <domain>` | Deepnote domain                                | `deepnote.com`             |
+| `--url <url>`       | API base URL                                   | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                            |
+
+The flow is interactive only — there is no headless or CI path; use service-account authentication for CI instead. It affects local runs only: `deepnote run --cloud` authenticates BigQuery with the workspace's own server-side credentials and never reads this token store. `deepnote run --dry-run` reports whether a credential is stored and matches the configured `clientId`/`clientSecret`/`project`, without contacting Google or writing anything. Once a run starts, the access token minted from the stored refresh token is fixed for the kernel's lifetime (about an hour). Over SSH or another remote session, the browser and the CLI's loopback listener end up on different machines, so the post-consent redirect has nowhere to land — there is no built-in port tunneling.
+
+`integrations pull`, `integrations add`, `integrations edit`, and `integrations auth` all fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
 
 ### `completion <shell>`
 

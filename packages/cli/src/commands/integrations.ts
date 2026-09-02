@@ -15,7 +15,7 @@ import {
 } from '@deepnote/database-integrations'
 import chalk from 'chalk'
 import type { Command } from 'commander'
-import { type Document, isSeq } from 'yaml'
+import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, log, output } from '../output'
@@ -92,6 +92,31 @@ export async function readIntegrationsDocument(filePath: string): Promise<Docume
     }
     throw error
   }
+}
+
+/**
+ * Find the YAML map node for an integration by its ID in the document's integrations sequence.
+ * Matches case-insensitively: the run command's configured-id check and the built-in-integration
+ * check both fold case, and the generated SQL env var name is uppercased, so an exact-case lookup
+ * here would be the odd one out and would silently diverge from them.
+ */
+export function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
+  const integrations = doc.get('integrations')
+  if (!isSeq(integrations)) {
+    return null
+  }
+
+  const wanted = targetId.toLowerCase()
+  for (const item of integrations.items) {
+    if (!isMap(item)) {
+      continue
+    }
+    const id = item.get('id')
+    if (typeof id === 'string' && id.toLowerCase() === wanted) {
+      return item
+    }
+  }
+  return null
 }
 
 /**

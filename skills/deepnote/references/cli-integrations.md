@@ -59,13 +59,34 @@ deepnote integrations edit
 deepnote integrations edit <integration-id>
 ```
 
+## `deepnote integrations auth [id]`
+
+Authenticate a `big-query` integration using Google OAuth so `deepnote run` can execute SQL blocks against it locally. Only `big-query` integrations with `authMethod: google-oauth` are supported; anything else is rejected. Without `[id]`, auto-picks the only matching integration, prompts with a picker if there are several, and fails if there are none. If `[id]` is not in the local integrations file, it is resolved from the Deepnote API instead, via `--token` or `DEEPNOTE_TOKEN`.
+
+Opens a browser to complete Google's consent screen (also prints the URL, for headless sessions or if the browser fails to open) and stores the resulting refresh token under `~/.deepnote/federated-auth-tokens/` — one file per integration, mode `0600` in a `0700` directory on POSIX; on Windows confidentiality relies on the `%USERPROFILE%` ACL instead of the file mode. Requires a browser and a signed-in Deepnote session — interactive only, no headless or CI path (use service-account authentication for CI). Applies to local runs only: `--cloud` authenticates BigQuery server-side and never reads this token store.
+
+| Option              | Description                                        | Default                    |
+| ------------------- | -------------------------------------------------- | -------------------------- |
+| `--file <path>`     | Path to integrations file                          | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file                                | `.env`                     |
+| `--domain <domain>` | Deepnote domain (OAuth consent proxy)              | `deepnote.com`             |
+| `--url <url>`       | API base URL                                       | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or use the `DEEPNOTE_TOKEN` env var) |                            |
+
+**Examples:**
+
+```bash
+deepnote integrations auth
+deepnote integrations auth <integration-id>
+```
+
 ## Exit codes
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage (missing token, API error, or a malformed local integrations file).
 
 ## Malformed integrations file
 
-All three subcommands read the local integrations file before writing anything. If the file exists but contains invalid YAML — most commonly unresolved git merge conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`), or a manual-edit typo — the command fails with **exit code 2** and an actionable message naming the file path and the parse error (with line and column):
+All four subcommands read the local integrations file before writing anything. If the file exists but contains invalid YAML — most commonly unresolved git merge conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`), or a manual-edit typo — the command fails with **exit code 2** and an actionable message naming the file path and the parse error (with line and column):
 
 ```text
 Invalid YAML in integrations file: .deepnote.env.yaml
@@ -85,4 +106,4 @@ Nothing is repaired automatically and **no files are modified** — the integrat
 
 For `integrations pull` this check runs on every invocation, including when the workspace has no integrations to pull.
 
-`integrations pull` and `integrations edit` fail before prompting for anything. `integrations add` collects the full connection config first and only reads the file afterwards, so the failure surfaces after the prompts rather than immediately — nothing entered at those prompts is written anywhere.
+`integrations pull`, `integrations edit`, and `integrations auth` fail before prompting for anything. `integrations add` collects the full connection config first and only reads the file afterwards, so the failure surfaces after the prompts rather than immediately — nothing entered at those prompts is written anywhere.
