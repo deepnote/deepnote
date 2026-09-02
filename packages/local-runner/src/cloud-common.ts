@@ -3,7 +3,7 @@ import { deepnoteFileSchema, deepnoteSnapshotSchema, parseYaml } from '@deepnote
 import { describeRunError, findNotebook, getWorkspace, type NormalizedRun, notebookUrl } from '@deepnote/cloud'
 import { parseSnapshot } from '@deepnote/pipelines'
 
-export { extractOutputs } from '@deepnote/pipelines'
+export { DEFAULT_CLOUD_API_URL, extractOutputs } from '@deepnote/pipelines'
 
 /**
  * The plumbing every cloud entry point needs — `run-in-cloud.ts` and `cloud-runs.ts` both reach for
@@ -16,7 +16,6 @@ export { extractOutputs } from '@deepnote/pipelines'
 
 /** Environment variable holding the Deepnote API token (matches the CLI). */
 export const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN'
-export const DEFAULT_CLOUD_API_URL = 'https://api.deepnote.com'
 
 /**
  * The caller's token, or `DEEPNOTE_TOKEN` from the environment.
