@@ -88,9 +88,8 @@ async function findStoredToken(integrationId: string): Promise<FoundToken | unde
     try {
       raw = await readFile(filePath, 'utf-8')
     } catch (error) {
-      // Vanished between readdir and readFile (e.g. a concurrent deleteToken), or turned out to be
-      // a directory the listing could not type — treat either like it was never there rather than
-      // failing the whole scan.
+      // Vanished between readdir and readFile, or turned out to be a directory the listing could
+      // not type — treat either like it was never there rather than failing the whole scan.
       if (isErrnoENOENT(error) || isErrnoException(error, 'EISDIR')) {
         continue
       }
@@ -232,20 +231,4 @@ export async function writeToken(
 
   await ensureStoreDirectory(dir)
   await writeFileAtomically(targetPath, `${JSON.stringify(stored, null, 2)}\n`)
-}
-
-/** Removes the stored token for `integrationId`, if any. Idempotent: deleting an id with no entry
- * is a no-op, not an error. */
-export async function deleteToken(integrationId: string): Promise<void> {
-  const existing = await findStoredToken(integrationId)
-  if (!existing) {
-    return
-  }
-  try {
-    await unlink(existing.path)
-  } catch (error) {
-    if (!isErrnoENOENT(error)) {
-      throw error
-    }
-  }
 }

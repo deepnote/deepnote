@@ -7,7 +7,7 @@ import {
 } from '@deepnote/database-integrations'
 import { warn } from '../output'
 import { fetchAccessToken, InvalidClientError, InvalidGrantError } from './google-oauth'
-import { computeClientFingerprint, deleteToken, readToken, writeToken } from './token-store'
+import { computeClientFingerprint, readToken, writeToken } from './token-store'
 
 /**
  * A federated BigQuery credential problem the user can fix by running
@@ -100,7 +100,10 @@ export async function resolveFederatedSqlEnvVars(
         rotatedRefreshToken = result.newRefreshToken
       } catch (error) {
         if (error instanceof InvalidGrantError) {
-          await deleteToken(id)
+          // The revoked token is left on disk. Removing it means deleting by integration id, which
+          // takes whatever the entry holds now — and a concurrent run or `integrations auth` may
+          // already have replaced it with a working token. It buys nothing either: re-authenticating
+          // overwrites the entry in place, and the message below is the same one a missing entry gets.
           errors.push(notAuthenticatedError(id))
         } else if (error instanceof InvalidClientError) {
           errors.push(

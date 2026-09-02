@@ -5,10 +5,10 @@ import { BigQueryAuthMethods, type DatabaseIntegrationConfig } from '@deepnote/d
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Only Google's token endpoint is faked. The token store runs for real against a temp HOME (same
-// pattern as token-store.test.ts) so the fingerprint check, deletion and persistence are exercised
-// as actually written, not asserted against a mock's say-so. `readToken`/`writeToken`/`deleteToken`
-// are wrapped (not replaced) so the scope tests can assert call counts while every other test still
-// goes through the real scan-and-parse implementation.
+// pattern as token-store.test.ts) so the fingerprint check and persistence are exercised as actually
+// written, not asserted against a mock's say-so. `readToken`/`writeToken` are wrapped (not replaced)
+// so the scope tests can assert call counts while every other test still goes through the real
+// scan-and-parse implementation.
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
   return { ...actual, homedir: vi.fn(actual.homedir) }
@@ -25,13 +25,12 @@ vi.mock('./token-store', async importOriginal => {
     ...actual,
     readToken: vi.fn(actual.readToken),
     writeToken: vi.fn(actual.writeToken),
-    deleteToken: vi.fn(actual.deleteToken),
   }
 })
 
 import { fetchAccessToken, InvalidClientError, InvalidGrantError } from './google-oauth'
 import { IntegrationAuthenticationError, resolveFederatedSqlEnvVars } from './resolve-bigquery-sql-env-vars'
-import { computeClientFingerprint, deleteToken, getTokenStoreDir, readToken, writeToken } from './token-store'
+import { computeClientFingerprint, getTokenStoreDir, readToken, writeToken } from './token-store'
 
 const CLIENT_ID = 'client-id.apps.googleusercontent.com'
 const CLIENT_SECRET = 'GOCSPX-client-secret'
@@ -229,7 +228,11 @@ describe('resolveFederatedSqlEnvVars', () => {
   })
 
   describe('Google grant outcomes', () => {
-    it('on InvalidGrantError, deletes the stored token and reports not-authenticated', async () => {
+    it('on InvalidGrantError, reports not-authenticated and leaves the stored token in place', async () => {
+      // Catches: a delete-on-revocation creeping back in. Deleting by integration id removes
+      // whatever the entry holds at that moment, which a concurrent run or `integrations auth` may
+      // already have replaced with a working token — and it buys nothing, because re-authenticating
+      // overwrites the entry in place.
       const integration = bigQueryIntegration({ id: 'revoked-grant' })
       await storeMatchingToken('revoked-grant')
       vi.mocked(fetchAccessToken).mockRejectedValue(new InvalidGrantError('Google rejected the request.'))
@@ -241,8 +244,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(errors[0]?.message).toBe(
         'Integration "revoked-grant" is not authenticated. Run `deepnote integrations auth revoked-grant`.'
       )
-      expect(deleteToken).toHaveBeenCalledWith('revoked-grant')
-      await expect(readToken('revoked-grant')).resolves.toBeUndefined()
+      await expect(readToken('revoked-grant')).resolves.toMatchObject({ refreshToken: REFRESH_TOKEN })
     })
 
     it('on InvalidClientError, reports its own message and keeps the refresh token', async () => {
@@ -257,7 +259,6 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(errors[0]?.message).toBe(
         'OAuth client credentials for "bad-client" were rejected. Check `clientId` / `clientSecret`.'
       )
-      expect(deleteToken).not.toHaveBeenCalled()
       await expect(readToken('bad-client')).resolves.toMatchObject({ refreshToken: REFRESH_TOKEN })
     })
 
@@ -273,7 +274,6 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(errors).toHaveLength(1)
       expect(errors[0]).toBe(networkError)
       expect(errors[0]).not.toBeInstanceOf(IntegrationAuthenticationError)
-      expect(deleteToken).not.toHaveBeenCalled()
       expect(writeToken).not.toHaveBeenCalled()
     })
 

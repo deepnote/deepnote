@@ -3,7 +3,7 @@ import * as fsPromises from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { computeClientFingerprint, deleteToken, getTokenStoreDir, readToken, writeToken } from './token-store'
+import { computeClientFingerprint, getTokenStoreDir, readToken, writeToken } from './token-store'
 
 // token-store.ts imports `homedir`/`readFile`/`open` by name, and Node's real ESM module
 // namespaces aren't configurable, so `vi.spyOn` can't intercept them directly — the modules
@@ -383,30 +383,6 @@ describe('token-store', () => {
 
       const dirStat = await fsPromises.stat(tokenDir())
       expect(dirStat.mode & 0o777).toBe(0o700)
-    })
-  })
-
-  describe('deleteToken', () => {
-    it('removes the stored token', async () => {
-      await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
-
-      await deleteToken('integration-a')
-
-      await expect(readToken('integration-a')).resolves.toBeUndefined()
-      expect(await fsPromises.readdir(tokenDir())).toHaveLength(0)
-    })
-
-    it('is a no-op for an id with no entry', async () => {
-      await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
-
-      await expect(deleteToken('does-not-exist')).resolves.toBeUndefined()
-
-      await expect(readToken('integration-a')).resolves.toMatchObject({ refreshToken: 'rt-a' })
-      expect(await fsPromises.readdir(tokenDir())).toHaveLength(1)
-    })
-
-    it('is a no-op when the store directory does not exist at all', async () => {
-      await expect(deleteToken('anything')).resolves.toBeUndefined()
     })
   })
 
