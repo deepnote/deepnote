@@ -196,7 +196,8 @@ export async function runOAuthFlow(params: {
 
     // Everything above is armed before `listen` (and therefore before `onListening` can possibly
     // run): awaiting the opener first would strand an already-completed flow when it hangs, and
-    // would turn the armed-but-unraced timeout into an unhandled rejection that kills the process.
+    // would turn the already-armed timeout, with nothing yet awaiting it, into an unhandled
+    // rejection that kills the process.
     server.listen(0, '127.0.0.1', () => {
       const address = server.address()
       if (typeof address !== 'object' || address === null) {

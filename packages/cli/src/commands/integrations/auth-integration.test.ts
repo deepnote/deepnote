@@ -402,14 +402,14 @@ describe('auth-integration', () => {
     })
 
     it.each([
-      ['empty', 'BLANKVAR=\n'],
-      ['whitespace-only', 'BLANKVAR="   "\n'],
+      ['empty', 'BLANK_SECRET=\n'],
+      ['whitespace-only', 'BLANK_SECRET="   "\n'],
     ])(
       'fails before opening the browser when an env: variable is %s, naming the variable, with exit code 2',
       async (_label, envContent) => {
         await writeFile(
           filePath,
-          integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', clientSecretRef: 'env:BLANKVAR' }))
+          integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', clientSecretRef: 'env:BLANK_SECRET' }))
         )
         await writeFile(envFilePath, envContent)
 
@@ -419,7 +419,7 @@ describe('auth-integration', () => {
         } catch (error) {
           assert(error instanceof CommanderError)
           expect(error.exitCode).toBe(ExitCode.InvalidUsage)
-          expect(error.message).toContain('BLANKVAR')
+          expect(error.message).toContain('BLANK_SECRET')
           expect(error.message).toContain('empty or contains only whitespace')
         }
         expect(mockOpenInBrowser).not.toHaveBeenCalled()

@@ -125,7 +125,7 @@ async function requestToken(
   const rawBody = await response.text()
 
   // 429/5xx are retried by status alone: an intermediary's error page for these is rarely
-  // JSON, and retryability must not depend on whether the body happens to parse.
+  // JSON, and whether a failure is retried must not depend on whether the body happens to parse.
   if (response.status === 429 || response.status >= 500) {
     throw new TokenHttpError(response.status, `Google token endpoint returned HTTP ${response.status}.`)
   }

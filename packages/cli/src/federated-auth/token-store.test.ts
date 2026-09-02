@@ -110,21 +110,21 @@ describe('token-store', () => {
 
   describe('case-insensitive lookup', () => {
     it('finds an entry written under a different casing', async () => {
-      await writeToken('MyIntegration', { refreshToken: 'rt', clientFingerprint: 'fp' })
+      await writeToken('My-Integration', { refreshToken: 'rt', clientFingerprint: 'fp' })
 
-      await expect(readToken('MYINTEGRATION')).resolves.toMatchObject({ integrationId: 'MyIntegration' })
-      await expect(readToken('myintegration')).resolves.toMatchObject({ integrationId: 'MyIntegration' })
+      await expect(readToken('MY-INTEGRATION')).resolves.toMatchObject({ integrationId: 'My-Integration' })
+      await expect(readToken('my-integration')).resolves.toMatchObject({ integrationId: 'My-Integration' })
     })
 
     it('replaces the existing file, rather than orphaning it beside a new one, when re-authenticating under different casing', async () => {
-      await writeToken('MyIntegration', { refreshToken: 'first', clientFingerprint: 'fp1' })
-      await writeToken('myintegration', { refreshToken: 'second', clientFingerprint: 'fp2' })
+      await writeToken('My-Integration', { refreshToken: 'first', clientFingerprint: 'fp1' })
+      await writeToken('my-integration', { refreshToken: 'second', clientFingerprint: 'fp2' })
 
       const files = await fsPromises.readdir(tokenDir())
       expect(files).toHaveLength(1)
-      await expect(readToken('MYINTEGRATION')).resolves.toEqual({
+      await expect(readToken('MY-INTEGRATION')).resolves.toEqual({
         version: 1,
-        integrationId: 'myintegration',
+        integrationId: 'my-integration',
         refreshToken: 'second',
         clientFingerprint: 'fp2',
       })
@@ -279,7 +279,7 @@ describe('token-store', () => {
       await expect(readToken('untyped-id')).resolves.toMatchObject({ refreshToken: 'rt-untyped' })
     })
 
-    it('skips an untypeable directory entry rather than failing the whole scan', async () => {
+    it('skips a directory entry the listing could not type, rather than failing the whole scan', async () => {
       await writeToken('good-id', { refreshToken: 'rt-good', clientFingerprint: 'fp' })
       const dir = tokenDir()
       await fsPromises.mkdir(join(dir, 'stray-directory.json'))

@@ -54,7 +54,7 @@ describe('browser', () => {
       expect(['open', 'cmd', 'xdg-open']).toContain(command)
     })
 
-    it('unrefs the child once spawned, so the handle cannot hold the event loop open for the browser’s lifetime', async () => {
+    it('calls unref on the child once spawned, so the handle cannot hold the event loop open for the browser’s lifetime', async () => {
       const mockChild = createMockChildProcess()
       mockSpawn.mockReturnValue(mockChild)
 

@@ -102,7 +102,7 @@ function startSingleStub(action: StubAction): Promise<Stub> {
   return startStub(() => action)
 }
 
-/** Polls a real, unfaked tick until `condition` holds — retry tests fake `setTimeout`, so waits here must not use it. */
+/** Polls on a real timer until `condition` holds — retry tests fake `setTimeout`, so waits here must not use it. */
 async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void> {
   const start = Date.now()
   while (!condition()) {

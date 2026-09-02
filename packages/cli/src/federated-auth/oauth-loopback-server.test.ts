@@ -69,7 +69,7 @@ function startImmediateStub(status: number, body: unknown): Promise<TokenStub> {
   return startTokenStub({ type: 'immediate', status, body })
 }
 
-/** Polls a real, unfaked tick until `condition` holds — no sleeps, no fake timers. */
+/** Polls on a real timer until `condition` holds — no sleeps, no fake timers. */
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 5000): Promise<void> {
   const start = Date.now()
   while (!(await condition())) {
