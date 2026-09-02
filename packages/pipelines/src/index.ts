@@ -1,3 +1,25 @@
+export type {
+  BoundOutputs,
+  ClientContext,
+  DeepnoteOptions,
+  OutputBinding,
+  OutputBindings,
+  RunOptions,
+  RunResult,
+  WaitOptions,
+} from './client'
+export {
+  API_URL_ENV,
+  Deepnote,
+  DeepnoteRunError,
+  DeepnoteRunTimeout,
+  NotebookRef,
+  NotebooksResource,
+  outputs,
+  Run,
+  resolveBindings,
+  TOKEN_ENV,
+} from './client'
 export type { CloudExecutorOptions } from './cloud-executor'
 export { createCloudStepExecutor, DEFAULT_CLOUD_API_URL } from './cloud-executor'
 export { evaluateCondition } from './condition-expression'

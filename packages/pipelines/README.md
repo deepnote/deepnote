@@ -6,6 +6,78 @@ Compose Deepnote notebook runs into pipelines. No server, no kernel, no orchestr
 pnpm add @deepnote/pipelines
 ```
 
+## Start a run, wait for it, use its result
+
+```ts
+import { Deepnote, outputs } from "@deepnote/pipelines";
+
+const deepnote = Deepnote.fromEnv(); // DEEPNOTE_TOKEN, optionally DEEPNOTE_API_URL
+
+const extract = deepnote.notebooks.define({
+  id: "nb-extract",
+  outputs: {
+    datasetUri: outputs.text("uri-block"),
+    rowCount: outputs.json<number>("stats-block", "row_count"),
+  },
+});
+
+// Starting and waiting are separate, because they are separate in the API.
+const run = await extract.run({ inputs: { region: "eu", months: 6 } });
+console.log(run.id); // the run continues in Deepnote whether or not this process does
+
+const result = await run.wait({ onStatus: (status) => console.log(status) });
+result.values.datasetUri; // string
+result.values.rowCount; // number
+```
+
+`runAndWait()` is those two steps when you want them together. A failed run throws
+`DeepnoteRunError` carrying the result — the snapshot is usually the only record of what the failing
+block actually said — and `allowFailure: true` returns it instead. `wait({ timeoutMs })` throws
+`DeepnoteRunTimeout` when the deadline passes first; only the watching stopped, the run continues in
+Deepnote, and `deepnote.getRun(id)` picks it up again.
+
+`extract.runs({ pageSize, pageToken })` is one page of the notebook's run history, newest first,
+including runs started from Deepnote's UI; the page's `nextPageToken` fetches the next one.
+
+### A pipeline is just a function
+
+There is no workflow API to learn for the common case. `await` sequences, `Promise.all` fans out,
+`if` branches, `try/catch` handles failure:
+
+```ts
+const [customers, products] = await Promise.all([
+  deepnote.notebooks.ref("nb-customers").runAndWait({ inputs: { date } }),
+  deepnote.notebooks.ref("nb-products").runAndWait({ inputs: { date } }),
+]);
+
+if (customers.values.rowCount > 1_000_000) {
+  await deepnote.notebooks.ref("nb-partition").runAndWait();
+}
+```
+
+Deepnote does not interpret that function; JavaScript does. Which means the same code runs from
+cron, GitHub Actions, a Lambda, a FastAPI route, a CLI, Temporal, Airflow, or another Deepnote
+notebook, and Deepnote competes with none of them. What the SDK adds is the remote operation being
+awaitable, typed, and named — not a runtime that owns your control flow.
+
+Reach for `runPipeline` (below) when you want what a plain function does not give you: the execution
+graph, an event stream, and control nodes that make a local gate visible.
+
+### Named outputs are a client-side contract
+
+Inputs are symmetrical already: `POST /v2/runs` takes values keyed by the notebook's input-block
+names. Outputs are not — a finished run is a snapshot of blocks, and only the author knows which
+block holds the answer. So `outputs.text()`, `outputs.json()` and `outputs.lastJson()` declare that
+mapping on the client, and the error names your binding rather than a block id you never typed:
+
+```
+Output "euShare" could not be read from totals.eu of block "stats-block" of run run-42: …
+```
+
+`outputs.lastJson()` is the one to prefer for a notebook Deepnote created from a file, since
+Deepnote reassigns block ids on creation. If Deepnote later grows a server-side notion of named
+outputs, this surface does not change — only the resolver behind it does.
+
 ## Run several notebooks as one pipeline
 
 Fan out, gate on the results, decide:
