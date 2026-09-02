@@ -90,12 +90,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+const errorNameSchema = z.object({ name: z.string() })
+
 /** Same transient-failure classification `pollRunUntilComplete` uses for Deepnote API requests. */
 function isRetryable(error: unknown): boolean {
   if (error instanceof TokenHttpError) {
     return error.statusCode === 429 || error.statusCode >= 500
   }
-  const name = (error as { name?: string } | null | undefined)?.name
+  const name = errorNameSchema.safeParse(error).data?.name
   return name === 'TypeError' || name === 'AbortError' || name === 'TimeoutError'
 }
 
