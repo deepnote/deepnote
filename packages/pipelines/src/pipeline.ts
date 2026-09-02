@@ -1,6 +1,6 @@
 import type { IOutput } from '@jupyterlab/nbformat'
-import type { AgentStreamEvent, ExecutionSummary, RunBlockOutput } from './block-output'
 import { type CloudExecutorOptions, createCloudStepExecutor } from './cloud-executor'
+import type { RunBlockOutput } from './extract-outputs'
 import type { SnapshotBlock, SnapshotView } from './snapshot-view'
 
 /**
@@ -35,8 +35,6 @@ interface PipelineNodeDefinition {
   dependsOn?: PipelineDependencyInput[]
   /** Marks the node that a result viewer should select first. Only one node may be concluding. */
   concluding?: boolean
-  /** Bump this when node behavior changes but its notebook and inputs do not. */
-  version?: string
   /** Small, JSON-serializable annotations for generated graph renderers. */
   metadata?: Record<string, string | number | boolean | null>
 }
@@ -63,14 +61,14 @@ export interface PipelineStep extends PipelineNodeDefinition {
   allowFailure?: boolean
 }
 
-export type PipelineControlKind = 'control' | 'gate' | 'join' | 'branch'
+export type PipelineControlKind = 'control' | 'gate' | 'join'
 export type PipelineGraphNodeKind = 'notebook' | PipelineControlKind
 
 /** A local JavaScript decision or transformation that should appear in the execution graph. */
 export interface PipelineControlNode extends PipelineNodeDefinition {
   /** Unique within one pipeline, shared with notebook step IDs. */
   id: string
-  /** More specific kinds let renderers distinguish validation, joining, and branching. */
+  /** More specific kinds let renderers distinguish a validation gate from a join. */
   kind?: PipelineControlKind
 }
 
@@ -87,8 +85,6 @@ export interface PipelineStepResult {
   /** Parsed, renderer-friendly view of `snapshotYaml`, when present. */
   snapshot: SnapshotView | null
   runId?: string
-  viewUrl?: string
-  summary?: ExecutionSummary
   error?: string
   startedAt: string
   finishedAt: string
@@ -110,7 +106,6 @@ export interface PipelineGraphNode {
   finishedAt?: string
   durationMs?: number
   runId?: string
-  viewUrl?: string
   error?: string
 }
 
@@ -131,8 +126,6 @@ export interface PipelineGraph {
 export type PipelineEvent =
   | { type: 'step_started'; stepId: string; startedAt: string }
   | { type: 'step_status'; stepId: string; status: string }
-  | { type: 'block_output'; stepId: string; blockId: string; output: IOutput }
-  | { type: 'agent_event'; stepId: string; event: AgentStreamEvent }
   | { type: 'step_completed'; stepId: string; result: PipelineStepResult }
   | { type: 'step_failed'; stepId: string; error: string; result?: PipelineStepResult }
   | { type: 'control_started'; node: PipelineGraphNode }
@@ -218,9 +211,8 @@ export const pipelineOutputs: PipelineOutputHelpers = {
 /**
  * Run a pipeline in Deepnote Cloud.
  *
- * This is the imperative interface: the callback's own control flow is the pipeline. For a pipeline
- * that should live in a file rather than in code, see `runPipelineFile`, which compiles a
- * `.deepnote` definition into exactly this callback.
+ * This is the imperative interface: the callback's own control flow is the pipeline. Anything that
+ * can produce such a callback — a script, a page, a compiled definition — can drive it.
  */
 export async function runPipeline<T>(
   workflow: (context: PipelineContext) => T | Promise<T>,
@@ -290,14 +282,13 @@ export async function runPipelineWithExecutor<T>(
     node: PipelineGraphNode,
     status: Exclude<PipelineGraphNodeStatus, 'running'>,
     startedMs: number,
-    details: { target?: string; runId?: string; viewUrl?: string; error?: string } = {}
+    details: { target?: string; runId?: string; error?: string } = {}
   ): void => {
     node.status = status
     node.finishedAt = new Date().toISOString()
     node.durationMs = Date.now() - startedMs
     node.target = details.target
     node.runId = details.runId
-    node.viewUrl = details.viewUrl
     node.error = details.error
   }
 
@@ -305,7 +296,6 @@ export async function runPipelineWithExecutor<T>(
     const id = step.id.trim()
     const startedMs = Date.now()
     const startedAt = new Date(startedMs).toISOString()
-    validateNodeId(id, usedIds)
     const node = registerNode(id, 'notebook', step, startedAt)
     resultOrder.set(id, resultOrder.size)
     emit({ type: 'step_started', stepId: id, startedAt })
@@ -316,12 +306,7 @@ export async function runPipelineWithExecutor<T>(
       results.push(result)
       if (!result.success) {
         const error = result.error ?? `the notebook finished with status "${result.status}"`
-        finishNode(node, 'failed', startedMs, {
-          target: result.target,
-          runId: result.runId,
-          viewUrl: result.viewUrl,
-          error,
-        })
+        finishNode(node, 'failed', startedMs, { target: result.target, runId: result.runId, error })
         emit({ type: 'step_failed', stepId: id, error, result })
         if (!step.allowFailure) {
           throw new PipelineStepError(id, error, { result })
@@ -329,11 +314,7 @@ export async function runPipelineWithExecutor<T>(
         return result
       }
 
-      finishNode(node, 'success', startedMs, {
-        target: result.target,
-        runId: result.runId,
-        viewUrl: result.viewUrl,
-      })
+      finishNode(node, 'success', startedMs, { target: result.target, runId: result.runId })
       emit({ type: 'step_completed', stepId: id, result })
       return result
     } catch (error) {
@@ -352,7 +333,6 @@ export async function runPipelineWithExecutor<T>(
     const kind = definition.kind ?? 'control'
     const startedMs = Date.now()
     const startedAt = new Date(startedMs).toISOString()
-    validateNodeId(id, usedIds)
     const node = registerNode(id, kind, definition, startedAt)
     emit({ type: 'control_started', node: { ...node } })
 
@@ -413,7 +393,7 @@ function normalizeDependencies(dependencies: PipelineDependencyInput[] | undefin
   return normalized
 }
 
-/** Stamp an executor result with its timing. Exported for executors outside this module. */
+/** Stamp an executor result with its timing, for executors outside this module. */
 export function finishResult(
   result: Omit<PipelineStepResult, 'startedAt' | 'finishedAt' | 'durationMs'>,
   startedMs: number,

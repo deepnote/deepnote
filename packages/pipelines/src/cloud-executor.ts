@@ -6,8 +6,7 @@ import {
   triggerNotebookRun,
   waitForRunSnapshot,
 } from '@deepnote/cloud'
-import type { RunBlockOutput } from './block-output'
-import { extractOutputs } from './extract-outputs'
+import { extractOutputs, type RunBlockOutput } from './extract-outputs'
 import { finishResult, type PipelineStepExecutor } from './pipeline'
 import type { SnapshotView } from './snapshot-view'
 import { parseSnapshot } from './snapshot-view'

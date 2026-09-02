@@ -1,6 +1,18 @@
-import type { RunBlockOutput } from './block-output'
+import type { IOutput } from '@jupyterlab/nbformat'
 import type { SnapshotView } from './snapshot-view'
 import { parseSnapshot } from './snapshot-view'
+
+/**
+ * What one block of a run produced.
+ *
+ * Both sides of a run want this shape and neither should reach for the other: a pipeline reads
+ * these off a cloud snapshot, and `@deepnote/local-runner` returns the same shape from a local kernel.
+ */
+export interface RunBlockOutput {
+  blockId: string
+  outputs: IOutput[]
+  executionCount: number | null
+}
 
 /**
  * Read the per-block outputs out of a cloud snapshot's YAML, in document order.
