@@ -78,6 +78,18 @@ Output "euShare" could not be read from totals.eu of block "stats-block" of run 
 Deepnote reassigns block ids on creation. If Deepnote later grows a server-side notion of named
 outputs, this surface does not change — only the resolver behind it does.
 
+### The same thing in Python
+
+`packages/pipelines/python` is the Python SDK — the same two layers, the same boundary, Python idiom:
+
+```python
+async with Deepnote.from_env() as deepnote:
+    result = await deepnote.notebooks["nb_extract"].run_and_wait(inputs={"region": "eu"})
+```
+
+It is published to PyPI as `deepnote-sdk` (`pip install deepnote-sdk`; the import name is `deepnote`).
+See its [README](./python/README.md).
+
 ## Run several notebooks as one pipeline
 
 Fan out, gate on the results, decide:
