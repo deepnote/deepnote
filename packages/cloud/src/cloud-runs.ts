@@ -393,7 +393,10 @@ export async function pollRunUntilComplete(
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
   const maxTransientRetries = options.maxTransientRetries ?? DEFAULT_MAX_TRANSIENT_RETRIES
   const now = options.now ?? (() => Date.now())
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
+  // Sleeping is where an abort would otherwise go unnoticed until the interval elapsed, so the
+  // default sleep wakes on abort and a caller-provided one is raced against the signal.
+  const sleep = (ms: number): Promise<void> =>
+    options.sleep ? waitWithSignal(options.sleep(ms), options.signal) : abortableSleep(ms, options.signal)
 
   const deadline = now() + timeoutMs
   let transientFailures = 0
@@ -441,7 +444,6 @@ export async function pollRunUntilComplete(
       throw new RunTimeoutError(runId, lastStatus)
     }
     await sleep(Math.min(intervalMs, Math.max(0, deadline - now())))
-    options.signal?.throwIfAborted()
   }
 }
 
