@@ -16,7 +16,7 @@
     "biome:check:fix": "biome check --write .",
     "build": "pnpm -r run build",
     "example:gallery": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/gallery/serve.mjs",
-    "example:local-runner": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/run-app/serve.mjs",
+    "example:local-runner": "pnpm --filter @deepnote/pipelines... build && node examples/local-runner/run-app/serve.mjs",
     "example:pipeline": "pnpm --filter @deepnote/pipelines... build && node examples/pipelines/script/run.mjs",
     "example:schedule-cloud": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/schedule-cloud.mjs",
     "example:snapshot-viewer": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/snapshot-viewer/serve.mjs",

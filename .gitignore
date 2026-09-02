@@ -20,3 +20,4 @@ node_modules
 snapshot-reader.js
 snapshot-viewer.js
 snapshot.deepnote
+examples/local-runner/run-app/pipelines.js

@@ -20,7 +20,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./browser": "./dist/browser.iife.js"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -2,7 +2,9 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig([
   {
-    entry: ['src/index.ts'],
+    entry: {
+      index: 'src/index.ts',
+    },
     format: ['esm', 'cjs'],
     fixedExtension: false,
     dts: true,
@@ -15,9 +17,11 @@ export default defineConfig([
     ],
   },
   {
-    // The snapshot reader ships as one self-contained file that a static page can <script> in, so
+    // The browser build ships as one self-contained file that a static page can <script> in, so
     // its dependencies (the YAML parser, the block schemas) are bundled rather than externalized.
-    entry: { 'snapshot-reader': 'src/browser.ts' },
+    // Narrower than `@deepnote/pipelines/browser`: a page that only renders an already-run snapshot
+    // should not ship a cloud client it never calls.
+    entry: { 'snapshot-reader': 'src/browser-snapshot.ts' },
     format: ['iife'],
     platform: 'browser',
     globalName: 'DeepnoteSnapshot',
