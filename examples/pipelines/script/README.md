@@ -9,7 +9,7 @@ DEEPNOTE_TOKEN=… NA_NOTEBOOK_ID=… EU_NOTEBOOK_ID=… APAC_NOTEBOOK_ID=… pn
 
 The point of the example is that the _pipeline_ is not Node-specific. `runPipeline` runs every step
 as an HTTP call to Deepnote, so the callback below runs unchanged in a browser page with no server
-behind it — see [`run-app`](../../local-runner/run-app), which uses the same API.
+behind it.
 
 The bootstrap is Node and would be replaced in a browser: this script reads `DEEPNOTE_TOKEN` and the
 notebook ids from the environment via `process`, whereas a page gets its token from the Deepnote

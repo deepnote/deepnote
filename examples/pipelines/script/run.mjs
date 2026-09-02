@@ -2,8 +2,8 @@
 //
 // The bootstrap below is Node — `process.loadEnvFile`, `process.env`, `process.exit`. The pipeline
 // itself is not: the callback passed to `runPipeline` runs unchanged in a browser, because every
-// step is an HTTP call to Deepnote. A page supplies its own configuration and token (see
-// `examples/local-runner/run-app`); what it does not need is a server, a kernel, or a daemon.
+// step is an HTTP call to Deepnote. A page supplies its own configuration and token; what it does
+// not need is a server, a kernel, or a daemon.
 //
 // In a real project, import from '@deepnote/pipelines' after installing it.
 import { runPipeline } from '../../../packages/pipelines/dist/index.js'
