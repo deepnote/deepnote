@@ -1545,6 +1545,43 @@ describe('run command', () => {
         }
       }
 
+      it('gates only the integrations the executing blocks reference, scoped by --block', async () => {
+        // Catches: the gate collecting no ids at all, which switches it off silently — an
+        // unauthenticated federated SQL block would then reach the kernel and fail mid-run with a
+        // raw Python error, the exact failure this branch exists to replace.
+        mockGetBlockDependencies.mockResolvedValue([])
+        setupSuccessfulRun()
+        mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
+        mockGetUpstreamBlocks.mockResolvedValue({
+          status: 'success',
+          blocksToExecuteWithDeps: [],
+          newlyComputedBlocksContentDeps: [],
+        })
+
+        // The fixture's SQL block, which references the federated integration.
+        await action(INTEGRATIONS_FILE, { block: '13db6a85530043f5aad25fdcc34f6329' })
+
+        expect(mockInjectIntegrationEnvVars.mock.calls[0][2]).toEqual(['100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'])
+      })
+
+      it('demands no credentials for an integration a --block run never touches', async () => {
+        // Catches: dropping the block filter, which would make a single-code-block run demand
+        // credentials for every SQL block in the notebook and refuse to start without them.
+        mockGetBlockDependencies.mockResolvedValue([])
+        setupSuccessfulRun()
+        mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
+        mockGetUpstreamBlocks.mockResolvedValue({
+          status: 'success',
+          blocksToExecuteWithDeps: [],
+          newlyComputedBlocksContentDeps: [],
+        })
+
+        // The fixture's first code block, with no upstream dependencies — no SQL block executes.
+        await action(INTEGRATIONS_FILE, { block: '3d9000d7403f08ed8c829e0f1d13f09e' })
+
+        expect(mockInjectIntegrationEnvVars.mock.calls[0][2]).toEqual([])
+      })
+
       it('does not report a federated BigQuery integration as missing in --context output', async () => {
         mockGetBlockDependencies.mockResolvedValue([])
         setupSuccessfulRun()

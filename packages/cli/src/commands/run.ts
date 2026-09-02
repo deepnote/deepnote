@@ -550,8 +550,7 @@ function collectFederatedIntegrationIds(
   for (const notebook of notebooks) {
     for (const block of notebook.blocks) {
       if (block.type !== 'sql' || (blockIdFilter && !blockIdFilter.has(block.id))) continue
-      const metadata = block.metadata as Record<string, unknown>
-      const integrationId = typeof metadata.sql_integration_id === 'string' ? metadata.sql_integration_id : undefined
+      const integrationId = block.metadata.sql_integration_id
       if (integrationId && !isBuiltinIntegration(integrationId)) {
         ids.add(integrationId)
       }
