@@ -82,6 +82,7 @@ Every block has these common fields:
 - [Text blocks](references/blocks-text.md)
 - [Input blocks](references/blocks-input.md)
 - [Display and action blocks](references/blocks-display.md)
+- [Pipeline notebooks and steps](references/blocks-pipeline.md)
 
 ## Integrations
 

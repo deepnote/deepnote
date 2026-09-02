@@ -1,0 +1,102 @@
+{
+  "notebookId": "pipeline-notebook",
+  "notebookName": "Pipeline",
+  "steps": [
+    {
+      "id": "load",
+      "label": "Regions to analyze",
+      "notebookId": "nb-config",
+      "inputs": {},
+      "exports": {
+        "regions": "regions"
+      },
+      "forEachAs": "item",
+      "allowFailure": false,
+      "dependsOn": []
+    },
+    {
+      "id": "analyze",
+      "label": "Regional analysis",
+      "notebookId": "nb-regional",
+      "inputs": {
+        "region": {
+          "variable_name": "region"
+        },
+        "trailing_months": {
+          "custom_value": "6"
+        }
+      },
+      "exports": {
+        "region": "analyzed"
+      },
+      "forEach": "regions",
+      "forEachAs": "region",
+      "allowFailure": false,
+      "dependsOn": ["load"]
+    },
+    {
+      "id": "recover",
+      "label": "Recovery",
+      "notebookId": "nb-regional",
+      "inputs": {
+        "region": {
+          "variable_name": "region"
+        },
+        "backfill_missing": {
+          "custom_value": "true"
+        }
+      },
+      "exports": {
+        "region": "recovered"
+      },
+      "condition": "region.qualityScore < 0.95",
+      "forEach": "analyzed",
+      "forEachAs": "region",
+      "allowFailure": false,
+      "dependsOn": ["analyze"]
+    },
+    {
+      "id": "aggregate",
+      "label": "Aggregate",
+      "notebookId": "nb-aggregate",
+      "inputs": {
+        "regions_json": {
+          "variable_name": "analyzed"
+        },
+        "recovered_json": {
+          "variable_name": "recovered",
+          "fallback": {
+            "custom_value": null
+          }
+        }
+      },
+      "exports": {
+        "portfolio": "portfolio"
+      },
+      "forEachAs": "item",
+      "allowFailure": false,
+      "dependsOn": ["analyze", "recover"]
+    },
+    {
+      "id": "arbiter",
+      "label": "Final decision",
+      "notebookId": "nb-arbiter",
+      "inputs": {
+        "context_json": {
+          "variable_name": "portfolio"
+        }
+      },
+      "exports": {},
+      "condition": "portfolio.forecastK < portfolio.targetK",
+      "forEachAs": "item",
+      "allowFailure": true,
+      "dependsOn": ["aggregate"]
+    }
+  ],
+  "producedBy": {
+    "regions": "load",
+    "analyzed": "analyze",
+    "recovered": "recover",
+    "portfolio": "aggregate"
+  }
+}

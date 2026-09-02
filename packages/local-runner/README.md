@@ -183,7 +183,8 @@ The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. 
 — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no
 server at all.
 
-To run several notebooks as one pipeline — fanning out, gating on results, drawing the graph — see
+To run several notebooks as one pipeline — fanning out, gating on results, drawing the graph, or
+reading the pipeline out of a `.deepnote` file whose notebook is marked `isPipeline: true` — see
 [`@deepnote/pipelines`](../pipelines). That package needs neither this one nor a kernel: every step
 is an HTTP call, so a pipeline also runs in a browser page.
 

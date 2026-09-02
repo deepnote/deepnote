@@ -1,0 +1,119 @@
+# Execution semantics, checked against skip-and-fallback.expected-results.json with a fake executor:
+# a false gate skips `recover`; the skip propagates to `redo` (a for_each over a variable that never
+# arrived) and to `audit` (an input with no fallback); `report` survives through fallbacks, one to a
+# literal and one to another variable; `notify` fans out over an available array; `flaky` fails with
+# allow_failure and publishes nothing, so `after-flaky` runs on its fallback.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: conformance-skip-and-fallback
+  name: Conformance - skip and fallback
+  notebooks:
+    - id: pipeline-notebook
+      name: Pipeline
+      isPipeline: true
+      blocks:
+        - blockGroup: g-check
+          id: check
+          sortingKey: a0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-check
+            function_notebook_export_mappings:
+              quality:
+                enabled: true
+                variable_name: quality
+              regions:
+                enabled: true
+                variable_name: regions
+        - blockGroup: g-flaky
+          id: flaky
+          sortingKey: a1
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-flaky
+            function_notebook_allow_failure: true
+            function_notebook_export_mappings:
+              value:
+                enabled: true
+                variable_name: flakyValue
+        - blockGroup: g-recover
+          id: recover
+          sortingKey: b0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-recover
+            function_notebook_run_if: quality.score < 0.95
+            function_notebook_export_mappings:
+              regions:
+                enabled: true
+                variable_name: recoveredRegions
+              summary:
+                enabled: true
+                variable_name: recoverySummary
+        - blockGroup: g-redo
+          id: redo
+          sortingKey: c0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-redo
+            function_notebook_for_each: recoveredRegions
+            function_notebook_for_each_as: region
+            function_notebook_inputs:
+              region:
+                variable_name: region
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: redone
+        - blockGroup: g-report
+          id: report
+          sortingKey: d0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-report
+            function_notebook_inputs:
+              summary:
+                variable_name: recoverySummary
+                fallback:
+                  custom_value: nothing to recover
+              regions:
+                variable_name: redone
+                fallback:
+                  variable_name: regions
+              threshold:
+                custom_value: '0.95'
+        - blockGroup: g-audit
+          id: audit
+          sortingKey: d1
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-audit
+            function_notebook_inputs:
+              summary:
+                variable_name: recoverySummary
+        - blockGroup: g-notify
+          id: notify
+          sortingKey: e0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-notify
+            function_notebook_for_each: regions
+            function_notebook_for_each_as: region
+            function_notebook_inputs:
+              region:
+                variable_name: region
+              mode:
+                custom_value: email
+        - blockGroup: g-after-flaky
+          id: after-flaky
+          sortingKey: f0
+          type: notebook-function
+          metadata:
+            function_notebook_id: nb-after
+            function_notebook_inputs:
+              value:
+                variable_name: flakyValue
+                fallback:
+                  custom_value: default
+version: '1.0.0'

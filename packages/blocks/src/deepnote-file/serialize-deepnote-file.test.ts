@@ -139,6 +139,89 @@ describe('serializeDeepnoteFile', () => {
     })
   })
 
+  describe('pipeline notebooks', () => {
+    const createPipelineFile = (): DeepnoteFile => ({
+      version: '1.0.0',
+      metadata: { createdAt: '2026-01-01T00:00:00.000Z' },
+      project: {
+        id: 'project-1',
+        name: 'Pipeline project',
+        notebooks: [
+          {
+            id: 'pipeline',
+            name: 'Pipeline',
+            isPipeline: true,
+            blocks: [
+              {
+                id: 'load',
+                blockGroup: 'g-load',
+                sortingKey: '000000',
+                type: 'notebook-function',
+                content: '',
+                metadata: {
+                  function_notebook_id: 'nb-load',
+                  function_notebook_inputs: { region: { custom_value: 'Europe' } },
+                  function_notebook_export_mappings: {
+                    regions: { enabled: true, variable_name: 'regions' },
+                    ignored: { enabled: false, variable_name: null },
+                  },
+                },
+              },
+              {
+                id: 'analyze',
+                blockGroup: 'g-analyze',
+                sortingKey: '000001',
+                type: 'notebook-function',
+                content: '',
+                metadata: {
+                  function_notebook_id: 'nb-analyze',
+                  function_notebook_for_each: 'regions',
+                  function_notebook_for_each_as: 'region',
+                  function_notebook_run_if: 'region.qualityScore < 0.95',
+                  function_notebook_allow_failure: true,
+                  function_notebook_inputs: {
+                    region: { variable_name: 'region' },
+                    previous: {
+                      variable_name: 'recovered',
+                      fallback: { variable_name: 'regions', fallback: { custom_value: null } },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    it('round-trips the pipeline marker and step metadata through YAML', () => {
+      const file = createPipelineFile()
+      const roundtripped = deserializeDeepnoteFile(serializeDeepnoteFile(file))
+
+      expect(roundtripped.project.notebooks[0].isPipeline).toBe(true)
+      expect(roundtripped.project.notebooks[0].blocks).toEqual(file.project.notebooks[0].blocks)
+      // A second pass must be a fixed point, so the serializer is not quietly rewriting anything.
+      expect(serializeDeepnoteFile(roundtripped)).toBe(serializeDeepnoteFile(file))
+    })
+
+    it('rejects an input that is not the variable_name / custom_value shape', () => {
+      const file = createPipelineFile()
+      const yaml = serializeDeepnoteFile(file).replace(
+        'region:\n                custom_value: Europe',
+        'region: Europe'
+      )
+      expect(yaml).not.toBe(serializeDeepnoteFile(file))
+      expect(() => deserializeDeepnoteFile(yaml)).toThrow()
+    })
+
+    it('rejects an export mapping without an enabled flag', () => {
+      const file = createPipelineFile()
+      const yaml = serializeDeepnoteFile(file).replace('enabled: true\n', '')
+      expect(yaml).not.toBe(serializeDeepnoteFile(file))
+      expect(() => deserializeDeepnoteFile(yaml)).toThrow()
+    })
+  })
+
   describe('field ordering', () => {
     it('outputs top-level fields in schema order', () => {
       const file = createFileWithBlocks()

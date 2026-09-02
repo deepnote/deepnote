@@ -24,7 +24,7 @@ function snapshotWith(value: unknown): string {
   createdAt: '2026-01-01T00:00:00.000Z'
 project:
   id: project-1
-  name: Client-only orchestration
+  name: Client-only pipeline
   notebooks:
     - id: notebook-1
       name: Main

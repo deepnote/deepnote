@@ -233,8 +233,8 @@ describe('createPythonCodeForNotebookFunctionBlock', () => {
       metadata: {
         function_notebook_id: 'notebook-ghi',
         function_notebook_inputs: {
-          param1: 'value1',
-          param2: 42,
+          param1: { custom_value: 'value1' },
+          param2: { variable_name: 'upstream_value' },
         },
         function_notebook_export_mappings: {
           output: {
@@ -249,11 +249,11 @@ describe('createPythonCodeForNotebookFunctionBlock', () => {
 
     expect(result).toEqual(dedent`
       # Notebook Function: notebook-ghi
-      # Inputs: {"param1":"value1","param2":42}
+      # Inputs: {"param1":{"custom_value":"value1"},"param2":{"variable_name":"upstream_value"}}
       # Exports: output -> result
       result = _dntk.run_notebook_function(
           'notebook-ghi',
-          inputs={"param1":"value1","param2":42},
+          inputs={"param1":{"custom_value":"value1"},"param2":{"variable_name":"upstream_value"}},
           export_mappings={"output":"result"}
       )
     `)

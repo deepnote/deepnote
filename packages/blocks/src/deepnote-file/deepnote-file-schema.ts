@@ -188,6 +188,35 @@ const sqlBlockSchema = z.object({
     .default({}),
 })
 
+/**
+ * One input passed to the notebook a `notebook-function` block runs.
+ *
+ * Exactly the shape deepnote.com stores: either a reference to a variable by name, or a literal.
+ * `fallback` is read when the referenced variable is unavailable because the step that would have
+ * exported it was skipped; it is itself an input, so fallbacks can chain.
+ */
+const notebookFunctionInputSchema: z.ZodType<NotebookFunctionInput> = z.lazy(() =>
+  z.object({
+    variable_name: z.string().nullable().optional(),
+    custom_value: z.unknown().optional(),
+    fallback: notebookFunctionInputSchema.optional(),
+  })
+)
+
+export interface NotebookFunctionInput {
+  /** A pipeline variable: another step's export, or the current `for_each_as` element. */
+  variable_name?: string | null
+  /** A literal value, used when `variable_name` is not set. */
+  custom_value?: unknown
+  /** Used when `variable_name` refers to a variable whose producer was skipped. */
+  fallback?: NotebookFunctionInput
+}
+
+const notebookFunctionExportMappingSchema = z.object({
+  enabled: z.boolean(),
+  variable_name: z.string().nullable(),
+})
+
 const notebookFunctionBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('notebook-function'),
@@ -195,8 +224,16 @@ const notebookFunctionBlockSchema = z.object({
   metadata: executableBlockMetadataSchema
     .extend({
       function_notebook_id: z.string().nullable(),
-      function_notebook_inputs: z.record(z.any()).optional(),
-      function_notebook_export_mappings: z.record(z.any()).optional(),
+      function_notebook_inputs: z.record(notebookFunctionInputSchema).optional(),
+      function_notebook_export_mappings: z.record(notebookFunctionExportMappingSchema).optional(),
+      /** Pipeline-only: run the step only when this condition holds. */
+      function_notebook_run_if: z.string().optional(),
+      /** Pipeline-only: the pipeline variable holding an array to run this step once per element of. */
+      function_notebook_for_each: z.string().optional(),
+      /** Pipeline-only: the name each `function_notebook_for_each` element is bound to. */
+      function_notebook_for_each_as: z.string().optional(),
+      /** Pipeline-only: return a failed result instead of failing the pipeline. */
+      function_notebook_allow_failure: z.boolean().optional(),
     })
     .default({ function_notebook_id: null }),
 })
@@ -442,6 +479,7 @@ export type AgentBlock = z.infer<typeof agentBlockSchema>
 export type CodeBlock = z.infer<typeof codeBlockSchema>
 export type SqlBlock = z.infer<typeof sqlBlockSchema>
 export type NotebookFunctionBlock = z.infer<typeof notebookFunctionBlockSchema>
+export type NotebookFunctionExportMapping = z.infer<typeof notebookFunctionExportMappingSchema>
 export type VisualizationBlock = z.infer<typeof visualizationBlockSchema>
 export type ButtonBlock = z.infer<typeof buttonBlockSchema>
 export type BigNumberBlock = z.infer<typeof bigNumberBlockSchema>
@@ -571,6 +609,8 @@ export const deepnoteFileSchema = z.object({
         executionMode: z.enum(['block', 'downstream']).optional(),
         id: z.string(),
         isModule: z.boolean().optional(),
+        /** Marks the one notebook whose `notebook-function` blocks define the project's pipeline. */
+        isPipeline: z.boolean().optional(),
         name: z.string(),
         workingDirectory: z.string().optional(),
       })

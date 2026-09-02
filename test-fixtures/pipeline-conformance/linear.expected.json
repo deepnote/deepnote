@@ -1,0 +1,35 @@
+{
+  "notebookId": "pipeline-notebook",
+  "notebookName": "Pipeline",
+  "steps": [
+    {
+      "id": "load",
+      "label": "load",
+      "notebookId": "nb-load",
+      "inputs": {},
+      "exports": {
+        "portfolio": "portfolio"
+      },
+      "forEachAs": "item",
+      "allowFailure": false,
+      "dependsOn": []
+    },
+    {
+      "id": "review",
+      "label": "review",
+      "notebookId": "nb-review",
+      "inputs": {
+        "portfolio_json": {
+          "variable_name": "portfolio"
+        }
+      },
+      "exports": {},
+      "forEachAs": "item",
+      "allowFailure": false,
+      "dependsOn": ["load"]
+    }
+  ],
+  "producedBy": {
+    "portfolio": "load"
+  }
+}

@@ -39,7 +39,7 @@ interface PipelineNodeDefinition {
   metadata?: Record<string, string | number | boolean | null>
 }
 
-/** One notebook invocation in an orchestration. */
+/** One notebook invocation in a pipeline. */
 export interface PipelineStep extends PipelineNodeDefinition {
   /** Unique within one pipeline, and attached to every event and result. */
   id: string

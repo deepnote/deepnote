@@ -1,0 +1,94 @@
+# Exercises the whole surface: a fan-out sized by data, a second fan-out over the first one's
+# collected exports with a per-element run_if, a fallback for a value that may never arrive, and a
+# plain gate at the end.
+metadata:
+  createdAt: '2026-08-27T00:00:00.000Z'
+project:
+  id: conformance-fan-out
+  name: Conformance - fan out and gate
+  notebooks:
+    - id: pipeline-notebook
+      name: Pipeline
+      isPipeline: true
+      blocks:
+        - blockGroup: g-load
+          id: load
+          sortingKey: a0
+          type: notebook-function
+          metadata:
+            name: Regions to analyze
+            function_notebook_id: nb-config
+            function_notebook_export_mappings:
+              regions:
+                enabled: true
+                variable_name: regions
+        # One run per region; `region` is the element, so it is not a dependency on anything.
+        - blockGroup: g-analyze
+          id: analyze
+          sortingKey: b0
+          type: notebook-function
+          metadata:
+            name: Regional analysis
+            function_notebook_id: nb-regional
+            function_notebook_for_each: regions
+            function_notebook_for_each_as: region
+            function_notebook_inputs:
+              region:
+                variable_name: region
+              trailing_months:
+                custom_value: '6'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: analyzed
+        # Iterates the previous fan-out's collected exports; the gate is evaluated per element.
+        - blockGroup: g-recover
+          id: recover
+          sortingKey: c0
+          type: notebook-function
+          metadata:
+            name: Recovery
+            function_notebook_id: nb-regional
+            function_notebook_for_each: analyzed
+            function_notebook_for_each_as: region
+            function_notebook_run_if: region.qualityScore < 0.95
+            function_notebook_inputs:
+              region:
+                variable_name: region
+              backfill_missing:
+                custom_value: 'true'
+            function_notebook_export_mappings:
+              region:
+                enabled: true
+                variable_name: recovered
+        - blockGroup: g-aggregate
+          id: aggregate
+          sortingKey: d0
+          type: notebook-function
+          metadata:
+            name: Aggregate
+            function_notebook_id: nb-aggregate
+            function_notebook_inputs:
+              regions_json:
+                variable_name: analyzed
+              recovered_json:
+                variable_name: recovered
+                fallback:
+                  custom_value: null
+            function_notebook_export_mappings:
+              portfolio:
+                enabled: true
+                variable_name: portfolio
+        - blockGroup: g-arbiter
+          id: arbiter
+          sortingKey: e0
+          type: notebook-function
+          metadata:
+            name: Final decision
+            function_notebook_id: nb-arbiter
+            function_notebook_run_if: portfolio.forecastK < portfolio.targetK
+            function_notebook_allow_failure: true
+            function_notebook_inputs:
+              context_json:
+                variable_name: portfolio
+version: '1.0.0'
