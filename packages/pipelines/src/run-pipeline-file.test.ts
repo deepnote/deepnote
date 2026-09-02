@@ -70,6 +70,8 @@ interface FakeRun {
   fail?: boolean
   /** Hold the run open this long, to observe concurrency. */
   delayMs?: number
+  /** Throw this from the executor instead of returning a result: a timeout, an API error. */
+  throws?: unknown
 }
 
 /** An executor that answers each step id with a canned result and records what it was asked to run. */
@@ -87,6 +89,9 @@ function fakeExecutor(runs: Record<string, FakeRun> = {}) {
       await new Promise(resolve => setTimeout(resolve, run.delayMs))
     }
     inFlight -= 1
+    if (run.throws !== undefined) {
+      throw run.throws
+    }
     const value = typeof run.json === 'function' ? run.json(inputs) : (run.json ?? {})
     return {
       id,
@@ -706,6 +711,54 @@ describe('when a step fails', () => {
     expect(result.value).toEqual({ portfolio: { total: 5 } })
     expect(fake.inputsOf('report')).toEqual({ total: 'unknown' })
     expect(result.graph.nodes.find(node => node.id === 'summarize')?.status).toBe('success')
+  })
+
+  it('collects from the other elements when one run of an allow_failure fan-out times out', async () => {
+    // Observed live: one cloud run hung, and after the poll timeout the whole pipeline rejected,
+    // discarding the work allow_failure was there to protect.
+    const timeout = Object.assign(new Error('Timed out waiting for Deepnote run run-eu to complete.'), {
+      name: 'RunTimeoutError',
+      runId: 'run-eu',
+    })
+    const events: PipelineEvent[] = []
+    const fake = fakeExecutor({
+      load: { json: { regions: ['NA', 'EU', 'APAC'] } },
+      'analyze[0]': { json: { score: 1 } },
+      'analyze[1]': { throws: timeout },
+      'analyze[2]': { json: { score: 3 } },
+      report: { json: { ok: true } },
+    })
+
+    const result = await runPipelineFileWithExecutor(
+      file([
+        step('load', 'nb-load', { sortingKey: 'a0', exports: exp('regions', 'regions') }),
+        step('analyze', 'nb-analyze', {
+          sortingKey: 'a1',
+          for_each: 'regions',
+          for_each_as: 'region',
+          inputs: { region: ref('region') },
+          exports: exp('score', 'scores'),
+          allow_failure: true,
+        }),
+        step('report', 'nb-report', { sortingKey: 'a2', inputs: { scores: ref('scores') } }),
+      ]),
+      { onEvent: event => events.push(event) },
+      fake.executor
+    )
+
+    expect(result.value.scores).toEqual([1, 3])
+    expect(result.failed).toEqual(['analyze'])
+    expect(fake.inputsOf('report')).toEqual({ scores: [1, 3] })
+    const timedOut = result.steps.find(step => step.id === 'analyze[1]')
+    expect(timedOut).toMatchObject({ success: false, status: 'timeout', runId: 'run-eu' })
+    expect(timedOut?.error).toContain('Timed out waiting for Deepnote run run-eu')
+    expect(result.graph.nodes.find(node => node.id === 'analyze[1]')).toMatchObject({
+      status: 'failed',
+      runId: 'run-eu',
+    })
+    const failedEvent = events.find(event => event.type === 'step_failed')
+    expect(failedEvent).toMatchObject({ type: 'step_failed', stepId: 'analyze[1]' })
+    expect((failedEvent as { result?: unknown }).result).toBe(timedOut)
   })
 
   it('collects only the readable elements of an allow_failure fan-out', async () => {
