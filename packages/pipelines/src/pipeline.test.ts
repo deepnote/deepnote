@@ -143,6 +143,28 @@ describe('runPipeline', () => {
     )
   })
 
+  it('sends a Date input as ISO 8601, which is what a date input block stores', async () => {
+    await runPipeline(
+      async ({ run }) => run({ id: 'a', notebookId: 'nb-a', inputs: { as_of: new Date('2026-03-01T09:30:00Z') } }),
+      { token: TOKEN }
+    )
+
+    expect(cloudMock.triggerNotebookRun).toHaveBeenCalledWith(
+      expect.anything(),
+      TOKEN,
+      { notebookId: 'nb-a', inputs: { as_of: '2026-03-01T09:30:00.000Z' } },
+      expect.anything()
+    )
+  })
+
+  it('refuses an invalid Date rather than sending "Invalid Date"', async () => {
+    await expect(
+      runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', inputs: { as_of: new Date('nope') } }), {
+        token: TOKEN,
+      })
+    ).rejects.toThrow('Input "as_of" is an invalid Date')
+  })
+
   it('refuses an input value the runs API has no representation for', async () => {
     await expect(
       runPipeline(async ({ run }) => run({ id: 'a', notebookId: 'nb-a', inputs: { portfolio: { total: 1 } } }), {

@@ -46,7 +46,8 @@ export interface CloudExecutorOptions {
  *
  * The API takes exactly `string | boolean | string[]`, so numbers are stringified here rather than
  * rejected — a pipeline computing `monthly_target_k` should not have to remember to call
- * `String()`. Anything without an unambiguous textual form is refused instead of guessed at.
+ * `String()` — and a `Date` is sent as ISO 8601, which is what a date input block stores. Anything
+ * without an unambiguous textual form is refused instead of guessed at.
  */
 export function toRunInputs(inputs: Record<string, unknown>): Record<string, RunInputValue> {
   const coerced: Record<string, RunInputValue> = {}
@@ -58,6 +59,11 @@ export function toRunInputs(inputs: Record<string, unknown>): Record<string, Run
         throw new Error(`Input "${name}" is ${String(value)}, which Deepnote cannot accept.`)
       }
       coerced[name] = String(value)
+    } else if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) {
+        throw new Error(`Input "${name}" is an invalid Date.`)
+      }
+      coerced[name] = value.toISOString()
     } else if (Array.isArray(value) && value.every(part => typeof part === 'string')) {
       coerced[name] = value as string[]
     } else if (value !== undefined && value !== null) {
