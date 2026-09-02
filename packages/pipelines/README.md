@@ -71,8 +71,11 @@ See [`examples/pipelines/script`](../../examples/pipelines/script).
 
 A failed notebook rejects the pipeline with `PipelineStepError` unless the step has
 `allowFailure: true`, in which case its failed result is returned and the callback decides what to
-do. Infrastructure failures — no credentials, an unknown notebook, an unreadable API response — are
-step errors too, attributed to the step that hit them.
+do. `allowFailure` covers every way a step can fail — a notebook that finished with an error status,
+a poll that timed out, a transport or API error, a run that produced no snapshot — and the returned
+result's `status` and `error` say which: `status` is Deepnote's run status when the notebook
+finished, `'timeout'` when the executor stopped waiting for it, and `'error'` otherwise. A timed-out
+run may still be executing in Deepnote; its `runId` is on the result.
 
 The rejection does not discard the run. Every error the engine throws carries `partial`: the `steps`
 that finished, in start order exactly as the success path returns them, the `graph` with each node's

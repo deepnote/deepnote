@@ -215,6 +215,122 @@ describe('runPipelineWithExecutor', () => {
     expect(result.graph.nodes[0].status).toBe('failed')
   })
 
+  describe('when the executor throws', () => {
+    /** An executor that throws for the named step and answers every other one normally. */
+    function throwingExecutor(stepId: string, error: unknown): PipelineStepExecutor {
+      const fallback = fakeExecutor()
+      return async execution => {
+        if (execution.id === stepId) {
+          throw error
+        }
+        return fallback(execution)
+      }
+    }
+
+    /** What `@deepnote/cloud` throws when it stops waiting for a run, without importing it. */
+    function timeoutError(runId: string): Error {
+      const error = new Error(`Timed out waiting for Deepnote run ${runId} to complete.`)
+      error.name = 'RunTimeoutError'
+      return Object.assign(error, { runId })
+    }
+
+    it('returns a synthesized failed result on an allowFailure step, and the run continues', async () => {
+      const events: PipelineEvent[] = []
+      const result = await runPipelineWithExecutor(
+        async ({ run }) => {
+          const a = await run({ id: 'a', notebookId: 'nb-a', allowFailure: true })
+          const b = await run({ id: 'b', notebookId: 'nb-b' })
+          return { a, b }
+        },
+        { onEvent: event => events.push(event) },
+        throwingExecutor('a', new Error('502 from the API'))
+      )
+
+      expect(result.value.a).toMatchObject({
+        id: 'a',
+        success: false,
+        status: 'error',
+        error: '502 from the API',
+        outputs: [],
+        snapshot: null,
+        snapshotYaml: null,
+        target: 'unknown',
+      })
+      expect(result.value.a.runId).toBeUndefined()
+      expect(result.value.a.startedAt).toBeTypeOf('string')
+      expect(result.value.a.finishedAt).toBeTypeOf('string')
+      expect(result.value.a.durationMs).toBeGreaterThanOrEqual(0)
+      expect(result.value.b.success).toBe(true)
+      expect(result.steps.map(step => [step.id, step.success])).toEqual([
+        ['a', false],
+        ['b', true],
+      ])
+      expect(result.graph.nodes.map(node => [node.id, node.status, node.error])).toEqual([
+        ['a', 'failed', '502 from the API'],
+        ['b', 'success', undefined],
+      ])
+
+      const failed = events.find(event => event.type === 'step_failed')
+      expect(failed).toMatchObject({ type: 'step_failed', stepId: 'a', error: '502 from the API' })
+      expect((failed as { result?: PipelineStepResult }).result).toBe(result.value.a)
+    })
+
+    it('reports a timeout as such, carrying the run id the error exposes', async () => {
+      const result = await runPipelineWithExecutor(
+        async ({ run }) => run({ id: 'a', notebookId: 'nb-a', allowFailure: true }),
+        {},
+        throwingExecutor('a', timeoutError('run-42'))
+      )
+
+      expect(result.value.success).toBe(false)
+      expect(result.value.status).toBe('timeout')
+      expect(result.value.runId).toBe('run-42')
+      expect(result.value.error).toContain('Timed out waiting for Deepnote run run-42')
+      expect(result.graph.nodes[0]).toMatchObject({ status: 'failed', runId: 'run-42' })
+    })
+
+    it('still rejects with a step error and the partial run when the step is not allowed to fail', async () => {
+      const events: PipelineEvent[] = []
+      const caught = await rejection(
+        runPipelineWithExecutor(
+          async ({ run }) => {
+            await run({ id: 'a', notebookId: 'nb-a' })
+            return run({ id: 'b', notebookId: 'nb-b', dependsOn: ['a'] })
+          },
+          { onEvent: event => events.push(event) },
+          throwingExecutor('b', timeoutError('run-7'))
+        )
+      )
+
+      expect(caught).toBeInstanceOf(PipelineStepError)
+      expect((caught as PipelineStepError).stepId).toBe('b')
+      expect((caught as PipelineStepError).result).toBeUndefined()
+      expect(caught.message).toContain('Pipeline step "b" failed: Timed out waiting for Deepnote run run-7')
+      const { partial } = caught as PipelineStepError
+      expect(partial?.steps.map(step => step.id)).toEqual(['a'])
+      expect(partial?.graph.nodes.map(node => [node.id, node.status, node.runId])).toEqual([
+        ['a', 'success', undefined],
+        ['b', 'failed', 'run-7'],
+      ])
+      const failed = events.find(event => event.type === 'step_failed')
+      expect(failed).toMatchObject({ type: 'step_failed', stepId: 'b' })
+      expect((failed as { result?: PipelineStepResult }).result).toBeUndefined()
+    })
+
+    it('lets a fan-out collect from the elements that did not throw', async () => {
+      const result = await runPipelineWithExecutor(
+        async ({ run }) =>
+          Promise.all(['a', 'b', 'c'].map(id => run({ id, notebookId: `nb-${id}`, allowFailure: true }))).then(steps =>
+            steps.filter(step => step.success).map(step => step.id)
+          ),
+        {},
+        throwingExecutor('b', timeoutError('run-b'))
+      )
+      expect(result.value).toEqual(['a', 'c'])
+      expect(result.steps.map(step => step.status)).toEqual(['success', 'timeout', 'success'])
+    })
+  })
+
   it('emits tagged events so concurrent steps stay distinguishable', async () => {
     const events: PipelineEvent[] = []
     await runPipelineWithExecutor(

@@ -53,10 +53,12 @@ export interface PipelineStep extends PipelineNodeDefinition {
   /** Input-block overrides. */
   inputs?: Record<string, unknown>
   /**
-   * Return a failed notebook run to the pipeline instead of throwing.
+   * Return a failed run to the pipeline instead of throwing.
    *
-   * Infrastructure failures still throw: missing credentials, an unknown notebook, or an API
-   * response that could not be read.
+   * Covers every way a step can fail: a notebook that finished with an error status, a poll that
+   * timed out, a transport or API error, a run that produced no snapshot. The returned result's
+   * `status` and `error` say which. A timed-out run may still be executing in Deepnote; its `runId`
+   * is on the result when the executor's error exposed one.
    */
   allowFailure?: boolean
 }
@@ -75,9 +77,15 @@ export interface PipelineControlNode extends PipelineNodeDefinition {
 /** The normalized result of one notebook run. */
 export interface PipelineStepResult {
   id: string
-  /** Where this ran, named by the executor. `'cloud'` for the built-in one. */
+  /** Where this ran, named by the executor. `'cloud'` for the built-in one; `'unknown'` when the executor threw. */
   target: string
   success: boolean
+  /**
+   * The run's final status as the executor reported it. The cloud executor passes Deepnote's run
+   * status through (`success`, `error`, `failed`, `cancelled`, …). Two more come from the engine when
+   * an `allowFailure` step's executor threw instead of returning: `timeout` when it stopped waiting
+   * for the run, `error` for anything else — a transport or API failure, a missing snapshot.
+   */
   status: string
   outputs: RunBlockOutput[]
   /** Raw `.deepnote` snapshot YAML, when the run produced one. */
@@ -379,9 +387,33 @@ export async function runPipelineWithExecutor<T>(
         throw error
       }
       const message = error instanceof Error ? error.message : String(error)
-      finishNode(node, 'failed', startedMs, { error: message })
-      emit({ type: 'step_failed', stepId: id, error: message })
-      throw new PipelineStepError(id, message, { cause: error })
+      const runId = runIdOf(error)
+      finishNode(node, 'failed', startedMs, { runId, error: message })
+      if (!step.allowFailure) {
+        emit({ type: 'step_failed', stepId: id, error: message })
+        throw new PipelineStepError(id, message, { cause: error })
+      }
+      // The step is allowed to fail, and a throw from the executor is a failure like any other — a
+      // fan-out with one hung run must still collect from the rest. Synthesize the result the
+      // executor could not return, so the caller sees the same shape as a finished-with-error run.
+      const result = finishResult(
+        {
+          id,
+          target: 'unknown',
+          success: false,
+          status: isTimeout(error) ? 'timeout' : 'error',
+          outputs: [],
+          snapshotYaml: null,
+          snapshot: null,
+          runId,
+          error: message,
+        },
+        startedMs,
+        startedAt
+      )
+      results.push(result)
+      emit({ type: 'step_failed', stepId: id, error: message, result })
+      return result
     }
   }
 
@@ -465,6 +497,19 @@ function createSemaphore(limit: number): () => Promise<() => void> {
     }
     return release
   }
+}
+
+/** Whether an executor's error means it stopped waiting for the run, as `RunTimeoutError` does. */
+function isTimeout(error: unknown): boolean {
+  return error instanceof Error && error.name === 'RunTimeoutError'
+}
+
+/** The run id an executor's error exposes, when it does — the cloud timeout error carries one. */
+function runIdOf(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'runId' in error && typeof error.runId === 'string') {
+    return error.runId
+  }
+  return undefined
 }
 
 function validateNodeId(id: string, usedIds: Set<string>): void {
