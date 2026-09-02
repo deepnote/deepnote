@@ -18,16 +18,16 @@ A file with no marked notebook, or with more than one, is rejected at plan time 
 
 **Metadata fields:**
 
-| Field                               | Type                            | Required | Description                                                                                         |
-| ----------------------------------- | ------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
-| `function_notebook_id`              | `string \| null`                | yes      | Id of the notebook this step runs. `null` is a plan-time error.                                     |
-| `function_notebook_inputs`          | `Record<string, Input>`         | no       | Input-block name → what to pass (see below).                                                        |
-| `function_notebook_export_mappings` | `Record<string, ExportMapping>` | no       | Field in the notebook's last JSON output → pipeline variable it publishes.                          |
-| `function_notebook_run_if`          | `string`                        | no       | Condition; the step runs only when it holds. Evaluated per element on a fan-out.                    |
-| `function_notebook_for_each`        | `string`                        | no       | Name of a pipeline variable holding an array. The step runs once per element, concurrently.         |
-| `function_notebook_for_each_as`     | `string`                        | no       | Name each element is bound to (default `item`). Usable as an input `variable_name` and in `run_if`. |
-| `function_notebook_allow_failure`   | `boolean`                       | no       | Return a failed run as a result instead of failing the pipeline (default `false`).                  |
-| `name`                              | `string`                        | no       | Display label; the block id is used when absent.                                                    |
+| Field                               | Type                            | Required | Description                                                                                                            |
+| ----------------------------------- | ------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `function_notebook_id`              | `string \| null`                | yes      | Id of the notebook this step runs. `null` is a plan-time error.                                                        |
+| `function_notebook_inputs`          | `Record<string, Input>`         | no       | Input-block name → what to pass (see below).                                                                           |
+| `function_notebook_export_mappings` | `Record<string, ExportMapping>` | no       | Field in the notebook's last JSON output → pipeline variable it publishes.                                             |
+| `function_notebook_run_if`          | `string`                        | no       | Condition; the step runs only when it holds. Evaluated per element on a fan-out.                                       |
+| `function_notebook_for_each`        | `string`                        | no       | Name of a pipeline variable holding an array. The step runs once per element, concurrently.                            |
+| `function_notebook_for_each_as`     | `string`                        | no       | Name each element is bound to (default `item`). Usable as an input `variable_name` and in `run_if`.                    |
+| `function_notebook_allow_failure`   | `boolean`                       | no       | Return a failed run as a result instead of failing the pipeline (default `false`). Covers timeouts and API errors too. |
+| `name`                              | `string`                        | no       | Display label; the block id is used when absent.                                                                       |
 
 **Input** (each value in `function_notebook_inputs`):
 
@@ -76,7 +76,7 @@ Comparison rule: when both operands are numbers or numeric strings they compare 
 - A step whose input (after its `fallback` chain) refers to a variable that never arrived is skipped. So is a `for_each` over such a variable. This is how a skip propagates downstream, and what `fallback` interrupts.
 - A fan-out over an empty array, or whose every element was gated off, is not skipped: it publishes empty arrays.
 - A `for_each` over something that is not an array, or over more than 50 elements, is a run-time error naming the step.
-- A failed run fails the pipeline unless `function_notebook_allow_failure` is `true`; then the failed result is returned, the step publishes nothing, and dependents fall back or are skipped. On a fan-out, exports collect from the elements that succeeded.
+- A failed run fails the pipeline unless `function_notebook_allow_failure` is `true`; then the failed result is returned, the step publishes nothing, and dependents fall back or are skipped. On a fan-out, exports collect from the elements that succeeded. `allow_failure` covers every way a step can fail — a notebook that finished with an error status, a poll that timed out, a transport or API error, a run that produced no snapshot — and the returned result's `status` (`timeout` when the runner stopped waiting, `error` for the rest, otherwise Deepnote's run status) and `error` say which. A timed-out run may still be executing in Deepnote; its `runId` is on the result.
 - A run that finishes but whose exports cannot be read — no JSON object ends its output, or the object lacks an exported key — counts as a failed step. With `allow_failure` it is listed in `failed`, publishes nothing, and emits no further event; on a fan-out only the readable elements are collected. Without `allow_failure` it fails the pipeline with a step error naming the step.
 
 When the pipeline fails, the run so far is not discarded. The error is a `PipelineStepError` (a step failed, or its exports could not be read) or a `PipelineRunError` (anything else the run threw, with the original error as `cause`), and both carry `partial`: the step results that finished in start order, the graph with each node's status, and `startedAt`, `finishedAt`, `durationMs`. The file runner also attaches `variables`, `skipped` and `failed` as they stood when the run stopped, so a caller can render every value that did arrive next to the step that stopped the run. A terminal step marked `allow_failure` therefore never fails the run: it resolves with every other variable present and the step in `failed`.

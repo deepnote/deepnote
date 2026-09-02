@@ -219,7 +219,9 @@ alternative, and it depends on every alternative, since which one wins is a run-
 By default a failed notebook fails the pipeline (`PipelineStepError`). With
 `function_notebook_allow_failure: true` the failed result is returned instead and the run continues;
 the step is listed in `result.failed`, publishes nothing, and dependents fall back or are skipped.
-On a fan-out, exports collect from the elements that succeeded.
+On a fan-out, exports collect from the elements that succeeded. This covers every way a step can
+fail — including a poll timeout or an API error — so one hung run in a fan-out does not discard the
+rest; the result's `status` and `error` say what happened, and a timed-out run's `runId` is on it.
 
 A run that finishes but whose exports cannot be read — no JSON object ends its output, or the object
 lacks an exported key — counts as a failed step too: under `allow_failure` it is listed in `failed`
