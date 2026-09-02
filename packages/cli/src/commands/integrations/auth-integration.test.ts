@@ -443,6 +443,31 @@ describe('auth-integration', () => {
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
     })
 
+    it.each([
+      ['a pasted https:// prefix', 'https://oauth.test-domain.example'],
+      ['a pasted http:// prefix', 'http://oauth.test-domain.example'],
+      ['a trailing path', 'oauth.test-domain.example/auth'],
+      ['embedded userinfo', 'user:pw@oauth.test-domain.example'],
+      ['a query string', 'oauth.test-domain.example?x=1'],
+    ])('rejects a --domain carrying %s, which new URL() reinterprets instead of refusing', async (_label, domain) => {
+      // Catches: a --domain that parses but does not mean what it says. "https://host" yields
+      // origin "https://https", and a path or userinfo is dropped from the origin — so the CLI
+      // would print and open a start URL nobody can answer, then blame Google when its own
+      // five-minute timeout expires.
+      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
+      await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
+
+      try {
+        await createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain }))
+        expect.fail('Should have thrown')
+      } catch (error) {
+        assert(error instanceof CommanderError)
+        expect(error.message).toContain('Invalid --domain')
+      }
+      expect(mockOpenInBrowser).not.toHaveBeenCalled()
+      expect(mockOutput.mock.calls.some(c => String(c[0]).includes('Open this URL'))).toBe(false)
+    })
+
     it('rejects a credential field written blank in the document, naming the field', async () => {
       // Distinct from the `env:` cases above: no reference is involved, so the walker never sees it.
       // Google answers a blank clientSecret with invalid_client, but only after the user consents.

@@ -58,11 +58,16 @@ export class BlankEnvVarError extends Error {
  * `redirect_uri_mismatch`, after the user has already consented.
  */
 function resolveProxyOrigin(domain: string): string {
+  let url: URL
   try {
-    return new URL(`https://${domain}`).origin
+    url = new URL(`https://${domain}`)
   } catch {
     throw new Error(`Invalid --domain "${domain}": expected a hostname such as "deepnote.com".`)
   }
+  if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error(`Invalid --domain "${domain}": expected a hostname such as "deepnote.com".`)
+  }
+  return url.origin
 }
 
 /** A credential field that is present but blank — written empty in the document, not via `env:`. */
@@ -280,7 +285,7 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
       // Always shown, --quiet included: this URL is the only way to proceed in a headless
       // session or when the browser fails to open, and the auto-open below is never awaited.
       output(`Open this URL to continue in your browser:\n\n  ${startUrl.toString()}\n`)
-      void openInBrowser(startUrl.toString()).catch((error: unknown) => {
+      openInBrowser(startUrl.toString()).catch((error: unknown) => {
         warn(`Could not open the browser automatically: ${error instanceof Error ? error.message : String(error)}`)
       })
     },
