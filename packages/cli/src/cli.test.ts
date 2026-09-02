@@ -196,6 +196,16 @@ describe('CLI', () => {
       )
       expect(output).toContain("'--push[Push the local .deepnote blocks to the Deepnote notebook before running]'")
       expect(output).toContain("'--yes[Skip the --push confirmation prompt]'")
+      // Catches: the subcommand list going unreachable again (it needs argument 1, not 2, because
+      // the outer '*:: :->args' re-bases $words), and the integrations option list collapsing back
+      // into one shared branch that offers `auth`-only --domain to `pull`, where commander
+      // rejects it.
+      expect(output).toContain("'1: :->subcommand'")
+      expect(output).toContain('case $words[1] in')
+      const integrationsArgs = output.slice(output.indexOf('case $words[1] in'))
+      const [authBranch, defaultBranch] = integrationsArgs.split('*)')
+      expect(authBranch).toContain("'--domain[Deepnote domain]:domain:'")
+      expect(defaultBranch.slice(0, defaultBranch.indexOf('esac'))).not.toContain('--domain')
       consoleSpy.mockRestore()
     })
 

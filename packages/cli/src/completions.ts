@@ -499,20 +499,32 @@ ${commandEntries}
                         'pull:Pull integrations from Deepnote API and merge with local file'
                         'auth:Authenticate a big-query integration using Google OAuth'
                     )
+                    # The outer '*:: :->args' re-bases $words, so the subcommand is argument 1 here, not 2.
                     _arguments \\
-                        '2: :->subcommand' \\
+                        '1: :->subcommand' \\
                         '*:: :->args'
                     case $state in
                         subcommand)
                             _describe -t subcommands 'integrations subcommands' subcommands
                             ;;
                         args)
-                            _arguments \\
-                                '--url[API base URL]:url:' \\
-                                '--token[Bearer token for authentication]:token:' \\
-                                '--file[Path to integrations file]:file path:_files' \\
-                                '--env-file[Path to .env file for storing secrets]:env file path:_files' \\
-                                '--domain[Deepnote domain]:domain:'
+                            case $words[1] in
+                                auth)
+                                    _arguments \\
+                                        '--url[API base URL]:url:' \\
+                                        '--token[Bearer token for authentication]:token:' \\
+                                        '--file[Path to integrations file]:file path:_files' \\
+                                        '--env-file[Path to .env file for storing secrets]:env file path:_files' \\
+                                        '--domain[Deepnote domain]:domain:'
+                                    ;;
+                                *)
+                                    _arguments \\
+                                        '--url[API base URL]:url:' \\
+                                        '--token[Bearer token for authentication]:token:' \\
+                                        '--file[Path to integrations file]:file path:_files' \\
+                                        '--env-file[Path to .env file for storing secrets]:env file path:_files'
+                                    ;;
+                            esac
                             ;;
                     esac
                     ;;
