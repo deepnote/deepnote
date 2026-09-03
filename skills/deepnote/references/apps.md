@@ -58,6 +58,10 @@ deepnote publish ./dist --project-id <uuid>
 stale ones, enables website sharing, and prints the canonical URL. Use that returned URL — never
 assemble a static-site URL by hand.
 
+The site serves like a regular web server: the site URL's root serves `index.html`, a path ending in
+`/` serves that directory's `index.html`, and every other file is served at its own path
+(`about.html` → `<site URL>/about.html`; `/about` is not rewritten to it).
+
 Publishing and access are separate operations. To stop serving a site without deleting its files,
 run `deepnote static-site access --project-id <uuid> --sharing disabled`. Re-enable it later with
 `--sharing enabled`; use `--api-access enabled|disabled` to change viewer API access without
