@@ -11,8 +11,6 @@
  * disambiguated deterministically when project directories overlap.
  */
 
-import path from 'node:path'
-
 /** Windows device names that shadow real files regardless of extension. */
 const RESERVED_SEGMENT = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
 
@@ -86,7 +84,7 @@ function buildDir(project: PlannableProject, dirName: string): string {
 
 /** Returns the root-relative working-file mirror for `projectDir`. */
 export function projectFilesDir(projectDir: string): string {
-  return path.join(projectDir, PROJECT_FILES_DIR_NAME)
+  return `${projectDir}/${PROJECT_FILES_DIR_NAME}`
 }
 
 export function pathsOverlap(left: string, right: string): boolean {
