@@ -9,10 +9,9 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import type { Command } from 'commander'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError, warn } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import {
   findDivergedPublishPaths,
   type PublishMirror,
@@ -118,7 +117,7 @@ function errorMessage(error: unknown): string {
 export function createPublishAction(program: Command) {
   return async (dir: string, options: PublishOptions) => {
     const c = getChalk()
-    const token = options.token || process.env[DEEPNOTE_TOKEN_ENV]
+    const token = resolveToken(options.token)
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
       // unhandled rejection rather than the documented exit code.

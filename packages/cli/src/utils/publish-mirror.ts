@@ -65,7 +65,13 @@ export async function resolvePublishMirror(args: {
     return undefined
   }
 
-  const manifest = await loadSyncManifest(rootDir)
+  let manifest: SyncManifest
+  try {
+    manifest = await loadSyncManifest(rootDir)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new PublishMirrorError(`${message} Pass --no-sync-root to publish without updating the workspace.`)
+  }
   const record = manifest.projects[projectId]
   if (!record) {
     if (explicitRoot !== undefined) {
@@ -80,6 +86,13 @@ export async function resolvePublishMirror(args: {
   // Creating this directory would make sync interpret every notebook as locally deleted.
   const projectDirAbsolute = path.join(rootDir, ...record.dir.split('/'))
   if (!(await directoryExists(projectDirAbsolute))) {
+    if (explicitRoot !== undefined) {
+      throw new PublishMirrorError(
+        `The sync manifest at ${path.join(explicitRoot, SYNC_MANIFEST_FILENAME)} tracks project ${projectId} ` +
+          `in ${record.dir}, but that directory does not exist. ` +
+          'Sync the workspace first, or pass --no-sync-root to publish without updating it.'
+      )
+    }
     debug(`Not updating the sync mirror: ${projectDirAbsolute} does not exist`)
     return undefined
   }
@@ -114,6 +127,21 @@ export function findDivergedPublishPaths(
     .sort((a, b) => a.localeCompare(b))
 }
 
+/** A path publish just wrote or pruned is no longer a sync upload awaiting retry; a stale entry
+ * would make the next sync fail on (or silently redo) a replacement publish already settled. */
+function clearPendingUpload(mirror: PublishMirror, filePath: string): void {
+  const pending = mirror.record.pendingFileUploads
+  if (!pending?.includes(filePath)) {
+    return
+  }
+  const remaining = pending.filter(pendingPath => pendingPath !== filePath)
+  if (remaining.length > 0) {
+    mirror.record.pendingFileUploads = remaining
+  } else {
+    delete mirror.record.pendingFileUploads
+  }
+}
+
 async function assertWritableMirrorPath(mirror: PublishMirror, filePath: string): Promise<void> {
   if (!isSafeRelativeFilePath(filePath)) {
     throw new PublishMirrorError(`Refusing to mirror unsafe path "${filePath}"`)
@@ -138,6 +166,7 @@ export async function recordPublishedFile(
     hash: sha256(content),
     ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}),
   }
+  clearPendingUpload(mirror, filePath)
 }
 
 /** Removes a pruned file from the sync mirror and manifest. */
@@ -147,6 +176,7 @@ export async function recordPrunedFile(mirror: PublishMirror, filePath: string):
   if (mirror.record.files) {
     delete mirror.record.files[filePath]
   }
+  clearPendingUpload(mirror, filePath)
 }
 
 export async function savePublishMirror(mirror: PublishMirror): Promise<void> {

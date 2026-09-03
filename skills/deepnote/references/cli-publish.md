@@ -70,7 +70,9 @@ Unless `--no-sync-root` is given, publish searches upwards from `<dir>` for a `.
 writes each published file into that project's `.files/` mirror and records its size, content hash,
 and server `updatedAt` in the manifest, exactly as a sync download would. The manifest, the mirror,
 and Deepnote then agree, so the next sync treats the deploy as already in step rather than
-re-downloading the whole site. `--prune` also removes the pruned paths from the mirror and manifest,
+re-downloading the whole site. A server that does not echo `updatedAt` on upload leaves those
+baselines unverifiable until the next pull — the divergence stop does not cover such paths, and the
+next pull re-downloads them once. `--prune` also removes the pruned paths from the mirror and manifest,
 so a later push cannot resurrect them.
 
 Before writing anything, publish compares the inventory it already fetched against the manifest
@@ -115,7 +117,9 @@ deepnote static-site access --project-id <uuid> --sharing disabled
 Exit code 0 means uploads and the sharing update succeeded. Exit code 1 means a project lookup,
 upload, optional prune, or sharing update failed, or that Deepnote holds changes the sync workspace
 has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid local directory, or
-a `--sync-root` that has no manifest or does not track the project.
+a `--sync-root` that has no manifest, does not track the project, or whose tracked project
+directory is missing, or a sync manifest that exists but cannot be read (pass `--no-sync-root` to
+publish without it).
 
 For `static-site access`, exit code 0 means the settings update succeeded, exit code 1 means the
 project settings request failed, and exit code 2 means invalid arguments, a missing token, no

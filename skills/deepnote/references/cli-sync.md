@@ -91,8 +91,10 @@ writing, and a file whose cloud copy changed or was deleted since the manifest r
 same `--on-conflict` override-or-skip path as a diverged notebook rather than being overwritten.
 Skipped files appear as `N file(s) kept from Deepnote` in the summary and as `filesSkipped` in
 `-o json`. A pending replacement is exempt — the missing cloud copy there is sync's own unfinished
-delete. A record written before `updatedAt` was tracked has no baseline to compare and is still
-overwritten; the next pull or push makes it verifiable.
+delete. A pending path whose cloud copy exists again was re-created by another writer, so it is a
+conflict, not a retry. A record written before `updatedAt` was tracked has no baseline to compare
+and is still overwritten; the next pull makes it verifiable (a push does too when the server echoes
+upload timestamps).
 
 ## Boundaries
 

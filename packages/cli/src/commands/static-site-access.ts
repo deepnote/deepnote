@@ -1,9 +1,8 @@
 import { type ProjectStaticFilesUpdate, updateProjectStaticFiles } from '@deepnote/cloud'
 import type { Command } from 'commander'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 
 export interface StaticSiteAccessOptions {
   projectId: string
@@ -34,7 +33,7 @@ function requestedUpdate(options: StaticSiteAccessOptions): ProjectStaticFilesUp
 
 export function createStaticSiteAccessAction(program: Command) {
   return async (options: StaticSiteAccessOptions) => {
-    const token = options.token?.trim() || process.env[DEEPNOTE_TOKEN_ENV]?.trim()
+    const token = resolveToken(options.token)
     if (!token) {
       program.error(new MissingTokenError().message, { exitCode: ExitCode.InvalidUsage })
       return

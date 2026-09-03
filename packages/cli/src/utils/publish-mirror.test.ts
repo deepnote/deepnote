@@ -3,7 +3,13 @@ import os from 'node:os'
 import path from 'node:path'
 import type { ProjectFileEntry } from '@deepnote/cloud'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { findDivergedPublishPaths, type PublishMirror, resolvePublishMirror } from './publish-mirror'
+import {
+  findDivergedPublishPaths,
+  type PublishMirror,
+  recordPrunedFile,
+  recordPublishedFile,
+  resolvePublishMirror,
+} from './publish-mirror'
 import type { ManifestFileRecord } from './sync-manifest'
 
 let tempDir: string
@@ -16,14 +22,24 @@ afterEach(async () => {
   await fs.rm(tempDir, { recursive: true, force: true })
 })
 
-async function writeManifest(rootDir: string, files?: Record<string, ManifestFileRecord>): Promise<void> {
+async function writeManifest(
+  rootDir: string,
+  files?: Record<string, ManifestFileRecord>,
+  pendingFileUploads?: string[]
+): Promise<void> {
   await fs.mkdir(path.join(rootDir, 'Alpha'), { recursive: true })
   await fs.writeFile(
     path.join(rootDir, '.deepnote-sync.json'),
     JSON.stringify({
       version: 1,
       projects: {
-        p1: { dir: 'Alpha', notebooks: ['main.deepnote'], contentHash: '0'.repeat(64), ...(files ? { files } : {}) },
+        p1: {
+          dir: 'Alpha',
+          notebooks: ['main.deepnote'],
+          contentHash: '0'.repeat(64),
+          ...(files ? { files } : {}),
+          ...(pendingFileUploads ? { pendingFileUploads } : {}),
+        },
       },
     })
   )
@@ -129,5 +145,55 @@ describe('resolvePublishMirror', () => {
     await expect(resolvePublishMirror({ syncRoot: tempDir, publishDir: tempDir, projectId: 'p2' })).rejects.toThrow(
       'does not track project p2'
     )
+  })
+
+  it('rejects an explicit root whose tracked project directory is missing', async () => {
+    await writeManifest(tempDir)
+    await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true, force: true })
+
+    await expect(resolvePublishMirror({ syncRoot: tempDir, publishDir: tempDir, projectId: 'p1' })).rejects.toThrow(
+      'that directory does not exist'
+    )
+  })
+
+  it('rejects an unreadable manifest, pointing at --no-sync-root', async () => {
+    await fs.writeFile(path.join(tempDir, '.deepnote-sync.json'), '{not json')
+
+    await expect(resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })).rejects.toThrow(
+      '--no-sync-root'
+    )
+  })
+})
+
+describe('pending upload bookkeeping', () => {
+  async function resolveMirror(): Promise<PublishMirror> {
+    const mirror = await resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })
+    if (!mirror) {
+      throw new Error('expected a mirror')
+    }
+    return mirror
+  }
+
+  it('clears a pending upload when publish replaces the path', async () => {
+    await writeManifest(tempDir, undefined, ['f', 'other.txt'])
+    const mirror = await resolveMirror()
+
+    await recordPublishedFile(mirror, 'f', Buffer.from('new'), {
+      path: 'f',
+      size: 3,
+      updatedAt: '2026-01-05T00:00:00.000Z',
+    })
+
+    expect(mirror.record.pendingFileUploads).toEqual(['other.txt'])
+  })
+
+  it('drops the pending list entirely when publish prunes its last path', async () => {
+    await writeManifest(tempDir, { f: { size: 3, hash: 'a'.repeat(64) } }, ['f'])
+    const mirror = await resolveMirror()
+
+    await recordPrunedFile(mirror, 'f')
+
+    expect(mirror.record.pendingFileUploads).toBeUndefined()
+    expect(mirror.record.files).toEqual({})
   })
 })

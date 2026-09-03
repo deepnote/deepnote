@@ -47,6 +47,14 @@ function run(...args: string[]) {
 }
 
 describe('deepnote publish', () => {
+  it('trims whitespace from a pasted token', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
+
+    await run(tempDir, '--project-id', 'p1', '--token', ' tok ', '-q')
+
+    expect(mockedGetProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1')
+  })
+
   it('replaces every file and enables sharing only after all uploads finish', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
     await fs.mkdir(join(tempDir, 'css'))
@@ -581,6 +589,35 @@ describe('deepnote publish', () => {
       await expect(
         run(buildDir, '--project-id', 'p1', '--token', 'tok', '--sync-root', join(tempDir, 'Alpha'))
       ).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('exits with code 2 when --sync-root tracks the project in a directory that is gone', async () => {
+      await writeManifest(tempDir)
+      const buildDir = await writeBuild(tempDir)
+      await fs.rm(join(tempDir, 'Alpha'), { recursive: true, force: true })
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run(buildDir, '--project-id', 'p1', '--token', 'tok', '--sync-root', tempDir)).rejects.toThrow(
+        'exit'
+      )
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedUpload).not.toHaveBeenCalled()
+    })
+
+    it('exits with code 2 when a discovered manifest cannot be read', async () => {
+      const buildDir = await writeBuild(tempDir)
+      await fs.writeFile(join(tempDir, '.deepnote-sync.json'), '{not json')
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run(buildDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
 
       expect(exitSpy).toHaveBeenCalledWith(2)
       expect(mockedGetProject).not.toHaveBeenCalled()

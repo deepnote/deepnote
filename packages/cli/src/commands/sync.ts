@@ -20,10 +20,9 @@ import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-
 import { select } from '@inquirer/prompts'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import { isErrnoENOENT } from '../utils/file-resolver'
 import {
   assertNoSymbolicLinkAncestors,
@@ -125,11 +124,6 @@ function assertBufferedProjectFileSize(filePath: string, size: number): void {
 export function canonicalProjectHash(files: readonly ExportedNotebookFile[]): string {
   const parts = files.map(file => `${file.filename}\n${sha256(file.content)}`).sort()
   return sha256(parts.join('\n'))
-}
-
-function normalizeToken(value: string | undefined): string | undefined {
-  const trimmed = value?.trim()
-  return trimmed ? trimmed : undefined
 }
 
 /** Parse a `.deepnote` document without validating it — sync must not fail because the server
@@ -567,8 +561,15 @@ async function uploadProjectFiles(
     if (!isPending && prev && prev.size === stats.size && prev.hash === hash) {
       continue
     }
-    // A pending replacement belongs to this sync, so retry it without a conflict.
-    const conflict = isPending ? undefined : describeCloudFileDivergence(prev, inventory.get(relPath))
+    // A pending replacement belongs to this sync, so retry it without a conflict — unless the
+    // cloud copy exists again, which disproves "our own unfinished delete": another writer (or a
+    // run interrupted after its upload) put it there, and overwriting that needs a choice.
+    const remote = inventory.get(relPath)
+    const conflict = isPending
+      ? remote !== undefined
+        ? 'was re-created in Deepnote after an interrupted upload'
+        : undefined
+      : describeCloudFileDivergence(prev, remote)
     planned.push({ relPath, ...(conflict ? { conflict } : {}) })
   }
 
@@ -588,7 +589,8 @@ async function uploadProjectFiles(
     if (!overrideConflicts) {
       warn(
         `Kept the Deepnote copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
-          `"${project.name}": ${summary}. Pull to bring them down before pushing again.`
+          `"${project.name}": ${summary}. To accept the Deepnote versions, pull — this replaces your ` +
+          'local copies. To keep yours, push again and choose to overwrite.'
       )
     }
   }
@@ -824,7 +826,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
 
   // Load .env from the sync root before reading the token — mirrors `run --cloud`.
   dotenv.config({ path: path.join(rootDir, DEFAULT_ENV_FILE), quiet: true })
-  const token = normalizeToken(options.token) ?? normalizeToken(process.env[DEEPNOTE_TOKEN_ENV])
+  const token = resolveToken(options.token)
   if (!token) {
     throw new MissingTokenError()
   }
