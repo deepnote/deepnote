@@ -599,8 +599,7 @@ ${c.bold('Working with deepnote sync:')}
 
   If files below ${c.dim('--path')} changed in Deepnote since the workspace last recorded them
   (an ${c.dim('--all-files')} sync or an earlier publish), publish stops rather than destroying
-  content the mirror does not hold — pull first, or pass ${c.dim('--force')}. Files without a usable
-  baseline (one carrying the server's timestamp) get a warning instead of the check.
+  content the mirror does not hold — pull first, or pass ${c.dim('--force')}.
   Use ${c.dim('--no-sync-root')} for a deploy that should ignore any workspace.
 
 ${c.bold('Examples:')}

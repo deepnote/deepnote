@@ -559,10 +559,8 @@ mirrors, so both commands write it. They share one baseline rather than dividing
   download would. Afterwards the manifest, the mirror, and Deepnote agree, so sync sees the deploy
   as already in step instead of re-downloading the whole site on its next run.
 - If files below `--path` changed in Deepnote since the workspace last recorded them (an
-  `--all-files` sync, or an earlier publish on a server that echoes upload timestamps), publish
-  stops instead of destroying content the mirror does not hold. Pull first, or pass `--force`. Files
-  without such a baseline only get a warning — sync with `--all-files` once to make the check
-  effective.
+  `--all-files` sync or an earlier publish), publish stops instead of destroying content the mirror
+  does not hold. Pull first, or pass `--force`.
 - `--prune` also drops the pruned files from the mirror, so a later push cannot resurrect them.
 - `--no-sync-root` skips all of this — the right choice for a CI deploy. Sync stays safe either way:
   it checks every file against Deepnote before pushing and asks before overwriting a newer copy.

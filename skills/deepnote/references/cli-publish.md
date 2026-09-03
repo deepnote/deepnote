@@ -82,9 +82,8 @@ Run `deepnote sync --all-files` to bring it down, or pass `--force` to overwrite
 Deepnote is not a stop: the deploy re-creates it from the build, and nothing is lost. Only an entry
 recorded with the server's `updatedAt` is a usable baseline: `--all-files` syncs always record one,
 publishes only when the server echoes it. A path without one is not flagged — the normal state of a
-static root written by earlier publishes — and publish instead warns, per file, that it will be
-replaced or pruned unchecked. A failure to update the mirror is a warning, not an error — the deploy already
-succeeded, and the next sync detects the divergence and asks.
+static root written by earlier publishes. A failure to update the mirror is a warning, not an error —
+the deploy already succeeded, and the next sync detects the divergence and asks.
 
 The mirror is only updated when the tracked project's local directory already exists. Creating it
 would make the next sync read the project as "every notebook was deleted locally" and push that, so
