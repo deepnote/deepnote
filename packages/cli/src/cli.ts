@@ -587,6 +587,16 @@ ${c.bold('Description:')}
   Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
   after every upload succeeds. API access is left unchanged unless explicitly set.
 
+${c.bold('Embedded API access:')}
+  A published app runs embedded in Deepnote and is handed a short-lived, viewer-scoped
+  token — not your personal token. That token may read the configured notebook, start a
+  run, and poll that run by id. Notebook discovery and run-history enumeration are not
+  part of its surface.
+
+  This matters when testing: a local preview driven by a personal token can call
+  endpoints the embedded app cannot. Those code paths do not error once embedded, they
+  simply do nothing, so build the feature expecting the narrower surface.
+
 ${c.bold('Examples:')}
   ${c.dim('# Publish a build directory to a project')}
   $ deepnote publish ./dist --project-id 0f1e2d3c-4b5a-6789-abcd-ef0123456789

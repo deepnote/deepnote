@@ -190,6 +190,44 @@ describe('deepnote publish', () => {
     })
   })
 
+  it.each([
+    [true, true],
+    [false, false],
+  ])('warns about the narrower embedded token only when API access ends up enabled (%s)', async (enabled, warned) => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedUpdateProject.mockResolvedValue({
+      sharingEnabled: true,
+      apiAccessEnabled: enabled,
+      url: 'https://static-p1.example.com/',
+    })
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', enabled ? 'enabled' : 'disabled')
+    spy.mockRestore()
+
+    const output = logged.join('\n')
+    expect(output).toContain(`API access: ${enabled ? 'enabled' : 'disabled'}`)
+    expect(output.includes('viewer-scoped token')).toBe(warned)
+    expect(output.includes('run-history enumeration')).toBe(warned)
+  })
+
+  it('stays quiet about the embedded token in quiet mode even with API access enabled', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedUpdateProject.mockResolvedValue({
+      sharingEnabled: true,
+      apiAccessEnabled: true,
+      url: 'https://static-p1.example.com/',
+    })
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', 'enabled', '-q')
+    spy.mockRestore()
+
+    expect(logged.join('\n')).not.toContain('viewer-scoped token')
+  })
+
   it('prunes only stale files below the selected target', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
