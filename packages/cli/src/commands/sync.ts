@@ -606,8 +606,22 @@ async function uploadProjectFiles(
     }
   }
 
+  const commitPending = () => {
+    if (pending.size > 0) {
+      record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
+    } else {
+      delete record.pendingFileUploads
+    }
+  }
+
   for (const { relPath, conflict } of planned) {
     if (conflict !== undefined && !overrideConflicts) {
+      // A kept re-created cloud copy is no longer ours to finish replacing. Dropping the retry turns
+      // the path back into an ordinary diverged file: pull brings the cloud copy down, push asks again.
+      if (!ctx.dryRun && pending.delete(relPath)) {
+        commitPending()
+        await persistManifest()
+      }
       continue
     }
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
@@ -619,7 +633,7 @@ async function uploadProjectFiles(
     if (!ctx.dryRun) {
       if (!pending.has(relPath)) {
         pending.add(relPath)
-        record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
+        commitPending()
         await persistManifest()
       }
       await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
@@ -634,11 +648,11 @@ async function uploadProjectFiles(
         ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}),
       }
       pending.delete(relPath)
-      if (pending.size > 0) {
-        record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
-      } else {
-        delete record.pendingFileUploads
-      }
+      commitPending()
+      // Settle the baseline on disk now: a run interrupted later must not leave this upload
+      // recorded as still pending, which the next sync would read as a re-created conflict.
+      record.files = next
+      await persistManifest()
     } else {
       next[relPath] = { size: bytes.length, hash }
     }

@@ -5,7 +5,7 @@ import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
-import { loadSyncManifest } from '../utils/sync-manifest'
+import { loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
 import {
   canonicalProjectHash,
   classifySyncStep,
@@ -998,6 +998,45 @@ describe('syncWorkspace', () => {
       consoleErrorSpy.mockRestore()
     })
 
+    it('lets a kept re-created conflict fall back to ordinary sync instead of sticking', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          files: [{ path: 'report.csv', size: 4, updatedAt: '2026-01-09T00:00:00.000Z', content: 'mine' }],
+        },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      // A run interrupted after its own upload landed but before the manifest was saved leaves the
+      // path pending against an older baseline, with the cloud copy being ours.
+      const manifest = await loadSyncManifest(tempDir)
+      const p1 = manifest.projects.p1
+      if (!p1) {
+        throw new Error('expected project p1 in the manifest')
+      }
+      p1.pendingFileUploads = ['report.csv']
+      p1.files = { ...p1.files, 'report.csv': { size: 3, hash: 'a'.repeat(64), updatedAt: '2026-01-01T00:00:00.000Z' } }
+      await saveSyncManifest(tempDir, manifest)
+      const uploadsBefore = cloud.uploadedPaths.length
+
+      const kept = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
+
+      expect(kept.projects).toEqual([expect.objectContaining({ filesSkipped: 1 })])
+      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
+
+      // With the retry dropped, the next run is an ordinary pull: the cloud copy comes down.
+      const recovered = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
+
+      expect(recovered.projects).toEqual([expect.objectContaining({ action: 'unchanged', filesDownloaded: 1 })])
+      expect(recovered.projects[0].filesSkipped).toBeUndefined()
+      expect(cloud.uploadedPaths.length).toEqual(uploadsBefore)
+      consoleErrorSpy.mockRestore()
+    })
+
     it('treats a pending path re-created in the cloud as a conflict, not a retry', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const projects: CloudProject[] = [
@@ -1031,8 +1070,9 @@ describe('syncWorkspace', () => {
 
       expect(retried.projects).toEqual([expect.objectContaining({ filesUploaded: 0, filesSkipped: 1 })])
       expect(cloud.uploadedPaths.length).toEqual(uploadsBeforeRetry)
-      // Still pending, so the choice comes back next run instead of being forgotten.
-      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['report.csv'])
+      // Keeping the cloud copy ends the retry: the path is an ordinary diverged file from here on,
+      // so the next pull can bring the cloud copy down instead of the conflict re-raising forever.
+      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
       consoleErrorSpy.mockRestore()
     })
   })
