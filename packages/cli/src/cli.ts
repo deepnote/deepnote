@@ -597,9 +597,11 @@ ${c.bold('Working with deepnote sync:')}
   directory sits inside a synced workspace, publish updates that workspace's mirror and
   manifest too, so sync sees the deploy as already in step instead of as drift.
 
-  If files below ${c.dim('--path')} changed in Deepnote since that workspace last synced, publish
-  stops rather than destroying content the mirror does not hold — pull first, or pass
-  ${c.dim('--force')}. Use ${c.dim('--no-sync-root')} for a deploy that should ignore any workspace.
+  If files below ${c.dim('--path')} changed in Deepnote since the workspace last recorded them
+  (an ${c.dim('--all-files')} sync or an earlier publish), publish stops rather than destroying
+  content the mirror does not hold — pull first, or pass ${c.dim('--force')}. A workspace with no
+  file baselines gets a warning instead: the check has nothing to compare against there.
+  Use ${c.dim('--no-sync-root')} for a deploy that should ignore any workspace.
 
 ${c.bold('Examples:')}
   ${c.dim('# Publish a build directory to a project')}

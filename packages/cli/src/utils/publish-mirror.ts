@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { ProjectFileEntry, UploadedFile } from '@deepnote/cloud'
@@ -6,6 +5,7 @@ import { debug } from '../output'
 import { isErrnoENOENT } from './file-resolver'
 import {
   assertNoSymbolicLinkAncestors,
+  baselineDiverged,
   findSyncManifestRoot,
   hasSyncManifest,
   loadSyncManifest,
@@ -13,6 +13,7 @@ import {
   SYNC_MANIFEST_FILENAME,
   type SyncManifest,
   saveSyncManifest,
+  sha256,
 } from './sync-manifest'
 import { isSafeRelativeFilePath, projectFilesDir } from './sync-paths'
 
@@ -31,10 +32,6 @@ export type SyncRootOption = string | boolean | undefined
 
 export class PublishMirrorError extends Error {}
 
-function sha256(content: Uint8Array): string {
-  return crypto.createHash('sha256').update(content).digest('hex')
-}
-
 async function directoryExists(absolutePath: string): Promise<boolean> {
   try {
     return (await fs.stat(absolutePath)).isDirectory()
@@ -46,16 +43,34 @@ async function directoryExists(absolutePath: string): Promise<boolean> {
   }
 }
 
-/** Resolves the sync workspace to update. An invalid explicit root throws. */
+/** Resolves the sync workspace to update. An invalid explicit root throws {@link PublishMirrorError};
+ * so does any workspace that exists but cannot be used (unreadable or symlinked manifest), with a
+ * pointer at `--no-sync-root`, since publish maps that error class to the invalid-usage exit code. */
 export async function resolvePublishMirror(args: {
   syncRoot: SyncRootOption
   publishDir: string
   projectId: string
 }): Promise<PublishMirror | undefined> {
-  const { syncRoot, publishDir, projectId } = args
-  if (syncRoot === false) {
+  if (args.syncRoot === false) {
     return undefined
   }
+  try {
+    return await locateMirror(args)
+  } catch (error) {
+    if (error instanceof PublishMirrorError) {
+      throw error
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    throw new PublishMirrorError(`${message} Pass --no-sync-root to publish without updating the workspace.`)
+  }
+}
+
+async function locateMirror(args: {
+  syncRoot: SyncRootOption
+  publishDir: string
+  projectId: string
+}): Promise<PublishMirror | undefined> {
+  const { syncRoot, publishDir, projectId } = args
   const explicitRoot = typeof syncRoot === 'string' ? path.resolve(syncRoot) : undefined
   if (explicitRoot !== undefined && !(await hasSyncManifest(explicitRoot))) {
     throw new PublishMirrorError(`No ${SYNC_MANIFEST_FILENAME} found in ${explicitRoot}.`)
@@ -65,13 +80,7 @@ export async function resolvePublishMirror(args: {
     return undefined
   }
 
-  let manifest: SyncManifest
-  try {
-    manifest = await loadSyncManifest(rootDir)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new PublishMirrorError(`${message} Pass --no-sync-root to publish without updating the workspace.`)
-  }
+  const manifest = await loadSyncManifest(rootDir)
   const record = manifest.projects[projectId]
   if (!record) {
     if (explicitRoot !== undefined) {
@@ -119,10 +128,7 @@ export function findDivergedPublishPaths(
     .filter(filePath => {
       const baseline = baselines[filePath]
       const current = remote.get(filePath)
-      if (baseline?.updatedAt === undefined || current === undefined) {
-        return false
-      }
-      return current.updatedAt !== baseline.updatedAt || current.size !== baseline.size
+      return baseline !== undefined && current !== undefined && baselineDiverged(baseline, current)
     })
     .sort((a, b) => a.localeCompare(b))
 }

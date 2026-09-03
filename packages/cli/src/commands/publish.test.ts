@@ -504,6 +504,22 @@ describe('deepnote publish', () => {
       })
     })
 
+    it('warns when existing remote files have no baselines to check against', async () => {
+      await writeManifest(tempDir)
+      const buildDir = await writeBuild(tempDir)
+      mockedGetProject.mockResolvedValue({
+        id: 'p1',
+        name: 'Project',
+        files: [{ path: '_deepnote_static/index.html', size: 9, updatedAt: '2026-01-05T00:00:00.000Z' }],
+      })
+
+      await run(buildDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+      expect(process.exitCode).toBeUndefined()
+      expect(mockedUpload).toHaveBeenCalledOnce()
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('no file baselines'))
+    })
+
     it('does not flag a path the workspace never synced', async () => {
       await writeManifest(tempDir, { 'data/keep.csv': { size: 1, updatedAt: '2026-01-01T00:00:00.000Z' } })
       const buildDir = await writeBuild(tempDir)

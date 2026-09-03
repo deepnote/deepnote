@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   findDivergedPublishPaths,
   type PublishMirror,
+  PublishMirrorError,
   recordPrunedFile,
   recordPublishedFile,
   resolvePublishMirror,
@@ -162,6 +163,16 @@ describe('resolvePublishMirror', () => {
     await expect(resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })).rejects.toThrow(
       '--no-sync-root'
     )
+  })
+
+  it('rejects a symlinked manifest as invalid usage, pointing at --no-sync-root', async () => {
+    await fs.writeFile(path.join(tempDir, 'elsewhere.json'), '{}')
+    await fs.symlink(path.join(tempDir, 'elsewhere.json'), path.join(tempDir, '.deepnote-sync.json'))
+
+    const attempt = resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })
+
+    await expect(attempt).rejects.toThrow(PublishMirrorError)
+    await expect(attempt).rejects.toThrow('--no-sync-root')
   })
 })
 

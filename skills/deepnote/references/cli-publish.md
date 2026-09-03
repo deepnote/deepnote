@@ -78,9 +78,10 @@ so a later push cannot resurrect them.
 Before writing anything, publish compares the inventory it already fetched against the manifest
 baseline. If a path it is about to write or prune has moved on in Deepnote since that workspace last
 synced, publish exits 1 without mutating the project — the mirror holds no copy of that content.
-Run `deepnote sync --all-files` to bring it down, or pass `--force` to overwrite. A path with no
-baseline is not flagged: sync is not tracking it, which is the normal state of a static root written
-by earlier publishes. A failure to update the mirror is a warning, not an error — the deploy already
+Run `deepnote sync --all-files` to bring it down, or pass `--force` to overwrite. Baselines come
+from `--all-files` syncs and earlier publishes; a path with no baseline is not flagged, which is the
+normal state of a static root written by earlier publishes. A workspace with no baselines at all
+gets a warning that existing remote files will be overwritten unchecked. A failure to update the mirror is a warning, not an error — the deploy already
 succeeded, and the next sync detects the divergence and asks.
 
 The mirror is only updated when the tracked project's local directory already exists. Creating it

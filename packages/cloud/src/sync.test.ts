@@ -8,6 +8,7 @@ import {
   getProjectDetail,
   importProject,
   listAllProjects,
+  PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
   updateProjectStaticFiles,
   uploadProjectFile,
@@ -511,4 +512,10 @@ describe('downloadProjectFile', () => {
       downloadProjectFile(BASE_URL, TOKEN, 'p1', 'large.bin', { maxBytes: chunk.byteLength })
     ).rejects.toMatchObject({ statusCode: 413 })
   })
+})
+
+// The CLI's own tests mock @deepnote/cloud, so this is the only assertion tying the exported
+// constant to the prefix the server actually serves static sites from.
+it('exports the static root the server serves from', () => {
+  expect(PROJECT_STATIC_ROOT).toBe('_deepnote_static')
 })

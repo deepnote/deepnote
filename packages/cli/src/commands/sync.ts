@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseYaml } from '@deepnote/blocks'
@@ -26,11 +25,13 @@ import { MissingTokenError, resolveToken } from '../utils/auth'
 import { isErrnoENOENT } from '../utils/file-resolver'
 import {
   assertNoSymbolicLinkAncestors,
+  baselineDiverged,
   loadSyncManifest,
   type ManifestFileRecord,
   type ManifestProjectRecord,
   SYNC_MANIFEST_FILENAME,
   saveSyncManifest,
+  sha256,
 } from '../utils/sync-manifest'
 import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planProjectPaths } from '../utils/sync-paths'
 
@@ -103,10 +104,6 @@ interface SyncContext {
   /** `ask` degraded to `skip` when there is no interactive terminal to ask on. */
   conflictMode: ConflictMode
   dryRun: boolean
-}
-
-function sha256(content: string | Uint8Array): string {
-  return crypto.createHash('sha256').update(content).digest('hex')
 }
 
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
@@ -380,16 +377,34 @@ async function syncProjectFiles(
     debug(`Downloaded ${project.name}: ${entry.path} (${entry.size} bytes)`)
   }
 
-  // Files that disappeared from the cloud stay on disk unless the user opted into --prune;
-  // either way they leave the manifest, since they no longer exist to be tracked.
+  // Files that disappeared from the cloud stay on disk unless the user opted into --prune. A copy
+  // that stays keeps its manifest record too: dropping it would erase the baseline that makes the
+  // next push treat the deletion as a conflict, so an edited copy would silently resurrect a file
+  // someone deliberately removed (e.g. via `publish --prune`).
+  const keptDeleted: string[] = []
   for (const stalePath of Object.keys(previous)) {
-    if (next[stalePath] !== undefined) {
+    if (next[stalePath] !== undefined || !isSafeRelativeFilePath(stalePath)) {
       continue
     }
-    if (ctx.options.prune && !ctx.dryRun && isSafeRelativeFilePath(stalePath)) {
-      await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
-      await fs.rm(path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/')), { force: true })
+    await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
+    const absolutePath = path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/'))
+    if (ctx.options.prune) {
+      if (!ctx.dryRun) {
+        await fs.rm(absolutePath, { force: true })
+      }
+      continue
     }
+    if (await pathExists(absolutePath)) {
+      next[stalePath] = previous[stalePath]
+      keptDeleted.push(stalePath)
+    }
+  }
+  if (keptDeleted.length > 0) {
+    warn(
+      `${keptDeleted.length} file${keptDeleted.length === 1 ? '' : 's'} in "${project.name}" ` +
+        `deleted in Deepnote but kept locally: ${keptDeleted.join(', ')}. ` +
+        'Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.'
+    )
   }
 
   record.files = next
@@ -503,11 +518,7 @@ export function describeCloudFileDivergence(
   if (remote === undefined) {
     return 'was deleted in Deepnote'
   }
-  if (baseline.updatedAt === undefined) {
-    // Preserve overwrite behavior for manifests created before `updatedAt` was tracked.
-    return undefined
-  }
-  return remote.updatedAt !== baseline.updatedAt || remote.size !== baseline.size ? 'changed in Deepnote' : undefined
+  return baselineDiverged(baseline, remote) ? 'changed in Deepnote' : undefined
 }
 
 interface PlannedFileUpload {
@@ -578,7 +589,7 @@ async function uploadProjectFiles(
   if (conflicted.length > 0) {
     const summary = conflicted.map(file => `${file.relPath} (${file.conflict})`).join(', ')
     overrideConflicts =
-      (ctx.dryRun
+      (ctx.dryRun && ctx.conflictMode === 'ask'
         ? 'skip'
         : await resolveConflict(
             ctx,
@@ -601,7 +612,8 @@ async function uploadProjectFiles(
     }
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
     const bytes = await fs.readFile(absolute)
-    // The file may have changed since planning.
+    // The file may have changed since planning, including past the buffered-transfer cap.
+    assertBufferedProjectFileSize(relPath, bytes.length)
     const hash = sha256(bytes)
 
     if (!ctx.dryRun) {
@@ -720,15 +732,16 @@ async function syncOneProject(
         }
       }
     } else {
-      const choice = ctx.dryRun
-        ? 'skip'
-        : await resolveConflict(
-            ctx,
-            syncRecord
-              ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
-              : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
-            'Overwrite the local files with the cloud version (discards local changes)'
-          )
+      const choice =
+        ctx.dryRun && ctx.conflictMode === 'ask'
+          ? 'skip'
+          : await resolveConflict(
+              ctx,
+              syncRecord
+                ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
+                : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
+              'Overwrite the local files with the cloud version (discards local changes)'
+            )
       if (choice === 'override') {
         outcome = await applyPull(
           syncRecord

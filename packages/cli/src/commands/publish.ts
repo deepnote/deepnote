@@ -3,8 +3,8 @@ import { join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
-  PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
+  PROJECT_STATIC_ROOT as STATIC_ROOT,
   updateProjectStaticFiles,
   uploadProjectFile,
 } from '@deepnote/cloud'
@@ -23,8 +23,6 @@ import {
   savePublishMirror,
 } from '../utils/publish-mirror'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
-
-const STATIC_ROOT = PROJECT_STATIC_ROOT
 
 interface PublishOptions {
   projectId: string
@@ -229,6 +227,16 @@ export function createPublishAction(program: Command) {
         )
         process.exitCode = ExitCode.Error
         return
+      }
+      // The check above compares per-file baselines, which only `--all-files` syncs and earlier
+      // publishes record — a workspace without any is entitled to know the guard cannot see it.
+      const overwriting = projectFiles.filter(file => publishedPaths.has(file.path)).length
+      if (Object.keys(mirror.record.files ?? {}).length === 0 && overwriting > 0) {
+        warn(
+          `${overwriting} file${overwriting === 1 ? '' : 's'} already in Deepnote will be overwritten unchecked: ` +
+            `${mirror.rootDir} has no file baselines to compare against. ` +
+            'Run `deepnote sync --all-files` first to make this check effective.'
+        )
       }
     }
 
