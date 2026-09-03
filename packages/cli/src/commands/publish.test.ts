@@ -389,18 +389,15 @@ describe('deepnote publish', () => {
     expect(exitSpy).toHaveBeenCalledWith(2)
   })
 
-  /**
-   * `_deepnote_static` is part of the same project file store `deepnote sync --all-files` mirrors,
-   * so a publish inside a synced workspace updates that workspace's mirror and manifest too. Both
-   * commands then share one baseline and neither sees the other's writes as drift.
-   */
+  /** `_deepnote_static` is part of the file store `deepnote sync --all-files` mirrors, so a publish
+   * inside a synced workspace has to update that workspace's mirror and manifest too. */
   describe('inside a deepnote sync workspace', () => {
     interface ManifestFiles {
       [path: string]: { size: number; hash?: string; updatedAt?: string }
     }
 
-    /** A sync manifest tracking project `p1` at `Alpha/`, as a real sync would have left it —
-     * including the project directory itself, which publish requires before mirroring into it. */
+    /** A manifest as a real sync would have left it, including the project directory publish
+     * requires before it will mirror. */
     async function writeManifest(rootDir: string, files?: ManifestFiles): Promise<void> {
       await fs.mkdir(join(rootDir, 'Alpha'), { recursive: true })
       await fs.writeFile(join(rootDir, 'Alpha', 'main.deepnote'), 'version: 1.0.0\n')
@@ -507,8 +504,8 @@ describe('deepnote publish', () => {
     })
 
     it('does not flag a path the workspace never synced', async () => {
-      // No baseline for it: publish is the only claimant, which is the normal state of a static root
-      // written by earlier publishes. Flagging it would break the first publish in every workspace.
+      // A path with no baseline is the normal state of a static root written by earlier publishes:
+      // flagging it would break the first publish in every workspace.
       await writeManifest(tempDir, { 'data/keep.csv': { size: 1, updatedAt: '2026-01-01T00:00:00.000Z' } })
       const buildDir = await writeBuild(tempDir)
       mockedGetProject.mockResolvedValue({
@@ -569,8 +566,7 @@ describe('deepnote publish', () => {
       await run(buildDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
       // Creating the directory to mirror into would make the next sync read the project as "all
-      // notebooks deleted locally" and push that. A stale baseline is the safe outcome instead:
-      // sync pulls the static files down once and converges.
+      // notebooks deleted locally" and push that.
       expect(mockedUpload).toHaveBeenCalledOnce()
       expect(process.exitCode).toBeUndefined()
       await expect(fs.stat(join(tempDir, 'Alpha'))).rejects.toThrow()
@@ -625,8 +621,7 @@ describe('deepnote publish', () => {
 
       await run(buildDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
-      // The deploy itself succeeded, so it is a warning, not a failure: a stale manifest is safe
-      // because the next sync detects the divergence and asks.
+      // The deploy itself succeeded, so a mirror failure is a warning, not a failure.
       expect(mockedUpload).toHaveBeenCalledOnce()
       expect(mockedUpdateProject).toHaveBeenCalledOnce()
       expect(process.exitCode).toBeUndefined()

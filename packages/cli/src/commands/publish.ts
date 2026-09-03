@@ -35,7 +35,6 @@ interface PublishOptions {
   apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
-  /** `--sync-root <dir>`, `false` for `--no-sync-root`, otherwise "discover one". */
   syncRoot: SyncRootOption
   force: boolean
 }
@@ -165,9 +164,7 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    // Resolve the sync workspace this publish belongs to, if any, before touching the network: the
-    // deploy and the workspace's mirror share one baseline, so neither command sees the other's
-    // writes as drift. Absent a workspace, publish behaves exactly as it always has.
+    // Resolved before the first network call so a bad --sync-root fails without touching Deepnote.
     let mirror: PublishMirror | undefined
     try {
       mirror = await resolvePublishMirror({
@@ -181,9 +178,9 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    /** Apply a mirror update, downgrading failures to warnings: the deploy itself already
-     * succeeded, and a stale manifest is safe — the next sync detects the divergence and asks. */
     const mirrorFailures: string[] = []
+    // A mirror failure is a warning, not a failure: the deploy already landed, and a stale manifest
+    // is safe because the next sync detects the divergence and asks.
     const updateMirror = async (label: string, action: (mirror: PublishMirror) => Promise<void>) => {
       if (!mirror) {
         return
@@ -223,9 +220,8 @@ export function createPublishAction(program: Command) {
       : []
     const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
 
-    // Stop before the first remote mutation if the cloud has moved past the workspace's baseline:
-    // someone published or edited these files since the last sync, and the local mirror does not
-    // hold that content, so overwriting it would lose the only copy.
+    // Stop before the first remote mutation: these files changed in Deepnote since the last sync and
+    // the mirror does not hold that content, so overwriting them would destroy the only copy.
     if (mirror && !options.force) {
       const diverged = findDivergedPublishPaths(mirror, projectFiles, [...publishedPaths, ...stalePaths])
       if (diverged.length > 0) {
@@ -293,8 +289,7 @@ export function createPublishAction(program: Command) {
       }
     }
 
-    // Persist the shared baseline for whatever actually landed, even after a partial failure: the
-    // manifest must describe the files that were really written, not the ones that were intended.
+    // The manifest is saved even after a partial failure: it must describe what actually landed.
     if (mirror && (uploaded > 0 || pruned > 0)) {
       await updateMirror(SYNC_MANIFEST_FILENAME, savePublishMirror)
     }

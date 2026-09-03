@@ -21,8 +21,8 @@ const ILLEGAL_CHARACTERS = /[<>:"/\\|?*\u0000-\u001f]/g
 const MAX_SEGMENT_LENGTH = 120
 
 /** The directory inside a project's local directory that mirrors its cloud working-directory files.
- * Leading dot on purpose: it keeps the mirror out of the `.deepnote` notebook scan, and out of the
- * untracked-file walk. Shared so `publish` can address the same mirror `sync` maintains. */
+ * Leading dot on purpose: it keeps the mirror out of the `.deepnote` notebook scan and the
+ * untracked-file walk. */
 export const PROJECT_FILES_DIR_NAME = '.files'
 
 /** User-provided names cannot sanitize to this leading-dot segment. */

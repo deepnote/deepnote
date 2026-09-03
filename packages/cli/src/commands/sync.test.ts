@@ -820,11 +820,8 @@ describe('syncWorkspace', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  /**
-   * The project file store has other writers — `deepnote publish` deploys into `_deepnote_static`,
-   * and the Deepnote app can write anything — so push must not assume the cloud copy is still the
-   * one the manifest recorded.
-   */
+  /** Push must not assume the cloud copy is still the one the manifest recorded: `deepnote publish`
+   * and the Deepnote app write the same file store. */
   describe('working files changed in Deepnote since the last sync', () => {
     /** Sync a project with one working file, then simulate another writer rewriting the cloud copy
      * while the notebook and the local file are also edited (so push is the notebook's direction). */
@@ -939,8 +936,8 @@ describe('syncWorkspace', () => {
       expect(failed.projects).toEqual([expect.objectContaining({ action: 'error' })])
       expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['report.csv'])
 
-      // The cloud no longer lists it — that absence is this sync's own unfinished delete, so the
-      // retry must finish the replacement instead of calling it someone else's deletion.
+      // The cloud no longer lists it, but that absence is this sync's own unfinished delete — the
+      // retry must finish the replacement, not treat it as someone else's deletion.
       projects[0].files = []
       delete projects[0].fileUploadError
       const retried = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
@@ -1446,8 +1443,8 @@ describe('describeCloudFileDivergence', () => {
     expect(describeCloudFileDivergence(baseline, undefined)).toBe('was deleted in Deepnote')
   })
 
-  /** A local file sync never mirrored, colliding with one another writer put in the cloud —
-   * `deepnote publish` writing the static root lands here. */
+  /** Two writers independently produced the same path — `deepnote publish` writing the static root
+   * lands here. */
   it('reports an untracked local path that the cloud also holds', () => {
     expect(describeCloudFileDivergence(undefined, remote)).toBe('exists in Deepnote but was never synced here')
   })

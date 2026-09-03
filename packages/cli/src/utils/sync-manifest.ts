@@ -158,13 +158,9 @@ export async function hasSyncManifest(rootDir: string): Promise<boolean> {
 }
 
 /**
- * Find the sync root that governs `startDir`: the nearest ancestor directory (starting with
- * `startDir` itself) holding a sync manifest, or `undefined` when there is none.
- *
- * `deepnote publish` uses this to notice it is writing into a project that `deepnote sync` also
- * mirrors, so the two commands can share one baseline instead of silently overwriting each other.
- * Discovery is upward and stops at the filesystem root, the same way git finds its own repository —
- * a build directory nested anywhere under a synced workspace resolves to that workspace.
+ * The nearest directory at or above `startDir` holding a sync manifest, or `undefined` when there is
+ * none — the same upward walk git uses to find its repository, so a build directory nested anywhere
+ * under a synced workspace resolves to that workspace.
  */
 export async function findSyncManifestRoot(startDir: string): Promise<string | undefined> {
   let currentDir = path.resolve(startDir)

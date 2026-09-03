@@ -37,12 +37,8 @@ const DEFAULT_DOWNLOAD_TIMEOUT_MS = 600_000
  * public API's multi-gigabyte storage limit. Callers that need larger files should stream them. */
 export const MAX_BUFFERED_PROJECT_FILE_BYTES = 100 * 1024 * 1024
 
-/**
- * The reserved directory in a project's file store that backs its static website. Files below it are
- * served publicly once static sharing is enabled, so it is the deploy surface `deepnote publish`
- * writes — and the subtree where two writers (publish, sync, the Deepnote app) are most likely to
- * meet. Exported so every writer agrees on where that boundary is.
- */
+/** The reserved directory in a project's file store that backs its static website: files below it
+ * are served publicly once static sharing is enabled. */
 export const PROJECT_STATIC_ROOT = '_deepnote_static'
 
 /**

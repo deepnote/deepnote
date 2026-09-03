@@ -60,12 +60,8 @@ describe('findDivergedPublishPaths', () => {
     expect(findDivergedPublishPaths(mirror, [remote('2026-01-01T00:00:00.000Z')], ['f'])).toEqual([])
   })
 
-  /**
-   * Narrower than sync's equivalent check on purpose. Sync is a mirror — both sides authoritative,
-   * so any disagreement is a conflict. Publish is a deploy — the local build is authoritative and
-   * overwriting the cloud copy is the point, so only an unsynced *cloud* change with no local copy
-   * to recover from is worth stopping for.
-   */
+  /** No baseline is the normal state of a static root written by earlier publishes; flagging it
+   * would break the first publish into every synced workspace. */
   it('passes a path with no baseline, even when the cloud has one', () => {
     expect(findDivergedPublishPaths(mirrorWith({}), [remote('2026-01-05T00:00:00.000Z')], ['f'])).toEqual([])
   })
@@ -107,7 +103,7 @@ describe('resolvePublishMirror', () => {
   })
 
   /** Mirroring would have to create the directory, which sync reads as "the notebooks were deleted
-   * locally" and pushes. Leaving the baseline stale converges on the next pull instead. */
+   * locally" and pushes. */
   it('returns nothing when the tracked project directory does not exist', async () => {
     await writeManifest(tempDir)
     await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true, force: true })
