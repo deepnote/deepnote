@@ -228,13 +228,18 @@ export function createPublishAction(program: Command) {
         process.exitCode = ExitCode.Error
         return
       }
-      // The check above compares per-file baselines, which only `--all-files` syncs and earlier
-      // publishes record — a workspace without any is entitled to know the guard cannot see it.
-      const overwriting = projectFiles.filter(file => publishedPaths.has(file.path)).length
-      if (Object.keys(mirror.record.files ?? {}).length === 0 && overwriting > 0) {
+      // The check above needs a baseline with a server `updatedAt`, which `--all-files` syncs record
+      // and publishes record only when the server echoes it. Every other overwrite goes unchecked,
+      // and the user is entitled to know which.
+      const baselines = mirror.record.files ?? {}
+      const unchecked = projectFiles
+        .filter(file => publishedPaths.has(file.path) && baselines[file.path]?.updatedAt === undefined)
+        .map(file => file.path)
+        .sort((a, b) => a.localeCompare(b))
+      if (unchecked.length > 0) {
         warn(
-          `${overwriting} file${overwriting === 1 ? '' : 's'} already in Deepnote will be overwritten unchecked: ` +
-            `${mirror.rootDir} has no file baselines to compare against. ` +
+          `${unchecked.length} file${unchecked.length === 1 ? '' : 's'} already in Deepnote will be overwritten unchecked ` +
+            `(no usable baseline in ${mirror.rootDir}): ${unchecked.join(', ')}. ` +
             'Run `deepnote sync --all-files` first to make this check effective.'
         )
       }

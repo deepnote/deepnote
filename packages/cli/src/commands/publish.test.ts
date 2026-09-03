@@ -517,7 +517,24 @@ describe('deepnote publish', () => {
 
       expect(process.exitCode).toBeUndefined()
       expect(mockedUpload).toHaveBeenCalledOnce()
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('no file baselines'))
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('overwritten unchecked'))
+    })
+
+    it('does not warn about a path whose baseline still matches the cloud copy', async () => {
+      await writeManifest(tempDir, {
+        '_deepnote_static/index.html': { size: 9, hash: 'a'.repeat(64), updatedAt: '2026-01-05T00:00:00.000Z' },
+      })
+      const buildDir = await writeBuild(tempDir)
+      mockedGetProject.mockResolvedValue({
+        id: 'p1',
+        name: 'Project',
+        files: [{ path: '_deepnote_static/index.html', size: 9, updatedAt: '2026-01-05T00:00:00.000Z' }],
+      })
+
+      await run(buildDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+      expect(mockedUpload).toHaveBeenCalledOnce()
+      expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('overwritten unchecked'))
     })
 
     it('does not flag a path the workspace never synced', async () => {
@@ -533,6 +550,8 @@ describe('deepnote publish', () => {
 
       expect(process.exitCode).toBeUndefined()
       expect(mockedUpload).toHaveBeenCalledOnce()
+      // Not a stop, but not silent either: an unrelated baseline does not vouch for this path.
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('_deepnote_static/index.html'))
       expect(await readManifestFiles(tempDir)).toEqual({
         'data/keep.csv': { size: 1, updatedAt: '2026-01-01T00:00:00.000Z' },
         '_deepnote_static/index.html': expect.objectContaining({ size: 11 }),
