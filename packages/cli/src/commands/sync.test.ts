@@ -998,6 +998,55 @@ describe('syncWorkspace', () => {
       consoleErrorSpy.mockRestore()
     })
 
+    it('settles each uploaded baseline on disk before the next replacement is marked pending', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+          files: [
+            { path: 'data/a.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'a' },
+            { path: 'data/b.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'b' },
+          ],
+        },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data', 'a.csv'), 'a-edited', 'utf-8')
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data', 'b.csv'), 'b-edited', 'utf-8')
+      const manifestWrites: string[] = []
+      const realWriteFile = fs.writeFile
+      const writeSpy = vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, ...rest) => {
+        if (String(file).endsWith('.deepnote-sync.json')) {
+          manifestWrites.push(String(data))
+        }
+        return realWriteFile.call(fs, file, data, ...rest)
+      })
+
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      writeSpy.mockRestore()
+
+      // While b.csv's replacement is pending on disk, a.csv must already carry its uploaded baseline
+      // (the fixture reports uploaded size 7); an interruption here must not read a.csv as pending.
+      const states = manifestWrites.map(content => JSON.parse(content).projects.p1)
+      expect(states).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            pendingFileUploads: ['data/b.csv'],
+            files: expect.objectContaining({ 'data/a.csv': expect.objectContaining({ size: 7 }) }),
+          }),
+        ])
+      )
+      consoleErrorSpy.mockRestore()
+    })
+
     it('lets a kept re-created conflict fall back to ordinary sync instead of sticking', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const projects: CloudProject[] = [
