@@ -386,10 +386,10 @@ async function syncProjectFiles(
     if (next[stalePath] !== undefined || !isSafeRelativeFilePath(stalePath)) {
       continue
     }
-    await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
     const absolutePath = path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/'))
     if (ctx.options.prune) {
       if (!ctx.dryRun) {
+        await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
         await fs.rm(absolutePath, { force: true })
       }
       continue
@@ -565,11 +565,10 @@ async function uploadProjectFiles(
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
     const stats = await fs.stat(absolute)
     assertBufferedProjectFileSize(relPath, stats.size)
-    // Hash catches same-size edits.
-    const hash = sha256(await fs.readFile(absolute))
     const prev = previous[relPath]
     const isPending = pending.has(relPath)
-    if (!isPending && prev && prev.size === stats.size && prev.hash === hash) {
+    // Hash catches same-size edits.
+    if (!isPending && prev && prev.size === stats.size && prev.hash === sha256(await fs.readFile(absolute))) {
       continue
     }
     // A pending replacement belongs to this sync, so retry it without a conflict — unless the
@@ -589,14 +588,12 @@ async function uploadProjectFiles(
   if (conflicted.length > 0) {
     const summary = conflicted.map(file => `${file.relPath} (${file.conflict})`).join(', ')
     overrideConflicts =
-      (ctx.dryRun && ctx.conflictMode === 'ask'
-        ? 'skip'
-        : await resolveConflict(
-            ctx,
-            `Working files of "${project.name}" changed in Deepnote since the last sync: ${summary}. ` +
-              'Overwrite the Deepnote copies with your local files?',
-            'Overwrite the Deepnote copies with the local files'
-          )) === 'override'
+      (await resolveConflict(
+        ctx,
+        `Working files of "${project.name}" changed in Deepnote since the last sync: ${summary}. ` +
+          'Overwrite the Deepnote copies with your local files?',
+        'Overwrite the Deepnote copies with the local files'
+      )) === 'override'
     if (!overrideConflicts) {
       warn(
         `Kept the Deepnote copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
@@ -746,16 +743,13 @@ async function syncOneProject(
         }
       }
     } else {
-      const choice =
-        ctx.dryRun && ctx.conflictMode === 'ask'
-          ? 'skip'
-          : await resolveConflict(
-              ctx,
-              syncRecord
-                ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
-                : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
-              'Overwrite the local files with the cloud version (discards local changes)'
-            )
+      const choice = await resolveConflict(
+        ctx,
+        syncRecord
+          ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
+          : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
+        'Overwrite the local files with the cloud version (discards local changes)'
+      )
       if (choice === 'override') {
         outcome = await applyPull(
           syncRecord
@@ -861,8 +855,8 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   const isMachineOutput = options.output !== undefined
   const requestedMode = options.onConflict ?? 'ask'
   const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !isMachineOutput
-  const conflictMode = requestedMode === 'ask' && !canPrompt ? 'skip' : requestedMode
-  if (requestedMode === 'ask' && conflictMode === 'skip') {
+  const conflictMode = requestedMode === 'ask' && (!canPrompt || dryRun) ? 'skip' : requestedMode
+  if (requestedMode === 'ask' && !canPrompt) {
     debug('No interactive terminal; conflicts will be skipped. Use --on-conflict to decide up front.')
   }
 

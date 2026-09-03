@@ -980,6 +980,37 @@ describe('syncWorkspace', () => {
       consoleErrorSpy.mockRestore()
     })
 
+    it('keeps a cloud-deleted file under a symlinked directory when a pull prunes nothing', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          files: [{ path: 'data/old.csv', size: 3, updatedAt: '2026-01-01T00:00:00.000Z', content: 'old' }],
+        },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-files-outside-'))
+      await fs.writeFile(path.join(outsideDir, 'old.csv'), 'old', 'utf-8')
+      await fs.rm(path.join(tempDir, 'Alpha', '.files', 'data'), { recursive: true, force: true })
+      await fs.symlink(outsideDir, path.join(tempDir, 'Alpha', '.files', 'data'))
+      projects[0].files = []
+
+      try {
+        const pulled = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+        expect(pulled.projects).toEqual([expect.objectContaining({ action: 'unchanged' })])
+        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('deleted in Deepnote but kept locally'))
+        expect((await loadSyncManifest(tempDir)).projects.p1?.files?.['data/old.csv']).toBeDefined()
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true })
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
     it('reports the files an override dry run would upload instead of pretending to skip them', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const { cloud } = await setUpDivergedFile(republished)

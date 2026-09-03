@@ -78,7 +78,8 @@ so a later push cannot resurrect them.
 Before writing anything, publish compares the inventory it already fetched against the manifest
 baseline. If a path it is about to write or prune has moved on in Deepnote since that workspace last
 synced, publish exits 1 without mutating the project — the mirror holds no copy of that content.
-Run `deepnote sync --all-files` to bring it down, or pass `--force` to overwrite. Only an entry
+Run `deepnote sync --all-files` to bring it down, or pass `--force` to overwrite. A path deleted in
+Deepnote is not a stop: the deploy re-creates it from the build, and nothing is lost. Only an entry
 recorded with the server's `updatedAt` is a usable baseline: `--all-files` syncs always record one,
 publishes only when the server echoes it. A path without one is not flagged — the normal state of a
 static root written by earlier publishes — and publish instead warns, per file, that it will be
