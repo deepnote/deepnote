@@ -78,7 +78,7 @@ export async function resolvePublishMirror(args: {
   }
 
   // Creating this directory would make sync interpret every notebook as locally deleted.
-  const projectDirAbsolute = path.join(rootDir, ...record.dir.split('/'))
+  const projectDirAbsolute = path.join(rootDir, ...record.dir.split(path.sep))
   if (!(await directoryExists(projectDirAbsolute))) {
     debug(`Not updating the sync mirror: ${projectDirAbsolute} does not exist`)
     return undefined
@@ -88,7 +88,7 @@ export async function resolvePublishMirror(args: {
   return {
     rootDir,
     filesDir,
-    filesDirAbsolute: path.join(rootDir, ...filesDir.split('/')),
+    filesDirAbsolute: path.join(rootDir, ...filesDir.split(path.sep)),
     manifest,
     record,
   }
@@ -129,7 +129,7 @@ export async function recordPublishedFile(
   stored: UploadedFile
 ): Promise<void> {
   await assertWritableMirrorPath(mirror, filePath)
-  const absolute = path.join(mirror.filesDirAbsolute, ...filePath.split('/'))
+  const absolute = path.join(mirror.filesDirAbsolute, ...filePath.split(path.sep))
   await fs.mkdir(path.dirname(absolute), { recursive: true })
   await fs.writeFile(absolute, content)
   mirror.record.files ??= {}
@@ -143,7 +143,7 @@ export async function recordPublishedFile(
 /** Removes a pruned file from the sync mirror and manifest. */
 export async function recordPrunedFile(mirror: PublishMirror, filePath: string): Promise<void> {
   await assertWritableMirrorPath(mirror, filePath)
-  await fs.rm(path.join(mirror.filesDirAbsolute, ...filePath.split('/')), { force: true })
+  await fs.rm(path.join(mirror.filesDirAbsolute, ...filePath.split(path.sep)), { force: true })
   if (mirror.record.files) {
     delete mirror.record.files[filePath]
   }
