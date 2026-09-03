@@ -60,8 +60,6 @@ describe('findDivergedPublishPaths', () => {
     expect(findDivergedPublishPaths(mirror, [remote('2026-01-01T00:00:00.000Z')], ['f'])).toEqual([])
   })
 
-  /** No baseline is the normal state of a static root written by earlier publishes; flagging it
-   * would break the first publish into every synced workspace. */
   it('passes a path with no baseline, even when the cloud has one', () => {
     expect(findDivergedPublishPaths(mirrorWith({}), [remote('2026-01-05T00:00:00.000Z')], ['f'])).toEqual([])
   })
@@ -102,8 +100,6 @@ describe('resolvePublishMirror', () => {
     expect(await resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })).toBeUndefined()
   })
 
-  /** Mirroring would have to create the directory, which sync reads as "the notebooks were deleted
-   * locally" and pushes. */
   it('returns nothing when the tracked project directory does not exist', async () => {
     await writeManifest(tempDir)
     await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true, force: true })

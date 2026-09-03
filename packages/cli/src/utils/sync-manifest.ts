@@ -152,16 +152,12 @@ export async function loadSyncManifest(rootDir: string): Promise<SyncManifest> {
   return parsed.data
 }
 
-/** Whether `rootDir` itself holds a sync manifest (no upward walk). */
+/** Checks for a sync manifest directly in `rootDir`. */
 export async function hasSyncManifest(rootDir: string): Promise<boolean> {
   return manifestExistsWithoutSymbolicLink(path.join(rootDir, SYNC_MANIFEST_FILENAME))
 }
 
-/**
- * The nearest directory at or above `startDir` holding a sync manifest, or `undefined` when there is
- * none — the same upward walk git uses to find its repository, so a build directory nested anywhere
- * under a synced workspace resolves to that workspace.
- */
+/** Finds the nearest sync manifest at or above `startDir`. */
 export async function findSyncManifestRoot(startDir: string): Promise<string | undefined> {
   let currentDir = path.resolve(startDir)
   for (;;) {

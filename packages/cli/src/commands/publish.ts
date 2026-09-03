@@ -164,7 +164,7 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    // Resolved before the first network call so a bad --sync-root fails without touching Deepnote.
+    // Invalid local configuration must fail before remote work starts.
     let mirror: PublishMirror | undefined
     try {
       mirror = await resolvePublishMirror({
@@ -179,8 +179,7 @@ export function createPublishAction(program: Command) {
     }
 
     const mirrorFailures: string[] = []
-    // A mirror failure is a warning, not a failure: the deploy already landed, and a stale manifest
-    // is safe because the next sync detects the divergence and asks.
+    // Mirror failures remain warnings because the remote publish already succeeded.
     const updateMirror = async (label: string, action: (mirror: PublishMirror) => Promise<void>) => {
       if (!mirror) {
         return
@@ -220,8 +219,7 @@ export function createPublishAction(program: Command) {
       : []
     const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
 
-    // Stop before the first remote mutation: these files changed in Deepnote since the last sync and
-    // the mirror does not hold that content, so overwriting them would destroy the only copy.
+    // Avoid overwriting cloud content absent from the mirror.
     if (mirror && !options.force) {
       const diverged = findDivergedPublishPaths(mirror, projectFiles, [...publishedPaths, ...stalePaths])
       if (diverged.length > 0) {
@@ -289,7 +287,7 @@ export function createPublishAction(program: Command) {
       }
     }
 
-    // The manifest is saved even after a partial failure: it must describe what actually landed.
+    // The manifest must reflect partial publishes.
     if (mirror && (uploaded > 0 || pruned > 0)) {
       await updateMirror(SYNC_MANIFEST_FILENAME, savePublishMirror)
     }

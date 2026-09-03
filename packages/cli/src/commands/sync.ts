@@ -49,9 +49,7 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planPro
  * `POST /v2/projects/{id}/import` (see `@deepnote/cloud` and the project-import contract doc), with
  * `baseModifiedAt` + `baseContentHash` for lost-update protection — a concurrent cloud edit is
  * rejected (409) and resolved as override-or-skip, never a silent overwrite. `--all-files` also
- * uploads changed working-directory files on push, with the same override-or-skip protection
- * applied per file — the project file store is shared with `deepnote publish` and the Deepnote app,
- * so sync must never assume it is the only writer.
+ * applies the same conflict policy to working-directory files.
  *
  * Git is deliberately out of scope: sync writes ordinary files and the user runs git themselves.
  */
@@ -85,8 +83,7 @@ export interface ProjectSyncOutcome {
   filesDownloaded?: number
   /** Number of working-directory files uploaded (`--all-files` push or replacement retry). */
   filesUploaded?: number
-  /** Number of working-directory files left alone because the cloud copy changed since the last
-   * sync (`--all-files` push). Present only when non-zero. */
+  /** Number of working-directory files skipped after cloud conflicts. */
   filesSkipped?: number
 }
 
@@ -501,33 +498,19 @@ async function listLocalFilesRecursive(dirAbsolute: string): Promise<string[]> {
   return found.sort()
 }
 
-/**
- * Whether the cloud copy of a file moved since the manifest baseline — whether some other writer
- * (`deepnote publish`, the Deepnote app, another machine's sync) touched it. Returns a phrase for
- * the conflict message, or `undefined` for "in step".
- *
- * The file API has no conditional write (`POST /v2/files` refuses to overwrite at all, which is why
- * writes are delete-then-upload), so this is optimistic concurrency over the inventory push already
- * fetches: a stale baseline is detected reliably, but a time-of-check/time-of-use window remains
- * until the server can close it.
- */
+/** Returns a conflict description when the cloud file diverges from the manifest baseline. */
 export function describeCloudFileDivergence(
   baseline: ManifestFileRecord | undefined,
   remote: ProjectFileEntry | undefined
 ): string | undefined {
   if (baseline === undefined) {
-    // Never mirrored here but present in the cloud: two writers independently produced the same
-    // path (`deepnote publish` writing the static root lands here), so it is not sync's to overwrite.
     return remote === undefined ? undefined : 'exists in Deepnote but was never synced here'
   }
   if (remote === undefined) {
-    // Deleted in the cloud (`deepnote publish --prune`, or by hand) while the local copy also
-    // changed. Uploading would resurrect a file someone deliberately removed.
     return 'was deleted in Deepnote'
   }
   if (baseline.updatedAt === undefined) {
-    // Recorded before `updatedAt` was tracked: nothing to compare against, so fall back to the old
-    // overwrite behavior — the record picks up an `updatedAt` on the next pull or push.
+    // Preserve overwrite behavior for manifests created before `updatedAt` was tracked.
     return undefined
   }
   return remote.updatedAt !== baseline.updatedAt || remote.size !== baseline.size ? 'changed in Deepnote' : undefined
@@ -535,20 +518,10 @@ export function describeCloudFileDivergence(
 
 interface PlannedFileUpload {
   relPath: string
-  /** Phrase from {@link describeCloudFileDivergence}; absent when the cloud copy is in step. */
   conflict?: string
 }
 
-/**
- * Upload changed working-directory files on push (`--all-files`). A file that is new locally, whose
- * content hash differs from the manifest, or whose previous replacement is pending gets uploaded.
- * Replacement paths are persisted before delete-then-upload because `POST /v2/files` refuses to
- * overwrite. Files removed locally are deliberately not deleted in the cloud (too destructive to
- * infer).
- *
- * A file whose cloud copy moved since the manifest baseline goes through the same `--on-conflict`
- * override-or-skip choice as a diverged notebook rather than being overwritten.
- */
+/** Uploads changed working-directory files during an `--all-files` push. */
 async function uploadProjectFiles(
   ctx: SyncContext,
   project: SyncProject,
@@ -573,8 +546,7 @@ async function uploadProjectFiles(
     throw new Error(`Cannot retry file upload because the local file is missing: ${missingPendingPaths.join(', ')}`)
   }
 
-  // Planned in full before anything is written, so one prompt covers the whole project instead of
-  // one per file; buffering every file's bytes to upload in a single pass would not fit in memory.
+  // Plan first so one prompt covers every conflict.
   const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
   const inventory = new Map(detail.files.map(entry => [entry.path, entry]))
   const planned: PlannedFileUpload[] = []
@@ -588,15 +560,14 @@ async function uploadProjectFiles(
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
     const stats = await fs.stat(absolute)
     assertBufferedProjectFileSize(relPath, stats.size)
-    // `size` alone misses a same-size content edit, so the content hash is the change signal.
+    // Hash catches same-size edits.
     const hash = sha256(await fs.readFile(absolute))
     const prev = previous[relPath]
     const isPending = pending.has(relPath)
     if (!isPending && prev && prev.size === stats.size && prev.hash === hash) {
       continue
     }
-    // A pending replacement already deleted the cloud copy on an earlier run, so its absence is
-    // this sync's own unfinished work, not another writer's — finish it, don't call it a conflict.
+    // A pending replacement belongs to this sync, so retry it without a conflict.
     const conflict = isPending ? undefined : describeCloudFileDivergence(prev, inventory.get(relPath))
     planned.push({ relPath, ...(conflict ? { conflict } : {}) })
   }
@@ -628,7 +599,7 @@ async function uploadProjectFiles(
     }
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
     const bytes = await fs.readFile(absolute)
-    // Re-hash rather than trusting pass 1: the record must describe the bytes actually uploaded.
+    // The file may have changed since planning.
     const hash = sha256(bytes)
 
     if (!ctx.dryRun) {
@@ -773,9 +744,7 @@ async function syncOneProject(
       }
     }
 
-    // File sync runs for projects that synced cleanly; a skipped conflict skips files too, so a
-    // "skip" answer really does leave the project's local footprint untouched. Files follow the
-    // notebook direction, except a replacement persisted before deletion is always retried first.
+    // Retry pending replacements even when notebooks pull or remain unchanged.
     if (ctx.options.allFiles && outcome.action !== 'skipped-conflict') {
       const currentRecord = manifestProjects[project.id] ?? syncRecord
       if (currentRecord) {

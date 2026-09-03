@@ -20,9 +20,7 @@ const ILLEGAL_CHARACTERS = /[<>:"/\\|?*\u0000-\u001f]/g
 
 const MAX_SEGMENT_LENGTH = 120
 
-/** The directory inside a project's local directory that mirrors its cloud working-directory files.
- * Leading dot on purpose: it keeps the mirror out of the `.deepnote` notebook scan and the
- * untracked-file walk. */
+/** Hidden directory used for a project's working-file mirror. */
 export const PROJECT_FILES_DIR_NAME = '.files'
 
 /** User-provided names cannot sanitize to this leading-dot segment. */
@@ -84,7 +82,7 @@ function buildDir(project: PlannableProject, dirName: string): string {
   return [...incompletePrefix, ...folderSegments, dirName].join('/')
 }
 
-/** The mirror directory for a project at root-relative POSIX path `projectDir`. */
+/** Returns the root-relative working-file mirror for `projectDir`. */
 export function projectFilesDir(projectDir: string): string {
   return `${projectDir}/${PROJECT_FILES_DIR_NAME}`
 }
