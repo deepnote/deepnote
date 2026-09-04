@@ -39,10 +39,15 @@ deepnote run examples/local-runner-showcase.deepnote \
 
 The first command previews the block changes. The second applies them and performs one deployment
 run. Synchronization is intentionally not part of a Streamlit viewer request because it may delete
-or recreate blocks.
+or recreate blocks. It is also what aligns the two sides: the app reads its local `.deepnote` file
+for the UI contract and triggers the cloud notebook by the block ids that file carries, so the local
+file must be pushed before the app is published and after every edit to it.
 
-After the Streamlit source file exists in the project's Files, publish it through the same CLI and
-API-key authentication used for other cloud operations:
+Push first, then publish. `deepnote publish --streamlit` uploads nothing: the entrypoint and every
+local module it imports must already be in the project's Files, pushed with
+`deepnote sync --all-files` (files upload together with a notebook push) or uploaded in Deepnote.
+Then register the entrypoint through the same CLI and API-key authentication used for other cloud
+operations:
 
 ```bash
 deepnote publish examples/streamlit/dynamic_app.py \
@@ -50,10 +55,13 @@ deepnote publish examples/streamlit/dynamic_app.py \
   --streamlit
 ```
 
-The positional path is project-relative, not a local upload. Upload or sync the file into the
-project first. For this example, the project must contain `examples/streamlit/dynamic_app.py`,
-`examples/streamlit/_sales_dashboard.py`, and `examples/local-runner-showcase.deepnote` at those
-paths. The command calls `POST /v2/streamlit-apps` and prints the hosted app URL.
+The positional path is project-relative, not a local upload. For this example, the project must
+contain `examples/streamlit/dynamic_app.py`, `examples/streamlit/_sales_dashboard.py`, and
+`examples/local-runner-showcase.deepnote` at those paths; a 404 for the entrypoint means the file
+is not there yet. Creating the app restarts the project machine, which takes a few minutes and
+interrupts anyone working in the project. The command prints the hosted app URL, then waits for the
+app to report `running` (`--no-wait` skips the wait). Publishing a file that is already served
+reports the existing app instead of creating a second one.
 
 In a hosted Deepnote app, start only Streamlit for normal app runs:
 
@@ -68,6 +76,11 @@ model. It does not send the Streamlit cookie to the public API, cache either cre
 process-global or Streamlit session state, or fall back to a shared project-owner credential. The
 app disables the run button if the deployed notebook's input names or types differ from the local
 file.
+
+The exchange requires a signed-in viewer. Anonymous visitors to a publicly shared app can open the
+page but cannot obtain an API token, so the run button does nothing useful for them; an app meant
+for that audience should render a committed snapshot, as `static_app.py` does, or explain that
+signing in is required.
 
 For local development against an existing cloud notebook, supply the same API token used by the
 CLI:
