@@ -13,19 +13,13 @@ From organizing and searching across projects to managing your team's members an
 
 You can create and arrange [projects](/docs/projects) into any logical arrangement you wish, nesting permitted. For example, you may want to organize projects by yearly report cycles, team function, common tasks — or whatever else reflects how your team does business.
 
-![Current project navigation](../assets/docs/workspaces/projects.webp)
+![Sample projects and folders in a workspace](../assets/docs/workspaces/sample-projects.webp)
 
 ### Searching across projects
 
 Using the search (⌘/Ctrl+K), you can search across your entire workspace by project names, notebook names, code, text and more... The search results are displayed in the modal window which you can trigger from anywhere along with helpful project-level metadata, such as location, author and recent activity.
 
-![Workspace search](../assets/docs/workspaces/search-results.webp)
-
-### Browse workspace within your notebook
-
-You can seamlessly access the projects your team is currently engaged with by clicking the top left menu icon. This action will expand your workspace sidebar, allowing you to effortlessly switch between projects or even create new ones on the spot
-
-![Workspace switcher](../assets/docs/workspaces/workspace-switcher.webp)
+![Empty workspace search with its keyboard shortcut](../assets/docs/workspaces/empty-workspace-search.webp)
 
 ### Managing data connections
 
