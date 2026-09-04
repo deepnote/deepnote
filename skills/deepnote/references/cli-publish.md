@@ -39,6 +39,27 @@ API access is security-sensitive and is not enabled by default. Pass `--api-acce
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
 `--api-access disabled` to turn it off explicitly.
 
+## Change access without republishing
+
+Use `deepnote static-site access` to change an existing site's access settings without uploading,
+deleting, or otherwise modifying `_deepnote_static/**`:
+
+```bash
+# Stop serving the site while retaining its files
+deepnote static-site access --project-id <uuid> --sharing disabled
+
+# Serve the stored files again and enable viewer-scoped API calls
+deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
+
+# Revoke viewer API access while preserving the current sharing setting
+deepnote static-site access --project-id <uuid> --api-access disabled
+```
+
+At least one of `--sharing` and `--api-access` is required. Disabling sharing also disables viewer
+API access. Re-enabling sharing later serves the retained files at the canonical URL returned by
+Deepnote. The command uses the same `--token` / `DEEPNOTE_TOKEN` authentication and `--url` override
+as `publish`.
+
 ## Coordination with `deepnote sync`
 
 `_deepnote_static` is a subtree of the same project file store that `deepnote sync --all-files`
@@ -49,16 +70,21 @@ Unless `--no-sync-root` is given, publish searches upwards from `<dir>` for a `.
 writes each published file into that project's `.files/` mirror and records its size, content hash,
 and server `updatedAt` in the manifest, exactly as a sync download would. The manifest, the mirror,
 and Deepnote then agree, so the next sync treats the deploy as already in step rather than
-re-downloading the whole site. `--prune` also removes the pruned paths from the mirror and manifest,
+re-downloading the whole site. A server that does not echo `updatedAt` on upload leaves those
+baselines unverifiable until the next pull — the divergence stop does not cover such paths, and the
+next pull re-downloads them once. `--prune` also removes the pruned paths from the mirror and manifest,
 so a later push cannot resurrect them.
 
 Before writing anything, publish compares the inventory it already fetched against the manifest
 baseline. If a path it is about to write or prune has moved on in Deepnote since that workspace last
 synced, publish exits 1 without mutating the project — the mirror holds no copy of that content.
-Run `deepnote sync --all-files` to bring it down, or pass `--force` to overwrite. A path with no
-baseline is not flagged: sync is not tracking it, which is the normal state of a static root written
-by earlier publishes. A failure to update the mirror is a warning, not an error — the deploy already
-succeeded, and the next sync detects the divergence and asks.
+Run `deepnote sync --all-files` to bring it down, or pass `--force` to overwrite. A path deleted in
+Deepnote is not a stop: the deploy re-creates it from the build, and nothing is lost. Only an entry
+recorded with the server's `updatedAt` is a usable baseline: `--all-files` syncs always record one,
+publishes only when the server echoes it. A path without one is not flagged — the normal state of a
+static root written by earlier publishes. A failure to update the mirror is a warning, not an error —
+the deploy already succeeded, and the next sync brings the mirror back in step: a pull downloads the
+published files again, a push surfaces them as a conflict.
 
 The mirror is only updated when the tracked project's local directory already exists. Creating it
 would make the next sync read the project as "every notebook was deleted locally" and push that, so
@@ -86,9 +112,18 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 
 # CI deploy: never look for or update a sync workspace
 deepnote publish ./dist --project-id <uuid> --no-sync-root
+
+# Stop serving the site without deleting the published files
+deepnote static-site access --project-id <uuid> --sharing disabled
 ```
 
 Exit code 0 means uploads and the sharing update succeeded. Exit code 1 means a project lookup,
 upload, optional prune, or sharing update failed, or that Deepnote holds changes the sync workspace
 has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid local directory, or
-a `--sync-root` that has no manifest or does not track the project.
+a `--sync-root` that has no manifest, does not track the project, or whose tracked project
+directory is missing, or a sync manifest that exists but cannot be read (pass `--no-sync-root` to
+publish without it).
+
+For `static-site access`, exit code 0 means the settings update succeeded, exit code 1 means the
+project settings request failed, and exit code 2 means invalid arguments, a missing token, no
+requested setting, or contradictory settings.

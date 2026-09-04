@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { ProjectFileEntry, UploadedFile } from '@deepnote/cloud'
@@ -6,6 +5,7 @@ import { debug } from '../output'
 import { isErrnoENOENT } from './file-resolver'
 import {
   assertNoSymbolicLinkAncestors,
+  baselineDiverged,
   findSyncManifestRoot,
   hasSyncManifest,
   loadSyncManifest,
@@ -13,44 +13,24 @@ import {
   SYNC_MANIFEST_FILENAME,
   type SyncManifest,
   saveSyncManifest,
+  sha256,
 } from './sync-manifest'
 import { isSafeRelativeFilePath, projectFilesDir } from './sync-paths'
 
-/**
- * Coordination between `deepnote publish` and `deepnote sync`.
- *
- * Both commands write the same remote surface — a project's file store — and the static root
- * `publish` deploys into is just a subtree of what `sync --all-files` mirrors. Left unaware of each
- * other they drift: every publish makes the whole static subtree look changed to sync (so it is
- * re-downloaded), and a stale local mirror can be pushed back over a live site.
- *
- * The fix is a shared baseline rather than a divided namespace. When a publish happens inside a
- * synced workspace, it updates that workspace's mirror and manifest exactly as if sync had fetched
- * the files itself, so afterwards manifest, mirror, and cloud all agree and neither command sees
- * phantom changes. When there is no manifest in scope (a CI deploy, a build directory outside any
- * workspace), publish behaves exactly as before and sync's own per-file divergence check is what
- * keeps the two safe.
- */
+/** Sync workspace state updated alongside a publish. */
 export interface PublishMirror {
-  /** Absolute path of the sync root holding the manifest. */
   rootDir: string
-  /** Absolute path of the project's `.files` mirror directory. */
   filesDirAbsolute: string
-  /** Root-relative POSIX path of the mirror directory, for symbolic-link checks. */
+  /** Root-relative POSIX mirror path. */
   filesDir: string
-  /** The manifest being updated; `record` is the entry for the published project. */
   manifest: SyncManifest
   record: ManifestProjectRecord
 }
 
-/** How `--sync-root` / `--no-sync-root` were given: a directory, off, or "look for one". */
+/** Explicit sync root, disabled discovery, or automatic discovery. */
 export type SyncRootOption = string | boolean | undefined
 
 export class PublishMirrorError extends Error {}
-
-function sha256(content: Uint8Array): string {
-  return crypto.createHash('sha256').update(content).digest('hex')
-}
 
 async function directoryExists(absolutePath: string): Promise<boolean> {
   try {
@@ -63,22 +43,34 @@ async function directoryExists(absolutePath: string): Promise<boolean> {
   }
 }
 
-/**
- * Find the sync workspace this publish belongs to, or `undefined` when there is none to update.
- *
- * Discovery walks up from the directory being published, so a build directory nested anywhere under
- * a synced workspace resolves to that workspace. An explicit `--sync-root` is a stated intent, so a
- * missing manifest or an untracked project is an error there rather than a silent no-op.
- */
+/** Resolves the sync workspace to update. An invalid explicit root throws {@link PublishMirrorError};
+ * so does any workspace that exists but cannot be used (unreadable or symlinked manifest), with a
+ * pointer at `--no-sync-root`, since publish maps that error class to the invalid-usage exit code. */
 export async function resolvePublishMirror(args: {
   syncRoot: SyncRootOption
   publishDir: string
   projectId: string
 }): Promise<PublishMirror | undefined> {
-  const { syncRoot, publishDir, projectId } = args
-  if (syncRoot === false) {
+  if (args.syncRoot === false) {
     return undefined
   }
+  try {
+    return await locateMirror(args)
+  } catch (error) {
+    if (error instanceof PublishMirrorError) {
+      throw error
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    throw new PublishMirrorError(`${message} Pass --no-sync-root to publish without updating the workspace.`)
+  }
+}
+
+async function locateMirror(args: {
+  syncRoot: SyncRootOption
+  publishDir: string
+  projectId: string
+}): Promise<PublishMirror | undefined> {
+  const { syncRoot, publishDir, projectId } = args
   const explicitRoot = typeof syncRoot === 'string' ? path.resolve(syncRoot) : undefined
   if (explicitRoot !== undefined && !(await hasSyncManifest(explicitRoot))) {
     throw new PublishMirrorError(`No ${SYNC_MANIFEST_FILENAME} found in ${explicitRoot}.`)
@@ -100,13 +92,16 @@ export async function resolvePublishMirror(args: {
     return undefined
   }
 
-  // Mirror only into a project directory that already exists. Creating one would turn sync's "no
-  // local copy, pull it" into "the notebooks were all deleted locally, push that" — `.files` is
-  // excluded from the notebook scan, but the directory existing at all is what sync reads as the
-  // difference. Skipping leaves the baseline stale, which is safe: the next sync pulls the static
-  // files down once and converges.
+  // Creating this directory would make sync interpret every notebook as locally deleted.
   const projectDirAbsolute = path.join(rootDir, ...record.dir.split('/'))
   if (!(await directoryExists(projectDirAbsolute))) {
+    if (explicitRoot !== undefined) {
+      throw new PublishMirrorError(
+        `The sync manifest at ${path.join(explicitRoot, SYNC_MANIFEST_FILENAME)} tracks project ${projectId} ` +
+          `in ${record.dir}, but that directory does not exist. ` +
+          'Sync the workspace first, or pass --no-sync-root to publish without updating it.'
+      )
+    }
     debug(`Not updating the sync mirror: ${projectDirAbsolute} does not exist`)
     return undefined
   }
@@ -121,18 +116,7 @@ export async function resolvePublishMirror(args: {
   }
 }
 
-/**
- * Remote paths whose cloud copy has moved away from the manifest baseline: content that exists in
- * Deepnote, is not in the local mirror, and this publish is about to destroy.
- *
- * Deliberately narrower than sync's equivalent check, because the two commands mean different
- * things. Sync is a mirror, where both sides are authoritative and any disagreement is a conflict.
- * Publish is a deploy, where the local build is authoritative — overwriting the cloud copy is the
- * whole point. So a path with no baseline at all is *not* flagged: sync is not tracking it, which is
- * the normal state of a static root written by earlier publishes, and flagging it would break the
- * first publish into every synced workspace. Only a baseline that the cloud has since moved past
- * means an unsynced cloud change is about to be lost with no local copy to recover it from.
- */
+/** Returns publish targets whose cloud metadata diverged from a comparable mirror baseline. */
 export function findDivergedPublishPaths(
   mirror: PublishMirror,
   inventory: readonly ProjectFileEntry[],
@@ -144,17 +128,26 @@ export function findDivergedPublishPaths(
     .filter(filePath => {
       const baseline = baselines[filePath]
       const current = remote.get(filePath)
-      if (baseline?.updatedAt === undefined || current === undefined) {
-        // No baseline, an unverifiable one (recorded before `updatedAt` was tracked), or nothing in
-        // the cloud to lose.
-        return false
-      }
-      return current.updatedAt !== baseline.updatedAt || current.size !== baseline.size
+      return baseline !== undefined && current !== undefined && baselineDiverged(baseline, current)
     })
     .sort((a, b) => a.localeCompare(b))
 }
 
-/** Guard a mirror path the same way sync does before writing through it. */
+/** A path publish just wrote or pruned is no longer a sync upload awaiting retry; a stale entry
+ * would make the next sync fail on (or silently redo) a replacement publish already settled. */
+function clearPendingUpload(mirror: PublishMirror, filePath: string): void {
+  const pending = mirror.record.pendingFileUploads
+  if (!pending?.includes(filePath)) {
+    return
+  }
+  const remaining = pending.filter(pendingPath => pendingPath !== filePath)
+  if (remaining.length > 0) {
+    mirror.record.pendingFileUploads = remaining
+  } else {
+    delete mirror.record.pendingFileUploads
+  }
+}
+
 async function assertWritableMirrorPath(mirror: PublishMirror, filePath: string): Promise<void> {
   if (!isSafeRelativeFilePath(filePath)) {
     throw new PublishMirrorError(`Refusing to mirror unsafe path "${filePath}"`)
@@ -162,11 +155,7 @@ async function assertWritableMirrorPath(mirror: PublishMirror, filePath: string)
   await assertNoSymbolicLinkAncestors(mirror.rootDir, `${mirror.filesDir}/${filePath}`)
 }
 
-/**
- * Record a published file in the mirror: write the bytes where sync would have downloaded them, and
- * record the size/hash/timestamp the cloud reported. Afterwards sync sees the file as already in
- * step, so it neither re-downloads it nor offers to push the old copy back.
- */
+/** Writes a published file to the sync mirror and records its cloud metadata. */
 export async function recordPublishedFile(
   mirror: PublishMirror,
   filePath: string,
@@ -183,16 +172,17 @@ export async function recordPublishedFile(
     hash: sha256(content),
     ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}),
   }
+  clearPendingUpload(mirror, filePath)
 }
 
-/** Drop a pruned file from the mirror, so `--prune` cannot leave a local ghost that a later sync
- * would offer to re-upload. */
+/** Removes a pruned file from the sync mirror and manifest. */
 export async function recordPrunedFile(mirror: PublishMirror, filePath: string): Promise<void> {
   await assertWritableMirrorPath(mirror, filePath)
   await fs.rm(path.join(mirror.filesDirAbsolute, ...filePath.split('/')), { force: true })
   if (mirror.record.files) {
     delete mirror.record.files[filePath]
   }
+  clearPendingUpload(mirror, filePath)
 }
 
 export async function savePublishMirror(mirror: PublishMirror): Promise<void> {

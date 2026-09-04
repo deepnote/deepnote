@@ -1,5 +1,7 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import type { ProjectFileEntry } from '@deepnote/cloud'
 import { z } from 'zod'
 import { isErrnoENOENT } from './file-resolver'
 import { isSafeRelativeFilePath, PROJECT_FILES_DIR_NAME } from './sync-paths'
@@ -70,6 +72,22 @@ export type SyncManifest = z.infer<typeof syncManifestSchema>
 
 export function emptySyncManifest(): SyncManifest {
   return { version: 1, projects: {} }
+}
+
+/** The manifest's content fingerprint. Shared so publish- and sync-written hashes can never drift
+ * out of comparability. */
+export function sha256(content: string | Uint8Array): string {
+  return crypto.createHash('sha256').update(content).digest('hex')
+}
+
+/**
+ * Whether a verifiable baseline no longer matches the cloud inventory entry. `false` for a baseline
+ * recorded before `updatedAt` was tracked (or by a server that does not echo it) — there is nothing
+ * to compare, so callers keep their pre-baseline behavior. Shared so publish and sync can never
+ * disagree on what "diverged" means.
+ */
+export function baselineDiverged(baseline: ManifestFileRecord, remote: ProjectFileEntry): boolean {
+  return baseline.updatedAt !== undefined && (remote.updatedAt !== baseline.updatedAt || remote.size !== baseline.size)
 }
 
 /** Reject an existing symbolic link anywhere in a root-relative path. This protects against static
@@ -152,24 +170,16 @@ export async function loadSyncManifest(rootDir: string): Promise<SyncManifest> {
   return parsed.data
 }
 
-/** Whether `rootDir` itself holds a sync manifest (no upward walk). */
+/** Checks for a sync manifest directly in `rootDir`. */
 export async function hasSyncManifest(rootDir: string): Promise<boolean> {
   return manifestExistsWithoutSymbolicLink(path.join(rootDir, SYNC_MANIFEST_FILENAME))
 }
 
-/**
- * Find the sync root that governs `startDir`: the nearest ancestor directory (starting with
- * `startDir` itself) holding a sync manifest, or `undefined` when there is none.
- *
- * `deepnote publish` uses this to notice it is writing into a project that `deepnote sync` also
- * mirrors, so the two commands can share one baseline instead of silently overwriting each other.
- * Discovery is upward and stops at the filesystem root, the same way git finds its own repository —
- * a build directory nested anywhere under a synced workspace resolves to that workspace.
- */
+/** Finds the nearest sync manifest at or above `startDir`. */
 export async function findSyncManifestRoot(startDir: string): Promise<string | undefined> {
   let currentDir = path.resolve(startDir)
   for (;;) {
-    if (await manifestExistsWithoutSymbolicLink(path.join(currentDir, SYNC_MANIFEST_FILENAME))) {
+    if (await hasSyncManifest(currentDir)) {
       return currentDir
     }
     const parentDir = path.dirname(currentDir)

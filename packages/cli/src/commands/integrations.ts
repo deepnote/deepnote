@@ -16,10 +16,9 @@ import {
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { type Document, isSeq } from 'yaml'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, log, output } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import { updateDotEnv } from '../utils/dotenv'
 import { isErrnoENOENT } from '../utils/file-resolver'
 
@@ -37,18 +36,6 @@ export interface IntegrationsPullOptions {
 // ============================================================================
 // Core Logic
 // ============================================================================
-
-/**
- * Resolve the authentication token from options or environment.
- */
-function resolveToken(options: IntegrationsPullOptions): string {
-  // Priority: --token flag > DEEPNOTE_TOKEN env var
-  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
-  if (!token) {
-    throw new MissingTokenError()
-  }
-  return token
-}
 
 /**
  * Error thrown when the integrations file exists but contains invalid YAML.
@@ -112,7 +99,10 @@ export async function writeIntegrationsFile(filePath: string, doc: Document): Pr
  * Execute the integrations pull command.
  */
 async function pullIntegrations(options: IntegrationsPullOptions): Promise<void> {
-  const token = resolveToken(options)
+  const token = resolveToken(options.token)
+  if (!token) {
+    throw new MissingTokenError()
+  }
   const baseUrl = options.url ?? DEFAULT_API_URL
   const filePath = options.file ?? DEFAULT_INTEGRATIONS_FILE
   const envFilePath = options.envFile ?? DEFAULT_ENV_FILE

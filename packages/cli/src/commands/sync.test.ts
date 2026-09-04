@@ -5,7 +5,7 @@ import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
-import { loadSyncManifest } from '../utils/sync-manifest'
+import { loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
 import {
   canonicalProjectHash,
   classifySyncStep,
@@ -820,14 +820,7 @@ describe('syncWorkspace', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  /**
-   * The project file store has other writers — `deepnote publish` deploys into `_deepnote_static`,
-   * and the Deepnote app can write anything — so push must not assume the cloud copy is still the
-   * one the manifest recorded.
-   */
   describe('working files changed in Deepnote since the last sync', () => {
-    /** Sync a project with one working file, then simulate another writer rewriting the cloud copy
-     * while the notebook and the local file are also edited (so push is the notebook's direction). */
     async function setUpDivergedFile(
       cloudAfter: CloudFile[]
     ): Promise<{ cloud: InstalledCloud; projects: CloudProject[] }> {
@@ -868,7 +861,6 @@ describe('syncWorkspace', () => {
       expect(result.projects).toEqual([
         expect.objectContaining({ action: 'pushed', filesUploaded: 0, filesSkipped: 1 }),
       ])
-      // Nothing was written, so the live file is intact — no delete-then-upload window either.
       expect(cloud.uploadedPaths).toEqual([])
       expect(cloud.deletedPaths).toEqual([])
       consoleErrorSpy.mockRestore()
@@ -888,7 +880,6 @@ describe('syncWorkspace', () => {
 
     it('treats a cloud copy deleted since the last sync as a conflict, not a re-upload', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      // What `deepnote publish --prune` leaves behind: gone in the cloud, still in the mirror.
       const { cloud } = await setUpDivergedFile([])
 
       const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
@@ -934,13 +925,11 @@ describe('syncWorkspace', () => {
       )
       await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'report.csv'), 'mine', 'utf-8')
 
-      // First push deletes the cloud copy, then fails the upload: the path is left pending.
+      // Create the interrupted replacement state this retry must recover from.
       const failed = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
       expect(failed.projects).toEqual([expect.objectContaining({ action: 'error' })])
       expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['report.csv'])
 
-      // The cloud no longer lists it — that absence is this sync's own unfinished delete, so the
-      // retry must finish the replacement instead of calling it someone else's deletion.
       projects[0].files = []
       delete projects[0].fileUploadError
       const retried = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
@@ -948,6 +937,221 @@ describe('syncWorkspace', () => {
       expect(retried.projects).toEqual([expect.objectContaining({ filesUploaded: 1 })])
       expect(retried.projects[0].filesSkipped).toBeUndefined()
       expect(cloud.uploadedPaths).toContain('p1:report.csv')
+      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('keeps the baseline of a cloud-deleted file across a pull, so a later push still asks', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+          files: [{ path: 'report.csv', size: 3, updatedAt: '2026-01-01T00:00:00.000Z', content: 'old' }],
+        },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      // Deleted in Deepnote (`publish --prune`, or by hand); the local copy stays without --prune.
+      projects[0].files = []
+      const pulled = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      expect(pulled.projects).toEqual([expect.objectContaining({ action: 'unchanged' })])
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('deleted in Deepnote but kept locally'))
+      await expect(fs.readFile(path.join(tempDir, 'Alpha', '.files', 'report.csv'), 'utf-8')).resolves.toEqual('old')
+      expect((await loadSyncManifest(tempDir)).projects.p1?.files?.['report.csv']).toBeDefined()
+
+      // An edited copy must surface the deletion as a conflict, not silently resurrect the file.
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-09T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'report.csv'), 'mine', 'utf-8')
+      const pushed = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
+
+      expect(pushed.projects).toEqual([
+        expect.objectContaining({ action: 'pushed', filesUploaded: 0, filesSkipped: 1 }),
+      ])
+      expect(cloud.uploadedPaths).toEqual([])
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('keeps a cloud-deleted file under a symlinked directory when a pull prunes nothing', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          files: [{ path: 'data/old.csv', size: 3, updatedAt: '2026-01-01T00:00:00.000Z', content: 'old' }],
+        },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-files-outside-'))
+      await fs.writeFile(path.join(outsideDir, 'old.csv'), 'old', 'utf-8')
+      await fs.rm(path.join(tempDir, 'Alpha', '.files', 'data'), { recursive: true, force: true })
+      await fs.symlink(outsideDir, path.join(tempDir, 'Alpha', '.files', 'data'))
+      projects[0].files = []
+
+      try {
+        const pulled = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+        expect(pulled.projects).toEqual([expect.objectContaining({ action: 'unchanged' })])
+        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('deleted in Deepnote but kept locally'))
+        expect((await loadSyncManifest(tempDir)).projects.p1?.files?.['data/old.csv']).toBeDefined()
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true })
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
+    it('reports the files an override dry run would upload instead of pretending to skip them', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const { cloud } = await setUpDivergedFile(republished)
+
+      const result = await syncWorkspace(tempDir, {
+        ...baseOptions,
+        allFiles: true,
+        dryRun: true,
+        onConflict: 'override',
+      })
+
+      expect(result.projects).toEqual([expect.objectContaining({ action: 'pushed', filesUploaded: 1 })])
+      expect(result.projects[0].filesSkipped).toBeUndefined()
+      expect(cloud.uploadedPaths).toEqual([])
+      expect(cloud.deletedPaths).toEqual([])
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('settles each uploaded baseline on disk before the next replacement is marked pending', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+          files: [
+            { path: 'data/a.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'a' },
+            { path: 'data/b.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'b' },
+          ],
+        },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data', 'a.csv'), 'a-edited', 'utf-8')
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data', 'b.csv'), 'b-edited', 'utf-8')
+      const manifestWrites: string[] = []
+      const realWriteFile = fs.writeFile
+      const writeSpy = vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, ...rest) => {
+        if (String(file).endsWith('.deepnote-sync.json')) {
+          manifestWrites.push(String(data))
+        }
+        return realWriteFile.call(fs, file, data, ...rest)
+      })
+
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      writeSpy.mockRestore()
+
+      // While b.csv's replacement is pending on disk, a.csv must already carry its uploaded baseline
+      // (the fixture reports uploaded size 7); an interruption here must not read a.csv as pending.
+      const states = manifestWrites.map(content => JSON.parse(content).projects.p1)
+      expect(states).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            pendingFileUploads: ['data/b.csv'],
+            files: expect.objectContaining({ 'data/a.csv': expect.objectContaining({ size: 7 }) }),
+          }),
+        ])
+      )
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('lets a kept re-created conflict fall back to ordinary sync instead of sticking', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          files: [{ path: 'report.csv', size: 4, updatedAt: '2026-01-09T00:00:00.000Z', content: 'mine' }],
+        },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      // A run interrupted after its own upload landed but before the manifest was saved leaves the
+      // path pending against an older baseline, with the cloud copy being ours.
+      const manifest = await loadSyncManifest(tempDir)
+      const p1 = manifest.projects.p1
+      if (!p1) {
+        throw new Error('expected project p1 in the manifest')
+      }
+      p1.pendingFileUploads = ['report.csv']
+      p1.files = { ...p1.files, 'report.csv': { size: 3, hash: 'a'.repeat(64), updatedAt: '2026-01-01T00:00:00.000Z' } }
+      await saveSyncManifest(tempDir, manifest)
+      const uploadsBefore = cloud.uploadedPaths.length
+
+      const kept = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
+
+      expect(kept.projects).toEqual([expect.objectContaining({ filesSkipped: 1 })])
+      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
+
+      // With the retry dropped, the next run is an ordinary pull: the cloud copy comes down.
+      const recovered = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
+
+      expect(recovered.projects).toEqual([expect.objectContaining({ action: 'unchanged', filesDownloaded: 1 })])
+      expect(recovered.projects[0].filesSkipped).toBeUndefined()
+      expect(cloud.uploadedPaths.length).toEqual(uploadsBefore)
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('treats a pending path re-created in the cloud as a conflict, not a retry', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+          files: [{ path: 'report.csv', size: 3, updatedAt: '2026-01-01T00:00:00.000Z', content: 'old' }],
+          fileUploadError: { status: 500, message: 'Upload failed' },
+        },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'report.csv'), 'mine', 'utf-8')
+
+      const failed = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      expect(failed.projects).toEqual([expect.objectContaining({ action: 'error' })])
+      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['report.csv'])
+
+      // Another writer put content at the pending path — "our own unfinished delete" no longer holds.
+      projects[0].files = [{ path: 'report.csv', size: 6, updatedAt: '2026-01-06T00:00:00.000Z', content: 'theirs' }]
+      delete projects[0].fileUploadError
+      const uploadsBeforeRetry = cloud.uploadedPaths.length
+      const retried = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'skip' })
+
+      expect(retried.projects).toEqual([expect.objectContaining({ filesUploaded: 0, filesSkipped: 1 })])
+      expect(cloud.uploadedPaths.length).toEqual(uploadsBeforeRetry)
+      // Keeping the cloud copy ends the retry: the path is an ordinary diverged file from here on,
+      // so the next pull can bring the cloud copy down instead of the conflict re-raising forever.
       expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
       consoleErrorSpy.mockRestore()
     })
@@ -1446,8 +1650,6 @@ describe('describeCloudFileDivergence', () => {
     expect(describeCloudFileDivergence(baseline, undefined)).toBe('was deleted in Deepnote')
   })
 
-  /** A local file sync never mirrored, colliding with one another writer put in the cloud —
-   * `deepnote publish` writing the static root lands here. */
   it('reports an untracked local path that the cloud also holds', () => {
     expect(describeCloudFileDivergence(undefined, remote)).toBe('exists in Deepnote but was never synced here')
   })

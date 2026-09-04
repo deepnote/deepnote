@@ -3,13 +3,16 @@ import os from 'node:os'
 import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@deepnote/cloud', () => ({
-  deleteProjectFile: vi.fn(),
-  getProjectDetail: vi.fn(),
-  PROJECT_STATIC_ROOT: '_deepnote_static',
-  updateProjectStaticFiles: vi.fn(),
-  uploadProjectFile: vi.fn(),
-}))
+vi.mock('@deepnote/cloud', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/cloud')>()
+  return {
+    ...actual,
+    deleteProjectFile: vi.fn(),
+    getProjectDetail: vi.fn(),
+    updateProjectStaticFiles: vi.fn(),
+    uploadProjectFile: vi.fn(),
+  }
+})
 
 import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
 import { createProgram } from '../cli'
@@ -47,6 +50,14 @@ function run(...args: string[]) {
 }
 
 describe('deepnote publish', () => {
+  it('trims whitespace from a pasted token', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
+
+    await run(tempDir, '--project-id', 'p1', '--token', ' tok ', '-q')
+
+    expect(mockedGetProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1')
+  })
+
   it('replaces every file and enables sharing only after all uploads finish', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
     await fs.mkdir(join(tempDir, 'css'))
@@ -389,18 +400,11 @@ describe('deepnote publish', () => {
     expect(exitSpy).toHaveBeenCalledWith(2)
   })
 
-  /**
-   * `_deepnote_static` is part of the same project file store `deepnote sync --all-files` mirrors,
-   * so a publish inside a synced workspace updates that workspace's mirror and manifest too. Both
-   * commands then share one baseline and neither sees the other's writes as drift.
-   */
   describe('inside a deepnote sync workspace', () => {
     interface ManifestFiles {
       [path: string]: { size: number; hash?: string; updatedAt?: string }
     }
 
-    /** A sync manifest tracking project `p1` at `Alpha/`, as a real sync would have left it —
-     * including the project directory itself, which publish requires before mirroring into it. */
     async function writeManifest(rootDir: string, files?: ManifestFiles): Promise<void> {
       await fs.mkdir(join(rootDir, 'Alpha'), { recursive: true })
       await fs.writeFile(join(rootDir, 'Alpha', 'main.deepnote'), 'version: 1.0.0\n')
@@ -429,7 +433,6 @@ describe('deepnote publish', () => {
       return manifest.projects.p1.files
     }
 
-    /** A build directory nested inside the workspace, so the upward search finds the manifest. */
     async function writeBuild(rootDir: string): Promise<string> {
       const buildDir = join(rootDir, 'build')
       await fs.mkdir(buildDir, { recursive: true })
@@ -455,7 +458,6 @@ describe('deepnote publish', () => {
 
       expect(process.exitCode).toBeUndefined()
       expect(await fs.readFile(mirrorPath(tempDir), 'utf-8')).toBe('<h1>hi</h1>')
-      // Recorded exactly as a sync download would have: sync now sees the deploy as already in step.
       expect(await readManifestFiles(tempDir)).toEqual({
         '_deepnote_static/index.html': {
           size: 11,
@@ -470,7 +472,6 @@ describe('deepnote publish', () => {
         '_deepnote_static/index.html': { size: 3, hash: 'a'.repeat(64), updatedAt: '2026-01-01T00:00:00.000Z' },
       })
       const buildDir = await writeBuild(tempDir)
-      // Someone republished or edited the file after the workspace last synced.
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
@@ -507,8 +508,6 @@ describe('deepnote publish', () => {
     })
 
     it('does not flag a path the workspace never synced', async () => {
-      // No baseline for it: publish is the only claimant, which is the normal state of a static root
-      // written by earlier publishes. Flagging it would break the first publish in every workspace.
       await writeManifest(tempDir, { 'data/keep.csv': { size: 1, updatedAt: '2026-01-01T00:00:00.000Z' } })
       const buildDir = await writeBuild(tempDir)
       mockedGetProject.mockResolvedValue({
@@ -568,9 +567,6 @@ describe('deepnote publish', () => {
 
       await run(buildDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
-      // Creating the directory to mirror into would make the next sync read the project as "all
-      // notebooks deleted locally" and push that. A stale baseline is the safe outcome instead:
-      // sync pulls the static files down once and converges.
       expect(mockedUpload).toHaveBeenCalledOnce()
       expect(process.exitCode).toBeUndefined()
       await expect(fs.stat(join(tempDir, 'Alpha'))).rejects.toThrow()
@@ -601,6 +597,35 @@ describe('deepnote publish', () => {
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
+    it('exits with code 2 when --sync-root tracks the project in a directory that is gone', async () => {
+      await writeManifest(tempDir)
+      const buildDir = await writeBuild(tempDir)
+      await fs.rm(join(tempDir, 'Alpha'), { recursive: true, force: true })
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run(buildDir, '--project-id', 'p1', '--token', 'tok', '--sync-root', tempDir)).rejects.toThrow(
+        'exit'
+      )
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedUpload).not.toHaveBeenCalled()
+    })
+
+    it('exits with code 2 when a discovered manifest cannot be read', async () => {
+      const buildDir = await writeBuild(tempDir)
+      await fs.writeFile(join(tempDir, '.deepnote-sync.json'), '{not json')
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run(buildDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
     it('exits with code 2 when --sync-root does not track the project', async () => {
       await writeManifest(tempDir)
       const buildDir = await writeBuild(tempDir)
@@ -619,14 +644,11 @@ describe('deepnote publish', () => {
     it('publishes and warns when the mirror cannot be written', async () => {
       await writeManifest(tempDir)
       const buildDir = await writeBuild(tempDir)
-      // A symbolic-link ancestor is the case sync itself refuses to write through.
       await fs.mkdir(join(tempDir, 'Alpha'), { recursive: true })
       await fs.symlink(join(tempDir, 'elsewhere'), join(tempDir, 'Alpha', '.files'))
 
       await run(buildDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
-      // The deploy itself succeeded, so it is a warning, not a failure: a stale manifest is safe
-      // because the next sync detects the divergence and asks.
       expect(mockedUpload).toHaveBeenCalledOnce()
       expect(mockedUpdateProject).toHaveBeenCalledOnce()
       expect(process.exitCode).toBeUndefined()

@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseYaml } from '@deepnote/blocks'
@@ -20,18 +19,19 @@ import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-
 import { select } from '@inquirer/prompts'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import { isErrnoENOENT } from '../utils/file-resolver'
 import {
   assertNoSymbolicLinkAncestors,
+  baselineDiverged,
   loadSyncManifest,
   type ManifestFileRecord,
   type ManifestProjectRecord,
   SYNC_MANIFEST_FILENAME,
   saveSyncManifest,
+  sha256,
 } from '../utils/sync-manifest'
 import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planProjectPaths } from '../utils/sync-paths'
 
@@ -49,9 +49,7 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planPro
  * `POST /v2/projects/{id}/import` (see `@deepnote/cloud` and the project-import contract doc), with
  * `baseModifiedAt` + `baseContentHash` for lost-update protection — a concurrent cloud edit is
  * rejected (409) and resolved as override-or-skip, never a silent overwrite. `--all-files` also
- * uploads changed working-directory files on push, with the same override-or-skip protection
- * applied per file — the project file store is shared with `deepnote publish` and the Deepnote app,
- * so sync must never assume it is the only writer.
+ * applies the same conflict policy to working-directory files.
  *
  * Git is deliberately out of scope: sync writes ordinary files and the user runs git themselves.
  */
@@ -85,8 +83,7 @@ export interface ProjectSyncOutcome {
   filesDownloaded?: number
   /** Number of working-directory files uploaded (`--all-files` push or replacement retry). */
   filesUploaded?: number
-  /** Number of working-directory files left alone because the cloud copy changed since the last
-   * sync (`--all-files` push). Present only when non-zero. */
+  /** Number of working-directory files skipped after cloud conflicts. */
   filesSkipped?: number
 }
 
@@ -109,10 +106,6 @@ interface SyncContext {
   dryRun: boolean
 }
 
-function sha256(content: string | Uint8Array): string {
-  return crypto.createHash('sha256').update(content).digest('hex')
-}
-
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
   if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
     throw new Error(`Project file "${filePath}" exceeds the 100 MiB --all-files limit.`)
@@ -128,11 +121,6 @@ function assertBufferedProjectFileSize(filePath: string, size: number): void {
 export function canonicalProjectHash(files: readonly ExportedNotebookFile[]): string {
   const parts = files.map(file => `${file.filename}\n${sha256(file.content)}`).sort()
   return sha256(parts.join('\n'))
-}
-
-function normalizeToken(value: string | undefined): string | undefined {
-  const trimmed = value?.trim()
-  return trimmed ? trimmed : undefined
 }
 
 /** Parse a `.deepnote` document without validating it — sync must not fail because the server
@@ -389,16 +377,34 @@ async function syncProjectFiles(
     debug(`Downloaded ${project.name}: ${entry.path} (${entry.size} bytes)`)
   }
 
-  // Files that disappeared from the cloud stay on disk unless the user opted into --prune;
-  // either way they leave the manifest, since they no longer exist to be tracked.
+  // Files that disappeared from the cloud stay on disk unless the user opted into --prune. A copy
+  // that stays keeps its manifest record too: dropping it would erase the baseline that makes the
+  // next push treat the deletion as a conflict, so an edited copy would silently resurrect a file
+  // someone deliberately removed (e.g. via `publish --prune`).
+  const keptDeleted: string[] = []
   for (const stalePath of Object.keys(previous)) {
-    if (next[stalePath] !== undefined) {
+    if (next[stalePath] !== undefined || !isSafeRelativeFilePath(stalePath)) {
       continue
     }
-    if (ctx.options.prune && !ctx.dryRun && isSafeRelativeFilePath(stalePath)) {
-      await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
-      await fs.rm(path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/')), { force: true })
+    const absolutePath = path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/'))
+    if (ctx.options.prune) {
+      if (!ctx.dryRun) {
+        await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
+        await fs.rm(absolutePath, { force: true })
+      }
+      continue
     }
+    if (await pathExists(absolutePath)) {
+      next[stalePath] = previous[stalePath]
+      keptDeleted.push(stalePath)
+    }
+  }
+  if (keptDeleted.length > 0) {
+    warn(
+      `${keptDeleted.length} file${keptDeleted.length === 1 ? '' : 's'} in "${project.name}" ` +
+        `deleted in Deepnote but kept locally: ${keptDeleted.join(', ')}. ` +
+        'Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.'
+    )
   }
 
   record.files = next
@@ -501,60 +507,26 @@ async function listLocalFilesRecursive(dirAbsolute: string): Promise<string[]> {
   return found.sort()
 }
 
-/**
- * Whether the cloud copy of a file moved since the manifest baseline — that is, whether some other
- * writer (`deepnote publish`, the Deepnote app, another machine's sync) touched it after this
- * manifest last saw it. Returns a phrase for the conflict message, or `undefined` for "in step".
- *
- * The file API has no conditional write (`POST /v2/files` refuses to overwrite at all, which is why
- * writes are delete-then-upload), so this is optimistic concurrency over the inventory push already
- * fetches. A small time-of-check/time-of-use window remains — closing it needs server support — but
- * a *stale* baseline is detected reliably, and that is what turns "last write wins" into "the last
- * writer gets asked".
- */
+/** Returns a conflict description when the cloud file diverges from the manifest baseline. */
 export function describeCloudFileDivergence(
   baseline: ManifestFileRecord | undefined,
   remote: ProjectFileEntry | undefined
 ): string | undefined {
   if (baseline === undefined) {
-    // No baseline: sync has never mirrored this path, so a local file here was created locally. If
-    // the cloud has one too, two writers independently produced the same path — not an overwrite
-    // sync gets to make silently. `deepnote publish` writing the static root lands here.
     return remote === undefined ? undefined : 'exists in Deepnote but was never synced here'
   }
   if (remote === undefined) {
-    // Deleted in the cloud (`deepnote publish --prune`, or by hand) while the local copy also
-    // changed. Uploading would resurrect a file someone deliberately removed.
     return 'was deleted in Deepnote'
   }
-  if (baseline.updatedAt === undefined) {
-    // Recorded before `updatedAt` was tracked: there is nothing to compare against, so divergence
-    // cannot be established either way. Fall back to overwriting, as before — the record picks up
-    // an `updatedAt` on the next pull or push and is verifiable from then on.
-    return undefined
-  }
-  return remote.updatedAt !== baseline.updatedAt || remote.size !== baseline.size ? 'changed in Deepnote' : undefined
+  return baselineDiverged(baseline, remote) ? 'changed in Deepnote' : undefined
 }
 
-/** One local file that push intends to write, decided before any remote mutation happens. */
 interface PlannedFileUpload {
   relPath: string
-  /** Set when {@link describeCloudFileDivergence} found the cloud copy moved under us. */
   conflict?: string
 }
 
-/**
- * Upload changed working-directory files on push (`--all-files`). A file that is new locally, whose
- * content hash differs from the manifest, or whose previous replacement is pending gets uploaded.
- * Replacement paths are persisted before delete-then-upload because `POST /v2/files` refuses to
- * overwrite. Files removed locally are deliberately not deleted in the cloud (too destructive to
- * infer).
- *
- * The project file store is not sync's alone — `deepnote publish` writes the static root and the
- * Deepnote app writes anything — so every candidate is checked against the cloud inventory before
- * anything is written, and a file that moved since the manifest baseline goes through the same
- * `--on-conflict` override-or-skip choice as a diverged notebook rather than being overwritten.
- */
+/** Uploads changed working-directory files during an `--all-files` push. */
 async function uploadProjectFiles(
   ctx: SyncContext,
   project: SyncProject,
@@ -579,9 +551,7 @@ async function uploadProjectFiles(
     throw new Error(`Cannot retry file upload because the local file is missing: ${missingPendingPaths.join(', ')}`)
   }
 
-  // Pass 1: work out what changed locally and check it against the cloud, before writing anything.
-  // Splitting the walk in two is what lets one prompt cover the whole project instead of one per
-  // file; the alternative — buffering every file to upload later — would not fit in memory.
+  // Plan first so one prompt covers every conflict.
   const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
   const inventory = new Map(detail.files.map(entry => [entry.path, entry]))
   const planned: PlannedFileUpload[] = []
@@ -595,17 +565,21 @@ async function uploadProjectFiles(
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
     const stats = await fs.stat(absolute)
     assertBufferedProjectFileSize(relPath, stats.size)
-    // `size` alone misses a same-size content edit, so the content hash is the change signal. The
-    // bytes are released again here and re-read at upload time.
-    const hash = sha256(await fs.readFile(absolute))
     const prev = previous[relPath]
     const isPending = pending.has(relPath)
-    if (!isPending && prev && prev.size === stats.size && prev.hash === hash) {
+    // Hash catches same-size edits.
+    if (!isPending && prev && prev.size === stats.size && prev.hash === sha256(await fs.readFile(absolute))) {
       continue
     }
-    // A pending replacement already deleted the cloud copy on an earlier run, so its absence is
-    // this sync's own unfinished work, not another writer's — finish it, don't call it a conflict.
-    const conflict = isPending ? undefined : describeCloudFileDivergence(prev, inventory.get(relPath))
+    // A pending replacement belongs to this sync, so retry it without a conflict — unless the
+    // cloud copy exists again, which disproves "our own unfinished delete": another writer (or a
+    // run interrupted after its upload) put it there, and overwriting that needs a choice.
+    const remote = inventory.get(relPath)
+    const conflict = isPending
+      ? remote !== undefined
+        ? 'was re-created in Deepnote after an interrupted upload'
+        : undefined
+      : describeCloudFileDivergence(prev, remote)
     planned.push({ relPath, ...(conflict ? { conflict } : {}) })
   }
 
@@ -614,36 +588,49 @@ async function uploadProjectFiles(
   if (conflicted.length > 0) {
     const summary = conflicted.map(file => `${file.relPath} (${file.conflict})`).join(', ')
     overrideConflicts =
-      (ctx.dryRun
-        ? 'skip'
-        : await resolveConflict(
-            ctx,
-            `Working files of "${project.name}" changed in Deepnote since the last sync: ${summary}. ` +
-              'Overwrite the Deepnote copies with your local files?',
-            'Overwrite the Deepnote copies with the local files'
-          )) === 'override'
+      (await resolveConflict(
+        ctx,
+        `Working files of "${project.name}" changed in Deepnote since the last sync: ${summary}. ` +
+          'Overwrite the Deepnote copies with your local files?',
+        'Overwrite the Deepnote copies with the local files'
+      )) === 'override'
     if (!overrideConflicts) {
       warn(
         `Kept the Deepnote copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
-          `"${project.name}": ${summary}. Pull to bring them down before pushing again.`
+          `"${project.name}": ${summary}. To accept the Deepnote versions, pull — this replaces your ` +
+          'local copies. To keep yours, push again and choose to overwrite.'
       )
     }
   }
 
-  // Pass 2: write the files that are safe to write (or that the user chose to overwrite).
+  const commitPending = () => {
+    if (pending.size > 0) {
+      record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
+    } else {
+      delete record.pendingFileUploads
+    }
+  }
+
   for (const { relPath, conflict } of planned) {
     if (conflict !== undefined && !overrideConflicts) {
+      // A kept re-created cloud copy is no longer ours to finish replacing. Dropping the retry turns
+      // the path back into an ordinary diverged file: pull brings the cloud copy down, push asks again.
+      if (!ctx.dryRun && pending.delete(relPath)) {
+        commitPending()
+        await persistManifest()
+      }
       continue
     }
     const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
     const bytes = await fs.readFile(absolute)
-    // Re-hash rather than trusting pass 1: the record must describe the bytes actually uploaded.
+    // The file may have changed since planning, including past the buffered-transfer cap.
+    assertBufferedProjectFileSize(relPath, bytes.length)
     const hash = sha256(bytes)
 
     if (!ctx.dryRun) {
       if (!pending.has(relPath)) {
         pending.add(relPath)
-        record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
+        commitPending()
         await persistManifest()
       }
       await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
@@ -658,11 +645,11 @@ async function uploadProjectFiles(
         ...(stored.updatedAt ? { updatedAt: stored.updatedAt } : {}),
       }
       pending.delete(relPath)
-      if (pending.size > 0) {
-        record.pendingFileUploads = [...pending].sort((a, b) => a.localeCompare(b))
-      } else {
-        delete record.pendingFileUploads
-      }
+      commitPending()
+      // Settle the baseline on disk now: a run interrupted later must not leave this upload
+      // recorded as still pending, which the next sync would read as a re-created conflict.
+      record.files = next
+      await persistManifest()
     } else {
       next[relPath] = { size: bytes.length, hash }
     }
@@ -756,15 +743,13 @@ async function syncOneProject(
         }
       }
     } else {
-      const choice = ctx.dryRun
-        ? 'skip'
-        : await resolveConflict(
-            ctx,
-            syncRecord
-              ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
-              : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
-            'Overwrite the local files with the cloud version (discards local changes)'
-          )
+      const choice = await resolveConflict(
+        ctx,
+        syncRecord
+          ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
+          : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
+        'Overwrite the local files with the cloud version (discards local changes)'
+      )
       if (choice === 'override') {
         outcome = await applyPull(
           syncRecord
@@ -782,9 +767,7 @@ async function syncOneProject(
       }
     }
 
-    // File sync runs for projects that synced cleanly; a skipped conflict skips files too, so a
-    // "skip" answer really does leave the project's local footprint untouched. Files follow the
-    // notebook direction, except a replacement persisted before deletion is always retried first.
+    // Retry pending replacements even when notebooks pull or remain unchanged.
     if (ctx.options.allFiles && outcome.action !== 'skipped-conflict') {
       const currentRecord = manifestProjects[project.id] ?? syncRecord
       if (currentRecord) {
@@ -864,7 +847,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
 
   // Load .env from the sync root before reading the token — mirrors `run --cloud`.
   dotenv.config({ path: path.join(rootDir, DEFAULT_ENV_FILE), quiet: true })
-  const token = normalizeToken(options.token) ?? normalizeToken(process.env[DEEPNOTE_TOKEN_ENV])
+  const token = resolveToken(options.token)
   if (!token) {
     throw new MissingTokenError()
   }
@@ -872,8 +855,8 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   const isMachineOutput = options.output !== undefined
   const requestedMode = options.onConflict ?? 'ask'
   const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !isMachineOutput
-  const conflictMode = requestedMode === 'ask' && !canPrompt ? 'skip' : requestedMode
-  if (requestedMode === 'ask' && conflictMode === 'skip') {
+  const conflictMode = requestedMode === 'ask' && (!canPrompt || dryRun) ? 'skip' : requestedMode
+  if (requestedMode === 'ask' && !canPrompt) {
     debug('No interactive terminal; conflicts will be skipped. Use --on-conflict to decide up front.')
   }
 

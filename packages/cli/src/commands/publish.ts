@@ -9,10 +9,9 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import type { Command } from 'commander'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError, warn } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import {
   findDivergedPublishPaths,
   type PublishMirror,
@@ -25,8 +24,6 @@ import {
 } from '../utils/publish-mirror'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 
-const STATIC_ROOT = PROJECT_STATIC_ROOT
-
 interface PublishOptions {
   projectId: string
   token?: string
@@ -35,7 +32,6 @@ interface PublishOptions {
   apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
-  /** `--sync-root <dir>`, `false` for `--no-sync-root`, otherwise "discover one". */
   syncRoot: SyncRootOption
   force: boolean
 }
@@ -55,7 +51,7 @@ function normalizeTargetPrefix(path: string): string | null {
   const normalized = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
   const segments = normalized.split('/')
   if (
-    (normalized !== STATIC_ROOT && !normalized.startsWith(`${STATIC_ROOT}/`)) ||
+    (normalized !== PROJECT_STATIC_ROOT && !normalized.startsWith(`${PROJECT_STATIC_ROOT}/`)) ||
     segments.some(segment => segment === '' || segment === '.' || segment === '..' || segment.includes('\0'))
   ) {
     return null
@@ -97,11 +93,11 @@ function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
   if (!base.pathname.endsWith('/')) {
     base.pathname += '/'
   }
-  if (targetPrefix === STATIC_ROOT) {
+  if (targetPrefix === PROJECT_STATIC_ROOT) {
     return base.toString()
   }
   const suffix = targetPrefix
-    .slice(STATIC_ROOT.length + 1)
+    .slice(PROJECT_STATIC_ROOT.length + 1)
     .split('/')
     .map(encodeURIComponent)
     .join('/')
@@ -119,7 +115,7 @@ function errorMessage(error: unknown): string {
 export function createPublishAction(program: Command) {
   return async (dir: string, options: PublishOptions) => {
     const c = getChalk()
-    const token = options.token || process.env[DEEPNOTE_TOKEN_ENV]
+    const token = resolveToken(options.token)
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
       // unhandled rejection rather than the documented exit code.
@@ -129,7 +125,9 @@ export function createPublishAction(program: Command) {
 
     const targetPrefix = normalizeTargetPrefix(options.path)
     if (!targetPrefix) {
-      program.error(`--path must be ${STATIC_ROOT} or a directory below it`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`--path must be ${PROJECT_STATIC_ROOT} or a directory below it`, {
+        exitCode: ExitCode.InvalidUsage,
+      })
       return
     }
 
@@ -165,9 +163,7 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    // Resolve the sync workspace this publish belongs to, if any, before touching the network: the
-    // deploy and the workspace's mirror share one baseline, so neither command sees the other's
-    // writes as drift. Absent a workspace, publish behaves exactly as it always has.
+    // Invalid local configuration must fail before remote work starts.
     let mirror: PublishMirror | undefined
     try {
       mirror = await resolvePublishMirror({
@@ -181,9 +177,8 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    /** Apply a mirror update, downgrading failures to warnings: the deploy itself already
-     * succeeded, and a stale manifest is safe — the next sync detects the divergence and asks. */
     const mirrorFailures: string[] = []
+    // Mirror failures remain warnings because the remote publish already succeeded.
     const updateMirror = async (label: string, action: (mirror: PublishMirror) => Promise<void>) => {
       if (!mirror) {
         return
@@ -223,9 +218,7 @@ export function createPublishAction(program: Command) {
       : []
     const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
 
-    // Stop before the first remote mutation if the cloud has moved past the workspace's baseline:
-    // someone published or edited these files since the last sync, and the local mirror does not
-    // hold that content, so overwriting it would lose the only copy.
+    // Avoid overwriting cloud content absent from the mirror.
     if (mirror && !options.force) {
       const diverged = findDivergedPublishPaths(mirror, projectFiles, [...publishedPaths, ...stalePaths])
       if (diverged.length > 0) {
@@ -293,8 +286,7 @@ export function createPublishAction(program: Command) {
       }
     }
 
-    // Persist the shared baseline for whatever actually landed, even after a partial failure: the
-    // manifest must describe the files that were really written, not the ones that were intended.
+    // The manifest must reflect partial publishes.
     if (mirror && (uploaded > 0 || pruned > 0)) {
       await updateMirror(SYNC_MANIFEST_FILENAME, savePublishMirror)
     }
