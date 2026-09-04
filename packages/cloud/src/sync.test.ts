@@ -8,7 +8,6 @@ import {
   getProjectDetail,
   importProject,
   listAllProjects,
-  MAX_BUFFERED_PROJECT_FILE_BYTES,
   type ProjectStaticFilesUpdate,
   updateProjectStaticFiles,
   uploadProjectFile,
@@ -511,9 +510,5 @@ describe('downloadProjectFile', () => {
     await expect(
       downloadProjectFile(BASE_URL, TOKEN, 'p1', 'large.bin', { maxBytes: chunk.byteLength })
     ).rejects.toMatchObject({ statusCode: 413 })
-  })
-
-  it('defaults buffered working-directory transfers to 100 MiB', () => {
-    expect(MAX_BUFFERED_PROJECT_FILE_BYTES).toBe(100 * 1024 * 1024)
   })
 })

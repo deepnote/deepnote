@@ -37,6 +37,9 @@ const DEFAULT_DOWNLOAD_TIMEOUT_MS = 600_000
  * public API's multi-gigabyte storage limit. Callers that need larger files should stream them. */
 export const MAX_BUFFERED_PROJECT_FILE_BYTES = 100 * 1024 * 1024
 
+/** Reserved project-file directory for static-site content. */
+export const PROJECT_STATIC_ROOT = '_deepnote_static'
+
 /**
  * A runaway guard, not a real limit: at the API's maximum page size of 100 this is 50,000 projects.
  * Unlike `findNotebook`'s name-narrowed walk this one is unfiltered, so the guard is generous — but
