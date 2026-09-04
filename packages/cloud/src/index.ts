@@ -92,6 +92,7 @@ export {
   importProject,
   listAllProjects,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
+  PROJECT_STATIC_ROOT,
   type ProjectDetail,
   type ProjectFileEntry,
   type ProjectFileTransferOptions,

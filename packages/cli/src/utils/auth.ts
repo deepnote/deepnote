@@ -15,3 +15,13 @@ export class MissingTokenError extends Error {
     this.name = 'MissingTokenError'
   }
 }
+
+/** The token from `--token` or the environment, trimmed; `undefined` when neither holds one. */
+export function resolveToken(optionToken: string | undefined): string | undefined {
+  const optionValue = optionToken?.trim()
+  if (optionValue) {
+    return optionValue
+  }
+  const envValue = process.env[DEEPNOTE_TOKEN_ENV]?.trim()
+  return envValue ? envValue : undefined
+}
