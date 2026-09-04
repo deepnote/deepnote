@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@hono/node-server': '>=2.0.10'
   '@inquirer/checkbox': 5.0.6
   '@inquirer/confirm': 6.0.6
   '@inquirer/editor': 5.0.6
@@ -17,17 +18,16 @@ overrides:
   '@inquirer/rawlist': 5.2.2
   '@inquirer/search': 4.1.2
   '@inquirer/select': 5.0.6
+  '@isaacs/brace-expansion': '>=5.0.1'
   '@types/node': 22.20.1
   '@vitest/coverage-v8': 4.1.8
-  '@hono/node-server': '>=2.0.10'
-  '@isaacs/brace-expansion': '>=5.0.1'
   ajv: '>=8.18.0'
   body-parser: '>=2.3.0'
   brace-expansion: '>=5.0.9'
   defu: '>=6.1.5'
   diff: '>=8.0.3'
   express-rate-limit: '>=8.2.2'
-  fast-uri: '>=3.1.5 <4'
+  fast-uri: '>=3.1.7 <4'
   flatted: '>=3.4.2'
   glob: '>=11.1.0'
   hono: '>=4.12.34'
@@ -40,13 +40,13 @@ overrides:
   path-to-regexp: '>=8.4.0'
   picomatch: '>=4.0.4'
   postcss: '>=8.5.18'
-  qs: '>=6.15.2'
+  qs: '>=6.16.0'
   rollup: '>=4.59.0'
   smol-toml: '>=1.6.1'
   undici: 6.28.0
   vite: '>=8.0.16'
-  ws: '>=8.20.1'
   vitest: 4.1.8
+  ws: '>=8.20.1'
   yaml: '>=2.8.3'
 
 patchedDependencies:
@@ -2151,8 +2151,8 @@ packages:
   fast-string-width@3.0.2:
     resolution: {integrity: sha512-gX8LrtNEI5hq8DVUfRQMbr5lpaS4nMIWV+7XEbXk2b8kiQIizgnlr12B4dA3ZEx3308ze0O4Q1R+cHts8kyUJg==}
 
-  fast-uri@3.1.5:
-    resolution: {integrity: sha512-gHwA1O9LDIcKunMKhObS/HimwtehO1nPUECKAu5TpKgaO19fcWEl4bliWe1jWxVFvIXztJjjQ4L8XQ1EU9f7Jw==}
+  fast-uri@3.1.7:
+    resolution: {integrity: sha512-dOvZVzjdZdz7phd9v6jCbwxrBW3fK6n8Rc0CtdmM4bumzMnxywBYhuph6J819RRw/ku+rLbelwfMunktuzVVHg==}
 
   fast-wrap-ansi@0.2.2:
     resolution: {integrity: sha512-7F2Fl+TjRSenLqlU3UjSH0iyqopqoZIu7eZVpEirP2g1GtWa2G/ecEmBdgz31+Mxr+ELclgg6sokpSFIQiZ02Q==}
@@ -2775,8 +2775,8 @@ packages:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
 
-  qs@6.15.3:
-    resolution: {integrity: sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==}
+  qs@6.16.0:
+    resolution: {integrity: sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==}
     engines: {node: '>=0.6'}
 
   quansync@1.0.0:
@@ -4511,7 +4511,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.5
+      fast-uri: 3.1.7
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -4557,7 +4557,7 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.3
       on-finished: 2.4.1
-      qs: 6.15.3
+      qs: 6.16.0
       raw-body: 3.0.2
       type-is: 2.1.0
     transitivePeerDependencies:
@@ -4939,7 +4939,7 @@ snapshots:
       once: 1.4.0
       parseurl: 1.3.3
       proxy-addr: 2.0.7
-      qs: 6.15.3
+      qs: 6.16.0
       range-parser: 1.3.0
       router: 2.2.0
       send: 1.2.1
@@ -4962,7 +4962,7 @@ snapshots:
     dependencies:
       fast-string-truncated-width: 3.0.3
 
-  fast-uri@3.1.5: {}
+  fast-uri@3.1.7: {}
 
   fast-wrap-ansi@0.2.2:
     dependencies:
@@ -5539,7 +5539,7 @@ snapshots:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
 
-  qs@6.15.3:
+  qs@6.16.0:
     dependencies:
       es-define-property: 1.0.1
       side-channel: 1.1.1

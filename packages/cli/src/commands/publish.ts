@@ -4,17 +4,26 @@ import {
   createStreamlitApp,
   deleteProjectFile,
   getProjectDetail,
+  PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
   updateProjectStaticFiles,
   uploadProjectFile,
 } from '@deepnote/cloud'
 import type { Command } from 'commander'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
-import { getChalk, log, error as logError } from '../output'
-import { MissingTokenError } from '../utils/auth'
-
-const STATIC_ROOT = '_deepnote_static'
+import { getChalk, log, error as logError, warn } from '../output'
+import { MissingTokenError, resolveToken } from '../utils/auth'
+import {
+  findDivergedPublishPaths,
+  type PublishMirror,
+  PublishMirrorError,
+  recordPrunedFile,
+  recordPublishedFile,
+  resolvePublishMirror,
+  type SyncRootOption,
+  savePublishMirror,
+} from '../utils/publish-mirror'
+import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 
 interface PublishOptions {
   projectId: string
@@ -24,6 +33,8 @@ interface PublishOptions {
   apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
+  syncRoot: SyncRootOption
+  force: boolean
   streamlit: boolean
 }
 
@@ -42,7 +53,7 @@ function normalizeTargetPrefix(path: string): string | null {
   const normalized = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
   const segments = normalized.split('/')
   if (
-    (normalized !== STATIC_ROOT && !normalized.startsWith(`${STATIC_ROOT}/`)) ||
+    (normalized !== PROJECT_STATIC_ROOT && !normalized.startsWith(`${PROJECT_STATIC_ROOT}/`)) ||
     segments.some(segment => segment === '' || segment === '.' || segment === '..' || segment.includes('\0'))
   ) {
     return null
@@ -101,11 +112,11 @@ function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
   if (!base.pathname.endsWith('/')) {
     base.pathname += '/'
   }
-  if (targetPrefix === STATIC_ROOT) {
+  if (targetPrefix === PROJECT_STATIC_ROOT) {
     return base.toString()
   }
   const suffix = targetPrefix
-    .slice(STATIC_ROOT.length + 1)
+    .slice(PROJECT_STATIC_ROOT.length + 1)
     .split('/')
     .map(encodeURIComponent)
     .join('/')
@@ -123,7 +134,7 @@ function errorMessage(error: unknown): string {
 export function createPublishAction(program: Command) {
   return async (target: string, options: PublishOptions, command: Command) => {
     const c = getChalk()
-    const token = options.token || process.env[DEEPNOTE_TOKEN_ENV]
+    const token = resolveToken(options.token)
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
       // unhandled rejection rather than the documented exit code.
@@ -165,7 +176,9 @@ export function createPublishAction(program: Command) {
 
     const targetPrefix = normalizeTargetPrefix(options.path)
     if (!targetPrefix) {
-      program.error(`--path must be ${STATIC_ROOT} or a directory below it`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`--path must be ${PROJECT_STATIC_ROOT} or a directory below it`, {
+        exitCode: ExitCode.InvalidUsage,
+      })
       return
     }
 
@@ -201,6 +214,33 @@ export function createPublishAction(program: Command) {
       return
     }
 
+    // Invalid local configuration must fail before remote work starts.
+    let mirror: PublishMirror | undefined
+    try {
+      mirror = await resolvePublishMirror({
+        syncRoot: options.syncRoot,
+        publishDir: target,
+        projectId: options.projectId,
+      })
+    } catch (error) {
+      const exitCode = error instanceof PublishMirrorError ? ExitCode.InvalidUsage : ExitCode.Error
+      program.error(errorMessage(error), { exitCode })
+      return
+    }
+
+    const mirrorFailures: string[] = []
+    // Mirror failures remain warnings because the remote publish already succeeded.
+    const updateMirror = async (label: string, action: (mirror: PublishMirror) => Promise<void>) => {
+      if (!mirror) {
+        return
+      }
+      try {
+        await action(mirror)
+      } catch (error) {
+        mirrorFailures.push(`${label} — ${errorMessage(error)}`)
+      }
+    }
+
     const baseUrl = options.url
     let project: Awaited<ReturnType<typeof getProjectDetail>>
     try {
@@ -229,10 +269,25 @@ export function createPublishAction(program: Command) {
       : []
     const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
 
+    // Avoid overwriting cloud content absent from the mirror.
+    if (mirror && !options.force) {
+      const diverged = findDivergedPublishPaths(mirror, projectFiles, [...publishedPaths, ...stalePaths])
+      if (diverged.length > 0) {
+        logError(
+          `${diverged.length} file${diverged.length === 1 ? '' : 's'} changed in Deepnote since ${mirror.rootDir} last synced: ` +
+            `${diverged.join(', ')}. Run \`deepnote sync --all-files\` to bring the changes down, ` +
+            'or publish with --force to overwrite them.'
+        )
+        process.exitCode = ExitCode.Error
+        return
+      }
+    }
+
     for (const path of blockingPaths) {
       try {
         await deleteProjectFile(baseUrl, token, options.projectId, path)
         pruned++
+        await updateMirror(path, mirror => recordPrunedFile(mirror, path))
         if (!options.quiet) {
           log(`  ${c.green('✓')} removed ${path.slice(targetPrefix.length + 1)}`)
         }
@@ -254,6 +309,7 @@ export function createPublishAction(program: Command) {
           throw new Error(`Deepnote stored the file at "${stored.path}" instead of "${destination}"`)
         }
         uploaded++
+        await updateMirror(relativePath, mirror => recordPublishedFile(mirror, destination, content, stored))
         if (!options.quiet) {
           log(`  ${c.green('✓')} ${relativePath}`)
         }
@@ -269,6 +325,7 @@ export function createPublishAction(program: Command) {
         try {
           await deleteProjectFile(baseUrl, token, options.projectId, path)
           pruned++
+          await updateMirror(path, mirror => recordPrunedFile(mirror, path))
           if (!options.quiet) {
             log(`  ${c.green('✓')} removed ${path.slice(targetPrefix.length + 1)}`)
           }
@@ -278,6 +335,17 @@ export function createPublishAction(program: Command) {
           logError(`  ✗ remove ${path} — ${message}`)
         }
       }
+    }
+
+    // The manifest must reflect partial publishes.
+    if (mirror && (uploaded > 0 || pruned > 0)) {
+      await updateMirror(SYNC_MANIFEST_FILENAME, savePublishMirror)
+    }
+    if (mirrorFailures.length > 0) {
+      warn(
+        `Published, but could not fully update the sync mirror in ${mirror?.rootDir}: ${mirrorFailures.join('; ')}. ` +
+          'Run `deepnote sync --all-files` to reconcile.'
+      )
     }
 
     let siteUrl: string | undefined
@@ -313,6 +381,9 @@ export function createPublishAction(program: Command) {
       }
       if (pruned > 0) {
         log(`${c.green('✓')} Removed ${pruned} stale file${pruned === 1 ? '' : 's'}`)
+      }
+      if (mirror && mirrorFailures.length === 0 && (uploaded > 0 || pruned > 0)) {
+        log(`${c.green('✓')} Updated the sync mirror in ${c.dim(mirror.rootDir)}`)
       }
       if (errors.length > 0) {
         log(`${c.red('✗')} Publish failed with ${errors.length} error${errors.length === 1 ? '' : 's'}`)

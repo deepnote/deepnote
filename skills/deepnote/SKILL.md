@@ -271,6 +271,15 @@ deepnote run project.deepnote -o json                  # JSON output
 3. If errors, check snapshot for details
 4. Fix and re-run
 
+## Apps
+
+Deepnote apps come in several distinct models (data apps, Streamlit apps, published static sites,
+published browser apps with viewer API access, and local `serveStatic` apps) with different
+hosting, credentials, and file ownership.
+
+- Read [Deepnote apps](references/apps.md) when choosing, building, previewing, publishing, or
+  explaining a Deepnote app.
+
 ## CLI Quick Reference
 
 | Command                                 | Description                                                                                                                                                                                                                                                                                         |
@@ -289,6 +298,7 @@ deepnote run project.deepnote -o json                  # JSON output
 | `deepnote open <path>`                  | Open in Deepnote Cloud                                                                                                                                                                                                                                                                              |
 | `deepnote schedule <path>`              | Create or update recurring Deepnote Cloud runs                                                                                                                                                                                                                                                      |
 | `deepnote publish <path>`               | Publish a static website, or pass `--streamlit` to serve an existing project-relative file as a hosted Streamlit app. Static API access and pruning are explicit options.                                                                                                                           |
+| `deepnote static-site access`           | Enable or disable sharing and viewer API access for an existing published site without changing its files.                                                                                                                                                                                          |
 | `deepnote sync [dir]`                   | Sync Deepnote Cloud projects with a local directory, both ways: pull every project into `<folder path>/<project name>/` (one `.deepnote` per notebook), push local edits back (the exact-inverse ZIP import). State in `.deepnote-sync.json`; conflicts prompt (or `--on-conflict skip\|override`). |
 | `deepnote integrations pull\|add\|edit` | Manage database integrations in the local integrations file                                                                                                                                                                                                                                         |
 

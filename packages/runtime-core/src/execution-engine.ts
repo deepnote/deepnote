@@ -84,6 +84,11 @@ export interface ExecutionOptions {
   onServerStarting?: () => void
   onServerReady?: () => void
   integrations?: Array<{ id: string; name: string; type: string }>
+  /**
+   * Cancels agent blocks only; code and SQL blocks still run to completion.
+   * An aborted agent is reported as a failed block, not as a rejection.
+   */
+  signal?: AbortSignal
 }
 
 /**
@@ -345,6 +350,7 @@ export class ExecutionEngine {
             onAgentEvent: options.onAgentEvent,
             onWarning: options.onWarning,
             integrations: options.integrations,
+            signal: options.signal,
           }
 
           let agentResult: { finalOutput: string }
