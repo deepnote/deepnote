@@ -13,27 +13,27 @@ Deepnote integrates with all major data warehouses and databases, as well as com
 
 To work with a CSV, simply drag it onto the notebook.
 
-![Import_CSV_Squared.jpg](../assets/docs/N5sICTLi0cSODwkEXkwe.jpg)
+![CSV file dragged into a Deepnote notebook](../assets/docs/deepnote-first-steps/csv-drag-to-notebook.webp)
 
 An SQL block with a sample query will be created for you and the file will be uploaded to Deepnote's file system. The results are saved to a Pandas DataFrame.
 
-![Query_it_with_SQL.jpg](../assets/docs/UVu8NCRzREm1LUKLk8dy.jpg)
+![CSV file linked to a generated SQL block](../assets/docs/deepnote-first-steps/csv-file-sql-insert.webp)
 
 Pandas can also be used to read the uploaded CSV into the notebook's memory.
 
-![Query_it_with_python.jpg](../assets/docs/LKQbquJRqGEZmuH1sivy.jpg)
+![Pandas loading an uploaded CSV into a DataFrame](../assets/docs/deepnote-first-steps/python-csv-dataframe.webp)
 
 ### Connecting to a database
 
-Click "Create new" from the **Integrations** section in the Project sidebar on the left.
+In the notebook's right sidebar, click the **+** button next to **Integrations**.
 
 Choose the database integration you want (e.g., Snowflake, BigQuery, PostgreSQL). You'll be asked to add your credentials.
 
-![Connect_database_From_project.jpg](../assets/docs/ghICx4WQgqqhiMrLDIUq.jpg)
+![Integration chooser in the notebook sidebar](../assets/docs/deepnote-first-steps/notebook-integration-chooser.webp)
 
 Once you've connected the database to a project (It'll appear in your sidebar), you can click it to preview its schema and use SQL blocks to query your data. The results are saved to a Pandas DataFrame.
 
-![Preview_Schema and Query.jpg](../assets/docs/Aw5nXRIZTmo2DXhUGYhg.jpg)
+![Database schema and SQL query results](../assets/docs/deepnote-first-steps/database-schema-query.webp)
 
 ## Inviting your team members
 
@@ -43,15 +43,15 @@ It's dangerous to go alone. Take this link.
 
 From the **Settings & members** section in the left-hand panel, you'll find links that you can send to your team in order to invite them to the workspace.
 
-![Members_Page.jpg](../assets/docs/GTEICRTtGtfHZareqjnA.jpg)
+![Workspace members and invitation settings](../assets/docs/deepnote-first-steps/workspace-members.webp)
 
 Different links provide different access controls.
 
-![Invite_Link.jpg](../assets/docs/RZeTuVcnTwiOHJbJWGul.jpg)
+![Workspace invite link options](../assets/docs/deepnote-first-steps/workspace-invite-links.webp)
 
 Alternatively, you may enter email addresses and assign access controls that way (note the toggle switch that allows anyone with your business domain to join the workspace).
 
-![Alternatively_Invite.jpg](../assets/docs/R151o7DRta8abJfIn7W1.jpg)
+![Email invitation field and access role](../assets/docs/deepnote-first-steps/workspace-email-invite.webp)
 
 ## Analyzing your data
 
@@ -61,24 +61,24 @@ Deepnote is a fully collaborative SQL and Python environment with a suite of no-
 
 Create an SQL block and write native SQL queries against your CSVs and databases. Mix in Python to get the best of both languages. Results are saved to a Pandas DataFrame (am I repeating myself?).
 
-![Combine_SQL&Python.jpg](../assets/docs/hxQB0czRAixz87ASLcOA.jpg)
+![SQL and Python blocks in one notebook](../assets/docs/deepnote-first-steps/sql-python-blocks.webp)
 
 ### Python blocks
 
 You probably expected Python blocks, but there's more to it than that. Use the preinstalled libraries, `pip install,` whatever you want — you can even define your environment with Docker.
 
-![Install_Libraries.jpg](../assets/docs/eCOg7oQJRvGW5I24jruC.jpg)
+![Python package imports and version output](../assets/docs/deepnote-first-steps/python-package-imports.webp)
 
 ### Moving fast with no-code tools
 
 Visualize any Pandas DataFrame with [chart blocks](https://deepnote.com/docs/chart-blocks).
 
-![Leverage_Visualizations.jpg](../assets/docs/fh48Ob32QOSM05NbMkD7.jpg)
+![Chart block configured from a DataFrame](../assets/docs/deepnote-first-steps/chart-block.webp)
 
 Parameterize your notebook with [input blocks](https://deepnote.com/docs/input-blocks).
 
-![Leverage_Input_Blocks.jpg](../assets/docs/y3cf1J4Tc2XOba86JvPX.jpg)
+![Slider input used in a Python block](../assets/docs/deepnote-first-steps/input-block.webp)
 
 Communicate with [rich text blocks](https://deepnote.com/docs/text-editing).
 
-![Rich_Text.jpg](../assets/docs/DnwLKlQ2aXIv1vEKId6g.jpg)
+![Rich text in a Deepnote notebook](../assets/docs/deepnote-first-steps/rich-text-block.webp)
