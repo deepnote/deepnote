@@ -3,13 +3,16 @@ import os from 'node:os'
 import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@deepnote/cloud', () => ({
-  deleteProjectFile: vi.fn(),
-  getProjectDetail: vi.fn(),
-  PROJECT_STATIC_ROOT: '_deepnote_static',
-  updateProjectStaticFiles: vi.fn(),
-  uploadProjectFile: vi.fn(),
-}))
+vi.mock('@deepnote/cloud', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/cloud')>()
+  return {
+    ...actual,
+    deleteProjectFile: vi.fn(),
+    getProjectDetail: vi.fn(),
+    updateProjectStaticFiles: vi.fn(),
+    uploadProjectFile: vi.fn(),
+  }
+})
 
 import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
 import { createProgram } from '../cli'

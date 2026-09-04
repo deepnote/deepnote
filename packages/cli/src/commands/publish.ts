@@ -3,8 +3,8 @@ import { join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
+  PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
-  PROJECT_STATIC_ROOT as STATIC_ROOT,
   updateProjectStaticFiles,
   uploadProjectFile,
 } from '@deepnote/cloud'
@@ -51,7 +51,7 @@ function normalizeTargetPrefix(path: string): string | null {
   const normalized = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
   const segments = normalized.split('/')
   if (
-    (normalized !== STATIC_ROOT && !normalized.startsWith(`${STATIC_ROOT}/`)) ||
+    (normalized !== PROJECT_STATIC_ROOT && !normalized.startsWith(`${PROJECT_STATIC_ROOT}/`)) ||
     segments.some(segment => segment === '' || segment === '.' || segment === '..' || segment.includes('\0'))
   ) {
     return null
@@ -93,11 +93,11 @@ function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
   if (!base.pathname.endsWith('/')) {
     base.pathname += '/'
   }
-  if (targetPrefix === STATIC_ROOT) {
+  if (targetPrefix === PROJECT_STATIC_ROOT) {
     return base.toString()
   }
   const suffix = targetPrefix
-    .slice(STATIC_ROOT.length + 1)
+    .slice(PROJECT_STATIC_ROOT.length + 1)
     .split('/')
     .map(encodeURIComponent)
     .join('/')
@@ -125,7 +125,9 @@ export function createPublishAction(program: Command) {
 
     const targetPrefix = normalizeTargetPrefix(options.path)
     if (!targetPrefix) {
-      program.error(`--path must be ${STATIC_ROOT} or a directory below it`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`--path must be ${PROJECT_STATIC_ROOT} or a directory below it`, {
+        exitCode: ExitCode.InvalidUsage,
+      })
       return
     }
 

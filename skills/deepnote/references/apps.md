@@ -75,8 +75,9 @@ through `publish`, not through a synced workspace. Two consequences for anyone s
 - Publish looks upwards from the published directory for a sync workspace and updates its mirror, so
   the next sync sees the deploy as already in step. A CI deploy has no workspace to update and
   should pass `--no-sync-root`.
-- If Deepnote holds changes below the target path that the workspace has not synced, publish exits 1
-  without touching the project. Sync first, or pass `--force`.
+- If a path publish is about to write or prune has moved on in Deepnote since that workspace last
+  synced, it exits 1 without touching the project. Sync first, or pass `--force`. A sibling under
+  the target that is not in this build (and not being pruned) does not stop the deploy.
 
 `references/cli-publish.md` (options, exit codes, the full coordination rules) and
 `references/cli-sync.md` carry the rest.
