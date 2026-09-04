@@ -312,8 +312,8 @@ importers:
   packages/runtime-core:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^1.0.70
-        version: 1.0.70(zod@3.25.76)
+        specifier: ^2.0.0
+        version: 2.0.44(zod@3.25.76)
       '@ai-sdk/openai':
         specifier: ^3.0.96
         version: 3.0.96(zod@3.25.76)
@@ -354,9 +354,9 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/mcp@1.0.70':
-    resolution: {integrity: sha512-rgbR+UZQF2DTsYUxgqTFjpFMaqXvQoGo9hS9q27qNpnNu5Pfv0qzUCg41YyED19cv3/LmF4tcpBY0YALsfdMxQ==}
-    engines: {node: '>=18'}
+  '@ai-sdk/mcp@2.0.44':
+    resolution: {integrity: sha512-uYEnqkMvLSztOLgEDZ5hRyz8jgWsTjseS8e2iMBe6ddb4w1ubj5i2aSYytErqtatTjIvSq750g3UHPEiCao8QA==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -372,9 +372,19 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider-utils@5.0.36':
+    resolution: {integrity: sha512-MFXBn6XDyf37PNQAge/HTatPJE8Vmg/g/w4WPtjSV53jq8FKAzoaN5+43hsdQa9bqgN+/13jxug9ChvsG+godQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider@3.0.15':
     resolution: {integrity: sha512-XeZW1CcDF2GMbH4wejW6xBRI2QCOgnkVYUnxoeDadB1mf85riL2bMUeDoh+6gJ/r4mjNfzUPW8OjLjvwTP0u1Q==}
     engines: {node: '>=18'}
+
+  '@ai-sdk/provider@4.0.10':
+    resolution: {integrity: sha512-fX2ENAc7iDpZ+Wp4+Rk06Usn/Ys7dI9uAkGv0jlF6XVrW13NkRWx5Ou+U6lIM2E1fTLkCs16GGrUAaVvroag7A==}
+    engines: {node: '>=22'}
 
   '@apidevtools/json-schema-ref-parser@11.9.3':
     resolution: {integrity: sha512-60vepv88RwcJtSHrD6MjIL6Ta3SOYbgfnkHb+ppAVK+o9mXprRtulx7VlRl3lN3bbvysAfCS7WMVfhUYemB0IQ==}
@@ -1576,6 +1586,9 @@ packages:
 
   '@vitest/utils@4.1.8':
     resolution: {integrity: sha512-uOJamYALNhfJ6iolExyQM40yIQwDqYnkKtQ5VCiSe17E33H0aQ/u+1GlRuz4LZBk6Mm3sg90G9hEbmEt37C1Zg==}
+
+  '@workflow/serde@4.1.0':
+    resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
 
   '@xterm/headless@5.5.0':
     resolution: {integrity: sha512-5xXB7kdQlFBP82ViMJTwwEc3gKCLGKR/eoxQm4zge7GPBl86tCdI0IdPJjoKd8mUSFXz5V7i/25sfsEkP4j46g==}
@@ -3403,10 +3416,11 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 3.25.76
 
-  '@ai-sdk/mcp@1.0.70(zod@3.25.76)':
+  '@ai-sdk/mcp@2.0.44(zod@3.25.76)':
     dependencies:
-      '@ai-sdk/provider': 3.0.15
-      '@ai-sdk/provider-utils': 4.0.45(zod@3.25.76)
+      '@ai-sdk/provider': 4.0.10
+      '@ai-sdk/provider-utils': 5.0.36(zod@3.25.76)
+      cross-spawn: 7.0.6
       pkce-challenge: 5.0.1
       zod: 3.25.76
 
@@ -3424,7 +3438,20 @@ snapshots:
       undici: 6.28.0
       zod: 3.25.76
 
+  '@ai-sdk/provider-utils@5.0.36(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.10
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.1
+      undici: 6.28.0
+      zod: 3.25.76
+
   '@ai-sdk/provider@3.0.15':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@4.0.10':
     dependencies:
       json-schema: 0.4.0
 
@@ -4410,6 +4437,8 @@ snapshots:
       '@vitest/pretty-format': 4.1.8
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
+
+  '@workflow/serde@4.1.0': {}
 
   '@xterm/headless@5.5.0': {}
 
