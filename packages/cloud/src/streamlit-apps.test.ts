@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createStreamlitApp } from './streamlit-apps'
+import {
+  createStreamlitApp,
+  getStreamlitAppStatus,
+  listStreamlitApps,
+  StreamlitAppTimeoutError,
+  waitForStreamlitApp,
+} from './streamlit-apps'
 
 const BASE_URL = 'https://api.deepnote.com/'
 const TOKEN = 'token'
@@ -73,5 +79,87 @@ describe('createStreamlitApp', () => {
       /entrypoint/
     )
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('listStreamlitApps', () => {
+  it('lists the apps a project serves', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ streamlitApps: [APP] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listStreamlitApps(BASE_URL, TOKEN, APP.projectId)).resolves.toEqual([APP])
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://api.deepnote.com/v2/streamlit-apps?projectId=${APP.projectId}`,
+      expect.objectContaining({ method: 'GET', headers: expect.objectContaining({ Authorization: `Bearer ${TOKEN}` }) })
+    )
+  })
+})
+
+describe('getStreamlitAppStatus', () => {
+  it('returns the serving status and rejects unknown statuses', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'starting' }), { status: 200 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'sleeping' }), { status: 200 }))
+    )
+
+    await expect(getStreamlitAppStatus(BASE_URL, TOKEN, APP.id)).resolves.toBe('starting')
+    await expect(getStreamlitAppStatus(BASE_URL, TOKEN, APP.id)).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringMatching(/Invalid Deepnote response/),
+    })
+    expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe(`https://api.deepnote.com/v2/streamlit-apps/${APP.id}/status`)
+  })
+})
+
+describe('waitForStreamlitApp', () => {
+  function stubStatuses(...statuses: string[]) {
+    const fetchMock = vi.fn()
+    for (const status of statuses) {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ status }), { status: 200 }))
+    }
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('polls through unavailable and starting until the app is running', async () => {
+    const fetchMock = stubStatuses('unavailable', 'starting', 'running')
+    const seen: string[] = []
+    const sleeps: number[] = []
+
+    await waitForStreamlitApp(BASE_URL, TOKEN, APP.id, {
+      onStatus: status => seen.push(status),
+      sleep: async ms => {
+        sleeps.push(ms)
+      },
+    })
+
+    expect(seen).toEqual(['unavailable', 'starting', 'running'])
+    expect(sleeps).toEqual([5000, 5000])
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('throws a timeout error carrying the last status once the deadline passes', async () => {
+    stubStatuses('starting', 'starting', 'starting')
+    let clock = 0
+
+    await expect(
+      waitForStreamlitApp(BASE_URL, TOKEN, APP.id, {
+        timeoutMs: 7000,
+        now: () => clock,
+        sleep: async ms => {
+          clock += ms
+        },
+      })
+    ).rejects.toEqual(new StreamlitAppTimeoutError(APP.id, 'starting'))
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3)
   })
 })
