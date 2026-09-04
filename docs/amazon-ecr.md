@@ -1,6 +1,6 @@
 ---
 title: Amazon Elastic Container Registry
-description: Do you have a private Docker image on Amazon ECR that you want to use in Deepnote? No problem. Follow these steps use your custom environment.
+description: Do you have a private Docker image on Amazon ECR that you want to use in Deepnote? No problem. Follow these steps to use your custom environment.
 noIndex: false
 noContent: false
 ---

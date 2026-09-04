@@ -1,18 +1,48 @@
-# Claude Development Guide
+# Agent Development Guide
 
-This document provides guidelines for Claude (AI assistant) when working on the Deepnote monorepo.
+This document provides guidelines for AI coding agents working on the Deepnote monorepo.
 
 ## Repository Overview
 
 This is a TypeScript monorepo for Deepnote's open-source packages, managed with pnpm workspaces. The repository contains:
 
 - **packages/blocks** - Core package for working with Deepnote blocks and notebook files
+- **packages/cli** - Command-line interface for running Deepnote projects locally and on Deepnote Cloud
 - **packages/cloud** - Client for the Deepnote Cloud runs API (trigger a run, poll it, fetch its snapshot)
 - **packages/convert** - Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`)
 - **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
+- **packages/local-runner** - Local Python-backed runner and static UI for Deepnote notebooks
+- **packages/mcp** - MCP server for AI-assisted Deepnote notebook creation and manipulation
 - **packages/reactivity** - Reactivity and dependency graph for Deepnote notebooks
+- **packages/runtime-core** - Core runtime for executing Deepnote projects
+
+### Repository Routing
+
+Start with the owning package and its README before searching broadly. Avoid traversing unrelated packages.
+
+| When working on                                                | Start with                                            |
+| -------------------------------------------------------------- | ----------------------------------------------------- |
+| `.deepnote` schemas, block behavior, or Python code generation | `packages/blocks/`                                    |
+| Notebook format conversion                                     | `packages/convert/`                                   |
+| CLI commands and output                                        | `packages/cli/`                                       |
+| MCP tools and resources                                        | `packages/mcp/`                                       |
+| Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
+| Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
+| Dependency and reactivity analysis                             | `packages/reactivity/`                                |
+| Database integration definitions                               | `packages/database-integrations/`                     |
+| Shared test data                                               | `test-fixtures/`                                      |
+| Agent-facing format, CLI, and MCP references                   | `skills/deepnote/references/`                         |
 
 ## Development Workflow
+
+### Setup
+
+Use the Node.js version specified in `.nvmrc` (e.g. `nvm use`) before installing dependencies, so the install and the root `prepare` script run under the correct version.
+
+```bash
+# Install dependencies for the monorepo and its packages
+pnpm install
+```
 
 ### Running Commands
 
@@ -88,6 +118,7 @@ Always run these checks before considering work complete:
 - Follow existing test patterns in the codebase (see `packages/blocks/src/blocks/*.test.ts`)
 - Test edge cases, error handling, and special characters
 - For functions that generate code, test the exact output format
+- Tests must not depend on live network calls or real Deepnote Cloud credentials — mock external APIs. Verifying behavior against the real Deepnote Cloud API is a manual, explicitly-requested step outside `pnpm test`, and any resources created that way (projects, notebooks, runs) must be cleaned up afterward
 
 #### TypeScript Guidelines
 
@@ -109,7 +140,7 @@ Always run these checks before considering work complete:
 
 **Location:** `packages/blocks/`
 
-**Purpose:** Core package for working with Deepnote blocks, converting between Deepnote and Jupyter formats, and generating Python code from block configurations.
+**Purpose:** Core package for defining Deepnote blocks, reading and writing `.deepnote` files, and generating Python code from block configurations.
 
 **Key modules:**
 
@@ -119,7 +150,7 @@ Always run these checks before considering work complete:
   - `data-frame.ts` - DataFrame configuration for table display
   - `input-blocks.ts` - Input widgets (text, checkbox, select, etc.)
   - `python-utils.ts` - Python string escaping utilities
-- `src/deserialize-file/` - .deepnote file parsing
+- `src/deepnote-file/` - `.deepnote` schemas, parsing, serialization, and deserialization
 - `src/python-code.ts` - Main entry point for Python code generation
 
 **Common patterns:**
@@ -188,6 +219,14 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 - **CLI commands** (options, output formats, exit codes, new commands) — update `skills/deepnote/references/cli-*.md`
 - **MCP tools** (tool names, parameters, behavior) — update `skills/deepnote/references/cli-*.md` (MCP mirrors CLI commands)
 
+## Git & Pull Request Rules
+
+- The `main` branch is protected: no direct commits or force pushes. All changes must go through pull requests.
+- Never rebase or force-push a branch you don't own. If someone else's PR needs to be brought up to date with `main`, merge `main` into their branch and resolve conflicts in the merge commit — don't rewrite their history.
+- Keep pull requests small and focused on a single purpose. Link the related issue in the PR description unless the change is self-explanatory.
+- Only add `Co-authored-by:` lines with the explicit consent of the person being credited.
+- See `CONTRIBUTING.md` for the full contributor and release workflow.
+
 ## Important Notes
 
 - **Never commit without running tests, typecheck, and linting**
@@ -199,13 +238,11 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 
 ## Tools & Technologies
 
-- **Package Manager:** pnpm 10.18.1+
-- **Node Version:** 22.14.0+
-- **Build Tool:** tsdown
-- **Test Framework:** Vitest
-- **Linter:** Biome
-- **Formatter:** Biome + Prettier (for md/yaml)
-- **Type Checker:** TypeScript 5.9.3
+- Use the Node.js version specified in `.nvmrc`.
+- Use pnpm as configured by the `packageManager` and `engines` fields in `package.json`.
+- Treat `package.json` as the source of truth for scripts and direct dependencies.
+- Treat `pnpm-lock.yaml` as the source of truth for resolved dependency versions.
+- The project uses TypeScript, tsdown, Vitest, Biome, and Prettier.
 
 ## Getting Help
 

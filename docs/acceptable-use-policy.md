@@ -8,7 +8,7 @@ Effective date: February 9, 2023
 
 Deepnote is a collaborative data notebook trusted by the world’s best data teams. We’re on a mission to radically improve how teams think, explore and decide together. In order to do this, we must ensure that our product and services continue to operate smoothly, which includes protection against misuse or abuse by our users.
 
-We've developed this Acceptable Use Policy to clarify what we mean when we say "misuse" or "abuse" and to assist us in identifying such offenses and responding appropriately. In accordance with this policy, we reserve the right to suspend or terminate any accounts that violate these guidelines. Even if actions are not explicitly included in the policy, Deepnote remains the right (in its sole discretion) to suspend or terminate any accounts that have violated this Acceptable Use Policy with or without notice.
+We've developed this Acceptable Use Policy to clarify what we mean when we say "misuse" or "abuse" and to assist us in identifying such offenses and responding appropriately. In accordance with this policy, we reserve the right to suspend or terminate any accounts that violate these guidelines. Even if actions are not explicitly included in the policy, Deepnote retains the right (in its sole discretion) to suspend or terminate any accounts that have violated this Acceptable Use Policy, with or without notice.
 
 ## Prohibited materials
 

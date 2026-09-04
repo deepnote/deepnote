@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "alwaysStrict": true,
-    "baseUrl": ".",
     "declaration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -11,8 +10,8 @@
     "noImplicitAny": true,
     "noImplicitThis": true,
     "paths": {
-      "@deepnote/*": ["packages/*/src/index.ts"],
-      "@test-fixtures/*": ["test-fixtures/*"]
+      "@deepnote/*": ["./packages/*/src/index.ts"],
+      "@test-fixtures/*": ["./test-fixtures/*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,
