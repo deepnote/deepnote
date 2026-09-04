@@ -19,7 +19,7 @@ From the left panel in your Workspace, you can click the **"+"** symbol next to 
 
 Don't forget that you can arrange your projects into folders here, too. Just drag and drop them to suit how you like to organize your work.
 
-![Projects and folders in workspace navigation](../assets/docs/workspaces/sample-projects.webp)
+![Projects and folders in workspace navigation](../assets/docs/projects/project-creation.webp)
 <br></br><br></br>
 
 Let's move to the newly created Project panel now. Notice that the left panel has changed and you are focused on the context of your Project.
