@@ -76,9 +76,15 @@ export {
 } from './schedules'
 export {
   type CreateStreamlitAppBody,
-  type CreateStreamlitAppOptions,
   createStreamlitApp,
+  getStreamlitAppStatus,
+  listStreamlitApps,
   type StreamlitApp,
+  type StreamlitAppRequestOptions,
+  type StreamlitAppStatus,
+  StreamlitAppTimeoutError,
+  type WaitForStreamlitAppOptions,
+  waitForStreamlitApp,
 } from './streamlit-apps'
 export {
   deleteProjectFile,

@@ -123,7 +123,11 @@ describe('CLI', () => {
           '--path <prefix>',
           '--api-access <state>',
           '--prune',
+          '--sync-root <dir>',
+          '--no-sync-root',
+          '--force',
           '--streamlit',
+          '--no-wait',
           '--token <token>',
           '--url <url>',
         ])

@@ -581,10 +581,14 @@ ${c.bold('Exit Codes:')}
       ])
     )
     .option('--prune', 'Static only: delete remote files below --path that are absent locally')
-    .option('--sync-root <dir>', 'Sync workspace whose mirror to update (default: search upwards from <dir>)')
-    .option('--no-sync-root', 'Publish without looking for or updating a sync workspace')
-    .option('--force', 'Publish even when files changed in Deepnote since the sync workspace last synced')
+    .option(
+      '--sync-root <dir>',
+      'Static only: sync workspace whose mirror to update (default: search upwards from <dir>)'
+    )
+    .option('--no-sync-root', 'Static only: publish without looking for or updating a sync workspace')
+    .option('--force', 'Static only: publish even when files changed in Deepnote since the sync workspace last synced')
     .option('--streamlit', 'Serve an existing project file as a Streamlit app')
+    .option('--no-wait', 'Streamlit only: exit once the app is created instead of waiting for it to start')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -592,8 +596,12 @@ ${c.bold('Description:')}
   By default, replaces matching files in ${c.dim('_deepnote_static/')} and enables static website
   sharing after every upload succeeds. API access is left unchanged unless explicitly set.
 
-  With ${c.dim('--streamlit')}, the path is an existing project-relative file. The command serves
-  it through the Streamlit apps API without uploading or changing static website settings.
+${c.bold('Streamlit apps:')}
+  With ${c.dim('--streamlit')}, <path> is a project-relative file that already exists in the
+  project's Files: upload it in Deepnote or push it with ${c.dim('deepnote sync --all-files')} first.
+  Nothing is uploaded and no static website setting changes. Creating the app restarts the
+  project machine, which interrupts anyone working in the project; the command then waits up to
+  10 minutes for the app to answer. A file that is already served reports its existing app.
 
 ${c.bold('Working with deepnote sync:')}
   ${c.dim('_deepnote_static/')} is part of the same project file store that
@@ -619,9 +627,6 @@ ${c.bold('Examples:')}
   ${c.dim('# Let the published app call Deepnote APIs')}
   $ deepnote publish ./dist --project-id <uuid> --api-access enabled
 
-  ${c.dim('# Serve an existing project file as a Streamlit app')}
-  $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
-
   ${c.dim('# Remove remote files that are no longer in the local build')}
   $ deepnote publish ./dist --project-id <uuid> --prune
 
@@ -631,10 +636,18 @@ ${c.bold('Examples:')}
   ${c.dim('# CI deploy: never touch a sync workspace')}
   $ deepnote publish ./dist --project-id <uuid> --no-sync-root
 
+  ${c.dim('# Serve a file already in the project as a Streamlit app and wait for it to start')}
+  $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
+
+  ${c.dim('# Create the Streamlit app without waiting for the machine to restart')}
+  $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit --no-wait
+
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Static website or Streamlit app published
-  ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
-  ${c.dim('2')}  Invalid usage (bad path, directory not found, incompatible options, missing token, bad --sync-root)
+  ${c.dim('0')}  Files uploaded and website sharing enabled, or the Streamlit app is running
+  ${c.dim('1')}  Upload, pruning, or settings update failed, Deepnote holds unsynced changes,
+     or the Streamlit app did not start in time
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root,
+     options that do not apply to the chosen mode)
 `
     })
     .action(createPublishAction(program))
