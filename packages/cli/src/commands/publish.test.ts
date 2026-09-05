@@ -7,26 +7,57 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   const actual = await importOriginal<typeof import('@deepnote/cloud')>()
   return {
     ...actual,
+    createStreamlitApp: vi.fn(),
     deleteProjectFile: vi.fn(),
     getProjectDetail: vi.fn(),
+    getStreamlitAppStatus: vi.fn(),
+    listStreamlitApps: vi.fn(),
     updateProjectStaticFiles: vi.fn(),
     uploadProjectFile: vi.fn(),
+    waitForStreamlitApp: vi.fn(),
   }
 })
 
-import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
+import {
+  createStreamlitApp,
+  deleteProjectFile,
+  getProjectDetail,
+  getStreamlitAppStatus,
+  listStreamlitApps,
+  StreamlitAppTimeoutError,
+  updateProjectStaticFiles,
+  uploadProjectFile,
+  waitForStreamlitApp,
+} from '@deepnote/cloud'
+import { ApiError } from '@deepnote/database-integrations'
 import { createProgram } from '../cli'
 
+const STREAMLIT_APP = {
+  id: '7a2f0c1e-0f5f-4a67-9a2c-4a0b7bb0f0a1',
+  projectId: 'p1',
+  entrypoint: 'apps/dashboard.py',
+  url: 'https://deepnote.com/streamlit-apps/7a2f0c1e-0f5f-4a67-9a2c-4a0b7bb0f0a1',
+  createdAt: '2026-08-11T09:30:00.000Z',
+}
+
+const mockedCreateStreamlitApp = vi.mocked(createStreamlitApp)
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
+const mockedGetStreamlitAppStatus = vi.mocked(getStreamlitAppStatus)
+const mockedListStreamlitApps = vi.mocked(listStreamlitApps)
 const mockedUpdateProject = vi.mocked(updateProjectStaticFiles)
 const mockedUpload = vi.mocked(uploadProjectFile)
+const mockedWaitForStreamlitApp = vi.mocked(waitForStreamlitApp)
 
 let tempDir: string
 
 beforeEach(async () => {
   process.exitCode = undefined
   tempDir = await fs.mkdtemp(join(os.tmpdir(), 'publish-test-'))
+  mockedCreateStreamlitApp.mockReset().mockResolvedValue(STREAMLIT_APP)
+  mockedGetStreamlitAppStatus.mockReset().mockResolvedValue('starting')
+  mockedListStreamlitApps.mockReset().mockResolvedValue([])
+  mockedWaitForStreamlitApp.mockReset().mockResolvedValue(undefined)
   mockedDelete.mockReset().mockResolvedValue(false)
   mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [] })
   mockedUpdateProject.mockReset().mockResolvedValue({
@@ -654,5 +685,185 @@ describe('deepnote publish', () => {
       expect(process.exitCode).toBeUndefined()
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('deepnote sync --all-files'))
     })
+  })
+})
+
+describe('deepnote publish --streamlit', () => {
+  function captureLogs() {
+    const logged: string[] = []
+    vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+    return logged
+  }
+
+  it('creates the app, warns about the restart, waits for it, and touches no static files or settings', async () => {
+    const logged = captureLogs()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockedWaitForStreamlitApp.mockImplementation(async (_base, _token, _id, options) => {
+      for (const status of ['unavailable', 'starting', 'starting', 'running'] as const) {
+        options?.onStatus?.(status)
+      }
+    })
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(mockedCreateStreamlitApp).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', {
+      projectId: 'p1',
+      entrypoint: 'apps/dashboard.py',
+    })
+    expect(mockedWaitForStreamlitApp).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'tok',
+      STREAMLIT_APP.id,
+      expect.objectContaining({ onStatus: expect.any(Function) })
+    )
+    expect(mockedGetProject).not.toHaveBeenCalled()
+    expect(mockedUpload).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(errorSpy.mock.calls.map(call => String(call[0]))).toEqual([
+      expect.stringContaining('restarts the project machine'),
+    ])
+    expect(logged.filter(line => line.includes('…'))).toEqual(['  unavailable…', '  starting…', '  running…'])
+    expect(logged.join('\n')).toContain(STREAMLIT_APP.url)
+    expect(logged.at(-1)).toContain('App is running')
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('skips the wait with --no-wait', async () => {
+    const logged = captureLogs()
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', '--no-wait')
+
+    expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
+    expect(logged.join('\n')).toContain(STREAMLIT_APP.url)
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('exits 1 and keeps the URL visible when the app does not start in time', async () => {
+    const logged = captureLogs()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockedWaitForStreamlitApp.mockRejectedValue(new StreamlitAppTimeoutError(STREAMLIT_APP.id, 'starting'))
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(logged.join('\n')).toContain(STREAMLIT_APP.url)
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('is still starting')
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('reports the existing app instead of failing when the file is already served', async () => {
+    const logged = captureLogs()
+    mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
+    mockedListStreamlitApps.mockResolvedValue([
+      { ...STREAMLIT_APP, entrypoint: 'other.py', id: 'other' },
+      { ...STREAMLIT_APP, entrypoint: '/apps/dashboard.py' },
+    ])
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(mockedListStreamlitApps).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1')
+    expect(logged.join('\n')).toContain(`already served by app ${STREAMLIT_APP.id}`)
+    expect(logged.join('\n')).toContain(STREAMLIT_APP.url)
+    expect(mockedWaitForStreamlitApp).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'tok',
+      STREAMLIT_APP.id,
+      expect.anything()
+    )
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('does not wait for an existing app when the project machine is not running', async () => {
+    const logged = captureLogs()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
+    mockedListStreamlitApps.mockResolvedValue([STREAMLIT_APP])
+    mockedGetStreamlitAppStatus.mockResolvedValue('unavailable')
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
+    expect(logged.join('\n')).toContain(STREAMLIT_APP.url)
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('project machine is not running')
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('surfaces a 409 that is not a duplicate of the entrypoint', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'The project has no Streamlit app ports left'))
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('The project has no Streamlit app ports left')
+    expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('tells the user to upload the file first when the entrypoint is missing', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockedCreateStreamlitApp.mockRejectedValue(new ApiError(404, 'Entrypoint file not found'))
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('Entrypoint file not found. The file must already exist')
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('supports quiet publishing and reports other API failures with exit code 1', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    await run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', '--quiet')
+    expect(logSpy).not.toHaveBeenCalled()
+    expect(process.exitCode).toBeUndefined()
+
+    mockedCreateStreamlitApp.mockRejectedValue(new Error('network down'))
+    await run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', '--quiet')
+    expect(process.exitCode).toBe(1)
+  })
+
+  it.each(['../app.py', '/app.py', 'apps/../app.py', 'apps\\app.py', ' app.py', 'app.py '])(
+    'rejects invalid entrypoint %s before calling the API',
+    async entrypoint => {
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run(entrypoint, '--project-id', 'p1', '--token', 'tok', '--streamlit')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    }
+  )
+
+  it.each([
+    ['--api-access', 'enabled'],
+    ['--prune'],
+    ['--path', '_deepnote_static'],
+    ['--path', '_deepnote_static/v2'],
+    ['--sync-root', '.'],
+    ['--no-sync-root'],
+    ['--force'],
+  ])('rejects static-only option %s', async (...option) => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+
+    await expect(run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', ...option)).rejects.toThrow(
+      'exit'
+    )
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+  })
+
+  it('rejects --no-wait in static mode', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok', '--no-wait')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(mockedGetProject).not.toHaveBeenCalled()
   })
 })
