@@ -1,7 +1,9 @@
 import { z } from 'zod'
-import { request } from './http'
+import { isTransientError } from './cloud-runs'
+import { DEFAULT_REQUEST_TIMEOUT_MS, request } from './http'
 
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 5_000
+const DEFAULT_MAX_TRANSIENT_RETRIES = 5
 /** Creating an app restarts the project machine, which takes a few minutes. */
 const DEFAULT_START_TIMEOUT_MS = 10 * 60_000
 
@@ -118,9 +120,9 @@ export async function getStreamlitAppStatus(
 export class StreamlitAppTimeoutError extends Error {
   constructor(
     readonly streamlitAppId: string,
-    readonly lastStatus: StreamlitAppStatus
+    readonly lastStatus: StreamlitAppStatus | undefined
   ) {
-    super(`Streamlit app ${streamlitAppId} is still ${lastStatus}`)
+    super(`Streamlit app ${streamlitAppId} is still ${lastStatus ?? 'not answering'}`)
     this.name = 'StreamlitAppTimeoutError'
   }
 }
@@ -129,6 +131,7 @@ export interface WaitForStreamlitAppOptions {
   intervalMs?: number
   timeoutMs?: number
   requestTimeoutMs?: number
+  maxTransientRetries?: number
   onStatus?: (status: StreamlitAppStatus) => void
   /** Injectable clock/sleep for tests. */
   now?: () => number
@@ -139,7 +142,8 @@ export interface WaitForStreamlitAppOptions {
  * Polls `GET /v2/streamlit-apps/{id}/status` until the app is `running`.
  *
  * `unavailable` is not terminal: after creation the status passes through it while the project
- * machine stops. Throws {@link StreamlitAppTimeoutError} once `timeoutMs` passes.
+ * machine stops. Transient failures (429, 5xx, timeouts, network errors) are retried with capped
+ * exponential backoff. Throws {@link StreamlitAppTimeoutError} once `timeoutMs` passes.
  */
 export async function waitForStreamlitApp(
   baseUrl: string,
@@ -149,14 +153,35 @@ export async function waitForStreamlitApp(
 ): Promise<void> {
   const intervalMs = options.intervalMs ?? DEFAULT_STATUS_POLL_INTERVAL_MS
   const timeoutMs = options.timeoutMs ?? DEFAULT_START_TIMEOUT_MS
+  const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+  const maxTransientRetries = options.maxTransientRetries ?? DEFAULT_MAX_TRANSIENT_RETRIES
   const now = options.now ?? (() => Date.now())
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
   const deadline = now() + timeoutMs
+  let transientFailures = 0
+  let lastStatus: StreamlitAppStatus | undefined
 
   for (;;) {
-    const status = await getStreamlitAppStatus(baseUrl, token, streamlitAppId, {
-      requestTimeoutMs: options.requestTimeoutMs,
-    })
+    let status: StreamlitAppStatus
+    try {
+      status = await getStreamlitAppStatus(baseUrl, token, streamlitAppId, {
+        requestTimeoutMs: Math.min(requestTimeoutMs, Math.max(1, deadline - now())),
+      })
+      transientFailures = 0
+    } catch (error) {
+      if (!isTransientError(error) || transientFailures >= maxTransientRetries) {
+        throw error
+      }
+      transientFailures += 1
+      const remainingMs = deadline - now()
+      if (remainingMs <= 0) {
+        throw new StreamlitAppTimeoutError(streamlitAppId, lastStatus)
+      }
+      await sleep(Math.min(intervalMs * 2 ** transientFailures, 30_000, remainingMs))
+      continue
+    }
+
+    lastStatus = status
     options.onStatus?.(status)
     if (status === 'running') {
       return

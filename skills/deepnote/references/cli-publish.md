@@ -111,12 +111,15 @@ The command calls `POST /v2/streamlit-apps` with `{ projectId, entrypoint }`. Cr
 restarts the project machine, which takes a few minutes and interrupts anyone working in the
 project; the command prints that warning before creating. It then prints the app URL and polls
 `GET /v2/streamlit-apps/{id}/status` every 5 seconds until the status is `running`, for up to 10
-minutes. `unavailable` and `starting` are expected while the machine restarts. `--no-wait` exits
-right after the app is created.
+minutes. `unavailable` and `starting` are expected while the machine restarts, and transient
+failures of the status request (429, 5xx, timeouts) are retried. `--no-wait` exits right after the
+app is created.
 
 Creation is not idempotent on the server: `POST` answers 409 when the file is already served. The
 command then lists the project's apps (`GET /v2/streamlit-apps?projectId=`), reports the existing
-app's id and URL, changes nothing, and still waits for it unless `--no-wait` is given. Other 409s
+app's id and URL, and changes nothing. Only a create restarts the machine, so if the existing app's
+status is `unavailable` the command says the project machine is not running and exits 0 instead of
+waiting; otherwise it waits as after a create unless `--no-wait` is given. Other 409s
 (a suspended project, no free app port) are errors. A 404 for the entrypoint means the file is not
 in the project's Files yet.
 

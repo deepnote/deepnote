@@ -4,6 +4,7 @@ import {
   createStreamlitApp,
   deleteProjectFile,
   getProjectDetail,
+  getStreamlitAppStatus,
   listStreamlitApps,
   PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
@@ -153,7 +154,7 @@ async function findServedApp(
   entrypoint: string
 ): Promise<StreamlitApp | undefined> {
   const apps = await listStreamlitApps(baseUrl, token, projectId).catch(() => [])
-  return apps.find(app => app.entrypoint === entrypoint)
+  return apps.find(app => app.entrypoint.replace(/^\/+/, '') === entrypoint)
 }
 
 async function publishStreamlitApp(token: string, entrypoint: string, options: PublishOptions): Promise<void> {
@@ -163,6 +164,7 @@ async function publishStreamlitApp(token: string, entrypoint: string, options: P
   log(`Publishing Streamlit app ${c.cyan(entrypoint)} in project ${c.dim(projectId)}`)
 
   let app: StreamlitApp
+  let created = true
   try {
     app = await createStreamlitApp(baseUrl, token, { projectId, entrypoint })
     log(`${c.green('✓')} Created app ${app.id}`)
@@ -177,11 +179,17 @@ async function publishStreamlitApp(token: string, entrypoint: string, options: P
       return
     }
     app = served
+    created = false
     log(`${c.green('✓')} ${entrypoint} is already served by app ${app.id}; nothing was changed`)
   }
   log(`\n${c.bold('Streamlit app URL:')} ${c.underline(app.url)}`)
 
   if (!options.wait) {
+    return
+  }
+  // Only a create restarts the machine. An existing app on a stopped machine would never come up.
+  if (!created && (await getStreamlitAppStatus(baseUrl, token, app.id).catch(() => 'unavailable')) === 'unavailable') {
+    warn('The project machine is not running, so the app is not being served. Start the project in Deepnote.')
     return
   }
 
