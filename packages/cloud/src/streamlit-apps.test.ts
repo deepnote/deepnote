@@ -147,6 +147,40 @@ describe('waitForStreamlitApp', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
+  it('retries transient failures with backoff and gives up on a persistent one', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'boom' }), { status: 500 }))
+      .mockRejectedValueOnce(Object.assign(new Error('socket hang up'), { name: 'TypeError' }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'running' }), { status: 200 }))
+      .mockImplementation(async () => new Response(JSON.stringify({ message: 'still down' }), { status: 503 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const sleeps: number[] = []
+    const sleep = async (ms: number) => {
+      sleeps.push(ms)
+    }
+
+    await expect(waitForStreamlitApp(BASE_URL, TOKEN, APP.id, { sleep })).resolves.toBeUndefined()
+    expect(sleeps).toEqual([10_000, 20_000])
+
+    await expect(waitForStreamlitApp(BASE_URL, TOKEN, APP.id, { sleep, maxTransientRetries: 1 })).rejects.toMatchObject(
+      { statusCode: 503 }
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+  })
+
+  it('does not retry a permanent failure', async () => {
+    stubStatuses()
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: 'Streamlit app not found' }), { status: 404 })
+    )
+
+    await expect(waitForStreamlitApp(BASE_URL, TOKEN, APP.id, { sleep: async () => {} })).rejects.toMatchObject({
+      statusCode: 404,
+    })
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+  })
+
   it('throws a timeout error carrying the last status once the deadline passes', async () => {
     stubStatuses('starting', 'starting', 'starting')
     let clock = 0

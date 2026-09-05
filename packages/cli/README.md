@@ -581,8 +581,8 @@ hosted Streamlit app. Nothing is uploaded: push the file first with `deepnote sy
 project machine, which takes a few minutes and interrupts anyone working in the project; the command
 prints that warning before creating. It then prints the app URL and polls the app's status until it
 is `running`, for up to 10 minutes; `--no-wait` exits right after the app is created. If the file is
-already served, the command reports the existing app's id and URL, changes nothing, and still waits
-for it. Static-only options are rejected together with `--streamlit`, and the sync mirror is not
+already served, the command reports the existing app's id and URL and changes nothing; it waits for
+that app too, unless the project machine is not running. Static-only options are rejected together with `--streamlit`, and the sync mirror is not
 touched.
 
 **Examples:**
