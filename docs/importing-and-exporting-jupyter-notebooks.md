@@ -5,29 +5,29 @@ noIndex: false
 noContent: false
 ---
 
-## How to import`.ipynb` files
+## How to import `.ipynb` files
 
 There are two ways to import `.ipynb` files into a Deepnote project:
 
 1. Drag and drop `.ipynb` files into the **NOTEBOOKS** section in the left panel.
 
-![Drag_And_Drop notebooks.jpg](../assets/docs/Jlgt96IgRLejNtaNvkjA.jpg)
+![Drag an .ipynb file into the Notebooks section](../assets/docs/importing-and-exporting-jupyter-notebooks/drag-and-drop-notebooks.webp)
 <br></br><br></br>
 
-2.1 Click the **+** button in the **FILES** section and select the **Upload file** option.
+2.1 In the right sidebar, click the **+** button in the **Files** section and select **Upload .ipynb file**.
 
-![Upload Notebooks.jpg](../assets/docs/D2qW41uThSaTGWASHi8L.jpg)
+![Upload an .ipynb file from the Files menu](../assets/docs/importing-and-exporting-jupyter-notebooks/upload-ipynb-menu.webp)
 
-2.2 After uploading the .ipynb file, open it and select Move to Notebooks. Once it's in the notebooks section, you can open it and begin your work.
+2.2 After uploading the file, open it and select **Move to notebooks**. The file appears in the **Notebooks** section, where you can open it and start working.
 
-![Move Notebooks.jpg](../assets/docs/9iG6ikWrTNqFNw0ZMOzV.jpg)
+![Move an uploaded .ipynb file to Notebooks](../assets/docs/importing-and-exporting-jupyter-notebooks/move-ipynb-to-notebooks.webp)
 <br></br><br></br>
 
 ## How to export `.ipynb` files
 
-To download a notebook as a `.ipynb` file, click the three dots next to the notebook in the right panel and select **Download as .ipynb**.
+In the left panel's **Notebooks** section, open the notebook's actions menu, choose **Export as ...**, then select **.ipynb**.
 
-![Export_Notebooks.jpg](../assets/docs/hydWm3T3RNOROOzvq969.jpg)
+![Export a notebook as an .ipynb file](../assets/docs/importing-and-exporting-jupyter-notebooks/export-ipynb-menu.webp)
 
 Need a different output format? You can also convert [Jupyter notebooks to PDF](https://deepnote.com/ipynb-to-pdf) when you want a readable document to share with stakeholders who don't need to run the code.
 
