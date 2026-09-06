@@ -6,7 +6,7 @@ noContent: false
 
 [Anaconda Inc.](https://www.anaconda.com/) maintains a repository of thousands of curated packages for data science.
 
-Deepnote comes with a pre-built conda environment which allows users to instantly take advantage of the Anaconda ecosystem. This includes being able to use conda—a widely used CLI tool for package management which will include packages from the [Miniconda Installer](https://docs.conda.io/en/latest/miniconda.html).
+Deepnote comes with a pre-built conda environment. You can use conda, a command-line tool for package management, with packages from the [Miniconda Installer](https://docs.conda.io/en/latest/miniconda.html).
 
 ## How to use the conda environment Deepnote
 

@@ -45,7 +45,7 @@ You can share a project with a user group in the Sharing popover.
 
 Enabling domain invites will allow every user with a matching email domain to join the workspace as a Viewer. Users can join the workspace during sign-up or later from the workspace switching menu.
 
-Workspace Admins can enable domain invites. The only permitted domain is the email domain of the Admin (Owner) – the person who created the workspace.
+Workspace Admins can enable domain invites. Deepnote permits only the email domain of the Admin (Owner) who created the workspace.
 
 The option will not show up for workspaces where the domain is from a public email service (such as @gmail.com or @outlook.com) or for educational addresses.
 

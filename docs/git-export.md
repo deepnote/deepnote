@@ -109,7 +109,7 @@ Add the commit message with a description, and export it.
 
 Once exported, all project notebooks will be in the connected Git repository. The notebooks are saved in the open .ipynb format. Note that, depending on your configuration, the block outputs, which may contain sensitive data, may be exported too. If you wish to not commit the output of a specific block, you can clear the output of that specific block before committing or adjust your export configuration.
 
-The commits that Deepnote creates are based on the latest commit in the remote branch, and no files other than the notebooks are overwritten. It is possible to use the same GitHub repository for multiple Deepnote projects — and also for other tools you might be using to export your code.
+The commits that Deepnote creates are based on the latest commit in the remote branch, and no files other than the notebooks are overwritten. You can use the same GitHub repository for multiple Deepnote projects and other tools that export code.
 
 Git exports are also integrated into Deepnote's [native versioning functionality](/docs/history). Each commit creates a new version of the project, which you can quickly preview or restore from the project version history.
 

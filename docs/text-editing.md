@@ -17,9 +17,9 @@ You can also add text blocks by clicking on the **Text** button at the bottom of
 
 ![Screenshot 2022-09-21 at 8.09.30.png](../assets/docs/hyExvs8jTdWHb90F3iSO.webp)
 
-💡 Pro tip: paragraph blocks can be easily converted into other block types by using Markdown-style shortcuts. Typing ‘-’ or ‘1.’ and pressing Space at the beginning of your paragraph will create a bulleted or numbered list. Other similar shortcuts include ‘#’ for heading; ‘|’ for callout; and ‘[ ]' for to-do blocks.
+Pro tip: paragraph blocks can be easily converted into other block types by using Markdown-style shortcuts. Typing ‘-’ or ‘1.’ and pressing Space at the beginning of your paragraph will create a bulleted or numbered list. Other similar shortcuts include ‘#’ for heading; ‘|’ for callout; and ‘[ ]' for to-do blocks.
 
-You can build nested bulleted lists by indenting and dedenting list items — press Tab to indent an item and Shift+Tab to dedent it. Heading blocks can also be collapsed to fold away the blocks nested beneath them, which makes it easy to hide sections of a long notebook.
+You can build nested bulleted lists by indenting and dedenting list items. Press Tab to indent an item and Shift+Tab to dedent it. Heading blocks can also be collapsed to fold away the blocks nested beneath them, which makes it easy to hide sections of a long notebook.
 
 ### Text formatting
 
@@ -28,7 +28,7 @@ Once you added a text block, you can apply formatting to the text via the format
 <VideoLoop src="../assets/docs/lpVktfSsS5Woz47Acr65.mp4" />
 In addition to the formatting toolbar, keyboard shortcuts are also available for styling your text (eg. Cmd+B for bolding).
 
-💡 Pro tip: The quickest way to add a hyperlink is by copying a URL and then simply pasting it on the highlighted text (Cmd+V).
+Pro tip: The quickest way to add a hyperlink is by copying a URL and then simply pasting it on the highlighted text (Cmd+V).
 
 ### Mentions
 
@@ -48,7 +48,7 @@ One of the most useful operations is to convert from one type of text block to a
 
 <VideoLoop src="../assets/docs/GAPcEtQZRIONrtJMT790.mp4" />
 
-💡 Pro tip: The callout block has additional styling options available in the Block action menu. You can select from four different colors to apply to your callouts.
+Pro tip: The callout block has additional styling options available in the Block action menu. You can select from four different colors to apply to your callouts.
 
 ### Markdown blocks
 
@@ -63,4 +63,4 @@ When in editing mode, Markdown blocks feature two separate sections:
 
 You can exit the editing mode by clicking outside of the block; or by selecting the Render option in the block’s sidebar menu. Here, you can also access a cheat sheet listing the most frequently used Markdown operators.
 
-💡 Pro tip: You can easily insert an image into your notebook by copying the image and then pasting it (Cmd+V) within in any block. This will automatically upload the image to the file system and create a Markdown block that displays the image.
+Pro tip: You can easily insert an image into your notebook by copying the image and then pasting it (Cmd+V) within in any block. This will automatically upload the image to the file system and create a Markdown block that displays the image.

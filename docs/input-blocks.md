@@ -71,7 +71,7 @@ When building apps with **multiple input blocks that depend on each other**, you
 
 **2) Run Notebook**
 
-When the user clicks the button, the entire notebook is run. The same applies when the button block is used within an app—all blocks are executed. This behavior is useful for building forms where an explicit "Submit" button is needed, for example.
+When the user clicks the button, the entire notebook is run. The same applies when the button block is used within an app. All blocks are executed. This behavior is useful for building forms where an explicit "Submit" button is needed, for example.
 
 ![button-example.png](../assets/docs/OzDzFLCjQc2K9x8SDXj4.webp)
 

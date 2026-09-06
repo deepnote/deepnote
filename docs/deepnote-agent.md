@@ -7,7 +7,7 @@ noContent: false
 
 We’re introducing **Deepnote Agent**, the next evolution of AI collaborators for data notebooks. Agent offers a unified chat experience that turns your notebook into a flexible canvas. You can ask for anything from simple edits like ‘refactor variable df’ to complex tasks like ‘make this notebook presentation-ready’.
 
-Agent interprets your intent, creates a clear plan, and executes it step by step. It can **create**, **edit**, and **remove** SQL, Python, or text blocks — anywhere in your notebook — while staying fully aware of the project context.
+Agent interprets your request, creates a plan, and executes it step by step. It can create, edit, and remove SQL, Python, or text blocks throughout your notebook while using the project context.
 <Callout status="info">
 Deepnote Agent is available on **Pro, Team and Enterprise** plans.
 </Callout>
@@ -29,12 +29,12 @@ The chat window will open on the side. Expand it into a full sidebar for longer 
 
 Agent has two main modes:
 
-- **Edit mode** (default) — Agent makes direct changes to your notebook. It can add, edit, or delete content; execute code blocks; inspect outputs; and adapt its actions based on context.
-- **Ask mode** — Agent won’t edit anything. Use it to brainstorm next steps, ask questions about your data, or get help with Deepnote features.
+- **Edit mode** (default): Agent makes direct changes to your notebook. It can add, edit, or delete content; execute code blocks; inspect outputs; and adapt its actions based on context.
+- **Ask mode:** Agent won’t edit anything. Use it to brainstorm next steps, ask questions about your data, or get help with Deepnote features.
 
 In Edit mode, you can request anything from straightforward edits (adding analysis, fixing a SQL query, editing code) to large, notebook-wide changes (refactoring variables, cleaning up blocks, fixing multiple errors, or adding documentation).
 
-You can choose which model powers Agent — pick a specific provider and model or select **Automatic** to let Deepnote decide. Agent can also use your connected [Deepnote MCP](/docs/deepnote-mcp) integrations to work with your databases and tools, and it has access to Deepnote's documentation.
+You can choose which model powers Agent. Pick a provider and model, or select **Automatic** to let Deepnote decide. Agent can also use your connected [Deepnote MCP](/docs/deepnote-mcp) integrations to work with your databases and tools, and it has access to Deepnote's documentation.
 
 <VideoLoop src="../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetyt3d7xbfk07k60puolljn.mp4" />
 
@@ -57,6 +57,6 @@ We’re improving Deepnote Agent continuously, and new functionality is added re
 We’d love your feedback as we keep improving Agent:
 
 - If you **downvote an AI response**, a pop-up will open where you can add comments and share feedback directly with the team.
-- We’ll also share a **short survey** with the most active participants — your insights will help us prioritize improvements.
+- We’ll also share a **short survey** with the most active participants. Your responses will help us prioritize improvements.
 
 Your input is invaluable in helping us refine Agent into the best possible collaborator for your notebooks!

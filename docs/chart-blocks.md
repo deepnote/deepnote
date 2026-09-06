@@ -57,11 +57,11 @@ Depending on chart type and data type, there are couple of additional settings t
 
 Depending on the chart type, you might be able to manually change the data type of selected column. Deepnote supports 3 data types.
 
-- Nominal — categorical data without a specific order among values. For example, product categories in sales report.
+- Nominal: Categorical data without a specific order among values. For example, product categories in a sales report.
 
-- Temporal — data related to time and dates. Following our sales report example, order date will have temporal data type.
+- Temporal: Data related to time and dates. In the sales report example, the order date has a temporal data type.
 
-- Quantitative — numerical data that can be measured and analyzed mathematically, e.g. product prices or store's revenue.
+- Quantitative: Numerical data that you can measure and analyze mathematically, e.g. product prices or store revenue.
 
 ### Aggregation
 
@@ -111,7 +111,7 @@ You can also apply **conditional filters** on your charts, giving you more preci
 
 <VideoLoop src="../assets/docs/p7WogC9QmqIYj1exF9VQ.mp4" />
 
-Applied filters are always added to the Filters list, making them easy to remove or modify. You can also combine multiple conditional filters — just press the plus button in the Filters list to add a new filter for more complex filtering logic.
+Applied filters appear in the Filters list, where you can remove or modify them. To combine conditional filters, press the plus button in the Filters list and add another filter.
 
 <VideoLoop src="../assets/docs/oQd8gnR22ohfu3Q2hBqw.mp4" />
 
@@ -131,7 +131,7 @@ In addition to all the usual series settings, you can switch series type. Click 
 
 ## Custom tooltips
 
-Ever needed to show just a bit more information on a chart without cluttering the entire visualization? With custom tooltips you can enrich your charts by selecting additional columns from your plotted DataFrame to display in the tooltip — not just those configured on the chart.
+Custom tooltips can show more information without adding it to the chart. Select other columns from the plotted DataFrame to display in the tooltip.
 
 It’s perfect for highlighting more information for an unusual data point on a scatterplot or adding context with an extra metric on your bar charts, all without overwhelming your audience.
 

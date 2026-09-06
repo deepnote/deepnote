@@ -1,6 +1,6 @@
 ---
 title: Integrations
-description: Deepnote + your data stack = 💙
+description: Deepnote and your data stack
 noIndex: false
 noContent: false
 ---

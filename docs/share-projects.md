@@ -21,7 +21,7 @@ You can change the sharing settings of the project by clicking the Share button 
 - **Share with individual users.** You can share a project with existing workspace members using their name, or anybody else using their email. In both cases, they will receive an email invitation to the project. In case the person is not a Deepnote user yet, they will need to sign up using the same email to access the project.
 - **Share a link.** When you pick an access level for link sharing, anyone with that link will be able to access it. Your audience will be able to read the project without creating an account, but they will need to sign up to execute blocks.
 - **Private projects.** You can restrict access for other workspace members by changing the access level next to _Members at Your Workspace_. You can then increase it for specific users by adding them to the project individually.
-  - Setting this option to _No access_ will move the project to your Private projects, and vice versa – moving the project to Private will update this sharing option.
+  - Setting this option to _No access_ will move the project to your Private projects, and moving the project to Private will update this sharing option.
 
 ## Project access levels
 
