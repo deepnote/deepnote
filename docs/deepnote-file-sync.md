@@ -116,6 +116,6 @@ Adding a Deepnote project file inside your Git repository makes it part of the G
 ## Related
 
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync) — the `deepnote sync` command, which mirrors many projects to a local directory on demand. Use it when you want a whole workspace locally, or when the project you want to work on is not linked to a Git repository.
-- [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish) — deploy a built site or app to a project with `deepnote publish`.
+- [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish) — deploy a built static site to a project with `deepnote publish`.
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file.
 - [How to set up Deepnote locally](/docs/local-setup) — editors and other local tooling.

@@ -102,20 +102,30 @@ are not part of the format, so they never sync.
 
 ## Conflicts
 
-By default sync asks, per project, whether to keep the cloud version (discarding your local changes)
-or skip the project for now.
+By default sync asks, per conflicting project, whether to resolve the conflict destructively or to
+skip that project for now. Which side a destructive answer overwrites depends on the direction the
+project is moving.
 
 ```bash
 # Answer up front instead of being prompted
 deepnote sync ./workspace --on-conflict skip
-deepnote sync ./workspace --on-conflict override
 ```
 
-| Mode       | Behavior                                       |
-| ---------- | ---------------------------------------------- |
-| `ask`      | Prompt per conflicting project (default)       |
-| `skip`     | Leave every conflicting project untouched      |
-| `override` | Overwrite local changes with the cloud version |
+| Mode       | Behavior                                                              |
+| ---------- | --------------------------------------------------------------------- |
+| `ask`      | Prompt per conflicting project (default)                              |
+| `skip`     | Leave every conflicting project untouched                             |
+| `override` | Answer every prompt destructively — read the warning below before use |
+
+<Callout status="warning">
+`override` does not mean "take the cloud version". It pre-answers whichever prompt each project
+raises, and those prompts point in opposite directions: a **pulled** project has its local files
+overwritten by the cloud copy, while a **pushed** project has its cloud copy overwritten by your
+local files. Combined with `--delete-missing-notebooks`, `override` also answers the confirmation
+that guards pushing an empty local directory — which deletes every notebook in that cloud project.
+Prefer `skip` for unattended runs, and resolve conflicts interactively when you need the other
+direction.
+</Callout>
 
 <Callout status="info">
 Without an interactive terminal — in CI, or with output piped — conflicts are skipped rather than
@@ -168,12 +178,17 @@ two commands share one rule:
 
 - **[`deepnote publish`](/docs/deepnote-cli-publish) writes it.** That is the deploy command, and the
   only one that should author those files. Its source of truth is your local build directory.
-- **`deepnote sync` mirrors it and never silently overwrites it.** The per-file check described above
-  applies to the static root too, so a site someone republished after your last sync is surfaced as
-  a conflict instead of being reverted to your older local copy.
-- **A publish inside a synced workspace keeps the mirror in step.** Publishing updates the local
-  mirror and `.deepnote-sync.json` for you, so the next sync does not see the deploy as drift and
-  re-download the whole site.
+- **`deepnote sync` mirrors it and does not overwrite it without raising a conflict first.** The
+  per-file check described above applies to the static root too, so a site someone republished after
+  your last sync is surfaced as a conflict rather than quietly reverted to your older local copy.
+  Answering that conflict destructively — including up front with `--on-conflict override` — does
+  revert the live site, so re-read [Conflicts](#conflicts) before using that flag on a workspace that
+  also publishes.
+- **A publish inside a synced workspace keeps the mirror in step**, as long as that workspace
+  already tracks the project being published. Publishing updates the local mirror and
+  `.deepnote-sync.json` for you, so the next sync does not see the deploy as drift and re-download
+  the whole site. If the workspace does not track the project, publish skips the mirror update
+  silently and the next sync re-downloads the site.
 
 <Callout status="info">
 `.files/_deepnote_static/` is build output, not source. If you commit your sync directory to Git,
@@ -194,9 +209,11 @@ Sync is deliberately conservative about deletion, in both directions.
   destructive to infer.
 
 <Callout status="info">
-`deepnote sync --prune` deletes **local** files that are missing in the cloud. The unrelated
-[`deepnote publish --prune`](/docs/deepnote-cli-publish) deletes **remote** files that are missing
-locally. The two flags share a name and point in opposite directions.
+`deepnote sync --prune` deletes **local** files that are missing in the cloud.
+[`deepnote publish --prune`](/docs/deepnote-cli-publish) runs the other way: it deletes **remote**
+files that are missing from your build directory, and inside a synced workspace it also removes those
+paths from the local mirror. The two flags share a name, point in opposite directions, and both write
+the same `.deepnote-sync.json`.
 </Callout>
 
 ## Safety rails
@@ -217,6 +234,10 @@ Use `--dry-run` to see what a run would do before it does it:
 ```bash
 deepnote sync ./workspace --all-files --dry-run
 ```
+
+A dry run never prompts, so conflicting projects are always reported as skipped — even when the real
+run would stop and ask you. Pass the `--on-conflict` mode you intend to use if you want the preview
+to match the run you are about to make.
 
 ## Automating it
 
@@ -244,7 +265,7 @@ run continues.
 | ----------------------------------------------------------------------- | ------------------------------------------------ |
 | Keep one project in a Git repo, synced automatically by Deepnote        | [Deepnote file sync](/docs/deepnote-file-sync)   |
 | Mirror many projects to your machine on demand, and push notebook edits | `deepnote sync`                                  |
-| Deploy a built static site or app to a project                          | [`deepnote publish`](/docs/deepnote-cli-publish) |
+| Deploy a built static site to a project                                 | [`deepnote publish`](/docs/deepnote-cli-publish) |
 
 ## Related
 

@@ -88,9 +88,9 @@ deepnote publish ./dist --project-id <project-id> --path _deepnote_static/v2
 command touches the project. Nested path segments are percent-encoded in the printed URL, so a path
 containing `#` or `?` still yields a working link.
 
-Always use the URL the command prints rather than assembling one yourself. Deepnote serves each
-project's site from its own dedicated origin and hands out the shareable link on the main domain, so
-a hand-built URL is unlikely to resolve.
+Always use the URL the command prints rather than assembling one yourself. Deepnote returns the
+canonical site URL when it enables sharing, and its host is not something you can reliably derive
+from the project ID or your workspace URL.
 
 ## Who can view a published site
 
@@ -164,14 +164,19 @@ are absent locally:
 deepnote publish ./dist --project-id <project-id> --prune
 ```
 
-Pruning is ordered so a failed deploy cannot leave the site half-deleted. Stale paths that block a
-directory the new build needs are removed first, because the upload cannot proceed without them.
-Every other stale file is removed only after all uploads have succeeded.
+Pruning is ordered to limit what a failed deploy can leave behind. Every stale file is removed only
+after all uploads have succeeded — with one exception: a stale path that blocks a directory the new
+build needs is removed first, because the upload cannot proceed while a file occupies that path.
+
+If a later upload then fails, those blocking paths stay deleted rather than being restored, so the
+site can be left missing them. Re-run the command once the cause is fixed.
 
 <Callout status="info">
-`deepnote publish --prune` deletes **remote** files that are missing locally. The unrelated
-[`deepnote sync --prune`](/docs/deepnote-cli-sync) deletes **local** files that are missing in the
-cloud. The two flags share a name and point in opposite directions.
+`deepnote publish --prune` deletes **remote** files that are missing from your build directory, and
+inside a synced workspace it removes those same paths from the workspace's mirror under
+`.files/_deepnote_static/`. [`deepnote sync --prune`](/docs/deepnote-cli-sync) runs the other way: it
+deletes **local** files that are missing in the cloud. The two flags share a name, point in opposite
+directions, and both write the same `.deepnote-sync.json`.
 </Callout>
 
 ## Failure behavior
@@ -179,9 +184,11 @@ cloud. The two flags share a name and point in opposite directions.
 The command validates everything it can locally before touching the project, then makes remote
 changes in a fixed order.
 
-- **Local path problems abort before any upload.** A filename with a leading or trailing space, a
-  backslash, or two local files that would collide at the same remote path all stop the command with
-  exit code `2` and an unchanged project.
+- **Some local path problems abort before any upload.** A filename with a trailing space, or two
+  local files that would collide at the same remote path, stop the command with exit code `2` and an
+  unchanged project. Other unusual names are not checked: a leading space, or a backslash on Linux
+  and macOS where it is an ordinary filename character, is published verbatim. Keep build output to
+  plain path names.
 - **Each file is read before its remote copy is replaced**, so an unreadable local file leaves the
   live version intact.
 - **Website sharing is enabled only after every upload succeeds.** A partial upload is reported as a
@@ -210,15 +217,28 @@ paths. They coordinate rather than divide the namespace:
 
 - **`deepnote publish` is the write path for the static root.** It is the command that deploys a
   build, and in practice the only one that should be authoring those files.
-- **`deepnote sync` mirrors them but never silently overwrites them.** Before pushing any working
-  file it checks the current state in Deepnote, and a file that changed since it last synced is
-  surfaced as a conflict to resolve rather than overwritten.
-- **When you publish from inside a synced workspace**, publish also updates that workspace's local
-  mirror and its `.deepnote-sync.json`, so the next sync sees the deploy as already up to date
-  instead of re-downloading the whole site.
-- **If Deepnote holds changes your workspace has not pulled**, publish stops before writing anything
-  rather than destroying content you have no local copy of. Run `deepnote sync --all-files` to bring
-  it down, or pass `--force` to overwrite.
+- **`deepnote sync` mirrors them but does not overwrite them without raising a conflict first.**
+  Before pushing any working file it checks the current state in Deepnote, and a file that changed
+  since it last synced is surfaced as a conflict to resolve rather than overwritten. Resolving that
+  conflict destructively — including up front with `--on-conflict override` — does overwrite the
+  published files.
+- **When you publish from inside a synced workspace that already tracks the project**, publish also
+  updates that workspace's local mirror and its `.deepnote-sync.json`, so the next sync sees the
+  deploy as already up to date instead of re-downloading the whole site. If the workspace's manifest
+  has no entry for `--project-id`, or the directory that entry points at is gone, publish skips the
+  mirror update without reporting it — pass `--sync-root <dir>` explicitly to turn that silence into
+  an error.
+- **If Deepnote holds changes to a file your workspace has synced before**, publish stops before
+  writing anything rather than overwriting them. Run `deepnote sync --all-files` to bring them down,
+  or pass `--force` to overwrite. The check compares each path against the baseline recorded in the
+  mirror, so it covers only files that workspace has synced at least once.
+
+<Callout status="warning">
+A file added to `_deepnote_static` in Deepnote that this workspace has never synced has no recorded
+baseline, so the check above does not see it. With `--prune` that file counts as stale and is
+deleted, even without `--force`, leaving you no local copy. Run `deepnote sync --all-files` before a
+pruning publish if anyone else may have written to the static root since your last sync.
+</Callout>
 
 Use `--no-sync-root` for a CI deploy, where there is no workspace to keep in step and the extra
 lookup is pointless.
