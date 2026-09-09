@@ -39,7 +39,7 @@ Execute notebooks (.deepnote, .ipynb, .py, .qmd).
 4. A `.venv` or `venv` directory found from the notebook's directory upward that has `deepnote-toolkit` installed (a venv without the toolkit is skipped with a warning, so an unrelated project venv never shadows a working system Python)
 5. System `python` / `python3`
 
-The same order applies to `analyze`, `lint`, and `dag`, except that step 5 leaves the analyzer's own default in place. A stale extension mapping (venv deleted) is skipped with a warning. When only the system Python was available and the toolkit server fails to start, the error explains how to point the CLI at a venv.
+The same order applies to `analyze`, `dag`, and `lint` of a `.deepnote` file, except that step 5 leaves the analyzer's own default in place (linting an integrations YAML file directly runs no Python, so `--python` has no effect there). A stale extension mapping (venv deleted) is skipped with a warning. When only the system Python was available and the toolkit server fails to start, the error explains how to point the CLI at a venv.
 
 **Runtime failures.** A local run stops at the first failing block and never hangs: a kernel that dies, a toolkit server that goes away mid-run, and a server that fails to start are all reported within seconds. Machine output (`-o json` / `-o toon`) says why in `failureCategory`, on the run and on the failed block:
 

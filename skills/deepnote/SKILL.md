@@ -194,7 +194,7 @@ deepnote --version
 
 If not installed, find the best available Python and install via pip:
 
-1. **IDE environment** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.agent/` (see IDE Environment Detection below) and use its `venvPath`
+1. **IDE environment** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.antigravity/` (see IDE Environment Detection below) and use its `venvPath`
 2. **Project instructions** — if the project has a `.python-version` file or `pyproject.toml` with `requires-python`, use the specified version
 3. **Project venv** — look for `.venv/bin/python`, `venv/bin/python`, or `env/bin/python`
 4. **Homebrew Python** — check if `/opt/homebrew/bin/python3` or `brew --prefix python3` exists
