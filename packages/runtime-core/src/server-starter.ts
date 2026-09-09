@@ -161,6 +161,20 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
     serverInfo.childPids = await childProcessIds(serverProcess.pid)
   }
 
+  // The server may have died while the children were being listed; an already-exited process must
+  // not be handed out, since nothing attached later would ever see its exit event.
+  const terminatedBySignal = typeof serverProcess.signalCode === 'string'
+  if (serverProcess.exitCode !== null || terminatedBySignal) {
+    for (const child of serverInfo.childPids) {
+      killIfAlive(child, 'SIGKILL')
+    }
+    throw describeStartupExit(pythonPath, {
+      code: serverProcess.exitCode,
+      signal: terminatedBySignal ? serverProcess.signalCode : null,
+      stderr,
+    })
+  }
+
   return serverInfo
 }
 
@@ -320,7 +334,10 @@ export async function waitForServer(info: ServerInfo, timeoutMs: number, signal?
     }
 
     if (signal?.aborted) return
-    await sleep(HEALTH_CHECK_INTERVAL_MS, signal)
+    // Never sleep past the deadline: a request that ran out the clock must fail on time.
+    const remainingMs = timeoutMs - (Date.now() - startTime)
+    if (remainingMs <= 0) break
+    await sleep(Math.min(HEALTH_CHECK_INTERVAL_MS, remainingMs), signal)
   }
 
   throw new ServerLaunchError(`Server failed to start within ${timeoutMs}ms at ${info.url}`, {

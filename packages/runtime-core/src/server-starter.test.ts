@@ -243,6 +243,29 @@ describe('server-starter', () => {
       expect(info.stderrTail).toBe('[W] something odd\n')
     })
 
+    it('fails instead of returning a server that exited while its children were being listed', async () => {
+      const handlers = captureProcessHandlers(mockProcess)
+      vi.mocked(execFile).mockImplementation(((_cmd: string, _args: string[], _opts: unknown, callback: unknown) => {
+        // The supervisor dies during the pgrep lookup.
+        ;(mockProcess as unknown as { exitCode: number | null }).exitCode = 1
+        handlers.stderr?.(Buffer.from('boom\n'))
+        handlers.exit?.(1, null)
+        ;(callback as (error: Error | null, stdout: string) => void)(null, '501\n')
+        return {} as ReturnType<typeof execFile>
+      }) as unknown as typeof execFile)
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+
+      const errorPromise = startServer({ pythonEnv: 'python', workingDirectory: '/project' }).catch(e => e)
+      await vi.advanceTimersByTimeAsync(100)
+
+      const error = await errorPromise
+      expect(error).toBeInstanceOf(ServerLaunchError)
+      expect(error.message).toContain('Server process exited unexpectedly (code=1')
+      expect(error.message).toContain('boom')
+      expect(killSpy).toHaveBeenCalledWith(501, 'SIGKILL')
+      killSpy.mockRestore()
+    })
+
     it('records the supervisor children once the server is ready', async () => {
       mockChildren([501, 502])
 
@@ -401,8 +424,8 @@ describe('server-starter', () => {
         workingDirectory: '/project',
         startupTimeoutMs: 1000,
       }).catch(e => e)
-      // The request is aborted at the 1 s deadline; the loop then sleeps once more before giving up.
-      await vi.advanceTimersByTimeAsync(1500)
+      // The request is aborted at the 1 s deadline and the wait gives up right there, without another sleep.
+      await vi.advanceTimersByTimeAsync(1000)
 
       const error = await errorPromise
       expect(error).toBeInstanceOf(ServerLaunchError)
