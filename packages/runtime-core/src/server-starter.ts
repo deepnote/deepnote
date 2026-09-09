@@ -300,7 +300,8 @@ async function isPortInUse(port: number): Promise<boolean> {
 
 /**
  * Wait for the server to respond to health checks. Returns early, without throwing, once `signal`
- * is aborted.
+ * is aborted. Every request is bounded by the time left in the timeout, so a server that accepts
+ * the connection but never answers cannot stall the wait past the deadline.
  */
 export async function waitForServer(info: ServerInfo, timeoutMs: number, signal?: AbortSignal): Promise<void> {
   const startTime = Date.now()
@@ -309,12 +310,13 @@ export async function waitForServer(info: ServerInfo, timeoutMs: number, signal?
     if (signal?.aborted) return
 
     try {
-      const response = await fetch(`${info.url}/api`, signal ? { signal } : undefined)
+      const remainingMs = timeoutMs - (Date.now() - startTime)
+      const response = await fetchWithDeadline(`${info.url}/api`, remainingMs, signal)
       if (response.ok) {
         return
       }
     } catch {
-      // Server not ready yet
+      // Server not ready yet, or the request hit the deadline
     }
 
     if (signal?.aborted) return
@@ -323,6 +325,19 @@ export async function waitForServer(info: ServerInfo, timeoutMs: number, signal?
 
   throw new ServerLaunchError(`Server failed to start within ${timeoutMs}ms at ${info.url}`, {
     hint: 'The server may just be slow to start on this machine; raise the server startup timeout.',
+  })
+}
+
+/** A fetch that is aborted after `timeoutMs`, or as soon as `signal` aborts. */
+function fetchWithDeadline(url: string, timeoutMs: number, signal?: AbortSignal): Promise<Response> {
+  const attempt = new AbortController()
+  const abort = () => attempt.abort()
+  signal?.addEventListener('abort', abort, { once: true })
+  const deadline = setTimeout(abort, Math.max(0, timeoutMs))
+
+  return fetch(url, { signal: attempt.signal }).finally(() => {
+    clearTimeout(deadline)
+    signal?.removeEventListener('abort', abort)
   })
 }
 

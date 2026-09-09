@@ -387,6 +387,29 @@ describe('server-starter', () => {
       expect(error.hint).toContain('deepnote-toolkit[server]')
     })
 
+    it('aborts a health request that never answers once the startup timeout elapses', async () => {
+      // The server accepts the connection but never responds; only the request's own deadline can end it.
+      fetchSpy.mockImplementation(
+        (_url: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
+          })
+      )
+
+      const errorPromise = startServer({
+        pythonEnv: 'python',
+        workingDirectory: '/project',
+        startupTimeoutMs: 1000,
+      }).catch(e => e)
+      // The request is aborted at the 1 s deadline; the loop then sleeps once more before giving up.
+      await vi.advanceTimersByTimeAsync(1500)
+
+      const error = await errorPromise
+      expect(error).toBeInstanceOf(ServerLaunchError)
+      expect(error.message).toContain('Server failed to start within 1000ms')
+      expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL')
+    })
+
     it('throws if server fails to start within timeout', async () => {
       // Health check always fails
       fetchSpy.mockRejectedValue(new Error('Connection refused'))
