@@ -301,12 +301,14 @@ hosting, credentials, and file ownership.
 | `deepnote static-site access`           | Enable or disable sharing and viewer API access for an existing published site without changing its files.                                                                                                                                                                                          |
 | `deepnote sync [dir]`                   | Sync Deepnote Cloud projects with a local directory, both ways: pull every project into `<folder path>/<project name>/` (one `.deepnote` per notebook), push local edits back (the exact-inverse ZIP import). State in `.deepnote-sync.json`; conflicts prompt (or `--on-conflict skip\|override`). |
 | `deepnote integrations pull\|add\|edit` | Manage database integrations in the local integrations file                                                                                                                                                                                                                                         |
+| `deepnote notebooks rename <id> <name>` | Rename a Deepnote Cloud notebook. Naming it `Init` designates the project's init notebook.                                                                                                                                                                                                          |
 
 ### CLI Command References
 
 - [Run command](references/cli-run.md)
 - [Schedule command](references/cli-schedule.md)
 - [Publish command](references/cli-publish.md)
+- [Notebook commands](references/cli-notebooks.md)
 - [Convert command](references/cli-convert.md)
 - [Sync command](references/cli-sync.md)
 - [Analysis commands](references/cli-analysis.md)

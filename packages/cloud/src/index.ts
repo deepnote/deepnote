@@ -54,6 +54,12 @@ export {
   type ProjectSpec,
 } from './create-project'
 export { type UploadedNotebook, type UploadNotebookOptions, uploadNotebook } from './import'
+export {
+  type UpdatedNotebook,
+  type UpdateNotebookBody,
+  type UpdateNotebookRequestOptions,
+  updateNotebook,
+} from './notebooks'
 export { parseApiErrorMessage } from './parse-api-error'
 export {
   type FindNotebookQuery,
