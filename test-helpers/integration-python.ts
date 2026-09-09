@@ -34,6 +34,10 @@ export interface ToolkitLeakGuard {
  * Snapshots the toolkit processes of the interpreter's environment so that later checks only flag
  * processes a test started. The environment is the interpreter's `sys.prefix`, which also covers a
  * bare `python3` on PATH, not just venv paths.
+ *
+ * The guard sees every toolkit process of that interpreter on the machine, so two integration
+ * suites using the same interpreter must not run at the same time: each would flag the other's
+ * servers as leaks.
  */
 export function createToolkitLeakGuard(python: string): ToolkitLeakGuard {
   const prefix = interpreterPrefix(python)
