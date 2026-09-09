@@ -3,6 +3,7 @@ import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
 import { serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import type { BlockExecutionOutput } from '@deepnote/convert'
 import { mergeOutputsIntoFile, saveExecutionSnapshot, splitDeepnoteFile } from '@deepnote/convert'
+import type { RunBlockOutput } from '@deepnote/pipelines'
 import type { AgentStreamEvent, BlockExecutionResult, ExecutionSummary, IOutput } from '@deepnote/runtime-core'
 import { detectDefaultPython, ExecutionEngine } from '@deepnote/runtime-core'
 import { applyInputOverrides } from './apply-input-overrides'
@@ -36,11 +37,11 @@ export interface RunWithInputsOptions {
   onAgentEvent?: (event: AgentStreamEvent) => void | Promise<void>
 }
 
-export interface RunBlockOutput {
-  blockId: string
-  outputs: IOutput[]
-  executionCount: number | null
-}
+/**
+ * Re-exported so a caller does not have to know whether a run happened here or in the cloud: a
+ * local run and a pipeline step describe their block outputs with the same type.
+ */
+export type { RunBlockOutput } from '@deepnote/pipelines'
 
 export interface RunWithInputsResult {
   /** Per-block outputs, in execution order. */

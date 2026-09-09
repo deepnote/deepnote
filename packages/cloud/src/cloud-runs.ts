@@ -361,6 +361,13 @@ export interface PollOptions {
   requestTimeoutMs?: number
   maxTransientRetries?: number
   snapshotDelivery?: 'inline' | 'downloadUrl'
+  /**
+   * Abort the poll.
+   *
+   * Polling is the long part of a run — minutes, not milliseconds — so a caller that can cancel
+   * needs it to reach here and not just the requests around it.
+   */
+  signal?: AbortSignal
   onStatus?: (status: string, run: NormalizedRun) => void
   /** Injectable clock/sleep for tests. */
   now?: () => number
@@ -386,7 +393,10 @@ export async function pollRunUntilComplete(
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
   const maxTransientRetries = options.maxTransientRetries ?? DEFAULT_MAX_TRANSIENT_RETRIES
   const now = options.now ?? (() => Date.now())
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
+  // Sleeping is where an abort would otherwise go unnoticed until the interval elapsed, so the
+  // default sleep wakes on abort and a caller-provided one is raced against the signal.
+  const sleep = (ms: number): Promise<void> =>
+    options.sleep ? waitWithSignal(options.sleep(ms), options.signal) : abortableSleep(ms, options.signal)
 
   const deadline = now() + timeoutMs
   let transientFailures = 0
@@ -401,12 +411,17 @@ export async function pollRunUntilComplete(
 
     let run: NormalizedRun
     try {
+      options.signal?.throwIfAborted()
       run = await getRun(baseUrl, token, runId, {
         snapshotDelivery: options.snapshotDelivery,
         requestTimeoutMs: Math.min(requestTimeoutMs, Math.max(1, deadline - now())),
+        signal: options.signal,
       })
       transientFailures = 0
     } catch (err) {
+      if (options.signal?.aborted) {
+        throw err
+      }
       if (isTransientError(err) && transientFailures < maxTransientRetries) {
         transientFailures += 1
         if (now() >= deadline) {

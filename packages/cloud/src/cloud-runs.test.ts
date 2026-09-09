@@ -246,6 +246,43 @@ describe('pollRunUntilComplete', () => {
     ).rejects.toMatchObject({ name: 'RunTimeoutError', runId: 'r' })
   })
 
+  it('aborts while sleeping between polls, instead of after the interval elapses', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'running' } }))
+    const controller = new AbortController()
+    const intervalMs = 60_000
+    let observed = (): void => {}
+    const polledOnce = new Promise<void>(resolve => {
+      observed = resolve
+    })
+
+    const startedAt = Date.now()
+    const pending = pollRunUntilComplete(BASE_URL, TOKEN, 'r', {
+      intervalMs,
+      timeoutMs: 10 * intervalMs,
+      signal: controller.signal,
+      onStatus: () => observed(),
+    })
+    // `onStatus` fires right before the interval sleep begins, so by now the poll is asleep.
+    await polledOnce
+    controller.abort(new Error('stop polling'))
+
+    await expect(pending).rejects.toThrow('stop polling')
+    expect(Date.now() - startedAt).toBeLessThan(intervalMs)
+    expect(fetchSpy).toHaveBeenCalledOnce()
+  })
+
+  it('aborts promptly while a caller-provided sleep remains pending', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'running' } }))
+    const sleep = vi.fn(() => new Promise<void>(() => {}))
+    const controller = new AbortController()
+
+    const pending = pollRunUntilComplete(BASE_URL, TOKEN, 'r', { intervalMs: 10, sleep, signal: controller.signal })
+    await vi.waitFor(() => expect(sleep).toHaveBeenCalledOnce())
+    controller.abort(new Error('stop polling'))
+
+    await expect(pending).rejects.toThrow('stop polling')
+  })
+
   it('RunTimeoutError message mentions the run may still be executing', () => {
     const err = new RunTimeoutError('abc', 'running')
     expect(err.message).toContain('abc')

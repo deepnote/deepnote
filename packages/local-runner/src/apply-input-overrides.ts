@@ -1,10 +1,10 @@
 import type { DeepnoteFile, InputBlock, InputBlockValueOverride, InputBlockValueOverrides } from '@deepnote/blocks'
+import type { InputBlockInfo } from '@deepnote/pipelines'
+import { inputInfoFor } from '@deepnote/pipelines'
 import type { InputScope } from './coerce-input-value'
 import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
-import type { InputBlockInfo } from './input-info'
-import { inputInfoFor } from './input-info'
 
-export type { InputBlockInfo } from './input-info'
+export type { InputBlockInfo } from '@deepnote/pipelines'
 
 /**
  * Apply input overrides to a file's input blocks, in place.

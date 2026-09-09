@@ -9,6 +9,11 @@
  * produces (how a table looks, whether HTML output is sandboxed) belong to the page, not the
  * library. See `examples/local-runner/snapshot-viewer` for a complete one.
  */
-export type { InputBlockInfo } from './input-info'
-export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
-export { parseSnapshot, toSnapshotView } from './snapshot-view'
+export type {
+  InputBlockInfo,
+  SnapshotBlock,
+  SnapshotInput,
+  SnapshotNotebook,
+  SnapshotView,
+} from '@deepnote/pipelines'
+export { parseSnapshot, toSnapshotView } from '@deepnote/pipelines'
