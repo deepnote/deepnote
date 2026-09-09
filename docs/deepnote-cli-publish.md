@@ -50,7 +50,7 @@ An API token carries your access to the workspace. Treat it like a password.
 </Callout>
 
 - **Prefer the environment variable.** A token passed as `--token` is visible in your shell history
-  and in the process list of a shared machine. `DEEPNOTE_TOKEN` avoids both.
+  and in the process list of a shared machine. `DEEPNOTE_TOKEN` keeps it out of the command line.
 - **In CI, use a secret.** Store the token in your CI provider's secret store and expose it as
   `DEEPNOTE_TOKEN` for the publish step only. Never commit it to the repository you are deploying.
 - **Rotate and revoke** from the same settings page if a token is ever exposed.
