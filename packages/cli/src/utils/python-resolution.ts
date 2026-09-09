@@ -38,6 +38,8 @@ export function reportPythonResolution(resolution: ResolvedProjectPython, isMach
     log(getChalk().dim(`Using the Deepnote extension environment${label}: ${resolution.pythonPath}`))
   } else if (resolution.source === 'env') {
     log(getChalk().dim(`Using Python from DEEPNOTE_PYTHON: ${resolution.pythonPath}`))
+  } else if (resolution.source === 'explicit') {
+    log(getChalk().dim(`Using Python from --python: ${resolution.pythonPath}`))
   }
 }
 

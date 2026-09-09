@@ -72,7 +72,7 @@ describe('python-resolution', () => {
       const result = await resolveRunPython(file, filePath, '/explicit/python', { isMachineOutput: false })
 
       expect(result).toEqual({ pythonEnv: 'resolved:/explicit/python', hint: undefined })
-      expect(mockLog).not.toHaveBeenCalled()
+      expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('Using Python from --python: /explicit/python'))
     })
 
     it('uses DEEPNOTE_PYTHON and says so', async () => {
