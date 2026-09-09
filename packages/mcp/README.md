@@ -41,10 +41,11 @@ Common settings locations:
 
 Optional environment variables for the server process:
 
-| Variable             | Purpose                                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `DEEPNOTE_WORKSPACE` | Workspace root used for resources and for locating the Deepnote extension's `deepnote.json` (defaults to cwd)  |
-| `DEEPNOTE_PYTHON`    | Interpreter (executable, `bin/` directory, or venv root) to run notebooks with when `pythonPath` is not passed |
+| Variable                           | Purpose                                                                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `DEEPNOTE_WORKSPACE`               | Workspace root used for resources and for locating the Deepnote extension's `deepnote.json` (defaults to cwd)                      |
+| `DEEPNOTE_PYTHON`                  | Interpreter (executable, `bin/` directory, or venv root) to run notebooks with when `pythonPath` is not passed                     |
+| `DEEPNOTE_MCP_SERVER_IDLE_SECONDS` | Seconds a deepnote-toolkit server stays warm after the last run that used it (default `300`; `0` stops it as soon as the run ends) |
 
 ## MCP Prompts
 
@@ -114,14 +115,19 @@ Scopes:
 
 `deepnote_run` supports `.deepnote`, `.ipynb`, `.py`, and `.qmd` inputs.
 
-**Python interpreter.** When `pythonPath` is omitted, `deepnote_run` resolves the interpreter in this order and reports the result in the `python` field of its response (`source`: `explicit`, `env`, `ide`, or `default`):
+**Python interpreter.** When `pythonPath` is omitted, `deepnote_run` resolves the interpreter in this order and reports the result in the `python` field of its response (`source`: `explicit`, `env`, `ide`, `venv`, or `default`):
 
 1. `pythonPath` argument
 2. `DEEPNOTE_PYTHON` environment variable, so an editor or agent harness can publish its selected interpreter to the server it spawns
 3. The environment the Deepnote editor extension selected for the project, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched from the notebook's directory and `DEEPNOTE_WORKSPACE` upward, matched on the file's `project.id`)
-4. System `python` / `python3`
+4. A `.venv` or `venv` directory found from the notebook's directory upward that has `deepnote-toolkit` installed (one without it is skipped with a warning on stderr)
+5. System `python` / `python3`
 
 If execution fails while only a system Python was available, the error includes a hint on how to point the server at a venv that has `deepnote-toolkit` installed.
+
+**Warm servers.** Starting the deepnote-toolkit server is the slow part of a run, so the MCP process keeps one server warm per interpreter and working directory and reuses it across tool calls for `DEEPNOTE_MCP_SERVER_IDLE_SECONDS` after the last run. Every call still gets a fresh kernel, so no variables leak from one call to the next. Warm servers are stopped when the MCP process exits or its transport closes.
+
+**Failures.** A `deepnote_run` response has `success: false` when any block failed, plus `failureCategory` (`in-block`, `kernel-died`, `execution-timeout`, `server-exited`, `server-launch`, or `kernel-launch`) and, when the runtime knows a remedy, `hint`. A failed entry in `results` carries its own `failureCategory`. A runtime that cannot start (for example, `deepnote-toolkit` is not installed for the chosen Python) returns an error response with the same `error`, `failureCategory`, `hint`, and `python` fields. Runs never hang on a dead kernel or server: both are reported within seconds.
 
 ### Snapshot Tools
 

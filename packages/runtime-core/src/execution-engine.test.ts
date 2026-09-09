@@ -6,40 +6,67 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentBlockContext } from './agent-handler'
 
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
-const { mockKernelClient, mockServerInfo, mockStartServer, mockStopServer, MockKernelClient, mockExecuteAgentBlock } =
-  vi.hoisted(() => {
-    const mockKernelClient = {
-      connect: vi.fn(),
-      execute: vi.fn(),
-      disconnect: vi.fn(),
-    }
+const {
+  mockKernelClient,
+  mockServerInfo,
+  createServerInfo,
+  mockStartServer,
+  mockStopServer,
+  MockKernelClient,
+  mockExecuteAgentBlock,
+} = vi.hoisted(() => {
+  const mockKernelClient = {
+    connect: vi.fn(),
+    execute: vi.fn(),
+    disconnect: vi.fn(),
+    failPending: vi.fn(),
+  }
 
-    const mockServerInfo = {
-      url: 'http://localhost:8888',
-      jupyterPort: 8888,
-      lspPort: 8889,
-      process: {} as unknown,
-    }
+  interface ServerExitLike {
+    code: number | null
+    signal: string | null
+    stderr: string
+  }
 
-    const mockStartServer = vi.fn().mockResolvedValue(mockServerInfo)
-    const mockStopServer = vi.fn().mockResolvedValue(undefined)
-
-    // Create actual constructor function for the class mock
-    const MockKernelClient = vi.fn(function (this: typeof mockKernelClient) {
-      Object.assign(this, mockKernelClient)
-    })
-
-    const mockExecuteAgentBlock = vi.fn()
-
+  /** A server-info stand-in whose `exited` promise the test can settle to simulate the process ending. */
+  const createServerInfo = (port = 8888) => {
+    let resolveServerExit: (exit: ServerExitLike) => void = () => {}
     return {
-      mockKernelClient,
-      mockServerInfo,
-      mockStartServer,
-      mockStopServer,
-      MockKernelClient,
-      mockExecuteAgentBlock,
+      url: `http://localhost:${port}`,
+      jupyterPort: port,
+      lspPort: port + 1,
+      process: {} as unknown,
+      exited: new Promise<ServerExitLike>(resolve => {
+        resolveServerExit = resolve
+      }),
+      simulateExit(exit: ServerExitLike) {
+        resolveServerExit(exit)
+      },
     }
+  }
+
+  const mockServerInfo = createServerInfo()
+
+  const mockStartServer = vi.fn().mockResolvedValue(mockServerInfo)
+  const mockStopServer = vi.fn().mockResolvedValue(undefined)
+
+  // Create actual constructor function for the class mock
+  const MockKernelClient = vi.fn(function (this: typeof mockKernelClient) {
+    Object.assign(this, mockKernelClient)
   })
+
+  const mockExecuteAgentBlock = vi.fn()
+
+  return {
+    mockKernelClient,
+    mockServerInfo,
+    createServerInfo,
+    mockStartServer,
+    mockStopServer,
+    MockKernelClient,
+    mockExecuteAgentBlock,
+  }
+})
 
 vi.mock('./kernel-client', () => ({
   KernelClient: MockKernelClient,
@@ -59,6 +86,8 @@ vi.mock('./agent-handler', async importOriginal => {
 })
 
 import { ExecutionEngine } from './execution-engine'
+import { KernelDiedError, ServerExitedError } from './runtime-errors'
+import type { ServerInfo } from './server-starter'
 
 // Load example files (tests run from project root)
 function loadExampleFile(filename: string): DeepnoteFile {
@@ -144,7 +173,7 @@ describe('ExecutionEngine', () => {
     it('connects kernel client to server URL', async () => {
       await engine.start()
 
-      expect(mockKernelClient.connect).toHaveBeenCalledWith('http://localhost:8888')
+      expect(mockKernelClient.connect).toHaveBeenCalledWith('http://localhost:8888', expect.objectContaining({}))
     })
 
     it('stops server if kernel connection fails', async () => {
@@ -153,6 +182,41 @@ describe('ExecutionEngine', () => {
       await expect(engine.start()).rejects.toThrow('Connection failed')
 
       expect(mockStopServer).toHaveBeenCalledWith(mockServerInfo)
+    })
+
+    it('passes startup timeouts and the server log sink through', async () => {
+      const onServerLog = vi.fn()
+      const configured = new ExecutionEngine({
+        pythonEnv: 'python',
+        workingDirectory: '/project',
+        serverStartupTimeoutMs: 5000,
+        kernelStartupTimeoutMs: 7000,
+        onServerLog,
+      })
+
+      await configured.start()
+
+      expect(mockStartServer).toHaveBeenCalledWith(
+        expect.objectContaining({ startupTimeoutMs: 5000, onLog: onServerLog })
+      )
+      expect(mockKernelClient.connect).toHaveBeenCalledWith('http://localhost:8888', { startupTimeoutMs: 7000 })
+      await configured.stop()
+    })
+
+    it('attaches to a provided server without starting or stopping one', async () => {
+      const attached = new ExecutionEngine(
+        { pythonEnv: 'python', workingDirectory: '/project' },
+        { server: mockServerInfo as unknown as ServerInfo }
+      )
+
+      await attached.start()
+      expect(mockStartServer).not.toHaveBeenCalled()
+      expect(mockKernelClient.connect).toHaveBeenCalledWith('http://localhost:8888', expect.objectContaining({}))
+      expect(attached.serverPort).toBe(8888)
+
+      await attached.stop()
+      expect(mockKernelClient.disconnect).toHaveBeenCalled()
+      expect(mockStopServer).not.toHaveBeenCalled()
     })
   })
 
@@ -499,6 +563,87 @@ describe('ExecutionEngine', () => {
             error: expect.any(Error),
           })
         )
+      })
+
+      it('reports in-block as the failure category when the code raises', async () => {
+        mockKernelClient.execute.mockResolvedValueOnce({
+          success: false,
+          outputs: [{ output_type: 'error', ename: 'ValueError', evalue: 'bad', traceback: [] }],
+          executionCount: 1,
+        })
+        const onBlockDone = vi.fn()
+
+        await engine.start()
+        const summary = await engine.runProject(HELLO_WORLD, { onBlockDone })
+
+        expect(onBlockDone).toHaveBeenCalledWith(
+          expect.objectContaining({ success: false, failureCategory: 'in-block' })
+        )
+        expect(summary.failureCategory).toBe('in-block')
+      })
+
+      it('reports the runtime category when the kernel dies', async () => {
+        mockKernelClient.execute.mockRejectedValueOnce(new KernelDiedError('The kernel died.'))
+        const onBlockDone = vi.fn()
+
+        await engine.start()
+        const summary = await engine.runProject(HELLO_WORLD, { onBlockDone })
+
+        expect(onBlockDone).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            failureCategory: 'kernel-died',
+            error: expect.any(KernelDiedError),
+          })
+        )
+        expect(summary.failureCategory).toBe('kernel-died')
+        expect(summary.failedBlocks).toBe(1)
+      })
+
+      it('treats a non-runtime exception as an in-block failure', async () => {
+        mockKernelClient.execute.mockRejectedValueOnce(new Error('Kernel crash'))
+
+        await engine.start()
+        const summary = await engine.runProject(HELLO_WORLD)
+
+        expect(summary.failureCategory).toBe('in-block')
+      })
+
+      it('omits the failure category from a successful summary and its blocks', async () => {
+        const onBlockDone = vi.fn()
+
+        await engine.start()
+        const summary = await engine.runProject(HELLO_WORLD, { onBlockDone })
+
+        expect(summary).not.toHaveProperty('failureCategory')
+        expect(onBlockDone.mock.calls[0][0]).not.toHaveProperty('failureCategory')
+      })
+
+      it('passes the block timeout to every kernel execution', async () => {
+        const timed = new ExecutionEngine({ pythonEnv: 'python', workingDirectory: '/project', blockTimeoutMs: 1500 })
+
+        await timed.start()
+        await timed.runProject(HELLO_WORLD)
+
+        expect(mockKernelClient.execute).toHaveBeenCalledWith(expect.any(String), expect.anything(), {
+          timeoutMs: 1500,
+        })
+        await timed.stop()
+      })
+
+      it('fails in-flight execution when the server process exits during a run', async () => {
+        const serverInfo = createServerInfo(9100)
+        mockStartServer.mockResolvedValueOnce(serverInfo)
+        await engine.start()
+
+        serverInfo.simulateExit({ code: 137, signal: null, stderr: 'Killed' })
+        await new Promise(resolve => setTimeout(resolve, 0))
+
+        expect(mockKernelClient.failPending).toHaveBeenCalledTimes(1)
+        const error = mockKernelClient.failPending.mock.calls[0][0]
+        expect(error).toBeInstanceOf(ServerExitedError)
+        expect(error.message).toContain('code=137')
+        expect(error.message).toContain('Killed')
       })
     })
 

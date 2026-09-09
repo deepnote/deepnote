@@ -1,7 +1,9 @@
 import type { IDisplayData, IExecuteResult, IOutput } from '@jupyterlab/nbformat'
-import { KernelManager, ServerConnection, SessionManager } from '@jupyterlab/services'
+import { type Kernel, KernelManager, ServerConnection, SessionManager } from '@jupyterlab/services'
 import type { IKernelConnection } from '@jupyterlab/services/lib/kernel/kernel'
 import type { ISessionConnection } from '@jupyterlab/services/lib/session/session'
+import { Signal } from '@lumino/signaling'
+import { ExecutionTimeoutError, KernelDiedError, KernelLaunchError, ServerExitedError } from './runtime-errors'
 
 export interface ExecutionResult {
   success: boolean
@@ -14,6 +16,29 @@ export interface ExecutionCallbacks {
   onStart?: () => void
   onDone?: (result: ExecutionResult) => void
 }
+
+export interface KernelConnectOptions {
+  /** How long to wait for the kernel to report idle after it starts, in ms (default 30 000). */
+  startupTimeoutMs?: number
+}
+
+export interface KernelExecuteOptions {
+  /** Interrupt the kernel and fail the execution if it runs longer than this, in ms. */
+  timeoutMs?: number
+}
+
+export const DEFAULT_KERNEL_STARTUP_TIMEOUT_MS = 30_000
+
+/**
+ * How long a dropped kernel websocket may stay down before the run is failed. The Jupyter client
+ * retries with exponential backoff for about two minutes before it gives up on its own, and an
+ * in-flight execution would wait silently the whole time.
+ */
+const CONNECTION_LOSS_GRACE_MS = 10_000
+const CONNECTION_PROBE_TIMEOUT_MS = 3_000
+
+const KERNEL_DEATH_HINT =
+  'A kernel usually dies when it runs out of memory or a native library crashes; check the block for large allocations.'
 
 // Jupyter kernel WebSocket protocol to exclude from negotiation.
 // The v1 binary protocol uses DataView with getBigUint64 for message
@@ -40,20 +65,34 @@ export function createJsonWebSocketFactory(): typeof WebSocket {
   } as typeof WebSocket
 }
 
+interface PendingExecution {
+  fail(error: Error): void
+}
+
 /**
  * Client for communicating with a Jupyter kernel via the Jupyter protocol.
+ *
+ * Executions fail with typed errors instead of hanging: `KernelDiedError` when the kernel dies or
+ * is restarted by the server, `ServerExitedError` when the connection to the server is lost and
+ * cannot be re-established, and `ExecutionTimeoutError` when a per-execution timeout elapses.
  */
 export class KernelClient {
   private kernelManager: KernelManager | null = null
   private sessionManager: SessionManager | null = null
   private session: ISessionConnection | null = null
   private kernel: IKernelConnection | null = null
+  private serverUrl: string | null = null
+  private wasConnected = false
+  private connectionWatchdog: ReturnType<typeof setTimeout> | null = null
+  private fatalError: Error | null = null
+  private readonly pending = new Set<PendingExecution>()
 
   /**
    * Connect to a Jupyter server and start a kernel session.
    */
-  async connect(serverUrl: string): Promise<void> {
+  async connect(serverUrl: string, options: KernelConnectOptions = {}): Promise<void> {
     try {
+      this.serverUrl = serverUrl
       const url = new URL(serverUrl)
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
       const wsUrl = url.toString()
@@ -71,20 +110,32 @@ export class KernelClient {
       await this.sessionManager.ready
 
       // Start a new session with Python kernel
-      this.session = await this.sessionManager.startNew({
-        name: 'deepnote-cli',
-        path: 'deepnote-cli',
-        type: 'notebook',
-        kernel: { name: 'python3' },
-      })
+      try {
+        this.session = await this.sessionManager.startNew({
+          name: 'deepnote-cli',
+          path: 'deepnote-cli',
+          type: 'notebook',
+          kernel: { name: 'python3' },
+        })
+      } catch (error) {
+        throw new KernelLaunchError(
+          `Could not start a Python kernel on the deepnote-toolkit server: ${errorMessage(error)}`,
+          { cause: error }
+        )
+      }
 
       this.kernel = this.session.kernel
       if (!this.kernel) {
-        throw new Error('Failed to start kernel')
+        throw new KernelLaunchError('Failed to start kernel: the server created a session without a kernel.')
       }
 
+      this.kernel.statusChanged.connect(this.handleStatusChanged)
+      this.kernel.connectionStatusChanged.connect(this.handleConnectionStatusChanged)
+
       // Wait for kernel to be idle (ready to execute)
-      await this.waitForKernelIdle()
+      await this.waitForKernelIdle(options.startupTimeoutMs ?? DEFAULT_KERNEL_STARTUP_TIMEOUT_MS)
+      // Reaching idle means messages flowed, so later connection drops are real drops.
+      this.wasConnected = true
     } catch (error) {
       await this.disconnect()
       throw error
@@ -94,20 +145,21 @@ export class KernelClient {
   /**
    * Wait for the kernel to reach idle status.
    */
-  private async waitForKernelIdle(timeoutMs = 30000): Promise<void> {
+  private async waitForKernelIdle(timeoutMs: number): Promise<void> {
     if (!this.kernel) return
 
     const startTime = Date.now()
 
     while (this.kernel.status !== 'idle') {
-      if (Date.now() - startTime > timeoutMs) {
-        throw new Error(
-          `Kernel failed to reach idle status within ${timeoutMs}ms. Current status: ${this.kernel.status}`
-        )
+      if (this.kernel.status === 'dead') {
+        throw new KernelDiedError('The kernel died before it became ready.', { hint: KERNEL_DEATH_HINT })
       }
 
-      if (this.kernel.status === 'dead') {
-        throw new Error('Kernel is dead')
+      if (Date.now() - startTime > timeoutMs) {
+        throw new KernelLaunchError(
+          `Kernel failed to reach idle status within ${timeoutMs}ms. Current status: ${this.kernel.status}`,
+          { hint: 'The kernel may just be slow to start on this machine; raise the kernel startup timeout.' }
+        )
       }
 
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -117,24 +169,62 @@ export class KernelClient {
   /**
    * Execute code on the kernel and collect outputs.
    */
-  async execute(code: string, callbacks?: ExecutionCallbacks): Promise<ExecutionResult> {
-    if (!this.kernel) {
+  async execute(
+    code: string,
+    callbacks?: ExecutionCallbacks,
+    options: KernelExecuteOptions = {}
+  ): Promise<ExecutionResult> {
+    const kernel = this.kernel
+    if (!kernel) {
       throw new Error('Kernel not connected. Call connect() first.')
+    }
+    if (this.fatalError) {
+      throw this.fatalError
     }
 
     return new Promise((resolve, reject) => {
       const outputs: IOutput[] = []
       let executionCount: number | null = null
 
-      const future = this.kernel?.requestExecute({ code })
+      const future = kernel.requestExecute({ code })
       if (!future) {
         reject(new Error('Failed to execute code on kernel'))
         return
       }
 
+      let settled = false
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const finish = () => {
+        settled = true
+        if (timer) clearTimeout(timer)
+        this.pending.delete(execution)
+      }
+      const execution: PendingExecution = {
+        fail: error => {
+          if (settled) return
+          finish()
+          reject(error)
+        },
+      }
+      this.pending.add(execution)
+
+      const timeoutMs = options.timeoutMs
+      if (timeoutMs !== undefined) {
+        timer = setTimeout(() => {
+          // Interrupt so the kernel stays usable; its reply then arrives for an execution that has already failed.
+          void kernel.interrupt().catch(noop)
+          execution.fail(
+            new ExecutionTimeoutError(`Block execution exceeded ${timeoutMs}ms and was interrupted.`, {
+              hint: 'Raise the block timeout if the block legitimately needs longer.',
+            })
+          )
+        }, timeoutMs)
+      }
+
       callbacks?.onStart?.()
 
       future.onIOPub = msg => {
+        if (settled) return
         const msgType = msg.header.msg_type
 
         if (msgType === 'execute_input') {
@@ -148,6 +238,8 @@ export class KernelClient {
 
       future.done
         .then(() => {
+          if (settled) return
+          finish()
           const hasError = outputs.some(o => o.output_type === 'error')
           const result: ExecutionResult = {
             success: !hasError,
@@ -157,15 +249,44 @@ export class KernelClient {
           callbacks?.onDone?.(result)
           resolve(result)
         })
-        .catch(reject)
-        .finally(() => future?.dispose())
+        .catch((error: unknown) => execution.fail(this.describeFutureError(error)))
+        .finally(() => future.dispose())
     })
+  }
+
+  /**
+   * Fails every in-flight execution, and every later one, with `error`. Used by the engine when
+   * the server process exits while a run is in progress.
+   */
+  failPending(error: Error): void {
+    this.fail(error)
   }
 
   /**
    * Disconnect from the kernel and clean up resources.
    */
   async disconnect(): Promise<void> {
+    this.clearConnectionWatchdog()
+
+    if (this.kernel) {
+      this.kernel.statusChanged.disconnect(this.handleStatusChanged)
+      this.kernel.connectionStatusChanged.disconnect(this.handleConnectionStatusChanged)
+      if (this.kernel.connectionStatus !== 'connected') {
+        // After a kernel restart, @jupyterlab/services awaits its own reconnect() without handling a
+        // rejection. Disposing the connection while that reconnect is still pending rejects it, which Node
+        // reports as an unhandled rejection. With every listener on the kernel removed first, the reconnect
+        // promise simply stays pending and disposal is silent.
+        Signal.disconnectSender(this.kernel)
+      }
+    }
+
+    if (this.pending.size > 0) {
+      const error = new Error('Kernel client disconnected while an execution was in flight.')
+      for (const execution of [...this.pending]) {
+        execution.fail(error)
+      }
+    }
+
     if (this.session) {
       try {
         await this.session.shutdown()
@@ -187,6 +308,114 @@ export class KernelClient {
     }
 
     this.kernel = null
+  }
+
+  private readonly handleStatusChanged = (_sender: unknown, status: Kernel.Status): void => {
+    if (status === 'dead') {
+      this.fail(
+        new KernelDiedError('The kernel died. Its state, including all variables, was lost.', {
+          hint: KERNEL_DEATH_HINT,
+        })
+      )
+    } else if (status === 'autorestarting' || status === 'restarting') {
+      // The server restarts a kernel that died; the Jupyter client cancels in-flight executions right after this.
+      this.fail(
+        new KernelDiedError(
+          'The kernel died and the server is restarting it. Its state, including all variables, was lost.',
+          { hint: KERNEL_DEATH_HINT }
+        )
+      )
+    }
+  }
+
+  private readonly handleConnectionStatusChanged = (_sender: unknown, status: Kernel.ConnectionStatus): void => {
+    if (status === 'connected') {
+      this.wasConnected = true
+      this.clearConnectionWatchdog()
+      return
+    }
+    // 'connecting' means the client is retrying a dropped websocket; 'disconnected' means it gave up.
+    this.startConnectionWatchdog()
+  }
+
+  private startConnectionWatchdog(): void {
+    if (!this.wasConnected || this.connectionWatchdog || this.fatalError) return
+    this.connectionWatchdog = setTimeout(() => {
+      this.connectionWatchdog = null
+      void this.checkConnection()
+    }, CONNECTION_LOSS_GRACE_MS)
+  }
+
+  private clearConnectionWatchdog(): void {
+    if (this.connectionWatchdog) {
+      clearTimeout(this.connectionWatchdog)
+      this.connectionWatchdog = null
+    }
+  }
+
+  /** Decides, after the grace period, whether a dropped connection is a server crash, a lost kernel, or a hiccup. */
+  private async checkConnection(): Promise<void> {
+    const kernel = this.kernel
+    if (!kernel || this.fatalError || kernel.connectionStatus === 'connected') return
+
+    const verdict = await this.probeServer(kernel.id)
+    if (this.fatalError || this.kernel?.connectionStatus === 'connected') return
+
+    switch (verdict) {
+      case 'kernel-gone':
+        this.fail(
+          new KernelDiedError('The kernel no longer exists on the deepnote-toolkit server.', {
+            hint: KERNEL_DEATH_HINT,
+          })
+        )
+        return
+      case 'server-down':
+        this.fail(
+          new ServerExitedError(
+            'Lost the connection to the deepnote-toolkit server and it no longer answers. It has most likely crashed or been killed.'
+          )
+        )
+        return
+      default:
+        this.fail(
+          new ServerExitedError(
+            `Lost the connection to the kernel and could not re-establish it within ${CONNECTION_LOSS_GRACE_MS / 1000} seconds.`
+          )
+        )
+    }
+  }
+
+  private async probeServer(kernelId: string): Promise<'ok' | 'kernel-gone' | 'server-down'> {
+    if (!this.serverUrl) return 'server-down'
+    try {
+      const response = await fetch(`${this.serverUrl}/api/kernels/${kernelId}`, {
+        signal: AbortSignal.timeout(CONNECTION_PROBE_TIMEOUT_MS),
+      })
+      return response.status === 404 ? 'kernel-gone' : 'ok'
+    } catch {
+      return 'server-down'
+    }
+  }
+
+  private fail(error: Error): void {
+    if (this.fatalError) return
+    this.fatalError = error
+    this.clearConnectionWatchdog()
+    for (const execution of [...this.pending]) {
+      execution.fail(error)
+    }
+  }
+
+  private describeFutureError(error: unknown): Error {
+    const err = error instanceof Error ? error : new Error(String(error))
+    if (err.message.startsWith('Canceled future for ')) {
+      // @jupyterlab/services cancels in-flight futures when the kernel dies or is restarted.
+      return new KernelDiedError('The kernel died while executing. Its state, including all variables, was lost.', {
+        hint: KERNEL_DEATH_HINT,
+        cause: err,
+      })
+    }
+    return err
   }
 
   /**
@@ -237,3 +466,9 @@ export class KernelClient {
     }
   }
 }
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function noop(): void {}

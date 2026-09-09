@@ -1,6 +1,10 @@
+import { execFile } from 'node:child_process'
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
+import { promisify } from 'node:util'
 import { detectDefaultPython, isBareSystemPython, resolvePythonExecutable } from './python-env'
+
+const execFileAsync = promisify(execFile)
 
 /** Environment variable a host (editor, agent harness) can set to publish the interpreter it wants tools to use. */
 export const DEEPNOTE_PYTHON_ENV_VAR = 'DEEPNOTE_PYTHON'
@@ -14,8 +18,11 @@ export const IDE_SIDECAR_FILENAME = 'deepnote.json'
  */
 export const IDE_SIDECAR_DIRS = ['.vscode', '.cursor', '.antigravity', '.agent'] as const
 
+/** Virtual environment directory names looked for next to (and above) the notebook. */
+export const LOCAL_VENV_DIRS = ['.venv', 'venv'] as const
+
 /** Where a resolved Python came from, in precedence order. */
-export type ProjectPythonSource = 'explicit' | 'env' | 'ide' | 'default'
+export type ProjectPythonSource = 'explicit' | 'env' | 'ide' | 'venv' | 'default'
 
 export interface IdePythonEnvironment {
   /** Python spec to run with: the venv's interpreter when it exists, otherwise the venv root. */
@@ -33,6 +40,8 @@ export interface ResolvedProjectPython {
   source: ProjectPythonSource
   /** Set when `source` is `'ide'`. */
   ide?: IdePythonEnvironment
+  /** Set when `source` is `'venv'`: the virtual environment directory that was picked. */
+  venvPath?: string
   /** Non-fatal problems found on the way (e.g. a stale sidecar entry). */
   warnings: string[]
   /** Guidance to show when execution fails and the interpreter was only a system default. */
@@ -52,6 +61,13 @@ export interface ResolveProjectPythonOptions {
   /** Environment to read `DEEPNOTE_PYTHON` from. Defaults to `process.env`. */
   env?: Record<string, string | undefined>
   /**
+   * Whether to consider a `.venv` / `venv` found from `searchDirs` upward that has deepnote-toolkit
+   * installed. Defaults to true.
+   */
+  localVenv?: boolean
+  /** Probe used to check a candidate venv for deepnote-toolkit. Defaults to importing it. */
+  hasToolkit?: (pythonPath: string) => Promise<boolean>
+  /**
    * Called when nothing else matched. Defaults to `detectDefaultPython`.
    * Return `undefined` to signal "no opinion" (callers that have their own default).
    */
@@ -69,10 +85,11 @@ interface SidecarFile {
 }
 
 export const BARE_PYTHON_HINT =
-  'No Deepnote extension environment or DEEPNOTE_PYTHON was found, so the system Python was used. ' +
-  'If deepnote-toolkit is not installed there, either select an environment for this project in the ' +
-  'Deepnote extension (it records the venv in .vscode/deepnote.json or .cursor/deepnote.json), ' +
-  `set ${DEEPNOTE_PYTHON_ENV_VAR}, or pass a venv explicitly (--python / pythonPath).`
+  'No Deepnote extension environment, DEEPNOTE_PYTHON, or project .venv with deepnote-toolkit was found, so the ' +
+  'system Python was used. If deepnote-toolkit is not installed there, either select an environment for this ' +
+  'project in the Deepnote extension (it records the venv in .vscode/deepnote.json or .cursor/deepnote.json), ' +
+  `set ${DEEPNOTE_PYTHON_ENV_VAR}, create a .venv with deepnote-toolkit next to the notebook, or pass a venv ` +
+  'explicitly (--python / pythonPath).'
 
 /**
  * Resolves which Python a project should run with. Precedence:
@@ -80,13 +97,22 @@ export const BARE_PYTHON_HINT =
  * 1. `explicit` (`--python` / `pythonPath`)
  * 2. `DEEPNOTE_PYTHON` env var
  * 3. The Deepnote editor extension's sidecar (`.vscode/deepnote.json` etc.) matched by `projectId`
- * 4. `fallback()` (system Python by default)
+ * 4. A `.venv` / `venv` found from `searchDirs` upward that has deepnote-toolkit installed
+ * 5. `fallback()` (system Python by default)
  *
  * The returned `pythonPath` is a spec, not yet passed through `resolvePythonExecutable`, so
  * callers keep their existing error handling for bad paths.
  */
 export async function resolveProjectPython(options: ResolveProjectPythonOptions = {}): Promise<ResolvedProjectPython> {
-  const { explicit, projectId, searchDirs = [], env = process.env, fallback = detectDefaultPython } = options
+  const {
+    explicit,
+    projectId,
+    searchDirs = [],
+    env = process.env,
+    fallback = detectDefaultPython,
+    localVenv = true,
+    hasToolkit = hasDeepnoteToolkit,
+  } = options
   const warnings: string[] = []
 
   if (explicit && explicit.trim().length > 0) {
@@ -102,6 +128,13 @@ export async function resolveProjectPython(options: ResolveProjectPythonOptions 
     const ide = await findIdePythonEnvironment(projectId, searchDirs, warnings)
     if (ide) {
       return { pythonPath: ide.pythonPath, source: 'ide', ide, warnings }
+    }
+  }
+
+  if (localVenv && searchDirs.length > 0) {
+    const venv = await findLocalVenvPython(searchDirs, warnings, hasToolkit)
+    if (venv) {
+      return { pythonPath: venv.pythonPath, source: 'venv', venvPath: venv.venvPath, warnings }
     }
   }
 
@@ -154,20 +187,73 @@ export async function findIdePythonEnvironment(
   return null
 }
 
+/**
+ * Finds a virtual environment (`.venv` or `venv`) from each of `searchDirs` up to the filesystem
+ * root whose interpreter can import deepnote-toolkit. A venv without the toolkit is skipped with a
+ * warning, so an unrelated project venv never shadows a system Python that does have it.
+ */
+export async function findLocalVenvPython(
+  searchDirs: string[],
+  warnings: string[] = [],
+  hasToolkit: (pythonPath: string) => Promise<boolean> = hasDeepnoteToolkit
+): Promise<{ pythonPath: string; venvPath: string } | null> {
+  for (const dir of directoriesUpward(searchDirs)) {
+    for (const venvDir of LOCAL_VENV_DIRS) {
+      const venvPath = join(dir, venvDir)
+      if (!(await isFile(join(venvPath, 'pyvenv.cfg')))) continue
+
+      let pythonPath: string
+      try {
+        pythonPath = await resolvePythonExecutable(venvPath)
+      } catch {
+        continue
+      }
+
+      if (await hasToolkit(pythonPath)) {
+        return { pythonPath, venvPath }
+      }
+      warnings.push(
+        `Ignoring the virtual environment at ${venvPath}: deepnote-toolkit is not installed there. ` +
+          'Install it with pip install "deepnote-toolkit[server]" to run notebooks in that environment.'
+      )
+    }
+  }
+
+  return null
+}
+
+/** True when `pythonPath` can import deepnote_toolkit. */
+export async function hasDeepnoteToolkit(pythonPath: string): Promise<boolean> {
+  try {
+    await execFileAsync(pythonPath, ['-c', 'import deepnote_toolkit'], { timeout: 20_000 })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Every `<dir>/<settings-folder>/deepnote.json` from each search dir up to the root, de-duplicated, in order. */
 function candidateSidecarPaths(searchDirs: string[]): string[] {
-  const seen = new Set<string>()
   const candidates: string[] = []
+  for (const dir of directoriesUpward(searchDirs)) {
+    for (const settingsDir of IDE_SIDECAR_DIRS) {
+      candidates.push(join(dir, settingsDir, IDE_SIDECAR_FILENAME))
+    }
+  }
+  return candidates
+}
+
+/** Each search dir and its ancestors up to the filesystem root, de-duplicated, in order. */
+function directoriesUpward(searchDirs: string[]): string[] {
+  const seen = new Set<string>()
+  const dirs: string[] = []
 
   for (const start of searchDirs) {
     let dir = resolve(start)
     while (true) {
-      for (const settingsDir of IDE_SIDECAR_DIRS) {
-        const candidate = join(dir, settingsDir, IDE_SIDECAR_FILENAME)
-        if (!seen.has(candidate)) {
-          seen.add(candidate)
-          candidates.push(candidate)
-        }
+      if (!seen.has(dir)) {
+        seen.add(dir)
+        dirs.push(dir)
       }
       const parent = dirname(dir)
       if (parent === dir) break
@@ -175,7 +261,7 @@ function candidateSidecarPaths(searchDirs: string[]): string[] {
     }
   }
 
-  return candidates
+  return dirs
 }
 
 async function readSidecar(sidecarPath: string): Promise<SidecarFile | null> {

@@ -27,7 +27,8 @@ import {
   serializeNotebookContext,
 } from './agent-handler'
 import { toPythonLiteral } from './javascript'
-import { KernelClient } from './kernel-client'
+import { type ExecutionCallbacks, type ExecutionResult, KernelClient } from './kernel-client'
+import { failureCategoryOf, type RuntimeFailureCategory, ServerExitedError } from './runtime-errors'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
@@ -91,6 +92,15 @@ export interface ExecutionOptions {
   signal?: AbortSignal
 }
 
+export interface ExecutionEngineOptions {
+  /**
+   * Attach to a deepnote-toolkit server that is already running instead of starting one. The
+   * engine starts its own kernel on it and leaves the server running when it stops; the caller
+   * owns the server's lifetime (see `ServerPool`).
+   */
+  server?: ServerInfo
+}
+
 /**
  * High-level execution engine for running Deepnote projects.
  *
@@ -113,8 +123,15 @@ export interface ExecutionOptions {
 export class ExecutionEngine {
   private server: ServerInfo | null = null
   private kernel: KernelClient | null = null
+  private readonly externalServer: ServerInfo | null
+  private stopping = false
 
-  constructor(private readonly config: RuntimeConfig) {}
+  constructor(
+    private readonly config: RuntimeConfig,
+    options: ExecutionEngineOptions = {}
+  ) {
+    this.externalServer = options.server ?? null
+  }
 
   /**
    * Get the Jupyter server port (available after start() is called).
@@ -124,19 +141,26 @@ export class ExecutionEngine {
   }
 
   /**
-   * Start the deepnote-toolkit server and connect to the kernel.
+   * Start the deepnote-toolkit server (unless one was provided) and connect to the kernel.
    */
   async start(): Promise<void> {
-    this.server = await startServer({
-      pythonEnv: this.config.pythonEnv,
-      workingDirectory: this.config.workingDirectory,
-      port: this.config.serverPort,
-      env: this.config.env,
-    })
+    this.stopping = false
+    const server =
+      this.externalServer ??
+      (await startServer({
+        pythonEnv: this.config.pythonEnv,
+        workingDirectory: this.config.workingDirectory,
+        port: this.config.serverPort,
+        env: this.config.env,
+        startupTimeoutMs: this.config.serverStartupTimeoutMs,
+        onLog: this.config.onServerLog,
+      }))
+    this.server = server
+    this.watchServerExit(server)
 
     try {
       this.kernel = new KernelClient()
-      await this.kernel.connect(this.server.url)
+      await this.kernel.connect(server.url, { startupTimeoutMs: this.config.kernelStartupTimeoutMs })
     } catch (error) {
       await this.stop()
       throw error
@@ -144,17 +168,49 @@ export class ExecutionEngine {
   }
 
   /**
-   * Stop the server and disconnect from the kernel.
+   * Stop the server (unless it was provided) and disconnect from the kernel.
    */
   async stop(): Promise<void> {
+    this.stopping = true
     if (this.kernel) {
       await this.kernel.disconnect()
       this.kernel = null
     }
-    if (this.server) {
-      await stopServer(this.server)
-      this.server = null
+    const server = this.server
+    this.server = null
+    if (server && server !== this.externalServer) {
+      await stopServer(server)
     }
+  }
+
+  /**
+   * A server that exits while a run is in progress would otherwise leave the in-flight execution
+   * waiting for a reply that never comes; fail it (and every later block) with a typed error instead.
+   */
+  private watchServerExit(server: ServerInfo): void {
+    void server.exited.then(exit => {
+      if (this.stopping || this.server !== server) return
+      const status = `code=${exit.code}, signal=${exit.signal}`
+      const detail = exit.stderr.trim() ? `\nstderr: ${exit.stderr.trim()}` : ''
+      this.kernel?.failPending(
+        new ServerExitedError(
+          `The deepnote-toolkit server process exited while the run was in progress (${status}).${detail}`
+        )
+      )
+    })
+  }
+
+  /** Runs code on the kernel, applying the configured per-block timeout when there is one. */
+  private executeOnKernel(
+    kernel: KernelClient,
+    code: string,
+    callbacks?: ExecutionCallbacks
+  ): Promise<ExecutionResult> {
+    const timeoutMs = this.config.blockTimeoutMs
+    if (timeoutMs === undefined) {
+      return callbacks ? kernel.execute(code, callbacks) : kernel.execute(code)
+    }
+    return kernel.execute(code, callbacks, { timeoutMs })
   }
 
   /**
@@ -179,6 +235,7 @@ export class ExecutionEngine {
     const startTime = Date.now()
     let executedBlocks = 0
     let failedBlocks = 0
+    let failureCategory: RuntimeFailureCategory | undefined
 
     // Filter notebooks if specified
     const notebooks = options.notebookName
@@ -292,7 +349,7 @@ export class ExecutionEngine {
             insertIndex++
 
             try {
-              const result = await kernel.execute(code)
+              const result = await this.executeOnKernel(kernel, code)
 
               blockOutputs.push({
                 blockId: newBlock.id,
@@ -391,7 +448,7 @@ export class ExecutionEngine {
           executedBlocks++
         } else {
           const code = createPythonCode(block)
-          const result = await kernel.execute(code, {
+          const result = await this.executeOnKernel(kernel, code, {
             onOutput: output => options.onOutput?.(block.id, output),
           })
 
@@ -404,6 +461,7 @@ export class ExecutionEngine {
             outputs: result.outputs,
             executionCount: result.executionCount,
             durationMs: Date.now() - blockStart,
+            ...(result.success ? {} : { failureCategory: 'in-block' as const }),
           }
 
           await options.onBlockDone?.(blockResult)
@@ -411,13 +469,16 @@ export class ExecutionEngine {
 
           if (!result.success) {
             failedBlocks++
+            failureCategory ??= 'in-block'
             break
           }
         }
       } catch (error) {
         const executionError = error instanceof Error ? error : new Error(String(error))
+        const category = failureCategoryOf(executionError)
         failedBlocks++
         executedBlocks++
+        failureCategory ??= category
         const blockResult: BlockExecutionResult = {
           blockId: block.id,
           blockType: block.type,
@@ -426,6 +487,7 @@ export class ExecutionEngine {
           executionCount: null,
           durationMs: Date.now() - blockStart,
           error: executionError,
+          failureCategory: category,
         }
         await options.onBlockDone?.(blockResult)
         break
@@ -437,6 +499,7 @@ export class ExecutionEngine {
       executedBlocks,
       failedBlocks,
       totalDurationMs: Date.now() - startTime,
+      ...(failureCategory ? { failureCategory } : {}),
     }
   }
 

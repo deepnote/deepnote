@@ -29,7 +29,10 @@ import {
   type ExecutionSummary,
   executableBlockTypeSet,
   type IOutput,
+  isRuntimeError,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
+  type RuntimeFailureCategory,
+  type ServerLogStream,
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
@@ -43,7 +46,17 @@ import { collectRequiredIntegrationIds } from '../integrations/collect-integrati
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
 import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
-import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
+import {
+  debug,
+  getChalk,
+  getOutputConfig,
+  log,
+  error as logError,
+  type OutputFormat,
+  output,
+  outputJson,
+  outputToon,
+} from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
 import { MissingTokenError, resolveToken } from '../utils/auth'
@@ -92,9 +105,35 @@ export class MissingIntegrationError extends Error {
   }
 }
 
+/**
+ * Error thrown when the local runtime (toolkit server or kernel) could not be started. Carries the
+ * runtime's failure category and remedy so machine output can report them as fields.
+ */
+export class RuntimeStartupError extends Error {
+  readonly failureCategory?: RuntimeFailureCategory
+  readonly hint?: string
+
+  constructor(cause: unknown, pythonHint?: string) {
+    const message = cause instanceof Error ? cause.message : String(cause)
+    super(`Failed to start server: ${message}`)
+    this.name = 'RuntimeStartupError'
+    if (isRuntimeError(cause)) {
+      this.failureCategory = cause.category
+    }
+    const hints = [isRuntimeError(cause) ? cause.hint : undefined, pythonHint].filter(
+      (hint): hint is string => typeof hint === 'string' && hint.length > 0
+    )
+    this.hint = hints.length > 0 ? hints.join('\n\n') : undefined
+  }
+}
+
 export interface RunOptions {
   python?: string
   cwd?: string
+  /** Seconds to allow each of the toolkit server and the kernel to become ready (local runs). */
+  startupTimeout?: number
+  /** Seconds a single block may execute before it is interrupted and the run fails (local runs). */
+  blockTimeout?: number
   notebook?: string
   block?: string
   input?: string[]
@@ -128,6 +167,8 @@ interface BlockResult {
   durationMs: number
   outputs: IOutput[]
   error?: string | undefined
+  /** Why the block failed: `in-block` for the block's own code, otherwise a runtime category. */
+  failureCategory?: RuntimeFailureCategory
 }
 
 /** Diagnosis info for a failed block */
@@ -182,6 +223,8 @@ interface RunResult extends ExecutionSummary {
   success: boolean
   path: string
   blocks: BlockResult[] | BlockWithContext[]
+  /** Remedy for a runtime failure (kernel death, timeout, server exit), when the runtime knows one */
+  hint?: string
   /** Diagnosis info for failed blocks (when machine output is enabled) */
   failedBlockDiagnosis?: BlockDiagnosis[]
   /** Project-level context info (when --context is enabled) */
@@ -219,6 +262,8 @@ interface ProjectSetup {
 
 interface RunExecutionState {
   blockResults: BlockResult[]
+  /** Remedy attached to the runtime failure that stopped the run, if any */
+  runtimeHint?: string
   blockLabels: Map<string, string>
   blocksWithStreamedOutput: Set<string>
   agentStreamed: boolean
@@ -559,6 +604,8 @@ export function createRunAction(program: Command): (path: string | undefined, op
       await runDeepnoteProject(path, options)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      const failureCategory = error instanceof RuntimeStartupError ? error.failureCategory : undefined
+      const hint = error instanceof RuntimeStartupError ? error.hint : undefined
       // Use InvalidUsage for file/input/integration/init-resolver/API-auth errors — all user errors.
       const isAuthApiError = error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
@@ -573,17 +620,23 @@ export function createRunAction(program: Command): (path: string | undefined, op
         isAuthApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
+      const failure = {
+        success: false,
+        error: message,
+        ...(failureCategory ? { failureCategory } : {}),
+        ...(hint ? { hint } : {}),
+      }
       if (options.output === 'json') {
-        outputJson({ success: false, error: message })
+        outputJson(failure)
         process.exitCode = exitCode
         return
       }
       if (options.output === 'toon') {
-        outputToon({ success: false, error: message })
+        outputToon(failure)
         process.exitCode = exitCode
         return
       }
-      program.error(getChalk().red(message), { exitCode })
+      program.error(getChalk().red(message) + (hint ? `\n\n${hint}` : ''), { exitCode })
     }
   }
 }
@@ -808,10 +861,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
   const state = createRunExecutionState(options, isMachineOutput)
-  const engine = new ExecutionEngine({
-    pythonEnv,
-    workingDirectory,
-  })
+  const engine = new ExecutionEngine(buildRuntimeConfig(pythonEnv, workingDirectory, options))
   const restoreConsoleDebug = suppressMachineOutputDebugNoise(isMachineOutput)
   let engineStarted = false
   let metricsInterval: ReturnType<typeof setInterval> | null = null
@@ -854,6 +904,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         options,
         summary,
         blockResults: state.blockResults,
+        hint: state.runtimeHint,
       })
 
       if (options.output === 'toon') {
@@ -881,6 +932,32 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
     }
     if (engineStarted) {
       await engine.stop()
+    }
+  }
+}
+
+/**
+ * Runtime settings for a local run. Timeouts come from `--startup-timeout` (applied to both the
+ * server and the kernel) and `--block-timeout`; the toolkit server log is forwarded to the debug
+ * output when `--debug` is on.
+ */
+function buildRuntimeConfig(pythonEnv: string, workingDirectory: string, options: RunOptions) {
+  const startupTimeoutMs = options.startupTimeout !== undefined ? options.startupTimeout * 1000 : undefined
+  return {
+    pythonEnv,
+    workingDirectory,
+    ...(startupTimeoutMs !== undefined
+      ? { serverStartupTimeoutMs: startupTimeoutMs, kernelStartupTimeoutMs: startupTimeoutMs }
+      : {}),
+    ...(options.blockTimeout !== undefined ? { blockTimeoutMs: options.blockTimeout * 1000 } : {}),
+    ...(getOutputConfig().debug ? { onServerLog: forwardServerLog } : {}),
+  }
+}
+
+function forwardServerLog(stream: ServerLogStream, chunk: string): void {
+  for (const line of chunk.split(/\r?\n/)) {
+    if (line.trim().length > 0) {
+      debug(`[server ${stream}] ${line}`)
     }
   }
 }
@@ -924,8 +1001,6 @@ async function startExecutionEngine(
   try {
     await engine.start()
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-
     // Attempt to clean up any partially-initialized resource
     try {
       await engine.stop()
@@ -936,10 +1011,7 @@ async function startExecutionEngine(
       }
     }
 
-    const hint = pythonHint ? `\n\n${pythonHint}` : ''
-    throw new Error(
-      `Failed to start server: ${message}\n\nMake sure deepnote-toolkit is installed:\n  pip install deepnote-toolkit[server]${hint}`
-    )
+    throw new RuntimeStartupError(error, pythonHint)
   }
 
   if (!isMachineOutput) {
@@ -1023,7 +1095,11 @@ function createRunProjectCallbacks({
         durationMs: result.durationMs,
         outputs: result.outputs,
         error: result.error?.message,
+        failureCategory: result.failureCategory,
       })
+      if (isRuntimeError(result.error) && result.error.hint) {
+        state.runtimeHint = result.error.hint
+      }
 
       const memoryDeltaStr = await recordBlockProfile(state, engine, result, label)
 
@@ -1052,6 +1128,11 @@ function createRunProjectCallbacks({
             output('')
           }
         } else {
+          output('')
+        }
+
+        if (isRuntimeError(result.error) && result.error.hint) {
+          output(c.yellow(`Hint: ${result.error.hint}`))
           output('')
         }
       }
@@ -1190,6 +1271,7 @@ async function buildMachineRunResult({
   options,
   summary,
   blockResults,
+  hint,
 }: {
   absolutePath: string
   file: DeepnoteFile
@@ -1197,6 +1279,7 @@ async function buildMachineRunResult({
   options: RunOptions
   summary: ExecutionSummary
   blockResults: BlockResult[]
+  hint?: string
 }): Promise<RunResult> {
   const result: RunResult = {
     success: summary.failedBlocks === 0,
@@ -1206,6 +1289,8 @@ async function buildMachineRunResult({
     failedBlocks: summary.failedBlocks,
     totalDurationMs: summary.totalDurationMs,
     blocks: blockResults,
+    ...(summary.failureCategory ? { failureCategory: summary.failureCategory } : {}),
+    ...(hint ? { hint } : {}),
   }
 
   const shouldIncludeContext = options.context || summary.failedBlocks > 0
@@ -1311,12 +1396,29 @@ async function outputHumanRunSummary(
   }
 
   if (summary.failedBlocks > 0) {
+    const reason = describeRuntimeFailure(summary.failureCategory)
     output(
-      c.red(`Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.`)
+      c.red(
+        `Done. ${summary.executedBlocks}/${summary.totalBlocks} blocks executed, ${summary.failedBlocks} failed.${reason ? ` ${reason}` : ''}`
+      )
     )
   } else {
     const duration = (summary.totalDurationMs / 1000).toFixed(1)
     output(c.green(`Done. Executed ${summary.executedBlocks} blocks in ${duration}s`))
+  }
+}
+
+/** One-line explanation for a run stopped by the runtime rather than by the block's own code. */
+function describeRuntimeFailure(category: RuntimeFailureCategory | undefined): string | undefined {
+  switch (category) {
+    case 'kernel-died':
+      return 'The kernel died.'
+    case 'server-exited':
+      return 'The deepnote-toolkit server went away.'
+    case 'execution-timeout':
+      return 'A block exceeded the block timeout.'
+    default:
+      return undefined
   }
 }
 

@@ -1,8 +1,8 @@
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { BARE_PYTHON_HINT, findIdePythonEnvironment, resolveProjectPython } from './project-python'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { BARE_PYTHON_HINT, findIdePythonEnvironment, findLocalVenvPython, resolveProjectPython } from './project-python'
 
 const PROJECT_ID = 'project-123'
 
@@ -249,6 +249,151 @@ describe('resolveProjectPython', () => {
     it('returns null when no sidecar exists', async () => {
       const warnings: string[] = []
       expect(await findIdePythonEnvironment(PROJECT_ID, [projectDir], warnings)).toBeNull()
+      expect(warnings).toEqual([])
+    })
+  })
+
+  describe('local virtual environment lookup', () => {
+    async function makeLocalVenv(dir: string, name = '.venv'): Promise<{ venvPath: string; interpreter: string }> {
+      const venvPath = join(dir, name)
+      const binDir = join(venvPath, 'bin')
+      await mkdir(binDir, { recursive: true })
+      await writeFile(join(venvPath, 'pyvenv.cfg'), 'home = /usr/bin\n')
+      const interpreter = join(binDir, 'python')
+      await writeFile(interpreter, '#!/bin/bash\n')
+      await chmod(interpreter, 0o755)
+      return { venvPath, interpreter }
+    }
+
+    const withToolkit = async () => true
+    const withoutToolkit = async () => false
+
+    it('picks a .venv with deepnote-toolkit found above the notebook', async () => {
+      const { venvPath, interpreter } = await makeLocalVenv(workspace)
+
+      const result = await resolveProjectPython({
+        projectId: PROJECT_ID,
+        searchDirs: [projectDir],
+        env: {},
+        hasToolkit: withToolkit,
+        fallback: () => 'python',
+      })
+
+      expect(result).toEqual({ pythonPath: interpreter, source: 'venv', venvPath, warnings: [] })
+    })
+
+    it('accepts a directory named venv as well', async () => {
+      const { venvPath } = await makeLocalVenv(projectDir, 'venv')
+
+      const result = await resolveProjectPython({
+        searchDirs: [projectDir],
+        env: {},
+        hasToolkit: withToolkit,
+        fallback: () => 'python',
+      })
+
+      expect(result.source).toBe('venv')
+      expect(result.venvPath).toBe(venvPath)
+    })
+
+    it('prefers the IDE sidecar over a local venv', async () => {
+      await makeLocalVenv(workspace)
+      const { venvPath, interpreter } = await makeVenv(tempDir)
+      await writeSidecar(workspace, '.vscode', {
+        [PROJECT_ID]: { environmentId: 'env-1', venvPath, pythonInterpreter: interpreter },
+      })
+
+      const result = await resolveProjectPython({
+        projectId: PROJECT_ID,
+        searchDirs: [projectDir],
+        env: {},
+        hasToolkit: withToolkit,
+      })
+
+      expect(result.source).toBe('ide')
+      expect(result.pythonPath).toBe(interpreter)
+    })
+
+    it('skips a venv without deepnote-toolkit with a warning and falls back', async () => {
+      const { venvPath } = await makeLocalVenv(workspace)
+
+      const result = await resolveProjectPython({
+        searchDirs: [projectDir],
+        env: {},
+        hasToolkit: withoutToolkit,
+        fallback: () => 'python',
+      })
+
+      expect(result.source).toBe('default')
+      expect(result.pythonPath).toBe('python')
+      expect(result.hint).toBe(BARE_PYTHON_HINT)
+      expect(result.warnings).toHaveLength(1)
+      expect(result.warnings[0]).toContain(venvPath)
+      expect(result.warnings[0]).toContain('deepnote-toolkit is not installed there')
+    })
+
+    it('probes candidates nearest first and keeps looking past one without the toolkit', async () => {
+      const near = await makeLocalVenv(projectDir)
+      const far = await makeLocalVenv(workspace)
+      const hasToolkit = vi.fn(async (pythonPath: string) => pythonPath === far.interpreter)
+
+      const result = await resolveProjectPython({
+        searchDirs: [projectDir],
+        env: {},
+        hasToolkit,
+        fallback: () => 'python',
+      })
+
+      expect(hasToolkit.mock.calls.map(call => call[0])).toEqual([near.interpreter, far.interpreter])
+      expect(result.source).toBe('venv')
+      expect(result.venvPath).toBe(far.venvPath)
+      expect(result.warnings).toHaveLength(1)
+      expect(result.warnings[0]).toContain(near.venvPath)
+    })
+
+    it('can be disabled with localVenv: false', async () => {
+      await makeLocalVenv(workspace)
+
+      const result = await resolveProjectPython({
+        searchDirs: [projectDir],
+        env: {},
+        localVenv: false,
+        hasToolkit: withToolkit,
+        fallback: () => 'python',
+      })
+
+      expect(result.source).toBe('default')
+    })
+
+    it('ignores a .venv directory that is not a virtual environment', async () => {
+      await mkdir(join(workspace, '.venv', 'bin'), { recursive: true })
+      const hasToolkit = vi.fn(withToolkit)
+
+      const result = await resolveProjectPython({
+        searchDirs: [projectDir],
+        env: {},
+        hasToolkit,
+        fallback: () => 'python',
+      })
+
+      expect(result.source).toBe('default')
+      expect(hasToolkit).not.toHaveBeenCalled()
+    })
+
+    it('does not look for a venv without search directories', async () => {
+      const hasToolkit = vi.fn(withToolkit)
+
+      const result = await resolveProjectPython({ env: {}, hasToolkit, fallback: () => 'python' })
+
+      expect(result.source).toBe('default')
+      expect(hasToolkit).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('findLocalVenvPython', () => {
+    it('returns null when there is no venv on the way up', async () => {
+      const warnings: string[] = []
+      expect(await findLocalVenvPython([projectDir], warnings, async () => true)).toBeNull()
       expect(warnings).toEqual([])
     })
   })

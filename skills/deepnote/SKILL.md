@@ -242,7 +242,7 @@ Pass `--python` only to override that choice, and use the sidecar's `venvPath` w
 <venvPath>/bin/python -m pip install deepnote-cli
 ```
 
-If no IDE environment is found and `DEEPNOTE_PYTHON` is unset, the CLI uses the system Python.
+If no IDE environment is found and `DEEPNOTE_PYTHON` is unset, the CLI next looks for a `.venv` or `venv` directory from the notebook's directory upward and uses it when `deepnote-toolkit` is installed there (`source: venv`); otherwise it falls back to the system Python. A venv without the toolkit is skipped with a warning rather than picked.
 
 ### Running
 

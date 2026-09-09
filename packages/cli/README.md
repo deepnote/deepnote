@@ -147,30 +147,32 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option                  | Description                                                               | Default                    |
-| ----------------------- | ------------------------------------------------------------------------- | -------------------------- |
-| `--python <path>`       | Path to Python interpreter or virtual environment                         | auto-detected              |
-| `--cwd <path>`          | Working directory for execution                                           | file directory             |
-| `--notebook <name>`     | Run only the specified notebook                                           | all notebooks              |
-| `--block <id>`          | Run only the specified block                                              | all blocks                 |
-| `-i, --input <key=val>` | Set input variable value (can be repeated)                                |                            |
-| `--list-inputs`         | List input variables without running                                      | `false`                    |
-| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`)  |                            |
-| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                   | text                       |
-| `--dry-run`             | Show execution plan without running                                       | `false`                    |
-| `--top`                 | Display resource usage (CPU/memory) during execution                      | `false`                    |
-| `--profile`             | Show per-block timing and memory summary                                  | `false`                    |
-| `--open`                | Open project in Deepnote Cloud after successful execution                 | `false`                    |
-| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)          | `false`                    |
-| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                 | `false`                    |
-| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                 |                            |
-| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                    |                            |
-| `--storage-mode <mode>` | Project-storage access for a detached cloud run: `read-write`, `readonly` | `read-write`               |
-| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                      | `600`                      |
-| `--push`                | Push the local `.deepnote` blocks to the Deepnote notebook before running | `false`                    |
-| `--yes`                 | Skip the `--push` confirmation prompt                                     | `false`                    |
-| `--url <url>`           | API base URL                                                              | `https://api.deepnote.com` |
-| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                                |                            |
+| Option                        | Description                                                                          | Default                    |
+| ----------------------------- | ------------------------------------------------------------------------------------ | -------------------------- |
+| `--python <path>`             | Path to Python interpreter or virtual environment                                    | auto-detected              |
+| `--cwd <path>`                | Working directory for execution                                                      | file directory             |
+| `--startup-timeout <seconds>` | Seconds allowed for each of the toolkit server and the kernel to become ready        | `120` and `30`             |
+| `--block-timeout <seconds>`   | Interrupt a block and fail the run if it executes longer than this (local runs only) | unlimited                  |
+| `--notebook <name>`           | Run only the specified notebook                                                      | all notebooks              |
+| `--block <id>`                | Run only the specified block                                                         | all blocks                 |
+| `-i, --input <key=val>`       | Set input variable value (can be repeated)                                           |                            |
+| `--list-inputs`               | List input variables without running                                                 | `false`                    |
+| `--prompt <text>`             | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`)             |                            |
+| `-o, --output <fmt>`          | Output format: `json`, `toon`, or `llm`                                              | text                       |
+| `--dry-run`                   | Show execution plan without running                                                  | `false`                    |
+| `--top`                       | Display resource usage (CPU/memory) during execution                                 | `false`                    |
+| `--profile`                   | Show per-block timing and memory summary                                             | `false`                    |
+| `--open`                      | Open project in Deepnote Cloud after successful execution                            | `false`                    |
+| `--context`                   | Include analysis context in output (requires `-o json/toon/llm`)                     | `false`                    |
+| `--cloud`                     | Run in Deepnote Cloud, then download the snapshot locally                            | `false`                    |
+| `--notebook-id <uuid>`        | Cloud notebook id to run (with `--cloud`)                                            |                            |
+| `--out <path>`                | Write the downloaded cloud snapshot to this exact path                               |                            |
+| `--storage-mode <mode>`       | Project-storage access for a detached cloud run: `read-write`, `readonly`            | `read-write`               |
+| `--timeout <seconds>`         | Max seconds to wait for a cloud run (with `--cloud`)                                 | `600`                      |
+| `--push`                      | Push the local `.deepnote` blocks to the Deepnote notebook before running            | `false`                    |
+| `--yes`                       | Skip the `--push` confirmation prompt                                                | `false`                    |
+| `--url <url>`                 | API base URL                                                                         | `https://api.deepnote.com` |
+| `--token <token>`             | Bearer token (or `DEEPNOTE_TOKEN` env var)                                           |                            |
 
 **Examples:**
 
@@ -183,6 +185,12 @@ deepnote run notebook.ipynb
 
 # Run with a specific Python virtual environment
 deepnote run my-project.deepnote --python path/to/venv
+
+# Fail fast in CI: 60s for the runtime to start, 5 minutes per block
+deepnote run my-project.deepnote --startup-timeout 60 --block-timeout 300 -o json
+
+# Stream the toolkit server's own log while running
+deepnote --debug run my-project.deepnote
 
 # Run only a specific notebook
 deepnote run my-project.deepnote --notebook "Data Analysis"
@@ -245,6 +253,18 @@ synthesized`. Any other run that produces no snapshot — including a remote-onl
 `--notebook-id` — exits `1` with `artifactStatus: not_produced`; an advertised snapshot that
 cannot be downloaded or saved reports `artifactStatus: unavailable` and exits `1`. `success` in
 machine output means the run succeeded and its snapshot was delivered (`saved` or `synthesized`).
+
+#### Runtime failures
+
+A local run stops at the first failing block and never hangs: a kernel that dies, a toolkit server
+that goes away mid-run, and a server that fails to start are all reported within seconds. With
+`-o json` / `-o toon` the result carries `failureCategory` on the run and on the failed block, one of
+`in-block` (the block's code raised), `kernel-died`, `execution-timeout` (see `--block-timeout`),
+`server-exited`, `server-launch` (the toolkit is not installed for that Python, a server dependency
+is missing, no port is free, or `--startup-timeout` elapsed) or `kernel-launch`. When the runtime
+knows a remedy it adds `hint`; a startup failure emits `{ success: false, error, failureCategory, hint }`.
+Without `--python`, the CLI also picks up a `.venv` or `venv` next to (or above) the notebook when
+`deepnote-toolkit` is installed in it.
 
 #### Agent Block (`--prompt` and agent blocks)
 

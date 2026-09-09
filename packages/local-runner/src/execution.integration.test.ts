@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import {
+  assertNoLeakedToolkitProcesses,
+  integrationPython,
+  requireToolkit,
+} from '../../../test-helpers/integration-python'
 import { runWithInputs } from './run-with-inputs'
 
-// A real end-to-end run needs a Python env with deepnote-toolkit[server]. Opt in by pointing
-// DEEPNOTE_TOOLKIT_PYTHON at that venv/executable; otherwise this suite is skipped.
-const python = process.env.DEEPNOTE_TOOLKIT_PYTHON
+// Runs against a real deepnote-toolkit server; part of `pnpm test:integration`, see
+// vitest.integration.config.ts for how the interpreter is chosen.
+const python = integrationPython()
 
 const NOTEBOOK = `metadata:
   createdAt: '2026-01-01T00:00:00.000Z'
@@ -34,7 +39,15 @@ project:
 version: '1.0.0'
 `
 
-describe.skipIf(!python)('runWithInputs (integration — needs deepnote-toolkit)', () => {
+describe('runWithInputs against a real deepnote-toolkit server', () => {
+  beforeAll(() => {
+    requireToolkit(python)
+  })
+
+  afterEach(async () => {
+    await assertNoLeakedToolkitProcesses(python)
+  })
+
   it('executes with an overridden input and echoes it in stdout', async () => {
     const result = await runWithInputs(NOTEBOOK, { count: 7 }, { pythonEnv: python })
 
