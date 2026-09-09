@@ -53,38 +53,57 @@ function syncResult(overrides: Record<string, unknown> = {}) {
 }
 
 let stdinIsTTY: boolean | undefined
+let stdoutIsTTY: boolean | undefined
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
   stdinIsTTY = process.stdin.isTTY
+  stdoutIsTTY = process.stdout.isTTY
   // Default to an interactive terminal; individual tests override.
   Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+  Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
   runnerMock.syncNotebookContent.mockResolvedValue(syncResult())
   return () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: stdinIsTTY, configurable: true })
+    Object.defineProperty(process.stdout, 'isTTY', { value: stdoutIsTTY, configurable: true })
   }
 })
 
 describe('pushLocalNotebook', () => {
   it('sends nothing when Deepnote already matches the file', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan({ isEmpty: true, changes: [] }))
+    const planned = plan({ isEmpty: true, changes: [] })
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
 
     const outcome = await pushLocalNotebook({ ...BASE })
 
-    expect(outcome).toEqual({ applied: false, declined: false, previewed: false })
+    expect(outcome).toMatchObject({ applied: false, declined: false, previewed: false })
+    expect(outcome.plan).toBe(planned)
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
     expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
   })
 
-  it('previews without sending or prompting when dryRun is set', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan())
+  it('reports an empty plan as previewed under dryRun, so the caller does not run either', async () => {
+    runnerMock.planNotebookSync.mockResolvedValue(plan({ isEmpty: true, changes: [] }))
 
     const outcome = await pushLocalNotebook({ ...BASE, dryRun: true })
 
     expect(outcome.previewed).toBe(true)
     expect(outcome.applied).toBe(false)
+    expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
+  })
+
+  it('previews without sending or prompting when dryRun is set', async () => {
+    const planned = plan()
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
+
+    const outcome = await pushLocalNotebook({ ...BASE, dryRun: true })
+
+    expect(outcome.previewed).toBe(true)
+    expect(outcome.applied).toBe(false)
+    // The caller renders machine-output previews itself, so the plan must ride along.
+    expect(outcome.plan).toBe(planned)
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
     expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
   })
@@ -102,7 +121,8 @@ describe('pushLocalNotebook', () => {
   })
 
   it('sends when the answer is yes', async () => {
-    runnerMock.planNotebookSync.mockResolvedValue(plan())
+    const planned = plan()
+    runnerMock.planNotebookSync.mockResolvedValue(planned)
     promptMock.promptForBooleanField.mockResolvedValue(true)
 
     const outcome = await pushLocalNotebook({ ...BASE })
@@ -114,6 +134,8 @@ describe('pushLocalNotebook', () => {
       'nb-cloud',
       expect.objectContaining({ token: 'tok', baseUrl: 'https://api.example.com' })
     )
+    // The very plan the user approved is applied — not a re-plan that could differ from it.
+    expect(runnerMock.syncNotebookContent.mock.calls[0][3].plan).toBe(planned)
   })
 
   it('skips the question entirely with --yes', async () => {
@@ -133,6 +155,23 @@ describe('pushLocalNotebook', () => {
     await expect(pushLocalNotebook({ ...BASE })).rejects.toBeInstanceOf(CloudRunUsageError)
     await expect(pushLocalNotebook({ ...BASE })).rejects.toThrow(/--yes/)
     expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
+  })
+
+  it('refuses rather than prompting invisibly when stdout is piped', async () => {
+    runnerMock.planNotebookSync.mockResolvedValue(plan())
+    Object.defineProperty(process.stdout, 'isTTY', { value: false, configurable: true })
+
+    await expect(pushLocalNotebook({ ...BASE })).rejects.toBeInstanceOf(CloudRunUsageError)
+    expect(promptMock.promptForBooleanField).not.toHaveBeenCalled()
+    expect(runnerMock.syncNotebookContent).not.toHaveBeenCalled()
+  })
+
+  it('keeps push warnings visible on stderr under machine output', async () => {
+    runnerMock.planNotebookSync.mockResolvedValue(plan({ warnings: ['the sql block lost its integration'] }))
+
+    await pushLocalNotebook({ ...BASE, yes: true, machineOutput: true })
+
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('the sql block lost its integration'))
   })
 
   it('refuses rather than prompting into machine-readable output', async () => {

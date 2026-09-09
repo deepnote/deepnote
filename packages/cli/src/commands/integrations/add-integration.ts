@@ -16,7 +16,7 @@ import type { Command } from 'commander'
 import { ExitCode } from '../../exit-codes'
 import { log, output } from '../../output'
 import { updateDotEnv } from '../../utils/dotenv'
-import { readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
+import { MalformedIntegrationsFileError, readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
 import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
 import { promptForFieldsAthena } from './integrations-prompts/athena'
 import { promptForFieldsBigQuery } from './integrations-prompts/big-query'
@@ -166,7 +166,8 @@ export function createIntegrationsAddAction(program: Command): (options: Integra
         program.error(chalk.yellow('Cancelled.'), { exitCode: ExitCode.Error })
       }
       const message = error instanceof Error ? error.message : String(error)
-      program.error(chalk.red(message), { exitCode: ExitCode.Error })
+      const exitCode = error instanceof MalformedIntegrationsFileError ? ExitCode.InvalidUsage : ExitCode.Error
+      program.error(chalk.red(message), { exitCode })
     }
   }
 }

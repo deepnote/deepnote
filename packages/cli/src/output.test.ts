@@ -390,7 +390,7 @@ describe('output', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
       outputToon({ items: [] })
       const output = consoleSpy.mock.calls[0][0]
-      expect(output).toContain('items[0]')
+      expect(output).toContain('items: []')
     })
 
     it('handles null values', () => {
@@ -416,7 +416,7 @@ describe('output', () => {
       expect(output).toContain('quote')
       expect(output).toContain('colon')
       expect(output).toContain('back')
-      expect(output).toContain('items[0]')
+      expect(output).toContain('items: []')
       expect(output).toContain('missing')
       expect(output).toContain('null')
     })

@@ -8,6 +8,7 @@ const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(f
 export default defineConfig({
   entry: ['src/bin.ts', 'src/index.ts'],
   format: ['esm', 'cjs'],
+  fixedExtension: false,
   dts: true,
   onSuccess() {
     const skillsSrc = path.resolve(currentDir, '../../skills/deepnote')

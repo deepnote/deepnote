@@ -10,7 +10,7 @@ Deepnote is designed to support most data analysis workflows, many of which incl
 
 Simplifying a little bit, Deepnote has many machines (computers) running in the cloud (pods in a Kubernetes cluster if you want the real jargon). When you start the hardware in your project, we turn on one of these machines for you and run all your computations there. Once you're done with your computations, we turn off this machine for you just like you would turn off your own laptop at the end of your workday. Unlike with your laptop though, you can view the notebooks and files in your project even while the hardware for your project is turned off – you only need running hardware to execute computations. We automatically start this hardware whenever you start any execution in your project (e.g. when you run a block).
 
-After the hardware notebook is turned off, we store the outputs of cells, but the values of variables are gone (just like when you turn off your computer).
+After the hardware for your project is turned off, we store the outputs of cells, but the values of variables are removed from the running environment and may be restored if the restore option is available.
 
 To start your hardware back up after we turn off the hardware for your project, run any cell or click "Start machine" in the environment sidebar.
 

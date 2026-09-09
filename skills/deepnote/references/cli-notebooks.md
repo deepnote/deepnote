@@ -23,7 +23,8 @@ deepnote notebooks rename 7061f86dec6e4e11893288f295a82017 "Quarterly report"
 deepnote notebooks rename 7061f86dec6e4e11893288f295a82017 "Quarterly report" --output json
 ```
 
-On success, text output identifies the renamed notebook and its resulting name. JSON output has this
+On success, text output identifies the renamed notebook and its resulting name, and notes when the
+notebook is now the project's init notebook. `isInit` reports that state after the rename. JSON output has this
 shape:
 
 ```json
@@ -32,7 +33,8 @@ shape:
   "notebook": {
     "id": "7061f86dec6e4e11893288f295a82017",
     "projectId": "project-id",
-    "name": "Quarterly report"
+    "name": "Quarterly report",
+    "isInit": false
   }
 }
 ```

@@ -103,7 +103,7 @@ df = fetch_airtable_data(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME, AIRTABLE_TOKEN)
 df
 ```
 
-<iframe title="Embedded cell output" src="https://embed.deepnote.com/89226e1d-380f-447a-924e-79271fc232ae/f0abc3c611164a2fbcb56b8cabaab7b5/edd266a97ca54f93b823779115fc2973?height=431"/>
+<Embed url="https://embed.deepnote.com/89226e1d-380f-447a-924e-79271fc232ae/f0abc3c611164a2fbcb56b8cabaab7b5/edd266a97ca54f93b823779115fc2973?height=577" />
 
 ### Analyze your data with SQL
 
@@ -120,7 +120,7 @@ WHERE
   NOT ("Status" = 'Closed' OR "Status" = 'Lost')
 ```
 
-<iframe title="Embedded cell output" src="https://embed.deepnote.com/89226e1d-380f-447a-924e-79271fc232ae/f0abc3c611164a2fbcb56b8cabaab7b5/a9e9543ce04d4cc88020a943d6382455?"  />
+<Embed url="https://embed.deepnote.com/89226e1d-380f-447a-924e-79271fc232ae/f0abc3c611164a2fbcb56b8cabaab7b5/a9e9543ce04d4cc88020a943d6382455?height=577" />
 
 ### Visualize data
 

@@ -25,8 +25,8 @@ The primary way to convert Deepnote projects to Jupyter format is through the De
 
 1. **Open your project** in Deepnote
 2. **Click the project menu** (three dots in the top right)
-3. **Select "Export"** from the dropdown
-4. **Choose "Download as .ipynb"** for Jupyter format
+3. **Select "Export as ..."** from the project menu
+4. **Choose ".ipynb"** from the export submenu for Jupyter format
 5. **Select notebooks** to export (or export all)
 6. **Download** the generated files
 

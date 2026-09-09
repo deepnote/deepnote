@@ -86,11 +86,12 @@ The notebook to run is resolved in this order:
 2. A local `.deepnote` file with `--notebook "<name>"` — the named notebook's id.
 3. A single-notebook `.deepnote` file — its notebook id.
 
-The notebook must already exist in Deepnote; `--cloud` does not upload local content, and
-non-`.deepnote` inputs are rejected. Snapshots are written as a timestamped file plus a `latest`
-copy, unless `--out <path>` is given (single file). `--input`, `--block`, `--notebook`, `--url`,
-`--token`, and `--storage-mode` are honored; local-only flags (`--python`, `--cwd`, `--top`,
-`--profile`, `--open`, `--prompt`, `--dry-run`, `--list-inputs`, `--context`) are not.
+The notebook must already exist in Deepnote; `--cloud` does not create it, and non-`.deepnote`
+inputs are rejected. Snapshots are written as a timestamped file plus a `latest` copy, unless
+`--out <path>` is given (single file). `--input`, `--block`, `--notebook`, `--url`, `--token`,
+`--storage-mode`, `--push`, and `--yes` are honored; local-only flags (`--python`, `--cwd`,
+`--top`, `--profile`, `--open`, `--prompt`, `--list-inputs`, `--context`) are not. `--dry-run` is
+rejected with `--cloud` unless `--push` is set, where it previews the push plan instead.
 
 Full-notebook cloud runs are detached, so Deepnote executes a copy without changing outputs in the
 live editor. This does not isolate anything the notebook accesses: project files remain shared and
@@ -99,6 +100,15 @@ Use `--storage-mode readonly` to make persistent project storage read-only for t
 reads and temporary files still work. Block-scoped cloud runs are different: the API runs them in
 live mode, they update live-editor outputs, and they cannot be combined with `--storage-mode`.
 
+`--push` sends the local file's blocks to the Deepnote notebook before the run, so the cloud
+executes what is on disk rather than what was last saved in Deepnote. The sync is destructive — a
+cloud block the file does not have is deleted, and a block whose type or metadata changed is
+recreated under a new id (a `--block` selection is remapped to the new id automatically). The CLI
+prints the plan and asks for confirmation: `--yes` skips the question and is required when output
+is piped or machine-readable; a declined confirmation exits `0` without running. `--push --dry-run`
+prints the plan and exits without sending or running anything; with `-o json`/`-o toon` it emits
+`{ previewed, plan: { changes, moves, warnings, isEmpty } }` instead of a run result.
+
 `--input` follows the same rules as a local run: each value is typed by the input block it names,
 and unknown names or invalid values are rejected before the run is triggered. Typing a value
 requires the notebook's blocks, so `--input` needs the local `.deepnote` file — pass the file
@@ -106,16 +116,19 @@ rather than only `--notebook-id`.
 
 **Machine output** (`-o json` / `-o toon`; `-o llm` resolves to `toon`):
 `{ success, runId, status, artifactStatus, snapshotPath?, timestampedSnapshotPath?, artifactError?, error? }`.
-A completed run with status `error`/`internal_error`/`stopped` exits `1` but still reports the
-`runId`, `status`, and any `snapshotPath`. `success` describes notebook execution;
-`artifactStatus` separately reports `saved`, `not_produced`, or `unavailable`.
+`success` is the overall command outcome: the run succeeded **and** its snapshot was delivered.
+`status` reports execution alone; `artifactStatus` reports artifact delivery: `saved`,
+`synthesized` (no API artifact; an output-free snapshot was written from the local source),
+`not_produced`, or `unavailable`. A completed run with status `error`/`internal_error`/`stopped`
+exits `1` but still reports the `runId`, `status`, and any `snapshotPath`.
 
-After terminal status, the CLI polls briefly for snapshot attachment. A successful empty or
-markdown-only notebook can legitimately produce none: with a local file, the CLI synthesizes a
-valid output-free snapshot from that source; with only `--notebook-id`, it exits `0` with
-`artifactStatus: not_produced`. An advertised snapshot that cannot be downloaded or saved reports
-`artifactStatus: unavailable`, includes `artifactError`, and exits `1`. `--out` also exits `1` when
-no artifact was produced because the explicitly requested path cannot be written.
+After terminal status, the CLI polls briefly for snapshot attachment; empty snapshot content is
+treated as no snapshot. A successful empty or markdown-only notebook can legitimately produce
+none: with a local file, the CLI synthesizes a valid output-free snapshot from that source, marks
+it `artifactStatus: synthesized`, notes the synthesis in human output, and exits `0`. Any other
+successful run that produces no snapshot — including with only `--notebook-id` — exits `1` with
+`artifactStatus: not_produced` and an `artifactError`. An advertised snapshot that cannot be
+downloaded or saved reports `artifactStatus: unavailable`, includes `artifactError`, and exits `1`.
 
 ```bash
 # Run an existing cloud notebook by id and download its snapshot
@@ -126,6 +139,9 @@ DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --input name="Alice"
 
 # Run the whole notebook without allowing writes to persistent project storage
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --storage-mode readonly
+
+# Push local edits to the notebook first, then run what is on disk (asks before changing it)
+DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --push
 
 # Machine-readable result
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json

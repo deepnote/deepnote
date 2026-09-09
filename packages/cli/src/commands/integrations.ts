@@ -7,6 +7,7 @@ import {
   DEFAULT_ENV_FILE,
   DEFAULT_INTEGRATIONS_FILE,
   fetchIntegrations,
+  IntegrationsYamlParseError,
   mergeApiIntegrationsIntoDocument,
   parseIntegrationsDocument,
   SCHEMA_COMMENT,
@@ -15,10 +16,9 @@ import {
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { type Document, isSeq } from 'yaml'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, log, output } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import { updateDotEnv } from '../utils/dotenv'
 import { isErrnoENOENT } from '../utils/file-resolver'
 
@@ -38,21 +38,33 @@ export interface IntegrationsPullOptions {
 // ============================================================================
 
 /**
- * Resolve the authentication token from options or environment.
+ * Error thrown when the integrations file exists but contains invalid YAML.
+ * Wraps the package-level IntegrationsYamlParseError with the file path and
+ * manual recovery instructions for CLI users.
  */
-function resolveToken(options: IntegrationsPullOptions): string {
-  // Priority: --token flag > DEEPNOTE_TOKEN env var
-  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
-  if (!token) {
-    throw new MissingTokenError()
+export class MalformedIntegrationsFileError extends Error {
+  readonly filePath: string
+
+  constructor(filePath: string, cause: IntegrationsYamlParseError) {
+    const detail = cause.errors[0]?.message ?? cause.message
+    super(
+      `Invalid YAML in integrations file: ${filePath}\n\n` +
+        `${detail}\n\n` +
+        'This usually comes from unresolved merge conflict markers (<<<<<<<, =======, >>>>>>>) or a manual-edit typo.\n' +
+        'Open the file, fix the reported line, and re-run the command — or delete the file manually if you no longer need its contents.',
+      { cause }
+    )
+    this.name = 'MalformedIntegrationsFileError'
+    this.filePath = filePath
   }
-  return token
 }
 
 /**
  * Read existing integrations file as a YAML Document.
  * Returns null if file doesn't exist or is empty.
  * This preserves comments and formatting for later manipulation.
+ *
+ * @throws {MalformedIntegrationsFileError} If the file exists but is not valid YAML.
  */
 export async function readIntegrationsDocument(filePath: string): Promise<Document | null> {
   try {
@@ -61,6 +73,9 @@ export async function readIntegrationsDocument(filePath: string): Promise<Docume
   } catch (error) {
     if (isErrnoENOENT(error)) {
       return null
+    }
+    if (error instanceof IntegrationsYamlParseError) {
+      throw new MalformedIntegrationsFileError(filePath, error)
     }
     throw error
   }
@@ -84,7 +99,10 @@ export async function writeIntegrationsFile(filePath: string, doc: Document): Pr
  * Execute the integrations pull command.
  */
 async function pullIntegrations(options: IntegrationsPullOptions): Promise<void> {
-  const token = resolveToken(options)
+  const token = resolveToken(options.token)
+  if (!token) {
+    throw new MissingTokenError()
+  }
   const baseUrl = options.url ?? DEFAULT_API_URL
   const filePath = options.file ?? DEFAULT_INTEGRATIONS_FILE
   const envFilePath = options.envFile ?? DEFAULT_ENV_FILE
@@ -94,6 +112,10 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
   // Fetch integrations from API
   const fetchedIntegrations = await fetchIntegrations(baseUrl, token)
 
+  // Read existing document (if any) - preserves comments and formatting.
+  const existingDoc = await readIntegrationsDocument(filePath)
+  debug(`Read existing document from ${filePath}: ${existingDoc ? 'found' : 'not found'}`)
+
   if (fetchedIntegrations.length === 0) {
     log(chalk.yellow('No integrations found in your workspace.'))
     return
@@ -101,9 +123,6 @@ async function pullIntegrations(options: IntegrationsPullOptions): Promise<void>
 
   log(chalk.dim(`Found ${fetchedIntegrations.length} integration(s).`))
 
-  // Read existing document (if any) - preserves comments and formatting
-  const existingDoc = await readIntegrationsDocument(filePath)
-  debug(`Read existing document from ${filePath}: ${existingDoc ? 'found' : 'not found'}`)
   const doc = existingDoc ?? createNewDocument()
 
   // Merge API integrations into document and extract secrets
@@ -172,7 +191,11 @@ export function createIntegrationsPullAction(program: Command): (options: Integr
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const exitCode =
-        error instanceof MissingTokenError || error instanceof ApiError ? ExitCode.InvalidUsage : ExitCode.Error
+        error instanceof MissingTokenError ||
+        error instanceof ApiError ||
+        error instanceof MalformedIntegrationsFileError
+          ? ExitCode.InvalidUsage
+          : ExitCode.Error
       program.error(chalk.red(message), { exitCode })
     }
   }

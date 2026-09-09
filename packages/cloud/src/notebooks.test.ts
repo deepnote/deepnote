@@ -34,6 +34,7 @@ describe('updateNotebook', () => {
           name: 'Renamed',
           createdAt: '2026-08-18T00:00:00Z',
           updatedAt: '2026-08-18T00:00:01Z',
+          isInit: false,
         },
       })
     )
@@ -51,8 +52,19 @@ describe('updateNotebook', () => {
         name: 'Renamed',
         createdAt: '2026-08-18T00:00:00Z',
         updatedAt: '2026-08-18T00:00:01Z',
+        isInit: false,
       })
     )
+  })
+
+  it('reports isInit when the rename designates the init notebook', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ notebook: { id: 'nb-1', projectId: 'pr-1', name: 'Init', isInit: true } })
+    )
+
+    const notebook = await updateNotebook(BASE_URL, TOKEN, 'nb-1', { name: 'Init' })
+
+    expect(notebook.isInit).toBe(true)
   })
 
   it('URL-encodes the notebook id', async () => {

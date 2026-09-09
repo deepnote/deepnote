@@ -23,6 +23,14 @@ export interface IntegrationsYamlDocumentMergeResult extends IntegrationsDocumen
  *
  * @param existingContent - Current YAML content, or `null` if the file doesn't exist yet
  * @param apiIntegrations - Integrations fetched from the API
+ *
+ * @throws {IntegrationsYamlParseError} If `existingContent` is not valid YAML (for
+ * example, unresolved git merge conflict markers). Callers that want to rebuild the
+ * file from scratch instead of surfacing the error can catch it and re-run with
+ * `mergeApiIntegrationsIntoYaml(null, apiIntegrations)` — note this discards the
+ * existing content, including any local-only integrations and comments.
+ * @throws {InvalidIntegrationsTypeError} If the existing `integrations` property is
+ * present but is not a list.
  */
 export function mergeApiIntegrationsIntoYaml(
   existingContent: string | null,
