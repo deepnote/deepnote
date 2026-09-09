@@ -127,6 +127,7 @@ vi.mock('./agent-handler', async importOriginal => {
 
 import { ExecutionEngine } from './execution-engine'
 import { KernelDiedError, ServerExitedError } from './runtime-errors'
+import type { ServerInfo } from './server-starter'
 
 // Load example files (tests run from project root)
 function loadExampleFile(filename: string): DeepnoteFile {
@@ -254,6 +255,39 @@ describe('ExecutionEngine', () => {
       expect(engine.serverPid).toBeNull()
       expect(serverInfo.process.listenerCount('exit')).toBe(0)
       serverInfo.simulateExit({ code: 0, signal: null, stderr: '' })
+      expect(mockKernelClient.failPending).not.toHaveBeenCalled()
+    })
+
+    it('attaches to a provided server without starting or stopping one', async () => {
+      const attached = new ExecutionEngine(
+        { pythonEnv: 'python', workingDirectory: '/project' },
+        { server: mockServerInfo as unknown as ServerInfo }
+      )
+
+      await attached.start()
+      expect(mockStartServer).not.toHaveBeenCalled()
+      expect(mockKernelClient.connect).toHaveBeenCalledWith('http://localhost:8888', expect.objectContaining({}))
+      expect(attached.serverPort).toBe(8888)
+
+      await attached.stop()
+      expect(mockKernelClient.disconnect).toHaveBeenCalled()
+      expect(mockStopServer).not.toHaveBeenCalled()
+    })
+
+    it('leaves no exit listener on a shared server once engines have stopped', async () => {
+      const shared = createServerInfo(9200)
+      for (let i = 0; i < 3; i++) {
+        const attached = new ExecutionEngine(
+          { pythonEnv: 'python', workingDirectory: '/project' },
+          { server: shared as unknown as ServerInfo }
+        )
+        await attached.start()
+        expect(shared.process.listenerCount('exit')).toBe(1)
+        await attached.stop()
+      }
+
+      expect(shared.process.listenerCount('exit')).toBe(0)
+      shared.simulateExit({ code: 0, signal: null, stderr: '' })
       expect(mockKernelClient.failPending).not.toHaveBeenCalled()
     })
   })

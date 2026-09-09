@@ -129,6 +129,7 @@ describe('KernelClient', () => {
     mockKernel.status = 'idle'
     mockKernel.connectionStatus = 'connected'
     mockSession.kernel = mockKernel
+    mockSessionManager.startNew.mockClear()
     mockSessionManager.startNew.mockResolvedValue(mockSession)
     mockRequestExecute.mockReset()
     mockInterrupt.mockReset()
@@ -178,15 +179,24 @@ describe('KernelClient', () => {
       expect(typeof callArg.WebSocket).toBe('function')
     })
 
-    it('starts a new session with python3 kernel', async () => {
+    it('starts a new session with python3 kernel under a unique path', async () => {
       await client.connect('http://localhost:8888')
 
       expect(mockSessionManager.startNew).toHaveBeenCalledWith({
-        name: 'deepnote-cli',
-        path: 'deepnote-cli',
+        name: expect.stringMatching(/^deepnote-cli-[0-9a-f-]{36}$/),
+        path: expect.stringMatching(/^deepnote-cli-[0-9a-f-]{36}$/),
         type: 'notebook',
         kernel: { name: 'python3' },
       })
+    })
+
+    it('uses a different session path for every connection so clients never share a kernel', async () => {
+      await client.connect('http://localhost:8888')
+      await new KernelClient().connect('http://localhost:8888')
+
+      const paths = mockSessionManager.startNew.mock.calls.map(call => (call[0] as { path: string }).path)
+      expect(paths).toHaveLength(2)
+      expect(paths[0]).not.toBe(paths[1])
     })
 
     it('waits for kernel to become idle', async () => {
