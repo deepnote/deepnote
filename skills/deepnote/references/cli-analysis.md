@@ -2,6 +2,8 @@
 
 Install: `npm install -g @deepnote/cli`
 
+`--python <path>` is optional everywhere it appears below. When omitted, `analyze`, `lint`, and `dag` use `DEEPNOTE_PYTHON` if set, otherwise the Deepnote editor extension's environment for the project (from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json`), otherwise the analyzer's default `python3`. See `cli-run.md` for the full order.
+
 ## `deepnote inspect [path]`
 
 Display structured metadata about a .deepnote file.

@@ -1,12 +1,12 @@
 import { ParseError } from '@deepnote/blocks'
 import { InitNotebookResolutionError } from '@deepnote/convert'
-import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { type AnalysisResult, analyzeProject, type BlockInfo, buildBlockMap } from '../utils/analysis'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
+import { resolveAnalysisPython } from '../utils/python-resolution'
 
 export interface AnalyzeOptions {
   output?: OutputFormat
@@ -72,7 +72,9 @@ async function analyzeFile(path: string | undefined, options: AnalyzeOptions): P
   emitInitResolverWarnings(warnings, options.output !== undefined)
 
   debug('Running analysis...')
-  const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
+  const pythonInterpreter = await resolveAnalysisPython(deepnoteFile, absolutePath, options.python, {
+    isMachineOutput: options.output !== undefined,
+  })
   const analysis = await analyzeProject(deepnoteFile, {
     notebook: options.notebook,
     pythonInterpreter,

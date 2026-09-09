@@ -25,13 +25,11 @@ import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
   type AgentStreamEvent,
   type BlockExecutionResult,
-  detectDefaultPython,
   ExecutionEngine,
   type ExecutionSummary,
   executableBlockTypeSet,
   type IOutput,
   type DeepnoteBlock as RuntimeDeepnoteBlock,
-  resolvePythonExecutable,
 } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
@@ -63,6 +61,7 @@ import {
 import { getNotebooksForExecutionScope } from '../utils/notebook-scope'
 import { openDeepnoteFileInCloud } from '../utils/open-file-in-cloud'
 import { getInputBlocks, InvalidInputError, parseInputs } from '../utils/parse-inputs'
+import { resolveRunPython } from '../utils/python-resolution'
 import { assertCloudOnlyFlagsRequireCloud, CloudRunUsageError, runInDeepnoteCloud } from '../utils/run-in-cloud'
 
 /**
@@ -210,6 +209,8 @@ interface ProjectSetup {
   workingDirectory: string
   file: DeepnoteFile
   pythonEnv: string
+  /** Shown when the toolkit server fails to start and only a system Python was available. */
+  pythonHint?: string
   inputs: InputBlockValueOverrides
   isMachineOutput: boolean
   convertedFile: LoadedRunnableFile
@@ -325,7 +326,11 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
 
-  const pythonEnv = await resolvePythonExecutable(options.python ?? detectDefaultPython())
+  // --python, then DEEPNOTE_PYTHON, then the Deepnote extension environment for this project, then system Python.
+  const { pythonEnv, hint: pythonHint } = await resolveRunPython(file, absolutePath, options.python, {
+    workingDirectory,
+    isMachineOutput,
+  })
 
   const inputs = parseInputs(file, options.input, options.notebook)
 
@@ -369,7 +374,17 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   // This allows SQL blocks to access database connections
   injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
-  return { absolutePath, workingDirectory, file, pythonEnv, inputs, isMachineOutput, convertedFile, allIntegrations }
+  return {
+    absolutePath,
+    workingDirectory,
+    file,
+    pythonEnv,
+    pythonHint,
+    inputs,
+    isMachineOutput,
+    convertedFile,
+    allIntegrations,
+  }
 }
 
 /**
@@ -778,8 +793,17 @@ async function validateRequirements(
 }
 
 async function runDeepnoteProject(path: string | undefined, options: RunOptions): Promise<void> {
-  const { absolutePath, workingDirectory, pythonEnv, inputs, isMachineOutput, convertedFile, file, allIntegrations } =
-    await setupProject(path, options)
+  const {
+    absolutePath,
+    workingDirectory,
+    pythonEnv,
+    pythonHint,
+    inputs,
+    isMachineOutput,
+    convertedFile,
+    file,
+    allIntegrations,
+  } = await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
 
@@ -793,7 +817,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
   let metricsInterval: ReturnType<typeof setInterval> | null = null
 
   try {
-    await startExecutionEngine(engine, isMachineOutput)
+    await startExecutionEngine(engine, isMachineOutput, pythonHint)
     engineStarted = true
     metricsInterval = await startMetricsMonitoring(engine, state.showTop)
 
@@ -888,7 +912,11 @@ function suppressMachineOutputDebugNoise(isMachineOutput: boolean): () => void {
   }
 }
 
-async function startExecutionEngine(engine: ExecutionEngine, isMachineOutput: boolean): Promise<void> {
+async function startExecutionEngine(
+  engine: ExecutionEngine,
+  isMachineOutput: boolean,
+  pythonHint?: string
+): Promise<void> {
   if (!isMachineOutput) {
     log(getChalk().dim('Starting deepnote-toolkit server...'))
   }
@@ -908,8 +936,9 @@ async function startExecutionEngine(engine: ExecutionEngine, isMachineOutput: bo
       }
     }
 
+    const hint = pythonHint ? `\n\n${pythonHint}` : ''
     throw new Error(
-      `Failed to start server: ${message}\n\nMake sure deepnote-toolkit is installed:\n  pip install deepnote-toolkit[server]`
+      `Failed to start server: ${message}\n\nMake sure deepnote-toolkit is installed:\n  pip install deepnote-toolkit[server]${hint}`
     )
   }
 
