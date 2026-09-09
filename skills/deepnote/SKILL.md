@@ -214,13 +214,11 @@ npm install -g @deepnote/cli
 
 ### IDE Environment Detection
 
-The Deepnote extension for VS Code, Cursor, and Antigravity creates a virtual environment for each project. Before running, check if an IDE-configured environment exists so the CLI uses the same Python interpreter.
-
-Look for a `deepnote.json` file in these directories (in order):
+The Deepnote extension for VS Code, Cursor, and Antigravity creates a virtual environment for each project and records it in a `deepnote.json` sidecar file in the workspace root:
 
 - `.vscode/deepnote.json`
 - `.cursor/deepnote.json`
-- `.agent/deepnote.json` (Antigravity)
+- `.antigravity/deepnote.json` (Antigravity)
 
 The file maps project IDs to virtual environments:
 
@@ -229,23 +227,22 @@ The file maps project IDs to virtual environments:
   "mappings": {
     "<project-id>": {
       "environmentId": "<env-id>",
-      "venvPath": "/path/to/deepnote-envs/<env-id>"
+      "venvPath": "/path/to/deepnote-envs/<env-id>",
+      "pythonInterpreter": "/path/to/deepnote-envs/<env-id>/bin/python"
     }
   }
 }
 ```
 
-To use the IDE environment:
+`deepnote run`, `analyze`, `lint`, `dag`, and the MCP `deepnote_run` tool read this file automatically: when `--python` / `pythonPath` and `DEEPNOTE_PYTHON` are both unset, they look the file's `project.id` up in every `deepnote.json` from the notebook's directory upward and use the recorded interpreter. You do not need to pass `--python` for a project the extension has already set up. The output says which interpreter was used and where it came from (`source: ide`).
 
-1. Read the `project.id` from the `.deepnote` file
-2. Check each `deepnote.json` for a matching key in `mappings`
-3. If found, pass the `venvPath` to the CLI with `--python`:
+Pass `--python` only to override that choice, and use the sidecar's `venvPath` when you install `deepnote-cli` into the same environment:
 
 ```bash
-deepnote run project.deepnote --python /path/to/deepnote-envs/<env-id>
+<venvPath>/bin/python -m pip install deepnote-cli
 ```
 
-If no IDE environment is found, omit `--python` and the CLI will use the system Python.
+If no IDE environment is found and `DEEPNOTE_PYTHON` is unset, the CLI uses the system Python.
 
 ### Running
 

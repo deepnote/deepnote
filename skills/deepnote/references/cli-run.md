@@ -29,6 +29,15 @@ Execute notebooks (.deepnote, .ipynb, .py, .qmd).
 | `--url <url>`             | API base URL (default `https://api.deepnote.com`)                 |
 | `--token <token>`         | Bearer token (or `DEEPNOTE_TOKEN` env var)                        |
 
+**Python resolution.** When `--python` is omitted, `deepnote run` picks the interpreter in this order:
+
+1. `--python <path>`
+2. The `DEEPNOTE_PYTHON` environment variable (a host such as an editor or agent harness can set it for every tool it spawns)
+3. The environment the Deepnote editor extension selected for this project, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched from the notebook's directory upward, plus `DEEPNOTE_WORKSPACE` and `--cwd`) and matched on the file's `project.id`
+4. System `python` / `python3`
+
+The same order applies to `analyze`, `lint`, and `dag`, except that step 4 leaves the analyzer's own default in place. A stale extension mapping (venv deleted) is skipped with a warning. When only the system Python was available and the toolkit server fails to start, the error explains how to point the CLI at a venv.
+
 **Examples:**
 
 ```bash

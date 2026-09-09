@@ -39,6 +39,13 @@ Common settings locations:
 - `~/.cursor/mcp.json`
 - `~/.cursor/config/mcp.json`
 
+Optional environment variables for the server process:
+
+| Variable             | Purpose                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `DEEPNOTE_WORKSPACE` | Workspace root used for resources and for locating the Deepnote extension's `deepnote.json` (defaults to cwd)  |
+| `DEEPNOTE_PYTHON`    | Interpreter (executable, `bin/` directory, or venv root) to run notebooks with when `pythonPath` is not passed |
+
 ## MCP Prompts
 
 The server exposes workflow templates through MCP prompts:
@@ -106,6 +113,15 @@ Scopes:
 - **Block level**: pass `blockId` (optionally also `notebook`)
 
 `deepnote_run` supports `.deepnote`, `.ipynb`, `.py`, and `.qmd` inputs.
+
+**Python interpreter.** When `pythonPath` is omitted, `deepnote_run` resolves the interpreter in this order and reports the result in the `python` field of its response (`source`: `explicit`, `env`, `ide`, or `default`):
+
+1. `pythonPath` argument
+2. `DEEPNOTE_PYTHON` environment variable, so an editor or agent harness can publish its selected interpreter to the server it spawns
+3. The environment the Deepnote editor extension selected for the project, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched from the notebook's directory and `DEEPNOTE_WORKSPACE` upward, matched on the file's `project.id`)
+4. System `python` / `python3`
+
+If execution fails while only a system Python was available, the error includes a hint on how to point the server at a venv that has `deepnote-toolkit` installed.
 
 ### Snapshot Tools
 

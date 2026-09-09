@@ -9,7 +9,13 @@ import {
   resolveAndComposeInitIfNeeded,
   saveExecutionSnapshot,
 } from '@deepnote/convert'
-import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
+import {
+  detectDefaultPython,
+  ExecutionEngine,
+  executableBlockTypeSet,
+  type ResolvedProjectPython,
+  resolveProjectPython,
+} from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { formatOutput } from '../utils.js'
@@ -67,6 +73,60 @@ function formatFirstIssue(error: z.ZodError): string {
   return `${issuePath}${issue.message}`
 }
 
+/**
+ * Picks the interpreter for a run: explicit `pythonPath`, then `DEEPNOTE_PYTHON`, then the Deepnote
+ * editor extension's environment for this project (`.vscode/deepnote.json` etc., searched from the
+ * file's directory and `DEEPNOTE_WORKSPACE` upward), then the system Python.
+ */
+async function resolveRunPython(
+  file: DeepnoteFile,
+  originalPath: string,
+  explicit: string | undefined
+): Promise<ResolvedProjectPython> {
+  const searchDirs = [path.dirname(originalPath)]
+  if (process.env.DEEPNOTE_WORKSPACE) {
+    searchDirs.push(process.env.DEEPNOTE_WORKSPACE)
+  }
+
+  const python = await resolveProjectPython({
+    explicit,
+    projectId: file.project.id,
+    searchDirs,
+    fallback: () => {
+      try {
+        return detectDefaultPython()
+      } catch {
+        return 'python'
+      }
+    },
+  })
+
+  for (const warning of python.warnings) {
+    // biome-ignore lint/suspicious/noConsole: Intentional diagnostic logging to stderr
+    console.error(`[deepnote-mcp] ${warning}`)
+  }
+
+  return python
+}
+
+/** Compact description of the chosen interpreter for tool responses. */
+function describePython(python: ResolvedProjectPython) {
+  return {
+    path: python.pythonPath,
+    source: python.source,
+    ...(python.ide ? { environmentId: python.ide.environmentId, sidecarPath: python.ide.sidecarPath } : {}),
+  }
+}
+
+function executionFailure(error: unknown, python: ResolvedProjectPython) {
+  const message = error instanceof Error ? error.message : String(error)
+  const hint = python.hint ? `\n\n${python.hint}` : ''
+  return {
+    content: [{ type: 'text', text: `Execution failed: ${message}${hint}` }],
+    isError: true,
+  }
+}
+
 function getErrorCode(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null) return undefined
   const maybeCode = Reflect.get(error, 'code')
@@ -103,7 +163,7 @@ export const executionTools: Tool[] = [
         pythonPath: {
           type: 'string',
           description:
-            'Path to Python environment (venv directory or python executable). Uses system Python if not specified.',
+            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the environment the Deepnote editor extension selected for this project (.vscode/deepnote.json, .cursor/deepnote.json), then system Python.',
         },
         inputs: {
           type: 'object',
@@ -203,9 +263,11 @@ async function handleRun(args: Record<string, unknown>) {
     console.error(`[deepnote-mcp] ${warning}`)
   }
 
+  const python = await resolveRunPython(file, originalPath, pythonPath)
+
   // If blockId is specified, run just that block with its dependencies
   if (blockIdFilter) {
-    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs, {
+    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, python, inputs, {
       dryRun: dryRun === true,
     })
   }
@@ -255,6 +317,7 @@ async function handleRun(args: Record<string, unknown>) {
                 contentPreview: b.block.content?.slice(0, 50) || '',
               })),
               inputs: inputs || {},
+              python: describePython(python),
             },
             null,
             2
@@ -267,7 +330,7 @@ async function handleRun(args: Record<string, unknown>) {
   // Actually run the notebooks
   const workingDir = path.dirname(originalPath)
   const engine = new ExecutionEngine({
-    pythonEnv: pythonPath || 'python',
+    pythonEnv: python.pythonPath,
     workingDirectory: workingDir,
   })
 
@@ -335,6 +398,7 @@ async function handleRun(args: Record<string, unknown>) {
       format,
       wasConverted,
       snapshotPath,
+      python: describePython(python),
       execution: compact
         ? undefined
         : {
@@ -358,11 +422,7 @@ async function handleRun(args: Record<string, unknown>) {
       ],
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: `Execution failed: ${message}` }],
-      isError: true,
-    }
+    return executionFailure(error, python)
   } finally {
     await engine.stop()
   }
@@ -377,7 +437,7 @@ async function handleRunBlock(
   originalPath: string,
   blockId: string,
   notebookFilter: string | undefined,
-  pythonPath: string | undefined,
+  python: ResolvedProjectPython,
   inputs: Record<string, unknown> | undefined,
   options: { dryRun: boolean }
 ) {
@@ -420,6 +480,7 @@ async function handleRunBlock(
                 type: targetBlock.type,
               },
               inputs: inputs || {},
+              python: describePython(python),
             },
             null,
             2
@@ -432,7 +493,7 @@ async function handleRunBlock(
   // Run the specific block
   const workingDir = path.dirname(originalPath)
   const engine = new ExecutionEngine({
-    pythonEnv: pythonPath || 'python',
+    pythonEnv: python.pythonPath,
     workingDirectory: workingDir,
   })
 
@@ -458,6 +519,7 @@ async function handleRunBlock(
               executedBlocks: summary.executedBlocks,
               failedBlocks: summary.failedBlocks,
               durationMs: summary.totalDurationMs,
+              python: describePython(python),
             },
             null,
             2
@@ -466,11 +528,7 @@ async function handleRunBlock(
       ],
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: `Execution failed: ${message}` }],
-      isError: true,
-    }
+    return executionFailure(error, python)
   } finally {
     await engine.stop()
   }

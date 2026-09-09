@@ -1,9 +1,10 @@
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleExecutionTool } from './execution'
-import { writeMainWithDivergingInitSibling } from './test-helpers'
+import { makeDeepnoteFile, writeMainWithDivergingInitSibling } from './test-helpers'
 import { handleWritingTool } from './writing'
 
 function extractResult(response: { content: Array<{ type: string; text: string }> }): Record<string, unknown> {
@@ -70,6 +71,105 @@ describe('execution tools handlers', () => {
 
       expect(response.isError).toBe(true)
       expect(response.content[0].text).toContain('Notebook not found')
+    })
+  })
+
+  describe('python resolution', () => {
+    let projectPath: string
+    let interpreter: string
+
+    beforeEach(async () => {
+      const projectDir = path.join(tempDir, 'workspace', 'notebooks')
+      await fs.mkdir(projectDir, { recursive: true })
+      projectPath = path.join(projectDir, 'project.deepnote')
+      await fs.writeFile(
+        projectPath,
+        serializeDeepnoteFile(
+          makeDeepnoteFile({ projectId: 'proj-1', notebooks: [{ id: 'nb-1', name: 'Main', blockIds: ['b1'] }] })
+        ),
+        'utf-8'
+      )
+
+      const binDir = path.join(tempDir, 'deepnote-envs', 'env-1', 'bin')
+      await fs.mkdir(binDir, { recursive: true })
+      interpreter = path.join(binDir, 'python')
+      await fs.writeFile(interpreter, '#!/bin/bash\n')
+      await fs.chmod(interpreter, 0o755)
+
+      vi.stubEnv('DEEPNOTE_PYTHON', '')
+      vi.stubEnv('DEEPNOTE_WORKSPACE', '')
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    async function writeSidecar(dir: string, settingsDir: string): Promise<string> {
+      await fs.mkdir(path.join(dir, settingsDir), { recursive: true })
+      const sidecarPath = path.join(dir, settingsDir, 'deepnote.json')
+      await fs.writeFile(
+        sidecarPath,
+        JSON.stringify({
+          mappings: {
+            'proj-1': {
+              environmentId: 'env-1',
+              venvPath: path.join(tempDir, 'deepnote-envs', 'env-1'),
+              pythonInterpreter: interpreter,
+            },
+          },
+        })
+      )
+      return sidecarPath
+    }
+
+    it('reports an explicit pythonPath as the chosen interpreter', async () => {
+      await writeSidecar(path.join(tempDir, 'workspace'), '.vscode')
+      const result = extractResult(
+        await handleExecutionTool('deepnote_run', { path: projectPath, pythonPath: '/explicit/python', dryRun: true })
+      )
+
+      expect(result.python).toEqual({ path: '/explicit/python', source: 'explicit' })
+    })
+
+    it('honors DEEPNOTE_PYTHON when no pythonPath is given', async () => {
+      vi.stubEnv('DEEPNOTE_PYTHON', '/host/venv/bin/python')
+      await writeSidecar(path.join(tempDir, 'workspace'), '.vscode')
+      const result = extractResult(await handleExecutionTool('deepnote_run', { path: projectPath, dryRun: true }))
+
+      expect(result.python).toEqual({ path: '/host/venv/bin/python', source: 'env' })
+    })
+
+    it('picks up the Deepnote extension environment from a sidecar above the file', async () => {
+      const sidecarPath = await writeSidecar(path.join(tempDir, 'workspace'), '.cursor')
+      const result = extractResult(await handleExecutionTool('deepnote_run', { path: projectPath, dryRun: true }))
+
+      expect(result.python).toEqual({ path: interpreter, source: 'ide', environmentId: 'env-1', sidecarPath })
+    })
+
+    it('searches DEEPNOTE_WORKSPACE for the sidecar as well', async () => {
+      const hostWorkspace = path.join(tempDir, 'host-workspace')
+      const sidecarPath = await writeSidecar(hostWorkspace, '.vscode')
+      vi.stubEnv('DEEPNOTE_WORKSPACE', hostWorkspace)
+      const result = extractResult(await handleExecutionTool('deepnote_run', { path: projectPath, dryRun: true }))
+
+      expect(result.python).toMatchObject({ source: 'ide', sidecarPath })
+    })
+
+    it('includes the interpreter in block-level dry runs', async () => {
+      await writeSidecar(path.join(tempDir, 'workspace'), '.vscode')
+      const result = extractResult(
+        await handleExecutionTool('deepnote_run', { path: projectPath, blockId: 'b1', dryRun: true })
+      )
+
+      expect(result.level).toBe('block')
+      expect(result.python).toMatchObject({ source: 'ide', environmentId: 'env-1' })
+    })
+
+    it('falls back to a system python when nothing is configured', async () => {
+      const result = extractResult(await handleExecutionTool('deepnote_run', { path: projectPath, dryRun: true }))
+
+      expect(result.python).toMatchObject({ source: 'default' })
+      expect(result.python).not.toHaveProperty('environmentId')
     })
   })
 
