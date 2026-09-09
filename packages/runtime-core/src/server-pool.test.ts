@@ -126,6 +126,72 @@ describe('ServerPool', () => {
     expect(mockStopServer).toHaveBeenCalledWith(dead.server)
   })
 
+  it('shutdown waits for a server whose stop is already in flight', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const stopping = createDeferred<void>()
+    mockStopServer.mockReturnValue(stopping.promise)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+    expect(mockStopServer).toHaveBeenCalledTimes(1)
+
+    let shutdownDone = false
+    const shutdown = pool.shutdown().then(() => {
+      shutdownDone = true
+    })
+    await flush()
+    expect(shutdownDone).toBe(false)
+
+    stopping.resolve()
+    await shutdown
+    expect(shutdownDone).toBe(true)
+    expect(mockStopServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('killAll still signals a server whose stop is in flight', async () => {
+    const { server, kill } = makeServer(8888, [901])
+    mockStartServer.mockResolvedValue(server)
+    mockStopServer.mockReturnValue(createDeferred<void>().promise)
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+
+    pool.killAll()
+
+    expect(killSpy).toHaveBeenCalledWith(901, 'SIGTERM')
+    expect(kill).toHaveBeenCalledWith('SIGTERM')
+    killSpy.mockRestore()
+  })
+
+  it('does not start a replacement when shut down during the health check', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const probe = createDeferred<Response>()
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    first.release()
+    fetchSpy.mockReturnValue(probe.promise)
+    const second = pool.acquire(options).catch(e => e)
+    await flush()
+
+    const shutdown = pool.shutdown()
+    probe.reject(new TypeError('fetch failed'))
+    await shutdown
+
+    const error = await second
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toContain('shut down')
+    expect(mockStartServer).toHaveBeenCalledTimes(1)
+    expect(pool.size).toBe(0)
+  })
+
   it('does not treat a server it stopped itself as a crash', async () => {
     const { server } = makeServer(8888)
     mockStartServer.mockResolvedValue(server)

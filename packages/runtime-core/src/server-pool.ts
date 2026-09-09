@@ -42,6 +42,8 @@ interface PoolEntry {
  */
 export class ServerPool {
   private readonly entries = new Map<string, PoolEntry>()
+  /** Servers whose stop is in flight, so shutdown can wait for them and killAll can still reach them. */
+  private readonly stopping = new Map<ServerInfo, Promise<void>>()
   private closed = false
 
   constructor(private readonly options: ServerPoolOptions = {}) {}
@@ -72,6 +74,11 @@ export class ServerPool {
     if (entry?.server && !(await isServerHealthy(entry.server))) {
       await this.stopEntry(entry)
       entry = this.entries.get(key)
+    }
+
+    // The pool may have been shut down while the probe or the replacement stop was in flight.
+    if (this.closed) {
+      throw new Error('The server pool has been shut down.')
     }
 
     if (!entry) {
@@ -109,23 +116,27 @@ export class ServerPool {
     return { server, release }
   }
 
-  /** Stops every server in the pool and waits for them to exit. Later acquires are rejected. */
+  /**
+   * Stops every server in the pool, including ones whose stop is already in flight, and waits for
+   * them to exit. Later acquires are rejected.
+   */
   async shutdown(): Promise<void> {
     this.closed = true
     const entries = [...this.entries.values()]
     this.entries.clear()
-    await Promise.all(
-      entries.map(async entry => {
+    await Promise.all([
+      ...entries.map(async entry => {
         entry.stopping = true
         if (entry.idleTimer) clearTimeout(entry.idleTimer)
         try {
           const server = entry.server ?? (await entry.starting)
-          await stopServer(server)
+          await this.trackStop(server)
         } catch {
           // A server that never started has nothing to stop.
         }
-      })
-    )
+      }),
+      ...this.stopping.values(),
+    ])
   }
 
   /**
@@ -134,11 +145,13 @@ export class ServerPool {
    */
   killAll(): void {
     this.closed = true
+    const servers = new Set<ServerInfo>(this.stopping.keys())
     for (const entry of this.entries.values()) {
       entry.stopping = true
       if (entry.idleTimer) clearTimeout(entry.idleTimer)
-      const server = entry.server
-      if (!server) continue
+      if (entry.server) servers.add(entry.server)
+    }
+    for (const server of servers) {
       // The supervisor's children run in their own sessions; signal them first, since a supervisor
       // that dies with the host cannot clean them up anymore.
       for (const pid of server.childPids) {
@@ -160,6 +173,9 @@ export class ServerPool {
   }
 
   private startEntry(key: string, options: ServerOptions): PoolEntry {
+    if (this.closed) {
+      throw new Error('The server pool has been shut down.')
+    }
     const entry: PoolEntry = {
       key,
       starting: startServer(options),
@@ -179,7 +195,7 @@ export class ServerPool {
           this.evict(entry)
           if (!entry.stopping) {
             entry.stopping = true
-            void stopServer(server).catch(noop)
+            void this.trackStop(server).catch(noop)
           }
         })
       },
@@ -220,8 +236,19 @@ export class ServerPool {
     this.evict(entry)
     entry.stopping = true
     if (entry.server) {
-      await stopServer(entry.server)
+      await this.trackStop(entry.server)
     }
+  }
+
+  /** Stops `server`, remembering the in-flight stop so shutdown waits for it and killAll can still see it. */
+  private trackStop(server: ServerInfo): Promise<void> {
+    const pending = this.stopping.get(server)
+    if (pending) return pending
+    const stop = stopServer(server).finally(() => {
+      this.stopping.delete(server)
+    })
+    this.stopping.set(server, stop)
+    return stop
   }
 }
 
