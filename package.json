@@ -19,6 +19,9 @@
     "example:local-runner": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/run-app/serve.mjs",
     "example:schedule-cloud": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/schedule-cloud.mjs",
     "example:snapshot-viewer": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/snapshot-viewer/serve.mjs",
+    "example:streamlit:dynamic": "uv run --with 'deepnote-toolkit[server]' streamlit run examples/streamlit/dynamic_app.py",
+    "example:streamlit:runner": "pnpm --filter @deepnote/local-runner... build && node examples/streamlit/serve.mjs",
+    "example:streamlit:static": "uv run --with 'deepnote-toolkit[server]' streamlit run examples/streamlit/static_app.py",
     "license-check": "license-checker-rseidelsohn --json --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC\" --excludePackages \"deepnote\"",
     "lintAndFormat": "biome check . && pnpm run prettier:check",
     "lintAndFormat:fix": "biome check --write . && pnpm run prettier",
@@ -29,6 +32,7 @@
     "spell-check:fix": "cspell \"**/*.{md,txt,json,js,ts,tsx,jsx,py,yml,yaml}\" --no-exit-code --show-suggestions",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:streamlit": "uv run --with 'deepnote-toolkit[server]' --with pytest pytest examples/streamlit/tests",
     "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r exec tsc --noEmit"
   },
   "lint-staged": {
