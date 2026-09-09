@@ -65,13 +65,13 @@ When the setting is disabled, it will offer Admins the SSO provider they are cur
 
 ### FAQ
 
-_How do I prevent certain members from seeing one of the workspace projects?_
+#### How do I prevent certain members from seeing one of the workspace projects?
 
 To share a project only with certain workspace members, change the project access from _Full access_ to _No access_. This will make the project only visible to you. It will show up in your workspace as a Private project. If you would like certain workspace members to have access, you can add them as project collaborators.
 
 Private projects still have access to the workspace resources, such as integrations and machine hours. Note that only **Editors** and **Admins** can create private projects.
 
-_How can I lock a project?_
+#### How can I lock a project?
 
 From within a project, you can set the workspace member permissions to **View** in "one fell swoop". Note that **Admins** will always be able to edit projects. If the option is set to "Full access" then all members of a workspace will follow their respective roles according to the **Workspace** settings.
 
