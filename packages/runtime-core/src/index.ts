@@ -7,7 +7,7 @@ export {
   serializeNotebookContext,
   serializeNotebookContextFromBlocks,
 } from './agent-handler'
-export type { ExecutionEngineOptions, ExecutionOptions } from './execution-engine'
+export type { ExecutionOptions } from './execution-engine'
 export { ExecutionEngine, executableBlockTypeSet, executableBlockTypes } from './execution-engine'
 export type { ExecutionCallbacks, ExecutionResult, KernelConnectOptions, KernelExecuteOptions } from './kernel-client'
 export { createJsonWebSocketFactory, DEFAULT_KERNEL_STARTUP_TIMEOUT_MS, KernelClient } from './kernel-client'
@@ -41,8 +41,6 @@ export {
   ServerLaunchError,
   TOOLKIT_INSTALL_HINT,
 } from './runtime-errors'
-export type { ServerLease, ServerPoolOptions } from './server-pool'
-export { ServerPool } from './server-pool'
 export type { ServerExit, ServerInfo, ServerOptions, StopServerOptions } from './server-starter'
 export {
   DEFAULT_SERVER_SHUTDOWN_TIMEOUT_MS,

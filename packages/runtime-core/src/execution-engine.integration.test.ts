@@ -12,7 +12,6 @@ import {
 } from '../../../test-helpers/integration-python'
 import { ExecutionEngine } from './execution-engine'
 import { ExecutionTimeoutError, KernelDiedError, ServerExitedError, ServerLaunchError } from './runtime-errors'
-import { startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary } from './types'
 
 /** Child processes of `pid`, as `{ pid, command }`, via pgrep (Linux and macOS). */
@@ -159,13 +158,11 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
   })
 
   it('fails with server-exited, instead of hanging, when the Jupyter server dies mid-run', async () => {
-    // Start the server directly so the test can see the supervisor's children.
-    const server = await startServer({ pythonEnv: python, workingDirectory: workDir, onLog: onServerLog })
-    const engine = new ExecutionEngine(config(), { server })
+    const engine = new ExecutionEngine(config())
+    await engine.start()
+    const supervisorPid = engine.serverPid
     try {
-      await engine.start()
-      const supervisorPid = server.process.pid
-      if (supervisorPid === undefined) throw new Error('server has no pid')
+      if (supervisorPid === null) throw new Error('server has no pid')
       const jupyter = childProcesses(supervisorPid).find(child => /jupyter/.test(child.command))
       if (!jupyter) throw new Error(`no Jupyter child under supervisor ${supervisorPid}`)
 
@@ -186,14 +183,10 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
       expect(results[0].error).toBeInstanceOf(ServerExitedError)
       expect(summary.failureCategory).toBe('server-exited')
       expect(elapsedMs).toBeLessThan(60_000)
-      // Only the Jupyter child died; the supervisor is still there to clean up the rest.
-      expect(server.process.exitCode).toBeNull()
     } finally {
       await engine.stop()
-      const supervisorPid = server.process.pid
-      await stopServer(server)
       // Stopping the supervisor must take its remaining children (language server, kernels) with it.
-      if (supervisorPid !== undefined) {
+      if (supervisorPid !== null) {
         await new Promise(resolve => setTimeout(resolve, 1000))
         expect(childProcesses(supervisorPid)).toEqual([])
       }

@@ -20,7 +20,6 @@ import {
 } from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
-import { serverPool } from '../runtime.js'
 import { formatOutput } from '../utils.js'
 
 // Output summary limits
@@ -147,23 +146,18 @@ function executionFailure(error: unknown, python: ResolvedProjectPython) {
   }
 }
 
-/**
- * Runs `fn` with an engine attached to a warm toolkit server from the pool. The server is reused
- * across tool calls; the kernel is fresh for every call.
- */
+/** Runs `fn` with a started engine for this interpreter and directory, and always stops it afterwards. */
 async function withRuntime<T>(
   python: ResolvedProjectPython,
   workingDirectory: string,
   fn: (engine: ExecutionEngine) => Promise<T>
 ): Promise<T> {
-  const lease = await serverPool.acquire({ pythonEnv: python.pythonPath, workingDirectory })
-  const engine = new ExecutionEngine({ pythonEnv: python.pythonPath, workingDirectory }, { server: lease.server })
+  const engine = new ExecutionEngine({ pythonEnv: python.pythonPath, workingDirectory })
   try {
     await engine.start()
     return await fn(engine)
   } finally {
     await engine.stop()
-    lease.release()
   }
 }
 

@@ -92,15 +92,6 @@ export interface ExecutionOptions {
   signal?: AbortSignal
 }
 
-export interface ExecutionEngineOptions {
-  /**
-   * Attach to a deepnote-toolkit server that is already running instead of starting one. The
-   * engine starts its own kernel on it and leaves the server running when it stops; the caller
-   * owns the server's lifetime (see `ServerPool`).
-   */
-  server?: ServerInfo
-}
-
 /**
  * High-level execution engine for running Deepnote projects.
  *
@@ -123,16 +114,10 @@ export interface ExecutionEngineOptions {
 export class ExecutionEngine {
   private server: ServerInfo | null = null
   private kernel: KernelClient | null = null
-  private readonly externalServer: ServerInfo | null
   private detachServerExit: (() => void) | null = null
   private stopping = false
 
-  constructor(
-    private readonly config: RuntimeConfig,
-    options: ExecutionEngineOptions = {}
-  ) {
-    this.externalServer = options.server ?? null
-  }
+  constructor(private readonly config: RuntimeConfig) {}
 
   /**
    * Get the Jupyter server port (available after start() is called).
@@ -142,20 +127,25 @@ export class ExecutionEngine {
   }
 
   /**
-   * Start the deepnote-toolkit server (unless one was provided) and connect to the kernel.
+   * Pid of the deepnote-toolkit server process (available after start() is called).
+   */
+  get serverPid(): number | null {
+    return this.server?.process.pid ?? null
+  }
+
+  /**
+   * Start the deepnote-toolkit server and connect to the kernel.
    */
   async start(): Promise<void> {
     this.stopping = false
-    const server =
-      this.externalServer ??
-      (await startServer({
-        pythonEnv: this.config.pythonEnv,
-        workingDirectory: this.config.workingDirectory,
-        port: this.config.serverPort,
-        env: this.config.env,
-        startupTimeoutMs: this.config.serverStartupTimeoutMs,
-        onLog: this.config.onServerLog,
-      }))
+    const server = await startServer({
+      pythonEnv: this.config.pythonEnv,
+      workingDirectory: this.config.workingDirectory,
+      port: this.config.serverPort,
+      env: this.config.env,
+      startupTimeoutMs: this.config.serverStartupTimeoutMs,
+      onLog: this.config.onServerLog,
+    })
     this.server = server
     this.watchServerExit(server)
 
@@ -169,7 +159,7 @@ export class ExecutionEngine {
   }
 
   /**
-   * Stop the server (unless it was provided) and disconnect from the kernel.
+   * Stop the server and disconnect from the kernel.
    */
   async stop(): Promise<void> {
     this.stopping = true
@@ -180,7 +170,7 @@ export class ExecutionEngine {
     }
     const server = this.server
     this.server = null
-    if (server && server !== this.externalServer) {
+    if (server) {
       await stopServer(server)
     }
   }
@@ -190,8 +180,8 @@ export class ExecutionEngine {
    * waiting for a reply that never comes; fail it (and every later block) with a typed error instead.
    */
   private watchServerExit(server: ServerInfo): void {
-    // A removable listener rather than a `.then` on `server.exited`: a pooled server outlives many
-    // engines, and a promise handler per engine would keep every one of them alive until it exits.
+    // A removable listener rather than a `.then` on `server.exited`, so a stopped engine leaves
+    // nothing behind on the process and is not kept alive by a pending promise handler.
     const onExit = (code: number | null, signal: NodeJS.Signals | null): void => {
       this.detachServerExit = null
       if (this.stopping || this.server !== server) return
