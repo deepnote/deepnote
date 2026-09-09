@@ -25,6 +25,7 @@ const UPDATED = {
   name: 'Renamed',
   createdAt: '2026-08-18T00:00:00Z',
   updatedAt: '2026-08-18T00:00:01Z',
+  isInit: false,
   raw: {},
 }
 
@@ -143,8 +144,24 @@ describe('notebooks rename command', () => {
     const printed = JSON.parse(logSpy.mock.calls.flat().join('\n'))
     expect(printed).toEqual({
       success: true,
-      notebook: { id: NOTEBOOK_ID, projectId: 'pr-1', name: 'Renamed' },
+      notebook: { id: NOTEBOOK_ID, projectId: 'pr-1', name: 'Renamed', isInit: false },
     })
+  })
+
+  it('trims the notebook id and name before calling the API', async () => {
+    await createNotebooksRenameAction(new Command())(` ${NOTEBOOK_ID} `, '  Renamed  ', options())
+
+    expect(cloudMock.updateNotebook).toHaveBeenCalledWith(expect.any(String), 'test-token', NOTEBOOK_ID, {
+      name: 'Renamed',
+    })
+  })
+
+  it('tells the user when the rename designates the init notebook', async () => {
+    cloudMock.updateNotebook.mockResolvedValue({ ...UPDATED, name: 'Init', isInit: true })
+
+    await createNotebooksRenameAction(new Command())(NOTEBOOK_ID, 'Init', options())
+
+    expect(logSpy.mock.calls.flat().join('\n')).toContain('now the project init notebook')
   })
 
   describe('errors', () => {

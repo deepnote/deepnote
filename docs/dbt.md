@@ -13,12 +13,12 @@ dbt specializes in the Transform step of the ELT (Extract, Load, Transform) proc
 
 In Deepnote, you can use the following adapters for your dbt development workflow:
 
-- Snowflake
-- BigQuery
-- Redshift
-- Postgres
-- Databricks
-- Clickhouse
+- [Snowflake](/docs/snowflake)
+- [BigQuery](/docs/google-bigquery)
+- [Redshift](/docs/amazon-redshift)
+- [Postgres](/docs/postgresql)
+- [Databricks](/docs/databricks)
+- [Clickhouse](/docs/clickhouse)
 
 <Callout status="info">
 If you wish to use dbt for its Semantic Layer (MetricFlow) capabilities, please see your options [here](https://deepnote.com/docs/semantic-layer).

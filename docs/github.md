@@ -38,9 +38,9 @@ In GitHub, you can configure the GitHub App to have access to all your organizat
 
 In case you want to add repositories from another GitHub organization, open the repository dropdown and click on the "Add GitHub repositories" button.
 
-Once the GitHub App is installed, you can select the repository you want to add to Deepnote. You can also specify a branch or commit that you want to use.
+Once the GitHub App is installed, select the repository you want to add to Deepnote. You can also specify a folder name and a branch or tag to use.
 
-![GitHub2.png](../assets/docs/p1SHGzKlTuq9575czGCC.webp)
+![GitHub connection dialog with repository, folder name, and branch or tag fields](../assets/docs/github/connected-repository.webp)
 
 #### Troubleshooting
 

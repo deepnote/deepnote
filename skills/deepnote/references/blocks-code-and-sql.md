@@ -40,7 +40,7 @@ SQL queries against database integrations.
 
 | Field                           | Type                             | Description                                |
 | ------------------------------- | -------------------------------- | ------------------------------------------ |
-| `sql_integration_id`            | `string`                         | UUID of the integration to query           |
+| `sql_integration_id`            | `string`                         | UUID or local/built-in integration ID      |
 | `deepnote_variable_name`        | `string`                         | Variable name for query results            |
 | `deepnote_return_variable_type` | `"dataframe" \| "query_preview"` | Return type                                |
 | `is_compiled_sql_query_visible` | `boolean`                        | Show compiled query                        |

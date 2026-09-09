@@ -3,10 +3,9 @@ import { updateNotebook } from '@deepnote/cloud'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { DEEPNOTE_TOKEN_ENV } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { log, error as logError, outputJson } from '../../output'
-import { MissingTokenError } from '../../utils/auth'
+import { MissingTokenError, resolveToken } from '../../utils/auth'
 
 export interface NotebooksRenameOptions {
   token?: string
@@ -62,16 +61,23 @@ async function renameNotebookInCloud(
   // Load .env from the working directory before reading the token — mirrors `sync` and `run --cloud`.
   dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
 
-  const token = options.token?.trim() || process.env[DEEPNOTE_TOKEN_ENV]?.trim()
+  const token = resolveToken(options.token)
   if (!token) {
     throw new MissingTokenError()
   }
 
-  const notebook = await updateNotebook(options.url ?? DEFAULT_API_URL, token, notebookId, { name: newName })
+  const name = newName.trim()
+  const notebook = await updateNotebook(options.url ?? DEFAULT_API_URL, token, notebookId.trim(), { name })
 
   if (options.output === 'json') {
-    outputJson({ success: true, notebook: { id: notebook.id, projectId: notebook.projectId, name: notebook.name } })
+    outputJson({
+      success: true,
+      notebook: { id: notebook.id, projectId: notebook.projectId, name: notebook.name, isInit: notebook.isInit },
+    })
     return
   }
-  log(`Renamed notebook ${notebook.id} to "${notebook.name ?? newName}".`)
+  log(`Renamed notebook ${notebook.id} to "${notebook.name ?? name}".`)
+  if (notebook.isInit === true) {
+    log('This notebook is now the project init notebook and runs before other notebooks.')
+  }
 }

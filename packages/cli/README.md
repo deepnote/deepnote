@@ -48,6 +48,12 @@ deepnote convert notebook.ipynb
 
 # Schedule recurring runs in Deepnote Cloud
 deepnote schedule report.deepnote --daily --at 09:00
+
+# Publish a static website to an existing Deepnote project
+deepnote publish ./dist --project-id <uuid>
+
+# Stop serving it later without deleting its files
+deepnote static-site access --project-id <uuid> --sharing disabled
 ```
 
 ## Commands
@@ -161,6 +167,8 @@ deepnote run my-project.deepnote
 | `--out <path>`          | Write the downloaded cloud snapshot to this exact path                    |                            |
 | `--storage-mode <mode>` | Project-storage access for a detached cloud run: `read-write`, `readonly` | `read-write`               |
 | `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                      | `600`                      |
+| `--push`                | Push the local `.deepnote` blocks to the Deepnote notebook before running | `false`                    |
+| `--yes`                 | Skip the `--push` confirmation prompt                                     | `false`                    |
 | `--url <url>`           | API base URL                                                              | `https://api.deepnote.com` |
 | `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                                |                            |
 
@@ -221,12 +229,22 @@ databases, integrations, external APIs, and other systems remain live. Block-sco
 the exception: the API runs them in live mode, so they update live-editor outputs and cannot be
 combined with `--storage-mode`.
 
+`--push` sends the local file's blocks to the Deepnote notebook before the run, so the run executes
+what is on disk rather than what was last saved in Deepnote. The sync is destructive — a cloud
+block the file does not have is deleted, and a block whose type or metadata changed is recreated
+under a new id (a `--block` selection is remapped automatically) — so the CLI prints the plan and
+asks first. `--yes` confirms non-interactively and is required when output is piped or
+machine-readable; `--dry-run` prints the plan and exits without sending or running anything (with
+`-o json`/`-o toon` the plan itself is emitted); a declined confirmation exits `0` without running.
+
 Cloud execution status and snapshot delivery are reported separately. The CLI briefly polls after
-terminal status because snapshot attachment can lag. If an empty or markdown-only local notebook
-successfully produces no snapshot, the CLI writes a valid output-free snapshot from the local
-source. A remote-only no-op can succeed without a file and reports `artifactStatus: not_produced`.
-An advertised snapshot that cannot be downloaded or saved reports `artifactStatus: unavailable`
-and exits `1`; `success` still describes the notebook run itself.
+terminal status because snapshot attachment can lag; empty snapshot content is treated as no
+snapshot. If an empty or markdown-only local notebook successfully produces no snapshot, the CLI
+writes a valid output-free snapshot from the local source and marks it `artifactStatus:
+synthesized`. Any other run that produces no snapshot — including a remote-only run by
+`--notebook-id` — exits `1` with `artifactStatus: not_produced`; an advertised snapshot that
+cannot be downloaded or saved reports `artifactStatus: unavailable` and exits `1`. `success` in
+machine output means the run succeeded and its snapshot was delivered (`saved` or `synthesized`).
 
 #### Agent Block (`--prompt` and agent blocks)
 
@@ -504,6 +522,88 @@ deepnote open my-project.deepnote
 deepnote open my-project.deepnote -o json
 ```
 
+### `publish <dir>`
+
+Publish a local static website to an existing Deepnote project. Matching remote files are replaced,
+then static website sharing is enabled only after every upload succeeds. By default, existing remote
+files that are absent locally and the project's API-access setting are both left unchanged.
+
+```bash
+deepnote publish ./dist --project-id <uuid>
+```
+
+**Options:**
+
+| Option                           | Description                                                           | Default                     |
+| -------------------------------- | --------------------------------------------------------------------- | --------------------------- |
+| `--project-id <uuid>`            | Project to publish to (required)                                      |                             |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                       | `_deepnote_static`          |
+| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published website     | unchanged                   |
+| `--prune`                        | Delete remote files below `--path` that are absent locally            | `false`                     |
+| `--sync-root <dir>`              | Sync workspace whose mirror to update                                 | search upwards from `<dir>` |
+| `--no-sync-root`                 | Publish without looking for or updating a sync workspace              | `false`                     |
+| `--force`                        | Publish even when Deepnote holds changes the workspace has not synced | `false`                     |
+| `--token <token>`                | Deepnote API token                                                    | `DEEPNOTE_TOKEN`            |
+| `--url <url>`                    | Deepnote API base URL                                                 | `https://api.deepnote.com`  |
+
+The command prints the canonical website URL returned by the server. Use `--api-access enabled`
+only when the website needs to load notebooks or start runs through the Deepnote API.
+
+#### Working with `deepnote sync`
+
+`_deepnote_static/` lives in the same project file store that [`deepnote sync --all-files`](#sync-dir)
+mirrors, so both commands write it. They share one baseline rather than dividing the namespace:
+
+- When the published directory sits inside a synced workspace, publish also writes the files into
+  that project's `.files/` mirror and records them in `.deepnote-sync.json` — exactly as a sync
+  download would. Afterwards the manifest, the mirror, and Deepnote agree, so sync sees the deploy
+  as already in step instead of re-downloading the whole site on its next run.
+- If files below `--path` changed in Deepnote since the workspace last recorded them (an
+  `--all-files` sync or an earlier publish), publish stops instead of destroying content the mirror
+  does not hold. Pull first, or pass `--force`.
+- `--prune` also drops the pruned files from the mirror, so a later push cannot resurrect them.
+- `--no-sync-root` skips all of this — the right choice for a CI deploy. Sync stays safe either way:
+  it checks every file against Deepnote before pushing and asks before overwriting a newer copy.
+
+Note the two `--prune` flags point in opposite directions: `publish --prune` deletes **remote** files
+absent from the local build, while `sync --prune` deletes **local** files absent from the cloud.
+
+**Examples:**
+
+```bash
+# Publish an app that needs a static-app viewer token
+deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+# Remove files left behind by an older build
+deepnote publish ./dist --project-id <uuid> --prune
+
+# Publish a versioned subdirectory
+deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
+
+# CI deploy: never touch a sync workspace
+deepnote publish ./dist --project-id <uuid> --no-sync-root
+```
+
+### `static-site access`
+
+Change access to an already-published static site without uploading or deleting files. At least one
+of `--sharing` and `--api-access` is required.
+
+```bash
+# Stop serving the site; its files remain stored
+deepnote static-site access --project-id <uuid> --sharing disabled
+
+# Serve the stored files again and allow viewer-scoped Deepnote API calls
+deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
+
+# Revoke viewer API access without changing the current sharing setting
+deepnote static-site access --project-id <uuid> --api-access disabled
+```
+
+Disabling sharing also disables viewer API access. Re-enabling sharing later serves the same stored
+files at the canonical URL. Use `--token` or `DEEPNOTE_TOKEN` for authentication and `--url` to
+select a non-default API origin.
+
 ### `schedule <path>`
 
 Create or update a recurring notebook run in Deepnote Cloud. This does not run the notebook
@@ -585,6 +685,14 @@ the cloud copy is deleted, so an interrupted upload is retried on the next `--al
 Working-directory files larger than 100 MiB are rejected because these transfers are buffered in
 memory; use another transfer method for larger data files.
 
+Sync is not the only writer of a project's files — [`deepnote publish`](#publish-dir) deploys into
+`_deepnote_static/` and the Deepnote app can write anything — so each file is checked against the
+cloud inventory before it is uploaded. A file whose cloud copy changed, or was deleted, since the
+manifest last recorded it goes through the same `--on-conflict` override-or-skip choice as a diverged
+notebook; skipped files are reported as `N file(s) kept from Deepnote`. Files synced before
+`updatedAt` was recorded have no baseline to compare and are still overwritten; they become
+verifiable after the next pull.
+
 If a push changes `project.name`, the current run finishes in the existing local directory. The next
 sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.
 Renaming the local directory itself does not rename the cloud project. The full import contract is in
@@ -660,12 +768,14 @@ deepnote integrations pull
 
 **Options:**
 
-| Option              | Description                                    | Default             |
-| ------------------- | ---------------------------------------------- | ------------------- |
-| `--url <url>`       | API base URL                                   | Deepnote API        |
-| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                     |
-| `--file <path>`     | Path to integrations file                      | `integrations.yaml` |
-| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`              |
+| Option              | Description                                    | Default                    |
+| ------------------- | ---------------------------------------------- | -------------------------- |
+| `--url <url>`       | API base URL                                   | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                            |
+| `--file <path>`     | Path to integrations file                      | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`                     |
+
+If the local integrations file contains invalid YAML (for example, unresolved merge conflict markers), the command fails with exit code 2 and does not modify any files — fix or delete the file manually, then re-run.
 
 **Examples:**
 
@@ -679,6 +789,39 @@ deepnote integrations pull --token <token>
 # Pull to a custom file path
 deepnote integrations pull --file my-integrations.yaml
 ```
+
+### `integrations add`
+
+Add a new database integration interactively. Prompts for the integration type, a name, and the type-specific connection fields. Secret values are written to the `.env` file and referenced from the YAML as `env:` placeholders.
+
+```bash
+deepnote integrations add
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+### `integrations edit [id]`
+
+Edit an existing database integration interactively. Without `[id]`, shows a picker of the integrations found in the file.
+
+```bash
+deepnote integrations edit
+deepnote integrations edit <integration-id>
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+Like `integrations pull`, both commands fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
 
 ### `notebooks rename <notebook-id> <new-name>`
 
@@ -705,6 +848,9 @@ deepnote notebooks rename 7061f86dec6e4e11893288f295a82017 "Quarterly report"
 # Machine-readable output
 deepnote notebooks rename 7061f86dec6e4e11893288f295a82017 "Quarterly report" --output json
 ```
+
+JSON output returns `{ "success": true, "notebook": { "id", "projectId", "name", "isInit" } }`; `isInit`
+is `true` when the notebook is the project's init notebook after the rename.
 
 Renaming fails with a conflict when another notebook in the project already uses the name, when the project is suspended, and for single-notebook or Agent projects, where the project owns its notebook's name.
 

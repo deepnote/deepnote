@@ -335,6 +335,36 @@ describe('waitForRunSnapshot', () => {
     expect(sleep).toHaveBeenCalledOnce()
   })
 
+  it('keeps settling past empty snapshot content until real content arrives', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: '' } } }))
+      .mockResolvedValueOnce(
+        response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: 'version: 1.0.0' } } })
+      )
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run({ snapshotContent: '' }), {
+      attempts: 3,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBe('version: 1.0.0')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats persistently empty snapshot content as no snapshot', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      response({ run: { id: 'r', status: 'success', snapshot: { snapshotContent: '' } } })
+    )
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run({ snapshotContent: '' }), {
+      attempts: 2,
+      sleep: async () => {},
+    })
+
+    expect(settled.content).toBeNull()
+  })
+
   it('returns null only when no snapshot is attached within the bounded window', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(response({ run: { id: 'r', status: 'success' } }))
 
@@ -345,6 +375,31 @@ describe('waitForRunSnapshot', () => {
 
     expect(settled.content).toBeNull()
     expect(vi.mocked(global.fetch)).toHaveBeenCalledTimes(2)
+  })
+
+  it('clears the retry error once a later re-fetch succeeds, so the null is a confirmed no-snapshot', async () => {
+    let gets = 0
+    vi.spyOn(global, 'fetch').mockImplementation(async () => {
+      gets++
+      if (gets === 1) {
+        throw new Error('503 transient')
+      }
+      return response({ run: { id: 'r', status: 'success' } })
+    })
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 2, sleep: async () => {} })
+
+    expect(settled.content).toBeNull()
+    expect(settled.retryError).toBeUndefined()
+  })
+
+  it('reports the retry error when the final re-fetch failed, since the null rests on stale data', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('503 down'))
+
+    const settled = await waitForRunSnapshot(BASE_URL, TOKEN, run(), { attempts: 2, sleep: async () => {} })
+
+    expect(settled.content).toBeNull()
+    expect((settled.retryError as Error).message).toBe('503 down')
   })
 
   it('throws a persistent snapshot download failure instead of calling it no output', async () => {

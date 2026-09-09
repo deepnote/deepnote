@@ -10,7 +10,7 @@ You can set environment variables for a project by adding a special type of Inte
 
 Environment variables are a secure way to store secrets. They are stored encrypted, and decrypted only before mounting them into your project.
 
-Don't forget to connect your project(s) to the newly created "Environment variable" from within the project itself. Once added to the project, you can easily use the Environment Variable from within your notebook:
+Don't forget to connect your project to the newly created Environment variables integration. Once it is connected to the project, you can use the environment variable in your notebook:
 
 ```python
 import os

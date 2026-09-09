@@ -42,7 +42,7 @@ Navigate to your project's **Machine** section in the project sidebar.
 - Click on the environment selection menu.
 - Click on the **Create initialization notebook** button.
 
-![CleanShot 2024-11-28 at 08.58.46.png](../assets/docs/JFHU4qtsSdCDWINAo66C.webp)
+![The Environment selection dialog showing Python environments and the Create initialization notebook link.](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cme9ngrjydvfw07mx6gnvdyam.webp)
 
 After creating it, the 'Init' notebook will be conveniently located at the top of your Notebook list. The contents of this notebook will automatically execute each time your project starts up, providing an ideal place to set up your preferred environment.
 

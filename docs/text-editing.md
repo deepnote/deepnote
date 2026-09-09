@@ -23,12 +23,20 @@ You can build nested bulleted lists by indenting and dedenting list items — pr
 
 ### Text formatting
 
-Once you added a text block, you can apply formatting to the text via the formatting toolbar. Just highlight a piece of text and select from various styling options such as **bold**, *italic*, underline, ~~strikethrough~~, and `code`. You can add a hyperlink by clicking on the link button.
+Once you added a text block, you can apply formatting to the text via the formatting toolbar. Just highlight a piece of text and select from various styling options such as **bold**, _italic_, underline, ~~strikethrough~~, and `code`. You can add a hyperlink by clicking on the link button.
 
 <VideoLoop src="../assets/docs/lpVktfSsS5Woz47Acr65.mp4" />
 In addition to the formatting toolbar, keyboard shortcuts are also available for styling your text (eg. Cmd+B for bolding).
 
 💡 Pro tip: The quickest way to add a hyperlink is by copying a URL and then simply pasting it on the highlighted text (Cmd+V).
+
+### Mentions
+
+You can reference an integration or a project directly from a text block. Type `@` inside a paragraph, list, or callout and a picker opens with typeahead, so you can find the resource by name. Selecting a result inserts a chip:
+
+- Project chips link straight to that project.
+- If the referenced resource is later removed, its chip turns red so the broken reference is easy to spot.
+- Each chip carries the resource's ID, so AI agents know exactly which integration or project you mean.
 
 ### Text block operations
 

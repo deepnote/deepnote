@@ -26,11 +26,11 @@ describe('analyzeToonEfficiency', () => {
     expect(result.toonRecommended).toBe(false)
   })
 
-  it('returns negative savings for empty arrays', () => {
-    // Empty array is larger in TOON than JSON
+  it('returns zero savings for empty arrays', () => {
+    // Empty arrays use the same representation in TOON and JSON.
     const result = analyzeToonEfficiency([])
 
-    expect(result.savingsPercent).toBeLessThan(0)
+    expect(result.savingsPercent).toBe(0)
     expect(result.toonRecommended).toBe(false)
   })
 

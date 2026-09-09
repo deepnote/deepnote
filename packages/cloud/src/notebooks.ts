@@ -22,6 +22,7 @@ const updatedNotebookSchema = z
         name: z.string().optional(),
         createdAt: z.string().optional(),
         updatedAt: z.string().optional(),
+        isInit: z.boolean().optional(),
       })
       .passthrough(),
   })
@@ -33,6 +34,11 @@ export interface UpdatedNotebook {
   name?: string
   createdAt?: string
   updatedAt?: string
+  /**
+   * Whether the notebook is the project's init notebook after the update. Renaming a notebook to
+   * `Init` sets it; renaming it away from `Init` can clear it.
+   */
+  isInit?: boolean
   /** The raw parsed response, for debugging / forward-compatibility. */
   raw: unknown
 }
@@ -78,6 +84,7 @@ export async function updateNotebook(
     name: notebook.name,
     createdAt: notebook.createdAt,
     updatedAt: notebook.updatedAt,
+    isInit: notebook.isInit,
     raw: parsed,
   }
 }

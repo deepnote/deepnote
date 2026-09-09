@@ -8,16 +8,16 @@ Deepnote comes with code intelligence tools that are common in traditional IDEs.
 
 #### Code autocomplete
 
-As you type, we show you the relevant functions, methods, and defined variables. You can also trigger the autocomplete any time by hitting 'Tab' key.
+As you type, autocomplete shows relevant functions, methods, and defined variables. Press **Tab** to trigger suggestions.
 
 <VideoLoop src="../assets/docs/KrkSnm8iSGn7hjKrV6iB.mp4" />
 
 #### Function documentation and parameter names
 
-When you hover over a function, we surface its documentation if it is provided by the associated module. In addition, while filling out function parameters, you will see hints for the parameters you'll need. You can also trigger these hints by hitting <Keyboard>Shift + Tab</Keyboard>
+When you hover over a function, we show its documentation when the associated module provides it. As you enter function parameters, parameter hints show the arguments you need. You can also trigger these hints by pressing <Keyboard>Shift + Tab</Keyboard>.
 
 <VideoLoop src="../assets/docs/PkgJdy0TEaE7fEoxTP1g.mp4" />
 
 #### SQL autocomplete
 
-When writing SQL, the built-in _Intellisense_ will offer relevant suggestions for your cursor position. This includes entities in your schema such as databases, tables or columns but also aliases or CTEs that you may have defined in your query. The autocomplete will open automatically as you type. In addition to that, you can trigger it manually by using one of these keyboard shortcuts <Keyboard>Control + Space</Keyboard>, <Keyboard>Option + Space</Keyboard> or <Keyboard>⌘ + I</Keyboard>
+When writing SQL, autocomplete offers relevant suggestions for your cursor position. This includes schema entities such as databases, tables, and columns, as well as aliases or CTEs that you define in your query. Autocomplete opens automatically as you type. You can also trigger it manually with <Keyboard>Control + Space</Keyboard> or <Keyboard>⌘ + I</Keyboard>.

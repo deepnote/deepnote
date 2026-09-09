@@ -7,9 +7,9 @@ import {
   syncNotebookContent,
 } from '@deepnote/local-runner'
 import ora from 'ora'
-import { debug, getChalk, getOutputConfig, log } from '../output'
+import { debug, getChalk, getOutputConfig, log, warn } from '../output'
+import { CloudRunUsageError } from './cloud-run-errors'
 import { promptForBooleanField } from './inquirer'
-import { CloudRunUsageError } from './run-in-cloud'
 
 /**
  * `deepnote run --cloud --push`: send the local file's blocks to the Deepnote notebook before
@@ -27,6 +27,8 @@ export interface PushOutcome {
   declined: boolean
   /** True when `--dry-run` stopped this before any request. The caller should stop without running. */
   previewed: boolean
+  /** The computed plan, for callers that render their own preview (e.g. machine output). */
+  plan?: SyncPlan
   result?: SyncResult
 }
 
@@ -108,10 +110,18 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     if (!args.machineOutput && !getOutputConfig().quiet) {
       log(chalk.dim('Deepnote already matches this file — nothing to push.'))
     }
-    return { applied: false, declined: false, previewed: false }
+    // Under --dry-run an empty plan still counts as previewed: the caller must not run either.
+    return { applied: false, declined: false, previewed: args.dryRun === true, plan: planned }
   }
 
-  if (!args.machineOutput) {
+  if (args.machineOutput) {
+    // printPlan is where warnings are shown, and machine output skips it — but a warning like a
+    // dropped SQL integration must not vanish just because the caller wanted JSON. stderr keeps
+    // stdout machine-readable. The dry-run preview additionally carries them in its JSON payload.
+    for (const warning of planned.warnings) {
+      warn(`push warning: ${warning}`)
+    }
+  } else {
     printPlan(planned, notebookId)
   }
 
@@ -119,13 +129,13 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     if (!args.machineOutput) {
       log(chalk.dim('\n--dry-run: nothing was sent, and the notebook was not run.'))
     }
-    return { applied: false, declined: false, previewed: true }
+    return { applied: false, declined: false, previewed: true, plan: planned }
   }
 
   if (!args.yes) {
     // Nothing to prompt with when output is piped or machine-readable: hanging on a question nobody
     // can see is worse than refusing, and silently pushing without asking is worse than either.
-    if (args.machineOutput || !process.stdin.isTTY) {
+    if (args.machineOutput || !process.stdin.isTTY || !process.stdout.isTTY) {
       // A usage error, not a runtime one: this is a bad invocation for the environment it ran in,
       // and it should exit 2 like every other misuse rather than reading as a failed run.
       throw new CloudRunUsageError(
@@ -139,7 +149,7 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     })
     if (!confirmed) {
       log(chalk.dim('Aborted; nothing was sent.'))
-      return { applied: false, declined: true, previewed: false }
+      return { applied: false, declined: true, previewed: false, plan: planned }
     }
   }
 
@@ -168,5 +178,5 @@ export async function pushLocalNotebook(args: PushArgs): Promise<PushOutcome> {
     `Pushed: ${result.created.length} created, ${result.updated.length} updated, ` +
       `${result.deleted.length} deleted, ${result.movesApplied} moved.`
   )
-  return { applied: true, declined: false, previewed: false, result }
+  return { applied: true, declined: false, previewed: false, plan: planned, result }
 }
