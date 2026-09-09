@@ -123,10 +123,20 @@ export class ServerPool {
     this.closed = true
     for (const entry of this.entries.values()) {
       if (entry.idleTimer) clearTimeout(entry.idleTimer)
-      const child = entry.server?.process
-      if (child && child.exitCode === null) {
+      const server = entry.server
+      if (!server) continue
+      // The supervisor's children run in their own sessions; signal them first, since a supervisor
+      // that dies with the host cannot clean them up anymore.
+      for (const pid of server.childPids) {
         try {
-          child.kill('SIGTERM')
+          process.kill(pid, 'SIGTERM')
+        } catch {
+          // Already gone.
+        }
+      }
+      if (server.process.exitCode === null) {
+        try {
+          server.process.kill('SIGTERM')
         } catch {
           // Already gone.
         }

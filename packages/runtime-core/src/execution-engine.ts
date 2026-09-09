@@ -124,6 +124,7 @@ export class ExecutionEngine {
   private server: ServerInfo | null = null
   private kernel: KernelClient | null = null
   private readonly externalServer: ServerInfo | null
+  private detachServerExit: (() => void) | null = null
   private stopping = false
 
   constructor(
@@ -172,6 +173,7 @@ export class ExecutionEngine {
    */
   async stop(): Promise<void> {
     this.stopping = true
+    this.detachServerExit?.()
     if (this.kernel) {
       await this.kernel.disconnect()
       this.kernel = null
@@ -188,16 +190,25 @@ export class ExecutionEngine {
    * waiting for a reply that never comes; fail it (and every later block) with a typed error instead.
    */
   private watchServerExit(server: ServerInfo): void {
-    void server.exited.then(exit => {
+    // A removable listener rather than a `.then` on `server.exited`: a pooled server outlives many
+    // engines, and a promise handler per engine would keep every one of them alive until it exits.
+    const onExit = (code: number | null, signal: NodeJS.Signals | null): void => {
+      this.detachServerExit = null
       if (this.stopping || this.server !== server) return
-      const status = `code=${exit.code}, signal=${exit.signal}`
-      const detail = exit.stderr.trim() ? `\nstderr: ${exit.stderr.trim()}` : ''
+      const status = `code=${code}, signal=${signal}`
+      const stderr = server.stderrTail.trim()
+      const detail = stderr ? `\nstderr: ${stderr}` : ''
       this.kernel?.failPending(
         new ServerExitedError(
           `The deepnote-toolkit server process exited while the run was in progress (${status}).${detail}`
         )
       )
-    })
+    }
+    server.process.once('exit', onExit)
+    this.detachServerExit = () => {
+      server.process.removeListener('exit', onExit)
+      this.detachServerExit = null
+    }
   }
 
   /** Runs code on the kernel, applying the configured per-block timeout when there is one. */

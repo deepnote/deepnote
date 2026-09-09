@@ -30,6 +30,8 @@ export interface ServerInfo {
   process: ChildProcess
   /** Settles once the server process has exited, however that happened. Never rejects. */
   exited: Promise<ServerExit>
+  /** The last few thousand characters the server has written to stderr so far. */
+  readonly stderrTail: string
   /**
    * Pids of the processes the supervisor started (the Jupyter server and the language server),
    * recorded once the server is ready so they can be cleaned up even if the supervisor dies
@@ -108,6 +110,9 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
     lspPort,
     process: serverProcess,
     exited,
+    get stderrTail() {
+      return stderr
+    },
     childPids: [],
   }
 
@@ -140,6 +145,12 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
     ])
   } catch (error) {
     healthCheck.abort()
+    // Children the supervisor may already have started (Jupyter, language server) live in their own
+    // sessions and would survive a force-killed supervisor; take them down first.
+    const pid = serverProcess.pid
+    for (const child of pid !== undefined ? await childProcessIds(pid) : []) {
+      killIfAlive(child, 'SIGKILL')
+    }
     serverProcess.kill('SIGKILL')
     throw error
   }

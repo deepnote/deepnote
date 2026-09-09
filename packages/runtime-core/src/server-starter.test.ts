@@ -70,6 +70,7 @@ function createMockServerInfo(process: ChildProcess, overrides: Partial<ServerIn
     lspPort: 8889,
     process,
     exited: new Promise(() => {}),
+    stderrTail: '',
     childPids: [],
     ...overrides,
   }
@@ -226,8 +227,20 @@ describe('server-starter', () => {
         lspPort: 8001,
         process: mockProcess,
         exited: expect.any(Promise),
+        stderrTail: '',
         childPids: [],
       })
+    })
+
+    it('exposes the stderr written so far through stderrTail', async () => {
+      const handlers = captureProcessHandlers(mockProcess)
+
+      const serverPromise = startServer({ pythonEnv: 'python', workingDirectory: '/project' })
+      await vi.advanceTimersByTimeAsync(100)
+      const info = await serverPromise
+      handlers.stderr?.(Buffer.from('[W] something odd\n'))
+
+      expect(info.stderrTail).toBe('[W] something odd\n')
     })
 
     it('records the supervisor children once the server is ready', async () => {
@@ -394,6 +407,25 @@ describe('server-starter', () => {
       expect(error.message).toContain('Server failed to start within 1000ms')
       expect(error.hint).toContain('startup timeout')
       expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL')
+    })
+
+    it('kills children the supervisor already started before force-killing it on a startup timeout', async () => {
+      fetchSpy.mockRejectedValue(new Error('Connection refused'))
+      mockChildren([901, 902])
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+
+      const errorPromise = startServer({
+        pythonEnv: 'python',
+        workingDirectory: '/project',
+        startupTimeoutMs: 1000,
+      }).catch(e => e)
+      await vi.advanceTimersByTimeAsync(1500)
+      await errorPromise
+
+      expect(killSpy).toHaveBeenCalledWith(901, 'SIGKILL')
+      expect(killSpy).toHaveBeenCalledWith(902, 'SIGKILL')
+      expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL')
+      killSpy.mockRestore()
     })
 
     it('throws if no consecutive ports available', async () => {

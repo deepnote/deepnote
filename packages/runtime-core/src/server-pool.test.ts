@@ -20,7 +20,7 @@ interface FakeServer {
   exit(code?: number): void
 }
 
-function makeServer(port: number): FakeServer {
+function makeServer(port: number, childPids: number[] = []): FakeServer {
   let resolveExit: (exit: ServerExit) => void = () => {}
   const exited = new Promise<ServerExit>(resolve => {
     resolveExit = resolve
@@ -33,6 +33,8 @@ function makeServer(port: number): FakeServer {
     lspPort: port + 1,
     process: child,
     exited,
+    stderrTail: '',
+    childPids,
   } as unknown as ServerInfo
 
   return {
@@ -221,5 +223,21 @@ describe('ServerPool', () => {
 
     expect(kill).toHaveBeenCalledWith('SIGTERM')
     expect(pool.size).toBe(0)
+  })
+
+  it('killAll signals the recorded children before the supervisor', async () => {
+    const { server, kill } = makeServer(8888, [801, 802])
+    mockStartServer.mockResolvedValue(server)
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+    const pool = new ServerPool()
+    await pool.acquire(options)
+
+    pool.killAll()
+
+    expect(killSpy).toHaveBeenCalledWith(801, 'SIGTERM')
+    expect(killSpy).toHaveBeenCalledWith(802, 'SIGTERM')
+    expect(kill).toHaveBeenCalledWith('SIGTERM')
+    expect(Math.max(...killSpy.mock.invocationCallOrder)).toBeLessThan(kill.mock.invocationCallOrder[0])
+    killSpy.mockRestore()
   })
 })

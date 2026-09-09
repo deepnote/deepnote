@@ -1,8 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
-  assertNoLeakedToolkitProcesses,
+  createToolkitLeakGuard,
   integrationPython,
   requireToolkit,
+  type ToolkitLeakGuard,
 } from '../../../test-helpers/integration-python'
 import { runWithInputs } from './run-with-inputs'
 
@@ -40,12 +41,15 @@ version: '1.0.0'
 `
 
 describe('runWithInputs against a real deepnote-toolkit server', () => {
+  let leakGuard: ToolkitLeakGuard
+
   beforeAll(() => {
     requireToolkit(python)
+    leakGuard = createToolkitLeakGuard(python)
   })
 
   afterEach(async () => {
-    await assertNoLeakedToolkitProcesses(python)
+    await leakGuard.assertNone()
   })
 
   it('executes with an overridden input and echoes it in stdout', async () => {

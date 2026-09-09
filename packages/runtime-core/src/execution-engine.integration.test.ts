@@ -5,9 +5,10 @@ import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
-  assertNoLeakedToolkitProcesses,
+  createToolkitLeakGuard,
   integrationPython,
   requireToolkit,
+  type ToolkitLeakGuard,
 } from '../../../test-helpers/integration-python'
 import { ExecutionEngine } from './execution-engine'
 import { ExecutionTimeoutError, KernelDiedError, ServerExitedError, ServerLaunchError } from './runtime-errors'
@@ -78,6 +79,7 @@ async function run(
 describe('ExecutionEngine against a real deepnote-toolkit server', () => {
   const python = integrationPython()
   let workDir: string
+  let leakGuard: ToolkitLeakGuard
   /** Toolkit server log of the current test, shown when the test leaves processes behind. */
   let serverLog: string[] = []
   const onServerLog = (stream: string, chunk: string) => {
@@ -94,13 +96,14 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
 
   beforeAll(async () => {
     requireToolkit(python)
+    leakGuard = createToolkitLeakGuard(python)
     workDir = await mkdtemp(join(tmpdir(), 'deepnote-runtime-integration-'))
   })
 
   afterEach(async () => {
     const log = serverLog.slice(-25).join('\n')
     serverLog = []
-    await assertNoLeakedToolkitProcesses(python, log ? `Toolkit server log of the test:\n${log}` : '')
+    await leakGuard.assertNone(log ? `Toolkit server log of the test:\n${log}` : '')
   })
 
   afterAll(async () => {

@@ -28,18 +28,58 @@ const {
     stderr: string
   }
 
-  /** A server-info stand-in whose `exited` promise the test can settle to simulate the process ending. */
+  type ExitListener = (code: number | null, signal: string | null) => void
+
+  /** Just enough of a ChildProcess for the engine: `once('exit')`, `removeListener`, `exitCode`, `pid`. */
+  class FakeProcess {
+    exitCode: number | null = null
+    pid = 4242
+    private readonly exitListeners = new Set<ExitListener>()
+
+    once(event: string, listener: ExitListener): this {
+      if (event === 'exit') this.exitListeners.add(listener)
+      return this
+    }
+
+    removeListener(event: string, listener: ExitListener): this {
+      if (event === 'exit') this.exitListeners.delete(listener)
+      return this
+    }
+
+    listenerCount(event: string): number {
+      return event === 'exit' ? this.exitListeners.size : 0
+    }
+
+    emit(event: string, code: number | null, signal: string | null): void {
+      if (event !== 'exit') return
+      for (const listener of [...this.exitListeners]) {
+        this.exitListeners.delete(listener)
+        listener(code, signal)
+      }
+    }
+  }
+
+  /** A server-info stand-in whose process the test can make exit, like the real child process would. */
   const createServerInfo = (port = 8888) => {
     let resolveServerExit: (exit: ServerExitLike) => void = () => {}
+    const process = new FakeProcess()
+    let stderr = ''
     return {
       url: `http://localhost:${port}`,
       jupyterPort: port,
       lspPort: port + 1,
-      process: {} as unknown,
+      process,
       exited: new Promise<ServerExitLike>(resolve => {
         resolveServerExit = resolve
       }),
+      get stderrTail() {
+        return stderr
+      },
+      childPids: [] as number[],
       simulateExit(exit: ServerExitLike) {
+        stderr = exit.stderr
+        process.exitCode = exit.code ?? 1
+        process.emit('exit', exit.code, exit.signal)
         resolveServerExit(exit)
       },
     }
@@ -217,6 +257,23 @@ describe('ExecutionEngine', () => {
       await attached.stop()
       expect(mockKernelClient.disconnect).toHaveBeenCalled()
       expect(mockStopServer).not.toHaveBeenCalled()
+    })
+
+    it('leaves no exit listener on a shared server once engines have stopped', async () => {
+      const shared = createServerInfo(9200)
+      for (let i = 0; i < 3; i++) {
+        const attached = new ExecutionEngine(
+          { pythonEnv: 'python', workingDirectory: '/project' },
+          { server: shared as unknown as ServerInfo }
+        )
+        await attached.start()
+        expect(shared.process.listenerCount('exit')).toBe(1)
+        await attached.stop()
+      }
+
+      expect(shared.process.listenerCount('exit')).toBe(0)
+      shared.simulateExit({ code: 0, signal: null, stderr: '' })
+      expect(mockKernelClient.failPending).not.toHaveBeenCalled()
     })
   })
 

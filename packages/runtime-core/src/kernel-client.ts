@@ -84,6 +84,7 @@ export class KernelClient {
   private serverUrl: string | null = null
   private wasConnected = false
   private connectionWatchdog: ReturnType<typeof setTimeout> | null = null
+  private connectionRetried = false
   private fatalError: Error | null = null
   private readonly pending = new Set<PendingExecution>()
 
@@ -91,6 +92,12 @@ export class KernelClient {
    * Connect to a Jupyter server and start a kernel session.
    */
   async connect(serverUrl: string, options: KernelConnectOptions = {}): Promise<void> {
+    // A client may be reconnected after a fatal failure; start from a clean slate.
+    this.fatalError = null
+    this.wasConnected = false
+    this.connectionRetried = false
+    this.clearConnectionWatchdog()
+
     try {
       this.serverUrl = serverUrl
       const url = new URL(serverUrl)
@@ -331,6 +338,7 @@ export class KernelClient {
   private readonly handleConnectionStatusChanged = (_sender: unknown, status: Kernel.ConnectionStatus): void => {
     if (status === 'connected') {
       this.wasConnected = true
+      this.connectionRetried = false
       this.clearConnectionWatchdog()
       return
     }
@@ -377,9 +385,16 @@ export class KernelClient {
         )
         return
       default:
+        if (!this.connectionRetried) {
+          // The server answers and the kernel still exists, so the client is mid-backoff between
+          // reconnect attempts; allow exactly one more grace period before giving up.
+          this.connectionRetried = true
+          this.startConnectionWatchdog()
+          return
+        }
         this.fail(
           new ServerExitedError(
-            `Lost the connection to the kernel and could not re-establish it within ${CONNECTION_LOSS_GRACE_MS / 1000} seconds.`
+            `Lost the connection to the kernel and could not re-establish it within ${(2 * CONNECTION_LOSS_GRACE_MS) / 1000} seconds.`
           )
         )
     }

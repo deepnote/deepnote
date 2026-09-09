@@ -572,6 +572,42 @@ describe('KernelClient', () => {
       expect(error.message).toContain('no longer exists')
     })
 
+    it('allows one more grace period when the server and kernel are still reachable, then fails', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
+      mockRequestExecute.mockReturnValue(createMockFuture(createDeferred().promise))
+      let settled = false
+      const inFlight = client.execute('x = 1').then(
+        () => {
+          settled = true
+        },
+        (error: unknown) => {
+          settled = true
+          return error
+        }
+      )
+
+      mockKernel.connectionStatus = 'connecting'
+      mockKernel.connectionStatusChanged.emit('connecting')
+      await vi.advanceTimersByTimeAsync(10_100)
+      // Still mid-backoff on the client side, but the server answers: not failed yet.
+      expect(settled).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(10_100)
+      const error = await inFlight
+      expect(error).toBeInstanceOf(ServerExitedError)
+      expect((error as Error).message).toContain('within 20 seconds')
+    })
+
+    it('can reconnect and execute again after a fatal failure', async () => {
+      client.failPending(new ServerExitedError('server exited'))
+      await expect(client.execute('x = 1')).rejects.toThrow('server exited')
+
+      await client.connect('http://localhost:8888')
+      mockRequestExecute.mockReturnValue(createMockFuture())
+
+      await expect(client.execute('x = 1')).resolves.toMatchObject({ success: true })
+    })
+
     it('does not fail when the connection comes back within the grace period', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch')
       const done = createDeferred()

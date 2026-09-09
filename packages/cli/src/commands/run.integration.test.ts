@@ -6,9 +6,10 @@ import { join, resolve } from 'node:path'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
-  assertNoLeakedToolkitProcesses,
+  createToolkitLeakGuard,
   integrationPython,
   requireToolkit,
+  type ToolkitLeakGuard,
 } from '../../../../test-helpers/integration-python'
 
 const repoRoot = resolve(__dirname, '../../../..')
@@ -72,12 +73,14 @@ function codeNotebook(...codeBlocks: string[]): string {
 describe('deepnote run against a real deepnote-toolkit server', () => {
   const python = integrationPython()
   let workDir: string
+  let leakGuard: ToolkitLeakGuard
 
   beforeAll(async () => {
     requireToolkit(python)
     if (!existsSync(cliBin)) {
       throw new Error(`${cliBin} is missing; build the CLI first with pnpm build.`)
     }
+    leakGuard = createToolkitLeakGuard(python)
     workDir = await mkdtemp(join(tmpdir(), 'deepnote-cli-integration-'))
   })
 
@@ -92,7 +95,7 @@ describe('deepnote run against a real deepnote-toolkit server', () => {
       .filter(line => line.includes('[server '))
       .slice(-25)
       .join('\n')
-    await assertNoLeakedToolkitProcesses(python, serverLog ? `Toolkit server log of the last run:\n${serverLog}` : '')
+    await leakGuard.assertNone(serverLog ? `Toolkit server log of the last run:\n${serverLog}` : '')
   })
 
   it('runs a notebook end to end and reports every block in JSON', async () => {
