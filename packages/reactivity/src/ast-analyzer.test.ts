@@ -117,6 +117,12 @@ describe('AstAnalyzer', () => {
           usedVariables: ['g'],
         },
         {
+          name: 'records an assignment to a name declared global as a module-level definition',
+          content: 'def f():\n    global g\n    g = 1',
+          definedVariables: ['f', 'g'],
+          usedVariables: [],
+        },
+        {
           name: 'evaluates decorators, defaults, and annotations in the enclosing scope',
           content: '@deco\ndef f(a=default_v, b: T = 1):\n    return a + b',
           definedVariables: ['f'],
@@ -127,6 +133,18 @@ describe('AstAnalyzer', () => {
           content: 'class K:\n    attr = base',
           definedVariables: ['K'],
           usedVariables: ['base'],
+        },
+        {
+          name: 'does not let class-body bindings shadow a global read inside a method',
+          content: 'class C:\n    attr = 2\n    def m(self):\n        return attr',
+          definedVariables: ['C'],
+          usedVariables: ['attr'],
+        },
+        {
+          name: 'keeps comprehension targets local inside a class body',
+          content: 'class C:\n    xs = [a for a in items]',
+          definedVariables: ['C'],
+          usedVariables: ['items'],
         },
         {
           name: 'keeps comprehension targets local',

@@ -17,9 +17,9 @@ class VariableVisitor(ast.NodeVisitor):
         self.used_global_vars = set()  # Variables used and defined globally
         self.imported_modules = set()  # Local names introduced by imports (aliases)
         self.imported_packages = set()  # Top-level package names from import sources
-        # Stack of scopes. Each scope is a set of names bound locally in it (parameters,
-        # assignments, comprehension targets). Block boundaries are not scope boundaries, so
-        # a load that no enclosing scope binds is a module-level read even deep inside a body.
+        # Stack of (bound names, is_class) scopes. Bound names are parameters, assignments and
+        # comprehension targets. Block boundaries are not scope boundaries, so a load that no
+        # enclosing scope binds is a module-level read even deep inside a body.
         self.scope_stack = []
         self.function_globals = set()  # Names declared `global` in the current function
 
@@ -30,7 +30,14 @@ class VariableVisitor(ast.NodeVisitor):
     def _is_local(self, name):
         if name in self.function_globals:
             return False
-        return any(name in scope for scope in self.scope_stack)
+        for depth, (names, is_class) in enumerate(reversed(self.scope_stack)):
+            # Class bodies are invisible to the scopes nested in them: a method reading a name
+            # that the class body also binds reads the module-level one.
+            if is_class and depth > 0:
+                continue
+            if name in names:
+                return True
+        return False
 
     def _record_load(self, name):
         if name in BUILTINS_SET or self._is_local(name):
@@ -38,10 +45,10 @@ class VariableVisitor(ast.NodeVisitor):
         self.used_global_vars.add(name)
 
     def _record_store(self, name):
-        if self.current_scope_is_global():
+        if self.current_scope_is_global() or name in self.function_globals:
             self.global_vars.add(name)
-        elif name not in self.function_globals:
-            self.scope_stack[-1].add(name)
+        else:
+            self.scope_stack[-1][0].add(name)
 
     def _bound_names(self, nodes):
         """Names bound by statements in `nodes`, without descending into nested scopes.
@@ -70,8 +77,8 @@ class VariableVisitor(ast.NodeVisitor):
             stack.extend(ast.iter_child_nodes(node))
         return bound
 
-    def _visit_scoped(self, bound, nodes):
-        self.scope_stack.append(set(bound))
+    def _visit_scoped(self, bound, nodes, is_class=False):
+        self.scope_stack.append((set(bound), is_class))
         for node in nodes:
             self.visit(node)
         self.scope_stack.pop()
@@ -85,8 +92,7 @@ class VariableVisitor(ast.NodeVisitor):
         self._record_store(node.name)
         for expr in node.bases + node.keywords + node.decorator_list:
             self.visit(expr)
-        # Class bodies are a scope for their own assignments, but methods cannot see them.
-        self._visit_scoped(self._bound_names(node.body), node.body)
+        self._visit_scoped(self._bound_names(node.body), node.body, is_class=True)
 
     def _visit_function(self, node):
         if not isinstance(node, ast.Lambda):
@@ -106,7 +112,7 @@ class VariableVisitor(ast.NodeVisitor):
         prev_function_globals = self.function_globals
         self.function_globals = set()
         body = node.body if isinstance(node.body, list) else [node.body]
-        self._visit_scoped(self._bound_names([node.args] + body), body)
+        self._visit_scoped(self._bound_names([node.args, *body]), body)
         self.function_globals = prev_function_globals
 
     visit_FunctionDef = _visit_function
