@@ -1,6 +1,8 @@
 import { ServerPool } from '@deepnote/runtime-core'
 
 const DEFAULT_IDLE_SECONDS = 300
+/** Largest delay Node timers accept (about 24.8 days); longer values would fire immediately. */
+const MAX_TIMER_MS = 2_147_483_647
 
 /**
  * Seconds a deepnote-toolkit server stays warm after the last run that used it. `0` stops the server
@@ -13,7 +15,7 @@ export function readServerIdleTimeoutMs(env: Record<string, string | undefined> 
   if (raw === undefined || raw.trim() === '') return DEFAULT_IDLE_SECONDS * 1000
   const seconds = Number(raw)
   if (!Number.isFinite(seconds) || seconds < 0) return DEFAULT_IDLE_SECONDS * 1000
-  return seconds * 1000
+  return Math.min(seconds * 1000, MAX_TIMER_MS)
 }
 
 /**

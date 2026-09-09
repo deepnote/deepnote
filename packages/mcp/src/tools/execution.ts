@@ -162,8 +162,11 @@ async function withRuntime<T>(
     await engine.start()
     return await fn(engine)
   } finally {
-    await engine.stop()
-    lease.release()
+    try {
+      await engine.stop()
+    } finally {
+      lease.release()
+    }
   }
 }
 

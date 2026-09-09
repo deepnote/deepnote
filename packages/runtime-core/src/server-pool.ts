@@ -70,8 +70,10 @@ export class ServerPool {
     let entry = this.entries.get(key)
 
     // The supervisor survives a dead Jupyter child, so a warm server can be broken without having
-    // exited. Make sure it still answers before handing it out again; replace it if not.
-    if (entry?.server && !(await isServerHealthy(entry.server))) {
+    // exited. Make sure an idle server still answers before handing it out again; replace it if
+    // not. A server another run is using is not probed, so a false alarm cannot stop it from under
+    // that run; a run on a broken server fails on its own and the next idle probe replaces it.
+    if (entry?.server && entry.leases === 0 && !(await isServerHealthy(entry.server))) {
       await this.stopEntry(entry)
       entry = this.entries.get(key)
     }
@@ -135,7 +137,8 @@ export class ServerPool {
           // A server that never started has nothing to stop.
         }
       }),
-      ...this.stopping.values(),
+      // A failed in-flight stop has nothing left to clean up; shutdown itself must not throw.
+      ...[...this.stopping.values()].map(stop => stop.catch(noop)),
     ])
   }
 
@@ -236,7 +239,11 @@ export class ServerPool {
     this.evict(entry)
     entry.stopping = true
     if (entry.server) {
-      await this.trackStop(entry.server)
+      try {
+        await this.trackStop(entry.server)
+      } catch {
+        // A stop that failed has nothing left to clean up, and the idle path does not await it.
+      }
     }
   }
 

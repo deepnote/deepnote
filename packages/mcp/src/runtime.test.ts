@@ -16,6 +16,10 @@ describe('readServerIdleTimeoutMs', () => {
     expect(readServerIdleTimeoutMs({ [SERVER_IDLE_ENV_VAR]: '0' })).toBe(0)
   })
 
+  it('caps values above the Node timer limit instead of letting the timer fire at once', () => {
+    expect(readServerIdleTimeoutMs({ [SERVER_IDLE_ENV_VAR]: '9999999999' })).toBe(2_147_483_647)
+  })
+
   it('falls back to the default for invalid values', () => {
     expect(readServerIdleTimeoutMs({ [SERVER_IDLE_ENV_VAR]: 'soon' })).toBe(300_000)
     expect(readServerIdleTimeoutMs({ [SERVER_IDLE_ENV_VAR]: '-5' })).toBe(300_000)

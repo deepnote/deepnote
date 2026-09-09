@@ -160,6 +160,15 @@ describe('deepnote_run with the warm server pool', () => {
     expect(mockEngineConstructor).not.toHaveBeenCalled()
   })
 
+  it('releases the lease even when stopping the engine fails', async () => {
+    mockEngineStop.mockRejectedValue(new Error('shutdown failed'))
+
+    const response = (await handleExecutionTool('deepnote_run', { path: notebookPath })) as { isError?: boolean }
+
+    expect(response.isError).toBe(true)
+    expect(mockRelease).toHaveBeenCalledTimes(1)
+  })
+
   it('stops the engine and releases the lease even when the run throws', async () => {
     mockRunProject.mockRejectedValue(new Error('Notebook "Other" not found in project'))
 

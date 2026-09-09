@@ -193,8 +193,8 @@ describe('ServerPool', () => {
   })
 
   it('does not treat a server it stopped itself as a crash', async () => {
-    const { server } = makeServer(8888)
-    mockStartServer.mockResolvedValue(server)
+    const stopped = makeServer(8888)
+    mockStartServer.mockResolvedValue(stopped.server)
     const pool = new ServerPool({ idleTimeoutMs: 0 })
 
     const lease = await pool.acquire(options)
@@ -203,9 +203,42 @@ describe('ServerPool', () => {
     expect(mockStopServer).toHaveBeenCalledTimes(1)
 
     // The real stopServer makes the process exit; the pool must not stop it a second time.
-    ;(server.process as unknown as { exitCode: number | null }).exitCode = 0
+    stopped.exit(0)
     await flush()
     expect(mockStopServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not probe a warm server that another run is still using', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    fetchSpy.mockRejectedValue(new TypeError('fetch failed'))
+    const second = await pool.acquire(options)
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(second.server).toBe(server)
+    expect(mockStopServer).not.toHaveBeenCalled()
+    first.release()
+    second.release()
+  })
+
+  it('shutdown resolves even when an in-flight stop fails', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const stopping = createDeferred<void>()
+    mockStopServer.mockReturnValue(stopping.promise)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+
+    const shutdown = pool.shutdown()
+    stopping.reject(new Error('stop failed'))
+
+    await expect(shutdown).resolves.toBeUndefined()
   })
 
   it('starts one server per key and reuses it across leases', async () => {
