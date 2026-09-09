@@ -216,8 +216,12 @@ const fixturePath = path.join(testFixturesDir, "my-fixture.ipynb");
 The `skills/deepnote/` directory contains reference documentation used by AI agents. When making changes to any of the following, you **must** also update the corresponding skill files:
 
 - **`.deepnote` file format** (block types, metadata, schema) — update `skills/deepnote/references/blocks-*.md` and `skills/deepnote/references/schema.ts`
-- **CLI commands** (options, output formats, exit codes, new commands) — update `skills/deepnote/references/cli-*.md`
-- **MCP tools** (tool names, parameters, behavior) — update `skills/deepnote/references/cli-*.md` (MCP mirrors CLI commands)
+- **CLI commands** (options, output formats, exit codes, new commands) — update the corresponding `skills/deepnote/references/cli-*.md`
+- **Local `@deepnote/mcp`** (tool names, parameters, behavior) — update `packages/mcp/README.md` and any local-MCP skill reference that describes it. Do not record local MCP behavior in the CLI references: the local MCP server is its own surface, not a mirror of the CLI
+- **Hosted MCP** (`https://deepnote.com/mcp`) — update `docs/deepnote-mcp.md`, and coordinate the separate codex-plugin consumer, which is not maintained in this repository
+- **App types, publishing ownership, runtime choices, or token boundaries** — update `skills/deepnote/references/apps.md`
+
+Update more than one reference only when the underlying behavior actually crosses those surfaces.
 
 ## Git & Pull Request Rules
 

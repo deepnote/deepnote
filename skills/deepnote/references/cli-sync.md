@@ -85,6 +85,20 @@ the next `--all-files` sync instead of being treated as a cloud deletion. Files 
 not deleted in the cloud. Working-directory files larger than 100 MiB are rejected because these
 transfers are buffered in memory; use another transfer method for larger data files.
 
+Sync does not own the project file store: `deepnote publish` deploys into `_deepnote_static/` and the
+Deepnote app can write any path. So push checks each candidate against the cloud inventory before
+writing, and a file whose cloud copy changed or was deleted since the manifest recorded it takes the
+same `--on-conflict` override-or-skip path as a diverged notebook rather than being overwritten.
+Skipped files appear as `N file(s) kept from Deepnote` in the summary and as `filesSkipped` in
+`-o json`. A pending replacement is exempt — the missing cloud copy there is sync's own unfinished
+delete. A pending path whose cloud copy exists again was re-created by another writer, so it is a
+conflict, not a retry; keeping the cloud copy ends the retry, and the next pull brings that copy
+down. A cloud-deleted file kept locally by a pull keeps its manifest record (with a
+warning), so a later edited push still surfaces the deletion as a conflict instead of resurrecting
+the file. A record written before `updatedAt` was tracked has no baseline to compare
+and is still overwritten; the next pull makes it verifiable (a push does too when the server echoes
+upload timestamps).
+
 ## Boundaries
 
 - Sync never creates or deletes cloud **projects**. Local-only `.deepnote` files outside tracked

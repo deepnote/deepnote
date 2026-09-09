@@ -20,6 +20,9 @@ const ILLEGAL_CHARACTERS = /[<>:"/\\|?*\u0000-\u001f]/g
 
 const MAX_SEGMENT_LENGTH = 120
 
+/** Hidden directory used for a project's working-file mirror. */
+export const PROJECT_FILES_DIR_NAME = '.files'
+
 /** User-provided names cannot sanitize to this leading-dot segment. */
 const INCOMPLETE_FOLDER_NAMESPACE = '.deepnote-incomplete'
 
@@ -77,6 +80,11 @@ function buildDir(project: PlannableProject, dirName: string): string {
       ? [INCOMPLETE_FOLDER_NAMESPACE, sanitizePathSegment(project.folder.id)]
       : []
   return [...incompletePrefix, ...folderSegments, dirName].join('/')
+}
+
+/** Returns the root-relative working-file mirror for `projectDir`. */
+export function projectFilesDir(projectDir: string): string {
+  return `${projectDir}/${PROJECT_FILES_DIR_NAME}`
 }
 
 export function pathsOverlap(left: string, right: string): boolean {
@@ -165,7 +173,7 @@ export function planProjectPaths(projects: readonly PlannableProject[]): Map<str
   }
 
   return new Map(
-    [...planned.entries()].map(([id, projectDir]) => [id, { projectDir, filesDir: `${projectDir}/.files` }])
+    [...planned.entries()].map(([id, projectDir]) => [id, { projectDir, filesDir: projectFilesDir(projectDir) }])
   )
 }
 

@@ -85,6 +85,7 @@ const makeContext = (overrides: Partial<AgentBlockContext> = {}): AgentBlockCont
 beforeEach(() => {
   // Pins the Responses API path regardless of the developer's environment.
   vi.stubEnv('OPENAI_BASE_URL', undefined)
+  modelRef.current = null
   createMCPClientMock.mockReset()
   createMCPClientMock.mockImplementation(() => {
     throw new Error('unexpected createMCPClient call')
@@ -194,6 +195,110 @@ describe('executeAgentBlock abort', () => {
     })
 
     await expect(executeAgentBlock(AGENT_BLOCK, makeContext({ signal: controller.signal }))).rejects.toBe(reason)
+  })
+
+  it('skips tool discovery and closes the started client when aborted during MCP startup', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancelled during mcp init')
+    const toolsSpy = vi.fn(async () => ({}))
+    const closeSpy = vi.fn(async () => {})
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    let resolveCreate!: () => void
+    const createGate = new Promise<void>(resolve => {
+      resolveCreate = resolve
+    })
+
+    createMCPClientMock.mockImplementation(async () => {
+      await createGate
+      return { tools: toolsSpy, close: closeSpy }
+    })
+
+    const runPromise = executeAgentBlock(
+      AGENT_BLOCK,
+      makeContext({
+        signal: controller.signal,
+        mcpServers: [{ name: 'srv', command: 'unused', args: [] }],
+      })
+    )
+
+    await vi.waitFor(() => expect(createMCPClientMock).toHaveBeenCalled())
+    controller.abort(reason)
+    resolveCreate()
+
+    await expect(runPromise).rejects.toBe(reason)
+    expect(toolsSpy).not.toHaveBeenCalled()
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+    expect(modelRef.current.doStreamCalls).toHaveLength(0)
+  })
+
+  it('reports the abort reason rather than an MCP startup failure when both happen', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancelled during mcp init')
+    const startupFailure = new Error('spawn failed')
+    const goodClient = { tools: vi.fn(async () => ({})), close: vi.fn(async () => {}) }
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    let resolveCreate!: () => void
+    const createGate = new Promise<void>(resolve => {
+      resolveCreate = resolve
+    })
+
+    createMCPClientMock
+      .mockImplementationOnce(async () => {
+        await createGate
+        return goodClient
+      })
+      .mockRejectedValueOnce(startupFailure)
+
+    const runPromise = executeAgentBlock(
+      AGENT_BLOCK,
+      makeContext({
+        signal: controller.signal,
+        mcpServers: [
+          { name: 'good', command: 'ok', args: [] },
+          { name: 'bad', command: 'boom', args: [] },
+        ],
+      })
+    )
+
+    await vi.waitFor(() => expect(createMCPClientMock).toHaveBeenCalledTimes(2))
+    controller.abort(reason)
+    resolveCreate()
+
+    await expect(runPromise).rejects.toBe(reason)
+    expect(goodClient.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call the model when aborted during tool discovery', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancelled during tool discovery')
+    const closeSpy = vi.fn(async () => {})
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    let resolveTools!: (tools: Record<string, unknown>) => void
+    const toolsGate = new Promise<Record<string, unknown>>(resolve => {
+      resolveTools = resolve
+    })
+    const toolsSpy = vi.fn(() => toolsGate)
+
+    createMCPClientMock.mockResolvedValue({ tools: toolsSpy, close: closeSpy })
+
+    const runPromise = executeAgentBlock(
+      AGENT_BLOCK,
+      makeContext({
+        signal: controller.signal,
+        mcpServers: [{ name: 'srv', command: 'unused', args: [] }],
+      })
+    )
+
+    await vi.waitFor(() => expect(toolsSpy).toHaveBeenCalledTimes(1))
+    controller.abort(reason)
+    resolveTools({})
+
+    await expect(runPromise).rejects.toBe(reason)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+    expect(modelRef.current.doStreamCalls).toHaveLength(0)
   })
 })
 

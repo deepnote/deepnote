@@ -189,6 +189,8 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         ? [{ client: result.value, name: mergedMcpConfig[index]?.name ?? `server-${index + 1}` }]
         : []
     )
+    // Placed after mcpClients is populated so `finally` still closes whatever did start
+    context.signal?.throwIfAborted()
     const failed = clientResults.find(r => r.status === 'rejected')
     if (failed != null) {
       throw failed.reason
@@ -218,6 +220,8 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
     })
 
     const mcpToolSets = await Promise.all(mcpClients.map(({ client }) => client.tools()))
+    // Without this the agent still issues one model request before the SDK honors the aborted signal
+    context.signal?.throwIfAborted()
     const mcpTools: Record<string, unknown> = Object.assign({}, ...mcpToolSets)
 
     const agent = new ToolLoopAgent({

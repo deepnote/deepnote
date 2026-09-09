@@ -64,6 +64,7 @@ try {
 - Notebook / block filtering: `notebookName`, `blockId`, `blockIds`
 - Input injection before execution: `inputs`
 - Database integration metadata for agent block awareness: `integrations`
+- Cancellation of agent blocks: `signal` — code and SQL blocks still run to completion, and an aborted agent is reported as a failed block rather than a rejection
 - Callbacks: `onBlockStart`, `onBlockDone`, `onOutput`, `onAgentEvent`, `onServerStarting`, `onServerReady`
 
 ## Result shape
