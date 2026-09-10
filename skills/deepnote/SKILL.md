@@ -214,32 +214,32 @@ npm install -g @deepnote/cli
 
 ### IDE Environment Detection
 
-The Deepnote extension for VS Code, Cursor, and Antigravity creates a virtual environment for each project and records it in a `deepnote.json` sidecar file in the workspace root:
+The Deepnote extension for VS Code, Cursor, and Antigravity records the interpreter selected for each notebook in a `deepnote.json` sidecar file in the workspace root:
 
 - `.vscode/deepnote.json`
 - `.cursor/deepnote.json`
 - `.antigravity/deepnote.json` (Antigravity)
 
-The file maps project IDs to virtual environments:
+The file maps project IDs to interpreters:
 
 ```json
 {
   "mappings": {
     "<project-id>": {
-      "environmentId": "<env-id>",
-      "venvPath": "/path/to/deepnote-envs/<env-id>",
-      "pythonInterpreter": "/path/to/deepnote-envs/<env-id>/bin/python"
+      "pythonInterpreter": "/path/to/python"
     }
   }
 }
 ```
 
-`deepnote run`, `analyze`, `lint`, `dag`, and the MCP `deepnote_run` tool read this file automatically: when `--python` / `pythonPath` and `DEEPNOTE_PYTHON` are both unset, they look the file's `project.id` up in every `deepnote.json` from the notebook's directory upward and use the recorded interpreter. You do not need to pass `--python` for a project the extension has already set up. The output says which interpreter was used and where it came from (`source: ide`).
+Older extension versions managed a virtual environment per project and also recorded `environmentId` and `venvPath` for it; both are optional, and `venvPath` is only used as a fallback when no `pythonInterpreter` is recorded. Both shapes are pinned as fixtures in `test-fixtures/ide-sidecar/`.
 
-Pass `--python` only to override that choice, and use the sidecar's `venvPath` when you install `deepnote-cli` into the same environment:
+`deepnote run`, `analyze`, `lint`, `dag`, and the MCP `deepnote_run` tool read this file automatically: when `--python` / `pythonPath` and `DEEPNOTE_PYTHON` are both unset, they look the file's `project.id` up in every `deepnote.json` from the notebook's directory upward and use the recorded interpreter. You do not need to pass `--python` for a notebook whose interpreter is already selected in the extension. The output says which interpreter was used and where it came from (`source: ide`).
+
+Pass `--python` only to override that choice, and use the recorded `pythonInterpreter` when you install `deepnote-cli` into the same environment:
 
 ```bash
-<venvPath>/bin/python -m pip install deepnote-cli
+<pythonInterpreter> -m pip install deepnote-cli
 ```
 
 At run time the full order is: `--python` / `pythonPath`, then `DEEPNOTE_PYTHON`, then the IDE environment above, then a `.venv` or `venv` directory from the notebook's directory upward that has `deepnote-toolkit` installed (`source: venv`; one without the toolkit is skipped with a warning rather than picked), then the system Python. The installation checklist earlier in this section is only about where to install `deepnote-cli`; it does not affect which interpreter a run uses.
