@@ -212,7 +212,7 @@ export const executionTools: Tool[] = [
         pythonPath: {
           type: 'string',
           description:
-            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (deepnote.json in .vscode, .cursor, .antigravity, or .agent), then a .venv or venv directory found upward from the notebook that has deepnote-toolkit installed, then system Python.',
+            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (deepnote.json in .vscode, .cursor, .antigravity, or .agent), then a .venv or venv directory found upward from the notebook or from the workspace root (DEEPNOTE_WORKSPACE, else the server cwd) that has deepnote-toolkit installed, then system Python.',
         },
         inputs: {
           type: 'object',
