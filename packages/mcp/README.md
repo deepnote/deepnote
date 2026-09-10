@@ -118,7 +118,7 @@ Scopes:
 
 1. `pythonPath` argument
 2. `DEEPNOTE_PYTHON` environment variable, so an editor or agent harness can publish its selected interpreter to the server it spawns
-3. The interpreter selected for the notebook in the Deepnote editor extension, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched from the notebook's directory and `DEEPNOTE_WORKSPACE` upward, matched on the file's `project.id`); the response's `python` field carries `sidecarPath`, plus `environmentId` when an older extension version recorded one
+3. The interpreter selected for the notebook in the Deepnote editor extension, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched upward from the notebook's directory and from the workspace root, `DEEPNOTE_WORKSPACE` or the server's cwd; matched on the file's `project.id`); the response's `python` field carries `sidecarPath`, plus `environmentId` when an older extension version recorded one
 4. A `.venv` or `venv` directory found from the notebook's directory upward that has `deepnote-toolkit` installed (one without it is skipped with a warning on stderr)
 5. System `python` / `python3`
 
