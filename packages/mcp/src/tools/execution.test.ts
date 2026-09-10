@@ -176,6 +176,18 @@ describe('execution tools handlers', () => {
       expect(result.python).toMatchObject({ source: 'ide', sidecarPath })
     })
 
+    it('searches the server cwd when DEEPNOTE_WORKSPACE is unset, like the resources do', async () => {
+      const hostWorkspace = path.join(tempDir, 'cwd-workspace')
+      const sidecarPath = await writeSidecar(hostWorkspace, '.vscode')
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(hostWorkspace)
+      try {
+        const result = extractResult(await handleExecutionTool('deepnote_run', { path: projectPath, dryRun: true }))
+        expect(result.python).toMatchObject({ source: 'ide', sidecarPath })
+      } finally {
+        cwdSpy.mockRestore()
+      }
+    })
+
     it('includes the interpreter in block-level dry runs', async () => {
       await writeSidecar(path.join(tempDir, 'workspace'), '.vscode')
       const result = extractResult(

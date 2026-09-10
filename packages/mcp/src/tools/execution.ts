@@ -78,18 +78,19 @@ function formatFirstIssue(error: z.ZodError): string {
 
 /**
  * Picks the interpreter for a run: explicit `pythonPath`, then `DEEPNOTE_PYTHON`, then the interpreter
- * the Deepnote editor extension selected for the notebook (`.vscode/deepnote.json` etc., searched from
- * the file's directory and `DEEPNOTE_WORKSPACE` upward), then the system Python.
+ * the Deepnote editor extension selected for the notebook (`.vscode/deepnote.json` etc., searched upward
+ * from the file's directory and from the workspace root, `DEEPNOTE_WORKSPACE` or the server's cwd),
+ * then a `.venv` / `venv` found upward from the same roots that has deepnote-toolkit installed, then
+ * the system Python.
  */
 async function resolveRunPython(
   file: DeepnoteFile,
   originalPath: string,
   explicit: string | undefined
 ): Promise<ResolvedProjectPython> {
-  const searchDirs = [path.dirname(originalPath)]
-  if (process.env.DEEPNOTE_WORKSPACE) {
-    searchDirs.push(process.env.DEEPNOTE_WORKSPACE)
-  }
+  // The same default as the resources in server.ts, so DEEPNOTE_WORKSPACE means one thing.
+  const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
+  const searchDirs = [path.dirname(originalPath), workspaceRoot]
 
   const python = await resolveProjectPython({
     explicit,
@@ -211,7 +212,7 @@ export const executionTools: Tool[] = [
         pythonPath: {
           type: 'string',
           description:
-            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (deepnote.json in .vscode, .cursor, .antigravity, or .agent), then system Python.',
+            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (deepnote.json in .vscode, .cursor, .antigravity, or .agent), then a .venv or venv directory found upward from the notebook that has deepnote-toolkit installed, then system Python.',
         },
         inputs: {
           type: 'object',
