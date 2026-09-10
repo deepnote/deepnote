@@ -112,6 +112,33 @@ describe('ServerPool', () => {
     expect(pool.size).toBe(1)
   })
 
+  it('does not stop a warm server another acquire leased while its own probe was failing', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    first.release()
+
+    // Two runs probe the same idle server at once; one probe passes and the other fails.
+    const passing = createDeferred<Response>()
+    const failing = createDeferred<Response>()
+    fetchSpy.mockReturnValueOnce(passing.promise).mockReturnValueOnce(failing.promise)
+    const second = pool.acquire(options)
+    const third = pool.acquire(options)
+    await flush()
+    passing.resolve(new Response('{}', { status: 200 }))
+    await flush()
+    failing.reject(new TypeError('fetch failed'))
+
+    const [secondLease, thirdLease] = await Promise.all([second, third])
+    expect(mockStopServer).not.toHaveBeenCalled()
+    expect(secondLease.server).toBe(server)
+    expect(thirdLease.server).toBe(server)
+    expect(mockStartServer).toHaveBeenCalledTimes(1)
+    expect(pool.size).toBe(1)
+  })
+
   it('cleans up the children of a server that exits on its own', async () => {
     const dead = makeServer(8888, [701, 702])
     mockStartServer.mockResolvedValue(dead.server)

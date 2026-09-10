@@ -73,8 +73,13 @@ export class ServerPool {
     // exited. Make sure an idle server still answers before handing it out again; replace it if
     // not. A server another run is using is not probed, so a false alarm cannot stop it from under
     // that run; a run on a broken server fails on its own and the next idle probe replaces it.
+    // Two runs can probe the same idle server at once, so after the probe the entry must still be
+    // pooled and idle: if another acquire leased it (its probe passed) or replaced it meanwhile,
+    // it is left alone.
     if (entry?.server && entry.leases === 0 && !(await isServerHealthy(entry.server))) {
-      await this.stopEntry(entry)
+      if (entry.leases === 0 && this.entries.get(key) === entry) {
+        await this.stopEntry(entry)
+      }
       entry = this.entries.get(key)
     }
 
