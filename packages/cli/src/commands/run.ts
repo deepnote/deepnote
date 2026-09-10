@@ -326,7 +326,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
 
   dotenv.config({ path: join(workingDirectory, DEFAULT_ENV_FILE), quiet: true })
 
-  // --python, then DEEPNOTE_PYTHON, then the Deepnote extension environment for this project, then system Python.
+  // --python, then DEEPNOTE_PYTHON, then the interpreter selected in the Deepnote extension, then system Python.
   const { pythonEnv, hint: pythonHint } = await resolveRunPython(file, absolutePath, options.python, {
     workingDirectory,
     isMachineOutput,
