@@ -592,14 +592,13 @@ ${c.bold('Description:')}
   after every upload succeeds. API access is left unchanged unless explicitly set.
 
 ${c.bold('Embedded API access:')}
-  A published app runs embedded in Deepnote and is handed a short-lived, viewer-scoped
-  token — not your personal token. That token may read the configured notebook, start a
-  run, and poll that run by id. Notebook discovery and run-history enumeration are not
-  part of its surface.
-
-  This matters when testing: a local preview driven by a personal token can call
-  endpoints the embedded app cannot. Those code paths do not error once embedded, they
-  simply do nothing, so build the feature expecting the narrower surface.
+  With API access enabled, the embedded app calls Deepnote with a viewer-scoped token that
+  expires after 15 minutes — never your personal token. It covers one run loop: read the
+  configured notebook (inputs and block metadata, no source), start a detached run, and poll
+  that run for its outputs as ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so a
+  feature built against a local preview with a personal token can break only once embedded.
+  Guard those paths on the embedded check and surface the 403 instead of swallowing it.
+  Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
 
 ${c.bold('Working with deepnote sync:')}
   ${c.dim('_deepnote_static/')} is part of the same project file store that

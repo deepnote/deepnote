@@ -22,6 +22,7 @@ import {
   type SyncRootOption,
   savePublishMirror,
 } from '../utils/publish-mirror'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 
 interface PublishOptions {
@@ -340,22 +341,7 @@ export function createPublishAction(program: Command) {
         log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
         log(`${c.dim(`API access: ${apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
         if (apiAccessEnabled) {
-          // Only worth saying when the app actually calls Deepnote: the embedded token is
-          // narrower than the personal token used in local preview, and the difference shows
-          // up as features that silently do nothing rather than as an error.
-          log('')
-          log(
-            c.yellow(
-              `${c.bold('Note:')} embedded apps get a short-lived, viewer-scoped token — not your personal token.`
-            )
-          )
-          log(c.dim('  Available:   read the configured notebook, start a run, poll that run by id.'))
-          log(c.dim('  Unavailable: notebook discovery, run-history enumeration.'))
-          log(
-            c.dim(
-              '  Code paths that work in local preview with a personal token will do nothing\n  once the app is embedded, without reporting an error.'
-            )
-          )
+          log(`\n${embeddedApiAccessNote(c)}`)
         }
       }
     }

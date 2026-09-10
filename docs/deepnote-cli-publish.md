@@ -136,10 +136,12 @@ data app is the model that supports it — not a published static site.
 By default a published site is a plain static website: it can serve HTML, CSS, JavaScript, and
 assets, but it cannot call the Deepnote API.
 
-Passing `--api-access enabled` lets the page acquire a short-lived, project- and viewer-scoped token
-from the Deepnote shell that embeds it. That token has a deliberately narrow surface — read the
-configured notebook, start a run, poll that run — which is what makes an interactive page possible
-without a server of your own.
+Passing `--api-access enabled` lets the page acquire a project- and viewer-scoped token from the
+Deepnote shell that embeds it. The token expires 15 minutes after it is minted and has a deliberately
+narrow surface — read the configured notebook's inputs and block metadata (no block source), start a
+detached run, and poll that run for its outputs as `snapshotBlocks` — which is what makes an
+interactive page possible without a server of your own. Every other endpoint answers 403, so a
+feature that works in a local preview with a personal token can break only once embedded.
 
 This is a second opt-in layered on top of site sharing, and it can only ever narrow the audience, not
 widen it: a viewer who cannot see the site cannot obtain a token for it. Because every viewer is a
