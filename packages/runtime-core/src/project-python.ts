@@ -25,13 +25,17 @@ export const LOCAL_VENV_DIRS = ['.venv', 'venv'] as const
 export type ProjectPythonSource = 'explicit' | 'env' | 'ide' | 'venv' | 'default'
 
 export interface IdePythonEnvironment {
-  /** Python spec to run with: the venv's interpreter when it exists, otherwise the venv root. */
+  /** Python spec to run with: the recorded interpreter when it exists, otherwise the recorded venv root. */
   pythonPath: string
   /** Sidecar file the mapping was read from. */
   sidecarPath: string
-  /** Deepnote extension environment id. */
-  environmentId: string
-  venvPath: string
+  /**
+   * Deepnote extension environment id. Only present in sidecars written by extension versions that
+   * managed a virtual environment per project; newer versions record just the selected interpreter.
+   */
+  environmentId?: string
+  /** Root of the extension-managed venv; present only in the same older sidecars as `environmentId`. */
+  venvPath?: string
 }
 
 export interface ResolvedProjectPython {
@@ -85,9 +89,9 @@ interface SidecarFile {
 }
 
 export const BARE_PYTHON_HINT =
-  'No Deepnote extension environment, DEEPNOTE_PYTHON, or project .venv with deepnote-toolkit was found, so the ' +
-  'system Python was used. If deepnote-toolkit is not installed there, either select an environment for this ' +
-  'project in the Deepnote extension (it records the venv in .vscode/deepnote.json or .cursor/deepnote.json), ' +
+  'No interpreter selected in the Deepnote extension, no DEEPNOTE_PYTHON, and no project .venv with deepnote-toolkit ' +
+  'was found, so the system Python was used. If deepnote-toolkit is not installed there, either select an interpreter ' +
+  'for the notebook in the Deepnote extension (it records it in .vscode/deepnote.json or .cursor/deepnote.json), ' +
   `set ${DEEPNOTE_PYTHON_ENV_VAR}, create a .venv with deepnote-toolkit next to the notebook, or pass a venv ` +
   'explicitly (--python / pythonPath).'
 
@@ -96,7 +100,8 @@ export const BARE_PYTHON_HINT =
  *
  * 1. `explicit` (`--python` / `pythonPath`)
  * 2. `DEEPNOTE_PYTHON` env var
- * 3. The Deepnote editor extension's sidecar (`.vscode/deepnote.json` etc.) matched by `projectId`
+ * 3. The interpreter the Deepnote editor extension selected for the notebook, from its sidecar
+ *    (`.vscode/deepnote.json` etc.) matched by `projectId`
  * 4. A `.venv` / `venv` found from `searchDirs` upward that has deepnote-toolkit installed
  * 5. `fallback()` (system Python by default)
  *
@@ -144,9 +149,13 @@ export async function resolveProjectPython(options: ResolveProjectPythonOptions 
 }
 
 /**
- * Finds the Deepnote extension environment mapped to `projectId` by searching for sidecar files
- * from each of `searchDirs` up to the filesystem root. Returns null when no usable mapping exists;
- * stale mappings (venv deleted) are reported through `warnings` and skipped.
+ * Finds the interpreter the Deepnote extension recorded for `projectId` by searching for sidecar
+ * files from each of `searchDirs` up to the filesystem root. Returns null when no usable mapping
+ * exists; stale mappings (interpreter gone) are reported through `warnings` and skipped.
+ *
+ * Two sidecar shapes are supported (see `test-fixtures/ide-sidecar/`): the current one records
+ * `pythonInterpreter` only; older extension versions also recorded `environmentId` and `venvPath`
+ * for the venv they managed, and `venvPath` still serves as a fallback when no interpreter is recorded.
  */
 export async function findIdePythonEnvironment(
   projectId: string,
@@ -160,27 +169,32 @@ export async function findIdePythonEnvironment(
     const entry = sidecar.mappings?.[projectId]
     if (!entry || typeof entry !== 'object') continue
 
-    const environmentId = typeof entry.environmentId === 'string' ? entry.environmentId : ''
-    const venvPath = typeof entry.venvPath === 'string' ? entry.venvPath : ''
-    const interpreter = typeof entry.pythonInterpreter === 'string' ? entry.pythonInterpreter : ''
+    const environmentId = nonEmptyString(entry.environmentId)
+    const venvPath = nonEmptyString(entry.venvPath)
+    const interpreter = nonEmptyString(entry.pythonInterpreter)
+    const found = (pythonPath: string): IdePythonEnvironment => ({
+      pythonPath,
+      sidecarPath,
+      ...(environmentId ? { environmentId } : {}),
+      ...(venvPath ? { venvPath } : {}),
+    })
 
     if (interpreter && (await isFile(interpreter))) {
-      return { pythonPath: interpreter, sidecarPath, environmentId, venvPath }
+      return found(interpreter)
     }
 
     if (venvPath) {
       try {
-        const resolved = await resolvePythonExecutable(venvPath)
-        return { pythonPath: resolved, sidecarPath, environmentId, venvPath }
+        return found(await resolvePythonExecutable(venvPath))
       } catch {
         // fall through to the warning below
       }
     }
 
     warnings.push(
-      `Ignoring the Deepnote extension environment recorded in ${sidecarPath} for project ${projectId}: ` +
+      `Ignoring the interpreter recorded in ${sidecarPath} for project ${projectId}: ` +
         `no Python found at ${interpreter || venvPath || '(no path recorded)'}. ` +
-        'Re-select an environment in the extension to refresh it.'
+        'Re-select an interpreter for the notebook in the Deepnote extension to refresh it.'
     )
   }
 
@@ -281,6 +295,10 @@ async function readSidecar(sidecarPath: string): Promise<SidecarFile | null> {
   } catch {
     return null
   }
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
 async function isFile(filePath: string): Promise<boolean> {
