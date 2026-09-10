@@ -41,6 +41,7 @@
     "@deepnote/blocks": "workspace:*",
     "@jupyterlab/nbformat": "^4.6.3",
     "@jupyterlab/services": "^7.6.3",
+    "@lumino/signaling": "^2.1.6",
     "ai": "^6.0.253",
     "tcp-port-used": "^1.0.3",
     "ws": "^8.21.3",

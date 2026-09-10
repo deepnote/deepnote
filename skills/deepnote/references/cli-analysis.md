@@ -2,7 +2,7 @@
 
 Install: `npm install -g @deepnote/cli`
 
-`--python <path>` is optional everywhere it appears below. When omitted, `analyze`, `dag`, and `lint` of a `.deepnote` file use `DEEPNOTE_PYTHON` if set, otherwise the Deepnote editor extension's environment for the project (from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json`), otherwise the analyzer's default `python3`. Linting an integrations YAML file directly runs no Python, so `--python` has no effect there. See `cli-run.md` for the full order.
+`--python <path>` is optional everywhere it appears below. When omitted, `analyze`, `dag`, and `lint` of a `.deepnote` file use `DEEPNOTE_PYTHON` if set, otherwise the Deepnote editor extension's environment for the project (from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json`), otherwise a `.venv` or `venv` above the notebook that has `deepnote-toolkit` installed, otherwise the analyzer's default `python3`. Linting an integrations YAML file directly runs no Python, so `--python` has no effect there. See `cli-run.md` for the full order.
 
 ## `deepnote inspect [path]`
 

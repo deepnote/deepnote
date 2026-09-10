@@ -114,14 +114,17 @@ Scopes:
 
 `deepnote_run` supports `.deepnote`, `.ipynb`, `.py`, and `.qmd` inputs.
 
-**Python interpreter.** When `pythonPath` is omitted, `deepnote_run` resolves the interpreter in this order and reports the result in the `python` field of its response (`source`: `explicit`, `env`, `ide`, or `default`):
+**Python interpreter.** When `pythonPath` is omitted, `deepnote_run` resolves the interpreter in this order and reports the result in the `python` field of its response (`source`: `explicit`, `env`, `ide`, `venv`, or `default`):
 
 1. `pythonPath` argument
 2. `DEEPNOTE_PYTHON` environment variable, so an editor or agent harness can publish its selected interpreter to the server it spawns
 3. The interpreter selected for the notebook in the Deepnote editor extension, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched upward from the notebook's directory and from the workspace root, `DEEPNOTE_WORKSPACE` or the server's cwd; matched on the file's `project.id`); the response's `python` field carries `sidecarPath`, plus `environmentId` when an older extension version recorded one
-4. System `python` / `python3`
+4. A `.venv` or `venv` directory found upward from the notebook's directory or from the workspace root that has `deepnote-toolkit` installed (one without it is skipped with a warning on stderr)
+5. System `python` / `python3`
 
 If execution fails while only a system Python was available, the error includes a hint on how to point the server at a venv that has `deepnote-toolkit` installed.
+
+**Failures.** A `deepnote_run` response has `success: false` when any block failed, plus `failureCategory` (`in-block`, `kernel-died`, `execution-timeout`, `server-exited`, `server-launch`, or `kernel-launch`) and, when the runtime knows a remedy, `hint`. A failed entry in `results` carries its own `failureCategory`. A runtime that cannot start (for example, `deepnote-toolkit` is not installed for the chosen Python) returns an error response with the same `error`, `failureCategory`, `hint`, and `python` fields. Runs never hang on a dead kernel or server: both are reported within seconds.
 
 ### Snapshot Tools
 

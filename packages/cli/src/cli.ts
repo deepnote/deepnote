@@ -283,6 +283,16 @@ ${c.bold('Examples:')}
     .argument('[path]', 'Path to a notebook file (.deepnote, .ipynb, .py, .qmd)')
     .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
+    .option(
+      '--startup-timeout <seconds>',
+      'Seconds to allow each of the toolkit server and the kernel to become ready (defaults 120 and 30)',
+      parseTimeoutSeconds
+    )
+    .option(
+      '--block-timeout <seconds>',
+      'Interrupt a block and fail the run if it executes longer than this (local runs only)',
+      parseTimeoutSeconds
+    )
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
     .option(
@@ -363,6 +373,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
+
+  ${c.dim('# Fail fast in CI: 60s for the runtime to start, 5 minutes per block, machine-readable result')}
+  $ deepnote run my-project.deepnote --startup-timeout 60 --block-timeout 300 -o json
+
+  ${c.dim('# Show the toolkit server log while running')}
+  $ deepnote --debug run my-project.deepnote
 
   ${c.dim('# Run only a specific notebook')}
   $ deepnote run my-project.deepnote --notebook "Data Analysis"
