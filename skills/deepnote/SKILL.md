@@ -194,7 +194,7 @@ deepnote --version
 
 If not installed, find the best available Python and install via pip:
 
-1. **IDE environment** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.agent/` (see IDE Environment Detection below) and use its `venvPath`
+1. **IDE interpreter** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.antigravity/` (see IDE Interpreter Detection below) and use its `pythonInterpreter` (or, for older sidecars without one, the interpreter inside `venvPath`)
 2. **Project instructions** — if the project has a `.python-version` file or `pyproject.toml` with `requires-python`, use the specified version
 3. **Project venv** — look for `.venv/bin/python`, `venv/bin/python`, or `env/bin/python`
 4. **Homebrew Python** — check if `/opt/homebrew/bin/python3` or `brew --prefix python3` exists
@@ -212,40 +212,37 @@ If no suitable Python is available, install via npm instead:
 npm install -g @deepnote/cli
 ```
 
-### IDE Environment Detection
+### IDE Interpreter Detection
 
-The Deepnote extension for VS Code, Cursor, and Antigravity creates a virtual environment for each project. Before running, check if an IDE-configured environment exists so the CLI uses the same Python interpreter.
-
-Look for a `deepnote.json` file in these directories (in order):
+The Deepnote extension for VS Code, Cursor, and Antigravity records the interpreter selected for each notebook in a `deepnote.json` sidecar file in the workspace root:
 
 - `.vscode/deepnote.json`
 - `.cursor/deepnote.json`
-- `.agent/deepnote.json` (Antigravity)
+- `.antigravity/deepnote.json` (Antigravity)
 
-The file maps project IDs to virtual environments:
+The file maps project IDs to interpreters:
 
 ```json
 {
   "mappings": {
     "<project-id>": {
-      "environmentId": "<env-id>",
-      "venvPath": "/path/to/deepnote-envs/<env-id>"
+      "pythonInterpreter": "/path/to/python"
     }
   }
 }
 ```
 
-To use the IDE environment:
+Older extension versions managed a virtual environment per project and also recorded `environmentId` and `venvPath` for it; both are optional, and `venvPath` is only used as a fallback when no `pythonInterpreter` is recorded. Both shapes are pinned as fixtures in `test-fixtures/ide-sidecar/`.
 
-1. Read the `project.id` from the `.deepnote` file
-2. Check each `deepnote.json` for a matching key in `mappings`
-3. If found, pass the `venvPath` to the CLI with `--python`:
+`deepnote run`, `analyze`, `lint`, `dag`, and the MCP `deepnote_run` tool read this file automatically: when `--python` / `pythonPath` and `DEEPNOTE_PYTHON` are both unset, they look the file's `project.id` up in every `deepnote.json` from the notebook's directory upward, plus the extra roots each tool searches (`--cwd` and `DEEPNOTE_WORKSPACE` for the CLI; the workspace root, `DEEPNOTE_WORKSPACE` or the server's cwd, for the MCP server), and use the recorded interpreter. You do not need to pass `--python` for a notebook whose interpreter is already selected in the extension. The output says which interpreter was used and where it came from (`source: ide`).
+
+Pass `--python` only to override that choice. To install `deepnote-cli` into the same environment, use the interpreter the tools resolved (`deepnote run` prints it): the sidecar's `pythonInterpreter`, or for an older sidecar without one, the interpreter inside its `venvPath`:
 
 ```bash
-deepnote run project.deepnote --python /path/to/deepnote-envs/<env-id>
+<resolved-python> -m pip install deepnote-cli
 ```
 
-If no IDE environment is found, omit `--python` and the CLI will use the system Python.
+If no IDE environment is found and `DEEPNOTE_PYTHON` is unset, the CLI uses the system Python.
 
 ### Running
 
