@@ -33,10 +33,10 @@ Execute notebooks (.deepnote, .ipynb, .py, .qmd).
 
 1. `--python <path>`
 2. The `DEEPNOTE_PYTHON` environment variable (a host such as an editor or agent harness can set it for every tool it spawns)
-3. The environment the Deepnote editor extension selected for this project, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched from the notebook's directory upward, plus `DEEPNOTE_WORKSPACE` and `--cwd`) and matched on the file's `project.id`
+3. The interpreter selected for the notebook in the Deepnote editor extension, read from `.vscode/deepnote.json`, `.cursor/deepnote.json`, or `.antigravity/deepnote.json` (searched from the notebook's directory upward, plus `DEEPNOTE_WORKSPACE` and `--cwd`) and matched on the file's `project.id`
 4. System `python` / `python3`
 
-The same order applies to `analyze`, `dag`, and `lint` of a `.deepnote` file, except that step 4 leaves the analyzer's own default in place (linting an integrations YAML file directly runs no Python, so `--python` has no effect there). A stale extension mapping (venv deleted) is skipped with a warning. When only the system Python was available and the toolkit server fails to start, the error explains how to point the CLI at a venv.
+The same order applies to `analyze`, `dag`, and `lint` of a `.deepnote` file, except that step 4 leaves the analyzer's own default in place (linting an integrations YAML file directly runs no Python, so `--python` has no effect there). A stale extension mapping (interpreter gone) is skipped with a warning. When only the system Python was available and the toolkit server fails to start, the error explains how to point the CLI at a venv.
 
 **Examples:**
 

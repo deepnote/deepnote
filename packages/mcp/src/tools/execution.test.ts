@@ -139,6 +139,27 @@ describe('execution tools handlers', () => {
       expect(result.python).toEqual({ path: '/host/venv/bin/python', source: 'env' })
     })
 
+    it('omits environmentId when the sidecar records only the selected interpreter', async () => {
+      const dir = path.join(tempDir, 'workspace', '.vscode')
+      await fs.mkdir(dir, { recursive: true })
+      const sidecarPath = path.join(dir, 'deepnote.json')
+      const template = await fs.readFile(
+        path.join(__dirname, '../../../../test-fixtures/ide-sidecar/deepnote.slim.json'),
+        'utf-8'
+      )
+      // The fixture is keyed by the id in test-fixtures/simple.deepnote; this test's project uses 'proj-1'.
+      await fs.writeFile(
+        sidecarPath,
+        template
+          .replaceAll('00000000-0000-0000-0000-000000000001', 'proj-1')
+          .replaceAll('<PYTHON_INTERPRETER>', interpreter)
+      )
+
+      const result = extractResult(await handleExecutionTool('deepnote_run', { path: projectPath, dryRun: true }))
+
+      expect(result.python).toEqual({ path: interpreter, source: 'ide', sidecarPath })
+    })
+
     it('picks up the Deepnote extension environment from a sidecar above the file', async () => {
       const sidecarPath = await writeSidecar(path.join(tempDir, 'workspace'), '.cursor')
       const result = extractResult(await handleExecutionTool('deepnote_run', { path: projectPath, dryRun: true }))
