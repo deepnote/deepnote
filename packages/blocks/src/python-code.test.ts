@@ -388,6 +388,85 @@ describe('createPythonCode', () => {
         df
       `)
     })
+
+    it('keeps a cell magic on the first line without the DataFrame config', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '%%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('%%bash\necho 123')
+    })
+
+    it('detects a cell magic preceded by blank lines and whitespace', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '\n  \n  %%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_table_state: { pageSize: 25 },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('\n  \n  %%bash\necho 123')
+      expect(result).not.toContain('_dntk')
+    })
+
+    it('still prepends the DataFrame config for a line magic', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '%time df.head()',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
+        %time df.head()
+      `)
+    })
+
+    it('still prepends the DataFrame config when a cell magic is not on the first line', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '%matplotlib inline\n%%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
+        %matplotlib inline
+        %%bash
+        echo 123
+      `)
+    })
   })
 
   describe('Input blocks', () => {
