@@ -202,7 +202,7 @@ export const executionTools: Tool[] = [
         pythonPath: {
           type: 'string',
           description:
-            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (.vscode/deepnote.json, .cursor/deepnote.json), then system Python.',
+            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (deepnote.json in .vscode, .cursor, .antigravity, or .agent), then system Python.',
         },
         inputs: {
           type: 'object',
