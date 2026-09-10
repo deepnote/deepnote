@@ -404,11 +404,11 @@ describe('createPythonCode', () => {
       expect(result).toEqual('%%bash\necho 123')
     })
 
-    it('detects a cell magic preceded by blank lines and whitespace', () => {
+    it('detects a cell magic preceded by blank lines', () => {
       const block: CodeBlock = {
         id: '123',
         type: 'code',
-        content: '\n  \n  %%bash\necho 123',
+        content: '\n  \n%%bash\necho 123',
         blockGroup: 'abc',
         sortingKey: 'a0',
         metadata: {
@@ -418,8 +418,31 @@ describe('createPythonCode', () => {
 
       const result = createPythonCode(block)
 
-      expect(result).toEqual('\n  \n  %%bash\necho 123')
+      expect(result).toEqual('\n  \n%%bash\necho 123')
       expect(result).not.toContain('_dntk')
+    })
+
+    it('still prepends the DataFrame config for an indented cell magic', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '  %%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
+          %%bash
+        echo 123
+      `)
     })
 
     it('still prepends the DataFrame config for a line magic', () => {

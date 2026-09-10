@@ -5,8 +5,9 @@ import { createDataFrameConfig } from './data-frame'
 
 export function createPythonCodeForCodeBlock(block: CodeBlock): string {
   // IPython only recognizes a cell magic (`%%bash`, `%%time`, ...) when it is on the
-  // first line of the cell, so the DataFrame config cannot be prepended in that case.
-  // The config would be meaningless there anyway: the cell body is not Python.
+  // first non-blank line of the cell, at column zero. Prepending the DataFrame config
+  // would push it down and make IPython parse the cell as Python, so emit the content
+  // as-is. The config would be meaningless there anyway: the cell body is not Python.
   if (startsWithCellMagic(block.content)) {
     return block.content
   }
@@ -25,5 +26,9 @@ export function isCodeBlock(block: DeepnoteBlock): block is CodeBlock {
 }
 
 function startsWithCellMagic(content: string | undefined): content is string {
-  return content?.trimStart().startsWith('%%') ?? false
+  // Mirrors IPython's input cleanup: leading blank lines are dropped, but indentation
+  // before `%%` is not reliably stripped, so it must sit at column zero.
+  const firstNonBlankLine = content?.split('\n').find(line => line.trim() !== '')
+
+  return firstNonBlankLine?.startsWith('%%') ?? false
 }
