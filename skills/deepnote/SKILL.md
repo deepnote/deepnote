@@ -194,7 +194,7 @@ deepnote --version
 
 If not installed, find the best available Python and install via pip:
 
-1. **IDE environment** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.antigravity/` (see IDE Environment Detection below) and use its `venvPath`
+1. **IDE interpreter** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.antigravity/` (see IDE Interpreter Detection below) and use its `pythonInterpreter`
 2. **Project instructions** — if the project has a `.python-version` file or `pyproject.toml` with `requires-python`, use the specified version
 3. **Project venv** — look for `.venv/bin/python`, `venv/bin/python`, or `env/bin/python`
 4. **Homebrew Python** — check if `/opt/homebrew/bin/python3` or `brew --prefix python3` exists
@@ -212,7 +212,7 @@ If no suitable Python is available, install via npm instead:
 npm install -g @deepnote/cli
 ```
 
-### IDE Environment Detection
+### IDE Interpreter Detection
 
 The Deepnote extension for VS Code, Cursor, and Antigravity records the interpreter selected for each notebook in a `deepnote.json` sidecar file in the workspace root:
 
