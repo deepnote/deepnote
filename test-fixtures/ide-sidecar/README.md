@@ -2,7 +2,8 @@
 
 The Deepnote extension for VS Code, Cursor, and Antigravity records the interpreter it selected for a
 notebook in a `deepnote.json` sidecar (`.vscode/deepnote.json`, `.cursor/deepnote.json`, or
-`.antigravity/deepnote.json` in the workspace root). `deepnote run`, `analyze`, `lint`, `dag`, and the
+`.antigravity/deepnote.json` in the workspace root; `.agent/deepnote.json` is also read because earlier skill docs
+named that folder for Antigravity). `deepnote run`, `analyze`, `lint`, `dag`, and the
 MCP `deepnote_run` tool read it when no interpreter is given explicitly. These fixtures pin the two
 shapes of that file so the CLI, the MCP, and the extension cannot drift apart silently.
 

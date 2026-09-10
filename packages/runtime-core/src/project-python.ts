@@ -12,6 +12,11 @@ export const IDE_SIDECAR_FILENAME = 'deepnote.json'
  * Editor settings folders the Deepnote extension writes its sidecar into, in lookup order.
  * `.agent` is kept for older skill guidance that named it for Antigravity.
  */
+/**
+ * Settings folders searched for a `deepnote.json` sidecar. The extension writes `.vscode`, `.cursor`,
+ * or `.antigravity` depending on the host editor; `.agent` is also read because earlier skill docs
+ * named it for Antigravity.
+ */
 export const IDE_SIDECAR_DIRS = ['.vscode', '.cursor', '.antigravity', '.agent'] as const
 
 /** Where a resolved Python came from, in precedence order. */
@@ -72,10 +77,13 @@ interface SidecarFile {
   mappings?: Record<string, SidecarEntry>
 }
 
+/** Every sidecar location the resolver reads, for user-facing messages. */
+export const IDE_SIDECAR_LOCATIONS = IDE_SIDECAR_DIRS.map(dir => `${dir}/deepnote.json`).join(', ')
+
 export const BARE_PYTHON_HINT =
   'No interpreter selected in the Deepnote extension and no DEEPNOTE_PYTHON was found, so the system Python was ' +
   'used. If deepnote-toolkit is not installed there, either select an interpreter for the notebook in the Deepnote ' +
-  'extension (it records it in .vscode/deepnote.json or .cursor/deepnote.json), ' +
+  `extension (it records it in one of ${IDE_SIDECAR_LOCATIONS}), ` +
   `set ${DEEPNOTE_PYTHON_ENV_VAR}, or pass a venv explicitly (--python / pythonPath).`
 
 /**
