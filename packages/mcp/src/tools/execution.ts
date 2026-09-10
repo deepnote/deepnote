@@ -74,9 +74,9 @@ function formatFirstIssue(error: z.ZodError): string {
 }
 
 /**
- * Picks the interpreter for a run: explicit `pythonPath`, then `DEEPNOTE_PYTHON`, then the Deepnote
- * editor extension's environment for this project (`.vscode/deepnote.json` etc., searched from the
- * file's directory and `DEEPNOTE_WORKSPACE` upward), then the system Python.
+ * Picks the interpreter for a run: explicit `pythonPath`, then `DEEPNOTE_PYTHON`, then the interpreter
+ * the Deepnote editor extension selected for the notebook (`.vscode/deepnote.json` etc., searched from
+ * the file's directory and `DEEPNOTE_WORKSPACE` upward), then the system Python.
  */
 async function resolveRunPython(
   file: DeepnoteFile,
@@ -114,7 +114,12 @@ function describePython(python: ResolvedProjectPython) {
   return {
     path: python.pythonPath,
     source: python.source,
-    ...(python.ide ? { environmentId: python.ide.environmentId, sidecarPath: python.ide.sidecarPath } : {}),
+    ...(python.ide
+      ? {
+          sidecarPath: python.ide.sidecarPath,
+          ...(python.ide.environmentId ? { environmentId: python.ide.environmentId } : {}),
+        }
+      : {}),
   }
 }
 
@@ -163,7 +168,7 @@ export const executionTools: Tool[] = [
         pythonPath: {
           type: 'string',
           description:
-            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the environment the Deepnote editor extension selected for this project (.vscode/deepnote.json, .cursor/deepnote.json), then system Python.',
+            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (.vscode/deepnote.json, .cursor/deepnote.json), then system Python.',
         },
         inputs: {
           type: 'object',

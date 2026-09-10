@@ -1,10 +1,31 @@
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { BARE_PYTHON_HINT, findIdePythonEnvironment, resolveProjectPython } from './project-python'
 
 const PROJECT_ID = 'project-123'
+/** Project id used by the sidecar fixtures in test-fixtures/ide-sidecar (matches test-fixtures/simple.deepnote). */
+const FIXTURE_PROJECT_ID = '00000000-0000-0000-0000-000000000001'
+const SIDECAR_FIXTURES_DIR = join(__dirname, '../../../test-fixtures/ide-sidecar')
+
+/** Writes a sidecar fixture into `workspace/<settingsDir>`, substituting the path placeholders. */
+async function writeSidecarFixture(
+  workspace: string,
+  settingsDir: string,
+  fixture: 'slim' | 'full',
+  paths: { interpreter: string; venvPath?: string }
+): Promise<string> {
+  const template = await readFile(join(SIDECAR_FIXTURES_DIR, `deepnote.${fixture}.json`), 'utf-8')
+  const content = template
+    .replaceAll('<PYTHON_INTERPRETER>', paths.interpreter)
+    .replaceAll('<VENV_PATH>', paths.venvPath ?? '')
+  const dir = join(workspace, settingsDir)
+  await mkdir(dir, { recursive: true })
+  const sidecarPath = join(dir, 'deepnote.json')
+  await writeFile(sidecarPath, content)
+  return sidecarPath
+}
 
 async function makeVenv(root: string): Promise<{ venvPath: string; interpreter: string }> {
   const venvPath = join(root, 'deepnote-envs', 'env-1')
@@ -242,6 +263,49 @@ describe('resolveProjectPython', () => {
       const result = await resolveProjectPython({ searchDirs: [projectDir], env: {}, fallback: () => 'python' })
 
       expect(result.source).toBe('default')
+    })
+  })
+
+  describe('sidecar fixtures (the contract with the Deepnote extension)', () => {
+    it('resolves the current shape, which records only the selected interpreter', async () => {
+      const { interpreter } = await makeVenv(tempDir)
+      const sidecarPath = await writeSidecarFixture(workspace, '.vscode', 'slim', { interpreter })
+
+      const result = await resolveProjectPython({ projectId: FIXTURE_PROJECT_ID, searchDirs: [projectDir], env: {} })
+
+      expect(result.source).toBe('ide')
+      expect(result.pythonPath).toBe(interpreter)
+      // No environment id or venv is recorded, so neither is reported (not even as empty strings).
+      expect(result.ide).toEqual({ pythonPath: interpreter, sidecarPath })
+      expect(result.warnings).toEqual([])
+    })
+
+    it('keeps resolving the older shape that also records a managed venv', async () => {
+      const { venvPath, interpreter } = await makeVenv(tempDir)
+      const sidecarPath = await writeSidecarFixture(workspace, '.cursor', 'full', { interpreter, venvPath })
+
+      const result = await resolveProjectPython({ projectId: FIXTURE_PROJECT_ID, searchDirs: [projectDir], env: {} })
+
+      expect(result.source).toBe('ide')
+      expect(result.ide).toEqual({ pythonPath: interpreter, sidecarPath, environmentId: 'env-1', venvPath })
+    })
+
+    it('skips a slim entry whose interpreter is gone, with a warning naming it', async () => {
+      const missing = join(tempDir, 'gone', 'bin', 'python')
+      const sidecarPath = await writeSidecarFixture(workspace, '.vscode', 'slim', { interpreter: missing })
+
+      const result = await resolveProjectPython({
+        projectId: FIXTURE_PROJECT_ID,
+        searchDirs: [projectDir],
+        env: {},
+        fallback: () => 'python',
+      })
+
+      expect(result.source).toBe('default')
+      expect(result.warnings).toHaveLength(1)
+      expect(result.warnings[0]).toContain(sidecarPath)
+      expect(result.warnings[0]).toContain(missing)
+      expect(result.warnings[0]).toContain('Re-select an interpreter')
     })
   })
 

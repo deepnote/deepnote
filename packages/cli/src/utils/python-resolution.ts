@@ -34,8 +34,8 @@ export function reportPythonResolution(resolution: ResolvedProjectPython, isMach
     return
   }
   if (resolution.source === 'ide' && resolution.ide) {
-    const label = resolution.ide.environmentId ? ` ${resolution.ide.environmentId}` : ''
-    log(getChalk().dim(`Using the Deepnote extension environment${label}: ${resolution.pythonPath}`))
+    const label = resolution.ide.environmentId ? ` (environment ${resolution.ide.environmentId})` : ''
+    log(getChalk().dim(`Using the interpreter selected in the Deepnote extension${label}: ${resolution.pythonPath}`))
   } else if (resolution.source === 'env') {
     log(getChalk().dim(`Using Python from DEEPNOTE_PYTHON: ${resolution.pythonPath}`))
   } else if (resolution.source === 'explicit') {
@@ -52,7 +52,7 @@ export interface RunPython {
 
 /**
  * Resolves the interpreter for `deepnote run`: `--python`, then `DEEPNOTE_PYTHON`, then the
- * Deepnote extension environment mapped to this project, then the system Python.
+ * interpreter the Deepnote extension selected for the notebook, then the system Python.
  */
 export async function resolveRunPython(
   file: DeepnoteFile,

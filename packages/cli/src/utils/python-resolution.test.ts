@@ -89,7 +89,9 @@ describe('python-resolution', () => {
 
       expect(result.pythonEnv).toBe(`resolved:${interpreter}`)
       expect(result.hint).toBeUndefined()
-      expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('Deepnote extension environment env-1'))
+      expect(mockLog).toHaveBeenCalledWith(
+        expect.stringContaining('interpreter selected in the Deepnote extension (environment env-1)')
+      )
     })
 
     it('stays quiet in machine output mode', async () => {
@@ -118,9 +120,7 @@ describe('python-resolution', () => {
       const result = await resolveRunPython(file, filePath, undefined, { isMachineOutput: false })
 
       expect(result.pythonEnv).toBe('resolved:python')
-      expect(mockLog).toHaveBeenCalledWith(
-        expect.stringContaining('Warning: Ignoring the Deepnote extension environment')
-      )
+      expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('Warning: Ignoring the interpreter recorded in'))
     })
   })
 
