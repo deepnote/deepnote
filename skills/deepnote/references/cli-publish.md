@@ -39,6 +39,15 @@ API access is security-sensitive and is not enabled by default. Pass `--api-acce
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
 `--api-access disabled` to turn it off explicitly.
 
+## The embedded token is narrower than a personal token
+
+A published app runs embedded in Deepnote with a viewer-scoped token that expires after 15 minutes,
+never the personal token a local preview uses. `references/apps.md` section 4 is the authoritative
+description of what that token may and may not do: one run loop, every other endpoint answers 403,
+and features built against a personal token can break only once embedded. After a successful publish
+that leaves API access enabled, and after `deepnote static-site access` enables it, the CLI prints a
+short reminder to that effect; `-q` suppresses it for publish.
+
 ## Change access without republishing
 
 Use `deepnote static-site access` to change an existing site's access settings without uploading,

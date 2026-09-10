@@ -87,6 +87,18 @@ describe('deepnote static-site access', () => {
     expect(mockedUpdateProject).not.toHaveBeenCalled()
   })
 
+  it('notes the embedded token when API access ends up enabled', async () => {
+    mockedUpdateProject.mockResolvedValue({
+      sharingEnabled: true,
+      apiAccessEnabled: true,
+      url: 'https://static-p1.example.com/',
+    })
+
+    await run('--project-id', 'p1', '--token', 'tok', '--api-access', 'enabled')
+
+    expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain('viewer-scoped token')
+  })
+
   it('reports API failures as runtime errors', async () => {
     mockedUpdateProject.mockRejectedValue(new Error('Forbidden'))
 
