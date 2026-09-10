@@ -30,15 +30,15 @@ Blocks can easily be added to your notebook via the **add block** (**+**) menu o
 
 In order to see output from your code, you need to execute the corresponding block. You can do this in three ways:
 
-- Click the **Run notebook** button at the top of the notebook. This will execute all blocks from top to bottom. Execution will stop at any block that produces an error.
-- Click the **Run** button on the block's sidebar menu.
+- Click **Run** at the top of the notebook to execute all blocks from top to bottom. Execution stops if a block produces an error.
+- Hover over a block and click **Run** in its toolbar.
 - Press **Cmd/Ctrl** + **Enter** on your keyboard while focused on a block.
 
 ![Notebook run results](../assets/docs/notebooks/run-results.webp)
 
 ### Exploring helpful block operations
 
-You can access a set of standard block operations in the block's sidebar menu. Besides executing them, you can also comment, share, and delete blocks. Even more options are available in the **block actions** menu, including duplicating or moving blocks up and down. You can also reorder blocks by dragging the handle on the left-hand side of a block. Options can be specific to the given block type, so it’s always worth exploring this menu.
+Hover over a block to show its toolbar. Use it to run the block, add a comment, or delete it. Open **More actions** for options such as duplicating the block, copying its link, or moving it up or down. You can also reorder blocks by dragging the handle on the left. Available actions depend on the block type.
 
 ![Notebook block menu](../assets/docs/notebooks/block-menu.webp)
 

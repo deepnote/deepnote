@@ -25,7 +25,7 @@ Pandas can also be used to read the uploaded CSV into the notebook's memory.
 
 ### Connecting to a database
 
-In the notebook's right sidebar, click the **+** button next to **Integrations**.
+Open **Settings** in the top-right corner of the notebook. Under **Integrations**, click **+**, then **Add a new integration**.
 
 Choose the database integration you want (e.g., Snowflake, BigQuery, PostgreSQL). You'll be asked to add your credentials.
 
@@ -49,7 +49,7 @@ Different links provide different access controls.
 
 ![Workspace invite link options](../assets/docs/deepnote-first-steps/workspace-invite-links.webp)
 
-Alternatively, you may enter email addresses and assign access controls that way (note the toggle switch that allows anyone with your business domain to join the workspace).
+You can also enter email addresses and choose an access role. The domain restriction setting limits invitations to email addresses from your domain.
 
 ![Email invitation field and access role](../assets/docs/deepnote-first-steps/workspace-email-invite.webp)
 
@@ -67,7 +67,7 @@ Create an SQL block and write native SQL queries against your CSVs and databases
 
 You probably expected Python blocks, but there's more to it than that. Use the preinstalled libraries, `pip install,` whatever you want — you can even define your environment with Docker.
 
-![Python package imports and version output](../assets/docs/deepnote-first-steps/python-package-imports.webp)
+![Python package imports with hidden output](../assets/docs/deepnote-first-steps/python-package-imports.webp)
 
 ### Moving fast with no-code tools
 
@@ -77,7 +77,7 @@ Visualize any Pandas DataFrame with [chart blocks](https://deepnote.com/docs/cha
 
 Parameterize your notebook with [input blocks](https://deepnote.com/docs/input-blocks).
 
-![Slider input used in a Python block](../assets/docs/deepnote-first-steps/input-block.webp)
+![Dropdown and slider inputs used in Python code](../assets/docs/deepnote-first-steps/input-block.webp)
 
 Communicate with [rich text blocks](https://deepnote.com/docs/text-editing).
 

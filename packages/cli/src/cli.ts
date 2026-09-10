@@ -20,6 +20,7 @@ import { createPublishAction } from './commands/publish'
 import { createRunAction } from './commands/run'
 import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
+import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
 import { CONFLICT_MODES, createSyncAction } from './commands/sync'
 import { createValidateAction } from './commands/validate'
@@ -580,12 +581,26 @@ ${c.bold('Exit Codes:')}
       ])
     )
     .option('--prune', 'Delete remote files below --path that are absent locally')
+    .option('--sync-root <dir>', 'Sync workspace whose mirror to update (default: search upwards from <dir>)')
+    .option('--no-sync-root', 'Publish without looking for or updating a sync workspace')
+    .option('--force', 'Publish even when files changed in Deepnote since the sync workspace last synced')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
   Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
   after every upload succeeds. API access is left unchanged unless explicitly set.
+
+${c.bold('Working with deepnote sync:')}
+  ${c.dim('_deepnote_static/')} is part of the same project file store that
+  ${c.dim('deepnote sync --all-files')} mirrors, so both commands write it. When the published
+  directory sits inside a synced workspace, publish updates that workspace's mirror and
+  manifest too, so sync sees the deploy as already in step instead of as drift.
+
+  If files below ${c.dim('--path')} changed in Deepnote since the workspace last recorded them
+  (an ${c.dim('--all-files')} sync or an earlier publish), publish stops rather than destroying
+  content the mirror does not hold — pull first, or pass ${c.dim('--force')}.
+  Use ${c.dim('--no-sync-root')} for a deploy that should ignore any workspace.
 
 ${c.bold('Examples:')}
   ${c.dim('# Publish a build directory to a project')}
@@ -606,13 +621,62 @@ ${c.bold('Examples:')}
   ${c.dim('# Quiet mode (no progress output)')}
   $ deepnote publish ./dist --project-id <uuid> -q
 
+  ${c.dim('# CI deploy: never touch a sync workspace')}
+  $ deepnote publish ./dist --project-id <uuid> --no-sync-root
+
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Files uploaded and website sharing enabled
-  ${c.dim('1')}  Upload, pruning, or settings update failed
-  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token)
+  ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root)
 `
     })
     .action(createPublishAction(program))
+
+  const staticSite = program.command('static-site').description('Manage a published static site')
+
+  staticSite
+    .command('access')
+    .description('Change static-site sharing and viewer API access without changing files')
+    .requiredOption('--project-id <uuid>', 'Deepnote project ID')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .addOption(
+      new Option('--sharing <state>', 'Make the published site available to project viewers').choices([
+        'enabled',
+        'disabled',
+      ])
+    )
+    .addOption(
+      new Option('--api-access <state>', 'Allow the published site to call Deepnote APIs').choices([
+        'enabled',
+        'disabled',
+      ])
+    )
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Changes access settings only. It does not upload, delete, or otherwise modify files below
+  ${c.dim('_deepnote_static/')}. Disabling sharing also disables viewer API access. Re-enabling
+  sharing later serves the files already stored in the project.
+
+${c.bold('Examples:')}
+  ${c.dim('# Stop serving the site without deleting its files')}
+  $ deepnote static-site access --project-id <uuid> --sharing disabled
+
+  ${c.dim('# Share the existing site and allow viewer-scoped API calls')}
+  $ deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
+
+  ${c.dim('# Revoke viewer API access while preserving the current sharing setting')}
+  $ deepnote static-site access --project-id <uuid> --api-access disabled
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Access settings updated
+  ${c.dim('1')}  Project settings update failed
+  ${c.dim('2')}  Invalid usage (missing token, no setting, or contradictory settings)
+`
+    })
+    .action(createStaticSiteAccessAction(program))
 
   // Convert command - convert between notebook formats
   program

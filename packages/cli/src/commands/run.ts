@@ -40,7 +40,6 @@ import { markedTerminal } from 'marked-terminal'
 
 marked.use(markedTerminal())
 
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode, NotFoundInProjectError } from '../exit-codes'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
@@ -49,7 +48,7 @@ import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integr
 import { debug, getChalk, log, error as logError, type OutputFormat, output, outputJson, outputToon } from '../output'
 import { renderOutput } from '../output-renderer'
 import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
 import { resolveAndConvertToDeepnote } from '../utils/format-converter'
@@ -358,7 +357,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
   const allIntegrations = await fetchAndMergeApiIntegrations({
     localIntegrations: parsedIntegrations.integrations,
     requiredIds,
-    token: options.token ?? process.env[DEEPNOTE_TOKEN_ENV],
+    token: resolveToken(options.token),
     baseUrl: options.url ?? DEFAULT_API_URL,
     isMachineOutput,
   })
