@@ -7,7 +7,7 @@ noContent: false
 
 ### Getting started with SQL blocks
 
-To make it easier to query databases, data warehouses or even CSV files, Deepnote offers native way to write and execute SQL code through **SQL blocks**. After connecting your data source to Deepnote (for example [PostgreSQL](/docs/postgresql), [Redshift](/docs/redshift), [BigQuery](/docs/google-bigquery), or [Snowflake](/docs/snowflake)), you can create SQL blocks in your notebook and begin writing SQL queries or [generate them with AI](/docs/sql-generation).
+To make it easier to query databases, data warehouses or even CSV files, Deepnote offers native way to write and execute SQL code through **SQL blocks**. After connecting your data source to Deepnote (for example [PostgreSQL](/docs/postgresql), [Redshift](/docs/amazon-redshift), [BigQuery](/docs/google-bigquery), or [Snowflake](/docs/snowflake)), you can create SQL blocks in your notebook and begin writing SQL queries or [generate them with AI](/docs/sql-generation).
 
 When you run a SQL block, Deepnote executes the query and stores the full result in a DataFrame object by default. Features like [query caching](/docs/sql-query-caching), [query chaining](/docs/sql-cells#Query-chaining) and [AI autocompletions](/docs/sql-cells#SQL-autocomplete) make SQL blocks even more powerful convenient to use.
 

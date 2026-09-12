@@ -20,7 +20,7 @@ Available on Team and Enterprise plans
 
 ## How to connect to Redshift
 
-From the right-hand panel, under **Integrations**, click the **+** button and choose **Create new integration**.
+Open the **Settings** panel from the top-right. Under **Integrations**, click **Connect an integration**.
 ![create_integration.png](../assets/docs/pIr2x2wQtyVUUAv6spVZ.webp)
 
 <br></br>
@@ -76,7 +76,7 @@ If you wish to try connecting to Redshift without an Enterprise license, we reco
 
 ## Connecting to Redshift with Python
 
-Simple as installing the connector.
+Start by installing the connector.
 `pip install redshift_connector`
 
 ```python
