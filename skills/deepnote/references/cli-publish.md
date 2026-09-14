@@ -126,12 +126,12 @@ deepnote publish ./dist --project-id <uuid> --no-sync-root
 deepnote static-site access --project-id <uuid> --sharing disabled
 ```
 
-Exit code 0 means uploads and the sharing update succeeded. Exit code 1 means a project lookup,
-upload, optional prune, or sharing update failed, or that Deepnote holds changes the sync workspace
-has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid local directory, or
-a `--sync-root` that has no manifest, does not track the project, or whose tracked project
-directory is missing, or a sync manifest that exists but cannot be read (pass `--no-sync-root` to
-publish without it).
+Exit code 0 means uploads and the project settings update succeeded. Exit code 1 means a project
+lookup, upload, optional prune, or project settings update failed, or that Deepnote holds changes
+the sync workspace has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid
+local directory, or a `--sync-root` that has no manifest, does not track the project, or whose
+tracked project directory is missing, or a sync manifest that exists but cannot be read (pass
+`--no-sync-root` to publish without it).
 
 For `static-site access`, exit code 0 means the settings update succeeded, exit code 1 means the
 project settings request failed, and exit code 2 means invalid arguments, a missing token, no
