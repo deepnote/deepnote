@@ -188,9 +188,17 @@ async function publishStreamlitApp(token: string, entrypoint: string, options: P
     return
   }
   // Only a create restarts the machine. An existing app on a stopped machine would never come up.
-  if (!created && (await getStreamlitAppStatus(baseUrl, token, app.id).catch(() => 'unavailable')) === 'unavailable') {
-    warn('The project machine is not running, so the app is not being served. Start the project in Deepnote.')
-    return
+  if (!created) {
+    try {
+      if ((await getStreamlitAppStatus(baseUrl, token, app.id)) === 'unavailable') {
+        warn('The project machine is not running, so the app is not being served. Start the project in Deepnote.')
+        return
+      }
+    } catch (error) {
+      logError(`Could not check the app status: ${errorMessage(error)}`)
+      process.exitCode = ExitCode.Error
+      return
+    }
   }
 
   const spinner = !getOutputConfig().quiet && process.stderr.isTTY ? ora('Waiting for the app to start…').start() : null

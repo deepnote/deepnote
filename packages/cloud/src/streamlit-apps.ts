@@ -162,6 +162,11 @@ export async function waitForStreamlitApp(
   let lastStatus: StreamlitAppStatus | undefined
 
   for (;;) {
+    // `timeoutMs` is the total wait: never start a request past the deadline.
+    if (now() >= deadline) {
+      throw new StreamlitAppTimeoutError(streamlitAppId, lastStatus)
+    }
+
     let status: StreamlitAppStatus
     try {
       status = await getStreamlitAppStatus(baseUrl, token, streamlitAppId, {
@@ -173,11 +178,7 @@ export async function waitForStreamlitApp(
         throw error
       }
       transientFailures += 1
-      const remainingMs = deadline - now()
-      if (remainingMs <= 0) {
-        throw new StreamlitAppTimeoutError(streamlitAppId, lastStatus)
-      }
-      await sleep(Math.min(intervalMs * 2 ** transientFailures, 30_000, remainingMs))
+      await sleep(Math.min(intervalMs * 2 ** transientFailures, 30_000, Math.max(0, deadline - now())))
       continue
     }
 
@@ -186,10 +187,6 @@ export async function waitForStreamlitApp(
     if (status === 'running') {
       return
     }
-    const remainingMs = deadline - now()
-    if (remainingMs <= 0) {
-      throw new StreamlitAppTimeoutError(streamlitAppId, status)
-    }
-    await sleep(Math.min(intervalMs, remainingMs))
+    await sleep(Math.min(intervalMs, Math.max(0, deadline - now())))
   }
 }
