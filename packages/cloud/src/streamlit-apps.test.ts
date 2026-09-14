@@ -194,6 +194,15 @@ describe('waitForStreamlitApp', () => {
         },
       })
     ).rejects.toEqual(new StreamlitAppTimeoutError(APP.id, 'starting'))
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3)
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2)
+  })
+
+  it('sends no request once the deadline has passed', async () => {
+    const fetchMock = stubStatuses('running')
+
+    await expect(waitForStreamlitApp(BASE_URL, TOKEN, APP.id, { timeoutMs: 0 })).rejects.toEqual(
+      new StreamlitAppTimeoutError(APP.id, undefined)
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

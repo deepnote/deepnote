@@ -788,6 +788,21 @@ describe('deepnote publish --streamlit', () => {
     expect(process.exitCode).toBeUndefined()
   })
 
+  it('reports a failed status check for an existing app with exit code 1', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
+    mockedListStreamlitApps.mockResolvedValue([STREAMLIT_APP])
+    mockedGetStreamlitAppStatus.mockRejectedValue(
+      new ApiError(403, 'Insufficient permissions to access this Streamlit app.')
+    )
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('Could not check the app status: Insufficient permissions')
+    expect(process.exitCode).toBe(1)
+  })
+
   it('surfaces a 409 that is not a duplicate of the entrypoint', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'The project has no Streamlit app ports left'))
