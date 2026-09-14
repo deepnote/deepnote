@@ -70,7 +70,6 @@ function normalizeTargetPrefix(path: string): string | null {
   return normalized
 }
 
-// Mirrors the server's normalization so the 409 lookup below compares like with like.
 function normalizeStreamlitEntrypoint(path: string): string | null {
   if (path.trim() !== path || path.includes('\0') || path.endsWith('/') || path.split('/').includes('..')) {
     return null
@@ -152,7 +151,7 @@ async function createOrFindStreamlitApp(
     if (!(error instanceof ApiError && error.statusCode === 409 && /already exists/i.test(error.message))) {
       throw error
     }
-    // UI-created apps store the entrypoint with a leading slash.
+    // Stored entrypoints may carry a leading slash.
     const apps = await listStreamlitApps(baseUrl, token, projectId)
     const app = apps.find(app => app.entrypoint.replace(/^\/+/, '') === entrypoint)
     if (!app) {
