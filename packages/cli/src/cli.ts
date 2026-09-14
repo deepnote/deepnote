@@ -597,7 +597,8 @@ ${c.bold('Embedded API access:')}
   configured notebook (inputs and block metadata, no source), start a detached run, and poll
   that run for its outputs as ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so a
   feature built against a local preview with a personal token can break only once embedded.
-  Guard those paths on the embedded check and surface the 403 instead of swallowing it.
+  Gate those paths on an ${c.dim('isEmbedded')} check (${c.dim('window !== window.parent')}): skip or hide them
+  when embedded, and surface a 403 instead of swallowing it.
   Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
 
 ${c.bold('Working with deepnote sync:')}

@@ -143,6 +143,12 @@ detached run, and poll that run for its outputs as `snapshotBlocks` — which is
 interactive page possible without a server of your own. Every other endpoint answers 403, so a
 feature that works in a local preview with a personal token can break only once embedded.
 
+The page obtains the token by posting a `deepnote-static-files-api-token-request` message to the
+shell origin, which replies with the token, the API origin to send it to, and its expiry. Expiry is
+not a permanent failure: repeat that request to receive a fresh token, ideally shortly before the
+current one expires and again on a 401. `examples/local-runner/cloud-app` implements the handshake
+and the refresh.
+
 This is a second opt-in layered on top of site sharing, and it can only ever narrow the audience, not
 widen it: a viewer who cannot see the site cannot obtain a token for it. Because every viewer is a
 signed-in user with project access, the token is minted for that identity.
