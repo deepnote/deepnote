@@ -8,7 +8,10 @@ try {
   process.loadEnvFile()
 } catch {}
 
-const runTarget = process.env.RUN_TARGET === 'local' ? 'local' : 'cloud'
+const runTarget = process.env.RUN_TARGET ?? 'cloud'
+if (runTarget !== 'cloud' && runTarget !== 'local') {
+  throw new Error(`RUN_TARGET must be "cloud" or "local", received ${JSON.stringify(runTarget)}`)
+}
 const port = Number(process.env.DEEPNOTE_RUNNER_PORT ?? 8787)
 const pythonEnv = process.env.DEEPNOTE_PYTHON_ENV
 

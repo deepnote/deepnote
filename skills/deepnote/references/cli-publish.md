@@ -14,20 +14,20 @@ Authentication uses `--token` or `DEEPNOTE_TOKEN`. `--url` selects the API origi
 
 ## Options
 
-| Option                           | Behavior                                                                                  |
-| -------------------------------- | ----------------------------------------------------------------------------------------- |
-| `--project-id <uuid>`            | Required target project id                                                                |
-| `--streamlit`                    | Serve the project-relative path as a Streamlit app                                        |
-| `--no-wait`                      | Streamlit only; exit once the app is created instead of waiting for it                    |
-| `--path <prefix>`                | Static only; target directory; must be `_deepnote_static` or a directory below it         |
-| `--api-access enabled\|disabled` | Static only; explicitly update API access; omitted means preserve the current setting     |
-| `--prune`                        | Static only; delete remote files below `--path` that are absent from the local build      |
-| `--sync-root <dir>`              | Static only; sync workspace whose mirror to update; default searches upwards from `<dir>` |
-| `--no-sync-root`                 | Static only; publish without looking for or updating a sync workspace                     |
-| `--force`                        | Static only; publish even when Deepnote holds changes the workspace has not synced        |
-| `--token <token>`                | Deepnote API token; otherwise uses `DEEPNOTE_TOKEN`                                       |
-| `--url <url>`                    | Deepnote API base URL                                                                     |
-| `-q, --quiet`                    | Suppress progress and result output; errors remain visible on stderr                      |
+| Option                           | Behavior                                                                                                  |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `--project-id <uuid>`            | Required target project id                                                                                |
+| `--streamlit`                    | Serve the project-relative path as a Streamlit app                                                        |
+| `--no-wait`                      | Streamlit only; exit once the app is created instead of waiting for it                                    |
+| `--path <prefix>`                | Static only; target directory; must be `_deepnote_static` or a directory below it                         |
+| `--api-access enabled\|disabled` | Static only; explicitly update API access; omitted means preserve the current setting                     |
+| `--prune`                        | Static only; delete remote files below `--path` that are absent from the local build                      |
+| `--sync-root <dir>`              | Static only; sync workspace whose mirror to update; default searches upwards from the published directory |
+| `--no-sync-root`                 | Static only; publish without looking for or updating a sync workspace                                     |
+| `--force`                        | Static only; publish even when Deepnote holds changes the workspace has not synced                        |
+| `--token <token>`                | Deepnote API token; otherwise uses `DEEPNOTE_TOKEN`                                                       |
+| `--url <url>`                    | Deepnote API base URL                                                                                     |
+| `-q, --quiet`                    | Suppress progress and result output; errors remain visible on stderr                                      |
 
 Publishing reads the project inventory, then replaces each matching file with a delete followed by
 an upload. Before any remote mutation, it rejects local paths the file API would normalize
@@ -68,7 +68,7 @@ as `publish`.
 `_deepnote_static` is a subtree of the same project file store that `deepnote sync --all-files`
 mirrors, so both commands write it. They share one baseline instead of splitting the namespace.
 
-Unless `--no-sync-root` is given, publish searches upwards from `<dir>` for a `.deepnote-sync.json`
+Unless `--no-sync-root` is given, publish searches upwards from the published directory for a `.deepnote-sync.json`
 (or uses `--sync-root <dir>`). When one is found that tracks `--project-id`, publish additionally
 writes each published file into that project's `.files/` mirror and records its size, content hash,
 and server `updatedAt` in the manifest, exactly as a sync download would. The manifest, the mirror,
@@ -101,15 +101,14 @@ files absent locally; `sync --prune` deletes local files absent from the cloud.
 ## Streamlit apps
 
 `deepnote publish <path> --streamlit` serves a file that already exists in the project's Files as a
-hosted Streamlit app. `<path>` is project-relative and must be canonical, such as
-`apps/dashboard.py`. Nothing is uploaded: push the file first with `deepnote sync --all-files`
+hosted Streamlit app. `<path>` is project-relative, such as `apps/dashboard.py`. Nothing is uploaded: push the file first with `deepnote sync --all-files`
 (files upload together with a notebook push) or upload it in Deepnote. A dynamic app that runs a
 notebook also needs that notebook in the cloud project under the block ids its local `.deepnote`
 file carries; `deepnote run <file> --cloud --push` aligns them before the first publish.
 
 The command calls `POST /v2/streamlit-apps` with `{ projectId, entrypoint }`. Creating an app
 restarts the project machine, which takes a few minutes and interrupts anyone working in the
-project; the command prints that warning before creating. It then prints the app URL and polls
+project; the command says so once the app is created. It then prints the app URL and polls
 `GET /v2/streamlit-apps/{id}/status` every 5 seconds until the status is `running`, for up to 10
 minutes. `unavailable` and `starting` are expected while the machine restarts, and transient
 failures of the status request (429, 5xx, timeouts) are retried. `--no-wait` exits right after the

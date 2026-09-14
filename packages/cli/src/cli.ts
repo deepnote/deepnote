@@ -583,7 +583,7 @@ ${c.bold('Exit Codes:')}
     .option('--prune', 'Static only: delete remote files below --path that are absent locally')
     .option(
       '--sync-root <dir>',
-      'Static only: sync workspace whose mirror to update (default: search upwards from <dir>)'
+      'Static only: sync workspace whose mirror to update (default: search upwards from the published directory)'
     )
     .option('--no-sync-root', 'Static only: publish without looking for or updating a sync workspace')
     .option('--force', 'Static only: publish even when files changed in Deepnote since the sync workspace last synced')
@@ -645,7 +645,7 @@ ${c.bold('Examples:')}
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Files uploaded and website sharing enabled, or the Streamlit app is running
   ${c.dim('1')}  Upload, pruning, or settings update failed, Deepnote holds unsynced changes,
-     or the Streamlit app did not start in time
+     a Streamlit app request failed, or the app did not start in time
   ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root,
      options that do not apply to the chosen mode)
 `

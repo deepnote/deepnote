@@ -31,6 +31,7 @@ import {
   savePublishMirror,
 } from '../utils/publish-mirror'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
+import { isSafeRelativeFilePath } from '../utils/sync-paths'
 
 interface PublishOptions {
   projectId: string
@@ -69,21 +70,13 @@ function normalizeTargetPrefix(path: string): string | null {
   return normalized
 }
 
+// Mirrors the server's normalization so the 409 lookup below compares like with like.
 function normalizeStreamlitEntrypoint(path: string): string | null {
-  const normalized = posix.normalize(path)
-  const segments = path.split('/')
-  if (
-    !path ||
-    path.trim() !== path ||
-    path.startsWith('/') ||
-    path.includes('\\') ||
-    path.includes('\0') ||
-    normalized !== path ||
-    segments.some(segment => segment === '' || segment === '.' || segment === '..')
-  ) {
+  if (path.trim() !== path || path.includes('\0') || path.endsWith('/') || path.split('/').includes('..')) {
     return null
   }
-  return normalized
+  const normalized = posix.normalize(path).replace(/^\/+/, '')
+  return isSafeRelativeFilePath(normalized) ? normalized : null
 }
 
 function preparePublishFiles(targetPrefix: string, localDir: string, files: string[]): PublishFile[] {
@@ -147,39 +140,46 @@ function describeStreamlitAppError(error: unknown): string {
   return message
 }
 
-async function findServedApp(
+async function createOrFindStreamlitApp(
   baseUrl: string,
   token: string,
   projectId: string,
   entrypoint: string
-): Promise<StreamlitApp | undefined> {
-  const apps = await listStreamlitApps(baseUrl, token, projectId).catch(() => [])
-  return apps.find(app => app.entrypoint.replace(/^\/+/, '') === entrypoint)
+): Promise<{ app: StreamlitApp; created: boolean }> {
+  try {
+    return { app: await createStreamlitApp(baseUrl, token, { projectId, entrypoint }), created: true }
+  } catch (error) {
+    if (!(error instanceof ApiError && error.statusCode === 409 && /already exists/i.test(error.message))) {
+      throw error
+    }
+    // UI-created apps store the entrypoint with a leading slash.
+    const apps = await listStreamlitApps(baseUrl, token, projectId)
+    const app = apps.find(app => app.entrypoint.replace(/^\/+/, '') === entrypoint)
+    if (!app) {
+      throw error
+    }
+    return { app, created: false }
+  }
 }
 
 async function publishStreamlitApp(token: string, entrypoint: string, options: PublishOptions): Promise<void> {
   const c = getChalk()
   const { url: baseUrl, projectId } = options
-  warn('Creating a Streamlit app restarts the project machine and interrupts anyone working in the project.')
   log(`Publishing Streamlit app ${c.cyan(entrypoint)} in project ${c.dim(projectId)}`)
 
-  let app: StreamlitApp
-  let created = true
+  let found: { app: StreamlitApp; created: boolean }
   try {
-    app = await createStreamlitApp(baseUrl, token, { projectId, entrypoint })
-    log(`${c.green('✓')} Created app ${app.id}`)
+    found = await createOrFindStreamlitApp(baseUrl, token, projectId, entrypoint)
   } catch (error) {
-    const served =
-      error instanceof ApiError && error.statusCode === 409
-        ? await findServedApp(baseUrl, token, projectId, entrypoint)
-        : undefined
-    if (!served) {
-      logError(`Could not publish Streamlit app: ${describeStreamlitAppError(error)}`)
-      process.exitCode = ExitCode.Error
-      return
-    }
-    app = served
-    created = false
+    logError(`Could not publish Streamlit app: ${describeStreamlitAppError(error)}`)
+    process.exitCode = ExitCode.Error
+    return
+  }
+  const { app, created } = found
+  if (created) {
+    log(`${c.green('✓')} Created app ${app.id}`)
+    warn('The project machine is restarting to serve it, which interrupts anyone working in the project.')
+  } else {
     log(`${c.green('✓')} ${entrypoint} is already served by app ${app.id}; nothing was changed`)
   }
   log(`\n${c.bold('Streamlit app URL:')} ${c.underline(app.url)}`)
@@ -230,6 +230,8 @@ async function publishStreamlitApp(token: string, entrypoint: string, options: P
   }
 }
 
+const STATIC_ONLY_OPTIONS = ['path', 'apiAccess', 'prune', 'syncRoot', 'force']
+
 export function createPublishAction(program: Command) {
   return async (target: string, options: PublishOptions, command: Command) => {
     const c = getChalk()
@@ -247,13 +249,7 @@ export function createPublishAction(program: Command) {
       return
     }
     if (options.streamlit) {
-      if (
-        explicit('path') ||
-        options.apiAccess !== undefined ||
-        options.prune ||
-        explicit('syncRoot') ||
-        options.force
-      ) {
+      if (STATIC_ONLY_OPTIONS.some(explicit)) {
         program.error(
           '--path, --api-access, --prune, --sync-root, --no-sync-root, and --force apply only to static website publishing',
           { exitCode: ExitCode.InvalidUsage }
@@ -263,7 +259,7 @@ export function createPublishAction(program: Command) {
 
       const entrypoint = normalizeStreamlitEntrypoint(target)
       if (!entrypoint) {
-        program.error('Streamlit entrypoint must be a canonical project-relative file path', {
+        program.error('Streamlit entrypoint must be a project-relative file path', {
           exitCode: ExitCode.InvalidUsage,
         })
         return

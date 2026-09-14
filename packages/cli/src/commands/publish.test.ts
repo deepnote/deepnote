@@ -721,7 +721,7 @@ describe('deepnote publish --streamlit', () => {
     expect(mockedDelete).not.toHaveBeenCalled()
     expect(mockedUpdateProject).not.toHaveBeenCalled()
     expect(errorSpy.mock.calls.map(call => String(call[0]))).toEqual([
-      expect.stringContaining('restarts the project machine'),
+      expect.stringContaining('project machine is restarting'),
     ])
     expect(logged.filter(line => line.includes('…'))).toEqual(['  unavailable…', '  starting…', '  running…'])
     expect(logged.join('\n')).toContain(STREAMLIT_APP.url)
@@ -810,6 +810,21 @@ describe('deepnote publish --streamlit', () => {
     await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
 
     expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('The project has no Streamlit app ports left')
+    expect(mockedListStreamlitApps).not.toHaveBeenCalled()
+    expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('surfaces a failed lookup of the existing app', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
+    mockedListStreamlitApps.mockRejectedValue(new ApiError(403, 'Insufficient permissions to list Streamlit apps'))
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
+
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain(
+      'Could not publish Streamlit app: Insufficient permissions to list Streamlit apps'
+    )
     expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
   })
@@ -835,7 +850,20 @@ describe('deepnote publish --streamlit', () => {
     expect(process.exitCode).toBe(1)
   })
 
-  it.each(['../app.py', '/app.py', 'apps/../app.py', 'apps\\app.py', ' app.py', 'app.py '])(
+  it.each(['./apps/dashboard.py', '/apps/dashboard.py', 'apps//dashboard.py'])(
+    'normalizes entrypoint %s the way the server does',
+    async entrypoint => {
+      captureLogs()
+      await run(entrypoint, '--project-id', 'p1', '--token', 'tok', '--streamlit', '--no-wait')
+
+      expect(mockedCreateStreamlitApp).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', {
+        projectId: 'p1',
+        entrypoint: 'apps/dashboard.py',
+      })
+    }
+  )
+
+  it.each(['../app.py', 'apps/../app.py', 'apps\\app.py', ' app.py', 'app.py ', 'apps/'])(
     'rejects invalid entrypoint %s before calling the API',
     async entrypoint => {
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
