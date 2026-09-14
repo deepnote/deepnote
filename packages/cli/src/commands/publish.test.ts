@@ -16,6 +16,8 @@ vi.mock('@deepnote/cloud', async importOriginal => {
 
 import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
 import { createProgram } from '../cli'
+import { getChalk } from '../output'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
@@ -212,7 +214,7 @@ describe('deepnote publish', () => {
       })
       const output = logged.join('\n')
       expect(output).toContain(`API access: ${state}`)
-      expect(output.includes('viewer-scoped token')).toBe(enabled)
+      expect(output.includes(embeddedApiAccessNote(getChalk()))).toBe(enabled)
     }
   )
 
@@ -235,7 +237,7 @@ describe('deepnote publish', () => {
     spy.mockRestore()
 
     expect(mockedUpdateProject).not.toHaveBeenCalled()
-    expect(logged.join('\n')).toContain('viewer-scoped token')
+    expect(logged.join('\n')).toContain(embeddedApiAccessNote(getChalk()))
   })
 
   it('prunes only stale files below the selected target', async () => {
