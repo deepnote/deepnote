@@ -830,6 +830,7 @@ describe('deepnote publish --streamlit', () => {
   })
 
   it('tells the user to upload the file first when the entrypoint is missing', async () => {
+    captureLogs()
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockedCreateStreamlitApp.mockRejectedValue(new ApiError(404, 'Entrypoint file not found'))
 
