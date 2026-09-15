@@ -7,21 +7,17 @@ import { detectDefaultPython, isBareSystemPython, resolvePythonExecutable } from
 const execFileAsync = promisify(execFile)
 
 /** Environment variable a host (editor, agent harness) can set to publish the interpreter it wants tools to use. */
-export const DEEPNOTE_PYTHON_ENV_VAR = 'DEEPNOTE_PYTHON'
+const DEEPNOTE_PYTHON_ENV_VAR = 'DEEPNOTE_PYTHON'
 
 /** Name of the sidecar file the Deepnote editor extension writes next to its settings. */
-export const IDE_SIDECAR_FILENAME = 'deepnote.json'
+const IDE_SIDECAR_FILENAME = 'deepnote.json'
 
-/**
- * Editor settings folders the Deepnote extension writes its sidecar into, in lookup order.
- * `.agent` is kept for older skill guidance that named it for Antigravity.
- */
 /**
  * Settings folders searched for a `deepnote.json` sidecar. The extension writes `.vscode`, `.cursor`,
  * or `.antigravity` depending on the host editor; `.agent` is also read because earlier skill docs
  * named it for Antigravity.
  */
-export const IDE_SIDECAR_DIRS = ['.vscode', '.cursor', '.antigravity', '.agent'] as const
+const IDE_SIDECAR_DIRS = ['.vscode', '.cursor', '.antigravity', '.agent'] as const
 
 /** Virtual environment directory names looked for next to (and above) the notebook. */
 export const LOCAL_VENV_DIRS = ['.venv', 'venv'] as const
@@ -94,7 +90,7 @@ interface SidecarFile {
 }
 
 /** Every sidecar location the resolver reads, for user-facing messages. */
-export const IDE_SIDECAR_LOCATIONS = IDE_SIDECAR_DIRS.map(dir => `${dir}/deepnote.json`).join(', ')
+const IDE_SIDECAR_LOCATIONS = IDE_SIDECAR_DIRS.map(dir => `${dir}/deepnote.json`).join(', ')
 
 export const BARE_PYTHON_HINT =
   'No interpreter selected in the Deepnote extension, no DEEPNOTE_PYTHON, and no project .venv or venv with ' +
@@ -267,34 +263,24 @@ function candidateSidecarPaths(searchDirs: string[]): string[] {
 
 /** Each search dir and its ancestors up to the filesystem root, de-duplicated, in order. */
 function directoriesUpward(searchDirs: string[]): string[] {
-  const seen = new Set<string>()
-  const dirs: string[] = []
+  const dirs = new Set<string>()
 
   for (const start of searchDirs) {
     let dir = resolve(start)
     while (true) {
-      if (!seen.has(dir)) {
-        seen.add(dir)
-        dirs.push(dir)
-      }
+      dirs.add(dir)
       const parent = dirname(dir)
       if (parent === dir) break
       dir = parent
     }
   }
 
-  return dirs
+  return [...dirs]
 }
 
 async function readSidecar(sidecarPath: string): Promise<SidecarFile | null> {
-  let raw: string
   try {
-    raw = await readFile(sidecarPath, 'utf-8')
-  } catch {
-    return null
-  }
-
-  try {
+    const raw = await readFile(sidecarPath, 'utf-8')
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null) return null
     const mappings = Reflect.get(parsed, 'mappings')
