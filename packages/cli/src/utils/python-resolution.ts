@@ -1,11 +1,6 @@
 import { dirname } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import {
-  detectDefaultPython,
-  type ResolvedProjectPython,
-  resolveProjectPython,
-  resolvePythonExecutable,
-} from '@deepnote/runtime-core'
+import { type ResolvedProjectPython, resolveProjectPython, resolvePythonExecutable } from '@deepnote/runtime-core'
 import { debug, getChalk, log } from '../output'
 
 /**
@@ -13,13 +8,13 @@ import { debug, getChalk, log } from '../output'
  * the notebook file's directory first, then any extra roots (working directory, `DEEPNOTE_WORKSPACE`).
  * Each is walked up to the filesystem root by the resolver.
  */
-export function projectPythonSearchDirs(filePath: string, ...extraRoots: Array<string | undefined>): string[] {
+function projectPythonSearchDirs(filePath: string, ...extraRoots: Array<string | undefined>): string[] {
   const dirs = [dirname(filePath), process.env.DEEPNOTE_WORKSPACE, ...extraRoots]
   return dirs.filter((dir): dir is string => typeof dir === 'string' && dir.length > 0)
 }
 
 /** Prints resolver warnings and, in human mode, tells the user which non-default interpreter was picked. */
-export function reportPythonResolution(resolution: ResolvedProjectPython, isMachineOutput: boolean): void {
+function reportPythonResolution(resolution: ResolvedProjectPython, isMachineOutput: boolean): void {
   for (const warning of resolution.warnings) {
     if (isMachineOutput) {
       debug(warning)
@@ -64,7 +59,6 @@ export async function resolveRunPython(
     explicit,
     projectId: file.project.id,
     searchDirs: projectPythonSearchDirs(filePath, options.workingDirectory),
-    fallback: detectDefaultPython,
   })
   reportPythonResolution(resolution, options.isMachineOutput)
 

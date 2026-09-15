@@ -3,21 +3,17 @@ import { dirname, join, resolve } from 'node:path'
 import { detectDefaultPython, isBareSystemPython, resolvePythonExecutable } from './python-env'
 
 /** Environment variable a host (editor, agent harness) can set to publish the interpreter it wants tools to use. */
-export const DEEPNOTE_PYTHON_ENV_VAR = 'DEEPNOTE_PYTHON'
+const DEEPNOTE_PYTHON_ENV_VAR = 'DEEPNOTE_PYTHON'
 
 /** Name of the sidecar file the Deepnote editor extension writes next to its settings. */
-export const IDE_SIDECAR_FILENAME = 'deepnote.json'
+const IDE_SIDECAR_FILENAME = 'deepnote.json'
 
-/**
- * Editor settings folders the Deepnote extension writes its sidecar into, in lookup order.
- * `.agent` is kept for older skill guidance that named it for Antigravity.
- */
 /**
  * Settings folders searched for a `deepnote.json` sidecar. The extension writes `.vscode`, `.cursor`,
  * or `.antigravity` depending on the host editor; `.agent` is also read because earlier skill docs
  * named it for Antigravity.
  */
-export const IDE_SIDECAR_DIRS = ['.vscode', '.cursor', '.antigravity', '.agent'] as const
+const IDE_SIDECAR_DIRS = ['.vscode', '.cursor', '.antigravity', '.agent'] as const
 
 /** Where a resolved Python came from, in precedence order. */
 export type ProjectPythonSource = 'explicit' | 'env' | 'ide' | 'default'
@@ -78,7 +74,7 @@ interface SidecarFile {
 }
 
 /** Every sidecar location the resolver reads, for user-facing messages. */
-export const IDE_SIDECAR_LOCATIONS = IDE_SIDECAR_DIRS.map(dir => `${dir}/deepnote.json`).join(', ')
+const IDE_SIDECAR_LOCATIONS = IDE_SIDECAR_DIRS.map(dir => `${dir}/deepnote.json`).join(', ')
 
 export const BARE_PYTHON_HINT =
   'No interpreter selected in the Deepnote extension and no DEEPNOTE_PYTHON was found, so the system Python was ' +
@@ -178,18 +174,13 @@ export async function findIdePythonEnvironment(
 
 /** Every `<dir>/<settings-folder>/deepnote.json` from each search dir up to the root, de-duplicated, in order. */
 function candidateSidecarPaths(searchDirs: string[]): string[] {
-  const seen = new Set<string>()
-  const candidates: string[] = []
+  const candidates = new Set<string>()
 
   for (const start of searchDirs) {
     let dir = resolve(start)
     while (true) {
       for (const settingsDir of IDE_SIDECAR_DIRS) {
-        const candidate = join(dir, settingsDir, IDE_SIDECAR_FILENAME)
-        if (!seen.has(candidate)) {
-          seen.add(candidate)
-          candidates.push(candidate)
-        }
+        candidates.add(join(dir, settingsDir, IDE_SIDECAR_FILENAME))
       }
       const parent = dirname(dir)
       if (parent === dir) break
@@ -197,18 +188,12 @@ function candidateSidecarPaths(searchDirs: string[]): string[] {
     }
   }
 
-  return candidates
+  return [...candidates]
 }
 
 async function readSidecar(sidecarPath: string): Promise<SidecarFile | null> {
-  let raw: string
   try {
-    raw = await readFile(sidecarPath, 'utf-8')
-  } catch {
-    return null
-  }
-
-  try {
+    const raw = await readFile(sidecarPath, 'utf-8')
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null) return null
     const mappings = Reflect.get(parsed, 'mappings')
