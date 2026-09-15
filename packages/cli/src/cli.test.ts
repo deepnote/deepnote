@@ -29,6 +29,7 @@ describe('CLI', () => {
 
       expect(commandNames).toContain('inspect')
       expect(commandNames).toContain('run')
+      expect(commandNames).toContain('publish')
       expect(commandNames).toContain('schedule')
       expect(commandNames).toContain('convert')
       expect(commandNames).toContain('validate')
@@ -106,6 +107,29 @@ describe('CLI', () => {
           '--no-create',
           '--open',
           '-o, --output <format>',
+        ])
+      )
+    })
+
+    it('publish command exposes static and Streamlit modes', () => {
+      const program = createProgram()
+      const publishCmd = program.commands.find(cmd => cmd.name() === 'publish')
+
+      expect(publishCmd).toBeDefined()
+      expect(publishCmd?.description()).toBe('Publish a static website or Streamlit app to a Deepnote project')
+      expect(publishCmd?.options.map(option => option.flags)).toEqual(
+        expect.arrayContaining([
+          '--project-id <uuid>',
+          '--path <prefix>',
+          '--api-access <state>',
+          '--prune',
+          '--sync-root <dir>',
+          '--no-sync-root',
+          '--force',
+          '--streamlit',
+          '--no-wait',
+          '--token <token>',
+          '--url <url>',
         ])
       )
     })
