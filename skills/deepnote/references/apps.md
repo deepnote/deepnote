@@ -105,10 +105,15 @@ The viewer token is limited to one run loop:
 | Poll that viewer's own run by id                                                 | Call arbitrary `/v2` endpoints |
 | Receive sanitized output blocks (`snapshotBlocks`) instead of raw snapshot YAML  | Read another viewer's run      |
 
-The consequence is a quiet failure mode: code developed against a local preview with a personal
-token keeps working there and does nothing once embedded, with no error. Guard those paths on an
-`isEmbedded` check rather than letting them fail silently — `examples/local-runner/cloud-app`
-does exactly this for its run-history panel, and is the reference implementation for the handshake.
+Every other endpoint answers HTTP 403 with `This endpoint is not available to static app tokens`,
+`snapshotDelivery` is ignored (`snapshotContent` and `snapshotDownloadUrl` are always null), and the
+token expires 15 minutes after it is minted, unlike a personal API key. Code developed against a
+local preview with a personal token keeps working there and breaks only once embedded — and the
+break stays invisible when the app swallows the 403 or the 401 from an expired token. Guard the
+paths that cannot succeed on an `isEmbedded` check, surface the responses you do not handle, and
+refresh the token over `postMessage` before it expires — `examples/local-runner/cloud-app` does
+this for its run-history panel and token refresh, and is the reference implementation for the
+handshake.
 
 ## 5. Local Node-backed apps (`serveStatic`)
 
