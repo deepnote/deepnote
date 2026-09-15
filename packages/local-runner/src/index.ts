@@ -1,3 +1,5 @@
+export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from '@deepnote/pipelines'
+export { parseSnapshot, toSnapshotView } from '@deepnote/pipelines'
 export type { AgentStreamEvent } from '@deepnote/runtime-core'
 export type { InputBlockInfo } from './apply-input-overrides'
 export { applyInputOverrides, listInputBlocks } from './apply-input-overrides'
@@ -32,8 +34,6 @@ export type {
   ServeStaticOptions,
 } from './serve-static'
 export { serveStatic } from './serve-static'
-export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
-export { parseSnapshot, toSnapshotView } from './snapshot-view'
 export type {
   BlockMove,
   DetailedSyncPlan,
