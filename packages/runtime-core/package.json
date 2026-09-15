@@ -36,7 +36,7 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^1.0.70",
+    "@ai-sdk/mcp": "^2.0.0",
     "@ai-sdk/openai": "^3.0.96",
     "@deepnote/blocks": "workspace:*",
     "@jupyterlab/nbformat": "^4.6.3",
