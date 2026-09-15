@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
+  childProcesses,
   createToolkitLeakGuard,
   integrationPython,
   requireToolkit,
@@ -13,29 +14,6 @@ import {
 import { ExecutionEngine } from './execution-engine'
 import { ExecutionTimeoutError, KernelDiedError, ServerExitedError, ServerLaunchError } from './runtime-errors'
 import type { BlockExecutionResult, ExecutionSummary } from './types'
-
-/** Child processes of `pid`, as `{ pid, command }`, via pgrep (Linux and macOS). */
-function childProcesses(pid: number): Array<{ pid: number; command: string }> {
-  let pids: string
-  try {
-    pids = execFileSync('pgrep', ['-P', String(pid)], { encoding: 'utf-8' })
-  } catch {
-    return []
-  }
-  return pids
-    .split('\n')
-    .map(line => Number(line.trim()))
-    .filter(child => Number.isInteger(child) && child > 0)
-    .map(child => {
-      let command = ''
-      try {
-        command = execFileSync('ps', ['-o', 'command=', '-p', String(child)], { encoding: 'utf-8' }).trim()
-      } catch {
-        // Already gone.
-      }
-      return { pid: child, command }
-    })
-}
 
 /** A single-notebook project whose blocks are the given Python snippets, in order. */
 function notebook(...codeBlocks: string[]): DeepnoteFile {

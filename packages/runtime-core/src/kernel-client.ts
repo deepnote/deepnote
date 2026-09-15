@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { IDisplayData, IExecuteResult, IOutput } from '@jupyterlab/nbformat'
 import { type Kernel, KernelManager, ServerConnection, SessionManager } from '@jupyterlab/services'
 import type { IKernelConnection } from '@jupyterlab/services/lib/kernel/kernel'
@@ -116,11 +117,14 @@ export class KernelClient {
       // Wait for session manager to be ready
       await this.sessionManager.ready
 
-      // Start a new session with Python kernel
+      // Start a new session with a Python kernel. The path must be unique per connection: Jupyter
+      // returns the existing session for a known path, which would make two clients on one server
+      // share a kernel and let either one shut it down.
+      const sessionPath = `deepnote-cli-${randomUUID()}`
       try {
         this.session = await this.sessionManager.startNew({
-          name: 'deepnote-cli',
-          path: 'deepnote-cli',
+          name: sessionPath,
+          path: sessionPath,
           type: 'notebook',
           kernel: { name: 'python3' },
         })

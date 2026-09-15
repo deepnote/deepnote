@@ -1,0 +1,438 @@
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
+
+const { mockStartServer, mockStopServer } = vi.hoisted(() => ({
+  mockStartServer: vi.fn(),
+  mockStopServer: vi.fn(),
+}))
+
+vi.mock('./server-starter', () => ({
+  startServer: mockStartServer,
+  stopServer: mockStopServer,
+}))
+
+import { ServerPool } from './server-pool'
+import type { ServerExit, ServerInfo } from './server-starter'
+
+interface FakeServer {
+  server: ServerInfo
+  kill: ReturnType<typeof vi.fn>
+  /** Simulates the server process exiting on its own. */
+  exit(code?: number): void
+}
+
+function makeServer(port: number, childPids: number[] = []): FakeServer {
+  let resolveExit: (exit: ServerExit) => void = () => {}
+  const exited = new Promise<ServerExit>(resolve => {
+    resolveExit = resolve
+  })
+  const kill = vi.fn()
+  const child = { exitCode: null as number | null, kill }
+  const server = {
+    url: `http://localhost:${port}`,
+    jupyterPort: port,
+    lspPort: port + 1,
+    process: child,
+    exited,
+    stderrTail: '',
+    childPids,
+  } as unknown as ServerInfo
+
+  return {
+    server,
+    kill,
+    exit(code = 0) {
+      child.exitCode = code
+      resolveExit({ code, signal: null, stderr: '' })
+    },
+  }
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+const flush = () => vi.advanceTimersByTimeAsync(0)
+
+describe('ServerPool', () => {
+  const options = { pythonEnv: 'python', workingDirectory: '/project' }
+  let fetchSpy: MockInstance
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    mockStartServer.mockReset()
+    mockStopServer.mockReset()
+    mockStopServer.mockResolvedValue(undefined)
+    // A warm server answers its health check unless a test says otherwise.
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
+  })
+
+  afterEach(() => {
+    fetchSpy.mockRestore()
+    vi.useRealTimers()
+  })
+
+  it('health-checks a warm server before reusing it', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    expect(fetchSpy).not.toHaveBeenCalled() // freshly started: no probe
+    first.release()
+    await pool.acquire(options)
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://localhost:8888/api',
+      expect.objectContaining({ signal: expect.anything() })
+    )
+    expect(mockStartServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces a warm server that no longer answers, stopping the old one', async () => {
+    const broken = makeServer(8888)
+    const fresh = makeServer(8890)
+    mockStartServer.mockResolvedValueOnce(broken.server).mockResolvedValueOnce(fresh.server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    first.release()
+    fetchSpy.mockRejectedValue(new TypeError('fetch failed'))
+
+    const second = await pool.acquire(options)
+
+    expect(mockStopServer).toHaveBeenCalledWith(broken.server)
+    expect(second.server).toBe(fresh.server)
+    expect(mockStartServer).toHaveBeenCalledTimes(2)
+    expect(pool.size).toBe(1)
+  })
+
+  it('does not stop a warm server another acquire leased while its own probe was failing', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    first.release()
+
+    // Two runs probe the same idle server at once; one probe passes and the other fails.
+    const passing = createDeferred<Response>()
+    const failing = createDeferred<Response>()
+    fetchSpy.mockReturnValueOnce(passing.promise).mockReturnValueOnce(failing.promise)
+    const second = pool.acquire(options)
+    const third = pool.acquire(options)
+    await flush()
+    passing.resolve(new Response('{}', { status: 200 }))
+    await flush()
+    failing.reject(new TypeError('fetch failed'))
+
+    const [secondLease, thirdLease] = await Promise.all([second, third])
+    expect(mockStopServer).not.toHaveBeenCalled()
+    expect(secondLease.server).toBe(server)
+    expect(thirdLease.server).toBe(server)
+    expect(mockStartServer).toHaveBeenCalledTimes(1)
+    expect(pool.size).toBe(1)
+  })
+
+  it('cleans up the children of a server that exits on its own', async () => {
+    const dead = makeServer(8888, [701, 702])
+    mockStartServer.mockResolvedValue(dead.server)
+    const pool = new ServerPool()
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    dead.exit(137)
+    await flush()
+
+    expect(pool.size).toBe(0)
+    expect(mockStopServer).toHaveBeenCalledWith(dead.server)
+  })
+
+  it('shutdown waits for a server whose stop is already in flight', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const stopping = createDeferred<void>()
+    mockStopServer.mockReturnValue(stopping.promise)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+    expect(mockStopServer).toHaveBeenCalledTimes(1)
+
+    let shutdownDone = false
+    const shutdown = pool.shutdown().then(() => {
+      shutdownDone = true
+    })
+    await flush()
+    expect(shutdownDone).toBe(false)
+
+    stopping.resolve()
+    await shutdown
+    expect(shutdownDone).toBe(true)
+    expect(mockStopServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('killAll still signals a server whose stop is in flight', async () => {
+    const { server, kill } = makeServer(8888, [901])
+    mockStartServer.mockResolvedValue(server)
+    mockStopServer.mockReturnValue(createDeferred<void>().promise)
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+
+    pool.killAll()
+
+    expect(killSpy).toHaveBeenCalledWith(901, 'SIGTERM')
+    expect(kill).toHaveBeenCalledWith('SIGTERM')
+    killSpy.mockRestore()
+  })
+
+  it('does not start a replacement when shut down during the health check', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const probe = createDeferred<Response>()
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    first.release()
+    fetchSpy.mockReturnValue(probe.promise)
+    const second = pool.acquire(options).catch(e => e)
+    await flush()
+
+    const shutdown = pool.shutdown()
+    probe.reject(new TypeError('fetch failed'))
+    await shutdown
+
+    const error = await second
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toContain('shut down')
+    expect(mockStartServer).toHaveBeenCalledTimes(1)
+    expect(pool.size).toBe(0)
+  })
+
+  it('does not treat a server it stopped itself as a crash', async () => {
+    const stopped = makeServer(8888)
+    mockStartServer.mockResolvedValue(stopped.server)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+    expect(mockStopServer).toHaveBeenCalledTimes(1)
+
+    // The real stopServer makes the process exit; the pool must not stop it a second time.
+    stopped.exit(0)
+    await flush()
+    expect(mockStopServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not probe a warm server that another run is still using', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    fetchSpy.mockRejectedValue(new TypeError('fetch failed'))
+    const second = await pool.acquire(options)
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(second.server).toBe(server)
+    expect(mockStopServer).not.toHaveBeenCalled()
+    first.release()
+    second.release()
+  })
+
+  it('shutdown resolves even when an in-flight stop fails', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const stopping = createDeferred<void>()
+    mockStopServer.mockReturnValue(stopping.promise)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+
+    const shutdown = pool.shutdown()
+    stopping.reject(new Error('stop failed'))
+
+    await expect(shutdown).resolves.toBeUndefined()
+  })
+
+  it('starts one server per key and reuses it across leases', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    first.release()
+    const second = await pool.acquire(options)
+
+    expect(first.server).toBe(server)
+    expect(second.server).toBe(server)
+    expect(mockStartServer).toHaveBeenCalledTimes(1)
+    expect(mockStartServer).toHaveBeenCalledWith(options)
+    expect(mockStopServer).not.toHaveBeenCalled()
+    expect(pool.size).toBe(1)
+  })
+
+  it('shares a single startup between concurrent acquires', async () => {
+    const { server } = makeServer(8888)
+    const starting = createDeferred<ServerInfo>()
+    mockStartServer.mockReturnValue(starting.promise)
+    const pool = new ServerPool()
+
+    const first = pool.acquire(options)
+    const second = pool.acquire(options)
+    starting.resolve(server)
+
+    expect((await first).server).toBe(server)
+    expect((await second).server).toBe(server)
+    expect(mockStartServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts separate servers for different interpreters or directories', async () => {
+    mockStartServer.mockResolvedValueOnce(makeServer(8888).server).mockResolvedValueOnce(makeServer(8890).server)
+    const pool = new ServerPool()
+
+    const a = await pool.acquire(options)
+    const b = await pool.acquire({ pythonEnv: '/other/venv', workingDirectory: '/project' })
+
+    expect(a.server).not.toBe(b.server)
+    expect(mockStartServer).toHaveBeenCalledTimes(2)
+    expect(pool.size).toBe(2)
+  })
+
+  it('stops a server that stays unused for the idle timeout', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool({ idleTimeoutMs: 1000 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    lease.release() // releasing twice is harmless
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(mockStopServer).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mockStopServer).toHaveBeenCalledWith(server)
+    expect(pool.size).toBe(0)
+  })
+
+  it('keeps a server that is re-acquired before the idle timeout', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool({ idleTimeoutMs: 1000 })
+
+    const first = await pool.acquire(options)
+    first.release()
+    await vi.advanceTimersByTimeAsync(500)
+    const second = await pool.acquire(options)
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(mockStopServer).not.toHaveBeenCalled()
+    expect(second.server).toBe(server)
+  })
+
+  it('stops a released server right away when the idle timeout is 0', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool({ idleTimeoutMs: 0 })
+
+    const lease = await pool.acquire(options)
+    lease.release()
+    await flush()
+
+    expect(mockStopServer).toHaveBeenCalledWith(server)
+    expect(pool.size).toBe(0)
+  })
+
+  it('drops a server whose process exited and starts a fresh one next time', async () => {
+    const dead = makeServer(8888)
+    const fresh = makeServer(8890)
+    mockStartServer.mockResolvedValueOnce(dead.server).mockResolvedValueOnce(fresh.server)
+    const pool = new ServerPool()
+
+    const first = await pool.acquire(options)
+    first.release()
+    dead.exit(137)
+    await flush()
+    expect(pool.size).toBe(0)
+
+    const second = await pool.acquire(options)
+    expect(second.server).toBe(fresh.server)
+    expect(mockStartServer).toHaveBeenCalledTimes(2)
+  })
+
+  it('propagates a startup failure and forgets the entry so the next acquire retries', async () => {
+    const { server } = makeServer(8888)
+    mockStartServer.mockRejectedValueOnce(new Error('toolkit missing')).mockResolvedValueOnce(server)
+    const pool = new ServerPool()
+
+    await expect(pool.acquire(options)).rejects.toThrow('toolkit missing')
+    expect(pool.size).toBe(0)
+
+    const lease = await pool.acquire(options)
+    expect(lease.server).toBe(server)
+    expect(mockStartServer).toHaveBeenCalledTimes(2)
+  })
+
+  it('shutdown stops every server, including ones still starting, and rejects pending acquires', async () => {
+    const running = makeServer(8888)
+    const starting = createDeferred<ServerInfo>()
+    mockStartServer.mockResolvedValueOnce(running.server).mockReturnValueOnce(starting.promise)
+    const pool = new ServerPool()
+
+    await pool.acquire(options)
+    const pending = pool.acquire({ pythonEnv: '/other/venv', workingDirectory: '/project' })
+    const shutdown = pool.shutdown()
+    const late = makeServer(8890)
+    starting.resolve(late.server)
+
+    await expect(pending).rejects.toThrow('shut down')
+    await shutdown
+    expect(mockStopServer).toHaveBeenCalledWith(running.server)
+    expect(mockStopServer).toHaveBeenCalledWith(late.server)
+    expect(pool.size).toBe(0)
+    await expect(pool.acquire(options)).rejects.toThrow('shut down')
+    expect(mockStartServer).toHaveBeenCalledTimes(2)
+  })
+
+  it('killAll terminates running servers synchronously', async () => {
+    const { server, kill } = makeServer(8888)
+    mockStartServer.mockResolvedValue(server)
+    const pool = new ServerPool()
+    await pool.acquire(options)
+
+    pool.killAll()
+
+    expect(kill).toHaveBeenCalledWith('SIGTERM')
+    expect(pool.size).toBe(0)
+  })
+
+  it('killAll signals the recorded children before the supervisor', async () => {
+    const { server, kill } = makeServer(8888, [801, 802])
+    mockStartServer.mockResolvedValue(server)
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
+    const pool = new ServerPool()
+    await pool.acquire(options)
+
+    pool.killAll()
+
+    expect(killSpy).toHaveBeenCalledWith(801, 'SIGTERM')
+    expect(killSpy).toHaveBeenCalledWith(802, 'SIGTERM')
+    expect(kill).toHaveBeenCalledWith('SIGTERM')
+    expect(Math.max(...killSpy.mock.invocationCallOrder)).toBeLessThan(kill.mock.invocationCallOrder[0])
+    killSpy.mockRestore()
+  })
+})
