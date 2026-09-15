@@ -6,13 +6,13 @@ import {
   getDagForBlocks,
   getDownstreamBlocksForBlocksIds,
 } from '@deepnote/reactivity'
-import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
+import { resolveAnalysisPython } from '../utils/python-resolution'
 
 export interface DagOptions {
   output?: 'json' | 'dot'
@@ -134,7 +134,9 @@ async function analyzeDag(
 
   debug(`Analyzing ${allBlocks.length} blocks...`)
 
-  const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
+  const pythonInterpreter = await resolveAnalysisPython(deepnoteFile, absolutePath, options.python, {
+    isMachineOutput: options.output !== undefined,
+  })
   const { dag } = await getDagForBlocks(allBlocks, {
     acceptPartialDAG: true,
     pythonInterpreter,
