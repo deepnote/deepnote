@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { type ServerInfo, type ServerOptions, startServer, stopServer } from './server-starter'
 
 const DEFAULT_IDLE_TIMEOUT_MS = 5 * 60 * 1000
@@ -285,7 +286,22 @@ function poolKey(options: ServerOptions): string {
 function killServer(server: ServerInfo): void {
   // The supervisor's children run in their own sessions; signal them first, since a supervisor
   // that dies with the host cannot clean them up anymore.
-  for (const pid of server.childPids) {
+  const children = new Set(server.childPids)
+  if (server.process.pid !== undefined && server.process.exitCode === null) {
+    try {
+      const output = execFileSync('pgrep', ['-P', String(server.process.pid)], {
+        encoding: 'utf-8',
+        timeout: 1000,
+      })
+      for (const value of output.trim().split(/\s+/)) {
+        const pid = Number(value)
+        if (Number.isSafeInteger(pid) && pid > 0) children.add(pid)
+      }
+    } catch {
+      // No children or process discovery unavailable; still signal recorded children.
+    }
+  }
+  for (const pid of children) {
     try {
       process.kill(pid, 'SIGTERM')
     } catch {

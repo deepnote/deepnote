@@ -1,9 +1,12 @@
+import { execFileSync } from 'node:child_process'
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 
 const { mockStartServer, mockStopServer } = vi.hoisted(() => ({
   mockStartServer: vi.fn(),
   mockStopServer: vi.fn(),
 }))
+
+vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 
 vi.mock('./server-starter', () => ({
   startServer: mockStartServer,
@@ -439,6 +442,9 @@ describe('ServerPool', () => {
 
   it.each([false, true])('killAll cleans up startup when spawn is late: %s', async lateSpawn => {
     const { server, kill } = makeServer(8888)
+    Object.assign(server.process, { pid: 800 })
+    vi.mocked(execFileSync).mockReturnValue('801\n802\n')
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true)
     const starting = createDeferred<ServerInfo>()
     mockStartServer.mockReturnValue(starting.promise)
     const pool = new ServerPool()
@@ -451,6 +457,10 @@ describe('ServerPool', () => {
     pool.killAll()
     if (lateSpawn) onSpawn(server)
 
+    expect(killSpy).toHaveBeenCalledWith(801, 'SIGTERM')
+    expect(killSpy).toHaveBeenCalledWith(802, 'SIGTERM')
+    expect(Math.max(...killSpy.mock.invocationCallOrder)).toBeLessThan(kill.mock.invocationCallOrder[0])
+    killSpy.mockRestore()
     expect(kill).toHaveBeenCalledExactlyOnceWith('SIGTERM')
     expect(pool.size).toBe(0)
     starting.resolve(server)
