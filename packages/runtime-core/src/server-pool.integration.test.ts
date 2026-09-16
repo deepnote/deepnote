@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   childProcesses,
   createToolkitLeakGuard,
@@ -50,14 +50,6 @@ async function run(
   const results: BlockExecutionResult[] = []
   const summary = await engine.runProject(file, { ...options, onBlockDone: result => void results.push(result) })
   return { summary, results }
-}
-
-async function waitFor(condition: () => boolean, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!condition()) {
-    if (Date.now() > deadline) throw new Error('condition not met in time')
-    await new Promise(resolve => setTimeout(resolve, 100))
-  }
 }
 
 describe('ServerPool against a real deepnote-toolkit server', () => {
@@ -144,7 +136,7 @@ describe('ServerPool against a real deepnote-toolkit server', () => {
       const second = await pool.acquire(serverOptions)
       expect(second.server).not.toBe(first.server)
       expect(second.server.process.pid).not.toBe(supervisorPid)
-      await waitFor(() => first.server.process.exitCode !== null, 15_000)
+      await vi.waitUntil(() => first.server.process.exitCode !== null, { timeout: 15_000, interval: 100 })
 
       const recovered = new ExecutionEngine(serverOptions, { server: second.server })
       await recovered.start()
