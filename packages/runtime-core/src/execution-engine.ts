@@ -31,6 +31,7 @@ import { type ExecutionCallbacks, type ExecutionResult, KernelClient } from './k
 import {
   ExecutionTimeoutError,
   failureCategoryOf,
+  isRuntimeError,
   type RuntimeFailureCategory,
   ServerExitedError,
 } from './runtime-errors'
@@ -330,12 +331,14 @@ export class ExecutionEngine {
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
           let agentDeadline: number | undefined
+          const agentController = new AbortController()
           let insertIndex = agentBlockIndex + 1
           const blockOutputs: Array<{
             blockId: string
             outputs: IOutput[]
             executionCount: number | null
             success: boolean
+            failureCategory?: RuntimeFailureCategory
           }> = []
 
           const projectMcpServers = file.project.settings?.mcpServers ?? []
@@ -384,9 +387,16 @@ export class ExecutionEngine {
                 outputs: errorOutputs,
                 executionCount: null,
                 success: false,
+                failureCategory: failureCategoryOf(executionError),
               })
 
               collectedOutputs.set(newBlock.id, { outputs: errorOutputs, executionCount: null })
+
+              if (isRuntimeError(executionError)) {
+                // Tool SDKs can catch rejected tools; abort the loop as well as rejecting the call.
+                agentController.abort(executionError)
+                throw executionError
+              }
 
               return `Execution error: ${executionError.message}`
             }
@@ -417,19 +427,15 @@ export class ExecutionEngine {
             onAgentEvent: options.onAgentEvent,
             onWarning: options.onWarning,
             integrations: options.integrations,
-            signal: options.signal,
+            signal: options.signal ? AbortSignal.any([options.signal, agentController.signal]) : agentController.signal,
           }
 
           const timeoutMs = this.config.blockTimeoutMs
-          const timeoutController = new AbortController()
           let timeout: ReturnType<typeof setTimeout> | undefined
           if (timeoutMs !== undefined) {
             agentDeadline = Date.now() + timeoutMs
-            agentContext.signal = options.signal
-              ? AbortSignal.any([options.signal, timeoutController.signal])
-              : timeoutController.signal
             timeout = setTimeout(() => {
-              timeoutController.abort(new ExecutionTimeoutError(`Agent block execution exceeded ${timeoutMs}ms.`))
+              agentController.abort(new ExecutionTimeoutError(`Agent block execution exceeded ${timeoutMs}ms.`))
             }, timeoutMs)
           }
 
@@ -459,6 +465,7 @@ export class ExecutionEngine {
                   outputs: bo.outputs,
                   executionCount: bo.executionCount,
                   durationMs: 0,
+                  ...(bo.failureCategory ? { failureCategory: bo.failureCategory } : {}),
                 })
               }
             }

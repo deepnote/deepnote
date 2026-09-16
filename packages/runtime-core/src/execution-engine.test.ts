@@ -1071,6 +1071,29 @@ describe('ExecutionEngine', () => {
       vi.unstubAllEnvs()
     })
 
+    it.each([new KernelDiedError('Kernel died'), new ServerExitedError('Server exited')])(
+      'preserves generated-code runtime failure even when the agent catches it: %s',
+      async error => {
+        mockKernelClient.execute.mockImplementation(async (code: string) => {
+          if (code === 'generated') throw error
+          return { success: true, outputs: [], executionCount: 1 }
+        })
+        mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+          await expect(context.addAndExecuteCodeBlock({ code: 'generated' })).rejects.toBe(error)
+          expect(context.signal?.reason).toBe(error)
+          return { finalOutput: 'Recovered' }
+        })
+        await engine.start()
+        const onBlockDone = vi.fn()
+        const summary = await engine.runProject(structuredClone(AGENT_FIXTURE), { onBlockDone })
+        expect(summary.failureCategory).toBe(error.category)
+        expect(summary.failedBlocks).toBe(1)
+        expect(onBlockDone).toHaveBeenCalledWith(
+          expect.objectContaining({ blockType: 'code', success: false, failureCategory: error.category })
+        )
+      }
+    )
+
     it('calls executeAgentBlock for agent blocks', async () => {
       await engine.start()
       await engine.runProject(AGENT_FIXTURE)
@@ -1111,7 +1134,9 @@ describe('ExecutionEngine', () => {
       await engine.runProject(AGENT_FIXTURE, { signal: controller.signal })
 
       const [, context] = mockExecuteAgentBlock.mock.calls[0]
-      expect(context.signal).toBe(controller.signal)
+      const reason = new Error('Cancelled')
+      controller.abort(reason)
+      expect(context.signal?.reason).toBe(reason)
     })
 
     it('times out the agent loop and reports a runtime timeout', async () => {
