@@ -45,6 +45,8 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
     },
     detectDefaultPython: () => 'python',
     resolvePythonExecutable: (pythonPath: string) => Promise.resolve(pythonPath),
+    resolveProjectPython: (options: Parameters<typeof actual.resolveProjectPython>[0]) =>
+      actual.resolveProjectPython({ ...options, localVenv: false }),
   }
 })
 
@@ -103,6 +105,8 @@ vi.mock('@deepnote/convert', async importOriginal => {
   }
 })
 
+import { ExecutionTimeoutError, KernelDiedError, ServerLaunchError } from '@deepnote/runtime-core'
+import { setOutputConfig } from '../output'
 import { createRunAction, MissingInputError, MissingIntegrationError, type RunOptions } from './run'
 
 // Helper to parse JSON from console output
@@ -136,6 +140,8 @@ interface MockBlockExecutionResult {
   outputs: Array<{ output_type: 'stream'; name: 'stdout' | 'stderr'; text: string }>
   executionCount: number | null
   durationMs: number
+  error?: Error
+  failureCategory?: string
 }
 
 const TEST_BLOCK = {
@@ -146,6 +152,15 @@ const TEST_BLOCK = {
   sortingKey: 'a0',
   metadata: {},
 } as const
+
+const TEST_BLOCK_RESULT_BASE: MockBlockExecutionResult = {
+  blockId: TEST_BLOCK.id,
+  blockType: TEST_BLOCK.type,
+  success: true,
+  outputs: [],
+  executionCount: 1,
+  durationMs: 5,
+}
 
 function setupSuccessfulRun(summary: Partial<ExecutionSummary> = {}) {
   const defaultSummary: ExecutionSummary = {
@@ -162,8 +177,8 @@ function setupSuccessfulRun(summary: Partial<ExecutionSummary> = {}) {
   return defaultSummary
 }
 
-function setupStartFailure(errorMessage: string) {
-  mockStart.mockRejectedValue(new Error(errorMessage))
+function setupStartFailure(error: string | Error) {
+  mockStart.mockRejectedValue(typeof error === 'string' ? new Error(error) : error)
   mockStop.mockResolvedValue(undefined)
 }
 
@@ -757,7 +772,74 @@ describe('run command', () => {
       const errorArg = programErrorSpy.mock.calls[0][0]
       expect(errorArg).toContain('Failed to start server')
       expect(errorArg).toContain('Connection refused')
-      expect(errorArg).toContain('pip install deepnote-toolkit[server]')
+      // A generic failure no longer gets the blanket install hint; the runtime names the real cause.
+      expect(errorArg).not.toContain('pip install')
+    })
+
+    it('prints the runtime hint when the toolkit server names the cause', async () => {
+      setupStartFailure(
+        new ServerLaunchError('deepnote-toolkit is not installed for python', {
+          hint: 'pip install "deepnote-toolkit[server]"',
+        })
+      )
+
+      await expect(action(HELLO_WORLD_FILE, {})).rejects.toThrow('program.error called')
+
+      const errorArg = programErrorSpy.mock.calls[0][0]
+      expect(errorArg).toContain('deepnote-toolkit is not installed for python')
+      expect(errorArg).toContain('pip install "deepnote-toolkit[server]"')
+    })
+
+    it('passes --startup-timeout and --block-timeout to the engine in milliseconds', async () => {
+      setupSuccessfulRun()
+
+      await action(HELLO_WORLD_FILE, { startupTimeout: 60, blockTimeout: 300 })
+
+      expect(mockConstructor).toHaveBeenCalledWith({
+        pythonEnv: 'python',
+        workingDirectory: expect.stringContaining('examples'),
+        serverStartupTimeoutMs: 60_000,
+        kernelStartupTimeoutMs: 60_000,
+        blockTimeoutMs: 300_000,
+      })
+    })
+
+    it('forwards the toolkit server log to the debug output only with --debug', async () => {
+      setupSuccessfulRun()
+      setOutputConfig({ debug: true })
+      try {
+        await action(HELLO_WORLD_FILE, {})
+
+        const config = mockConstructor.mock.calls[0][0] as { onServerLog?: (stream: string, chunk: string) => void }
+        expect(typeof config.onServerLog).toBe('function')
+        config.onServerLog?.('stderr', 'line one\n\nline two\n')
+      } finally {
+        setOutputConfig({ debug: false })
+      }
+
+      const logged = consoleErrorSpy.mock.calls.map(call => call.join(' ')).join('\n')
+      expect(logged).toContain('[server stderr] line one')
+      expect(logged).toContain('[server stderr] line two')
+
+      setupSuccessfulRun()
+      await action(HELLO_WORLD_FILE, {})
+      expect(mockConstructor.mock.calls[1][0]).not.toHaveProperty('onServerLog')
+    })
+
+    it('prints the hint of a runtime failure that stopped the run', async () => {
+      setupStreamingRun({
+        result: {
+          ...TEST_BLOCK_RESULT_BASE,
+          success: false,
+          error: new KernelDiedError('The kernel died.', { hint: 'Check the block for large allocations.' }),
+          failureCategory: 'kernel-died',
+        } as unknown as MockBlockExecutionResult,
+      })
+
+      await action(HELLO_WORLD_FILE, {})
+
+      const logged = getOutput(consoleLogSpy)
+      expect(logged).toContain('Hint: Check the block for large allocations.')
     })
 
     it('calls engine.stop even when engine.start fails', async () => {
@@ -1271,7 +1353,69 @@ describe('run command', () => {
         const parsed = JSON.parse(output)
         expect(parsed.success).toBe(false)
         expect(parsed.error).toContain('Failed to start server')
+        expect(parsed).not.toHaveProperty('failureCategory')
         expect(process.exitCode).toBe(1)
+      })
+
+      it('outputs the failure category and hint when the runtime cannot start', async () => {
+        setupStartFailure(
+          new ServerLaunchError('Server failed to start within 1000ms', { hint: 'Raise the startup timeout.' })
+        )
+
+        await action(HELLO_WORLD_FILE, { output: 'json' })
+
+        const parsed = JSON.parse(getOutput(consoleLogSpy))
+        expect(parsed).toMatchObject({ success: false, failureCategory: 'server-launch' })
+        // The runtime's remedy comes first; the interpreter hint follows because only a bare python was available.
+        expect(parsed.hint).toMatch(/^Raise the startup timeout\./)
+        expect(parsed.hint).toContain('DEEPNOTE_PYTHON')
+        expect(parsed.error).toContain('Server failed to start within 1000ms')
+        expect(process.exitCode).toBe(1)
+      })
+
+      it('outputs the failure category of the block that stopped the run', async () => {
+        mockStart.mockResolvedValue(undefined)
+        mockStop.mockResolvedValue(undefined)
+        mockRunProject.mockImplementation(async (_file, options) => {
+          await options?.onBlockStart?.(TEST_BLOCK, 0, 2)
+          await options?.onBlockDone?.({
+            ...TEST_BLOCK_RESULT_BASE,
+            success: false,
+            error: new ExecutionTimeoutError('Block execution exceeded 2000ms and was interrupted.', {
+              hint: 'Raise the block timeout if the block legitimately needs longer.',
+            }),
+            failureCategory: 'execution-timeout',
+          })
+          return {
+            totalBlocks: 2,
+            executedBlocks: 1,
+            failedBlocks: 1,
+            totalDurationMs: 2000,
+            failureCategory: 'execution-timeout',
+          }
+        })
+
+        await action(HELLO_WORLD_FILE, { output: 'json' })
+
+        const parsed = JSON.parse(getOutput(consoleLogSpy))
+        expect(parsed).toMatchObject({
+          success: false,
+          failureCategory: 'execution-timeout',
+          hint: 'Raise the block timeout if the block legitimately needs longer.',
+        })
+        expect(parsed.blocks[0].failureCategory).toBe('execution-timeout')
+        expect(parsed.blocks[0].error).toContain('exceeded 2000ms')
+        expect(process.exitCode).toBe(1)
+      })
+
+      it('omits failureCategory from the blocks of a successful run', async () => {
+        setupStreamingRun({ result: { ...TEST_BLOCK_RESULT_BASE, success: true } })
+
+        await action(HELLO_WORLD_FILE, { output: 'json' })
+
+        const parsed = JSON.parse(getOutput(consoleLogSpy))
+        expect(parsed.success).toBe(true)
+        expect(parsed.blocks[0]).not.toHaveProperty('failureCategory')
       })
     })
 

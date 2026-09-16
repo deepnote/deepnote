@@ -242,7 +242,7 @@ Pass `--python` only to override that choice. To install `deepnote-cli` into the
 <resolved-python> -m pip install deepnote-cli
 ```
 
-If no IDE environment is found and `DEEPNOTE_PYTHON` is unset, the CLI uses the system Python.
+At run time the full order is: `--python` / `pythonPath`, then `DEEPNOTE_PYTHON`, then the IDE environment above, then a `.venv` or `venv` directory from the notebook's directory upward that has `deepnote-toolkit` installed (`source: venv`; one without the toolkit is skipped with a warning rather than picked), then the system Python. The installation checklist earlier in this section is only about where to install `deepnote-cli`; it does not affect which interpreter a run uses.
 
 ### Running
 

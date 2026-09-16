@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
 const {
   mockRequestExecute,
+  mockInterrupt,
   mockKernel,
   mockSession,
   mockSessionManager,
@@ -12,9 +13,35 @@ const {
   MockSessionManager,
 } = vi.hoisted(() => {
   const mockRequestExecute = vi.fn()
+  const mockInterrupt = vi.fn()
+  type SignalHandler = (sender: unknown, args: unknown) => void
+  const makeSignal = () => {
+    const handlers = new Set<SignalHandler>()
+    return {
+      connect: vi.fn((handler: SignalHandler) => {
+        handlers.add(handler)
+        return true
+      }),
+      disconnect: vi.fn((handler: SignalHandler) => {
+        handlers.delete(handler)
+        return true
+      }),
+      emit: (args: unknown) => {
+        for (const handler of handlers) handler(mockKernel, args)
+      },
+      reset: () => {
+        handlers.clear()
+      },
+    }
+  }
   const mockKernel = {
+    id: 'kernel-1',
     status: 'idle' as string,
+    connectionStatus: 'connected' as string,
     requestExecute: mockRequestExecute,
+    interrupt: mockInterrupt,
+    statusChanged: makeSignal(),
+    connectionStatusChanged: makeSignal(),
   }
   const mockSession = {
     kernel: mockKernel as typeof mockKernel | null,
@@ -45,6 +72,7 @@ const {
 
   return {
     mockRequestExecute,
+    mockInterrupt,
     mockKernel,
     mockSession,
     mockSessionManager,
@@ -63,15 +91,31 @@ vi.mock('@jupyterlab/services', () => ({
   SessionManager: MockSessionManager,
 }))
 
+const { mockDisconnectSender } = vi.hoisted(() => ({ mockDisconnectSender: vi.fn() }))
+vi.mock('@lumino/signaling', () => ({
+  Signal: { disconnectSender: mockDisconnectSender },
+}))
+
 import { KernelClient } from './kernel-client'
+import { ExecutionTimeoutError, KernelDiedError, KernelLaunchError, ServerExitedError } from './runtime-errors'
 
 // Helper to create a mock execution future
-function createMockFuture() {
+function createMockFuture(done: Promise<void> = Promise.resolve()) {
   return {
     onIOPub: null as ((msg: unknown) => void) | null,
-    done: Promise.resolve(),
+    done,
     dispose: vi.fn(),
   }
+}
+
+function createDeferred<T = void>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
 }
 
 describe('KernelClient', () => {
@@ -83,10 +127,19 @@ describe('KernelClient', () => {
 
     // Reset mock state
     mockKernel.status = 'idle'
+    mockKernel.connectionStatus = 'connected'
     mockSession.kernel = mockKernel
     mockSessionManager.startNew.mockResolvedValue(mockSession)
     mockRequestExecute.mockReset()
+    mockInterrupt.mockReset()
+    mockInterrupt.mockResolvedValue(undefined)
     mockSession.shutdown.mockReset()
+    mockDisconnectSender.mockReset()
+    for (const signal of [mockKernel.statusChanged, mockKernel.connectionStatusChanged]) {
+      signal.reset()
+      signal.connect.mockClear()
+      signal.disconnect.mockClear()
+    }
   })
 
   afterEach(() => {
@@ -152,7 +205,7 @@ describe('KernelClient', () => {
       await connectPromise
     })
 
-    it('throws if kernel becomes dead', async () => {
+    it('throws a KernelDiedError if the kernel dies while starting', async () => {
       mockKernel.status = 'starting'
 
       const connectPromise = client.connect('http://localhost:8888')
@@ -164,11 +217,12 @@ describe('KernelClient', () => {
       await vi.advanceTimersByTimeAsync(100)
 
       const error = await errorPromise
-      expect(error).toBeInstanceOf(Error)
-      expect(error.message).toBe('Kernel is dead')
+      expect(error).toBeInstanceOf(KernelDiedError)
+      expect(error.category).toBe('kernel-died')
+      expect(error.message).toContain('died before it became ready')
     })
 
-    it('throws if kernel fails to become idle within timeout', async () => {
+    it('throws a KernelLaunchError if kernel fails to become idle within the default timeout', async () => {
       mockKernel.status = 'starting'
 
       const connectPromise = client.connect('http://localhost:8888')
@@ -179,8 +233,21 @@ describe('KernelClient', () => {
       await vi.advanceTimersByTimeAsync(31000)
 
       const error = await errorPromise
-      expect(error).toBeInstanceOf(Error)
-      expect(error.message).toContain('Kernel failed to reach idle status within')
+      expect(error).toBeInstanceOf(KernelLaunchError)
+      expect(error.category).toBe('kernel-launch')
+      expect(error.message).toContain('Kernel failed to reach idle status within 30000ms')
+      expect(error.hint).toContain('kernel startup timeout')
+    })
+
+    it('honors a custom kernel startup timeout', async () => {
+      mockKernel.status = 'starting'
+
+      const errorPromise = client.connect('http://localhost:8888', { startupTimeoutMs: 1000 }).catch(e => e)
+      await vi.advanceTimersByTimeAsync(1200)
+
+      const error = await errorPromise
+      expect(error).toBeInstanceOf(KernelLaunchError)
+      expect(error.message).toContain('within 1000ms')
     })
 
     it('throws if session has no kernel', async () => {
@@ -189,10 +256,20 @@ describe('KernelClient', () => {
       await expect(client.connect('http://localhost:8888')).rejects.toThrow('Failed to start kernel')
     })
 
-    it('disconnects on connection error', async () => {
+    it('wraps a session start failure in a KernelLaunchError', async () => {
       mockSessionManager.startNew.mockRejectedValueOnce(new Error('Connection failed'))
 
-      await expect(client.connect('http://localhost:8888')).rejects.toThrow('Connection failed')
+      const error = await client.connect('http://localhost:8888').catch(e => e)
+      expect(error).toBeInstanceOf(KernelLaunchError)
+      expect(error.message).toContain('Connection failed')
+      expect(error.cause).toBeInstanceOf(Error)
+    })
+
+    it('subscribes to kernel status and connection changes', async () => {
+      await client.connect('http://localhost:8888')
+
+      expect(mockKernel.statusChanged.connect).toHaveBeenCalledTimes(1)
+      expect(mockKernel.connectionStatusChanged.connect).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -373,6 +450,181 @@ describe('KernelClient', () => {
 
       expect(future.dispose).toHaveBeenCalled()
     })
+
+    it('interrupts the kernel and fails with ExecutionTimeoutError when a timeout elapses', async () => {
+      const done = createDeferred()
+      const future = createMockFuture(done.promise)
+      mockRequestExecute.mockReturnValue(future)
+
+      const errorPromise = client.execute('import time; time.sleep(60)', undefined, { timeoutMs: 2000 }).catch(e => e)
+      await vi.advanceTimersByTimeAsync(2100)
+
+      const error = await errorPromise
+      expect(error).toBeInstanceOf(ExecutionTimeoutError)
+      expect(error.category).toBe('execution-timeout')
+      expect(error.message).toContain('exceeded 2000ms')
+      expect(mockInterrupt).toHaveBeenCalledTimes(1)
+
+      // The late reply is ignored, and the kernel stays usable for the next execution.
+      done.resolve()
+      await vi.advanceTimersByTimeAsync(0)
+      mockRequestExecute.mockReturnValue(createMockFuture())
+      await expect(client.execute('1 + 1')).resolves.toMatchObject({ success: true })
+    })
+
+    it('does not interrupt when the execution finishes before the timeout', async () => {
+      mockRequestExecute.mockReturnValue(createMockFuture())
+
+      await client.execute('1 + 1', undefined, { timeoutMs: 5000 })
+      await vi.advanceTimersByTimeAsync(6000)
+
+      expect(mockInterrupt).not.toHaveBeenCalled()
+    })
+
+    it('fails an in-flight execution with KernelDiedError when the kernel status becomes dead', async () => {
+      const future = createMockFuture(createDeferred().promise)
+      mockRequestExecute.mockReturnValue(future)
+
+      const errorPromise = client.execute('while True: pass').catch(e => e)
+      mockKernel.statusChanged.emit('dead')
+
+      const error = await errorPromise
+      expect(error).toBeInstanceOf(KernelDiedError)
+      expect(error.category).toBe('kernel-died')
+      expect(error.hint).toContain('memory')
+    })
+
+    it('fails an in-flight execution when the server restarts a dead kernel', async () => {
+      const future = createMockFuture(createDeferred().promise)
+      mockRequestExecute.mockReturnValue(future)
+
+      const errorPromise = client.execute('import os; os._exit(1)').catch(e => e)
+      mockKernel.statusChanged.emit('autorestarting')
+
+      const error = await errorPromise
+      expect(error).toBeInstanceOf(KernelDiedError)
+      expect(error.message).toContain('restarting it')
+    })
+
+    it('translates a canceled future into KernelDiedError', async () => {
+      const done = createDeferred()
+      const future = createMockFuture(done.promise)
+      mockRequestExecute.mockReturnValue(future)
+
+      const errorPromise = client.execute('x = 1').catch(e => e)
+      done.reject(new Error('Canceled future for execute_request message before replies were done'))
+
+      const error = await errorPromise
+      expect(error).toBeInstanceOf(KernelDiedError)
+      expect(error.cause).toBeInstanceOf(Error)
+    })
+
+    it('passes other future rejections through unchanged', async () => {
+      const done = createDeferred()
+      mockRequestExecute.mockReturnValue(createMockFuture(done.promise))
+
+      const errorPromise = client.execute('x = 1').catch(e => e)
+      done.reject(new Error('socket hang up'))
+
+      const error = await errorPromise
+      expect(error).not.toBeInstanceOf(KernelDiedError)
+      expect(error.message).toBe('socket hang up')
+    })
+
+    it('rejects in-flight and later executions once failPending is called', async () => {
+      mockRequestExecute.mockReturnValue(createMockFuture(createDeferred().promise))
+      const inFlight = client.execute('x = 1').catch(e => e)
+
+      const serverGone = new ServerExitedError('server exited')
+      client.failPending(serverGone)
+
+      expect(await inFlight).toBe(serverGone)
+      await expect(client.execute('y = 2')).rejects.toBe(serverGone)
+    })
+
+    it('fails with ServerExitedError when a dropped connection does not come back', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'))
+      mockRequestExecute.mockReturnValue(createMockFuture(createDeferred().promise))
+      const inFlight = client.execute('x = 1').catch(e => e)
+
+      mockKernel.connectionStatus = 'connecting'
+      mockKernel.connectionStatusChanged.emit('connecting')
+      await vi.advanceTimersByTimeAsync(10_100)
+
+      const error = await inFlight
+      expect(error).toBeInstanceOf(ServerExitedError)
+      expect(error.category).toBe('server-exited')
+      expect(error.message).toContain('no longer answers')
+      expect(fetchSpy).toHaveBeenCalledWith('http://localhost:8888/api/kernels/kernel-1', expect.anything())
+    })
+
+    it('fails with KernelDiedError when the server reports the kernel is gone', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 404 }))
+      mockRequestExecute.mockReturnValue(createMockFuture(createDeferred().promise))
+      const inFlight = client.execute('x = 1').catch(e => e)
+
+      mockKernel.connectionStatus = 'disconnected'
+      mockKernel.connectionStatusChanged.emit('disconnected')
+      await vi.advanceTimersByTimeAsync(10_100)
+
+      const error = await inFlight
+      expect(error).toBeInstanceOf(KernelDiedError)
+      expect(error.message).toContain('no longer exists')
+    })
+
+    it('allows one more grace period when the server and kernel are still reachable, then fails', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
+      mockRequestExecute.mockReturnValue(createMockFuture(createDeferred().promise))
+      let settled = false
+      const inFlight = client.execute('x = 1').then(
+        () => {
+          settled = true
+        },
+        (error: unknown) => {
+          settled = true
+          return error
+        }
+      )
+
+      mockKernel.connectionStatus = 'connecting'
+      mockKernel.connectionStatusChanged.emit('connecting')
+      await vi.advanceTimersByTimeAsync(10_100)
+      // Still mid-backoff on the client side, but the server answers: not failed yet.
+      expect(settled).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(10_100)
+      const error = await inFlight
+      expect(error).toBeInstanceOf(ServerExitedError)
+      expect((error as Error).message).toContain('within 20 seconds')
+    })
+
+    it('can reconnect and execute again after a fatal failure', async () => {
+      client.failPending(new ServerExitedError('server exited'))
+      await expect(client.execute('x = 1')).rejects.toThrow('server exited')
+
+      await client.connect('http://localhost:8888')
+      mockRequestExecute.mockReturnValue(createMockFuture())
+
+      await expect(client.execute('x = 1')).resolves.toMatchObject({ success: true })
+    })
+
+    it('does not fail when the connection comes back within the grace period', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      const done = createDeferred()
+      mockRequestExecute.mockReturnValue(createMockFuture(done.promise))
+      const resultPromise = client.execute('x = 1')
+
+      mockKernel.connectionStatus = 'connecting'
+      mockKernel.connectionStatusChanged.emit('connecting')
+      await vi.advanceTimersByTimeAsync(3000)
+      mockKernel.connectionStatus = 'connected'
+      mockKernel.connectionStatusChanged.emit('connected')
+      await vi.advanceTimersByTimeAsync(10_000)
+
+      done.resolve()
+      await expect(resultPromise).resolves.toMatchObject({ success: true })
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
   })
 
   describe('disconnect', () => {
@@ -384,6 +636,36 @@ describe('KernelClient', () => {
       expect(mockSession.dispose).toHaveBeenCalled()
       expect(mockSessionManager.dispose).toHaveBeenCalled()
       expect(mockKernelManager.dispose).toHaveBeenCalled()
+      expect(mockKernel.statusChanged.disconnect).toHaveBeenCalled()
+      expect(mockKernel.connectionStatusChanged.disconnect).toHaveBeenCalled()
+    })
+
+    it('leaves the kernel signals alone when the connection is up', async () => {
+      await client.connect('http://localhost:8888')
+      await client.disconnect()
+
+      expect(mockDisconnectSender).not.toHaveBeenCalled()
+    })
+
+    it('detaches every kernel listener before disposing a connection that is reconnecting', async () => {
+      await client.connect('http://localhost:8888')
+      mockKernel.connectionStatus = 'connecting'
+
+      await client.disconnect()
+
+      expect(mockDisconnectSender).toHaveBeenCalledWith(mockKernel)
+      expect(mockSession.dispose).toHaveBeenCalled()
+    })
+
+    it('rejects an in-flight execution when disconnecting', async () => {
+      await client.connect('http://localhost:8888')
+      mockRequestExecute.mockReturnValue(createMockFuture(createDeferred().promise))
+      const inFlight = client.execute('x = 1').catch(e => e)
+
+      await client.disconnect()
+
+      const error = await inFlight
+      expect(error.message).toContain('disconnected while an execution was in flight')
     })
 
     it('handles shutdown errors gracefully', async () => {

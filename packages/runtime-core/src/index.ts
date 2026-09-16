@@ -9,16 +9,41 @@ export {
 } from './agent-handler'
 export type { ExecutionOptions } from './execution-engine'
 export { ExecutionEngine, executableBlockTypeSet, executableBlockTypes } from './execution-engine'
-export type { ExecutionCallbacks, ExecutionResult } from './kernel-client'
-export { createJsonWebSocketFactory, KernelClient } from './kernel-client'
+export type { ExecutionCallbacks, ExecutionResult, KernelConnectOptions, KernelExecuteOptions } from './kernel-client'
+export { createJsonWebSocketFactory, DEFAULT_KERNEL_STARTUP_TIMEOUT_MS, KernelClient } from './kernel-client'
 export type {
   IdePythonEnvironment,
   ProjectPythonSource,
   ResolvedProjectPython,
   ResolveProjectPythonOptions,
 } from './project-python'
-export { BARE_PYTHON_HINT, resolveProjectPython } from './project-python'
+export {
+  BARE_PYTHON_HINT,
+  findLocalVenvPython,
+  hasDeepnoteToolkit,
+  LOCAL_VENV_DIRS,
+  resolveProjectPython,
+} from './project-python'
 export { buildPythonEnv, detectDefaultPython, resolvePythonExecutable } from './python-env'
-export type { ServerInfo, ServerOptions } from './server-starter'
-export { findConsecutiveAvailablePorts, startServer, stopServer, waitForServer } from './server-starter'
-export type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
+export type { RuntimeErrorOptions, RuntimeFailureCategory } from './runtime-errors'
+export {
+  ExecutionTimeoutError,
+  failureCategoryOf,
+  isRuntimeError,
+  KernelDiedError,
+  KernelLaunchError,
+  RuntimeError,
+  ServerExitedError,
+  ServerLaunchError,
+  TOOLKIT_INSTALL_HINT,
+} from './runtime-errors'
+export type { ServerExit, ServerInfo, ServerOptions, StopServerOptions } from './server-starter'
+export {
+  DEFAULT_SERVER_SHUTDOWN_TIMEOUT_MS,
+  DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
+  findConsecutiveAvailablePorts,
+  startServer,
+  stopServer,
+  waitForServer,
+} from './server-starter'
+export type { BlockExecutionResult, ExecutionSummary, RuntimeConfig, ServerLogStream } from './types'
