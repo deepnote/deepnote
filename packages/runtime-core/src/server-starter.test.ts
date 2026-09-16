@@ -150,6 +150,17 @@ describe('server-starter', () => {
       )
     })
 
+    it('exposes the process before the first readiness probe', async () => {
+      const onSpawn = vi.fn()
+      fetchSpy.mockImplementation(async () => {
+        expect(onSpawn).toHaveBeenCalledOnce()
+        expect(onSpawn.mock.calls[0][0].process).toBe(mockProcess)
+        return new Response('{}')
+      })
+      const server = await startServer({ pythonEnv: 'python', workingDirectory: '/tmp', onSpawn })
+      expect(onSpawn).toHaveBeenCalledWith(server)
+    })
+
     it('sets up Python environment with correct PATH and VIRTUAL_ENV', async () => {
       const serverPromise = startServer({
         pythonEnv: '/path/to/venv',

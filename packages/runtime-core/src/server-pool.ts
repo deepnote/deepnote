@@ -44,6 +44,8 @@ export class ServerPool {
   private readonly entries = new Map<string, PoolEntry>()
   /** Servers whose stop is in flight, so shutdown can wait for them and killAll can still reach them. */
   private readonly stopping = new Map<ServerInfo, Promise<void>>()
+  private readonly startingServers = new Set<ServerInfo>()
+  private killed = false
   private closed = false
   private shutdownPromise: Promise<void> | null = null
 
@@ -137,19 +139,15 @@ export class ServerPool {
     this.closed = true
     const entries = [...this.entries.values()]
     this.entries.clear()
-    await Promise.all([
+    await Promise.allSettled([
       ...entries.map(async entry => {
         entry.stopping = true
         if (entry.idleTimer) clearTimeout(entry.idleTimer)
-        try {
-          const server = entry.server ?? (await entry.starting)
-          await this.trackStop(server)
-        } catch {
-          // A server that never started has nothing to stop.
-        }
+        const server = entry.server ?? (await entry.starting)
+        await this.trackStop(server)
       }),
       // A failed in-flight stop has nothing left to clean up; shutdown itself must not throw.
-      ...[...this.stopping.values()].map(stop => stop.catch(noop)),
+      ...this.stopping.values(),
     ])
   }
 
@@ -158,30 +156,16 @@ export class ServerPool {
    * nothing asynchronous can run anymore.
    */
   killAll(): void {
+    this.killed = true
     this.closed = true
-    const servers = new Set<ServerInfo>(this.stopping.keys())
+    const servers = new Set<ServerInfo>([...this.stopping.keys(), ...this.startingServers])
     for (const entry of this.entries.values()) {
       entry.stopping = true
       if (entry.idleTimer) clearTimeout(entry.idleTimer)
       if (entry.server) servers.add(entry.server)
     }
     for (const server of servers) {
-      // The supervisor's children run in their own sessions; signal them first, since a supervisor
-      // that dies with the host cannot clean them up anymore.
-      for (const pid of server.childPids) {
-        try {
-          process.kill(pid, 'SIGTERM')
-        } catch {
-          // Already gone.
-        }
-      }
-      if (server.process.exitCode === null) {
-        try {
-          server.process.kill('SIGTERM')
-        } catch {
-          // Already gone.
-        }
-      }
+      killServer(server)
     }
     this.entries.clear()
   }
@@ -192,7 +176,15 @@ export class ServerPool {
     }
     const entry: PoolEntry = {
       key,
-      starting: startServer(options),
+      starting: startServer({
+        ...options,
+        onSpawn: server => {
+          this.startingServers.add(server)
+          void server.exited.then(() => this.startingServers.delete(server))
+          if (this.killed) killServer(server)
+          options.onSpawn?.(server)
+        },
+      }),
       server: null,
       leases: 0,
       idleTimer: null,
@@ -203,6 +195,8 @@ export class ServerPool {
     entry.starting.then(
       server => {
         entry.server = server
+        this.startingServers.delete(server)
+        if (this.killed) void this.trackStop(server).catch(noop)
         // A server that dies on its own is dropped so the next lease starts a fresh one, and its
         // children, which run in their own sessions, are cleaned up as a regular stop would.
         void server.exited.then(() => {
@@ -285,4 +279,24 @@ function noop(): void {}
 function poolKey(options: ServerOptions): string {
   const env = options.env ? Object.entries(options.env).sort(([a], [b]) => a.localeCompare(b)) : []
   return JSON.stringify([options.pythonEnv, options.workingDirectory, options.port ?? null, env])
+}
+
+/** Signals a server and its recorded children without waiting for cleanup. */
+function killServer(server: ServerInfo): void {
+  // The supervisor's children run in their own sessions; signal them first, since a supervisor
+  // that dies with the host cannot clean them up anymore.
+  for (const pid of server.childPids) {
+    try {
+      process.kill(pid, 'SIGTERM')
+    } catch {
+      // Already gone.
+    }
+  }
+  if (server.process.exitCode === null) {
+    try {
+      server.process.kill('SIGTERM')
+    } catch {
+      // Already gone.
+    }
+  }
 }

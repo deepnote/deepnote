@@ -280,7 +280,7 @@ describe('ServerPool', () => {
     expect(first.server).toBe(server)
     expect(second.server).toBe(server)
     expect(mockStartServer).toHaveBeenCalledTimes(1)
-    expect(mockStartServer).toHaveBeenCalledWith(options)
+    expect(mockStartServer).toHaveBeenCalledWith({ ...options, onSpawn: expect.any(Function) })
     expect(mockStopServer).not.toHaveBeenCalled()
     expect(pool.size).toBe(1)
   })
@@ -435,6 +435,29 @@ describe('ServerPool', () => {
     await Promise.all([first, second])
     expect(finished).toHaveBeenCalledOnce()
     expect(pool.shutdown()).toBe(first)
+  })
+
+  it.each([false, true])('killAll cleans up startup when spawn is late: %s', async lateSpawn => {
+    const { server, kill } = makeServer(8888)
+    const starting = createDeferred<ServerInfo>()
+    mockStartServer.mockReturnValue(starting.promise)
+    const pool = new ServerPool()
+    const acquire = pool.acquire(options)
+    const rejected = expect(acquire).rejects.toThrow('shut down')
+    const { onSpawn } = mockStartServer.mock.calls[0][0]
+
+    if (!lateSpawn) onSpawn(server)
+    const shutdown = pool.shutdown()
+    pool.killAll()
+    if (lateSpawn) onSpawn(server)
+
+    expect(kill).toHaveBeenCalledExactlyOnceWith('SIGTERM')
+    expect(pool.size).toBe(0)
+    starting.resolve(server)
+    await rejected
+    await shutdown
+    await flush()
+    expect(mockStopServer).toHaveBeenCalledWith(server)
   })
 
   it('killAll terminates running servers synchronously', async () => {
