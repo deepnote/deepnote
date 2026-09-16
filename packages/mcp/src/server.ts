@@ -1,3 +1,4 @@
+import { finished } from 'node:stream/promises'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
@@ -132,19 +133,15 @@ export async function startServer(): Promise<void> {
 
   // Warm toolkit servers would otherwise keep this process alive after the host disconnects.
   registerRuntimeShutdownHooks()
-  const stdin = process.stdin
   let closing = false
   const shutdown = () => {
     if (closing) return
     closing = true
-    stdin.off('end', shutdown)
-    stdin.off('close', shutdown)
     void shutdownRuntime().finally(() => process.exit(0))
   }
   server.onclose = shutdown
   // StdioServerTransport does not propagate stdin EOF to onclose.
-  stdin.once('end', shutdown)
-  stdin.once('close', shutdown)
+  void finished(process.stdin, { writable: false, cleanup: true }).then(shutdown, shutdown)
 
   await server.connect(transport)
 }
