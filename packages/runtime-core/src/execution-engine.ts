@@ -28,7 +28,12 @@ import {
 } from './agent-handler'
 import { toPythonLiteral } from './javascript'
 import { type ExecutionCallbacks, type ExecutionResult, KernelClient } from './kernel-client'
-import { failureCategoryOf, type RuntimeFailureCategory, ServerExitedError } from './runtime-errors'
+import {
+  ExecutionTimeoutError,
+  failureCategoryOf,
+  type RuntimeFailureCategory,
+  ServerExitedError,
+} from './runtime-errors'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
@@ -324,6 +329,7 @@ export class ExecutionEngine {
 
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
+          let agentDeadline: number | undefined
           let insertIndex = agentBlockIndex + 1
           const blockOutputs: Array<{
             blockId: string
@@ -350,7 +356,10 @@ export class ExecutionEngine {
             insertIndex++
 
             try {
-              const result = await this.executeOnKernel(kernel, code)
+              const result =
+                agentDeadline === undefined
+                  ? await this.executeOnKernel(kernel, code)
+                  : await kernel.execute(code, undefined, { timeoutMs: Math.max(1, agentDeadline - Date.now()) })
 
               blockOutputs.push({
                 blockId: newBlock.id,
@@ -411,10 +420,29 @@ export class ExecutionEngine {
             signal: options.signal,
           }
 
+          const timeoutMs = this.config.blockTimeoutMs
+          const timeoutController = new AbortController()
+          let timeout: ReturnType<typeof setTimeout> | undefined
+          if (timeoutMs !== undefined) {
+            agentDeadline = Date.now() + timeoutMs
+            agentContext.signal = options.signal
+              ? AbortSignal.any([options.signal, timeoutController.signal])
+              : timeoutController.signal
+            timeout = setTimeout(() => {
+              timeoutController.abort(new ExecutionTimeoutError(`Agent block execution exceeded ${timeoutMs}ms.`))
+            }, timeoutMs)
+          }
+
           let agentResult: { finalOutput: string }
           try {
             agentResult = await executeAgentBlock(block, agentContext)
+            agentContext.signal?.throwIfAborted()
+          } catch (error) {
+            // Providers may wrap cancellation errors; preserve the runtime timeout category.
+            agentContext.signal?.throwIfAborted()
+            throw error
           } finally {
+            clearTimeout(timeout)
             // Always report added blocks — even if the agent threw partway through —
             // so consumers see completion for blocks that were inserted into the notebook.
             for (const bo of blockOutputs) {

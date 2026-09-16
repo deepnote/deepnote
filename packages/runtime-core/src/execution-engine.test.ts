@@ -1114,6 +1114,64 @@ describe('ExecutionEngine', () => {
       expect(context.signal).toBe(controller.signal)
     })
 
+    it('times out the agent loop and reports a runtime timeout', async () => {
+      engine = new ExecutionEngine({ pythonEnv: 'python', workingDirectory: '/tmp', blockTimeoutMs: 20 })
+      mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+        await new Promise<void>((_resolve, reject) => {
+          context.signal?.addEventListener('abort', () => reject(context.signal?.reason), { once: true })
+        })
+      })
+      await engine.start()
+      const onBlockDone = vi.fn()
+      const summary = await engine.runProject(structuredClone(AGENT_FIXTURE), { onBlockDone })
+      expect(summary.failureCategory).toBe('execution-timeout')
+      expect(summary.failedBlocks).toBe(1)
+      expect(onBlockDone).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blockType: 'agent',
+          success: false,
+          failureCategory: 'execution-timeout',
+        })
+      )
+    })
+
+    it('shares the agent deadline with generated code and clears it after success', async () => {
+      vi.useFakeTimers()
+      try {
+        engine = new ExecutionEngine({ pythonEnv: 'python', workingDirectory: '/tmp', blockTimeoutMs: 1000 })
+        let signal: AbortSignal | undefined
+        mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+          signal = context.signal
+          await vi.advanceTimersByTimeAsync(400)
+          await context.addAndExecuteCodeBlock({ code: 'print("deadline")' })
+          return { finalOutput: 'Done' }
+        })
+        await engine.start()
+        const summary = await engine.runProject(structuredClone(AGENT_FIXTURE))
+        expect(summary.failedBlocks).toBe(0)
+        expect(mockKernelClient.execute).toHaveBeenCalledWith('print("deadline")', undefined, { timeoutMs: 600 })
+        await vi.advanceTimersByTimeAsync(1000)
+        expect(signal?.aborted).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('preserves caller cancellation when an agent timeout is configured', async () => {
+      engine = new ExecutionEngine({ pythonEnv: 'python', workingDirectory: '/tmp', blockTimeoutMs: 1000 })
+      const controller = new AbortController()
+      const reason = new Error('Cancelled by caller')
+      mockExecuteAgentBlock.mockImplementation(async (_block, context: AgentBlockContext) => {
+        controller.abort(reason)
+        expect(context.signal?.reason).toBe(reason)
+        throw new Error('Provider wrapped cancellation')
+      })
+      await engine.start()
+      const onBlockDone = vi.fn()
+      await engine.runProject(structuredClone(AGENT_FIXTURE), { signal: controller.signal, onBlockDone })
+      expect(onBlockDone).toHaveBeenCalledWith(expect.objectContaining({ blockType: 'agent', error: reason }))
+    })
+
     it('lets agent context helpers add code and markdown blocks and report added code outputs', async () => {
       const project = structuredClone(AGENT_FIXTURE)
       const helperCode = 'print("Agent-created block")'
