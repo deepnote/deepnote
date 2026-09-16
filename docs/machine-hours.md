@@ -6,26 +6,26 @@ noContent: false
 
 Every workspace in Deepnote has free machine hours that replenish every month. If you need additional machine hours or more powerful machines, you can always upgrade your hardware.
 
-###### **What are machine hours?**
+## What are machine hours?
 
 When you run your notebooks, we use cloud-based hardware to execute your code. Machine hours are the total amount of hours our hardware was running to execute this code.
 
-###### **How many machine hours are offered for free?**
+## How many machine hours are offered for free?
 
 Our goal is to provide an unlimited number of free machine hours for all workspaces. However, in certain cases we might limit a workspace’s compute hours when we detect irregular activity or extremely high usage. In case this happens, we will be in touch with you.
 
-###### **How can I add more machine hours?**
+## How can I add more machine hours?
 
 In the rare occasion that a workspace exceeds the free machine hours we provide, workspaces on the Team and Enterprise plans can purchase additional machine hours. The per-minute cost of these machines can be found in the Machines menu.
 
 <VideoLoop src="../assets/docs/caOM1cDyQWyQR6Tkn4Im.mp4" />
 
-###### **How can I upgrade to more RAM or CPU?**
+## How can I upgrade to more RAM or CPU?
 
 Workspaces on the Team and Enterprise plans can choose to switch to stronger machines, with higher computation power and RAM. The per-minute cost of these machines can be found in the Machines menu.
 
 <VideoLoop src="../assets/docs/caOM1cDyQWyQR6Tkn4Im.mp4" />
 
-###### **How much will I be charged for machines?**
+## How much will I be charged for machines?
 
 If you decide to purchase machine hours beyond the free machine hours we provide, you will be charged on a per-minute basis. Machine prices are shown per minute in the Machines menu, so you only pay for the exact time your hardware runs.
