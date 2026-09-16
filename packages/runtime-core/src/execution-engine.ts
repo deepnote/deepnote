@@ -28,7 +28,13 @@ import {
 } from './agent-handler'
 import { toPythonLiteral } from './javascript'
 import { type ExecutionCallbacks, type ExecutionResult, KernelClient } from './kernel-client'
-import { failureCategoryOf, type RuntimeFailureCategory, ServerExitedError } from './runtime-errors'
+import {
+  ExecutionTimeoutError,
+  failureCategoryOf,
+  isRuntimeError,
+  type RuntimeFailureCategory,
+  ServerExitedError,
+} from './runtime-errors'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
@@ -341,12 +347,15 @@ export class ExecutionEngine {
 
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
+          let agentDeadline: number | undefined
+          const agentController = new AbortController()
           let insertIndex = agentBlockIndex + 1
           const blockOutputs: Array<{
             blockId: string
             outputs: IOutput[]
             executionCount: number | null
             success: boolean
+            failureCategory?: RuntimeFailureCategory
           }> = []
 
           const projectMcpServers = file.project.settings?.mcpServers ?? []
@@ -367,7 +376,10 @@ export class ExecutionEngine {
             insertIndex++
 
             try {
-              const result = await this.executeOnKernel(kernel, code)
+              const result =
+                agentDeadline === undefined
+                  ? await this.executeOnKernel(kernel, code)
+                  : await kernel.execute(code, undefined, { timeoutMs: Math.max(1, agentDeadline - Date.now()) })
 
               blockOutputs.push({
                 blockId: newBlock.id,
@@ -392,9 +404,16 @@ export class ExecutionEngine {
                 outputs: errorOutputs,
                 executionCount: null,
                 success: false,
+                failureCategory: failureCategoryOf(executionError),
               })
 
               collectedOutputs.set(newBlock.id, { outputs: errorOutputs, executionCount: null })
+
+              if (isRuntimeError(executionError)) {
+                // Tool SDKs can catch rejected tools; abort the loop as well as rejecting the call.
+                agentController.abort(executionError)
+                throw executionError
+              }
 
               return `Execution error: ${executionError.message}`
             }
@@ -425,13 +444,28 @@ export class ExecutionEngine {
             onAgentEvent: options.onAgentEvent,
             onWarning: options.onWarning,
             integrations: options.integrations,
-            signal: options.signal,
+            signal: options.signal ? AbortSignal.any([options.signal, agentController.signal]) : agentController.signal,
+          }
+
+          const timeoutMs = this.config.blockTimeoutMs
+          let timeout: ReturnType<typeof setTimeout> | undefined
+          if (timeoutMs !== undefined) {
+            agentDeadline = Date.now() + timeoutMs
+            timeout = setTimeout(() => {
+              agentController.abort(new ExecutionTimeoutError(`Agent block execution exceeded ${timeoutMs}ms.`))
+            }, timeoutMs)
           }
 
           let agentResult: { finalOutput: string }
           try {
             agentResult = await executeAgentBlock(block, agentContext)
+            agentContext.signal?.throwIfAborted()
+          } catch (error) {
+            // Providers may wrap cancellation errors; preserve the runtime timeout category.
+            agentContext.signal?.throwIfAborted()
+            throw error
           } finally {
+            clearTimeout(timeout)
             // Always report added blocks — even if the agent threw partway through —
             // so consumers see completion for blocks that were inserted into the notebook.
             for (const bo of blockOutputs) {
@@ -448,6 +482,7 @@ export class ExecutionEngine {
                   outputs: bo.outputs,
                   executionCount: bo.executionCount,
                   durationMs: 0,
+                  ...(bo.failureCategory ? { failureCategory: bo.failureCategory } : {}),
                 })
               }
             }

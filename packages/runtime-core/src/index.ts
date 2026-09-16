@@ -19,16 +19,12 @@ export type {
 } from './project-python'
 export {
   BARE_PYTHON_HINT,
-  DEEPNOTE_PYTHON_ENV_VAR,
-  findIdePythonEnvironment,
   findLocalVenvPython,
   hasDeepnoteToolkit,
-  IDE_SIDECAR_DIRS,
-  IDE_SIDECAR_FILENAME,
   LOCAL_VENV_DIRS,
   resolveProjectPython,
 } from './project-python'
-export { buildPythonEnv, detectDefaultPython, isBareSystemPython, resolvePythonExecutable } from './python-env'
+export { buildPythonEnv, detectDefaultPython, resolvePythonExecutable } from './python-env'
 export type { RuntimeErrorOptions, RuntimeFailureCategory } from './runtime-errors'
 export {
   ExecutionTimeoutError,

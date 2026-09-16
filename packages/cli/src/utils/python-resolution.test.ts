@@ -19,7 +19,8 @@ vi.mock('@deepnote/runtime-core', async importOriginal => {
   const actual = await importOriginal<typeof import('@deepnote/runtime-core')>()
   return {
     ...actual,
-    detectDefaultPython: () => 'python',
+    resolveProjectPython: (options: Parameters<typeof actual.resolveProjectPython>[0]) =>
+      actual.resolveProjectPython({ fallback: () => 'python', ...options }),
     resolvePythonExecutable: (pythonPath: string) => Promise.resolve(`resolved:${pythonPath}`),
   }
 })

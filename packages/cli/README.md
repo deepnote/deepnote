@@ -174,6 +174,8 @@ deepnote run my-project.deepnote
 | `--url <url>`                 | API base URL                                                                         | `https://api.deepnote.com` |
 | `--token <token>`             | Bearer token (or `DEEPNOTE_TOKEN` env var)                                           |                            |
 
+For agent blocks, `--block-timeout` covers the whole agent loop, including model requests and tool calls. Generated Python blocks share the remaining time. Expiry cancels the agent and reports `execution-timeout`; cancellation waits for in-flight tool cleanup.
+
 **Examples:**
 
 ```bash
