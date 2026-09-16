@@ -3,6 +3,7 @@ import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 export interface StaticSiteAccessOptions {
   projectId: string
@@ -61,6 +62,9 @@ export function createStaticSiteAccessAction(program: Command) {
         log(`${c.dim('URL:')} ${settings.url}`)
       } else {
         log(c.dim('Published files remain stored and can be shared again later.'))
+      }
+      if (settings.apiAccessEnabled) {
+        log(`\n${embeddedApiAccessNote(c)}`)
       }
     } catch (error) {
       logError(error instanceof Error ? error.message : String(error))

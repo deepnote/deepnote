@@ -16,6 +16,8 @@ vi.mock('@deepnote/cloud', async importOriginal => {
 
 import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
 import { createProgram } from '../cli'
+import { getChalk } from '../output'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
@@ -191,15 +193,51 @@ describe('deepnote publish', () => {
   it.each([
     ['enabled', true],
     ['disabled', false],
-  ] as const)('sets API access to %s when explicitly requested', async (state, enabled) => {
+  ] as const)(
+    'sets API access to %s when explicitly requested and notes the embedded token only when enabled',
+    async (state, enabled) => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      mockedUpdateProject.mockResolvedValue({
+        sharingEnabled: true,
+        apiAccessEnabled: enabled,
+        url: 'https://static-p1.example.com/',
+      })
+      const logged: string[] = []
+      const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', state)
+      spy.mockRestore()
+
+      expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', {
+        sharingEnabled: true,
+        apiAccessEnabled: enabled,
+      })
+      const output = logged.join('\n')
+      expect(output).toContain(`API access: ${state}`)
+      expect(output.includes(embeddedApiAccessNote(getChalk()))).toBe(enabled)
+    }
+  )
+
+  it('notes the embedded token when stored settings already have API access enabled', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
-
-    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', state, '-q')
-
-    expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', {
-      sharingEnabled: true,
-      apiAccessEnabled: enabled,
+    mockedGetProject.mockResolvedValue({
+      id: 'p1',
+      name: 'Project',
+      files: [],
+      staticFiles: {
+        sharingEnabled: true,
+        apiAccessEnabled: true,
+        url: 'https://static-p1.example.com/',
+      },
     })
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok')
+    spy.mockRestore()
+
+    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(logged.join('\n')).toContain(embeddedApiAccessNote(getChalk()))
   })
 
   it('prunes only stale files below the selected target', async () => {
