@@ -207,6 +207,15 @@ describe('execution tools handlers', () => {
   })
 
   describe('sibling-init resolver warnings', () => {
+    beforeEach(() => {
+      // Keep interpreter discovery on the host from adding unrelated warnings.
+      vi.stubEnv('DEEPNOTE_PYTHON', 'python')
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
     it('logs diverging-integration warnings to stderr without adding them to the response', async () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const mainPath = await writeMainWithDivergingInitSibling(tempDir, {

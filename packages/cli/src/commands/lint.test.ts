@@ -11,6 +11,11 @@ import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
 import { createSplitWithSiblingInitFixture } from './test-helpers'
 
+// Interpreter selection is covered separately; lint output must not depend on host environments.
+vi.mock('../utils/python-resolution', () => ({
+  resolveAnalysisPython: async () => undefined,
+}))
+
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
