@@ -408,6 +408,35 @@ describe('ServerPool', () => {
     expect(mockStartServer).toHaveBeenCalledTimes(2)
   })
 
+  it('concurrent shutdowns wait for startup and cleanup together', async () => {
+    const starting = createDeferred<ServerInfo>()
+    const stopping = createDeferred<void>()
+    const { server } = makeServer(8888)
+    mockStartServer.mockReturnValue(starting.promise)
+    mockStopServer.mockReturnValue(stopping.promise)
+    const pool = new ServerPool()
+    const pending = expect(pool.acquire(options)).rejects.toThrow('shut down')
+
+    const first = pool.shutdown()
+    const second = pool.shutdown()
+    const finished = vi.fn()
+    void second.then(finished)
+    await flush()
+    expect(finished).not.toHaveBeenCalled()
+    expect(second).toBe(first)
+
+    starting.resolve(server)
+    await pending
+    await flush()
+    expect(mockStopServer).toHaveBeenCalledExactlyOnceWith(server)
+    expect(finished).not.toHaveBeenCalled()
+
+    stopping.resolve()
+    await Promise.all([first, second])
+    expect(finished).toHaveBeenCalledOnce()
+    expect(pool.shutdown()).toBe(first)
+  })
+
   it('killAll terminates running servers synchronously', async () => {
     const { server, kill } = makeServer(8888)
     mockStartServer.mockResolvedValue(server)

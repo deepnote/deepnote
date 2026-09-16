@@ -45,6 +45,7 @@ export class ServerPool {
   /** Servers whose stop is in flight, so shutdown can wait for them and killAll can still reach them. */
   private readonly stopping = new Map<ServerInfo, Promise<void>>()
   private closed = false
+  private shutdownPromise: Promise<void> | null = null
 
   constructor(private readonly options: ServerPoolOptions = {}) {}
 
@@ -127,7 +128,12 @@ export class ServerPool {
    * Stops every server in the pool, including ones whose stop is already in flight, and waits for
    * them to exit. Later acquires are rejected.
    */
-  async shutdown(): Promise<void> {
+  shutdown(): Promise<void> {
+    this.shutdownPromise ??= this.stopAll()
+    return this.shutdownPromise
+  }
+
+  private async stopAll(): Promise<void> {
     this.closed = true
     const entries = [...this.entries.values()]
     this.entries.clear()
