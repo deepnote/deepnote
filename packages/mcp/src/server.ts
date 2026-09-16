@@ -1,3 +1,4 @@
+import { finished } from 'node:stream/promises'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
@@ -12,6 +13,7 @@ import {
 import { serverInstructions } from './instructions'
 import { getPrompt, isPromptName, prompts } from './prompts'
 import { listResources, readResource } from './resources'
+import { registerRuntimeShutdownHooks, shutdownRuntime } from './runtime'
 import { TOOL_NAMES } from './tool-names'
 import { conversionTools, handleConversionTool } from './tools/conversion'
 import { executionTools, handleExecutionTool } from './tools/execution'
@@ -128,5 +130,18 @@ export function createServer(): Server {
 export async function startServer(): Promise<void> {
   const server = createServer()
   const transport = new StdioServerTransport()
+
+  // Warm toolkit servers would otherwise keep this process alive after the host disconnects.
+  registerRuntimeShutdownHooks()
+  let closing = false
+  const shutdown = () => {
+    if (closing) return
+    closing = true
+    void shutdownRuntime().finally(() => process.exit(0))
+  }
+  server.onclose = shutdown
+  // StdioServerTransport does not propagate stdin EOF to onclose.
+  void finished(process.stdin, { writable: false, cleanup: true }).then(shutdown, shutdown)
+
   await server.connect(transport)
 }

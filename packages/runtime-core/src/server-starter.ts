@@ -51,6 +51,8 @@ export interface ServerOptions {
   startupTimeoutMs?: number
   /** Optional environment variables to pass to the server */
   env?: Record<string, string>
+  /** Receives the process handle before readiness checks, for synchronous exit cleanup. */
+  onSpawn?: (server: ServerInfo) => void
   /** Receives everything the server writes to stdout and stderr, as it arrives. */
   onLog?: (stream: ServerLogStream, chunk: string) => void
 }
@@ -138,6 +140,7 @@ export async function startServer(options: ServerOptions): Promise<ServerInfo> {
   // host process alive) until the startup timeout even though the server is already gone.
   const healthCheck = new AbortController()
   try {
+    options.onSpawn?.(serverInfo)
     await Promise.race([
       waitForServer(serverInfo, startupTimeoutMs, healthCheck.signal),
       exitedDuringStartup,
