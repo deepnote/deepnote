@@ -54,8 +54,8 @@ A hosted app can also call the public API as the current viewer through `deepnot
 API calls from a hosted app work only when the project owner has enabled Streamlit app API access,
 and only for signed-in viewers with direct access to the project. Anonymous visitors and viewers who
 only have a share link can open the page but cannot get an API token, so an app whose content comes
-from notebook runs appears broken to them. Degrade gracefully — check for the token before offering a run, and show a committed snapshot
-or a sign-in hint instead of a failed request.
+from notebook runs appears broken to them. Degrade gracefully — check for the token before offering
+a run, and show a committed snapshot or a sign-in hint instead of a failed request.
 
 ## 3. Published static sites
 

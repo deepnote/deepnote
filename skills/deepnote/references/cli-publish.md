@@ -110,8 +110,9 @@ files absent locally; `sync --prune` deletes local files absent from the cloud.
 ## Streamlit apps
 
 `deepnote publish <path> --streamlit` serves a file that already exists in the project's Files as a
-hosted Streamlit app. `<path>` is project-relative, such as `apps/dashboard.py`. Nothing is uploaded: push the file first with `deepnote sync --all-files`
-(files upload together with a notebook push) or upload it in Deepnote. A dynamic app that runs a
+hosted Streamlit app. `<path>` is project-relative, such as `apps/dashboard.py`. Nothing is uploaded:
+push the file first with `deepnote sync --all-files` (files upload together with a notebook push) or
+upload it in Deepnote. A dynamic app that runs a
 notebook also needs that notebook in the cloud project under the block ids its local `.deepnote`
 file carries; `deepnote run <file> --cloud --push` aligns them before the first publish.
 
@@ -132,9 +133,9 @@ waiting; otherwise it waits as after a create unless `--no-wait` is given. Other
 in the project's Files yet.
 
 The app belongs to its entrypoint file. Deleting that file removes the app, and publishing it again
-creates a new app with a new URL and restarts the machine. `deepnote sync` replaces a changed file
-by deleting it and uploading it again, so pushing an edited entrypoint currently removes its app
-too.
+creates a new app with a new URL and restarts the machine. `deepnote sync --all-files` replaces a
+changed file by deleting it and uploading it again, so pushing an edited entrypoint currently
+removes its app too.
 
 API calls from a hosted app work only when the project owner has enabled Streamlit app API
 access, and only for signed-in viewers with direct access to the project.
@@ -178,8 +179,8 @@ local directory, or a `--sync-root` that has no manifest, does not track the pro
 tracked project directory is missing, or a sync manifest that exists but cannot be read (pass
 `--no-sync-root` to publish without it), or an option that does not apply to the chosen mode.
 
-With `--streamlit`, exit code 0 means the app reported `running` (or, with `--no-wait`, was
-created or already existed). Exit code 1 means the request failed or the app did not report
+With `--streamlit`, exit code 0 means the app reported `running`, was created or already existed
+with `--no-wait`, or already existed on a project machine that is not running. Exit code 1 means the request failed or the app did not report
 `running` within 10 minutes; the app still exists, so running the command again keeps waiting.
 
 For `static-site access`, exit code 0 means the settings update succeeded, exit code 1 means the
