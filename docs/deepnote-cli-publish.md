@@ -16,6 +16,9 @@ deepnote publish ./dist --project-id <project-id>
 This is a command-line deploy path, separate from publishing an app from inside the Deepnote editor.
 It writes plain files; it does not create or run notebooks.
 
+With `--streamlit`, the same command instead registers a file already in the project as a hosted
+Streamlit app; see [Streamlit apps](#streamlit-apps).
+
 <Callout status="warning">
 A published static site is **not anonymously public**. Viewers must be signed in to Deepnote and have
 access to the project. See [Who can view a published site](#who-can-view-a-published-site) — the
@@ -181,6 +184,39 @@ Every other stale file is removed only after all uploads have succeeded.
 [`deepnote sync --prune`](/docs/deepnote-cli-sync) deletes **local** files that are missing in the
 cloud. The two flags share a name and point in opposite directions.
 </Callout>
+
+## Streamlit apps
+
+`deepnote publish <path> --streamlit` serves a file that already exists in the project's Files as a
+hosted Streamlit app. `<path>` is project-relative, such as `apps/dashboard.py`. Nothing is uploaded:
+push the file first with `deepnote sync --all-files` (files upload together with a notebook push) or
+upload it in Deepnote.
+
+```bash
+deepnote publish apps/dashboard.py --project-id <project-id> --streamlit
+```
+
+<Callout status="warning">
+Creating an app restarts the project machine, which takes a few minutes and interrupts anyone working
+in the project.
+</Callout>
+
+The command prints the app URL and polls the app's status until it is `running`, for up to 10
+minutes; `--no-wait` exits right after the app is created. If the file is already served, the command
+reports the existing app's id and URL and changes nothing. The static-site options above are rejected
+together with `--streamlit`, and the sync mirror is not touched.
+
+The app belongs to its entrypoint file. Deleting that file removes the app, and publishing it again
+creates a new app with a new URL and restarts the machine. `deepnote sync` replaces a changed file
+by deleting it and uploading it again, so pushing an edited entrypoint currently removes its app
+too.
+
+API calls from a hosted app work only when the project owner has enabled Streamlit app API
+access, and only for signed-in viewers with direct access to the project.
+
+Exit code `0` means the app reported `running` (or, with `--no-wait`, was created or already
+existed). Exit code `1` means the request failed or the app did not report `running` within 10
+minutes.
 
 ## Failure behavior
 

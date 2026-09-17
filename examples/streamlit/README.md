@@ -63,6 +63,11 @@ interrupts anyone working in the project. The command prints the hosted app URL,
 app to report `running` (`--no-wait` skips the wait). Publishing a file that is already served
 reports the existing app instead of creating a second one.
 
+The app belongs to its entrypoint file. Deleting that file removes the app, and publishing it again
+creates a new app with a new URL and restarts the machine. `deepnote sync` replaces a changed file
+by deleting it and uploading it again, so pushing an edited entrypoint currently removes its app
+too.
+
 In a hosted Deepnote app, start only Streamlit for normal app runs:
 
 ```bash
@@ -77,8 +82,10 @@ process-global or Streamlit session state, or fall back to a shared project-owne
 app disables the run button if the deployed notebook's input names or types differ from the local
 file.
 
-The exchange requires a signed-in viewer. Anonymous visitors to a publicly shared app can open the
-page but cannot obtain an API token, so the run button does nothing useful for them; an app meant
+API calls from a hosted app work only when the project owner has enabled Streamlit app API access,
+and only for signed-in viewers with direct access to the project. Anonymous visitors and viewers who
+only have a share link can open the page but cannot obtain an API token, so the run button does
+nothing useful for them; an app meant
 for that audience should render a committed snapshot, as `static_app.py` does, or explain that
 signing in is required.
 

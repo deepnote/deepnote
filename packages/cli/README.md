@@ -574,7 +574,8 @@ deepnote publish ./dist --project-id <uuid>
 | `--url <url>`                    | Deepnote API base URL                                                              | `https://api.deepnote.com`                  |
 
 Use `--api-access enabled` only when a static website needs to load notebooks or start runs through
-the Deepnote API. Hosted Streamlit apps use their per-viewer token exchange instead.
+the Deepnote API. API calls from a hosted Streamlit app work only when the project owner has
+enabled Streamlit app API access, and only for signed-in viewers with direct access to the project.
 
 #### Working with `deepnote sync`
 
