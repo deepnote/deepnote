@@ -131,6 +131,14 @@ waiting; otherwise it waits as after a create unless `--no-wait` is given. Other
 (a suspended project, no free app port) are errors. A 404 for the entrypoint means the file is not
 in the project's Files yet.
 
+The app belongs to its entrypoint file. Deleting that file removes the app, and publishing it again
+creates a new app with a new URL and restarts the machine. `deepnote sync` replaces a changed file
+by deleting it and uploading it again, so pushing an edited entrypoint currently removes its app
+too.
+
+API calls from a hosted app work only when the project owner has enabled Streamlit app API
+access, and only for signed-in viewers with direct access to the project.
+
 `--path`, `--api-access`, `--prune`, `--sync-root`, `--no-sync-root`, and `--force` are static-only
 and rejected together with `--streamlit`; `--no-wait` is rejected without it. Streamlit mode does
 not touch static website settings, the sync mirror, or the manifest.

@@ -12,7 +12,7 @@ Read this before choosing, building, previewing, publishing, or explaining a Dee
 | Need                                                 | Model                                 | Hosting                     | Viewer-scoped API access               | Project hardware    | Can an agent create the files?          |
 | ---------------------------------------------------- | ------------------------------------- | --------------------------- | -------------------------------------- | ------------------- | --------------------------------------- |
 | Present notebook blocks with inputs and outputs      | Data app (notebook app)               | Deepnote                    | Not applicable (app runs the notebook) | Yes                 | No — created in the Deepnote UI         |
-| Python UI framework, custom widgets                  | Streamlit app                         | Deepnote (project hardware) | Optional, signed-in viewers only       | Yes                 | Yes — it is a `.py` file in the project |
+| Python UI framework, custom widgets                  | Streamlit app                         | Deepnote (project hardware) | Owner opt-in, signed-in viewers only   | Yes                 | Yes — it is a `.py` file in the project |
 | Custom HTML/JS, no Deepnote calls                    | Published static site                 | Deepnote (browser only)     | No                                     | No                  | Yes — plain files + `deepnote publish`  |
 | Custom HTML/JS that starts and reads notebook runs   | Published browser app with API access | Deepnote (browser only)     | Yes, viewer-scoped, run loop only      | Yes, for the run    | Yes — same, plus `--api-access enabled` |
 | Custom UI plus local Python, scheduling, run history | Local Node app (`serveStatic`)        | Local machine               | No — it uses the operator's own token  | Only for cloud runs | Yes — static dir + a `serve.mjs`        |
@@ -50,11 +50,11 @@ Streamlit apps run server-side Python, so they use ordinary integration access, 
 Federated-auth integrations are the exception — each viewer authenticates individually
 (`docs/streamlit.md`).
 
-A hosted app can also call the public API as the current viewer through `deepnote_toolkit.streamlit`,
-which exchanges the viewer's session for a short-lived, viewer- and project-scoped API token. That
-exchange requires a signed-in viewer: anonymous visitors to a publicly shared app can open the page
-but cannot get an API token, so an app whose content comes from notebook runs appears broken to
-them. Degrade gracefully — check for the token before offering a run, and show a committed snapshot
+A hosted app can also call the public API as the current viewer through `deepnote_toolkit.streamlit`.
+API calls from a hosted app work only when the project owner has enabled Streamlit app API access,
+and only for signed-in viewers with direct access to the project. Anonymous visitors and viewers who
+only have a share link can open the page but cannot get an API token, so an app whose content comes
+from notebook runs appears broken to them. Degrade gracefully — check for the token before offering a run, and show a committed snapshot
 or a sign-in hint instead of a failed request.
 
 ## 3. Published static sites
