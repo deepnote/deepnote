@@ -1,0 +1,9 @@
+{
+  "mappings": {
+    "00000000-0000-0000-0000-000000000001": {
+      "environmentId": "env-1",
+      "venvPath": "<VENV_PATH>",
+      "pythonInterpreter": "<PYTHON_INTERPRETER>"
+    }
+  }
+}
