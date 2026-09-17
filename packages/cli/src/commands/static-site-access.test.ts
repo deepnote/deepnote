@@ -7,6 +7,8 @@ vi.mock('@deepnote/cloud', async importOriginal => {
 
 import { updateProjectStaticFiles } from '@deepnote/cloud'
 import { createProgram } from '../cli'
+import { getChalk } from '../output'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 const mockedUpdateProject = vi.mocked(updateProjectStaticFiles)
 
@@ -85,6 +87,18 @@ describe('deepnote static-site access', () => {
 
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(mockedUpdateProject).not.toHaveBeenCalled()
+  })
+
+  it('notes the embedded token when API access ends up enabled', async () => {
+    mockedUpdateProject.mockResolvedValue({
+      sharingEnabled: true,
+      apiAccessEnabled: true,
+      url: 'https://static-p1.example.com/',
+    })
+
+    await run('--project-id', 'p1', '--token', 'tok', '--api-access', 'enabled')
+
+    expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(embeddedApiAccessNote(getChalk()))
   })
 
   it('reports API failures as runtime errors', async () => {

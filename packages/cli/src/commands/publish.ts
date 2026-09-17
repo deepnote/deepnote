@@ -30,6 +30,7 @@ import {
   type SyncRootOption,
   savePublishMirror,
 } from '../utils/publish-mirror'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 import { isSafeRelativeFilePath } from '../utils/sync-paths'
 
@@ -484,6 +485,9 @@ export function createPublishAction(program: Command) {
       } else if (siteUrl !== undefined) {
         log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
         log(`${c.dim(`API access: ${apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
+        if (apiAccessEnabled) {
+          log(`\n${embeddedApiAccessNote(c)}`)
+        }
       }
     }
 

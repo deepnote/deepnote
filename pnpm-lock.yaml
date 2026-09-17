@@ -326,6 +326,9 @@ importers:
       '@jupyterlab/services':
         specifier: ^7.6.3
         version: 7.6.3(react@19.2.3)
+      '@lumino/signaling':
+        specifier: ^2.1.6
+        version: 2.1.6
       ai:
         specifier: ^6.0.253
         version: 6.0.253(zod@3.25.76)

@@ -42,6 +42,15 @@ API access is security-sensitive and is not enabled by default. Pass `--api-acce
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
 `--api-access disabled` to turn it off explicitly.
 
+## The embedded token is narrower than a personal token
+
+A published app runs embedded in Deepnote with a viewer-scoped token that expires after 15 minutes,
+never the personal token a local preview uses. `references/apps.md` section 4 is the authoritative
+description of what that token may and may not do: one run loop, every other endpoint answers 403,
+and features built against a personal token can break only once embedded. After a successful publish
+that leaves API access enabled, and after `deepnote static-site access` enables it, the CLI prints a
+short reminder to that effect; `-q` suppresses it for publish.
+
 ## Change access without republishing
 
 Use `deepnote static-site access` to change an existing site's access settings without uploading,
@@ -154,12 +163,12 @@ deepnote publish ./dist --project-id <uuid> --no-sync-root
 deepnote static-site access --project-id <uuid> --sharing disabled
 ```
 
-Exit code 0 means uploads and the sharing update succeeded. Exit code 1 means a project lookup,
-upload, optional prune, or sharing update failed, or that Deepnote holds changes the sync workspace
-has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid local directory, or
-a `--sync-root` that has no manifest, does not track the project, or whose tracked project
-directory is missing, or a sync manifest that exists but cannot be read (pass `--no-sync-root` to
-publish without it), or an option that does not apply to the chosen mode.
+Exit code 0 means uploads and the project settings update succeeded. Exit code 1 means a project
+lookup, upload, optional prune, or project settings update failed, or that Deepnote holds changes
+the sync workspace has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid
+local directory, or a `--sync-root` that has no manifest, does not track the project, or whose
+tracked project directory is missing, or a sync manifest that exists but cannot be read (pass
+`--no-sync-root` to publish without it), or an option that does not apply to the chosen mode.
 
 With `--streamlit`, exit code 0 means the app reported `running` (or, with `--no-wait`, was
 created or already existed). Exit code 1 means the request failed or the app did not report
