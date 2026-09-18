@@ -22,6 +22,11 @@ import {
   type SyncRootOption,
   savePublishMirror,
 } from '../utils/publish-mirror'
+import {
+  normalizeStreamlitEntrypoint,
+  publishModeUsageError,
+  publishStreamlitApp,
+} from '../utils/publish-streamlit-app'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 
@@ -35,6 +40,8 @@ interface PublishOptions {
   quiet: boolean
   syncRoot: SyncRootOption
   force: boolean
+  streamlit: boolean
+  wait: boolean
 }
 
 interface PublishFile {
@@ -114,13 +121,38 @@ function errorMessage(error: unknown): string {
 }
 
 export function createPublishAction(program: Command) {
-  return async (dir: string, options: PublishOptions) => {
+  return async (target: string, options: PublishOptions, command: Command) => {
     const c = getChalk()
     const token = resolveToken(options.token)
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
       // unhandled rejection rather than the documented exit code.
       program.error(c.red(new MissingTokenError().message), { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
+    const usageError = publishModeUsageError(
+      options.streamlit,
+      option => command.getOptionValueSource(option) === 'cli'
+    )
+    if (usageError) {
+      program.error(usageError, { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+    if (options.streamlit) {
+      const entrypoint = normalizeStreamlitEntrypoint(target)
+      if (!entrypoint) {
+        program.error('Streamlit entrypoint must be a project-relative file path', {
+          exitCode: ExitCode.InvalidUsage,
+        })
+        return
+      }
+
+      await publishStreamlitApp(token, entrypoint, {
+        url: options.url,
+        projectId: options.projectId,
+        wait: options.wait,
+      })
       return
     }
 
@@ -134,31 +166,31 @@ export function createPublishAction(program: Command) {
 
     let stat: Awaited<ReturnType<typeof fs.stat>>
     try {
-      stat = await fs.stat(dir)
+      stat = await fs.stat(target)
     } catch {
-      program.error(`Directory not found: ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`Directory not found: ${target}`, { exitCode: ExitCode.InvalidUsage })
       return
     }
     if (!stat.isDirectory()) {
-      program.error(`Not a directory: ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`Not a directory: ${target}`, { exitCode: ExitCode.InvalidUsage })
       return
     }
 
     let files: string[]
     try {
-      files = await collectFiles(dir)
+      files = await collectFiles(target)
     } catch (error) {
-      program.error(`Could not read ${dir}: ${errorMessage(error)}`, { exitCode: ExitCode.Error })
+      program.error(`Could not read ${target}: ${errorMessage(error)}`, { exitCode: ExitCode.Error })
       return
     }
     if (files.length === 0) {
-      program.error(`No files found in ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      program.error(`No files found in ${target}`, { exitCode: ExitCode.InvalidUsage })
       return
     }
 
     let publishFiles: PublishFile[]
     try {
-      publishFiles = preparePublishFiles(targetPrefix, dir, files)
+      publishFiles = preparePublishFiles(targetPrefix, target, files)
     } catch (error) {
       program.error(errorMessage(error), { exitCode: ExitCode.InvalidUsage })
       return
@@ -169,7 +201,7 @@ export function createPublishAction(program: Command) {
     try {
       mirror = await resolvePublishMirror({
         syncRoot: options.syncRoot,
-        publishDir: dir,
+        publishDir: target,
         projectId: options.projectId,
       })
     } catch (error) {
