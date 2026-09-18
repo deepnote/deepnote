@@ -604,7 +604,7 @@ ${c.bold('Exit Codes:')}
     .option('--no-sync-root', 'Static only: publish without looking for or updating a sync workspace')
     .option('--force', 'Static only: publish even when files changed in Deepnote since the sync workspace last synced')
     .option('--streamlit', 'Serve an existing project file as a Streamlit app')
-    .option('--no-wait', 'Streamlit only: exit once the app is created instead of waiting for it to start')
+    .option('--no-wait', 'Streamlit only: exit without waiting for the app to start')
     .addHelpText('after', () => {
       const c = getChalk()
       return `

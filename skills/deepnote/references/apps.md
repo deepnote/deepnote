@@ -42,8 +42,8 @@ project, but it cannot upload or author the `.py` file itself. Do not plan a wor
 agent can stand up a complete Streamlit app in a hosted project from scratch.
 
 A file already in the project's Files is registered as a hosted app with
-`deepnote publish <path> --streamlit`, which restarts the project machine and waits for the app to
-start (`references/cli-publish.md`). Push the file first with `deepnote sync --all-files`; the
+`deepnote publish <path> --streamlit`, which restarts the project machine when it creates the app and
+waits for the app to start (`references/cli-publish.md`). Push the file first with `deepnote sync --all-files`; the
 command uploads nothing.
 
 Streamlit apps run server-side Python, so they use ordinary integration access, not a viewer token.

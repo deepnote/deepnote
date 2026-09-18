@@ -18,7 +18,7 @@ Authentication uses `--token` or `DEEPNOTE_TOKEN`. `--url` selects the API origi
 | -------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `--project-id <uuid>`            | Required target project id                                                                                |
 | `--streamlit`                    | Serve the project-relative path as a Streamlit app                                                        |
-| `--no-wait`                      | Streamlit only; exit once the app is created instead of waiting for it                                    |
+| `--no-wait`                      | Streamlit only; exit without waiting for the app to start                                                 |
 | `--path <prefix>`                | Static only; target directory; must be `_deepnote_static` or a directory below it                         |
 | `--api-access enabled\|disabled` | Static only; explicitly update API access; omitted means preserve the current setting                     |
 | `--prune`                        | Static only; delete remote files below `--path` that are absent from the local build                      |
@@ -121,8 +121,8 @@ restarts the project machine, which takes a few minutes and interrupts anyone wo
 project; the command says so once the app is created. It then prints the app URL and polls
 `GET /v2/streamlit-apps/{id}/status` every 5 seconds until the status is `running`, for up to 10
 minutes. `unavailable` and `starting` are expected while the machine restarts, and transient
-failures of the status request (429, 5xx, timeouts) are retried. `--no-wait` exits right after the
-app is created.
+failures of the status request (429, 5xx, timeouts) are retried. `--no-wait` exits as soon as the
+app is created or found.
 
 Creation is not idempotent on the server: `POST` answers 409 when the file is already served. The
 command then lists the project's apps (`GET /v2/streamlit-apps?projectId=`), reports the existing
@@ -180,8 +180,8 @@ tracked project directory is missing, or a sync manifest that exists but cannot 
 `--no-sync-root` to publish without it), or an option that does not apply to the chosen mode.
 
 With `--streamlit`, exit code 0 means the app reported `running`, was created or already existed
-with `--no-wait`, or already existed on a project machine that is not running. Exit code 1 means the request failed or the app did not report
-`running` within 10 minutes; the app still exists, so running the command again keeps waiting.
+with `--no-wait`, or already existed on a project machine that is not running. Exit code 1 means
+the request failed or the app did not report `running` within 10 minutes; the app still exists, so running the command again keeps waiting.
 
 For `static-site access`, exit code 0 means the settings update succeeded, exit code 1 means the
 project settings request failed, and exit code 2 means invalid arguments, a missing token, no
