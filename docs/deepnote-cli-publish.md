@@ -121,20 +121,20 @@ data app is the model that supports it — not a published static site.
 
 ## Options
 
-| Option                           | Description                                                              | Default                                     |
-| -------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
-| `--project-id <id>`              | Project to publish to (required)                                         |                                             |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`                          | `_deepnote_static`                          |
-| `--api-access enabled\|disabled` | Explicitly enable or disable Deepnote API access for the site            | unchanged                                   |
-| `--prune`                        | Delete remote files below `--path` that are absent from the local build  | `false`                                     |
-| `--sync-root <dir>`              | Sync workspace whose local mirror to update                              | search upwards from the published directory |
-| `--no-sync-root`                 | Publish without looking for or updating a sync workspace                 | `false`                                     |
-| `--force`                        | Publish even when Deepnote holds changes a sync workspace has not pulled | `false`                                     |
-| `--streamlit`                    | Serve an existing project file as a [Streamlit app](#streamlit-apps)     | `false`                                     |
-| `--no-wait`                      | With `--streamlit`, exit without waiting for the app to start            | `false`                                     |
-| `--token <token>`                | API token                                                                | `DEEPNOTE_TOKEN`                            |
-| `--url <url>`                    | API base URL (for single-tenant instances)                               | `https://api.deepnote.com`                  |
-| `-q, --quiet`                    | Suppress progress output; errors still print to stderr                   | `false`                                     |
+| Option                           | Description                                                              | Default                     |
+| -------------------------------- | ------------------------------------------------------------------------ | --------------------------- |
+| `--project-id <id>`              | Project to publish to (required)                                         |                             |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                          | `_deepnote_static`          |
+| `--api-access enabled\|disabled` | Explicitly enable or disable Deepnote API access for the site            | unchanged                   |
+| `--prune`                        | Delete remote files below `--path` that are absent from the local build  | `false`                     |
+| `--sync-root <dir>`              | Sync workspace whose local mirror to update                              | search upward from `<path>` |
+| `--no-sync-root`                 | Publish without looking for or updating a sync workspace                 | `false`                     |
+| `--force`                        | Publish even when Deepnote holds changes a sync workspace has not pulled | `false`                     |
+| `--streamlit`                    | Serve an existing project file as a [Streamlit app](#streamlit-apps)     | `false`                     |
+| `--no-wait`                      | With `--streamlit`, exit without waiting for the app to start            | `false`                     |
+| `--token <token>`                | API token                                                                | `DEEPNOTE_TOKEN`            |
+| `--url <url>`                    | API base URL (for single-tenant instances)                               | `https://api.deepnote.com`  |
+| `-q, --quiet`                    | Suppress progress output; errors still print to stderr                   | `false`                     |
 
 ## API access for published sites
 

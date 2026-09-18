@@ -51,13 +51,6 @@ export async function createStreamlitApp(
   body: CreateStreamlitAppBody,
   options: StreamlitAppRequestOptions = {}
 ): Promise<StreamlitApp> {
-  if (!body.projectId.trim()) {
-    throw new TypeError('createStreamlitApp: projectId cannot be empty.')
-  }
-  if (!body.entrypoint.trim()) {
-    throw new TypeError('createStreamlitApp: entrypoint cannot be empty.')
-  }
-
   const response = await request(baseUrl, token, {
     method: 'POST',
     path: '/v2/streamlit-apps',
@@ -78,10 +71,6 @@ export async function listStreamlitApps(
   projectId: string,
   options: StreamlitAppRequestOptions = {}
 ): Promise<StreamlitApp[]> {
-  if (!projectId.trim()) {
-    throw new TypeError('listStreamlitApps: projectId cannot be empty.')
-  }
-
   const response = await request(baseUrl, token, {
     method: 'GET',
     path: `/v2/streamlit-apps?projectId=${encodeURIComponent(projectId)}`,
@@ -101,10 +90,6 @@ export async function getStreamlitAppStatus(
   streamlitAppId: string,
   options: StreamlitAppRequestOptions = {}
 ): Promise<StreamlitAppStatus> {
-  if (!streamlitAppId.trim()) {
-    throw new TypeError('getStreamlitAppStatus: streamlitAppId cannot be empty.')
-  }
-
   const response = await request(baseUrl, token, {
     method: 'GET',
     path: `/v2/streamlit-apps/${encodeURIComponent(streamlitAppId)}/status`,

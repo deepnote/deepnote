@@ -67,19 +67,6 @@ describe('createStreamlitApp', () => {
       createStreamlitApp(BASE_URL, TOKEN, { projectId: APP.projectId, entrypoint: APP.entrypoint })
     ).rejects.toMatchObject({ statusCode: 502, message: expect.stringMatching(/Invalid Deepnote response/) })
   })
-
-  it('validates empty arguments before making a request', async () => {
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
-
-    await expect(createStreamlitApp(BASE_URL, TOKEN, { projectId: ' ', entrypoint: APP.entrypoint })).rejects.toThrow(
-      /projectId/
-    )
-    await expect(createStreamlitApp(BASE_URL, TOKEN, { projectId: APP.projectId, entrypoint: ' ' })).rejects.toThrow(
-      /entrypoint/
-    )
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
 })
 
 describe('listStreamlitApps', () => {

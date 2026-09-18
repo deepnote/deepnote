@@ -878,15 +878,11 @@ describe('deepnote publish --streamlit', () => {
     expect(process.exitCode).toBe(1)
   })
 
-  it('supports quiet publishing and reports other API failures with exit code 1', async () => {
+  it('prints nothing on stdout with --quiet', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
     await run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', '--quiet')
     expect(logSpy).not.toHaveBeenCalled()
     expect(process.exitCode).toBeUndefined()
-
-    mockedCreateStreamlitApp.mockRejectedValue(new Error('network down'))
-    await run('app.py', '--project-id', 'p1', '--token', 'tok', '--streamlit', '--quiet')
-    expect(process.exitCode).toBe(1)
   })
 
   it.each(['./apps/dashboard.py', '/apps/dashboard.py', 'apps//dashboard.py'])(

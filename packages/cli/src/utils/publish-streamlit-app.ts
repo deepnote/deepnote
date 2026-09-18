@@ -4,6 +4,7 @@ import {
   getStreamlitAppStatus,
   listStreamlitApps,
   type StreamlitApp,
+  type StreamlitAppStatus,
   StreamlitAppTimeoutError,
   waitForStreamlitApp,
 } from '@deepnote/cloud'
@@ -67,7 +68,7 @@ export async function publishStreamlitApp(
   }
   // Only a create restarts the machine. An existing app on a stopped machine would never come up.
   if (!published.created) {
-    let status: Awaited<ReturnType<typeof getStreamlitAppStatus>>
+    let status: StreamlitAppStatus
     try {
       status = await getStreamlitAppStatus(baseUrl, token, published.app.id)
     } catch (error) {
