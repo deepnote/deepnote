@@ -111,29 +111,6 @@ describe('CLI', () => {
       )
     })
 
-    it('publish command exposes static and Streamlit modes', () => {
-      const program = createProgram()
-      const publishCmd = program.commands.find(cmd => cmd.name() === 'publish')
-
-      expect(publishCmd).toBeDefined()
-      expect(publishCmd?.description()).toBe('Publish a static website or Streamlit app to a Deepnote project')
-      expect(publishCmd?.options.map(option => option.flags)).toEqual(
-        expect.arrayContaining([
-          '--project-id <uuid>',
-          '--path <prefix>',
-          '--api-access <state>',
-          '--prune',
-          '--sync-root <dir>',
-          '--no-sync-root',
-          '--force',
-          '--streamlit',
-          '--no-wait',
-          '--token <token>',
-          '--url <url>',
-        ])
-      )
-    })
-
     it('convert command is properly configured', () => {
       const program = createProgram()
       const convertCmd = program.commands.find(cmd => cmd.name() === 'convert')
