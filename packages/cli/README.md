@@ -563,7 +563,7 @@ deepnote publish ./dist --project-id <uuid>
 | -------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------- |
 | `--project-id <uuid>`            | Project to publish to (required)                                                   |                                             |
 | `--streamlit`                    | Serve the project-relative path as a Streamlit app                                 | `false`                                     |
-| `--no-wait`                      | Streamlit only: exit once the app is created instead of waiting for it             | `false`                                     |
+| `--no-wait`                      | Streamlit only: exit without waiting for the app to start                          | `false`                                     |
 | `--path <prefix>`                | Static only: target directory at or below `_deepnote_static`                       | `_deepnote_static`                          |
 | `--api-access enabled\|disabled` | Static only: explicitly enable or disable API access for the published website     | unchanged                                   |
 | `--prune`                        | Static only: delete remote files below `--path` that are absent locally            | `false`                                     |
@@ -603,10 +603,10 @@ hosted Streamlit app. Nothing is uploaded: push the file first with `deepnote sy
 (files upload together with a notebook push) or upload it in Deepnote. Creating an app restarts the
 project machine, which takes a few minutes and interrupts anyone working in the project; the command
 says so once the app is created. It then prints the app URL and polls the app's status until it
-is `running`, for up to 10 minutes; `--no-wait` exits right after the app is created. If the file is
+is `running`, for up to 10 minutes; `--no-wait` exits as soon as the app is created or found. If the file is
 already served, the command reports the existing app's id and URL and changes nothing; it waits for
-that app too, unless the project machine is not running. Static-only options are rejected together with `--streamlit`, and the sync mirror is not
-touched.
+that app too, unless the project machine is not running. Static-only options are rejected together
+with `--streamlit`, and the sync mirror is not touched.
 
 **Examples:**
 
