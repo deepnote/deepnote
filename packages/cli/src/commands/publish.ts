@@ -1,24 +1,16 @@
 import fs from 'node:fs/promises'
 import { join, posix, relative, sep } from 'node:path'
 import {
-  createStreamlitApp,
   deleteProjectFile,
   getProjectDetail,
-  getStreamlitAppStatus,
-  listStreamlitApps,
   PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
-  type StreamlitApp,
-  StreamlitAppTimeoutError,
   updateProjectStaticFiles,
   uploadProjectFile,
-  waitForStreamlitApp,
 } from '@deepnote/cloud'
-import { ApiError } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
-import ora from 'ora'
 import { ExitCode } from '../exit-codes'
-import { getChalk, getOutputConfig, log, error as logError, warn } from '../output'
+import { getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import {
   findDivergedPublishPaths,
@@ -30,9 +22,13 @@ import {
   type SyncRootOption,
   savePublishMirror,
 } from '../utils/publish-mirror'
+import {
+  normalizeStreamlitEntrypoint,
+  publishModeUsageError,
+  publishStreamlitApp,
+} from '../utils/publish-streamlit-app'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
-import { isSafeRelativeFilePath } from '../utils/sync-paths'
 
 interface PublishOptions {
   projectId: string
@@ -69,14 +65,6 @@ function normalizeTargetPrefix(path: string): string | null {
     return null
   }
   return normalized
-}
-
-function normalizeStreamlitEntrypoint(path: string): string | null {
-  if (path.trim() !== path || path.includes('\0') || path.endsWith('/') || path.split('/').includes('..')) {
-    return null
-  }
-  const normalized = posix.normalize(path).replace(/^\/+/, '')
-  return isSafeRelativeFilePath(normalized) ? normalized : null
 }
 
 function preparePublishFiles(targetPrefix: string, localDir: string, files: string[]): PublishFile[] {
@@ -132,106 +120,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function describeStreamlitAppError(error: unknown): string {
-  const message = errorMessage(error)
-  if (error instanceof ApiError && error.statusCode === 404 && /entrypoint/i.test(message)) {
-    return `${message}. The file must already exist in the project's Files: upload it in Deepnote or push it with \`deepnote sync --all-files\` first.`
-  }
-  return message
-}
-
-async function createOrFindStreamlitApp(
-  baseUrl: string,
-  token: string,
-  projectId: string,
-  entrypoint: string
-): Promise<{ app: StreamlitApp; created: boolean }> {
-  try {
-    return { app: await createStreamlitApp(baseUrl, token, { projectId, entrypoint }), created: true }
-  } catch (error) {
-    if (!(error instanceof ApiError && error.statusCode === 409 && /already exists/i.test(error.message))) {
-      throw error
-    }
-    // Stored entrypoints may carry a leading slash.
-    const apps = await listStreamlitApps(baseUrl, token, projectId)
-    const app = apps.find(app => app.entrypoint.replace(/^\/+/, '') === entrypoint)
-    if (!app) {
-      throw error
-    }
-    return { app, created: false }
-  }
-}
-
-async function publishStreamlitApp(token: string, entrypoint: string, options: PublishOptions): Promise<void> {
-  const c = getChalk()
-  const { url: baseUrl, projectId } = options
-  log(`Publishing Streamlit app ${c.cyan(entrypoint)} in project ${c.dim(projectId)}`)
-
-  let found: { app: StreamlitApp; created: boolean }
-  try {
-    found = await createOrFindStreamlitApp(baseUrl, token, projectId, entrypoint)
-  } catch (error) {
-    logError(`Could not publish Streamlit app: ${describeStreamlitAppError(error)}`)
-    process.exitCode = ExitCode.Error
-    return
-  }
-  const { app, created } = found
-  if (created) {
-    log(`${c.green('✓')} Created app ${app.id}`)
-    warn('The project machine is restarting to serve it, which interrupts anyone working in the project.')
-  } else {
-    log(`${c.green('✓')} ${entrypoint} is already served by app ${app.id}; nothing was changed`)
-  }
-  log(`\n${c.bold('Streamlit app URL:')} ${c.underline(app.url)}`)
-
-  if (!options.wait) {
-    return
-  }
-  // Only a create restarts the machine. An existing app on a stopped machine would never come up.
-  if (!created) {
-    try {
-      if ((await getStreamlitAppStatus(baseUrl, token, app.id)) === 'unavailable') {
-        warn('The project machine is not running, so the app is not being served. Start the project in Deepnote.')
-        return
-      }
-    } catch (error) {
-      logError(`Could not check the app status: ${errorMessage(error)}`)
-      process.exitCode = ExitCode.Error
-      return
-    }
-  }
-
-  const spinner = !getOutputConfig().quiet && process.stderr.isTTY ? ora('Waiting for the app to start…').start() : null
-  let lastStatus: string | undefined
-  try {
-    await waitForStreamlitApp(baseUrl, token, app.id, {
-      onStatus: status => {
-        if (spinner) {
-          spinner.text = `Waiting for the app to start: ${status}…`
-        } else if (status !== lastStatus) {
-          log(`  ${status}…`)
-        }
-        lastStatus = status
-      },
-    })
-    if (spinner) {
-      spinner.succeed('App is running')
-    } else {
-      log(`${c.green('✓')} App is running`)
-    }
-  } catch (error) {
-    spinner?.fail('App did not start')
-    logError(
-      error instanceof StreamlitAppTimeoutError
-        ? `${error.message}. Open the app URL later, or run this command again to keep waiting.`
-        : `Could not check the app status: ${errorMessage(error)}`
-    )
-    process.exitCode = ExitCode.Error
-  }
-}
-
-const STATIC_ONLY_OPTIONS = ['path', 'apiAccess', 'prune', 'syncRoot', 'force']
-
 export function createPublishAction(program: Command) {
   return async (target: string, options: PublishOptions, command: Command) => {
     const c = getChalk()
@@ -243,20 +131,15 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    const explicit = (option: string) => command.getOptionValueSource(option) === 'cli'
-    if (!options.streamlit && explicit('wait')) {
-      program.error('--no-wait applies only to --streamlit', { exitCode: ExitCode.InvalidUsage })
+    const usageError = publishModeUsageError(
+      options.streamlit,
+      option => command.getOptionValueSource(option) === 'cli'
+    )
+    if (usageError) {
+      program.error(usageError, { exitCode: ExitCode.InvalidUsage })
       return
     }
     if (options.streamlit) {
-      if (STATIC_ONLY_OPTIONS.some(explicit)) {
-        program.error(
-          '--path, --api-access, --prune, --sync-root, --no-sync-root, and --force apply only to static website publishing',
-          { exitCode: ExitCode.InvalidUsage }
-        )
-        return
-      }
-
       const entrypoint = normalizeStreamlitEntrypoint(target)
       if (!entrypoint) {
         program.error('Streamlit entrypoint must be a project-relative file path', {
@@ -265,7 +148,11 @@ export function createPublishAction(program: Command) {
         return
       }
 
-      await publishStreamlitApp(token, entrypoint, options)
+      await publishStreamlitApp(token, entrypoint, {
+        url: options.url,
+        projectId: options.projectId,
+        wait: options.wait,
+      })
       return
     }
 
