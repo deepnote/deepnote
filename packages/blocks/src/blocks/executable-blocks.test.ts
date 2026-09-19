@@ -9,6 +9,7 @@ describe('isExecutableBlock', () => {
     'sql',
     'notebook-function',
     'visualization',
+    'pivot-table',
     'button',
     'big-number',
     'input-text',

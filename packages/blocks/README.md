@@ -31,6 +31,7 @@ This package provides TypeScript types and utilities for working with Deepnote n
 ### Display Blocks
 
 - **visualization**: Interactive charts using Vega-Lite
+- **pivot-table**: Code-free cross-tabulation of a DataFrame (beta)
 - **big-number**: KPI display with Jinja2 templates
 - **button**: Interactive button with variable control
 
