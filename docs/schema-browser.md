@@ -20,7 +20,7 @@ Once you have connected a data warehouse or database to your project, you can op
 
 <Callout status="success">
 
-The following native SQL integrations currently support schema browsing: [Snowflake](https://deepnote.com/docs/snowflake), [Google BigQuery](https://deepnote.com/docs/google-bigquery), [Amazon Redshift](https://deepnote.com/docs/redshift), [PostgreSQL](https://deepnote.com/docs/postgresql), [Microsoft SQL Server](https://deepnote.com/docs/sql-server), [Trino](https://deepnote.com/docs/trino), [Amazon Athena](https://deepnote.com/docs/amazon-athena), [Clickhouse](https://deepnote.com/docs/clickhouse).
+The following native SQL integrations currently support schema browsing: [Snowflake](https://deepnote.com/docs/snowflake), [Google BigQuery](https://deepnote.com/docs/google-bigquery), [Amazon Redshift](https://deepnote.com/docs/amazon-redshift), [PostgreSQL](https://deepnote.com/docs/postgresql), [Microsoft SQL Server](https://deepnote.com/docs/sql-server), [Trino](https://deepnote.com/docs/trino), [Amazon Athena](https://deepnote.com/docs/amazon-athena), [Clickhouse](https://deepnote.com/docs/clickhouse).
 
 </Callout>
 
