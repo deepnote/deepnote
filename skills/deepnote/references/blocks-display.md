@@ -30,6 +30,35 @@ Charts and graphs (Vega-Lite based).
           field: count
 ```
 
+## Pivot Table Block (`pivot-table`)
+
+Code-free cross-tabulation of a DataFrame. In beta.
+
+| Field                        | Type                                                                            | Description               |
+| ---------------------------- | ------------------------------------------------------------------------------- | ------------------------- |
+| `deepnote_variable_name`     | `string`                                                                        | Source DataFrame variable |
+| `deepnote_pivot_rows`        | `string[]`                                                                      | Fields forming the rows   |
+| `deepnote_pivot_cols`        | `string[]`                                                                      | Fields spread as columns  |
+| `deepnote_pivot_aggregator`  | `"count" \| "count-unique" \| "sum" \| "average" \| "median" \| "min" \| "max"` | Aggregation to apply      |
+| `deepnote_pivot_value_field` | `string`                                                                        | Field to aggregate        |
+
+Only `deepnote_variable_name` is declared on the `pivot-table` arm in [schema.ts](schema.ts) (as an optional string); the four `deepnote_pivot_*` fields are preserved by metadata passthrough and fall under the arm's `[k: string]: any`, so this table is the reference for their names and types.
+
+```yaml
+- id: b7c8d9e0f1a2b7c8d9e0f1a2b7c8d9e0
+  blockGroup: c8d9e0f1a2b3c8d9e0f1a2b3c8d9e0f1
+  type: pivot-table
+  sortingKey: a6
+  metadata:
+    deepnote_variable_name: df
+    deepnote_pivot_rows:
+      - region
+    deepnote_pivot_cols:
+      - product
+    deepnote_pivot_aggregator: sum
+    deepnote_pivot_value_field: revenue
+```
+
 ## Button Block (`button`)
 
 | Field                          | Type                                                  | Description                                       |
@@ -43,7 +72,7 @@ Charts and graphs (Vega-Lite based).
 - id: f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8
   blockGroup: a6b7c8d9e0f1a6b7c8d9e0f1a6b7c8d9
   type: button
-  sortingKey: a6
+  sortingKey: a7
   metadata:
     deepnote_button_title: Run Analysis
     deepnote_button_color_scheme: blue
@@ -67,7 +96,7 @@ Charts and graphs (Vega-Lite based).
 - id: b7c8d9e0f1a2b7c8d9e0f1a2b7c8d9e0
   blockGroup: c8d9e0f1a2b3c8d9e0f1a2b3c8d9e0f1
   type: big-number
-  sortingKey: a7
+  sortingKey: a8
   metadata:
     deepnote_big_number_title: Total Revenue
     deepnote_big_number_value: revenue_total
@@ -88,7 +117,7 @@ Calls another notebook as a function.
 - id: d9e0f1a2b3c4d9e0f1a2b3c4d9e0f1a2
   blockGroup: e0f1a2b3c4d5e0f1a2b3c4d5e0f1a2b3
   type: notebook-function
-  sortingKey: a8
+  sortingKey: a9
   metadata:
     function_notebook_id: e132b172-b114-410e-8331-011517db664f
     function_notebook_inputs:
@@ -107,7 +136,7 @@ Calls another notebook as a function.
 - id: f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4
   blockGroup: a2b3c4d5e6f7a2b3c4d5e6f7a2b3c4d5
   type: image
-  sortingKey: a9
+  sortingKey: b0
   metadata:
     deepnote_img_src: "https://example.com/chart.png"
     deepnote_img_width: "100%"
@@ -122,7 +151,7 @@ A horizontal divider. No type-specific metadata.
 - id: b3c4d5e6f7a8b3c4d5e6f7a8b3c4d5e6
   blockGroup: c4d5e6f7a8b9c4d5e6f7a8b9c4d5e6f7
   type: separator
-  sortingKey: b0
+  sortingKey: b1
   metadata: {}
 ```
 

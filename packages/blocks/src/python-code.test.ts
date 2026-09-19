@@ -15,6 +15,7 @@ import type {
   InputSliderBlock,
   InputTextareaBlock,
   InputTextBlock,
+  PivotTableBlock,
   SqlBlock,
   VisualizationBlock,
 } from './deepnote-file/deepnote-file-schema'
@@ -1080,6 +1081,88 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual('')
+    })
+  })
+
+  describe('Pivot table blocks', () => {
+    it('creates Python code for pivot table block', () => {
+      const block: PivotTableBlock = {
+        id: '123',
+        type: 'pivot-table',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'df',
+          deepnote_pivot_rows: ['category'],
+          deepnote_pivot_cols: ['region'],
+          deepnote_pivot_aggregator: 'sum',
+          deepnote_pivot_value_field: 'value',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        import json as _deepnote_json
+        from IPython.display import display as _deepnote_display
+
+        _deepnote_display(
+          {
+            'application/vnd.deepnote.pivot-table.v1+json': _deepnote_json.loads(_dntk.deepnote_get_data_preview_json(df, '[]', [], 10000, "sampled"))
+          },
+          raw=True
+        )
+      `)
+    })
+
+    it('returns empty string for pivot table block without variable name', () => {
+      const block: PivotTableBlock = {
+        id: '123',
+        type: 'pivot-table',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('')
+    })
+
+    it('returns empty string for pivot table block whose variable name sanitizes to nothing', () => {
+      const block: PivotTableBlock = {
+        id: '123',
+        type: 'pivot-table',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: '123',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('')
+    })
+
+    it('sanitizes the variable name of a pivot table block', () => {
+      const block: PivotTableBlock = {
+        id: '123',
+        type: 'pivot-table',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'my df',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toContain('deepnote_get_data_preview_json(my_df, ')
     })
   })
 

@@ -22,6 +22,7 @@ import {
   isInputTextBlock,
 } from './blocks/input-blocks'
 import { createPythonCodeForNotebookFunctionBlock, isNotebookFunctionBlock } from './blocks/notebook-function-blocks'
+import { createPythonCodeForPivotTableBlock, isPivotTableBlock } from './blocks/pivot-table-blocks'
 import { createPythonCodeForSqlBlock, isSqlBlock } from './blocks/sql-blocks'
 import { createPythonCodeForVisualizationBlock, isVisualizationBlock } from './blocks/visualization-blocks'
 import type { DeepnoteBlock } from './deepnote-file/deepnote-file-schema'
@@ -73,6 +74,10 @@ export function createPythonCode(block: DeepnoteBlock, executionContext?: Button
 
   if (isVisualizationBlock(block)) {
     return createPythonCodeForVisualizationBlock(block)
+  }
+
+  if (isPivotTableBlock(block)) {
+    return createPythonCodeForPivotTableBlock(block)
   }
 
   if (isButtonBlock(block)) {
