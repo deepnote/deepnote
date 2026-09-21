@@ -58,7 +58,7 @@ Provide assistance, leave feedback, or grade notebooks using comments. Receive n
 
 ##### Classroom management
 
-Manage all classroom material — from lectures to assignments — all in one workspace. Customize permissions for students, instructors, and TAs to match your classroom structure.
+Manage all classroom material, from lectures to assignments, in one workspace. Customize permissions for students, instructors, and TAs to match your classroom structure.
 
 ##### Easy submissions
 

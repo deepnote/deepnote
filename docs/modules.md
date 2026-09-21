@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-Modules in Deepnote allow you to **transform your notebooks into reusable workflows** that can be shared across your workspace. This powerful feature solves the common challenge of code fragmentation and inconsistent analysis by enabling you to package essential elements—code snippets, SQL queries, data transformations, and visualizations—into standardized, reusable components.
+Modules let you turn notebooks into reusable workflows that you can share across your workspace. Package code snippets, SQL queries, data transformations, and visualizations into reusable components to reduce code fragmentation and inconsistent analysis.
 
 With modules, you can adopt a "build once, use everywhere" approach, ensuring your team leverages consistent tools and methodologies without duplicating efforts. Whether you're working with complex data cleaning routines or custom visualization functions, modules make your best work instantly accessible throughout your workspace.
 
@@ -105,7 +105,7 @@ Deepnote AI seamlessly integrates with modules, enhancing analytical capabilitie
 
 ### Teaching Deepnote AI with Your Modules
 
-When you build a semantic layer with modules—defining your KPIs and metrics in a trusted, consistent way—you're not just helping your team, you're also teaching Deepnote AI. This integration creates a powerful workflow where AI leverages your established definitions rather than calculating metrics from scratch.
+When you build a semantic layer with modules, you define your KPIs and metrics in one place for your team and Deepnote AI. Deepnote AI uses those definitions instead of calculating metrics from scratch.
 
 <VideoLoop src="../assets/docs/UounpvDOT3maVeztX8V9.mp4" />
 

@@ -25,7 +25,7 @@ If you need to make sure to stay in your budget, you can choose to disable the p
 - Stop any running projects with stronger machine settings, and change them to use Basic machines on the next start
 - Disable the options for pay-as-you-go machines in the project settings
 
-Be careful – enabling the option may interrupt the work of your colleagues.
+Be careful because enabling the option may interrupt your colleagues' work.
 
 ### Setting billing limits
 
@@ -33,4 +33,4 @@ If you want to set a limit for your charges, we recommend you set a billing aler
 
 ## AI usage limits
 
-AI usage is billed on a usage basis. Each plan includes a monthly AI quota, and usage beyond it is billed as pay-as-you-go. To keep AI spending predictable, workspace admins can set a custom monthly overage limit in the workspace settings, and will receive emails as usage approaches or exceeds the included quota. Admins can also review AI usage — token consumption and cost per user and across the workspace — in the workspace settings.
+AI usage is billed on a usage basis. Each plan includes a monthly AI quota, and usage beyond it is billed as pay-as-you-go. To keep AI spending predictable, workspace admins can set a custom monthly overage limit in the workspace settings, and will receive emails as usage approaches or exceeds the included quota. Admins can also review token consumption and cost per user or across the workspace in the workspace settings.

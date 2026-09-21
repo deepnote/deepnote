@@ -5,15 +5,15 @@ noIndex: false
 noContent: false
 ---
 
-Every time you run a notebook, Deepnote automatically creates an immutable **run snapshot** — a frozen record of the notebook's state at the moment the run completed. You can revisit any past run to see exactly what happened, without re-executing.
+Every time you run a notebook, Deepnote automatically creates an immutable **run snapshot**. This frozen record shows the notebook's state when the run completed. You can revisit any past run without executing it again.
 
 ## What's captured
 
 Each snapshot includes:
 
-- **All blocks and outputs** — the full notebook content as it appeared after execution
-- **Execution metadata** — who triggered the run, when it started and finished, and how it was triggered (manually, via [schedule](/docs/scheduling), or through the [API](/docs/deepnote-api))
-- **Execution summary** — total block count, how many succeeded or failed, and overall duration
+- **All blocks and outputs:** The full notebook content as it appeared after execution
+- **Execution metadata:** Who triggered the run, when it started and finished, and how they triggered it (manually, via [schedule](/docs/scheduling), or through the [API](/docs/deepnote-api))
+- **Execution summary:** The total block count, how many succeeded or failed, and the duration
 
 <Callout status="info">
 Snapshots are read-only. They capture the notebook state at execution time and cannot be edited.
@@ -23,10 +23,10 @@ Snapshots are read-only. They capture the notebook state at execution time and c
 
 You can access run snapshots from three places:
 
-- **Runs sidebar** — click **Runs** in the project top bar to open a sidebar listing recent runs with status indicators. Click any run to view its snapshot.
-- **Project logs** — the history tab shows past executions. Runs with available snapshots display a **View run** button.
-- **Logs & Analytics modal** — open the project top bar context menu and select **View analytics** to see execution history alongside snapshot access.
-- **Version history** — past runs also surface alongside your notebook's version history, where you can open the read-only snapshot.
+- **Runs sidebar:** Click **Runs** in the project top bar to open a sidebar that lists recent runs with status indicators. Click any run to view its snapshot.
+- **Project logs:** The history tab shows past executions. Runs with available snapshots display a **View run** button.
+- **Logs & Analytics modal:** Open the project top bar context menu and select **View analytics** to see execution history and open snapshots.
+- **Version history:** Past runs also appear in your notebook's version history, where you can open the read-only snapshot.
 
 ![Runs sidebar showing recent run snapshots](../assets/docs/run-snapshots/run-snapshots-sidebar.webp)
 
@@ -38,6 +38,6 @@ Each snapshot has its own URL, so you can link a teammate straight to a specific
 
 ## Use cases
 
-- **Debug failed scheduled runs** — see exactly what happened when a notebook failed overnight, including which block errored and what the outputs looked like before the failure
-- **Audit trail** — review who ran what and when, with full output history, across manual, scheduled, and API-triggered runs
-- **Collaboration** — point teammates to a specific run's results instead of asking them to re-execute
+- **Debug failed scheduled runs:** See what happened when a notebook failed overnight, including which block produced an error and what the outputs looked like before the failure
+- **Audit trail:** Review who ran a notebook and when, with the output history across manual, scheduled, and API-triggered runs
+- **Collaboration:** Send teammates a link to a run's results instead of asking them to execute the notebook again

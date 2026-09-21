@@ -35,7 +35,7 @@ pip install tensorflow -c https://tk.deepnote.com/constraints<PYTHON_VERSION>.tx
 
 ```
 
-This constraints file helps prevent library conflicts and ensures compatibility with Deepnote's features like the variable explorer and interactive DataFrame views. Don't worry about installing additional dependencies for these features—we'll automatically detect and load them at runtime.
+This constraints file helps prevent library conflicts and ensures compatibility with Deepnote's features like the variable explorer and interactive DataFrame views. You don't need to install dependencies for these features. Deepnote detects and loads them at runtime.
 
 ## How to create a custom environment?
 

@@ -49,6 +49,6 @@ Here's an example using pandas to read a CSV from Google Drive into the notebook
 
 <Callout status="info">
 
-💡 You can also use the Google API to read Google Sheets directly into the notebook. Please see these examples to learn how to read a [public](https://deepnote.com/workspace/Subspace-Analytics-3e79b326-0cf6-4bff-8b41-99d9feb9b992/project/Read-from-public-Google-Sheet-25da9f7e-82e2-416c-827a-514b802bb1a1/notebook/notebook-2044ad29f11c47adae4ed1baf900262f) and [private](https://deepnote.com/workspace/edison-insights-3e79b326-0cf6-4bff-8b41-99d9feb9b992/project/Read-from-a-private-Google-Sheet-faa77a5d-72a1-46cb-9a20-7ee446de7f58/notebook/Notebook%201-4428c941a1f14b6a9e222828ff260fd5) Google sheet into Deepnote.
+You can also use the Google API to read Google Sheets directly into the notebook. Please see these examples to learn how to read a [public](https://deepnote.com/workspace/Subspace-Analytics-3e79b326-0cf6-4bff-8b41-99d9feb9b992/project/Read-from-public-Google-Sheet-25da9f7e-82e2-416c-827a-514b802bb1a1/notebook/notebook-2044ad29f11c47adae4ed1baf900262f) and [private](https://deepnote.com/workspace/edison-insights-3e79b326-0cf6-4bff-8b41-99d9feb9b992/project/Read-from-a-private-Google-Sheet-faa77a5d-72a1-46cb-9a20-7ee446de7f58/notebook/Notebook%201-4428c941a1f14b6a9e222828ff260fd5) Google sheet into Deepnote.
 
 </Callout>

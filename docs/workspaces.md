@@ -1,6 +1,6 @@
 ---
 title: Workspaces
-description: Staying organized and collaborative across multiple projects is a challenge for data teams. We've addressed this with workspaces — a top-level organizational layer for your team's projects and resources.
+description: Workspaces provide a top-level organizational layer for your team's projects and resources.
 noIndex: false
 noContent: false
 ---
@@ -11,7 +11,7 @@ From organizing and searching across projects to managing your team's members an
 
 ### Organizing projects to suit your workflow
 
-You can create and arrange [projects](/docs/projects) into any logical arrangement you wish, nesting permitted. For example, you may want to organize projects by yearly report cycles, team function, common tasks — or whatever else reflects how your team does business.
+You can create and arrange [projects](/docs/projects) into any logical arrangement you wish, nesting permitted. For example, you may want to organize projects by yearly report cycles, team function, common tasks, or another structure that reflects how your team works.
 
 ![Projects.jpg](../assets/docs/PjLVzNd2SMiAhx3mbv86.jpg)
 
@@ -29,7 +29,7 @@ You can seamlessly access the projects your team is currently engaged with by cl
 
 ### Managing data connections
 
-Workspaces make it easy to share access to data sources. From the **Integrations** menu in the top left, you can create and edit connections to warehouses, databases, buckets, and other services. Once a service is created, members can connect that service to any project without additional setup — assuming they have the [correct access control](https://deepnote.com/docs/team-permissions).
+Workspaces make it easy to share access to data sources. From the **Integrations** menu in the top left, you can create and edit connections to warehouses, databases, buckets, and other services. Members with the [correct access control](https://deepnote.com/docs/team-permissions) can connect that service to any project without additional setup.
 
 ![Data_Sources.jpg](../assets/docs/HHYQ10yTFK32KR4EXIJr.jpg)
 

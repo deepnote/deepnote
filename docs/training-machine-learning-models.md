@@ -40,7 +40,7 @@ Groq is a high-speed AI processing platform that seamlessly integrates with Open
 
 Deepnote makes it easy to integrate AI models, and to help with that, [here’s a tutorial](https://deepnote.com/app/deepnote/Tutorial-Groq-LLamav2-ffa248f7-876f-476f-b393-9c80658726ca?utm_source=app-settings&utm_medium=product-shared-content&utm_campaign=data-app&utm_content=ffa248f7-876f-476f-b393-9c80658726ca), how to set up Groq & Llama within your notebook.
 
-For those interested, check out the [AI stock assistant powered by Groq and Llama3](https://deepnote.com/explore/ai-stock-assistant-powered-by-groq-and-llama3). 🦙
+For those interested, check out the [AI stock assistant powered by Groq and Llama3](https://deepnote.com/explore/ai-stock-assistant-powered-by-groq-and-llama3).
 
 ## Third-party services and tools
 
