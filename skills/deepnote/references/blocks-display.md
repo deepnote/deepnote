@@ -45,8 +45,8 @@ Code-free cross-tabulation of a DataFrame. In beta.
 Only `deepnote_variable_name` is declared on the `pivot-table` arm in [schema.ts](schema.ts) (as an optional string); the four `deepnote_pivot_*` fields are preserved by metadata passthrough and fall under the arm's `[k: string]: any`, so this table is the reference for their names and types.
 
 ```yaml
-- id: b7c8d9e0f1a2b7c8d9e0f1a2b7c8d9e0
-  blockGroup: c8d9e0f1a2b3c8d9e0f1a2b3c8d9e0f1
+- id: e6f7a8b9c0d1e6f7a8b9c0d1e6f7a8b9
+  blockGroup: f6a7b8c9d0e1f6a7b8c9d0e1f6a7b8c9
   type: pivot-table
   sortingKey: a6
   metadata:
