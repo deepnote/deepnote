@@ -17,14 +17,14 @@ Deepnote's ClickHouse integration allows data teams to efficiently query very la
 
 ### How to connect
 
-To create a ClickHouse integration in Deepnote, open up the integrations overview and click on the ClickHouse tile.
+To create a ClickHouse integration in Deepnote, open Settings and under Integrations select Connect an integration. Choose ClickHouse from the list.
 
 <VideoLoop src="../assets/docs/EbN8UwFNTLaUdL6mYlGM.mp4" />
 
 To create the integration, you'll need a few things:
 
 - **Hostname**: The hostname of the server you are trying to connect to. [Check out this section](https://clickhouse.com/docs/en/sql-reference/functions/other-functions/#hostname) of ClickHouse's docs for more details.
-- **Port**: The port on the server of interest you are trying to connect to. Luckily, [ClickHouse's docs ](https://clickhouse.com/docs/en/sql-reference/functions/other-functions/#getserverport)offer concrete steps for this one as well.
+- **Port**: The port on the server of interest you are trying to connect to. Luckily, [ClickHouse's docs](https://clickhouse.com/docs/en/sql-reference/functions/other-functions/#getserverport) offer concrete steps for this one as well.
 - **Username**: Your username. More in ClickHouse's docs [here](https://clickhouse.com/docs/en/operations/settings/settings-users/#user-namepassword).
 - **Password**: The password for the specified username. More details [here](https://clickhouse.com/docs/en/operations/settings/settings-users/#user-namepassword).
 - **Database**: The name of the database you would like to connect to.
@@ -43,7 +43,7 @@ As with all SQL blocks, the query results will be saved as a DataFrame and store
 
 ### Next steps
 
-Jump right into Deepnote &[ learn more about SQL blocks in this A/B testing template](https://mail.deepnote.com/e/c/eyJlbWFpbF9pZCI6IlJJU0VCZ01BQVgxX0E5QWFNWGJ0R3Q2YzFGVXlrZz09IiwiaHJlZiI6Imh0dHBzOi8vZGVlcG5vdGUuY29tL2xhdW5jaD90ZW1wbGF0ZT1BL0IlMjBUZXN0aW5nXHUwMDI2dXRtX3NvdXJjZT1wcm9kdWN0X3VwZGF0ZXNcdTAwMjZ1dG1fbWVkaXVtPWVtYWlsXHUwMDI2dXRtX2NhbXBhaWduPXRlbXBsYXRlc19wcm9tbyIsImludGVybmFsIjoiODQ4NDA2MDFiNTFjZTY4NjAyIiwibGlua19pZCI6NDc1fQ/e578c32db11e3a419a2b3185b2cc15dade67e66d74254451171a351513b18bfa)[.](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Machine-Learning-With-SQL-c626fd30-cb3f-4eae-ac70-c9c4a4f626eb/%2Fmindsdb_demo.ipynb) You can also save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
+Jump right into Deepnote and [learn more about SQL blocks in this A/B testing template](https://mail.deepnote.com/e/c/eyJlbWFpbF9pZCI6IlJJU0VCZ01BQVgxX0E5QWFNWGJ0R3Q2YzFGVXlrZz09IiwiaHJlZiI6Imh0dHBzOi8vZGVlcG5vdGUuY29tL2xhdW5jaD90ZW1wbGF0ZT1BL0IlMjBUZXN0aW5nXHUwMDI2dXRtX3NvdXJjZT1wcm9kdWN0X3VwZGF0ZXNcdTAwMjZ1dG1fbWVkaXVtPWVtYWlsXHUwMDI2dXRtX2NhbXBhaWduPXRlbXBsYXRlc19wcm9tbyIsImludGVybmFsIjoiODQ4NDA2MDFiNTFjZTY4NjAyIiwibGlua19pZCI6NDc1fQ/e578c32db11e3a419a2b3185b2cc15dade67e66d74254451171a351513b18bfa). You can also [open the template notebook](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Machine-Learning-With-SQL-c626fd30-cb3f-4eae-ac70-c9c4a4f626eb/%2Fmindsdb_demo.ipynb). You can save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
 
 ### Secure connections
 

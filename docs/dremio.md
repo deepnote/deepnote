@@ -34,7 +34,7 @@ As with all SQL blocks, the query results will be saved as a Pandas DataFrame an
 
 ### Next steps
 
-Jump right into Deepnote & [learn more about SQL blocks in this A/B testing template](https://deepnote.com/launch?template=A/B%20Testing). You can also save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
+Jump right into Deepnote and [learn more about SQL blocks in this A/B testing template](https://deepnote.com/launch?template=A/B%20Testing). You can also save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
 
 ### Secure connections
 

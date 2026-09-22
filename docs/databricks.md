@@ -20,7 +20,7 @@ Deepnote's Databricks integration allows data teams to efficiently query their d
 To create the integration, you'll need a few things. Follow [Databricks guide](https://docs.databricks.com/integrations/jdbc-odbc-bi.html#get-connection-details-for-a-sql-warehouse) to get the connection details for a SQL warehouse.
 
 - **Host**: Databricks server hostname. The hostname of the server you are trying to connect to.
-- **Port**: The port on the server of interest you are trying to connect to. The default is port 433.
+- **Port**: The port on the server of interest you are trying to connect to. The default is port 443.
 - **HTTP Path**: Databricks compute resources URL.
 - **Token**: Your personal access token. For instructions about how to generate a token, see [Databricks docs](https://docs.databricks.com/dev-tools/auth.html#pat).
 - **Schema**: Default schema used by integration. This is equivalent to running `USE <schema_name>`. If you provide no schema the default is `default`.
@@ -42,7 +42,7 @@ Or, alternatively, add it to local Dockerfile and it will get automatically inst
 
 ### Next steps
 
-Jump right into Deepnote & [learn more about SQL blocks in this A/B testing template](https://deepnote.com/launch?template=A/B%20Testing). You can also save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
+Jump right into Deepnote and [learn more about SQL blocks in this A/B testing template](https://deepnote.com/launch?template=A/B%20Testing). You can also save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
 
 ### Secure connections
 
