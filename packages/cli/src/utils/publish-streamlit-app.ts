@@ -4,7 +4,6 @@ import {
   getStreamlitAppStatus,
   listStreamlitApps,
   type StreamlitApp,
-  type StreamlitAppStatus,
   StreamlitAppTimeoutError,
   waitForStreamlitApp,
 } from '@deepnote/cloud'
@@ -23,18 +22,6 @@ export interface StreamlitPublishOptions {
 interface PublishedStreamlitApp {
   app: StreamlitApp
   created: boolean
-}
-
-const STATIC_ONLY_OPTIONS = ['path', 'apiAccess', 'prune', 'syncRoot', 'force']
-
-/** Returns the usage error for a flag that does not apply to the chosen publish mode, or null. */
-export function publishModeUsageError(streamlit: boolean, isExplicit: (option: string) => boolean): string | null {
-  if (!streamlit) {
-    return isExplicit('wait') ? '--no-wait applies only to --streamlit' : null
-  }
-  return STATIC_ONLY_OPTIONS.some(isExplicit)
-    ? '--path, --api-access, --prune, --sync-root, --no-sync-root, and --force apply only to static website publishing'
-    : null
 }
 
 export function normalizeStreamlitEntrypoint(path: string): string | null {
@@ -61,28 +48,34 @@ export async function publishStreamlitApp(
     fail(`Could not publish Streamlit app: ${describeStreamlitAppError(error)}`)
     return
   }
-  reportPublishedApp(entrypoint, published)
+  const { app, created } = published
+  if (created) {
+    log(`${c.green('✓')} Created app ${app.id}`)
+    warn('The project machine is restarting to serve it, which interrupts anyone working in the project.')
+  } else {
+    log(`${c.green('✓')} ${entrypoint} is already served by app ${app.id}; nothing was changed`)
+  }
+  log(`\n${c.bold('Streamlit app URL:')} ${c.underline(app.url)}`)
 
   if (!options.wait) {
     return
   }
   // Only a create restarts the machine. An existing app on a stopped machine would never come up.
-  if (!published.created) {
-    let status: StreamlitAppStatus
+  if (!created) {
     try {
-      status = await getStreamlitAppStatus(baseUrl, token, published.app.id)
+      const status = await getStreamlitAppStatus(baseUrl, token, app.id)
+      if (status === 'unavailable') {
+        warn('The project machine is not running, so the app is not being served. Start the project in Deepnote.')
+        return
+      }
     } catch (error) {
       fail(`Could not check the app status: ${errorMessage(error)}`)
-      return
-    }
-    if (status === 'unavailable') {
-      warn('The project machine is not running, so the app is not being served. Start the project in Deepnote.')
       return
     }
   }
 
   try {
-    await waitUntilAppRuns(baseUrl, token, published.app.id)
+    await waitUntilAppRuns(baseUrl, token, app.id)
   } catch (error) {
     fail(
       error instanceof StreamlitAppTimeoutError
@@ -114,18 +107,6 @@ async function createOrFindStreamlitApp(
   }
 }
 
-function reportPublishedApp(entrypoint: string, { app, created }: PublishedStreamlitApp): void {
-  const c = getChalk()
-  if (created) {
-    log(`${c.green('✓')} Created app ${app.id}`)
-    warn('The project machine is restarting to serve it, which interrupts anyone working in the project.')
-  } else {
-    log(`${c.green('✓')} ${entrypoint} is already served by app ${app.id}; nothing was changed`)
-  }
-  log(`\n${c.bold('Streamlit app URL:')} ${c.underline(app.url)}`)
-}
-
-/** Shows progress until the app runs. Rejects when the wait times out or a status check fails. */
 async function waitUntilAppRuns(baseUrl: string, token: string, appId: string): Promise<void> {
   const spinner = !getOutputConfig().quiet && process.stderr.isTTY ? ora('Waiting for the app to start…').start() : null
   let lastStatus: string | undefined

@@ -581,41 +581,43 @@ ${c.bold('Exit Codes:')}
     })
     .action(createSyncAction(program))
 
-  // Publish command - publish a static directory or serve an existing Streamlit entrypoint
   program
     .command('publish')
-    .description('Publish a static website or Streamlit app to a Deepnote project')
-    .argument('<path>', 'Local static directory, or project-relative Streamlit entrypoint with --streamlit')
+    .description('Publish a static app or Streamlit app to a Deepnote project')
+    .argument('<path>', 'Local static app directory, or project-relative Streamlit entrypoint with --streamlit')
     .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .option('--path <prefix>', 'Static only: target directory under _deepnote_static', '_deepnote_static')
+    .option('--path <prefix>', 'Static app only: target directory under _deepnote_static', '_deepnote_static')
     .addOption(
-      new Option('--api-access <state>', 'Static only: allow the published app to call Deepnote APIs').choices([
+      new Option('--api-access <state>', 'Static app only: allow the published app to call Deepnote APIs').choices([
         'enabled',
         'disabled',
       ])
     )
-    .option('--prune', 'Static only: delete remote files below --path that are absent locally')
+    .option('--prune', 'Static app only: delete remote files below --path that are absent locally')
     .option(
       '--sync-root <dir>',
-      'Static only: sync workspace whose mirror to update (default: search upwards from the published directory)'
+      'Static app only: sync workspace whose mirror to update (default: search upwards from the published directory)'
     )
-    .option('--no-sync-root', 'Static only: publish without looking for or updating a sync workspace')
-    .option('--force', 'Static only: publish even when files changed in Deepnote since the sync workspace last synced')
+    .option('--no-sync-root', 'Static app only: publish without looking for or updating a sync workspace')
+    .option(
+      '--force',
+      'Static app only: publish even when files changed in Deepnote since the sync workspace last synced'
+    )
     .option('--streamlit', 'Serve an existing project file as a Streamlit app')
     .option('--no-wait', 'Streamlit only: exit without waiting for the app to start')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
-  By default, replaces matching files in ${c.dim('_deepnote_static/')} and enables static website
-  sharing after every upload succeeds. API access is left unchanged unless explicitly set.
+  By default, replaces matching files in ${c.dim('_deepnote_static/')} and enables static app sharing
+  after every upload succeeds. API access is left unchanged unless explicitly set.
 
 ${c.bold('Streamlit apps:')}
   With ${c.dim('--streamlit')}, <path> is a project-relative file that already exists in the
   project's Files: upload it in Deepnote or push it with ${c.dim('deepnote sync --all-files')} first.
-  Nothing is uploaded and no static website setting changes. Creating the app restarts the
+  Nothing is uploaded and no static app setting changes. Creating the app restarts the
   project machine, which interrupts anyone working in the project; the command then waits up to
   10 minutes for the app to answer. A file that is already served reports its existing app.
 
@@ -669,7 +671,8 @@ ${c.bold('Examples:')}
   $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit --no-wait
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Files uploaded and website sharing enabled, or the Streamlit app is running
+  ${c.dim('0')}  Static app published, or Streamlit app running, created/found with --no-wait,
+     or found on a stopped project machine
   ${c.dim('1')}  Upload, pruning, or settings update failed, Deepnote holds unsynced changes,
      a Streamlit app request failed, or the app did not start in time
   ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root,
@@ -678,25 +681,22 @@ ${c.bold('Exit Codes:')}
     })
     .action(createPublishAction(program))
 
-  const staticSite = program.command('static-site').description('Manage a published static site')
+  const staticSite = program.command('static-site').description('Manage a published static app')
 
   staticSite
     .command('access')
-    .description('Change static-site sharing and viewer API access without changing files')
+    .description('Change static app sharing and viewer API access without changing files')
     .requiredOption('--project-id <uuid>', 'Deepnote project ID')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .addOption(
-      new Option('--sharing <state>', 'Make the published site available to project viewers').choices([
+      new Option('--sharing <state>', 'Make the static app available to project viewers').choices([
         'enabled',
         'disabled',
       ])
     )
     .addOption(
-      new Option('--api-access <state>', 'Allow the published site to call Deepnote APIs').choices([
-        'enabled',
-        'disabled',
-      ])
+      new Option('--api-access <state>', 'Allow the static app to call Deepnote APIs').choices(['enabled', 'disabled'])
     )
     .addHelpText('after', () => {
       const c = getChalk()
@@ -707,10 +707,10 @@ ${c.bold('Description:')}
   sharing later serves the files already stored in the project.
 
 ${c.bold('Examples:')}
-  ${c.dim('# Stop serving the site without deleting its files')}
+  ${c.dim('# Stop serving the static app without deleting its files')}
   $ deepnote static-site access --project-id <uuid> --sharing disabled
 
-  ${c.dim('# Share the existing site and allow viewer-scoped API calls')}
+  ${c.dim('# Share the existing static app and allow viewer-scoped API calls')}
   $ deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
 
   ${c.dim('# Revoke viewer API access while preserving the current sharing setting')}

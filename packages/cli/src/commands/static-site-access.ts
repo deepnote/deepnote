@@ -21,7 +21,7 @@ function requestedUpdate(options: StaticSiteAccessOptions): ProjectStaticFilesUp
     return undefined
   }
   if (sharingEnabled === false && apiAccessEnabled === true) {
-    throw new TypeError('API access cannot be enabled while static website sharing is disabled.')
+    throw new TypeError('API access cannot be enabled while static app sharing is disabled.')
   }
   if (sharingEnabled === false) {
     return { sharingEnabled: false, ...(apiAccessEnabled === false ? { apiAccessEnabled: false as const } : {}) }

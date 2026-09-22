@@ -1,138 +1,100 @@
-# Deepnote apps
+# Build and publish a Deepnote app
 
-Deepnote has several distinct app models. They differ in what the app is made of, where it runs, who
-hosts it, and what credentials it gets. Choosing the wrong one usually shows up late — as a file an
-agent cannot create, hardware that is not there, or an API call that silently does nothing once the
-app is published.
+Use this guide to choose an app type, prepare its files, and verify it in the environment where
+viewers will use it. Use **app** as the general term, qualified as **data app**, **Streamlit app**,
+**static app**, or **local app** when the runtime matters. A static app can call the Deepnote API;
+“static” means Deepnote hosts its browser files without a custom server.
 
-Read this before choosing, building, previewing, publishing, or explaining a Deepnote app.
+## Choose an app type
 
-## Decision table
+Keep the user's chosen framework and hosting target. If neither is specified, choose by the work
+the app needs to do:
 
-| Need                                                 | Model                                 | Hosting                     | Viewer-scoped API access               | Project hardware    | Can an agent create the files?          |
-| ---------------------------------------------------- | ------------------------------------- | --------------------------- | -------------------------------------- | ------------------- | --------------------------------------- |
-| Present notebook blocks with inputs and outputs      | Data app (notebook app)               | Deepnote                    | Not applicable (app runs the notebook) | Yes                 | No — created in the Deepnote UI         |
-| Python UI framework, custom widgets                  | Streamlit app                         | Deepnote (project hardware) | Owner opt-in, signed-in viewers only   | Yes                 | Yes — it is a `.py` file in the project |
-| Custom HTML/JS, no Deepnote calls                    | Published static site                 | Deepnote (browser only)     | No                                     | No                  | Yes — plain files + `deepnote publish`  |
-| Custom HTML/JS that starts and reads notebook runs   | Published browser app with API access | Deepnote (browser only)     | Yes, viewer-scoped, run loop only      | Yes, for the run    | Yes — same, plus `--api-access enabled` |
-| Custom UI plus local Python, scheduling, run history | Local Node app (`serveStatic`)        | Local machine               | No — it uses the operator's own token  | Only for cloud runs | Yes — static dir + a `serve.mjs`        |
+| Need                                                                | Choose        | Prepare                                                                  |
+| ------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------ |
+| Present notebook blocks with inputs and outputs                     | Data app      | A notebook; configure and publish the app in the Deepnote UI             |
+| Run a Python UI with custom widgets                                 | Streamlit app | A `.py` entrypoint and its dependencies in the project's Files           |
+| Build a custom HTML/JS interface hosted by Deepnote                 | Static app    | A browser build directory; enable viewer API access if it runs notebooks |
+| Use local Python, scheduling, or run history through a local server | Local app     | A browser build, a `.deepnote` file, and a `serveStatic` server          |
 
-## 1. Data apps (notebook apps)
+Data and Streamlit apps run on project hardware. Static apps run in the browser; their notebook
+runs use project hardware. Local apps run on the operator's machine and can send notebook runs to
+Deepnote.
 
-Built from notebook blocks through Deepnote's app UI: choose which blocks appear, whether a block
-shows code, output, or both, then set app permissions independently of the project's. Viewers change
-input blocks and re-run; runs are stateless per viewer and execute on the project's hardware.
+For an audience without Deepnote accounts, consider a data app's public or link-sharing options.
+Static app viewers must sign in and have project access.
 
-This is the right model when the deliverable is the notebook itself. It is not deprecated, and it is
-not a fallback for the other models — use the product terms "data app" or "notebook app".
+## Prepare a data app
 
-An agent cannot create one from files: app creation and its settings live in the Deepnote product.
-An agent's contribution is the notebook — blocks, inputs, layout-friendly ordering. See
-`docs/data-apps.md` for the product behavior.
+1. Create or edit the notebook's blocks, inputs, and outputs. Order the blocks for the intended UI.
+2. Run the notebook and check its outputs.
+3. Configure the visible blocks and app permissions in the Deepnote UI. File edits alone cannot
+   create the app or set its permissions.
 
-## 2. Streamlit apps
+Viewers change inputs and run the notebook on project hardware, with separate state per viewer.
+See [Data apps](https://deepnote.com/docs/data-apps) for sharing and layout settings.
 
-A `.py` entrypoint in the project, served on the **project's hardware**. Deepnote detects a Streamlit
-file and deploys it; the app inherits the project's environment, integrations, and sharing settings,
-and sleeps when the hardware is inactive.
+## Prepare a Streamlit app
 
-An agent working on local files can write and edit that `.py` file like any other source file. What
-it cannot do is create the file remotely: hosted MCP can activate an existing entrypoint in a
-project, but it cannot upload or author the `.py` file itself. Do not plan a workflow that assumes an
-agent can stand up a complete Streamlit app in a hosted project from scratch.
+1. Write the `.py` entrypoint and install its dependencies in the project environment. The app
+   inherits the project's integrations and sharing settings and sleeps when its hardware is inactive.
+2. If the app runs a notebook, deploy that notebook before publishing. Keep the local `.deepnote`
+   file's block IDs aligned with the deployed notebook; preview with
+   `deepnote run <file> --cloud --push --dry-run`, then apply the intended changes with
+   `deepnote run <file> --cloud --push --yes`.
+3. Upload the entrypoint and local dependencies into the project's Files in Deepnote. If a notebook
+   push is already pending in a sync workspace, `deepnote sync --all-files` can upload the files
+   with it. For a `.py`-only edit, use the Deepnote upload flow; the edit alone does not trigger sync.
+4. Follow [Publish a Streamlit app](cli-publish.md#publish-a-streamlit-app), then open the returned
+   URL and test the app as its intended viewer.
 
-A file already in the project's Files is registered as a hosted app with
-`deepnote publish <path> --streamlit`, which restarts the project machine when it creates the app and
-waits for the app to start (`references/cli-publish.md`). Push the file first with `deepnote sync --all-files`; the
-command uploads nothing.
+Creating an app restarts the project machine and interrupts active work. Replacing the entrypoint
+through file sync deletes the existing app; publish it again and use the new URL.
 
-Streamlit apps run server-side Python, so they use ordinary integration access, not a viewer token.
-Federated-auth integrations are the exception — each viewer authenticates individually
-(`docs/streamlit.md`).
+For ordinary Python integration access, use the project's integrations. Federated-auth integrations
+require each viewer to authenticate; see [Streamlit apps](https://deepnote.com/docs/streamlit).
 
-A hosted app can also call the public API as the current viewer through `deepnote_toolkit.streamlit`.
-API calls from a hosted app work only when the project owner has enabled Streamlit app API access,
-and only for signed-in viewers with direct access to the project. Anonymous visitors and viewers who
-only have a share link can open the page but cannot get an API token, so an app whose content comes
-from notebook runs appears broken to them. Degrade gracefully — check for the token before offering
-a run, and show a committed snapshot or a sign-in hint instead of a failed request.
+For public API calls as the viewer, the project owner must enable Streamlit app API access, and
+the viewer must be signed in with direct project access. Handle missing viewer
+credentials with a sign-in/access hint or saved results instead of offering a run that will fail.
+Do not substitute the publisher's personal token.
 
-## 3. Published static sites
+## Prepare a static app
 
-Browser files — HTML, JS, CSS, assets — stored below `_deepnote_static/**` in the project's file
-store and served by Deepnote. There is no server: whatever the browser can do, the app can do.
+1. Build the HTML, CSS, JavaScript, and assets into a dedicated output directory such as `dist`.
+   Exclude credentials and files that viewers should not receive.
+2. Use browser-compatible code. A published static app has no local `serveStatic` routes or Python
+   server. If it runs notebooks, implement the viewer API flow below.
+3. Follow [Publish a static app](cli-publish.md#publish-a-static-app).
+4. Open the returned URL as a viewer with project access. Check assets, navigation, and any notebook
+   runs in that hosted page.
 
-```bash
-deepnote publish ./dist --project-id <uuid>
-```
+Use the URL returned by Deepnote. `/` serves `index.html`; a path ending in `/` serves that
+directory's `index.html`. Other paths serve exact filenames, so link to `about.html`, not `/about`.
 
-`deepnote publish` deploys into `_deepnote_static/**`: it replaces matching files, optionally prunes
-stale ones, enables website sharing, and prints the canonical URL. Use that returned URL — never
-assemble a static-site URL by hand.
+### Add viewer API access
 
-The site serves like a regular web server: the site URL's root serves `index.html`, a path ending in
-`/` serves that directory's `index.html`, and every other file is served at its own path
-(`about.html` → `<site URL>/about.html`; `/about` is not rewritten to it).
+Enable API access only when the app needs notebook inputs or runs. Use the token handshake in
+[cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app): request a token from the Deepnote shell over `postMessage`, pin
+the shell origin when sending and receiving messages, and send API requests to the returned API
+origin. Keep personal development tokens out of the published build.
 
-Publishing and access are separate operations. To stop serving a site without deleting its files,
-run `deepnote static-site access --project-id <uuid> --sharing disabled`. Re-enable it later with
-`--sharing enabled`; use `--api-access enabled|disabled` to change viewer API access without
-republishing. Disabling sharing also disables viewer API access.
+Design the UI around the viewer token's supported operations:
 
-Ownership note: the static root is a subtree of the same project file store that
-`deepnote sync --all-files` mirrors, so both commands write those paths. They share one baseline
-rather than splitting the namespace, and `publish` is the deploying writer — build output goes
-through `publish`, not through a synced workspace. Two consequences for anyone scripting a deploy:
+- Read the configured notebook's inputs and block metadata, without source content.
+- Start a detached run and poll that viewer's own run by ID.
+- Render the returned `snapshotBlocks`; raw snapshot YAML and download URLs are unavailable.
 
-- Publish looks upwards from the published directory for a sync workspace and updates its mirror, so
-  the next sync sees the deploy as already in step. A CI deploy has no workspace to update and
-  should pass `--no-sync-root`.
-- If a path publish is about to write or prune has moved on in Deepnote since that workspace last
-  synced, it exits 1 without touching the project. Sync first, or pass `--force`. A sibling under
-  the target that is not in this build (and not being pruned) does not stop the deploy.
+Do not offer notebook enumeration, run history, or access to another viewer's runs in the embedded
+app. Other endpoints return 403. If a local preview has these features, hide them when `isEmbedded`
+is true and surface unexpected API errors.
 
-`references/cli-publish.md` (options, exit codes, the full coordination rules) and
-`references/cli-sync.md` carry the rest.
+Refresh the token through the handshake before its 15-minute expiry and retry authentication on a 401. Verify the hosted flow: a successful local preview with a personal token does not test viewer
+permissions or token refresh.
 
-## 4. Published browser apps with API access
+## Prepare a local app
 
-A published static site with **API access for static apps** enabled — a separate opt-in from website
-sharing:
-
-```bash
-deepnote publish ./dist --project-id <uuid> --api-access enabled
-```
-
-The embedded page never carries a personal token. The Deepnote shell hands it a short-lived,
-project- and viewer-scoped token over `postMessage`, together with the API origin to send it to; the
-app must pin the shell origin in both directions of that handshake. A personal token used during
-local development stays local and is never embedded in the published site.
-
-The viewer token is limited to one run loop:
-
-| Allowed                                                                          | Not allowed                    |
-| -------------------------------------------------------------------------------- | ------------------------------ |
-| Read the configured notebook's inputs and block metadata, without source content | Enumerate notebooks            |
-| Start a detached run                                                             | Enumerate run history          |
-| Poll that viewer's own run by id                                                 | Call arbitrary `/v2` endpoints |
-| Receive sanitized output blocks (`snapshotBlocks`) instead of raw snapshot YAML  | Read another viewer's run      |
-
-Every other endpoint answers HTTP 403 with `This endpoint is not available to static app tokens`,
-`snapshotDelivery` is ignored (`snapshotContent` and `snapshotDownloadUrl` are always null), and the
-token expires 15 minutes after it is minted, unlike a personal API key. Code developed against a
-local preview with a personal token keeps working there and breaks only once embedded — and the
-break stays invisible when the app swallows the 403 or the 401 from an expired token. Guard the
-paths that cannot succeed on an `isEmbedded` check, surface the responses you do not handle, and
-refresh the token over `postMessage` before it expires — `examples/local-runner/cloud-app` does
-this for its run-history panel and token refresh, and is the reference implementation for the
-handshake.
-
-## 5. Local Node-backed apps (`serveStatic`)
-
-`serveStatic` from `@deepnote/local-runner` is a **local server runtime**, not a published site. It
-serves a static directory from `127.0.0.1` and adds a small API in front of a `.deepnote` file. This
-is the model for a local dashboard or a demo on the operator's machine; publishing its directory to
-Deepnote gives you model 3 or 4 instead, with none of these routes.
+Use `serveStatic` from `@deepnote/local-runner` to serve the build and a notebook from `127.0.0.1`:
 
 ```ts
 const { port, close } = await serveStatic({
@@ -142,45 +104,25 @@ const { port, close } = await serveStatic({
 });
 ```
 
-| Route                         | Request                                                             | Response                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `GET /api/info`               | —                                                                   | `{ notebook, inputs, runTarget }` — input blocks for building controls, plus where runs go    |
-| `POST /api/run`               | `{ inputs }`                                                        | `{ target, success, outputs, summary, snapshotYaml, runId?, viewUrl?, created? }`             |
-| `POST /api/schedule-cloud`    | `{ schedule: { frequency, time, … }, timezone? }` or raw `{ cron }` | the created or updated cloud schedule; does not run the notebook now                          |
-| `GET /api/cloud-runs`         | —                                                                   | `{ runs, viewUrl }`; `{ runs: [] }` when there is no token or the notebook is not in Deepnote |
-| `GET /api/cloud-runs/{runId}` | —                                                                   | `{ runId, status, success, outputs, snapshotYaml }` for one past run, without re-running it   |
+Choose `runTarget: "cloud"` (the default) to run in Deepnote using `DEEPNOTE_TOKEN`, or `"local"`
+to use a local Python environment with `deepnote-toolkit[server]`. Cloud mode creates the notebook
+if it does not exist; local mode writes snapshots beside the notebook and returns no cloud run ID.
 
-Any other `GET` serves a file from the directory, path-traversal and symlink guarded.
+Build controls from `GET /api/info`, submit inputs to `POST /api/run`, and render outputs in the
+page. Use the `@deepnote/local-runner/snapshot-reader` browser bundle to read snapshot YAML.
+For cloud scheduling and run history routes, consult the
+[local-runner API](https://github.com/deepnote/deepnote/tree/main/packages/local-runner#readme) and
+[run app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/run-app).
 
-**Run target.** One endpoint, one button, wherever the run happens. `runTarget` defaults to `cloud`
-— `POST /api/run` goes to Deepnote (needs `DEEPNOTE_TOKEN`) and creates the notebook there if it
-does not exist yet. `runTarget: 'local'` runs in a local Python kernel instead, which needs
-`deepnote-toolkit[server]`, and writes a snapshot next to the notebook like `deepnote run`. A local
-run reports no `runId`/`viewUrl`, and the cloud-run routes answer empty.
+Publishing this build as a static app does not deploy the local server. Replace local API calls
+with the viewer API flow before publishing it to Deepnote.
 
-**Rendering stays in the page.** To display outputs, use the `snapshot-reader.js` browser bundle
-(`@deepnote/local-runner/snapshot-reader`) to parse snapshot YAML client-side. Embedded published
-apps (model 4) do not need it for run results — those arrive pre-parsed as `snapshotBlocks`.
+## Choose the available tool
 
-See `packages/local-runner/README.md` and `examples/local-runner/run-app` for the full package
-surface.
-
-## MCP surfaces are not interchangeable
-
-Three separate things, often confused:
-
-- **`@deepnote/mcp`** — the local-file MCP server shipped from this repository. It reads, writes,
-  converts, and runs `.deepnote` files on the local filesystem. It knows nothing about hosted
-  projects, publishing, or apps.
-- **Hosted MCP at `https://deepnote.com/mcp`** — operates on hosted workspace state (projects,
-  notebooks, blocks, runs, integrations) under the authenticating identity's permissions. See
-  `docs/deepnote-mcp.md`; the authoritative tool list is the server's own `tools/list`, so do not
-  assume a fixed set or count.
-- **Codex-plugin documentation and skills** — a _consumer_ of the hosted MCP, not a third MCP
-  implementation.
-
-For static sites, use `deepnote publish` when a local terminal is available. When only the hosted MCP
-can deploy, use its narrow `publish_static_site` tool if the connected server advertises it; then use
-`update_project` to disable or re-enable sharing, or to change viewer API access, without changing
-the published files. Do not fall back to notebook execution as a way to write website files. Hosted
-MCP still cannot upload a Streamlit entrypoint.
+- With a terminal, use the CLI publishing workflow linked above.
+- With only hosted MCP (`https://deepnote.com/mcp`), inspect its advertised tools. Use
+  `publish_static_site` if available to publish a static app, and `update_project` to change sharing
+  or viewer API access. Do not use notebook execution to write app files. Hosted MCP can activate
+  an existing Streamlit entrypoint but cannot upload it; arrange the file upload first.
+- Use local `@deepnote/mcp` for local `.deepnote` file work. It does not manage hosted apps or
+  publish files.

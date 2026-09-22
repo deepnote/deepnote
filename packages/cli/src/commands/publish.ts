@@ -22,11 +22,7 @@ import {
   type SyncRootOption,
   savePublishMirror,
 } from '../utils/publish-mirror'
-import {
-  normalizeStreamlitEntrypoint,
-  publishModeUsageError,
-  publishStreamlitApp,
-} from '../utils/publish-streamlit-app'
+import { normalizeStreamlitEntrypoint, publishStreamlitApp } from '../utils/publish-streamlit-app'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 
@@ -48,6 +44,18 @@ interface PublishFile {
   localPath: string
   relativePath: string
   destination: string
+}
+
+const STATIC_APP_OPTIONS = ['path', 'apiAccess', 'prune', 'syncRoot', 'force']
+
+function publishModeUsageError(streamlit: boolean, command: Command): string | undefined {
+  const wasPassed = (option: string) => command.getOptionValueSource(option) === 'cli'
+  if (!streamlit) {
+    return wasPassed('wait') ? '--no-wait applies only to --streamlit' : undefined
+  }
+  if (STATIC_APP_OPTIONS.some(wasPassed)) {
+    return '--path, --api-access, --prune, --sync-root, --no-sync-root, and --force apply only to static apps'
+  }
 }
 
 async function collectFiles(dir: string): Promise<string[]> {
@@ -111,7 +119,7 @@ function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
     .join('/')
   base.pathname += `${suffix}/`
   if (base.origin !== origin) {
-    throw new Error('Static site URL changed origin')
+    throw new Error('Static app URL changed origin')
   }
   return base.toString()
 }
@@ -131,10 +139,7 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    const usageError = publishModeUsageError(
-      options.streamlit,
-      option => command.getOptionValueSource(option) === 'cli'
-    )
+    const usageError = publishModeUsageError(options.streamlit, command)
     if (usageError) {
       program.error(usageError, { exitCode: ExitCode.InvalidUsage })
       return
@@ -352,7 +357,7 @@ export function createPublishAction(program: Command) {
       } catch (error) {
         const message = errorMessage(error)
         errors.push({ file: 'project settings', error: message })
-        logError(`  ✗ enable static website sharing — ${message}`)
+        logError(`  ✗ enable static app sharing — ${message}`)
       }
     }
 
@@ -370,7 +375,7 @@ export function createPublishAction(program: Command) {
       if (errors.length > 0) {
         log(`${c.red('✗')} Publish failed with ${errors.length} error${errors.length === 1 ? '' : 's'}`)
       } else if (siteUrl !== undefined) {
-        log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
+        log(`\n${c.bold('Static app URL:')} ${c.underline(siteUrl)}`)
         log(`${c.dim(`API access: ${apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
         if (apiAccessEnabled) {
           log(`\n${embeddedApiAccessNote(c)}`)
