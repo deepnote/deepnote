@@ -10,7 +10,9 @@ Default environments launch in seconds thanks to pre-warmed instances and cached
 
 Our engineering team regularly updates the default environments to ensure all system components stay current, including Linux security patches and binary dependencies. However, if your project requires specific versions of system binaries or kernels, we recommend using a [custom environment](https://deepnote.com/docs/custom-environment) to maintain consistent behavior and prevent potential compatibility issues.
 
-![CleanShot 2024-11-28 at 09.23.46.png](../assets/docs/4RENoyheQwa27hZtVDTz.webp)
+Deepnote currently offers Python 3.10 through 3.14. New projects use Python 3.13 for data science by default.
+
+![The Environment selection dialog showing Python 3.14 environments.](../assets/docs/default-environment/python-314-environments.webp)
 
 ## Managed environments
 

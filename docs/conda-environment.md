@@ -10,9 +10,9 @@ Deepnote comes with a pre-built conda environment which allows users to instantl
 
 ## How to use the conda environment Deepnote
 
-Simply select "Anaconda - Python 3.13" from Deepnote's environment dropdown (as shown below). You now have access to the pre-installed packages listed below as well as the conda CLI.
+Select **Anaconda - Python 3.14** from Deepnote's environment dropdown. You can then use the pre-installed packages listed below and the conda CLI.
 
-<VideoLoop src="../assets/docs/environment/conda-environment.webm" />
+![The Environment selection dialog showing Anaconda - Python 3.14.](../assets/docs/conda-environment/anaconda-python-314.webp)
 
 ### Installing packages from the Anaconda repository
 
@@ -36,7 +36,7 @@ To list the currently installed packages, type the following into a code block:
 
 Upon startup, Deepnote will install any packages listed in a `requirements.txt` file; however, currently `pip` will be used to install packages into the conda environment in this case.
 
-### Which packages are pre-installed in the Anaconda Python 3.13 environment?
+### Which packages are pre-installed in the Anaconda Python 3.14 environment?
 
 Here is a list of packages that are pre-installed when using the initial conda environment (as described above, you can use `!conda install <package name>` to install additional packages):
 
@@ -49,7 +49,9 @@ null
 - \_openmp_mutex
 - anaconda-anon-usage
 - anaconda-auth
+- anaconda-channel-guide
 - anaconda-cli-base
+- annotated-doc
 - annotated-types
 - anyio
 - archspec
@@ -66,14 +68,20 @@ null
 - conda-anaconda-telemetry
 - conda-anaconda-tos
 - conda-content-trust
+- conda-index
 - conda-libmamba-solver
+- conda-lockfiles
 - conda-package-handling
 - conda-package-streaming
+- conda-pypi
+- conda-rattler-solver
+- conda-self
 - cpp-expected
 - cryptography
 - dbus
 - distro
 - expat
+- filelock
 - fmt
 - frozendict
 - gettext
@@ -88,8 +96,7 @@ null
 - jaraco.context
 - jaraco.functools
 - jeepney
-- jsonpatch
-- jsonpointer
+- jinja2
 - keyring
 - ld_impl_linux-64
 - libarchive
@@ -106,7 +113,6 @@ null
 - libgcc-ng
 - libgettextpo
 - libgettextpo-devel
-- libgomp
 - libiconv
 - libidn2
 - libkrb5
@@ -126,6 +132,7 @@ null
 - lmdb
 - lz4-c
 - markdown-it-py
+- markupsafe
 - mdurl
 - menuinst
 - more-itertools
@@ -140,6 +147,7 @@ null
 - platformdirs
 - pluggy
 - pthread-stubs
+- py-rattler
 - pybind11-abi
 - pycosat
 - pycparser
@@ -148,9 +156,12 @@ null
 - pydantic-settings
 - pygments
 - pyjwt
+- pyproject_hooks
 - pysocks
 - python
+- python-build
 - python-dotenv
+- python-installer
 - python_abi
 - readchar
 - readline
@@ -168,16 +179,16 @@ null
 - sqlite
 - tk
 - tomli
+- tomli-w
 - tomlkit
 - tqdm
 - truststore
 - typer
-- typer-slim
-- typer-slim-standard
 - typing-extensions
 - typing-inspection
 - typing_extensions
 - tzdata
+- unearth
 - urllib3
 - wheel
 - xorg-libx11

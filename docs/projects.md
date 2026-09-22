@@ -55,11 +55,11 @@ Time to get serious. You probably want to know how to configure your environment
 
 First, click on the ⚙️ icon. You should now see your environment configuration options (shown below). Follow me.
 
-![Environment.jpg](../assets/docs/PSMiDJAtRlFgQrhOIsVA.jpg)
+![A project with its machine and environment settings in the right sidebar.](../assets/docs/projects/environment-settings.webp)
 
 **Machine:** If you need a "beefier" machine, this is where you can choose one. If you're on a Team or Enterprise plan, you get unlimited hours on a 16GB, 4vCPU machine. To learn more about machines in Deepnote, click [here](https://deepnote.com/docs/machine-hours).
 
-**Built-in environments:** From the dropdown menu (under **Environment**) you can choose between any of the built-in Python environments. They come [pre-installed with the most popular libraries](https://deepnote.com/docs/pre-installed-packages) so you can begin working immediately. The default environment is Python 3.11.
+**Built-in environments:** From the dropdown menu (under **Environment**) you can choose between any of the built-in Python environments. They come [pre-installed with the most popular libraries](https://deepnote.com/docs/pre-installed-packages) so you can begin working immediately. The default environment is Python 3.13 for data science.
 
 <Callout status="info">
 

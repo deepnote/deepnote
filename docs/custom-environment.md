@@ -47,10 +47,10 @@ Building a local Dockerfile in Deepnote is a premium feature available only on *
 
 You can customize your environment by placing a `Dockerfile` in your project's root directory. Deepnote handles all the image building and hosting for you.
 
-The most common approach is to extend one of our default environments. For example, here's how to add [OpenCV](https://opencv.org/) dependencies to our Python 3.11 base image:
+The most common approach is to extend one of our default environments. For example, here's how to add [OpenCV](https://opencv.org/) dependencies to our Python 3.14 base image:
 
 ```
-FROM deepnote/python:3.11
+FROM deepnote/python:3.14
 
 RUN apt update && apt install -y ffmpeg libsm6 libxext6
 
