@@ -144,7 +144,7 @@ describe('deepnote publish', () => {
     expect(logged.join('\n')).toContain(`https://apps.example.test/static-files/p1/${encodedSuffix}/`)
   })
 
-  it('skips the project update when the existing static website settings already match', async () => {
+  it('skips the project update when the existing static app settings already match', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
       id: 'p1',

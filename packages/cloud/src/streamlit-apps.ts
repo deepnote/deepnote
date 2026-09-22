@@ -33,9 +33,8 @@ export interface StreamlitApp {
 export type StreamlitAppStatus = z.infer<typeof streamlitAppStatusSchema>
 
 export interface CreateStreamlitAppBody {
-  /** Project containing the existing entrypoint file. */
   projectId: string
-  /** Project-relative path of the existing file to serve. */
+  /** Project-relative path of a file already stored in the project. */
   entrypoint: string
 }
 
@@ -44,7 +43,6 @@ export interface StreamlitAppRequestOptions {
   signal?: AbortSignal
 }
 
-/** Serve an existing project file as a hosted Streamlit app. */
 export async function createStreamlitApp(
   baseUrl: string,
   token: string,
@@ -64,7 +62,7 @@ export async function createStreamlitApp(
   return response.streamlitApp
 }
 
-/** List the Streamlit apps a project serves. The response is complete; the API does not paginate it. */
+/** Returns the complete list; the API does not paginate this endpoint. */
 export async function listStreamlitApps(
   baseUrl: string,
   token: string,
@@ -83,7 +81,6 @@ export async function listStreamlitApps(
   return response.streamlitApps
 }
 
-/** Report whether a Streamlit app is answering requests. */
 export async function getStreamlitAppStatus(
   baseUrl: string,
   token: string,
@@ -118,7 +115,6 @@ export interface WaitForStreamlitAppOptions {
   requestTimeoutMs?: number
   maxTransientRetries?: number
   onStatus?: (status: StreamlitAppStatus) => void
-  /** Injectable clock/sleep for tests. */
   now?: () => number
   sleep?: (ms: number) => Promise<void>
 }
