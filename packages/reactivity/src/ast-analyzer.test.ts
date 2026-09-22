@@ -74,6 +74,33 @@ describe('AstAnalyzer', () => {
       ])
     })
 
+    it('should not leak comprehension targets and lambda parameters into defined or used variables (#513)', async () => {
+      const mockBlocks = [
+        {
+          id: '1',
+          type: 'code',
+          content: [
+            'items = [1, 2, 3]',
+            'squares = [o * o for o in items]',
+            'evens = {x for x in items if x % 2 == 0}',
+            'mapping = {k: v for k, v in enumerate(items)}',
+            'gen = (n for n in items)',
+            'double = lambda x: x * 2',
+          ].join('\n'),
+        },
+      ] as DeepnoteBlock[]
+
+      const result = await getBlockDependencies(mockBlocks)
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: '1',
+          definedVariables: ['double', 'evens', 'gen', 'items', 'mapping', 'squares'],
+          usedVariables: ['items'],
+        }),
+      ])
+    })
+
     it('should throw error when python interpreter is not found', async () => {
       const mockBlocks = [{ id: '1', type: 'code', content: 'a = 1' }] as DeepnoteBlock[]
       await expect(getBlockDependencies(mockBlocks, { pythonInterpreter: 'non-existent-python' })).rejects.toThrow(

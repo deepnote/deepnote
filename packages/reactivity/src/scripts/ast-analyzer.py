@@ -18,11 +18,18 @@ class VariableVisitor(ast.NodeVisitor):
         self.imported_modules = set()  # Local names introduced by imports (aliases)
         self.imported_packages = set()  # Top-level package names from import sources
         self.scope_stack = []  # Stack to track scopes
+        self.local_scope_stack = []  # Stack of sets of names bound locally within nested scopes
         self.function_globals = set()  # Global variables declared in current function
 
     def current_scope_is_global(self):
         # If the scope stack is empty, we are at the global level
         return not self.scope_stack
+
+    def is_local(self, name: str) -> bool:
+        return any(name in scope for scope in self.local_scope_stack)
+
+    def in_comprehension_or_lambda(self) -> bool:
+        return any(s in ("<lambda>", "<comprehension>") for s in self.scope_stack)
 
     def visit_Global(self, node):
         for name in node.names:
@@ -34,30 +41,42 @@ class VariableVisitor(ast.NodeVisitor):
             if isinstance(target, ast.Name):
                 if self.current_scope_is_global():
                     self.global_vars.add(target.id)
+                elif self.local_scope_stack and target.id not in self.function_globals:
+                    self.local_scope_stack[-1].add(target.id)
         self.generic_visit(node)
 
     def visit_AugAssign(self, node):
         if isinstance(node.target, ast.Name):
             if self.current_scope_is_global():
                 self.global_vars.add(node.target.id)
+            elif self.local_scope_stack and node.target.id not in self.function_globals:
+                self.local_scope_stack[-1].add(node.target.id)
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node):
         target = node.target
-        if isinstance(target, ast.Name) and self.current_scope_is_global():
-            self.global_vars.add(target.id)
+        if isinstance(target, ast.Name):
+            if self.current_scope_is_global():
+                self.global_vars.add(target.id)
+            elif self.local_scope_stack and target.id not in self.function_globals:
+                self.local_scope_stack[-1].add(target.id)
         self.generic_visit(node)
 
     def visit_NamedExpr(self, node):
-        if isinstance(node.target, ast.Name) and self.current_scope_is_global():
-            self.global_vars.add(node.target.id)
+        if isinstance(node.target, ast.Name):
+            if self.current_scope_is_global() or all(s == "<comprehension>" for s in self.scope_stack):
+                self.global_vars.add(node.target.id)
+            elif self.local_scope_stack and node.target.id not in self.function_globals:
+                self.local_scope_stack[-1].add(node.target.id)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node):
         if self.current_scope_is_global():
             self.global_vars.add(node.name)
         self.scope_stack.append(node.name)  # Enter class scope
+        self.local_scope_stack.append(set())
         self.generic_visit(node)
+        self.local_scope_stack.pop()
         self.scope_stack.pop()  # Exit class scope
 
     def visit_FunctionDef(self, node):
@@ -67,28 +86,96 @@ class VariableVisitor(ast.NodeVisitor):
         prev_function_globals = self.function_globals
         self.function_globals = set()
 
+        func_locals = {
+            arg.arg
+            for arg in getattr(node.args, "posonlyargs", [])
+            + node.args.args
+            + node.args.kwonlyargs
+        }
+        if node.args.vararg:
+            func_locals.add(node.args.vararg.arg)
+        if node.args.kwarg:
+            func_locals.add(node.args.kwarg.arg)
+
         self.scope_stack.append(node.name)  # Enter function scope
+        self.local_scope_stack.append(func_locals)
         self.generic_visit(node)
+        self.local_scope_stack.pop()
         self.scope_stack.pop()  # Exit function scope
 
         self.function_globals = prev_function_globals
 
     def visit_AsyncFunctionDef(self, node):
-        if self.current_scope_is_global():
-            self.global_vars.add(node.name)
+        self.visit_FunctionDef(node)
 
-        prev_function_globals = self.function_globals
-        self.function_globals = set()
+    def visit_Lambda(self, node):
+        for default in node.args.defaults:
+            self.visit(default)
+        for kw_default in node.args.kw_defaults:
+            if kw_default is not None:
+                self.visit(kw_default)
 
-        self.scope_stack.append(node.name)  # Enter function scope
-        self.generic_visit(node)
-        self.scope_stack.pop()  # Exit function scope
+        lambda_locals = {
+            arg.arg
+            for arg in getattr(node.args, "posonlyargs", [])
+            + node.args.args
+            + node.args.kwonlyargs
+        }
+        if node.args.vararg:
+            lambda_locals.add(node.args.vararg.arg)
+        if node.args.kwarg:
+            lambda_locals.add(node.args.kwarg.arg)
 
-        self.function_globals = prev_function_globals
+        self.scope_stack.append("<lambda>")
+        self.local_scope_stack.append(lambda_locals)
+        self.visit(node.body)
+        self.local_scope_stack.pop()
+        self.scope_stack.pop()
+
+    def _visit_comprehension(self, node, elts):
+        comp_locals = set()
+        for gen in node.generators:
+            for n in ast.walk(gen.target):
+                if isinstance(n, ast.Name):
+                    comp_locals.add(n.id)
+
+        if node.generators:
+            self.visit(node.generators[0].iter)
+
+        self.scope_stack.append("<comprehension>")
+        self.local_scope_stack.append(comp_locals)
+
+        for i, gen in enumerate(node.generators):
+            if i > 0:
+                self.visit(gen.iter)
+            for if_expr in gen.ifs:
+                self.visit(if_expr)
+
+        for elt in elts:
+            self.visit(elt)
+
+        self.local_scope_stack.pop()
+        self.scope_stack.pop()
+
+    def visit_ListComp(self, node):
+        self._visit_comprehension(node, [node.elt])
+
+    def visit_SetComp(self, node):
+        self._visit_comprehension(node, [node.elt])
+
+    def visit_GeneratorExp(self, node):
+        self._visit_comprehension(node, [node.elt])
+
+    def visit_DictComp(self, node):
+        self._visit_comprehension(node, [node.key, node.value])
 
     def visit_Name(self, node):
         if isinstance(node.ctx, ast.Load):
             if node.id in BUILTINS_SET:
+                self.generic_visit(node)
+                return
+
+            if self.is_local(node.id):
                 self.generic_visit(node)
                 return
 
@@ -99,21 +186,29 @@ class VariableVisitor(ast.NodeVisitor):
                 self.used_global_vars.add(node.id)
             elif node.id in self.global_vars:
                 self.used_global_vars.add(node.id)
+            elif self.in_comprehension_or_lambda():
+                self.used_global_vars.add(node.id)
         elif isinstance(node.ctx, ast.Store):
             # Only track variable assignments at global scope
-            if self.current_scope_is_global():
+            if self.current_scope_is_global() and not self.is_local(node.id):
                 self.global_vars.add(node.id)
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
         # Attributes are part of global usage if they are prefixed by a global variable
         if isinstance(node.value, ast.Name):
+            if node.value.id in BUILTINS_SET or self.is_local(node.value.id):
+                self.generic_visit(node)
+                return
+
             if self.current_scope_is_global():
                 self.used_global_vars.add(node.value.id)
             elif node.value.id in self.function_globals:
                 # Variable explicitly declared as global in current function
                 self.used_global_vars.add(node.value.id)
             elif node.value.id in self.global_vars:
+                self.used_global_vars.add(node.value.id)
+            elif self.in_comprehension_or_lambda():
                 self.used_global_vars.add(node.value.id)
         else:
             self.generic_visit(node)
